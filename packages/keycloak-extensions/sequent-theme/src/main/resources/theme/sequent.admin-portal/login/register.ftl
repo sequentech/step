@@ -63,7 +63,14 @@ SPDX-License-Identifier: AGPL-3.0-only
     <#return (name == key)?then(fallback, name)>
 </#function>
 <#function enrollmentDateTimeZone dateTime zone fallback>
-    <#return msg("timezones.voterDateTimeZone", dateTime, enrollmentZoneName(zone, fallback))>
+    <#local zoneName = enrollmentZoneName(zone, fallback)>
+    <#local combinedKey = enrollmentTimezoneMessageKey!"timezones.voterDateTimeZone">
+    <#local probe = msg(combinedKey, "__dateTime__", "__zoneName__")>
+    <#if !probe?contains("__dateTime__") || !probe?contains("__zoneName__")>
+        <#global invalidEnrollmentTimezoneText = true>
+        <#return msg("timezones.defaultVoterDateTimeZone", dateTime, zoneName)>
+    </#if>
+    <#return msg(combinedKey, dateTime, zoneName)>
 </#function>
 <#--  One notice per Post, after the embassy field; enrollment-window.js shows the chosen Post's
       notice and holds Continue back unless its state is "open". The server refuses anyway.  -->
@@ -80,6 +87,9 @@ SPDX-License-Identifier: AGPL-3.0-only
             <#local text = msg("enrollment.opensOn", window.embassy,
                 enrollmentDateTimeZone(window.opens, window.zone, window.opensZoneName),
                 enrollmentDateTimeZone(window.closes, window.closeZone, window.closesZoneName))>
+        <#elseif window.state == "before" && window.opens??>
+            <#local text = msg("enrollment.opensOnWithoutClose", window.embassy,
+                enrollmentDateTimeZone(window.opens, window.zone, window.opensZoneName))>
         <#elseif window.state == "not-configured">
             <#local text = msg("enrollment.postNotConfigured", window.embassy)>
         <#else>
@@ -88,6 +98,9 @@ SPDX-License-Identifier: AGPL-3.0-only
         <div class="enrollment-window-notice enrollment-window-notice--${window.state}" role="status"
              data-enrollment-embassy="${window.embassy}" data-enrollment-state="${window.state}" hidden>${text}</div>
     </#list>
+    <#if invalidEnrollmentTimezoneText!false>
+        <script>console.warn("Invalid timezone text: using the enrollment default.");</script>
+    </#if>
 </#macro>
 <#macro credentialFields>
     <div class="${properties.kcFormGroupClass!}">

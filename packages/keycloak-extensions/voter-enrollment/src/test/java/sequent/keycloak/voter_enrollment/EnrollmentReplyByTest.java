@@ -116,6 +116,74 @@ class EnrollmentReplyByTest {
     assertFalse(render(model(messages)).contains("enrollment-reply-by"));
   }
 
+  @Test
+  void brokenRealmTextCannotHideTheReplyByTimeOrZone() throws Exception {
+    Map<String, Object> model =
+        model(
+            Map.of(
+                "enrollment.replyBy", "Reply by {0}",
+                "timezones.voterDateTimeZone", "{0}",
+                "timezones.defaultVoterDateTimeZone", "{0} {1}"));
+    model.put(
+        "enrollmentReplyBy",
+        Map.of(
+            "dateTime",
+            "Mar 5, 2028, 10:20 AM",
+            "zone",
+            "Asia/Dubai",
+            "zoneName",
+            "Gulf Standard Time"));
+    assertTrue(render(model).contains("Reply by Mar 5, 2028, 10:20 AM Gulf Standard Time</p>"));
+  }
+
+  @Test
+  void malformedRealmMessageUsesTheDefaultBeforeFreeMarkerCallsMessageFormat() throws Exception {
+    for (String pattern : java.util.List.of("At {0", "{{dateTime}} {{zoneName}}", "{0}", "{1}")) {
+      org.keycloak.models.RealmModel realm =
+          org.mockito.Mockito.mock(org.keycloak.models.RealmModel.class);
+      org.mockito.Mockito.when(realm.getRealmLocalizationTexts())
+          .thenReturn(Map.of("en", Map.of("timezones.voterDateTimeZone", pattern)));
+      String key = EnrollmentWindows.dateTimeZoneMessageKey(realm, Locale.ENGLISH);
+      assertEquals("timezones.defaultVoterDateTimeZone", key);
+      Map<String, Object> model =
+          model(
+              Map.of(
+                  "enrollment.replyBy", "Reply by {0}",
+                  "timezones.voterDateTimeZone", pattern,
+                  "timezones.defaultVoterDateTimeZone", "{0} {1}"));
+      model.put("enrollmentTimezoneMessageKey", key);
+      model.put(
+          "enrollmentReplyBy",
+          Map.of(
+              "dateTime",
+              "Mar 5, 2028, 10:20 AM",
+              "zone",
+              "Asia/Dubai",
+              "zoneName",
+              "Gulf Standard Time"));
+      assertTrue(render(model).contains("Reply by Mar 5, 2028, 10:20 AM Gulf Standard Time</p>"));
+    }
+  }
+
+  @Test
+  void validRegionalTimezoneTextKeepsItsOverride() {
+    org.keycloak.models.RealmModel realm =
+        org.mockito.Mockito.mock(org.keycloak.models.RealmModel.class);
+    org.mockito.Mockito.when(realm.getDefaultLocale()).thenReturn("en");
+    org.mockito.Mockito.when(realm.getRealmLocalizationTexts())
+        .thenReturn(
+            Map.of(
+                "en", Map.of("timezones.voterDateTimeZone", "{0} {1}"),
+                "es", Map.of("timezones.voterDateTimeZone", "{0}"),
+                "es-MX", Map.of("timezones.voterDateTimeZone", "{1}: {0}")));
+    assertEquals(
+        "timezones.voterDateTimeZone",
+        EnrollmentWindows.dateTimeZoneMessageKey(realm, Locale.forLanguageTag("es-MX")));
+    assertEquals(
+        "timezones.defaultVoterDateTimeZone",
+        EnrollmentWindows.dateTimeZoneMessageKey(realm, Locale.forLanguageTag("es")));
+  }
+
   private static Map<String, Object> model(Map<String, String> messages) {
     TemplateMethodModelEx msg =
         arguments -> {

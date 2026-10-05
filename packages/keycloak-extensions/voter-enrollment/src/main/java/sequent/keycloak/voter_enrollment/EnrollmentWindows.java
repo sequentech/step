@@ -5,6 +5,7 @@ package sequent.keycloak.voter_enrollment;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.text.MessageFormat;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -47,6 +48,43 @@ public final class EnrollmentWindows {
   private static final ZoneId UTC = ZoneId.of("UTC");
 
   private EnrollmentWindows() {}
+
+  public static final String DATE_TIME_ZONE_MESSAGE_ATTRIBUTE = "enrollmentTimezoneMessageKey";
+  private static final String DATE_TIME_ZONE_MESSAGE = "timezones.voterDateTimeZone";
+  private static final String DEFAULT_DATE_TIME_ZONE_MESSAGE = "timezones.defaultVoterDateTimeZone";
+
+  /**
+   * Validate realm messages before FreeMarker invokes MessageFormat, which throws unchecked
+   * exceptions for malformed patterns. Language and regional overrides retain Keycloak precedence.
+   */
+  public static String dateTimeZoneMessageKey(RealmModel realm, Locale locale) {
+    Map<String, Map<String, String>> localizations = realm.getRealmLocalizationTexts();
+    String pattern = null;
+    if (localizations != null) {
+      for (String language :
+          new String[] {realm.getDefaultLocale(), locale.getLanguage(), locale.toLanguageTag()}) {
+        if (language == null) continue;
+        Map<String, String> texts = localizations.get(language);
+        if (texts != null && texts.containsKey(DATE_TIME_ZONE_MESSAGE)) {
+          pattern = texts.get(DATE_TIME_ZONE_MESSAGE);
+        }
+      }
+    }
+    if (pattern == null) return DATE_TIME_ZONE_MESSAGE;
+    try {
+      String probe =
+          new MessageFormat(pattern, locale).format(new Object[] {"__dateTime__", "__zoneName__"});
+      if (probe.contains("__dateTime__") && probe.contains("__zoneName__"))
+        return DATE_TIME_ZONE_MESSAGE;
+    } catch (IllegalArgumentException error) {
+      log.warnv("Invalid enrollment timezone message for {0}: using the theme default", locale);
+      return DEFAULT_DATE_TIME_ZONE_MESSAGE;
+    }
+    log.warnv(
+        "Enrollment timezone message for {0} omits its time or zone: using the theme default",
+        locale);
+    return DEFAULT_DATE_TIME_ZONE_MESSAGE;
+  }
 
   /** Where a Post's enrollment stands at an instant. */
   public enum State {

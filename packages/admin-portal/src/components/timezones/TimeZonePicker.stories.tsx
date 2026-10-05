@@ -46,3 +46,35 @@ export const Disabled: Story = {
         await expect(within(canvasElement).getByRole("combobox")).toBeDisabled()
     },
 }
+
+export const ExtraChoiceAndConfiguredZonesOnly: Story = {
+    args: {
+        value: "row-zones",
+        additionalOptions: [
+            {
+                zone: "row-zones",
+                label: "Each row's election timezone",
+                detail: "",
+                offsetMinutes: 0,
+            },
+        ],
+    },
+    play: async ({canvasElement, args}) => {
+        const picker = within(canvasElement).getByRole("combobox")
+        await expect(picker).toHaveValue("Each row's election timezone")
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "Tokyo")
+        await expect(within(document.body).queryByRole("option")).toBeNull()
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "Each row")
+        await expect(within(document.body).getByRole("option")).toHaveTextContent(
+            "Each row's election timezone"
+        )
+        await userEvent.keyboard("{ArrowDown}{Enter}")
+        await expect(picker).toHaveValue("Each row's election timezone")
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "Manila")
+        await userEvent.keyboard("{ArrowDown}{Enter}")
+        await expect(args.onChange).toHaveBeenCalledWith("Asia/Manila")
+    },
+}

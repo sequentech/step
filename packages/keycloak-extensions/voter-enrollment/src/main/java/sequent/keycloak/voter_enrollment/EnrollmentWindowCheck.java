@@ -61,6 +61,9 @@ public class EnrollmentWindowCheck implements FormAction, FormActionFactory {
       return;
     }
     Locale locale = context.getSession().getContext().resolveLocale(null);
+    form.setAttribute(
+        EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+        EnrollmentWindows.dateTimeZoneMessageKey(context.getRealm(), locale));
     form.setAttribute(PAGE_ATTRIBUTE, pageModel(windows.byPost(), clock.instant(), locale));
   }
 

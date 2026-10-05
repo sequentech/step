@@ -1188,6 +1188,40 @@ class TemplateSyntaxTest {
     assertFalse(html.contains("enrollment-window.js"));
   }
 
+  @Test
+  void aStartOnlyEnrollmentWindowStillNamesItsOpening() throws Exception {
+    Map<String, Object> model = enrollmentModel(englishMessages());
+    model.put(
+        "enrollmentWindows",
+        List.of(
+            Map.of(
+                "embassy",
+                "Dubai PCG",
+                "state",
+                "before",
+                "zone",
+                "Asia/Dubai",
+                "opens",
+                "Feb 9, 2028, 12:00 AM",
+                "opensZoneName",
+                "Gulf Standard Time")));
+    String html = renderRegister(model).replaceAll("\\s+", " ");
+    assertTrue(
+        html.contains(
+            "Enrollment for the Dubai PCG opens on Feb 9, 2028, 12:00 AM Gulf Standard Time."),
+        html);
+  }
+
+  @Test
+  void brokenCombinedRealmTextCannotHideTheOpeningTimeOrZone() throws Exception {
+    for (String text : List.of("{0}", "{1}", "Hidden")) {
+      Properties messages = englishMessages();
+      messages.setProperty("timezones.voterDateTimeZone", text);
+      String html = renderRegister(enrollmentModel(messages)).replaceAll("\\s+", " ");
+      assertTrue(html.contains("opens on Feb 9, 2028, 12:00 AM Gulf Standard Time."), html);
+    }
+  }
+
   private static Properties englishMessages() throws IOException {
     Properties messages = new Properties();
     try (Reader reader =

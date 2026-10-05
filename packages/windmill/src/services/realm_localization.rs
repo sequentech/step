@@ -21,8 +21,9 @@ use anyhow::{anyhow, Context, Result};
 use keycloak::KeycloakTokenSupplier;
 use sequent_core::ballot::ElectionEventPresentation;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient, PubKeycloakAdmin};
+use sequent_core::services::reports::{is_invalid_timezone_text, normalize_placeholders};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use tracing::{error, info, instrument};
+use tracing::{info, instrument, warn};
 
 /// The key prefixes this copy owns in the realm.
 pub const SYNCED_PREFIXES: [&str; 2] = ["timezones.", "enrollment."];
@@ -107,12 +108,23 @@ pub fn realm_texts(presentation: Option<&ElectionEventPresentation>) -> RealmTex
                 let Some(key) = stored_key.strip_prefix(scope) else {
                     continue;
                 };
+                // This private default must survive invalid imported or legacy overrides.
+                if key == "timezones.defaultVoterDateTimeZone" {
+                    continue;
+                }
                 if !SYNCED_PREFIXES.iter().any(|prefix| key.starts_with(prefix)) {
                     continue;
                 }
                 let Some(value) = value.as_deref().filter(|value| !value.trim().is_empty()) else {
                     continue;
                 };
+                if is_invalid_timezone_text(key, value) {
+                    warn!(
+                        "Invalid {key} override for {language}: enrollment uses the theme default"
+                    );
+                    locale_texts.remove(key);
+                    continue;
+                }
                 locale_texts.insert(key.to_string(), keycloak_text(key, value));
             }
         }
@@ -144,6 +156,7 @@ pub fn keycloak_text(key: &str, value: &str) -> String {
     if !key.starts_with("timezones.") {
         return text;
     }
+    text = normalize_placeholders(&text);
     for (placeholder, index) in PLACEHOLDERS {
         text = text.replace(placeholder, index);
     }
@@ -178,15 +191,21 @@ async fn delete_text(admin: &PubKeycloakAdmin, realm: &str, locale: &str, key: &
         .send()
         .await
         .with_context(|| format!("Error removing realm text {key} ({locale})"))?;
-    if !response.status().is_success() {
-        // The theme default can't show again until the key is gone: say so.
-        error!(
-            "Keycloak answered {} removing realm text {key} ({locale}) from {realm}: the old \
-             override still shows on the enrollment pages",
-            response.status()
-        );
+    check_delete_status(response.status(), realm, locale, key)
+}
+
+/// Removing an already absent override is idempotent. All other failures must
+/// stop publication synchronization so stale enrollment text is not reported as updated.
+fn check_delete_status(
+    status: reqwest::StatusCode,
+    realm: &str,
+    locale: &str,
+    key: &str,
+) -> Result<()> {
+    if status.is_success() || status == reqwest::StatusCode::NOT_FOUND {
+        return Ok(());
     }
-    Ok(())
+    Err(anyhow!("Keycloak answered {status} removing realm text {key} ({locale}) from {realm}: the old override still shows on the enrollment pages"))
 }
 
 #[cfg(test)]

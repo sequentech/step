@@ -32,7 +32,13 @@
                 <#if replyByZoneName == replyByZoneKey>
                     <#assign replyByZoneName = enrollmentReplyBy.zoneName>
                 </#if>
-                <p id="enrollment-reply-by" class="enrollment-reply-by">${msg("enrollment.replyBy", msg("timezones.voterDateTimeZone", enrollmentReplyBy.dateTime, replyByZoneName))}</p>
+                <#assign replyByCombinedKey = enrollmentTimezoneMessageKey!"timezones.voterDateTimeZone">
+                <#assign replyByProbe = msg(replyByCombinedKey, "__dateTime__", "__zoneName__")>
+                <#if !replyByProbe?contains("__dateTime__") || !replyByProbe?contains("__zoneName__")>
+                    <#assign replyByCombinedKey = "timezones.defaultVoterDateTimeZone">
+                    <script>console.warn("Invalid timezone text: using the enrollment default.");</script>
+                </#if>
+                <p id="enrollment-reply-by" class="enrollment-reply-by">${msg("enrollment.replyBy", msg(replyByCombinedKey, enrollmentReplyBy.dateTime, replyByZoneName))}</p>
             </#if>
             <p id="instruction1" class="instruction">
                 ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .

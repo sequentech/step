@@ -189,6 +189,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               .setAttribute(
                   REPLY_BY_PAGE_ATTRIBUTE,
                   "PENDING".equals(verificationStatus) ? replyByPage(context) : null)
+              .setAttribute(
+                  EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+                  EnrollmentWindows.dateTimeZoneMessageKey(
+                      context.getRealm(), context.getSession().getContext().resolveLocale(null)))
               .createForm(template);
       context.challenge(form);
 
@@ -391,6 +395,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   .setAttribute("rejectReason", rejectionReason)
                   .setAttribute("mismatchedFields", mismatchedFields)
                   .setAttribute(REPLY_BY_PAGE_ATTRIBUTE, replyByPage(context))
+                  .setAttribute(
+                      EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+                      EnrollmentWindows.dateTimeZoneMessageKey(
+                          context.getRealm(),
+                          context.getSession().getContext().resolveLocale(null)))
                   .createForm("registration-manual-finish.ftl");
           context.challenge(form);
           context.getEvent().success();

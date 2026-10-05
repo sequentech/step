@@ -83,8 +83,10 @@ export const PdfInAnotherZone: Story = {
     play: async ({args}) => {
         const view = await dialog()
         await userEvent.click(view.getByRole("radio", {name: "PDF"}))
-        await userEvent.click(view.getByRole("combobox"))
-        await userEvent.click(await within(document.body).findByRole("option", {name: /Dubai/}))
+        const picker = view.getByRole("combobox")
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "Dubai")
+        await userEvent.keyboard("{ArrowDown}{Enter}")
         const abbr = zoneLabel("Asia/Dubai", options)
         expect(view.getByText(i18n.t("logsScreen.exportdialog.zoneNotePdf", {abbr}))).toBeVisible()
         fireEvent.change(view.getByLabelText("From"), {target: {value: "2028-04-01T00:00"}})
@@ -118,7 +120,7 @@ export const EachRowInItsElectionsZone: Story = {
     play: async ({args}) => {
         const view = await dialog()
         await waitFor(() =>
-            expect(view.getByRole("combobox")).toHaveTextContent(
+            expect(view.getByRole("combobox")).toHaveValue(
                 i18n.t("logsScreen.exportdialog.rowZones")
             )
         )

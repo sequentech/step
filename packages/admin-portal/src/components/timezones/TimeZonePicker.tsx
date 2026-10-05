@@ -78,6 +78,8 @@ export interface ITimeZonePickerProps {
     onChange: (zone: string | null) => void
     /** The zones offered (the event's configured list); every zone when absent. */
     zones?: ReadonlyArray<string>
+    /** Explicit non-zone choices, such as using each log row's election zone. */
+    additionalOptions?: ReadonlyArray<ITimeZoneOption>
     /** The event's primary zone, marked in the list. */
     primary?: string
     label: string
@@ -102,6 +104,7 @@ export const TimeZonePicker: React.FC<ITimeZonePickerProps> = ({
     value,
     onChange,
     zones,
+    additionalOptions = [],
     primary,
     label,
     helperText,
@@ -115,10 +118,12 @@ export const TimeZonePicker: React.FC<ITimeZonePickerProps> = ({
 }) => {
     const {t} = useTranslation()
     const {service, options, optionOf, filter} = useTimeZoneOptions(zones, at)
-    const selected = value ? optionOf(value) : null
+    const selected = value
+        ? (additionalOptions.find((option) => option.zone === value) ?? optionOf(value))
+        : null
     return (
         <Autocomplete<ITimeZoneOption, false, boolean, false>
-            options={options}
+            options={[...additionalOptions, ...options]}
             value={selected}
             disabled={disabled}
             disableClearable={!clearable}
@@ -128,7 +133,12 @@ export const TimeZonePicker: React.FC<ITimeZonePickerProps> = ({
             isOptionEqualToValue={(option, current) => option.zone === current.zone}
             getOptionLabel={(option) => optionText(option, primary, service)}
             // Autocomplete passes "" while the field shows the selected option.
-            filterOptions={(_options, {inputValue}) => filter(inputValue)}
+            filterOptions={(_options, {inputValue}) => [
+                ...additionalOptions.filter((option) =>
+                    option.label.toLocaleLowerCase().includes(inputValue.toLocaleLowerCase())
+                ),
+                ...filter(inputValue),
+            ]}
             noOptionsText={t("lifecycle.picker.noMatch")}
             renderOption={({key, ...props}, option) => (
                 <TimeZoneOptionRow key={key} option={option} primary={primary} props={props} />

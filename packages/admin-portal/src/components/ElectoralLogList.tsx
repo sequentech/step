@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useMemo, useState} from "react"
+import React, {ReactElement, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -10,12 +10,11 @@ import {
     NumberField,
     useRecordContext,
     TextInput,
-    SelectInput,
+    useInput,
 } from "react-admin"
 import {LogRangeDateTimeInput} from "./logs/LogRangeDateTimeInput"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
-import {timeZoneOption} from "@sequentech/ui-core"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {ResetFilters} from "./ResetFilters"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
@@ -31,8 +30,29 @@ import {LogTime} from "./logs/LogTime"
 import {StatementExplanation} from "./logs/StatementExplanation"
 import {ExportLogsDialog} from "./logs/ExportLogsDialog"
 import {useLogRowZone, useLogZones, type ILogZones} from "./logs/useLogZones"
+import {TimeZonePicker} from "./timezones/TimeZonePicker"
 
 const OMIT_FIELDS = ["user_id"]
+
+/** The shared range zone stays a react-admin filter, with the primary after reset. */
+const LogTimeZoneFilter: React.FC<{
+    source: string
+    label: string
+    zones: string[]
+    primary: string
+    alwaysOn?: boolean
+}> = ({source, label, zones, primary}) => {
+    const {field} = useInput<string | null>({source})
+    return (
+        <TimeZonePicker
+            label={label}
+            value={field.value || primary}
+            zones={zones}
+            primary={primary}
+            onChange={(zone) => field.onChange(zone)}
+        />
+    )
+}
 
 /** A row's Created or Statement Timestamp, in the row's log zone with my time below. */
 const LogRowTime: React.FC<{
@@ -78,7 +98,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     showActions = true,
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
     const eventId = electionEventId || record?.id || undefined
 
     const {canExportLogs, showLogsColumns} = useLogsPermissions()
@@ -105,16 +125,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
         filterObject[filterToShow] = filterValue || undefined
     }
 
-    // The primary is the select's empty option: the range's default zone.
-    const zoneName = (zone: string) => timeZoneOption(zone, {t, lang: i18n.language}).label
-    const zoneChoices = useMemo(
-        () =>
-            zones.choices
-                .filter((zone) => zone !== zones.primary)
-                .map((zone) => ({id: zone, name: zoneName(zone)})),
-        [zones.choices, zones.primary, t, i18n.language]
-    )
-
     // Range filters hold wall times in the chosen zone; the data provider
     // turns them into instants.
     const filters: Array<ReactElement> = [
@@ -132,12 +142,12 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             label={String(t("logsScreen.filter.createdTo"))}
             alwaysOn
         />,
-        <SelectInput
+        <LogTimeZoneFilter
             key={ELECTORAL_LOG_ZONE_FILTER}
             source={ELECTORAL_LOG_ZONE_FILTER}
             label={String(t("logsScreen.filter.timeZone"))}
-            choices={zoneChoices}
-            emptyText={zoneName(zones.primary)}
+            zones={zones.choices}
+            primary={zones.primary}
             alwaysOn
         />,
         <TextInput

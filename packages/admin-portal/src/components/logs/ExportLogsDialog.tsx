@@ -7,7 +7,6 @@ import {
     FormControl,
     FormControlLabel,
     FormLabel,
-    MenuItem,
     Radio,
     RadioGroup,
     TextField,
@@ -16,12 +15,13 @@ import {
 import {useTranslation} from "react-i18next"
 import {useMutation} from "@apollo/client"
 import {Dialog} from "@sequentech/ui-essentials"
-import {timeZoneOption, zoneLabel, zonedToInstant} from "@sequentech/ui-core"
+import {zoneLabel, zonedToInstant} from "@sequentech/ui-core"
 import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
 import {IPermissions} from "@/types/keycloak"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {formatWallTime, useTimeZoneService} from "@/components/timezones/timeZoneService"
+import {TimeZonePicker} from "@/components/timezones/TimeZonePicker"
 
 export enum ExportFormat {
     CSV = "CSV",
@@ -176,23 +176,27 @@ export const ExportLogsDialog: React.FC<ExportLogsDialogProps> = ({
                         sx={{flex: 1, minWidth: 200}}
                     />
                 </Box>
-                <TextField
-                    select
+                <TimeZonePicker
                     label={t("logsScreen.exportdialog.timeZone")}
                     value={choice}
-                    onChange={(event) => setChosen(event.target.value)}
-                >
-                    {byElection ? (
-                        <MenuItem value={ROW_ZONES}>
-                            {t("logsScreen.exportdialog.rowZones")}
-                        </MenuItem>
-                    ) : null}
-                    {zones.map((choice) => (
-                        <MenuItem key={choice} value={choice}>
-                            {timeZoneOption(choice, {t, lang}).label}
-                        </MenuItem>
-                    ))}
-                </TextField>
+                    zones={zones}
+                    primary={zones[0]}
+                    onChange={(zone) => {
+                        if (zone) setChosen(zone)
+                    }}
+                    additionalOptions={
+                        byElection
+                            ? [
+                                  {
+                                      zone: ROW_ZONES,
+                                      label: t("logsScreen.exportdialog.rowZones"),
+                                      detail: "",
+                                      offsetMinutes: 0,
+                                  },
+                              ]
+                            : []
+                    }
+                />
                 <FormControl>
                     <FormLabel id="export-logs-format">
                         {t("logsScreen.exportdialog.format")}

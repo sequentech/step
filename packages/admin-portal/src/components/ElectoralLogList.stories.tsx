@@ -23,6 +23,7 @@ interface Scenario {
     filterValue?: string
     showActions?: boolean
     roles?: string[]
+    zones?: string[]
 }
 
 const logRow = (
@@ -68,6 +69,7 @@ function Fixture({
     filterValue,
     showActions,
     roles,
+    zones,
 }: Scenario) {
     const {permissions} = useStoryGlobals()
     const list = (
@@ -86,7 +88,24 @@ function Fixture({
             roles={roles}
         >
             {inEvent ? (
-                <RecordContextProvider value={eventRecord()}>{list}</RecordContextProvider>
+                <RecordContextProvider
+                    value={
+                        zones
+                            ? {
+                                  ...eventRecord(),
+                                  presentation: {
+                                      timezones: {
+                                          configured: zones,
+                                          primary: zones[0],
+                                          logs: "primary",
+                                      },
+                                  },
+                              }
+                            : eventRecord()
+                    }
+                >
+                    {list}
+                </RecordContextProvider>
             ) : (
                 list
             )}
@@ -181,6 +200,29 @@ export const Populated: Story = {
             }),
         ])
         expect(graphql.calls).toEqual([])
+    },
+}
+
+export const SearchableRangeZone: Story = {
+    args: {zones: ["Asia/Manila", "Asia/Dubai"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("alice")
+        const picker = canvas.getByRole("combobox", {name: "Timezone"})
+        await userEvent.clear(picker)
+        await userEvent.type(picker, "Dubai")
+        await userEvent.keyboard("{ArrowDown}{Enter}")
+        await waitFor(() =>
+            expect(
+                data.calls.some(
+                    ({method, args}) =>
+                        method === "getList" &&
+                        (args[1] as {filter?: {time_zone?: string}})?.filter?.time_zone ===
+                            "Asia/Dubai"
+                )
+            ).toBe(true)
+        )
+        await expect(picker).toHaveValue("(GMT+04:00) Dubai")
     },
 }
 
