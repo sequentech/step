@@ -104,6 +104,8 @@ for (const method of ["EMAIL", "SMS"] as const) {
                 communication_method: method,
                 schedule_now: false,
                 schedule_date: "2026-01-16T10:30:00Z",
+                schedule_local: "2026-01-16T10:30",
+                schedule_timezone: "UTC",
                 email:
                     method === "EMAIL"
                         ? EMAIL
