@@ -8,7 +8,9 @@ use super::counting_algorithm::{
     CountingAlgorithm,
 };
 use super::error::{Error, Result};
-use super::{BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
+use super::{
+    add_count, BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes,
+};
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
@@ -27,11 +29,54 @@ use std::{fs, path::PathBuf};
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 
+/// A file of decoded ballots and how they count. `weight` is the area weight,
+/// which scales the votes a ballot gives the candidates it selects.
+/// `multiplier` is how many ballots each one in the file stands for: a
+/// voter-weighted area's batch for bit `n` counts every ballot `2^n` times.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BallotsFile {
+    pub path: PathBuf,
+    pub weight: Weight,
+    pub multiplier: u64,
+}
+
+impl BallotsFile {
+    /// A file whose ballots each count once.
+    pub fn new(path: PathBuf, weight: Weight) -> Self {
+        Self {
+            path,
+            weight,
+            multiplier: 1,
+        }
+    }
+}
+
+/// A decoded ballot and how it counts; see [`BallotsFile`]. Counting a ballot
+/// with multiplier `m` gives exactly the result of counting `m` copies of it,
+/// without holding `m` copies in memory.
+#[derive(Debug, Clone)]
+pub struct TallyBallot {
+    pub vote: DecodedVoteContest,
+    pub weight: Weight,
+    pub multiplier: u64,
+}
+
+impl TallyBallot {
+    /// A ballot counted once.
+    pub fn new(vote: DecodedVoteContest, weight: Weight) -> Self {
+        Self {
+            vote,
+            weight,
+            multiplier: 1,
+        }
+    }
+}
+
 pub struct Tally {
     pub id: CountingAlgType,
     pub scope_operation: ScopeOperation,
     pub contest: Contest,
-    pub ballots: Vec<(DecodedVoteContest, Weight)>,
+    pub ballots: Vec<TallyBallot>,
     pub census: u64,
     pub auditable_votes: u64,
     pub tally_sheet_results: Vec<ContestResult>,
@@ -43,15 +88,14 @@ impl Tally {
     pub fn new(
         contest: &Contest,
         scope_operation: ScopeOperation,
-        ballots_files: Vec<(PathBuf, Weight)>,
+        ballots_files: Vec<BallotsFile>,
         census: u64,
         auditable_votes: u64,
         tally_sheet_results: Vec<ContestResult>,
         tally_results: Vec<ContestResult>,
     ) -> Result<Self> {
         let contest = contest.clone();
-        let ballots_with_weights: Vec<(DecodedVoteContest, Weight)> =
-            Self::get_ballots(ballots_files)?;
+        let ballots_with_weights: Vec<TallyBallot> = Self::get_ballots(ballots_files)?;
         let id = Self::get_tally_type(&contest)?;
 
         Ok(Self {
@@ -74,21 +118,29 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
-    fn get_ballots(files: Vec<(PathBuf, Weight)>) -> Result<Vec<(DecodedVoteContest, Weight)>> {
+    fn get_ballots(files: Vec<BallotsFile>) -> Result<Vec<TallyBallot>> {
         let mut res = vec![];
 
-        for (f, weight) in files {
-            let f = fs::File::open(&f).map_err(|e| PipesError::FileAccess(f, e))?;
+        for file in files {
+            // A multiplier of zero would drop every ballot in the file.
+            if file.multiplier == 0 {
+                return Err(format!(
+                    "Ballots file {} has a batch multiplier of zero",
+                    file.path.display()
+                )
+                .into());
+            }
+            let f = fs::File::open(&file.path)
+                .map_err(|e| PipesError::FileAccess(file.path.clone(), e))?;
             let votes: Vec<DecodedVoteContest> = parse_file(f)?;
-            let votes_with_weight: Vec<(DecodedVoteContest, Weight)> =
-                votes.into_iter().map(|v| (v, weight)).collect();
-            res.push(votes_with_weight);
+            res.extend(votes.into_iter().map(|vote| TallyBallot {
+                vote,
+                weight: file.weight,
+                multiplier: file.multiplier,
+            }));
         }
 
-        Ok(res
-            .into_iter()
-            .flatten()
-            .collect::<Vec<(DecodedVoteContest, Weight)>>())
+        Ok(res)
     }
 
     #[instrument(skip_all)]
@@ -234,7 +286,7 @@ impl Tally {
         let count_blank = blank_votes.total();
 
         // Calculate percentages
-        let total_votes = count_valid + count_invalid;
+        let total_votes = add_count(count_valid, count_invalid, "votes")?;
         let total_votes_base = cmp::max(1, total_votes) as f64;
 
         let census_base = cmp::max(1, self.census) as f64;
@@ -376,7 +428,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
 pub fn create_tally(
     contest: &Contest,
     scope_operation: ScopeOperation,
-    ballots_files: Vec<(PathBuf, Weight)>, // (path, weight)
+    ballots_files: Vec<BallotsFile>,
     census: u64,
     auditable_votes: u64,
     tally_sheet_results: Vec<ContestResult>,
@@ -389,20 +441,19 @@ pub fn create_tally(
         return Ok(Box::new(Acclaimed::new(contest)));
     }
 
-    let ballots_files: Vec<(PathBuf, Weight)> = ballots_files
-        .iter()
-        .filter(|(f, _weight)| {
-            let exist = f.exists();
+    let ballots_files: Vec<BallotsFile> = ballots_files
+        .into_iter()
+        .filter(|file| {
+            let exist = file.path.exists();
             if !exist {
                 println!(
                     "[{}] File not found: {} -- Not processed",
                     PipeName::DoTally.as_ref(),
-                    f.display()
+                    file.path.display()
                 )
             }
             exist
         })
-        .map(|(p, weight)| (PathBuf::from(p.as_path()), weight.clone()))
         .collect();
 
     let tally = Tally::new(
@@ -602,7 +653,10 @@ mod tests {
             let result = create_tally(
                 &acclaimed_contest(),
                 scope_operation,
-                vec![(invalid_ballots.path().to_path_buf(), Weight::default())],
+                vec![BallotsFile::new(
+                    invalid_ballots.path().to_path_buf(),
+                    Weight::default(),
+                )],
                 500,
                 100,
                 vec![input_result.clone()],
@@ -734,7 +788,9 @@ mod tests {
             ..ContestResult::default()
         };
 
-        let result = electronic_result.aggregate(&tally_sheet_result, false);
+        let result = electronic_result
+            .aggregate(&tally_sheet_result, false)
+            .expect("aggregate should not overflow");
 
         assert_percentage(candidate_percentage(&result, "candidate-a"), 60.0);
         assert_percentage(candidate_percentage(&result, "candidate-b"), 40.0);

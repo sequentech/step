@@ -43,9 +43,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
-use sequent_core::types::keycloak::{
-    MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
-};
+use sequent_core::types::keycloak::MIN_WEIGHT_BATCH_ANONYMITY;
 use serde_json::json;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
@@ -87,6 +85,7 @@ pub async fn insert_ballots_messages(
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
     weighted_voting_policy: WeightedVotingPolicy,
+    weight_batches: u32,
 ) -> Result<Vec<TallySessionContest>> {
     // A delegate's ballot has no defined weighted semantics, so refuse rather
     // than silently computing weight * (1 + delegate_count). This is a backstop:
@@ -310,44 +309,17 @@ pub async fn insert_ballots_messages(
                         multiplicity_source,
                     )?;
 
-                    // Checked before anything is posted, so a run that would
-                    // be refused does not leave batches on an append-only
-                    // board. Only weighting can inflate this beyond the ballot
-                    // count, so the cap must not constrain an election that is
-                    // not using it. Weighting no longer grows the mix batch --
-                    // it grows the plaintexts the tally expands after mixing --
-                    // so this bounds that expansion rather than the shuffle.
-                    let total_weight: u64 = merge_result
-                        .ballot_contents
-                        .iter()
-                        .map(|(_, multiplicity)| *multiplicity)
-                        .sum();
-                    if is_voter_weighted && total_weight > MAX_TOTAL_VOTE_WEIGHT {
-                        return Err(anyhow!(
-                            "Refusing to tally a summed vote weight of \
-                             {total_weight} for election {} area {}: the maximum \
-                             is {MAX_TOTAL_VOTE_WEIGHT}. This bounds the votes \
-                             the tally expands after mixing, not the mix itself. \
-                             It cannot be resolved without rescaling the weights \
-                             of the voters in this area, which changes the result",
-                            tally_session_contest.election_id,
-                            tally_session_contest.area_id,
-                        ));
-                    }
-
                     // Which of this area's batches are already on the board.
                     // Scanned over the whole run only when weighting is on:
                     // rows allocated before this layout existed sit one apart,
                     // and only a weighted row is guaranteed to own a full run,
                     // so a wider scan would read a neighbour's batch as this
-                    // area's.
+                    // area's. The run is the session's own: one created
+                    // before the layout widened owns fewer batches than one
+                    // created now.
                     let base_batch = tally_session_contest.session_id as BatchNumber;
-                    let scanned_offsets = if is_voter_weighted {
-                        VOTE_WEIGHT_BATCHES
-                    } else {
-                        1
-                    };
-                    let posted_mask: u32 = (0..scanned_offsets)
+                    let scanned_offsets = if is_voter_weighted { weight_batches } else { 1 };
+                    let posted_mask: u64 = (0..scanned_offsets)
                         .filter(|bit| {
                             let batch = base_batch + *bit as BatchNumber;
                             board_messages_clone.iter().any(|message| {
@@ -355,7 +327,7 @@ pub async fn insert_ballots_messages(
                                     && StatementType::Ballots == message.statement.get_kind()
                             })
                         })
-                        .fold(0u32, |acc, bit| acc | (1u32 << bit));
+                        .fold(0u64, |acc, bit| acc | (1u64 << bit));
 
                     // Which of this area's batches will exist. A weight sets
                     // the bits of the batches its voter's ciphertext goes into,
@@ -363,13 +335,20 @@ pub async fn insert_ballots_messages(
                     // batches. Computed here rather than beside the posting
                     // because the annotations record it whether or not this run
                     // is the one that posts them.
-                    let weight_bit_mask: Option<u32> = if is_voter_weighted {
+                    let weight_bit_mask: Option<u64> = if is_voter_weighted {
                         let union = merge_result.ballot_contents.iter().try_fold(
                             0u64,
                             |acc, (_, weight)| -> Result<u64> {
                                 // Same refusal the split makes, so the mask can
                                 // never claim a batch the split would not fill.
-                                let bits = weight_batch_offsets(*weight)?
+                                let bits = weight_batch_offsets(*weight, weight_batches)
+                                    .with_context(|| {
+                                        format!(
+                                            "Election {} area {}",
+                                            tally_session_contest.election_id,
+                                            tally_session_contest.area_id,
+                                        )
+                                    })?
                                     .map(|bit| 1u64 << bit)
                                     .sum::<u64>();
                                 Ok(acc | bits)
@@ -378,7 +357,7 @@ pub async fn insert_ballots_messages(
                         // No ballots at all: keep the single empty batch this
                         // area would have had without weighting, so the tally
                         // still has something to wait for.
-                        let computed = if union == 0 { 1 } else { union as u32 };
+                        let computed = if union == 0 { 1 } else { union };
 
                         // A batch on the board that these weights do not
                         // produce means the weights changed since it was
@@ -432,7 +411,7 @@ pub async fn insert_ballots_messages(
                         // however large the weights are; every other policy
                         // fills only the first.
                         let mut batches: Vec<Vec<Ciphertext<RistrettoCtx>>> =
-                            vec![Vec::new(); VOTE_WEIGHT_BATCHES as usize];
+                            vec![Vec::new(); scanned_offsets as usize];
                         for (ballot_str, multiplicity) in merge_result.ballot_contents {
                             let ciphertext: Ciphertext<RistrettoCtx> =
                                 if ContestEncryptionPolicy::MULTIPLE_CONTESTS
@@ -468,7 +447,7 @@ pub async fn insert_ballots_messages(
                                 // weight, so the count is exact -- and because no
                                 // batch ever holds the same ciphertext twice, the
                                 // board shows no repetition to read a weight off.
-                                for bit in weight_batch_offsets(multiplicity)? {
+                                for bit in weight_batch_offsets(multiplicity, weight_batches)? {
                                     batches[bit as usize].push(ciphertext.clone());
                                 }
                             } else {
@@ -486,7 +465,7 @@ pub async fn insert_ballots_messages(
                         // Ballots message -- a refusal that leaves a one-ballot
                         // batch behind is worse than the state it refused.
                         for bit in 0..scanned_offsets {
-                            if posted_mask & (1u32 << bit) == 0 {
+                            if posted_mask & (1u64 << bit) == 0 {
                                 continue;
                             }
                             let posted = board_messages_clone
@@ -553,11 +532,11 @@ pub async fn insert_ballots_messages(
                             // it did before weighting existed. Without weighting
                             // the mask is absent and batch 0 is always posted.
                             let is_expected = weight_bit_mask
-                                .map(|mask| mask & (1u32 << bit) != 0)
+                                .map(|mask| mask & (1u64 << bit) != 0)
                                 .unwrap_or(bit == 0);
                             // Already reconciled above; `add_ballots_to_board`
                             // would skip it anyway.
-                            if !is_expected || posted_mask & (1u32 << bit) != 0 {
+                            if !is_expected || posted_mask & (1u64 << bit) != 0 {
                                 continue;
                             }
                             event!(

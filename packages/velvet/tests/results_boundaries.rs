@@ -14,15 +14,16 @@ use tempfile::tempdir;
 use velvet::pipes::do_tally::counting_algorithm::{
     plurality_at_large::PluralityAtLarge, CountingAlgorithm,
 };
-use velvet::pipes::do_tally::tally::Tally;
+use velvet::pipes::do_tally::tally::{BallotsFile, Tally};
 use velvet::pipes::do_tally::{
-    CandidateResult, ContestResult, OUTPUT_BREAKDOWNS_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
+    CandidateResult, ContestResult, MAX_COUNT, OUTPUT_BREAKDOWNS_FOLDER, OUTPUT_CONTEST_RESULT_FILE,
 };
 use velvet::pipes::mark_winners::{MarkWinners, OUTPUT_WINNERS};
 
-// Both overflow cases merge PAPER counts. Velvet's error Display delegates to
-// Debug, so the counting-algorithm message wraps the pipe error; match the
-// overflow and its channel rather than that wrapper.
+// Both overflow cases merge PAPER counts past MAX_COUNT, the largest count a
+// tally publishes exactly. Velvet's error Display delegates to Debug, so the
+// counting-algorithm message wraps the pipe error; match the overflow and its
+// channel rather than that wrapper.
 const PAPER_CHANNEL_OVERFLOW: &str = "Voting channel count overflow for PAPER";
 
 fn election_result(counts: &[(&str, u64)]) -> ContestResult {
@@ -72,16 +73,16 @@ fn area_result_aggregation_rejects_channel_overflow_before_combining_totals() {
         0,
         0,
         vec![],
-        vec![result(u64::MAX - 1), result(1)],
+        vec![result(MAX_COUNT - 1), result(1)],
     )
     .unwrap();
-    // These are already-counted area results, not u64::MAX allocated ballots.
+    // These are already-counted area results, not MAX_COUNT allocated ballots.
     // The public aggregation entry point must accept the exact boundary first.
     let combined = tally.aggregate_results().unwrap();
-    assert_eq!(combined.total_votes, u64::MAX);
+    assert_eq!(combined.total_votes, MAX_COUNT);
     assert_eq!(
         combined.extended_metrics.unwrap().votes_by_channel[&channel],
-        u64::MAX
+        MAX_COUNT
     );
 
     tally.tally_results[1] = result(2);
@@ -89,7 +90,7 @@ fn area_result_aggregation_rejects_channel_overflow_before_combining_totals() {
     assert!(matches!(error,
         velvet::pipes::do_tally::counting_algorithm::Error::UnexpectedError(message)
         if message.contains(PAPER_CHANNEL_OVERFLOW)));
-    assert_eq!(tally.tally_results[0].total_votes, u64::MAX - 1);
+    assert_eq!(tally.tally_results[0].total_votes, MAX_COUNT - 1);
 }
 
 #[test]
@@ -109,7 +110,7 @@ fn counting_algorithms_reject_overflow_when_merging_paper_sheets() {
         contest.counting_algorithm = Some(algorithm);
         contest.winning_candidates_num = 1;
         for last_count in [1, 2] {
-            let sheets = [u64::MAX - 1, last_count].map(|count| ContestResult {
+            let sheets = [MAX_COUNT - 1, last_count].map(|count| ContestResult {
                 contest: contest.clone(),
                 total_votes: count,
                 total_valid_votes: count,
@@ -137,10 +138,10 @@ fn counting_algorithms_reject_overflow_when_merging_paper_sheets() {
             };
             if last_count == 1 {
                 let combined = combined.unwrap();
-                assert_eq!(combined.total_votes, u64::MAX);
+                assert_eq!(combined.total_votes, MAX_COUNT);
                 assert_eq!(
                     combined.extended_metrics.unwrap().votes_by_channel[&channel],
-                    u64::MAX
+                    MAX_COUNT
                 );
             } else {
                 assert!(
@@ -219,8 +220,8 @@ fn aggregation_is_partition_independent_for_counts_and_percentages() {
     // A change in partition or fold order may reorder the result vector but
     // must not change the election. Census summation is checked separately.
     for aggregate in [
-        first.aggregate(&second, false),
-        second.aggregate(&first, false),
+        first.aggregate(&second, false).unwrap(),
+        second.aggregate(&first, false).unwrap(),
     ] {
         assert_eq!(candidate_counts(&aggregate), candidate_counts(&together));
         assert_eq!(aggregate.total_valid_votes, 2);
@@ -253,8 +254,8 @@ fn ballot_files_keep_their_area_weights_and_fail_on_missing_or_malformed_input()
         )
     };
     let loaded = load(vec![
-        (first.clone(), weight(2)),
-        (second.clone(), weight(3)),
+        BallotsFile::new(first.clone(), weight(2)),
+        BallotsFile::new(second.clone(), weight(3)),
     ])
     .unwrap();
     let result = PluralityAtLarge::new(loaded).tally().unwrap();
@@ -262,8 +263,8 @@ fn ballot_files_keep_their_area_weights_and_fail_on_missing_or_malformed_input()
     assert_eq!(candidate_counts(&result)["bea"], 3);
 
     fs::write(&second, br#"[{"contest_id": 7}]"#).unwrap();
-    assert!(load(vec![(second, Weight::default())]).is_err());
-    assert!(load(vec![(
+    assert!(load(vec![BallotsFile::new(second, Weight::default())]).is_err());
+    assert!(load(vec![BallotsFile::new(
         directory.path().join("missing.json"),
         Weight::default()
     )])

@@ -30,15 +30,14 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
-    AREA_ID_ATTR_NAME, DEFAULT_VOTE_WEIGHT, MAX_TOTAL_VOTE_WEIGHT, MAX_VOTE_WEIGHT,
-    MIN_VOTE_WEIGHT, TENANT_ID_ATTR_NAME, VOTE_WEIGHT_ATTR_NAME,
+    AREA_ID_ATTR_NAME, MAX_VOTE_WEIGHT, MIN_VOTE_WEIGHT, TENANT_ID_ATTR_NAME, VOTE_WEIGHT_ATTR_NAME,
 };
 use std::num::NonZeroU32;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::{ToSql, Type};
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 pub static HEADER_RE: LazyLock<Regex> =
@@ -757,11 +756,6 @@ pub async fn import_users_file(
     //    `get_copy_from_query()`. It's important to match these two
     //    together or else the temporal voters data table will be polluted
     //    with incorrectly assigned data.
-    // A lower bound on the ciphertexts this file's voters will contribute: it
-    // cannot see voters imported earlier, does not know which of them will
-    // actually vote, and pools areas that the tally keeps separate. It only
-    // ever warns, so none of that can reject a valid import.
-    let mut imported_weight_total: u64 = 0;
     let mut owned_data: Vec<String> = Vec::new();
     // 1-based and counting the header, so it matches what a spreadsheet shows.
     let mut row_number: usize = 1;
@@ -806,11 +800,6 @@ pub async fn import_users_file(
                     }
                     column_name if column_name == VOTE_WEIGHT_ATTR_NAME => {
                         let trimmed = data.trim();
-                        // A blank cell votes with the default weight, so it
-                        // counts as one ciphertext here too.
-                        imported_weight_total = imported_weight_total.saturating_add(
-                            trimmed.parse::<u64>().unwrap_or(DEFAULT_VOTE_WEIGHT),
-                        );
                         // A blank cell means "no weight for this voter", which
                         // the ballot dump resolves to the default. Requiring a
                         // value would reject the usual way of authoring the
@@ -908,17 +897,6 @@ pub async fn import_users_file(
         )));
     }
 
-    // Warn rather than refuse: the limit applies per contest area, and this file
-    // may spread its voters across several, so exceeding it here does not prove
-    // any one area will. The exact check runs where the ballots are extracted.
-    if imported_weight_total > MAX_TOTAL_VOTE_WEIGHT {
-        warn!(
-            "Imported vote weights total {imported_weight_total}, above the \
-             per-area maximum of {MAX_TOTAL_VOTE_WEIGHT}. If these voters share \
-             a contest area the tally will refuse to count them."
-        );
-    }
-
     let num_rows = keycloak_transaction
         .execute(insert_user_query.as_str(), &[])
         .await
@@ -986,7 +964,16 @@ mod tests {
 
     #[test]
     fn valid_vote_weights_are_accepted() {
-        for value in ["1", "5", "100000"] {
+        for value in [
+            "1",
+            "5",
+            "100000",
+            "100001",
+            "150000",
+            "1000000",
+            "12000000",
+            "4294967295",
+        ] {
             assert!(
                 validate_vote_weight(value, 2).is_ok(),
                 "vote weight {value} must be accepted"
@@ -996,7 +983,18 @@ mod tests {
 
     #[test]
     fn invalid_vote_weights_are_rejected_naming_row_and_column() {
-        for value in ["0", "-1", "1.5", "abc", "100001", ""] {
+        for value in [
+            "0",
+            "-1",
+            "1.5",
+            "25.50",
+            "62,75",
+            "1e6",
+            "abc",
+            "4294967296",
+            "18446744073709551616",
+            "",
+        ] {
             let error = validate_vote_weight(value, 7)
                 .expect_err(&format!("vote weight {value:?} must be rejected"));
             let message = error.to_string();

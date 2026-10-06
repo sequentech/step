@@ -9,7 +9,7 @@
 use sequent_core::ballot::{Candidate, CandidatePresentation, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::{CountingAlgType, ScopeOperation, TallyOperation};
-use velvet::pipes::do_tally::tally::Tally;
+use velvet::pipes::do_tally::tally::{Tally, TallyBallot};
 use velvet::pipes::do_tally::ContestResult;
 
 pub const CONTEST_ID: &str = "council";
@@ -80,7 +80,10 @@ pub fn tally(ballots: Vec<(DecodedVoteContest, Weight)>) -> Tally {
         id: CountingAlgType::PluralityAtLarge,
         scope_operation: ScopeOperation::Area(TallyOperation::ProcessBallotsAll),
         contest: contest(),
-        ballots,
+        ballots: ballots
+            .into_iter()
+            .map(|(vote, weight)| TallyBallot::new(vote, weight))
+            .collect(),
         census: 10,
         auditable_votes: 1,
         tally_sheet_results: vec![],

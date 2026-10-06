@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! What voter-weighted voting cannot be combined with. Each weight is applied
-//! by repeating a voter's ballot, so anything else that multiplies ballots or
+//! What voter-weighted voting cannot be combined with. A voter's ballot counts
+//! as many times as their weight, so anything else that multiplies ballots or
 //! counts them without a weight would give a wrong result.
 
 use crate::domain::tally_ceremony::TallyValidationError;
@@ -39,19 +39,19 @@ pub fn check_weighted_voting_policies(
             ),
         });
     }
-    // The mix batch no longer repeats a ciphertext, but the tally still
-    // expands each batch's plaintexts by that batch's multiplier, so the
-    // decoded ballots would carry each voter's weight as a run of identical
-    // plaintexts. This closes the most direct disclosure; it does not make
-    // the scheme secret-ballot safe on its own, since a ballot still
-    // appears in one batch per bit of its weight and every batch is
-    // public.
+    // Each weight batch is decoded on its own, so a voter's ballot is
+    // decoded once per bit of their weight. Published, those ballots would
+    // not be one per voter, and matching them across batches would read
+    // each voter's weight straight off the results. This closes the most
+    // direct disclosure; it does not make the scheme secret-ballot safe on
+    // its own, since every batch is public on the board.
     if *decoded_ballots_inclusion_policy == DecodedBallotsInclusionPolicy::INCLUDED {
         return Err(match stage {
             WeightedVotingStage::Creation => TallyValidationError::new(
                 "Decoded ballots cannot be included in the results when \
-                 voter-weighted voting is enabled, because the repeated \
-                 ballots would reveal each voter's weight",
+                 voter-weighted voting is enabled, because each ballot is \
+                 decoded once per weight batch it was mixed in, which would \
+                 reveal each voter's weight",
             ),
         });
     }
@@ -249,7 +249,8 @@ mod tests {
                 &DecodedBallotsInclusionPolicy::INCLUDED,
             )),
             "Decoded ballots cannot be included in the results when voter-weighted voting is \
-             enabled, because the repeated ballots would reveal each voter's weight"
+             enabled, because each ballot is decoded once per weight batch it was mixed in, \
+             which would reveal each voter's weight"
         );
     }
 
