@@ -77,11 +77,11 @@ const frenchTranslation: TranslationType = {
             points_one: "({{count}} Point)",
             points_many: "({{count}} Points)",
             points_other: "({{count}} Points)",
-            contestNotFound: "Question non trouvée : {{contestId}}",
+            contestNotFound: "Scrutin non trouvé : {{contestId}}",
             declineToVote: "A choisi de ne pas voter",
             blankBallot: "Bulletin blanc",
             acclamationDescription:
-                "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
+                "Ce scrutin a été tranché par acclamation. Ses candidat(e)s sont élu(e)s sans vote : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
         },
         "footer": {
             poweredBy: "Propulsé par <1></1>",
@@ -97,7 +97,7 @@ const frenchTranslation: TranslationType = {
             },
             explicit: {
                 notAllowed:
-                    "Vote marqué explicitement comme invalide mais la question ne le permet pas",
+                    "Vote marqué explicitement comme invalide mais le scrutin ne le permet pas",
             },
         },
     },

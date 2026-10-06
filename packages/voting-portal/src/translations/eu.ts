@@ -51,7 +51,7 @@ const basqueTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Lehiaketa hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
+                    "Galdera hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
             },
         },
         votingScreen: {
@@ -61,7 +61,7 @@ const basqueTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Bozketa pantailari buruz",
                 content:
-                    'Pantaila honek bozkatzeko eskubidea duzun lehiaketa erakusten du. Hautaketa egiteko, aktibatu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia. Berrezartzeko sakatu "<b>Hautaketa garbitu</b>", aurrera joateko sakatu "<b>Hurrengoa</b>".',
+                    'Pantaila honek bozkatzeko eskubidea duzun galdera erakusten du. Hautaketa egiteko, aktibatu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia. Berrezartzeko sakatu "<b>Hautaketa garbitu</b>", aurrera joateko sakatu "<b>Hurrengoa</b>".',
                 ok: "Ados",
             },
             nonVotedDialog: {
@@ -102,7 +102,7 @@ const basqueTranslation: TranslationType = {
             instructionsDescription: "Jarraitu urrats hauek bozkatzeko:",
             step1Title: "1. Hautatu zure aukerak",
             step1Description:
-                "Aukeratu zure hautagaiak eta erantzun galderak. Editatu bozketa prest egon arte.",
+                "Aukeratu zure hautagaiak eta erantzun galdera bakoitza. Editatu bozketa prest egon arte.",
             step2Title: "2. Berrikusi zure bozketa",
             step2Description:
                 "Zure bozketa zifratu eta berrikuspena erakutsiko dizugu. Bozketa ID jarraitzaile bakarra jasoko duzu.",
@@ -264,11 +264,11 @@ const basqueTranslation: TranslationType = {
             acclamation: {
                 title: "Aklamazioz erabakia",
                 description:
-                    "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
+                    "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
                 helpDialog: {
                     title: "Informazioa: Aklamazioa",
                     content:
-                        "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
+                        "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
                     ok: "Ados",
                 },
             },
@@ -368,7 +368,8 @@ const basqueTranslation: TranslationType = {
                 ok: "Ulertzen dut nire botoa ez dela emango",
             },
             errors: {
-                noVotingArea: "Hauteskunde eremua ez da esleitu. Saiatu berriro geroago.",
+                noVotingArea:
+                    "Ez zaude bozkatzaile gisa erregistratuta hauteskunde honetan. Mesedez, jarri harremanetan laguntzarekin.",
                 networkError:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 unableToFetchData:
@@ -382,7 +383,7 @@ const basqueTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako lehiaketa asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
+                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako galdera asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 electionEventNotPublished:
                     "Hauteskunde gertaera ez da argitaratu oraindik. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
             },
@@ -414,7 +415,7 @@ const basqueTranslation: TranslationType = {
                     "Bozkatzeko esteka honek saioa hasteko informazio baliogabea dauka. Eskatu beste esteka bat eta saiatu berriro.",
                 certAuthFailedTitle: "Ziurtagiriaren Autentifikazio Errorea",
                 certAuthFailedMessage:
-                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
+                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu bozkatzaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
             },
         },
         materials: {
