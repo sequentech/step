@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Windmill boundary tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3471/docs/developers/windmill/test-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Windmill boundary tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3471/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3471/docs/developers/windmill/test-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3471/docs/developers/windmill/test-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3471/docs/developers/windmill/test-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Windmill boundary tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3471/docs/developers/windmill/test-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3471/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3471/assets/js/runtime~main.779eb222.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3471/assets/js/runtime~main.e6cee101.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3471/assets/js/main.13d1ac59.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -42,6 +42,15 @@ features or branches. Keep untested workers in the measured source scope.</p>
 <p>Service fixtures are needed for cloud transports and complete authenticated
 election workflows; these need dedicated service fixtures, not production
 rewrites or tests that only exercise derives.</p>
+<p><code>postgres_scheduling.rs</code> checks that stopped schedules accept only future
+re-arming, archived events cannot execute queued lifecycle tasks, and workers
+re-read a schedule after a concurrent editor commits. The concurrency fixture
+observes PostgreSQL&#x27;s row-lock wait before committing the edit.</p>
+<p><code>postgres_initialization_recovery.rs</code> uses its own migrated fixture database
+because the periodic sweep visits all events. It injects an outbox failure,
+checks that another event still stages its entries, then removes the failure
+and verifies retry and idempotence without another tally. The signing execution
+sweep runs this recovery every minute before retrying signing executions.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="ports-and-adapters">Ports and adapters<a href="#ports-and-adapters" class="hash-link" aria-label="Direct link to Ports and adapters" title="Direct link to Ports and adapters" translate="no">​</a></h2>
 <p>Windmill separates business rules from the systems it talks to, so the rules
 can be unit-tested without PostgreSQL, Keycloak, the bulletin board, ImmuDB or
