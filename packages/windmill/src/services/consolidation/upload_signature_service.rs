@@ -26,6 +26,7 @@ use super::{
     zip::unzip_file,
 };
 use crate::postgres::election_event::update_election_event_annotations;
+use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::upload_signature_refusal;
 use crate::{
     postgres::{
@@ -476,6 +477,8 @@ pub async fn upload_transmission_package_signature_service(
         new_acm_signatures,
         &new_transmission_package_data.logs,
         &election_annotations,
+        &miru_document.transaction_id,
+        &ReportRequester::named(Some(username.to_string())),
     )
     .await?;
 

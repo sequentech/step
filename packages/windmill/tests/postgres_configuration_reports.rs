@@ -28,7 +28,9 @@ use sequent_core::election_config::manifest::{
 use sequent_core::election_config::{EReportEncryption, Report, ReportFormat};
 use sequent_core::signing::SignatureAlgorithm;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::{ElectionEvent, TallySession};
+use sequent_core::types::hasura::core::{
+    DocumentAnnotations, ElectionEvent, ReportManifestFile, TallySession,
+};
 use sequent_core::types::templates::{
     EmailConfig, PrintToPdfOptionsLocal, ReportOptions, SendTemplateBody, SmsConfig,
 };
@@ -41,10 +43,14 @@ use windmill::postgres::reports::{
     get_report_by_id, get_report_copies, insert_reports, ReportType,
 };
 use windmill::services::ceremonies::velvet_tally::run_velvet_tally;
+use windmill::services::consolidation::package_manifest::{
+    link_returns, package_manifest, StoredReturns,
+};
 use windmill::services::import::configuration_package::{admit_document, record};
 use windmill::services::reports::activity_log::ActivityLogsTemplate;
-use windmill::services::reports::generation::manifest_of_document;
+use windmill::services::reports::generation::{link_report_manifest, manifest_of_document};
 use windmill::services::reports::participation::ParticipationReportTemplate;
+use windmill::services::reports::report_variables::configuration_stamp_without_template;
 use windmill::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -749,5 +755,160 @@ async fn the_tally_refuses_a_template_the_configuration_did_not_approve() {
         assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
     }
     assert_eq!(documents_of(&tx, &event).await, 0);
+    tx.rollback().await.unwrap();
+}
+
+const RETURNS_XML: &[u8] = b"<EML><EMLHeader></EMLHeader></EML>";
+const RETURNS_XZ: &[u8] = b"the returns, compressed";
+
+fn stored_returns() -> StoredReturns<'static> {
+    StoredReturns {
+        transaction_id: "0000001234",
+        eml: RETURNS_XML,
+        compressed: RETURNS_XZ,
+    }
+}
+
+/// The archive of one server's package.
+fn servers_archive() -> Vec<u8> {
+    let station = zip(&[Artifact {
+        name: "er_901.exz".to_string(),
+        bytes: b"the returns, encrypted".to_vec(),
+    }])
+    .unwrap();
+    zip(&[Artifact {
+        name: "ccs-1/er_901.zip".to_string(),
+        bytes: station,
+    }])
+    .unwrap()
+}
+
+/// The three documents of a transmission package, without their files.
+async fn package_documents(tx: &Transaction<'_>, tenant: &str, event: &str) -> [String; 3] {
+    let mut ids = Vec::new();
+    for (name, size) in [
+        ("er_0000001234.xml", RETURNS_XML.len()),
+        ("er_0000001234.xz", RETURNS_XZ.len()),
+        ("all_servers.zip", servers_archive().len()),
+    ] {
+        let document = insert_document(
+            tx,
+            tenant,
+            Some(event.to_string()),
+            name,
+            "application/octet-stream",
+            size as i64,
+            false,
+            None,
+        )
+        .await
+        .unwrap();
+        ids.push(document.id);
+    }
+    ids.try_into().unwrap()
+}
+
+#[tokio::test]
+async fn the_returns_xml_of_an_imported_event_is_stored_with_its_packages_hash_manifest() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let (tenant, event) = imported_event(&tx, Vec::new()).await;
+    let [xml, xz, archive] = package_documents(&tx, &tenant, &event).await;
+
+    let stamp = configuration_stamp_without_template(&tx, &tenant, &event)
+        .await
+        .unwrap()
+        .expect("the stamp of an imported event");
+    let written = package_manifest(Some(&stamp), &stored_returns(), &servers_archive())
+        .unwrap()
+        .expect("a manifest");
+    assert_eq!(written.manifest.report_type, "ELECTORAL_RESULTS");
+    assert_eq!(written.manifest.configuration, stamp);
+
+    let mut annotations = DocumentAnnotations::default();
+    let file = ReportManifestFile {
+        document_id: Uuid::new_v4().to_string(),
+        sha256: written.sha256.clone(),
+    };
+    link_report_manifest(&mut annotations, &written, file.clone()).unwrap();
+    assert!(set_document_annotations(
+        &tx,
+        Uuid::parse_str(&tenant).unwrap(),
+        Uuid::parse_str(&event).unwrap(),
+        Uuid::parse_str(&archive).unwrap(),
+        &annotations,
+    )
+    .await
+    .unwrap());
+    let stored_archive = get_document(&tx, &tenant, Some(event.clone()), &archive)
+        .await
+        .unwrap()
+        .unwrap();
+
+    link_returns(&tx, &tenant, &event, &stored_archive, [&xml, &xz])
+        .await
+        .unwrap();
+
+    for id in [&xml, &xz, &archive] {
+        let document = get_document(&tx, &tenant, Some(event.clone()), id)
+            .await
+            .unwrap()
+            .unwrap();
+        let linked: DocumentAnnotations =
+            serde_json::from_value(document.annotations.clone().unwrap()).unwrap();
+        assert_eq!(linked.report_manifest_file, Some(file.clone()));
+        let manifest = manifest_of_document(document.annotations.as_ref())
+            .unwrap()
+            .unwrap();
+        assert_eq!(manifest, written.manifest);
+        let listed = manifest
+            .files
+            .iter()
+            .find(|entry| entry.path == "er_0000001234.xml")
+            .expect("the returns' XML");
+        assert_eq!(listed.sha256, sha256_hex(RETURNS_XML));
+    }
+
+    let missing = Uuid::new_v4().to_string();
+    let refused = link_returns(&tx, &tenant, &event, &stored_archive, [&xml, &missing])
+        .await
+        .unwrap_err();
+    assert!(refused.to_string().contains(&missing), "{refused}");
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn the_transmission_package_of_any_other_event_is_stored_as_it_was() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = tenant(&tx).await;
+    let event = event(&tx, &tenant).await;
+    let [xml, xz, archive] = package_documents(&tx, &tenant, &event).await;
+
+    let stamp = configuration_stamp_without_template(&tx, &tenant, &event)
+        .await
+        .unwrap();
+    assert_eq!(stamp, None);
+    assert_eq!(
+        package_manifest(stamp.as_ref(), &stored_returns(), &servers_archive()).unwrap(),
+        None
+    );
+
+    let stored_archive = get_document(&tx, &tenant, Some(event.clone()), &archive)
+        .await
+        .unwrap()
+        .unwrap();
+    link_returns(&tx, &tenant, &event, &stored_archive, [&xml, &xz])
+        .await
+        .unwrap();
+
+    for id in [&xml, &xz, &archive] {
+        let document = get_document(&tx, &tenant, Some(event.clone()), id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(document.annotations, None);
+    }
+    assert_eq!(documents_of(&tx, &event).await, 3);
     tx.rollback().await.unwrap();
 }
