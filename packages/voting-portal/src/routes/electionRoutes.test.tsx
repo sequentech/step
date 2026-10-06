@@ -64,7 +64,7 @@ jest.mock("@apollo/client/react", () => ({
                     }
                   : name === "GetCastVote"
                     ? {
-                          sequent_backend_cast_vote: [
+                          cast_votes: [
                               {ballot_id: "a".repeat(64), content: "existing encrypted ballot"},
                           ],
                       }

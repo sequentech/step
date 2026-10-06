@@ -11,7 +11,7 @@ export const GET_VOTER_STATUS: TypedDocumentNode<
 > = gql`
     query GetVoterStatus($electionEventId: String!) {
         get_ballot_files_urls(election_event_id: $electionEventId)
-        sequent_backend_cast_vote: get_voter_cast_votes(election_event_id: $electionEventId) {
+        cast_votes: get_voter_cast_votes(election_event_id: $electionEventId) {
             id
             tenant_id
             election_id

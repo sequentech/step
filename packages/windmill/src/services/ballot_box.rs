@@ -2,26 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Cast votes stored in the electoral log's ballot box.
-//!
-//! Each election event has a ballot box policy: events created before the ballot
-//! box keep storing cast votes in Hasura's `cast_vote` table, and new events store
-//! them in the ballot box of their electoral-log database.
+//! Cast votes, stored in the ballot box of each election event's electoral-log
+//! database.
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::external::utils::DATAFIX_ID_KEY;
 use crate::services::protocol_manager::{
     get_electoral_log_router, get_electoral_log_store, get_protocol_manager,
 };
 use anyhow::{Context, Result};
 use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
-use electoral_log::adapters::ballot_box::{
-    AcceptBallot, AcceptOutcome, BallotStatus, PendingBallot,
-};
+use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, PendingBallot};
+use electoral_log::adapters::ballot_box_status::VoterBallotState;
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::{
@@ -30,7 +26,7 @@ use electoral_log::messages::newtypes::{
 };
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::LogEntry;
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::Hash;
@@ -69,34 +65,6 @@ where
     }
 }
 
-/// Where an election event's cast votes are stored.
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, Display, EnumString, Serialize, Deserialize,
-)]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
-pub enum BallotBoxPolicy {
-    /// Hasura's `cast_vote` table; events created before the ballot box.
-    #[default]
-    CastVoteTable,
-    /// The ballot box of the event's electoral-log database.
-    ElectoralLog,
-}
-
-/// Where a new election event stores its cast votes: the ballot box, except for a
-/// Datafix event, which keeps `cast_vote` until Datafix's outcomes are recorded in
-/// the ballot box.
-pub fn new_event_ballot_box_policy(annotations: Option<&serde_json::Value>) -> BallotBoxPolicy {
-    let datafix = annotations
-        .and_then(|annotations| annotations.get(DATAFIX_ID_KEY))
-        .is_some();
-    if datafix {
-        BallotBoxPolicy::CastVoteTable
-    } else {
-        BallotBoxPolicy::ElectoralLog
-    }
-}
-
 /// How a stored ballot's content is encoded, so that formats can coexist.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
 #[strum(serialize_all = "kebab-case")]
@@ -107,8 +75,8 @@ pub enum BallotFormat {
     HashableMultiBallot,
 }
 
-/// Votes a voter may cast in an election, as `check_revote_limit` computes them for
-/// `cast_vote`: `num_allowed_revotes`, 1 when unset, and 0 for unlimited.
+/// Votes a voter may cast in an election: `num_allowed_revotes`, 1 when unset, and 0
+/// for unlimited.
 pub async fn get_allowed_votes(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -144,15 +112,6 @@ pub async fn accept_ballot(board: &str, ballot: &AcceptBallot<'_>) -> Result<Acc
         .await
 }
 
-/// Status of a newly accepted ballot.
-pub fn initial_ballot_status(datafix: bool) -> BallotStatus {
-    if datafix {
-        BallotStatus::Pending
-    } else {
-        BallotStatus::Valid
-    }
-}
-
 /// Delivery ID of an accepted ballot's cast-vote record, so that appending it again
 /// stores nothing new.
 pub fn ballot_delivery_id(election_event_id: &str, seq: i64) -> String {
@@ -165,8 +124,8 @@ fn stored_hash(bytes: &[u8]) -> Result<Hash> {
         .context("A stored ballot hash does not have 64 bytes")
 }
 
-/// The cast-vote record of an accepted ballot, built as `post_cast_vote` builds the
-/// record of a vote stored in `cast_vote`.
+/// The cast-vote record of an accepted ballot, signed with the event's
+/// protocol-manager key.
 pub fn ballot_record(
     board: &str,
     election_event_id: &str,
@@ -264,45 +223,107 @@ async fn append_pending(
     Ok(appended)
 }
 
-/// `(tenant_id, election_event_id)` of every event whose ballot box holds ballots
-/// waiting for the sequencer, in every electoral-log database. A database that
-/// cannot be read is logged and skipped.
-#[instrument(err)]
-pub async fn events_waiting_for_sequencer() -> Result<Vec<(String, String)>> {
+/// Whether a voter has pending or valid votes in an election event.
+pub async fn get_voter_ballot_state(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+) -> Result<VoterBallotState> {
+    get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .store
+        .voter_ballot_state(election_event_id, voter_id)
+        .await
+}
+
+/// The state of every voter with a pending or valid vote in an election event,
+/// by voter ID.
+pub async fn get_voter_ballot_states(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashMap<String, VoterBallotState>> {
+    Ok(
+        get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .store
+            .voter_ballot_states(election_event_id)
+            .await?
+            .into_iter()
+            .collect(),
+    )
+}
+
+/// Reject a voter's pending and valid votes in an election event. Returns how
+/// many it rejected.
+pub async fn reject_voter_ballots(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+) -> Result<i64> {
+    get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .store
+        .reject_voter_ballots(election_event_id, voter_id)
+        .await
+}
+
+/// The store of every electoral-log database: the shared one and each tenant's.
+pub async fn electoral_log_stores() -> Result<Vec<PostgresStore>> {
     let router = get_electoral_log_router().await?;
     let mut stores = vec![router.shared()];
     for database in router.tenant_databases().await? {
         stores.push(router.database_store(&database).await?);
     }
-    let mut events = Vec::new();
-    for store in stores {
-        match store.events_with_pending_ballots().await {
-            Ok(found) => events.extend(found),
-            Err(error) => tracing::warn!("Skipping an electoral-log database: {error:#}"),
-        }
-    }
-    if events.is_empty() {
-        return Ok(Vec::new());
+    Ok(stores)
+}
+
+/// The tenant of each of these election events.
+pub async fn event_tenants(election_event_ids: &[String]) -> Result<HashMap<String, String>> {
+    if election_event_ids.is_empty() {
+        return Ok(HashMap::new());
     }
     let mut client = get_hasura_pool().await.get().await?;
     let transaction = client.build_transaction().read_only(true).start().await?;
     let rows = transaction
         .query(
-            "SELECT tenant_id::text, id::text FROM sequent_backend.election_event \
+            "SELECT id::text, tenant_id::text FROM sequent_backend.election_event \
              WHERE id = ANY($1::text[]::uuid[])",
-            &[&events],
+            &[&election_event_ids],
         )
         .await
-        .context("Error reading the tenants of the events to sequence")?;
+        .context("Error reading the tenants of election events")?;
     Ok(rows
         .into_iter()
         .map(|row| (row.get(0), row.get(1)))
         .collect())
 }
 
+/// `(tenant_id, election_event_id)` of every event whose ballot box holds ballots
+/// waiting for the sequencer, in every electoral-log database. A database that
+/// cannot be read is logged and skipped.
+#[instrument(err)]
+pub async fn events_waiting_for_sequencer() -> Result<Vec<(String, String)>> {
+    let mut events = Vec::new();
+    for store in electoral_log_stores().await? {
+        match store.events_with_pending_ballots().await {
+            Ok(found) => events.extend(found),
+            Err(error) => tracing::warn!("Skipping an electoral-log database: {error:#}"),
+        }
+    }
+    let tenants = event_tenants(&events).await?;
+    Ok(events
+        .into_iter()
+        .filter_map(|event| tenants.get(&event).map(|tenant| (tenant.clone(), event)))
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use electoral_log::adapters::ballot_box::BallotStatus;
 
     #[tokio::test]
     async fn waiting_for_the_sequencer_ends_when_it_catches_up_or_times_out() {
@@ -323,36 +344,6 @@ mod tests {
         })
         .await
         .is_err());
-    }
-
-    #[test]
-    fn new_events_use_the_ballot_box_except_datafix_events() {
-        assert_eq!(
-            new_event_ballot_box_policy(None),
-            BallotBoxPolicy::ElectoralLog
-        );
-        assert_eq!(
-            new_event_ballot_box_policy(Some(&serde_json::json!({"other": "x"}))),
-            BallotBoxPolicy::ElectoralLog
-        );
-        assert_eq!(
-            new_event_ballot_box_policy(Some(&serde_json::json!({ DATAFIX_ID_KEY: "event" }))),
-            BallotBoxPolicy::CastVoteTable
-        );
-    }
-
-    #[test]
-    fn events_without_a_policy_keep_the_cast_vote_table() {
-        assert_eq!(BallotBoxPolicy::default(), BallotBoxPolicy::CastVoteTable);
-        assert_eq!(
-            serde_json::to_value(BallotBoxPolicy::ElectoralLog).unwrap(),
-            serde_json::json!("electoral-log")
-        );
-        assert_eq!(
-            serde_json::from_value::<BallotBoxPolicy>(serde_json::json!("cast-vote-table"))
-                .unwrap(),
-            BallotBoxPolicy::CastVoteTable
-        );
     }
 
     #[test]

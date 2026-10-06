@@ -670,7 +670,7 @@ const BallotLocatorLogic = () => {
 
     const validatedBallotId = isHex(inputBallotId ?? "")
 
-    const matchingBallots = data?.["sequent_backend_cast_vote"] ?? []
+    const matchingBallots = data?.["cast_votes"] ?? []
     const ambiguousBallotId = matchingBallots.length > 1
     const ballotContent = matchingBallots.length === 1 ? matchingBallots[0].content : null
     const lookupLoading = loadingElections || loading

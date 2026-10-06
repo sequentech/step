@@ -1,14 +1,8 @@
-// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
-//
-// SPDX-License-Identifier: AGPL-3.0-only
+//! Cast votes read from election events' ballot boxes for voters, administrators
+//! and reports.
 
-//! Cast votes read for voters, administrators and reports from wherever their
-//! election event stores them: Hasura's `cast_vote` table or the event's ballot box.
-
-use crate::postgres::cast_vote::count_unresolved_cast_votes;
-use crate::services::ballot_box::BallotBoxPolicy;
 use crate::services::cast_votes::CastVoteStatus;
-use crate::services::election_event_board::{get_ballot_box_policy, get_election_event_board};
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager::get_electoral_log_store;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
@@ -18,25 +12,22 @@ use electoral_log::adapters::ballot_box_reads::{BallotIdMatch, StoredBallot};
 use electoral_log::adapters::postgres::PostgresStore;
 use serde::Serialize;
 use serde_json::Value;
-use tokio_postgres::types::ToSql;
 use tracing::instrument;
 use uuid::Uuid;
 
-/// Where an election event's cast votes are read from.
-pub enum CastVoteSource {
-    /// Hasura's `cast_vote` table.
-    CastVoteTable,
-    /// The ballot box in the electoral-log database of the event's board.
-    BallotBox { store: PostgresStore, board: String },
+/// An election event's ballot box: the electoral-log database of its board.
+pub struct EventBallotBox {
+    pub store: PostgresStore,
+    pub board: String,
 }
 
-/// Where an election event's cast votes are read from, by its ballot box policy.
+/// The ballot box of an election event.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn get_cast_vote_source(
+pub async fn get_event_ballot_box(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-) -> Result<CastVoteSource> {
+) -> Result<EventBallotBox> {
     let row = hasura_transaction
         .query_opt(
             "SELECT bulletin_board_reference FROM sequent_backend.election_event \
@@ -44,24 +35,19 @@ pub async fn get_cast_vote_source(
             &[&tenant_id, &election_event_id],
         )
         .await
-        .context("Error reading the election event's ballot box policy")?
+        .context("Error reading the election event's board")?
         .ok_or_else(|| anyhow!("Election event {election_event_id} not found"))?;
     let reference: Option<Value> = row.try_get(0)?;
-    match get_ballot_box_policy(reference.clone()) {
-        BallotBoxPolicy::CastVoteTable => Ok(CastVoteSource::CastVoteTable),
-        BallotBoxPolicy::ElectoralLog => {
-            let board = get_election_event_board(reference)
-                .context("Election event has no electoral-log board")?;
-            Ok(CastVoteSource::BallotBox {
-                store: get_electoral_log_store(&board).await?,
-                board,
-            })
-        }
-    }
+    let board =
+        get_election_event_board(reference).context("Election event has no electoral-log board")?;
+    Ok(EventBallotBox {
+        store: get_electoral_log_store(&board).await?,
+        board,
+    })
 }
 
-/// Votes of an election's area whose outcome is unresolved, which the tally refuses
-/// to count: Datafix's `in-progress` cast votes, or `pending` ballots.
+/// Ballots of an election's area whose outcome is pending, which the tally refuses
+/// to count.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_unresolved_votes(
     hasura_transaction: &Transaction<'_>,
@@ -70,36 +56,23 @@ pub async fn count_unresolved_votes(
     election_id: &Uuid,
     area_id: &Uuid,
 ) -> Result<i64> {
-    match get_cast_vote_source(
+    let election_event_id = election_event_id.to_string();
+    get_event_ballot_box(
         hasura_transaction,
         &tenant_id.to_string(),
-        &election_event_id.to_string(),
+        &election_event_id,
     )
     .await?
-    {
-        CastVoteSource::CastVoteTable => {
-            count_unresolved_cast_votes(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                election_id,
-                area_id,
-            )
-            .await
-        }
-        CastVoteSource::BallotBox { store, .. } => {
-            store
-                .pending_status_count(
-                    &election_event_id.to_string(),
-                    &election_id.to_string(),
-                    &area_id.to_string(),
-                )
-                .await
-        }
-    }
+    .store
+    .pending_status_count(
+        &election_event_id,
+        &election_id.to_string(),
+        &area_id.to_string(),
+    )
+    .await
 }
 
-/// The `cast_vote` status a stored ballot is shown with.
+/// The status a stored ballot is shown with.
 pub fn cast_vote_status(status: BallotStatus) -> CastVoteStatus {
     match status {
         BallotStatus::Valid => CastVoteStatus::Valid,
@@ -153,7 +126,7 @@ pub enum VoterCastVotes<'a> {
 }
 
 /// A voter's cast votes in their area and authorized elections, in the order they
-/// were cast: the rows Hasura's `user` role may read from `cast_vote`.
+/// were cast.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
@@ -165,88 +138,9 @@ pub async fn get_voter_cast_votes(
             return Ok(Vec::new());
         }
     }
-    match get_cast_vote_source(hasura_transaction, scope.tenant_id, scope.election_event_id).await?
-    {
-        CastVoteSource::CastVoteTable => {
-            cast_vote_table_voter_votes(hasura_transaction, scope, which).await
-        }
-        CastVoteSource::BallotBox { store, .. } => {
-            ballot_box_voter_votes(&store, scope, which).await
-        }
-    }
-}
-
-async fn cast_vote_table_voter_votes(
-    hasura_transaction: &Transaction<'_>,
-    scope: &VoterScope<'_>,
-    which: VoterCastVotes<'_>,
-) -> Result<Vec<VoterCastVote>> {
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![
-        &scope.tenant_id,
-        &scope.election_event_id,
-        &scope.voter_id,
-        &scope.area_id,
-        &scope.election_ids,
-    ];
-    let (filter, content) = match &which {
-        VoterCastVotes::All => ("", "NULL::text"),
-        VoterCastVotes::Matching {
-            election_id,
-            ballot_id,
-        } => {
-            params.push(election_id);
-            match ballot_id {
-                BallotIdMatch::Exact(ballot_id) => {
-                    params.push(ballot_id);
-                    (
-                        "AND election_id = $6::text::uuid AND ballot_id = $7",
-                        "content",
-                    )
-                }
-                BallotIdMatch::Prefix(prefix) => {
-                    params.push(prefix);
-                    (
-                        "AND election_id = $6::text::uuid AND starts_with(ballot_id, $7)",
-                        "content",
-                    )
-                }
-            }
-        }
-    };
-    let rows = hasura_transaction
-        .query(
-            &format!(
-                "SELECT id::text, election_id::text, area_id::text, ballot_id, status, \
-                        created_at, {content} \
-                 FROM sequent_backend.cast_vote \
-                 WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid \
-                   AND voter_id_string = $3 AND area_id = $4::text::uuid \
-                   AND election_id = ANY($5::text[]::uuid[]) {filter} \
-                 ORDER BY created_at, id"
-            ),
-            &params,
-        )
-        .await
-        .context("Error reading the voter's cast votes")?;
-    rows.into_iter()
-        .map(|row| {
-            let status: String = row.try_get(4)?;
-            let created_at: Option<DateTime<Utc>> = row.try_get(5)?;
-            Ok(VoterCastVote {
-                id: row.try_get(0)?,
-                tenant_id: scope.tenant_id.to_string(),
-                election_event_id: scope.election_event_id.to_string(),
-                election_id: row.try_get(1)?,
-                area_id: row.try_get(2)?,
-                ballot_id: row.try_get(3)?,
-                status: status
-                    .parse()
-                    .map_err(|_| anyhow!("Invalid cast vote status {status:?}"))?,
-                created_at: created_at.map(|time| time.to_rfc3339()),
-                content: row.try_get(6)?,
-            })
-        })
-        .collect()
+    let ballot_box =
+        get_event_ballot_box(hasura_transaction, scope.tenant_id, scope.election_event_id).await?;
+    ballot_box_voter_votes(&ballot_box.store, scope, which).await
 }
 
 fn voter_cast_vote(

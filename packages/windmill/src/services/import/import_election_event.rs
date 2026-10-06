@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::{
-    get_election_event_by_id, get_election_event_by_id_if_exist, update_bulletin_board,
-};
+use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -90,7 +88,6 @@ use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
-use crate::services::ballot_box::new_event_ballot_box_policy;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -216,9 +213,7 @@ pub async fn upsert_b3_and_elog(
             ))?;
     }
 
-    let mut board_serializable: BoardSerializable = board.into();
-    let event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
-    board_serializable.ballot_box = new_event_ballot_box_policy(event.annotations.as_ref());
+    let board_serializable: BoardSerializable = board.into();
 
     let board_value = serde_json::to_value(board_serializable.clone())?;
     Ok(board_value)

@@ -211,15 +211,6 @@
         "attributes": {}
       },
       {
-        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-        "name": "cast-vote-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
         "name": "cloudflare-write",
         "description": "",
@@ -2545,7 +2536,6 @@
         "election-write",
         "report-write",
         "communication-template-write",
-        "cast-vote-read",
         "google-meet-link",
         "tally-results-read",
         "settings-voting-channels-tab",
@@ -2729,7 +2719,6 @@
         "offline_access",
         "user-permission-create",
         "communication-template-write",
-        "cast-vote-read",
         "tally-results-read",
         "tally-sheet-view",
         "voting-channel-write",

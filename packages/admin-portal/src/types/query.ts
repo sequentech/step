@@ -7,7 +7,6 @@ import {
     Sequent_Backend_Area_Contest,
     Sequent_Backend_Ballot_Publication,
     Sequent_Backend_Ballot_Style,
-    Sequent_Backend_Cast_Vote,
     Sequent_Backend_Template,
     Sequent_Backend_Contest,
     Sequent_Backend_Document,
@@ -225,24 +224,6 @@ export const sequent_backend_ballot_style: Sequent_Backend_Ballot_Style = {
     last_updated_at: undefined,
     status: undefined,
     tenant_id: "",
-}
-
-export const sequent_backend_cast_vote: Sequent_Backend_Cast_Vote = {
-    __typename: undefined,
-    annotations: undefined,
-    area_id: undefined,
-    ballot_id: undefined,
-    cast_ballot_signature: undefined,
-    content: undefined,
-    created_at: undefined,
-    election_event_id: "",
-    election_id: undefined,
-    id: "",
-    labels: undefined,
-    last_updated_at: undefined,
-    status: "",
-    tenant_id: "",
-    voter_id_string: undefined,
 }
 
 export const sequent_backend_template: Sequent_Backend_Template = {
@@ -624,7 +605,6 @@ export const COLUMNS_MAP: {[key: string]: Array<string>} = {
     sequent_backend_area_contest: Object.keys(sequent_backend_area_contest),
     sequent_backend_ballot_publication: Object.keys(sequent_backend_ballot_publication),
     sequent_backend_ballot_style: Object.keys(sequent_backend_ballot_style),
-    sequent_backend_cast_vote: Object.keys(sequent_backend_cast_vote),
     sequent_backend_template: Object.keys(sequent_backend_template),
     sequent_backend_contest: Object.keys(sequent_backend_contest),
     sequent_backend_document: Object.keys(sequent_backend_document),

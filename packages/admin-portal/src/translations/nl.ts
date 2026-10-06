@@ -1391,7 +1391,6 @@ const dutchTranslation: TranslationType = {
                 "tally-sheet-view": "Telblad Bekijken",
                 "admin-ceremony": "Beheerdersceremonie",
                 "tally-sheet-delete": "Telblad Verwijderen",
-                "cast-vote-read": "Uitgebrachte Stemmen Lezen",
                 "document-read": "Documenten Lezen",
                 "document-write": "Documenten Bewerken",
                 "support-material-read": "Ondersteunend Materiaal Lezen",

@@ -788,60 +788,6 @@ impl ElectoralLog {
         ret
     }
 
-    #[instrument(skip(self, pseudonym_h, vote_h))]
-    pub async fn post_cast_vote(
-        &self,
-        tenant_id: String,
-        event_id: String,
-        election_id: Option<String>,
-        pseudonym_h: PseudonymHash,
-        vote_h: CastVoteHash,
-        voter_ip: String,
-        voter_country: String,
-        voter_id: String,
-        voter_username: Option<String>,
-        area_id: String,
-        voting_channel: String,
-    ) -> Result<()> {
-        let event = EventIdString(event_id.clone());
-        let election = ElectionIdString(election_id);
-        let ip = VoterIpString(voter_ip);
-        let country = VoterCountryString(voter_country);
-        let message = Message::cast_vote_with_channel_message(
-            event,
-            election,
-            pseudonym_h,
-            vote_h,
-            &self.sd,
-            ip,
-            country,
-            VotingChannelString(voting_channel),
-            Some(voter_id.clone()),
-            voter_username.clone(),
-            area_id,
-        )?;
-        let board_message: ElectoralLogMessage = (&message)
-            .try_into()
-            .with_context(|| "Error converting cast-vote Message into ElectoralLogMessage")?;
-        let input = LogEventInput {
-            delivery_id: Some(Uuid::new_v4().to_string()),
-            election_event_id: event_id,
-            message_type: LogMessageType::Internal,
-            user_id: Some(voter_id),
-            username: voter_username,
-            tenant_id,
-            body: LogEventBody::Plain(
-                serde_json::to_string(&board_message)
-                    .with_context(|| "Error serializing ElectoralLogMessage")?,
-            ),
-        };
-        let celery_app = get_celery_app().await;
-        celery_app
-            .send_task(enqueue_electoral_log_event::new(input))
-            .await?;
-        Ok(())
-    }
-
     #[instrument(skip(self, pseudonym_h))]
     pub async fn post_cast_vote_error(
         &self,

@@ -1396,7 +1396,6 @@ const frenchTranslation: TranslationType = {
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
-                "cast-vote-read": "Lire Votes Émis",
                 "document-read": "Lire Documents",
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",

@@ -106,9 +106,10 @@ WITH voter AS (
     VALUES ($1::text::uuid, $2::text::uuid, $3, $4::text::uuid, 1, $5, now())
     ON CONFLICT (election_event_id, election_id, voter_id) DO UPDATE
         SET votes = v.votes + 1,
+            area_id = EXCLUDED.area_id,
             last_ballot_id = EXCLUDED.last_ballot_id,
             updated_at = EXCLUDED.updated_at
-        WHERE v.area_id = EXCLUDED.area_id
+        WHERE (v.votes = 0 OR v.area_id = EXCLUDED.area_id)
           AND ($6::integer = 0 OR v.votes < $6::integer)
     RETURNING election_event_id
 ), ballot AS (

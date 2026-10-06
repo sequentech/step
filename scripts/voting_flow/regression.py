@@ -12,12 +12,7 @@ import unittest
 import psycopg
 from psycopg.types.json import Jsonb
 
-from database import (
-    AREA_MIGRATION,
-    CONFIGURATION_QUERY,
-    STORAGE_MIGRATION,
-    SCHEDULE_MIGRATION,
-)
+from database import CONFIGURATION_QUERY, SCHEDULE_MIGRATION
 from fixtures import Election
 
 
@@ -112,8 +107,6 @@ class VotingFlowTests(unittest.TestCase):
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         self.db.apply(SCHEDULE_MIGRATION)
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
-        self.db.apply(AREA_MIGRATION, "down")
-        self.db.apply(AREA_MIGRATION)
 
     def test_voting_task_payload_matches_its_canonical_identity(self):
         """Reject name-matching schedules whose payload is foreign or has unexpected fields."""
@@ -147,19 +140,6 @@ class VotingFlowTests(unittest.TestCase):
             (self.election.tenant, self.election.event, Jsonb([42]), Jsonb({"scheduled_date": 42})),
         )
         self.assertEqual(self.dates(), (None, None))
-
-    def test_bounded_concurrent_revotes(self):
-        """Allow exactly the configured number of ballots when twelve requests race for one voter."""
-        results = self.concurrent(
-            [
-                lambda connection: self.election.vote(
-                    connection, "limited", status="in-progress"
-                )
-                for _ in range(12)
-            ]
-        )
-        self.assertEqual(results.count(None), 3)
-        self.assertEqual(results.count("insert_failed_exceeds_allowed_revotes"), 9)
 
     def test_schedule_writes_do_not_block_other_tenants(self):
         """An open schedule transaction must not delay another tenant's stop task."""
@@ -277,60 +257,12 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(results, [None, None])
         self.assertEqual(self.dates(), ("2026-10-02T10:00:00Z", "2026-10-02T12:00:00Z"))
 
-    def test_cross_area_rule_applies_to_unlimited_revotes(self):
-        """Permit one winning area and reject the other even when the revote limit is unlimited."""
-        self.connection.execute(
-            "UPDATE sequent_backend.election SET num_allowed_revotes = 0 WHERE id = %s",
-            (self.election.election,),
-        )
-        operations = [
-            lambda connection, area=area: self.election.vote(connection, "areas", area)
-            for area in [self.election.area, self.election.other_area] * 6
-        ]
-        results = self.concurrent(operations)
-        self.assertEqual(results.count(None), 6)
-        self.assertEqual(results.count("check_votes_in_other_areas_failed"), 6)
-
-    def test_discarded_votes_do_not_consume_eligibility(self):
-        """Allow a valid ballot after a discarded ballot in another area."""
-        self.election.vote(
-            self.connection, "discarded", self.election.other_area, "discarded"
-        )
-        self.election.vote(self.connection, "discarded", self.election.area)
-
     def test_duplicate_endpoint_fails_without_changing_deadline(self):
         """Reject an ambiguous endpoint and retain the last valid deadline."""
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         with self.assertRaises(psycopg.errors.UniqueViolation):
             self.election.schedule(self.connection, "END", "2026-10-02T12:00:00Z")
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
-
-    def test_index_replacement_stops_on_an_invalid_previous_build(self):
-        """Retain the valid old index after an interrupted build and verify the documented recovery."""
-        self.election.vote(self.connection, "index-test")
-        self.election.vote(self.connection, "index-test")
-        with self.assertRaises(psycopg.errors.UniqueViolation):
-            self.connection.execute(
-                """
-                CREATE UNIQUE INDEX CONCURRENTLY cast_vote_participation_election_covering_idx
-                ON sequent_backend.cast_vote
-                    (tenant_id, election_event_id, election_id, voter_id_string)
-            """
-            )
-        validity = "SELECT indisvalid FROM pg_index WHERE indexrelid = %s::regclass"
-        old_index = "sequent_backend.cast_vote_participation_election_idx"
-        temporary_index = (
-            "sequent_backend.cast_vote_participation_election_covering_idx"
-        )
-        self.assertFalse(self.db.scalar(validity, (temporary_index,)))
-        self.assertNotEqual(self.db.run_index_script().returncode, 0)
-        self.assertTrue(self.db.scalar(validity, (old_index,)))
-        self.connection.execute(
-            "DROP INDEX CONCURRENTLY sequent_backend.cast_vote_participation_election_covering_idx"
-        )
-        result = self.db.run_index_script()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(self.db.scalar(validity, (old_index,)))
 
     def test_invalid_date_type_is_rejected_at_configuration_write(self):
         """Reject a non-string endpoint date when writing configuration."""
@@ -443,18 +375,6 @@ class VotingFlowTests(unittest.TestCase):
         self.assertIsNone(
             self.connection.execute(CONFIGURATION_QUERY, foreign_scope).fetchone()
         )
-
-    def test_storage_migration_is_reversible(self):
-        """Verify EXTERNAL storage can be rolled back and reapplied for future writes."""
-        query = """
-            SELECT attstorage FROM pg_attribute
-            WHERE attrelid = 'sequent_backend.cast_vote'::regclass AND attname = 'content'
-        """
-        self.db.apply(STORAGE_MIGRATION)
-        self.assertEqual(self.db.scalar(query), "e")
-        self.db.apply(STORAGE_MIGRATION, "down")
-        self.assertEqual(self.db.scalar(query), "x")
-        self.db.apply(STORAGE_MIGRATION)
 
     def test_truncate_removes_deadlines(self):
         """Truncating schedules immediately removes deadlines without maintaining derived data."""

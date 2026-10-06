@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::ReportType;
-use crate::postgres::{self};
-use crate::services::ballot_box_reads::{get_cast_vote_source, CastVoteSource};
-use crate::services::cast_votes::CastVoteStatus;
+use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::temp_path::*;
 
 use anyhow::{anyhow, Context, Result};
@@ -135,41 +133,21 @@ impl TemplateRenderer for BallotTemplate {
         let ballot_uui = parse_uuid_v4(election_id.as_str())
             .map_err(|err| anyhow!("Error parsing election id: {:?}", err))?;
 
-        let source = get_cast_vote_source(
+        let cast = get_event_ballot_box(
             hasura_transaction,
             &tennant_uuid.to_string(),
             &election_event_uuid.to_string(),
         )
-        .await?;
-        let cast = match source {
-            CastVoteSource::CastVoteTable => postgres::cast_vote::get_cast_votes(
-                hasura_transaction,
-                &tennant_uuid,
-                &election_event_uuid,
-                &ballot_uui,
-                voter_id,
-                &[
-                    CastVoteStatus::InProgress,
-                    CastVoteStatus::Valid,
-                    CastVoteStatus::Discarded,
-                ],
-            )
-            .await?
-            .iter()
-            .any(|cv| {
-                cv.ballot_id.as_deref().map_or(false, |id| id == ballot_id)
-                    && cv.area_id.as_deref().map_or(false, |id| id == area_id)
-            }),
-            CastVoteSource::BallotBox { store, .. } => store
-                .voter_ballots(&election_event_uuid.to_string(), voter_id)
-                .await?
-                .iter()
-                .any(|ballot| {
-                    ballot.ballot_id == ballot_id
-                        && ballot.area_id == area_id
-                        && ballot.election_id == ballot_uui.to_string()
-                }),
-        };
+        .await?
+        .store
+        .voter_ballots(&election_event_uuid.to_string(), voter_id)
+        .await?
+        .iter()
+        .any(|ballot| {
+            ballot.ballot_id == ballot_id
+                && ballot.area_id == area_id
+                && ballot.election_id == ballot_uui.to_string()
+        });
 
         // Verify that the vote has been casted
         if !cast {

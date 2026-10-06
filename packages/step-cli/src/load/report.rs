@@ -194,28 +194,9 @@ impl Failures {
     }
 }
 
-/// Where the audited database stores accepted votes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ReceiptStore {
-    /// Hasura's `cast_vote` table, in the backend database.
-    CastVoteTable,
-    /// The ballot box, in a tenant's electoral-log database.
-    BallotBox,
-}
-
-impl ReceiptStore {
-    fn describe(self) -> &'static str {
-        match self {
-            Self::CastVoteTable => "the cast_vote table",
-            Self::BallotBox => "the ballot box",
-        }
-    }
-}
-
-/// Audit accepted receipt IDs in bounded read-only PostgreSQL batches using the DSN-selected transport.
-/// A backend database is audited through `cast_vote`; a tenant's electoral-log database, for events
-/// whose votes go to the ballot box, through `ballot_box_ballot`.
-fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<(usize, ReceiptStore)> {
+/// Audit accepted receipt IDs against the ballot box of the tenant's electoral-log database, in
+/// bounded read-only PostgreSQL batches using the DSN-selected transport.
+fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<usize> {
     let reporting = &input.settings.reporting;
     let mut config: tokio_postgres::Config = std::env::var(dsn_env)
         .context("Set the audit DSN environment variable")?
@@ -230,11 +211,6 @@ fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<(usize, Receip
         let connection = tokio::spawn(connection);
         client.batch_execute("SET default_transaction_read_only=on").await?;
         client.query_one("SELECT set_config('statement_timeout', $1, false)", &[&reporting.audit_timeout_ms.to_string()]).await?;
-        let ballot_box: bool = client
-            .query_one("SELECT to_regclass('ballot_box_ballot') IS NOT NULL", &[])
-            .await?
-            .get(0);
-        let store = if ballot_box { ReceiptStore::BallotBox } else { ReceiptStore::CastVoteTable };
         let mut statement = db.prepare("SELECT receipt FROM samples WHERE receipt IS NOT NULL")?;
         let mut rows = statement.query([])?;
         let mut verified = 0;
@@ -245,15 +221,12 @@ fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<(usize, Receip
                 batch.push(row.get(0)?);
             }
             if batch.is_empty() { break; }
-            let row = match store {
-                ReceiptStore::CastVoteTable => client.query_one("SELECT count(*) FROM sequent_backend.cast_vote WHERE id=ANY($1::text[]::uuid[]) AND tenant_id=$2::text::uuid AND election_event_id=$3::text::uuid", &[&batch, &input.settings.target.tenant_id, &input.event.election_event_id]).await?,
-                ReceiptStore::BallotBox => client.query_one("SELECT count(*) FROM ballot_box_ballot WHERE election_event_id=$1::text::uuid AND id=ANY($2::text[]::uuid[])", &[&input.event.election_event_id, &batch]).await?,
-            };
+            let row = client.query_one("SELECT count(*) FROM ballot_box_ballot WHERE election_event_id=$1::text::uuid AND id=ANY($2::text[]::uuid[])", &[&input.event.election_event_id, &batch]).await?;
             verified += row.get::<_, i64>(0) as usize;
         }
         drop(client);
         connection.await??;
-        Ok((verified, store))
+        Ok(verified)
     })
 }
 
@@ -458,11 +431,9 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
     let mut verification = "API receipts; no independent database audit".to_owned();
     if let Some(dsn) = dsn_env {
         match audit(&db, &input, dsn) {
-            Ok((verified, store)) => {
-                verification = format!(
-                    "{verified}/{receipts} API receipts matched {} in batches",
-                    store.describe()
-                );
+            Ok(verified) => {
+                verification =
+                    format!("{verified}/{receipts} API receipts matched the ballot box in batches");
                 if verified != receipts {
                     failures.add("Database receipt audit is incomplete");
                 }

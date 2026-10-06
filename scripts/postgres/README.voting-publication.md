@@ -87,7 +87,7 @@ reporting task completion and reuses that document on completion retries.
 
 ## Focused verification
 
-Run `python3 scripts/test_cast_vote_scalability.py` and
+Run `python3 scripts/test_voting_flow.py` and
 `python3 scripts/test_ballot_publication_lifecycle.py` with PostgreSQL utilities
 and psycopg available. Each starts and removes its own database cluster.
 

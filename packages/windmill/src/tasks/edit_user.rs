@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::cast_vote::{
-    discard_voter_cast_votes, get_voter_cast_vote_state, VoterCastVoteState,
-};
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
+use crate::services::ballot_box::{get_voter_ballot_state, reject_voter_ballots};
 use crate::services::database::get_hasura_pool;
 use crate::services::electoral_log::{
     post_voter_password_change, ElectoralLogAdminContext, VoterPasswordChangeSource,
@@ -26,6 +24,7 @@ use anyhow::Context;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
+use electoral_log::adapters::ballot_box_status::VoterBallotState;
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
@@ -144,7 +143,7 @@ struct VoterReleasePlan {
 fn plan_voter_release(
     current_enabled: Option<bool>,
     requested_enabled: Option<bool>,
-    cast_vote_state: &VoterCastVoteState,
+    cast_vote_state: &VoterBallotState,
     current_attributes: &HashMap<String, Vec<String>>,
 ) -> std::result::Result<VoterReleasePlan, String> {
     let disable_transition = is_disable_transition(current_enabled, requested_enabled);
@@ -152,13 +151,13 @@ fn plan_voter_release(
     let disable_requested = requested_enabled == Some(false);
     let release_attempt = disable_transition
         || (disable_requested
-            && (cast_vote_state.has_unresolved_vote
-                || cast_vote_state.has_valid_vote
+            && (cast_vote_state.has_pending
+                || cast_vote_state.has_valid
                 || voted_via_internet(current_attributes)));
 
     if reenable_transition
-        && (cast_vote_state.has_unresolved_vote
-            || cast_vote_state.has_valid_vote
+        && (cast_vote_state.has_pending
+            || cast_vote_state.has_valid
             || voted_via_not_internet_channel(current_attributes))
     {
         return Err(
@@ -208,19 +207,17 @@ async fn load_election_event(
     get_election_event_by_id(&transaction, tenant_id, election_event_id).await
 }
 
-/// Single-round snapshot of the voter's cast-vote states, used to decide whether
-/// a disable needs a release and whether a re-enable is safe.
+/// Single-round snapshot of the voter's ballot states, used to decide whether a
+/// disable needs a release and whether a re-enable is safe.
 #[instrument(err, ret)]
 async fn voter_cast_vote_state(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
-) -> anyhow::Result<VoterCastVoteState> {
-    let tenant_id = parse_uuid_v4(tenant_id)?;
-    let election_event_id = parse_uuid_v4(election_event_id)?;
+) -> anyhow::Result<VoterBallotState> {
     let mut client: DbClient = get_hasura_pool().await.get().await?;
-    let transaction = client.transaction().await?;
-    get_voter_cast_vote_state(&transaction, &tenant_id, &election_event_id, voter_id).await
+    let transaction = client.build_transaction().read_only(true).start().await?;
+    get_voter_ballot_state(&transaction, tenant_id, election_event_id, voter_id).await
 }
 
 /// Applies the requested Keycloak fields.
@@ -248,22 +245,19 @@ async fn edit_keycloak_voter(
         .map_err(|err| format!("Error editing Datafix voter in Keycloak: {err:?}"))
 }
 
-/// Discards the voter's active ballots in its own Hasura transaction. Keycloak
-/// and Hasura are updated sequentially; failures are traced by the caller and
-/// left for the existing reconciliation process.
+/// Rejects the voter's pending and valid ballots in the event's ballot box.
+/// Keycloak and the ballot box are updated sequentially; failures are traced by
+/// the caller and left for the existing reconciliation process.
 #[instrument(err)]
 async fn discard_voter_ballots(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
 ) -> anyhow::Result<()> {
-    let tenant_id = parse_uuid_v4(tenant_id)?;
-    let election_event_id = parse_uuid_v4(election_event_id)?;
     let mut client: DbClient = get_hasura_pool().await.get().await?;
-    let transaction = client.transaction().await?;
+    let transaction = client.build_transaction().read_only(true).start().await?;
     let discarded =
-        discard_voter_cast_votes(&transaction, &tenant_id, &election_event_id, voter_id).await?;
-    transaction.commit().await?;
+        reject_voter_ballots(&transaction, tenant_id, election_event_id, voter_id).await?;
     info!(discarded, "Discarded active Datafix cast votes");
     Ok(())
 }
@@ -429,9 +423,9 @@ async fn run_datafix_voter_edit(
             .await
             .map_err(|err| format!("Error checking unresolved cast votes: {err:?}"))?
     } else {
-        VoterCastVoteState {
-            has_unresolved_vote: false,
-            has_valid_vote: false,
+        VoterBallotState {
+            has_pending: false,
+            has_valid: false,
         }
     };
     let plan = plan_voter_release(
@@ -568,10 +562,10 @@ mod tests {
         )));
     }
 
-    fn no_cast_votes() -> VoterCastVoteState {
-        VoterCastVoteState {
-            has_unresolved_vote: false,
-            has_valid_vote: false,
+    fn no_cast_votes() -> VoterBallotState {
+        VoterBallotState {
+            has_pending: false,
+            has_valid: false,
         }
     }
 
@@ -607,9 +601,9 @@ mod tests {
 
     #[test]
     fn a_partial_disable_with_active_votes_retries_the_release() {
-        let state = VoterCastVoteState {
-            has_unresolved_vote: true,
-            has_valid_vote: false,
+        let state = VoterBallotState {
+            has_pending: true,
+            has_valid: false,
         };
         let plan = plan_voter_release(Some(false), Some(false), &state, &HashMap::new()).unwrap();
         assert!(plan.release_attempt);
@@ -631,8 +625,8 @@ mod tests {
 
     #[test]
     fn reenabling_is_refused_while_valid_votes_exist() {
-        let state = VoterCastVoteState {
-            has_valid_vote: true,
+        let state = VoterBallotState {
+            has_valid: true,
             ..no_cast_votes()
         };
         assert!(plan_voter_release(Some(false), Some(true), &state, &HashMap::new()).is_err());
@@ -643,7 +637,7 @@ mod tests {
         // A release resets the voted-channel attribute right after the
         // discard, but as a separate Keycloak write: if that write fails the
         // attribute may remain "Internet" with no active ballot behind it —
-        // re-enable must key off the live `VoterCastVoteState`, not this stale
+        // re-enable must key off the live `VoterBallotState`, not this stale
         // attribute, or a fully-resolved (discarded) voter could never be
         // re-enabled.
         let plan = plan_voter_release(Some(false), Some(true), &no_cast_votes(), &internet_voter())
@@ -654,7 +648,7 @@ mod tests {
     #[test]
     fn reenabling_is_refused_while_marked_voted_via_another_channel() {
         // Unlike an internet ballot, a non-internet channel has no
-        // corresponding `cast_vote` row — the attribute is the only record of
+        // corresponding ballot in the ballot box — the attribute is the only record of
         // it, and only Datafix's own `/unmark-voted` call may reverse it.
         let attributes = HashMap::from([(VOTED_CHANNEL.to_string(), vec!["PAPER".to_string()])]);
         assert!(

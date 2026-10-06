@@ -358,8 +358,8 @@ cli step generate-voters --working-directory <PATH_FOR_INPUT_OUTPUT> --num-users
 
 
 ## Duplicate votes
-> This can be used to duplicate existing cast_vote row.
-> This required additional confituration at config.json in working-directory
+> This casts a copy of an existing ballot of the election event's ballot box for each of the first voters of the realm.
+> This required additional confituration at config.json in working-directory: realm_name, tenant_id, election_event_id and duplicate_votes.row_id_to_clone, the ballot's ID in the ballot box
 ```bash 
 cli step duplicate-votes --working-directory <PATH_FOR_INPUT_OUTPUT> --num-votes <NUMBER_VOTES_TO_DUPLICATE>
 ```

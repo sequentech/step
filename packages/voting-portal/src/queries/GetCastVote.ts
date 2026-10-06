@@ -11,7 +11,7 @@ export const GET_CAST_VOTE = gql`
         $ballotId: String
         $ballotIdPrefix: String
     ) {
-        sequent_backend_cast_vote: get_voter_cast_votes(
+        cast_votes: get_voter_cast_votes(
             election_event_id: $electionEventId
             election_id: $electionId
             ballot_id: $ballotId
