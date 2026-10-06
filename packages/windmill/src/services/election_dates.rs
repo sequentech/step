@@ -58,6 +58,8 @@ pub async fn manage_dates(
     // if there's an schedule date, we have to either insert or create this
     if let Some(date) = scheduled_date {
         let cron_config = CronConfig {
+            local: None,
+            timezone: None,
             cron: None,
             scheduled_date: Some(date.to_string()),
         };
@@ -123,4 +125,19 @@ pub fn get_election_dates(
     }
 
     Ok(dates)
+}
+
+pub fn apply_display_voting_close(
+    dates: &mut StringifiedPeriodDates,
+    close: Option<&DisplayVotingClose>,
+) {
+    if let Some(close) = close {
+        let entry = dates
+            .scheduled_event_dates
+            .get_or_insert_with(Default::default)
+            .entry(EventProcessors::END_VOTING_PERIOD.to_string())
+            .or_default();
+        entry.scheduled_at = close.scheduled_at.clone();
+        entry.timezone = close.timezone.clone();
+    }
 }

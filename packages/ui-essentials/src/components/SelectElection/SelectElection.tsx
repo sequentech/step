@@ -7,9 +7,10 @@ import {styled} from "@mui/material/styles"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faTimes, faCheck} from "@fortawesome/free-solid-svg-icons"
 import theme from "../../services/theme"
-import {IElectionDates, isUndefined} from "@sequentech/ui-core"
+import {IElectionDates, browserTimeZone, isUndefined} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 import {useSelectElectionCountdown} from "./useSelectElectionCountdown"
+import {getElectionTimes, getEndDate, getStartDate, hasDate} from "./electionTimes"
 
 const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
     display: flex;
@@ -151,14 +152,16 @@ const ElectionActions = styled(Box)`
     }
 `
 
-const DatesContainer = styled(Box)`
+// On phones the dates sit side by side, unless they name their zones: then
+// they stack, so each time keeps its zone on one readable line.
+const DatesContainer = styled(Box)<{stacked: string}>`
     display: flex;
     flex-direction: column;
     margin-right: 35px;
 
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        flex-direction: row;
-        gap: 20px;
+        flex-direction: ${({stacked}) => ("true" === stacked ? "column" : "row")};
+        gap: ${({stacked}) => ("true" === stacked ? "4px" : "20px")};
         margin-right: 0;
     }
 `
@@ -193,57 +196,31 @@ export interface SelectElectionProps {
     electionDates?: IElectionDates
     isStarted: boolean
     className?: string | null
-    formatDateTime?: (input: string) => string
+    /**
+     * Formats an instant's date and time, in `timeZone` when given (the
+     * browser's otherwise). It never names the zone.
+     */
+    formatDateTime?: (input: string, timeZone?: string) => string
+    /**
+     * The ballot's (Post's) zone. When set, the opening shows in it with the
+     * zone named in words, the close in `closeTimeZone` with the Post's time
+     * below when they differ, and the device's time when the device is in
+     * another zone. Without it, the dates show as plain times in the browser's
+     * zone.
+     */
+    timeZone?: string
+    /**
+     * The zone of a close whose date doesn't name its own: the event's primary,
+     * where the common close is set; `timeZone` by default.
+     */
+    closeTimeZone?: string
+    /** The device's zone; the browser's by default. */
+    deviceTimeZone?: string
 }
 
-/**
- * The algorithm for election start date in voting portal's election list should
- * be:
- *
- * 1. If there's a scheduled event for start voting period, use that date
- * 2. Or else, if there's a scheduled event for allow initialization report, use
- *    that date
- * 3. Or else, if the election has been started, use that execution date (field
- *    `StringifiedPeriodDates::first_started_at`)
- *
- * The previously mentioned start-date should be applied in relation to:
- * - the shown start date related to the election
- * - the countdown to start
- *
- * The rationale for prioritizing the scheduled dates instead of the actual
- * execution dates is  * so that the dates don't change for voters.
- * */
-const getStartDate = (electionDates?: IElectionDates): string | null => {
-    return (
-        electionDates?.scheduled_event_dates?.START_VOTING_PERIOD?.scheduled_at ||
-        electionDates?.scheduled_event_dates?.ALLOW_INIT_REPORT?.scheduled_at ||
-        electionDates?.first_started_at ||
-        null
-    )
-}
-
-/**
- *
- * The algorithm for the election end date in voting portal's election list
- * should be:
- *
- * 1. if there's a scheduled event for end voting period, use that date
- * 2. or else, if there's a scheduled event for allow end voting period, use
- *    that date
- * 3. or else, if the election has been stopped, use the execution date (field
- *    `StringifiedPeriodDates::last_stopped_at`)
- */
-const getEndDate = (electionDates?: IElectionDates): string | null => {
-    return (
-        electionDates?.scheduled_event_dates?.END_VOTING_PERIOD?.scheduled_at ||
-        electionDates?.scheduled_event_dates?.ALLOW_VOTING_PERIOD_END?.scheduled_at ||
-        electionDates?.last_stopped_at ||
-        null
-    )
-}
-
-const formatDate = (input: string): string => {
+const formatDate = (input: string, timeZone?: string): string => {
     const dateFormatter = new Intl.DateTimeFormat("en-GB", {
+        timeZone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -254,8 +231,6 @@ const formatDate = (input: string): string => {
     let date = new Date(input)
     return dateFormatter.format(date)
 }
-
-const hasDate = (date: string) => date.length > 0 && date !== "-"
 
 const SelectElection: React.FC<SelectElectionProps> = ({
     isActive,
@@ -270,13 +245,35 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     isStarted,
     className,
     formatDateTime,
+    timeZone,
+    closeTimeZone,
+    deviceTimeZone,
 }) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const formatElectionDate = formatDateTime ?? formatDate
     const startVotingDate = getStartDate(electionDates) ?? ""
-    const endVotingDate = getEndDate(electionDates) ?? ""
-    const openDate = hasDate(startVotingDate) && formatElectionDate(startVotingDate)
-    const closeDate = hasDate(endVotingDate) && formatElectionDate(endVotingDate)
+    const now = new Date()
+    const closedAt = !isOpen && isStarted ? now : undefined
+    const endVotingDate = getEndDate(electionDates, closedAt) ?? ""
+    const zoned = timeZone
+        ? getElectionTimes({
+              electionDates,
+              closedAt,
+              timeZone,
+              closeTimeZone: closeTimeZone ?? timeZone,
+              deviceTimeZone: deviceTimeZone ?? browserTimeZone(),
+              now,
+              t,
+              lang: i18n?.resolvedLanguage || i18n?.language || "en",
+              formatDateTime: formatElectionDate,
+          })
+        : undefined
+    const openDate = zoned
+        ? zoned.open
+        : hasDate(startVotingDate) && formatElectionDate(startVotingDate)
+    const closeDate = zoned
+        ? zoned.close
+        : hasDate(endVotingDate) && formatElectionDate(endVotingDate)
     const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
     const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
@@ -383,7 +380,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     {t(`selectElection.${isOpen ? "openElection" : "closedElection"}`)}
                 </StatusBanner>
                 <DatesUrlWrap className="election-dates-and-website">
-                    <DatesContainer className="election-dates">
+                    <DatesContainer className="election-dates" stacked={String(!!zoned)}>
                         <Typography
                             className="election-open-date"
                             fontSize="16px"
@@ -402,6 +399,26 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             {t("selectElection.closeDate")}
                             <b className="election-close-date-value">{closeDate || "-"}</b>
                         </Typography>
+                        {zoned?.closeLocal ? (
+                            <Typography
+                                className="election-close-date-local"
+                                fontSize="14px"
+                                lineHeight="20px"
+                                margin={0}
+                            >
+                                {zoned.closeLocal}
+                            </Typography>
+                        ) : null}
+                        {zoned?.device ? (
+                            <Typography
+                                className="election-device-time"
+                                fontSize="14px"
+                                lineHeight="20px"
+                                margin={0}
+                            >
+                                {zoned.device}
+                            </Typography>
+                        ) : null}
                     </DatesContainer>
                     <Box
                         className="election-website-mobile"

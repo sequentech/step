@@ -39,6 +39,8 @@ pub async fn manage_dates(
     // if there's an schedule date, we have to either insert or create this
     if let Some(date) = scheduled_date {
         let cron_config = CronConfig {
+            local: None,
+            timezone: None,
             cron: None,
             scheduled_date: Some(date.to_string()),
         };

@@ -1152,28 +1152,81 @@ async fn the_panel_links_the_eml_the_signers_sign() {
     );
 }
 
-#[test]
-fn packages_are_dated_in_the_events_zone_with_its_minutes() {
-    use chrono::TimeZone as _;
+/// The offset as `(minutes, form)`: 1 for whole hours, 2 for minutes.
+fn offset_minutes(zone: &sequent_core::types::date_time::TimeZone) -> (i32, u8) {
     use sequent_core::types::date_time::TimeZone;
-    use windmill::services::consolidation::signed_transmission_package::time_zone_at;
-    let now = chrono::Utc.with_ymd_and_hms(2028, 1, 15, 12, 0, 0).unwrap();
-    let offset = |zone: TimeZone| match zone {
+    match zone {
         TimeZone::UTC => (0, 0),
         TimeZone::Offset(hours) => (hours * 60, 1),
-        TimeZone::OffsetMinutes(minutes) => (minutes, 2),
-    };
-    assert_eq!(offset(time_zone_at(chrono_tz::Asia::Manila, now)), (480, 1));
+        TimeZone::OffsetMinutes(minutes) => (*minutes, 2),
+    }
+}
+
+#[test]
+fn packages_are_dated_with_the_minutes_of_their_zone() {
+    use chrono::TimeZone as _;
+    use windmill::services::time_zones::offset_at;
+    let now = chrono::Utc.with_ymd_and_hms(2028, 1, 15, 12, 0, 0).unwrap();
     assert_eq!(
-        offset(time_zone_at(chrono_tz::Asia::Kolkata, now)),
+        offset_minutes(&offset_at(chrono_tz::Asia::Manila, now)),
+        (480, 1)
+    );
+    assert_eq!(
+        offset_minutes(&offset_at(chrono_tz::Asia::Kolkata, now)),
         (330, 2)
     );
     assert_eq!(
-        offset(time_zone_at(chrono_tz::Asia::Kathmandu, now)),
+        offset_minutes(&offset_at(chrono_tz::Asia::Kathmandu, now)),
         (345, 2)
     );
     assert_eq!(
-        offset(time_zone_at(chrono_tz::Europe::Madrid, now)),
+        offset_minutes(&offset_at(chrono_tz::Europe::Madrid, now)),
         (60, 1)
     );
+}
+
+#[tokio::test]
+async fn packages_are_dated_in_the_events_primary_zone() {
+    use chrono::TimeZone as _;
+    use windmill::services::consolidation::signed_transmission_package::transmission_zone;
+    use windmill::services::time_zones::offset_at;
+    // Summer in Madrid (+02:00), so its offset isn't the winter one.
+    let now = chrono::Utc.with_ymd_and_hms(2028, 7, 15, 12, 0, 0).unwrap();
+    for (configured, primary) in [
+        (vec!["Asia/Manila", "Asia/Dubai"], Some("Asia/Manila")),
+        (
+            vec!["Europe/Madrid", "Atlantic/Canary"],
+            Some("Europe/Madrid"),
+        ),
+        (vec![], None),
+    ] {
+        let w = world(&format!("zone-{}", primary.unwrap_or("utc"))).await;
+        let mut client = w.pool.get().await.unwrap();
+        if let Some(primary) = primary {
+            client
+                .execute(
+                    "UPDATE sequent_backend.election_event
+                     SET presentation = COALESCE(presentation, '{}'::jsonb)
+                         || jsonb_build_object('timezones', $3::jsonb)
+                     WHERE tenant_id = $1 AND id = $2",
+                    &[
+                        &w.tenant,
+                        &w.event,
+                        &json!({"configured": configured, "primary": primary, "logs": "election"}),
+                    ],
+                )
+                .await
+                .unwrap();
+        }
+        let tx = client.transaction().await.unwrap();
+        let zone = transmission_zone(&tx, &w.tenant.to_string(), &w.event.to_string(), now)
+            .await
+            .unwrap();
+        let expected: chrono_tz::Tz = primary.unwrap_or("UTC").parse().unwrap();
+        assert_eq!(zone.zone, expected);
+        assert_eq!(
+            offset_minutes(&zone.offset),
+            offset_minutes(&offset_at(expected, now))
+        );
+    }
 }

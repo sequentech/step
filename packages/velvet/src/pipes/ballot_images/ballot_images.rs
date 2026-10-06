@@ -16,7 +16,7 @@ use sequent_core::services::{pdf, reports};
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -28,6 +28,30 @@ use uuid::Uuid;
 
 pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "ballot_images.pdf";
 pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "ballot_images.html";
+
+/// Effective election zones resolved with the event context when this report
+/// run was prepared; stored in the existing arbitrary extra_data object.
+pub const ELECTION_TIME_ZONES_VAR: &str = "electionTimezones";
+
+pub fn add_ballot_image_time_variables(
+    extra_data: &Value,
+    election_id: &str,
+    variables: &mut Map<String, Value>,
+) {
+    reports::copy_template_time_variables(extra_data, variables);
+    if let Some(zone) = extra_data
+        .get(ELECTION_TIME_ZONES_VAR)
+        .and_then(|zones| zones.get(election_id))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|zone| !zone.is_empty())
+    {
+        variables.insert(
+            reports::ELECTION_TIMEZONE_VAR.to_string(),
+            Value::String(zone.to_string()),
+        );
+    }
+}
 
 pub struct BallotImages {
     pub pipe_inputs: PipeInputs,
@@ -91,6 +115,12 @@ impl BallotImages {
             "extra_data".to_string(),
             serde_json::to_value(&pipe_config.extra_data)?,
         );
+        // The event's zone and timezone texts for the date helpers.
+        add_ballot_image_time_variables(
+            &pipe_config.extra_data,
+            &election_input.id.to_string(),
+            &mut map,
+        );
 
         let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
             .map_err(|e| {
@@ -111,6 +141,12 @@ impl BallotImages {
                 system_map.insert(key.clone(), value.clone());
             }
         }
+
+        add_ballot_image_time_variables(
+            &pipe_config.extra_data,
+            &election_input.id.to_string(),
+            &mut system_map,
+        );
 
         let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
             .map_err(|e| {
@@ -365,5 +401,41 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
         election_annotations: data.election_annotations,
         election_dates: data.election_dates,
         execution_annotations: HashMap::from([("date_printed".to_string(), get_date_and_time())]),
+    }
+}
+
+#[cfg(test)]
+mod timezone_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn report_content_and_outer_template_use_the_resolved_election_zone() {
+        let source = json!({
+            "electionEventTimezone": "Europe/Madrid",
+            "electionTimezone": "Europe/Madrid",
+            "electionTimezones": {"office": "Atlantic/Canary"},
+            "timezoneTexts": {"defaults": {"timezones.abbrDaylight.Atlantic/Canary": "WEST"}, "overrides": {}}
+        });
+        let mut variables = Map::new();
+        add_ballot_image_time_variables(&source, "office", &mut variables);
+        variables.insert("at".into(), json!("2028-04-09T00:00:00Z"));
+        assert_eq!(variables["electionEventTimezone"], json!("Europe/Madrid"));
+        assert_eq!(
+            reports::render_template_text(
+                r#"{{datetime_zone at output_format="%H:%M"}}"#,
+                variables
+            )
+            .unwrap(),
+            "01:00 WEST"
+        );
+    }
+
+    #[test]
+    fn older_inputs_keep_the_existing_timezone_fallback() {
+        let source = json!({"electionEventTimezone": "Europe/Madrid", "electionTimezone": "UTC"});
+        let mut variables = Map::new();
+        add_ballot_image_time_variables(&source, "office", &mut variables);
+        assert_eq!(variables["electionTimezone"], json!("UTC"));
     }
 }

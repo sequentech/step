@@ -891,3 +891,48 @@ pub async fn get_cast_vote_configuration(
         },
     })
 }
+
+/// Display context for existing live schedules. Signed retained boundaries are
+/// added with the lifecycle scheduler upgrade.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DisplayVotingClose {
+    pub scheduled_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+}
+
+pub async fn get_display_voting_closes(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+    election_ids: &[String],
+) -> Result<std::collections::HashMap<String, DisplayVotingClose>> {
+    let ids = election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<Result<Vec<_>>>()?;
+    let rows=transaction.query(
+        "SELECT e.id::text AS election_id, s.cron_config->>'scheduled_date' AS scheduled_at,
+             s.cron_config->>'timezone' AS timezone
+         FROM sequent_backend.election e JOIN LATERAL (
+             SELECT cron_config FROM sequent_backend.scheduled_event s
+             WHERE s.tenant_id=e.tenant_id AND s.election_event_id=e.election_event_id
+               AND s.archived_at IS NULL AND s.event_processor='END_VOTING_PERIOD'
+               AND (s.event_payload->>'election_id'=e.id::text OR s.event_payload->>'election_id' IS NULL)
+             ORDER BY (s.event_payload->>'election_id' IS NULL), s.created_at DESC, s.id DESC LIMIT 1
+         ) s ON true
+         WHERE e.tenant_id=$1 AND e.election_event_id=$2 AND e.id=ANY($3)",
+        &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(event_id)?, &ids],
+    ).await?;
+    rows.into_iter()
+        .map(|row| {
+            Ok((
+                row.try_get("election_id")?,
+                DisplayVotingClose {
+                    scheduled_at: row.try_get("scheduled_at")?,
+                    timezone: row.try_get("timezone")?,
+                },
+            ))
+        })
+        .collect()
+}

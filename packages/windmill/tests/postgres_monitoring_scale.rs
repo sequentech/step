@@ -177,6 +177,13 @@ async fn seed(client: &mut Client, keycloak: &Client, voters: i32) -> EventRef {
     .await
     .unwrap();
     // Posts: a region each, most open, some closed or not started.
+    // Only this synthetic setup transaction establishes protected statuses.
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', 'on', true)",
+        &[],
+    )
+    .await
+    .unwrap();
     tx.execute(
         "INSERT INTO sequent_backend.election
              (id, tenant_id, election_event_id, presentation, annotations, status,

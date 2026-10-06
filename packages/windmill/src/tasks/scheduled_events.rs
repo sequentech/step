@@ -395,6 +395,17 @@ pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
             continue;
         };
         match event_processor {
+            EventProcessors::START_READINESS_TEST
+            | EventProcessors::END_READINESS_TEST
+            | EventProcessors::START_FINAL_TESTING
+            | EventProcessors::END_FINAL_TESTING
+            | EventProcessors::START_TEST_VOTING
+            | EventProcessors::END_TEST_VOTING => {
+                event!(
+                    Level::ERROR,
+                    "Lifecycle window processor requires the lifecycle scheduler upgrade"
+                );
+            }
             EventProcessors::ALLOW_INIT_REPORT => {
                 handle_allow_init_report(celery_app.clone(), scheduled_event).await?;
             }

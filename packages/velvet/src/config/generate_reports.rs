@@ -26,6 +26,15 @@ pub struct PipeConfigGenerateReports {
     pub extra_data: Value,
     pub tally_type: TallyType,
     pub tally_session_configuration: Option<TallySessionConfiguration>,
+    /// Variables every report of the run gets besides its data: the event's
+    /// zone (`electionEventTimezone`) and its timezone texts
+    /// (VOTE-LIFECYCLE). A report's own data of the same name wins.
+    #[serde(default)]
+    pub template_variables: serde_json::Map<String, Value>,
+    /// Each election's zone, by election id: a report's
+    /// `electionTimezone`.
+    #[serde(default)]
+    pub election_time_zones: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]
