@@ -14,7 +14,9 @@
 //! * Ids. The importer renumbers every UUID, so each id is replaced by the
 //!   entity's stable key: an area's name (the voters CSV resolves areas by
 //!   name, so names are unique), an election's, contest's or candidate's
-//!   external id, and an image document's file name.
+//!   external id, and an image document's file name. Only in the fields that
+//!   hold ids and urls ([`FieldKind`]): what voters read is hashed as written,
+//!   so a name that spells an id is not taken for one.
 //! * The tenant, the event id, the public key, timestamps and the election's
 //!   dates. The schedule is configuration, and the manifest covers it through
 //!   the scheduled events file; the dates a style carries also record when
@@ -142,13 +144,61 @@ impl DesignKeys {
         self.by_id.get(id).map(|(_, key)| key.as_str())
     }
 
-    fn replacement(&self, text: &str) -> Option<String> {
-        if let Some((kind, key)) = self.by_id.get(text) {
-            return Some(format!("{}:{key}", kind.prefix()));
-        }
-        public_file_name(text)
-            .map(|name| format!("{}:{name}", EntityKind::Document.prefix()))
+    fn reference(&self, id: &str) -> Option<String> {
+        self.by_id
+            .get(id)
+            .map(|(kind, key)| format!("{}:{key}", kind.prefix()))
     }
+}
+
+/// What the value of a field is, going by the field's name. Only a field
+/// that holds an id or an uploaded file's path is rewritten: a name, a
+/// description or an annotation is what voters read, and is hashed as written
+/// even when it reads like an id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FieldKind {
+    /// `id`, `contest_id`, `image_document_id`: one entity's id.
+    Id,
+    /// `contest_ids`: a list of ids.
+    Ids,
+    /// `url`, `logo_url`: possibly an uploaded file's bucket path.
+    Url,
+    /// `name_i18n`, `annotations`: translations and annotations, whose own
+    /// keys are language codes and names somebody chose (`id` is Indonesian).
+    /// Nothing under them is a reference.
+    Text,
+    Other,
+}
+
+const ID_FIELD: &str = "id";
+const ID_SUFFIX: &str = "_id";
+const IDS_SUFFIX: &str = "_ids";
+const URL_FIELD: &str = "url";
+const URL_SUFFIX: &str = "_url";
+const TEXT_FIELDS: &[&str] = &["i18n", "annotations"];
+const TEXT_SUFFIXES: &[&str] = &["_i18n", "_annotations"];
+
+impl FieldKind {
+    fn of(name: &str) -> Self {
+        if TEXT_FIELDS.contains(&name)
+            || TEXT_SUFFIXES.iter().any(|suffix| name.ends_with(suffix))
+        {
+            FieldKind::Text
+        } else if name == ID_FIELD || name.ends_with(ID_SUFFIX) {
+            FieldKind::Id
+        } else if name.ends_with(IDS_SUFFIX) {
+            FieldKind::Ids
+        } else if name == URL_FIELD || name.ends_with(URL_SUFFIX) {
+            FieldKind::Url
+        } else {
+            FieldKind::Other
+        }
+    }
+}
+
+fn document_reference(path: &str) -> Option<String> {
+    public_file_name(path)
+        .map(|name| format!("{}:{name}", EntityKind::Document.prefix()))
 }
 
 /// `tenant-<id>/document-<id>/<name>`, the bucket-relative path of an
@@ -334,24 +384,42 @@ pub fn mismatches(
 }
 
 fn normalise(value: Value, keys: &DesignKeys) -> Value {
+    normalise_field(value, FieldKind::Other, keys)
+}
+
+fn normalise_field(value: Value, kind: FieldKind, keys: &DesignKeys) -> Value {
+    if kind == FieldKind::Text {
+        return value;
+    }
     match value {
         Value::String(text) => {
-            Value::String(keys.replacement(&text).unwrap_or(text))
+            let replaced = match kind {
+                FieldKind::Id => keys.reference(&text),
+                FieldKind::Url => document_reference(&text),
+                FieldKind::Ids | FieldKind::Text | FieldKind::Other => None,
+            };
+            Value::String(replaced.unwrap_or(text))
         }
-        Value::Array(items) => Value::Array(
-            items
-                .into_iter()
-                .map(|item| normalise(item, keys))
-                .collect(),
-        ),
+        Value::Array(items) => {
+            let of_items = match kind {
+                FieldKind::Ids => FieldKind::Id,
+                _ => FieldKind::Other,
+            };
+            Value::Array(
+                items
+                    .into_iter()
+                    .map(|item| normalise_field(item, of_items, keys))
+                    .collect(),
+            )
+        }
         Value::Object(map) => {
             let mut out = Map::new();
             for (name, nested) in map {
                 if VOLATILE_FIELDS.contains(&name.as_str()) {
                     continue;
                 }
-                let name = keys.replacement(&name).unwrap_or(name);
-                let mut nested = normalise(nested, keys);
+                let mut nested =
+                    normalise_field(nested, FieldKind::of(&name), keys);
                 if UNORDERED_LISTS.contains(&name.as_str()) {
                     sort_by_key(&mut nested);
                 }

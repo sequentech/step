@@ -258,7 +258,9 @@ pub struct ReportManifest {
 
 /// The stamp of a report of `report_type` drawn with `template`, or a
 /// refusal when the signed configuration sets a design for that report and
-/// `template` is not it.
+/// `template` is not it. A type may be set more than once, for the event and
+/// for an election: the template must then be one of the designs set, unless
+/// one of the settings leaves the design to the platform.
 pub fn report_stamp(
     manifest: &Manifest,
     manifest_sha256: &str,
@@ -266,28 +268,36 @@ pub fn report_stamp(
     template: &str,
 ) -> Result<ConfigurationStamp, Problem> {
     let template_sha256 = sha256_hex(template.as_bytes());
-    let approved = manifest
+    let designs: Vec<Option<&String>> = manifest
         .content
         .reports
         .iter()
-        .find(|setting| setting.report_type == report_type)
-        .and_then(|setting| setting.template_sha256.as_ref());
-    if let Some(approved) = approved {
-        if *approved != template_sha256 {
-            return Err(Problem::error(
-                Code::IntegrityMismatch,
-                "reports",
-                format!(
-                    "the {report_type} report's template is not the one the \
-                     signed configuration approved: its digest is \
-                     {template_sha256}, and the configuration says {approved}"
-                ),
-            )
-            .id("package.report-template-changed")
-            .detail("report", report_type)
-            .detail("expected", approved)
-            .detail("actual", &template_sha256));
-        }
+        .filter(|setting| setting.report_type == report_type)
+        .map(|setting| setting.template_sha256.as_ref())
+        .collect();
+    let approved: Vec<&str> = designs
+        .iter()
+        .flatten()
+        .map(|digest| digest.as_str())
+        .collect();
+    if !approved.is_empty()
+        && approved.len() == designs.len()
+        && !approved.contains(&template_sha256.as_str())
+    {
+        let approved = approved.join(", ");
+        return Err(Problem::error(
+            Code::IntegrityMismatch,
+            "reports",
+            format!(
+                "the {report_type} report's template is not the one the \
+                 signed configuration approved: its digest is \
+                 {template_sha256}, and the configuration says {approved}"
+            ),
+        )
+        .id("package.report-template-changed")
+        .detail("report", report_type)
+        .detail("expected", approved)
+        .detail("actual", &template_sha256));
     }
     Ok(ConfigurationStamp {
         external_id: manifest.configuration.external_id.clone(),
@@ -335,7 +345,6 @@ pub struct RevisionContent {
 /// numbered against the last signed revision's, and its report settings
 /// with the digest of each report's template.
 pub fn revision_content(
-    plan: &super::architect::Blueprint,
     compiled: &super::architect::Compiled,
     previous_designs: &[BallotDesign],
 ) -> Result<RevisionContent, super::problem::Report> {
@@ -343,59 +352,12 @@ pub fn revision_content(
 
     let delivery = super::archive::delivery(&compiled.layout)
         .map_err(Report::from_problem)?;
-    let members =
-        read_zip(&delivery.bytes, "delivery").map_err(Report::from_problem)?;
-    let files = file_entries(&members).map_err(Report::from_problem)?;
+    let Payload { members, files } =
+        expand(&delivery.bytes, "delivery", ArchiveLimits::PACKAGE)
+            .map_err(Report::from_problem)?;
     let digests = super::preview::ballot_design_digests(&compiled.bundle)?;
     let ballot_designs = super::design::versioned(previous_designs, digests);
-
-    let mut report = Report::default();
-    let reports = plan
-        .reports
-        .iter()
-        .map(|planned| {
-            let template_sha256 = planned.template.as_ref().and_then(|alias| {
-                let found = compiled
-                    .bundle
-                    .templates
-                    .iter()
-                    .find(|template| template.alias == *alias);
-                if found.is_none() {
-                    report.push(
-                        Problem::error(
-                            Code::DanglingReference,
-                            "reports",
-                            format!(
-                                "the {} report is drawn with template '{alias}', \
-                                 which isn't in the configuration, so its design \
-                                 can't be signed",
-                                planned.report_type
-                            ),
-                        )
-                        .id("package.report-template-missing")
-                        .detail("report", &planned.report_type)
-                        .detail("template", alias),
-                    );
-                }
-                found.map(|template| sha256_hex(template.document.as_bytes()))
-            });
-            let formats = if planned.formats.is_empty() {
-                planned.report_type.formats()[..1].to_vec()
-            } else {
-                planned.formats.clone()
-            };
-            ReportSetting {
-                report_type: planned.report_type.to_string(),
-                formats,
-                copies: planned.copies,
-                template: planned.template.clone(),
-                template_sha256,
-            }
-        })
-        .collect();
-    if report.has_errors() {
-        return Err(report);
-    }
+    let reports = report_settings(&compiled.bundle)?;
 
     Ok(RevisionContent {
         delivery_name: delivery.name,
@@ -406,6 +368,127 @@ pub fn revision_content(
             reports,
         },
     })
+}
+
+const REPORT_TYPE_COLUMN: &str = "report_type";
+const REPORT_TEMPLATE_COLUMN: &str = "template_alias";
+const REPORT_COPIES_COLUMN: &str = "copies";
+const REPORT_FORMATS_COLUMN: &str = "output_formats";
+
+/// How many copies a report prints when its row doesn't say.
+const DEFAULT_REPORT_COPIES: u32 = 1;
+
+/// The setting of every report the bundle's reports file creates: the plan's
+/// own and the rows of a Reports sheet the plan carries. Read from the file
+/// the importer reads, so no report is created that the approvers didn't see.
+fn report_settings(
+    bundle: &super::build::Bundle,
+) -> Result<Vec<ReportSetting>, super::problem::Report> {
+    use std::str::FromStr;
+
+    use super::report::{parse_copies, parse_output_formats, ReportType};
+
+    let mut report = super::problem::Report::default();
+    let mut settings = Vec::new();
+    let Some(table) = &bundle.reports else {
+        return Ok(settings);
+    };
+    let cell = |row: &[String], column: &str| -> Option<String> {
+        let at = table.columns.iter().position(|name| name == column)?;
+        let text = row.get(at)?.trim();
+        (!text.is_empty()).then(|| text.to_string())
+    };
+
+    for (index, row) in table.rows.iter().enumerate() {
+        let path = format!("reports[{index}]");
+        let Some(report_type) = cell(row, REPORT_TYPE_COLUMN) else {
+            report.push(
+                Problem::error(
+                    Code::MissingField,
+                    path,
+                    "a report in the configuration has no type, so it can't \
+                     be signed",
+                )
+                .id("package.report-unreadable"),
+            );
+            continue;
+        };
+        let unreadable = |reason: String| {
+            Problem::error(
+                Code::InvalidValue,
+                path.clone(),
+                format!("the {report_type} report can't be signed: {reason}"),
+            )
+            .id("package.report-unreadable")
+            .detail("report", &report_type)
+            .detail("reason", reason)
+        };
+
+        let copies =
+            match parse_copies(cell(row, REPORT_COPIES_COLUMN).as_deref()) {
+                Ok(copies) => copies.unwrap_or(DEFAULT_REPORT_COPIES),
+                Err(reason) => {
+                    report.push(unreadable(reason));
+                    continue;
+                }
+            };
+        let formats = match parse_output_formats(
+            cell(row, REPORT_FORMATS_COLUMN).as_deref(),
+        ) {
+            Ok(Some(formats)) => formats,
+            Ok(None) => ReportType::from_str(&report_type)
+                .ok()
+                .and_then(|known| known.formats().first().copied())
+                .into_iter()
+                .collect(),
+            Err(reason) => {
+                report.push(unreadable(reason));
+                continue;
+            }
+        };
+
+        let template = cell(row, REPORT_TEMPLATE_COLUMN);
+        let template_sha256 = match &template {
+            None => None,
+            Some(alias) => {
+                let found = bundle
+                    .templates
+                    .iter()
+                    .find(|template| template.alias.trim() == alias);
+                if found.is_none() {
+                    report.push(
+                        Problem::error(
+                            Code::DanglingReference,
+                            path.clone(),
+                            format!(
+                                "the {report_type} report is drawn with \
+                                 template '{alias}', which isn't in the \
+                                 configuration, so its design can't be signed"
+                            ),
+                        )
+                        .id("package.report-template-missing")
+                        .detail("report", &report_type)
+                        .detail("template", alias),
+                    );
+                    continue;
+                }
+                found.map(|template| sha256_hex(template.document.as_bytes()))
+            }
+        };
+
+        settings.push(ReportSetting {
+            report_type,
+            formats,
+            copies,
+            template,
+            template_sha256,
+        });
+    }
+
+    if report.has_errors() {
+        return Err(report);
+    }
+    Ok(settings)
 }
 
 /// What is added, changed or removed between two revisions.
@@ -573,37 +656,234 @@ fn file_changes(
     }
 }
 
+const MEBIBYTE: u64 = 1024 * 1024;
+
+/// The most members a package may hold, its nested zips' members included.
+pub const MAX_PACKAGE_MEMBERS: usize = 10_000;
+
+/// The most one member may expand to. The largest member of a delivery is
+/// its voters file.
+pub const MAX_MEMBER_BYTES: u64 = 1024 * MEBIBYTE;
+
+/// The most a package's members may expand to together, its nested zips'
+/// members included.
+pub const MAX_PACKAGE_BYTES: u64 = 2048 * MEBIBYTE;
+
+/// How deep a zip may sit inside other zips. A delivery's sit one deep.
+pub const MAX_NESTING_DEPTH: usize = 3;
+
+/// The most `manifest.json`, `manifest.sig` or `manifest.chain.pem` may
+/// expand to. They are read before anything vouches for the package.
+pub const MAX_SIGNATURE_MEMBER_BYTES: u64 = 16 * MEBIBYTE;
+
+/// How much of an archive a reader expands. A zip says how large its members
+/// are and can lie, so the limits are kept while reading, not taken from its
+/// directory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ArchiveLimits {
+    pub members: usize,
+    pub member_bytes: u64,
+    pub total_bytes: u64,
+    pub nesting_depth: usize,
+}
+
+impl ArchiveLimits {
+    /// What a package and the delivery inside it are held to.
+    pub const PACKAGE: ArchiveLimits = ArchiveLimits {
+        members: MAX_PACKAGE_MEMBERS,
+        member_bytes: MAX_MEMBER_BYTES,
+        total_bytes: MAX_PACKAGE_BYTES,
+        nesting_depth: MAX_NESTING_DEPTH,
+    };
+
+    /// What the three signature members are held to.
+    pub const SIGNATURE: ArchiveLimits = ArchiveLimits {
+        members: MAX_PACKAGE_MEMBERS,
+        member_bytes: MAX_SIGNATURE_MEMBER_BYTES,
+        total_bytes: 3 * MAX_SIGNATURE_MEMBER_BYTES,
+        nesting_depth: 0,
+    };
+}
+
+/// What is left of an [`ArchiveLimits`] while a package is read: one budget
+/// for the package and every zip nested in it.
+#[derive(Debug, Clone)]
+struct Budget {
+    limits: ArchiveLimits,
+    members_left: usize,
+    bytes_left: u64,
+}
+
+impl Budget {
+    fn new(limits: ArchiveLimits) -> Self {
+        Budget {
+            limits,
+            members_left: limits.members,
+            bytes_left: limits.total_bytes,
+        }
+    }
+
+    fn take_members(
+        &mut self,
+        count: usize,
+        what: &str,
+    ) -> Result<(), Problem> {
+        match self.members_left.checked_sub(count) {
+            Some(left) => {
+                self.members_left = left;
+                Ok(())
+            }
+            None => Err(self.too_many_members(what)),
+        }
+    }
+
+    fn too_many_members(&self, what: &str) -> Problem {
+        Problem::error(
+            Code::Unreadable,
+            what,
+            format!(
+                "{what} holds more files than the {} a package may hold",
+                self.limits.members
+            ),
+        )
+        .id("package.too-many-members")
+        .detail("archive", what)
+        .detail("limit", self.limits.members)
+    }
+
+    /// Reads one member, stopping as soon as it passes what is allowed.
+    fn read(
+        &mut self,
+        entry: &mut impl Read,
+        declared: u64,
+        name: &str,
+        what: &str,
+    ) -> Result<Vec<u8>, Problem> {
+        let allowed = self.limits.member_bytes.min(self.bytes_left);
+        if declared > allowed {
+            return Err(self.too_large(declared, name, what));
+        }
+        let mut contents = Vec::new();
+        entry
+            .take(allowed.saturating_add(1))
+            .read_to_end(&mut contents)
+            .map_err(|error| unreadable_zip(what, error.to_string()))?;
+        let size = contents.len() as u64;
+        if size > allowed {
+            return Err(self.too_large(size, name, what));
+        }
+        self.bytes_left -= size;
+        Ok(contents)
+    }
+
+    fn too_large(&self, size: u64, name: &str, what: &str) -> Problem {
+        if size > self.limits.member_bytes {
+            Problem::error(
+                Code::Unreadable,
+                what,
+                format!(
+                    "'{name}' in {what} expands to more than the {} bytes a \
+                     file may",
+                    self.limits.member_bytes
+                ),
+            )
+            .id("package.member-too-large")
+            .detail("file", name)
+            .detail("archive", what)
+            .detail("limit", self.limits.member_bytes)
+        } else {
+            Problem::error(
+                Code::Unreadable,
+                what,
+                format!(
+                    "the package expands to more than the {} bytes it may: \
+                     '{name}' in {what} is past them",
+                    self.limits.total_bytes
+                ),
+            )
+            .id("package.too-large")
+            .detail("file", name)
+            .detail("archive", what)
+            .detail("limit", self.limits.total_bytes)
+        }
+    }
+}
+
 /// Every member's entry, with a nested zip's members listed under it, in
-/// path order.
+/// path order. Nested zips are expanded within [`ArchiveLimits::PACKAGE`].
 pub fn file_entries(members: &[Artifact]) -> Result<Vec<FileEntry>, Problem> {
-    let mut entries = members
-        .iter()
-        .map(|member| {
-            let nested = if member.name.ends_with(NESTED_ZIP_SUFFIX) {
-                file_entries(&read_zip(&member.bytes, &member.name)?)?
-            } else {
-                Vec::new()
-            };
-            Ok(FileEntry {
-                path: member.name.clone(),
-                size: member.bytes.len() as u64,
-                sha256: sha256_hex(&member.bytes),
-                members: nested,
-            })
-        })
-        .collect::<Result<Vec<_>, Problem>>()?;
+    entries_at(members, 1, &mut Budget::new(ArchiveLimits::PACKAGE))
+}
+
+/// The entries of members that sit `depth` zips deep, the package being the
+/// first.
+fn entries_at(
+    members: &[Artifact],
+    depth: usize,
+    budget: &mut Budget,
+) -> Result<Vec<FileEntry>, Problem> {
+    let mut entries = Vec::with_capacity(members.len());
+    for member in members {
+        let nested = if member.name.ends_with(NESTED_ZIP_SUFFIX) {
+            if depth > budget.limits.nesting_depth {
+                return Err(Problem::error(
+                    Code::Unreadable,
+                    member.name.as_str(),
+                    format!(
+                        "'{}' is nested in more than the {} zips a file may be",
+                        member.name, budget.limits.nesting_depth
+                    ),
+                )
+                .id("package.nested-too-deep")
+                .detail("file", &member.name)
+                .detail("limit", budget.limits.nesting_depth));
+            }
+            let inner =
+                read_members(&member.bytes, &member.name, budget, |_| true)?;
+            entries_at(&inner, depth + 1, budget)?
+        } else {
+            Vec::new()
+        };
+        entries.push(FileEntry {
+            path: member.name.clone(),
+            size: member.bytes.len() as u64,
+            sha256: sha256_hex(&member.bytes),
+            members: nested,
+        });
+    }
     entries.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(entries)
 }
 
-/// The members of a zip, in the order they are stored. A name that appears
-/// twice is refused: which of the two a reader takes is the reader's choice,
-/// and the `zip` crate silently keeps only the last.
+/// The members of a zip, in the order they are stored, within
+/// [`ArchiveLimits::PACKAGE`]. A name that appears twice is refused: which
+/// of the two a reader takes is the reader's choice, and the `zip` crate
+/// silently keeps only the last.
 pub fn read_zip(bytes: &[u8], what: &str) -> Result<Vec<Artifact>, Problem> {
-    let names = central_directory_names(bytes)
+    read_members(
+        bytes,
+        what,
+        &mut Budget::new(ArchiveLimits::PACKAGE),
+        |_| true,
+    )
+}
+
+/// The members of a zip that `wanted` names, read out of `budget`. The
+/// others are counted and not expanded.
+fn read_members(
+    bytes: &[u8],
+    what: &str,
+    budget: &mut Budget,
+    wanted: impl Fn(&str) -> bool,
+) -> Result<Vec<Artifact>, Problem> {
+    let names = central_directory_names(bytes, budget.members_left)
         .map_err(|reason| unreadable_zip(what, reason))?;
-    for (index, name) in names.iter().enumerate() {
-        if names[..index].contains(name) {
+    if names.len() > budget.members_left {
+        return Err(budget.too_many_members(what));
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for name in &names {
+        if !seen.insert(name.as_str()) {
             return Err(Problem::error(
                 Code::Unreadable,
                 what,
@@ -617,19 +897,18 @@ pub fn read_zip(bytes: &[u8], what: &str) -> Result<Vec<Artifact>, Problem> {
 
     let mut archive = ::zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|error| unreadable_zip(what, error.to_string()))?;
-    let mut members: Vec<Artifact> = Vec::with_capacity(archive.len());
+    budget.take_members(archive.len().max(names.len()), what)?;
+    let mut members: Vec<Artifact> = Vec::new();
     for index in 0..archive.len() {
         let mut entry = archive
             .by_index(index)
             .map_err(|error| unreadable_zip(what, error.to_string()))?;
-        if entry.is_dir() {
+        if entry.is_dir() || !wanted(entry.name()) {
             continue;
         }
         let name = entry.name().to_string();
-        let mut contents = Vec::new();
-        entry
-            .read_to_end(&mut contents)
-            .map_err(|error| unreadable_zip(what, error.to_string()))?;
+        let declared = entry.size();
+        let contents = budget.read(&mut entry, declared, &name, what)?;
         members.push(Artifact {
             name,
             bytes: contents,
@@ -643,8 +922,12 @@ const ZIP64_LOCATOR: &[u8] = b"PK\x06\x07";
 const ZIP64_END_OF_CENTRAL_DIRECTORY: &[u8] = b"PK\x06\x06";
 const CENTRAL_DIRECTORY_HEADER: &[u8] = b"PK\x01\x02";
 
-/// Every name in a zip's central directory, duplicates included.
-fn central_directory_names(bytes: &[u8]) -> Result<Vec<String>, String> {
+/// The names in a zip's central directory, duplicates included. It stops
+/// one past `most`, which is enough to tell that there are too many.
+fn central_directory_names(
+    bytes: &[u8],
+    most: usize,
+) -> Result<Vec<String>, String> {
     let read = |at: usize, width: usize| -> Result<u64, String> {
         let field = bytes
             .get(at..at + width)
@@ -686,6 +969,9 @@ fn central_directory_names(bytes: &[u8]) -> Result<Vec<String>, String> {
         .map_err(|_| "its central directory is out of range".to_string())?;
     let mut names = Vec::new();
     for _ in 0..count {
+        if names.len() > most {
+            break;
+        }
         if !bytes
             .get(at..)
             .is_some_and(|rest| rest.starts_with(CENTRAL_DIRECTORY_HEADER))
@@ -733,7 +1019,9 @@ impl OpenedPackage {
     }
 }
 
-/// Opens a package, or a plain delivery, without checking anything.
+/// Opens a package, or a plain delivery, without checking anything. A
+/// verifier reads [`signature_members`] first and [`payload`] only once the
+/// signature holds.
 pub fn open_package(bytes: &[u8]) -> Result<OpenedPackage, Problem> {
     let mut opened = OpenedPackage {
         members: Vec::new(),
@@ -741,7 +1029,7 @@ pub fn open_package(bytes: &[u8]) -> Result<OpenedPackage, Problem> {
         signature: None,
         chain: None,
     };
-    for member in read_zip(bytes, "package")? {
+    for member in read_zip(bytes, PACKAGE)? {
         match member.name.as_str() {
             MANIFEST_MEMBER => opened.manifest = Some(member.bytes),
             SIGNATURE_MEMBER => opened.signature = Some(member.bytes),
@@ -750,6 +1038,88 @@ pub fn open_package(bytes: &[u8]) -> Result<OpenedPackage, Problem> {
         }
     }
     Ok(opened)
+}
+
+/// What a package is called in a problem.
+const PACKAGE: &str = "package";
+
+fn is_signature_member(name: &str) -> bool {
+    [MANIFEST_MEMBER, SIGNATURE_MEMBER, CHAIN_MEMBER].contains(&name)
+}
+
+/// Whether a file carries any of a package's signature members, going by
+/// its directory alone: nothing is expanded.
+pub fn has_signature_members(bytes: &[u8]) -> bool {
+    central_directory_names(bytes, MAX_PACKAGE_MEMBERS)
+        .is_ok_and(|names| names.iter().any(|name| is_signature_member(name)))
+}
+
+/// A package's manifest, signature and chain, without the delivery.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SignatureMembers {
+    pub manifest: Option<Vec<u8>>,
+    pub signature: Option<Vec<u8>>,
+    pub chain: Option<Vec<u8>>,
+}
+
+impl SignatureMembers {
+    /// The signature members the package lacks.
+    pub fn missing(&self) -> Vec<&'static str> {
+        [
+            (self.manifest.is_none(), MANIFEST_MEMBER),
+            (self.signature.is_none(), SIGNATURE_MEMBER),
+            (self.chain.is_none(), CHAIN_MEMBER),
+        ]
+        .into_iter()
+        .filter_map(|(absent, name)| absent.then_some(name))
+        .collect()
+    }
+}
+
+/// Reads a package's three signature members and nothing else, within
+/// [`ArchiveLimits::SIGNATURE`], so the signature can be checked before the
+/// delivery is expanded.
+pub fn signature_members(bytes: &[u8]) -> Result<SignatureMembers, Problem> {
+    let mut found = SignatureMembers::default();
+    let mut budget = Budget::new(ArchiveLimits::SIGNATURE);
+    for member in
+        read_members(bytes, PACKAGE, &mut budget, is_signature_member)?
+    {
+        match member.name.as_str() {
+            MANIFEST_MEMBER => found.manifest = Some(member.bytes),
+            SIGNATURE_MEMBER => found.signature = Some(member.bytes),
+            CHAIN_MEMBER => found.chain = Some(member.bytes),
+            _ => {}
+        }
+    }
+    Ok(found)
+}
+
+/// A package's delivery: its members, in the order they are stored, and
+/// their entries as a manifest lists them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Payload {
+    pub members: Vec<Artifact>,
+    pub files: Vec<FileEntry>,
+}
+
+/// Expands a package's delivery, nested zips included, within
+/// [`ArchiveLimits::PACKAGE`] for all of it together.
+pub fn payload(bytes: &[u8]) -> Result<Payload, Problem> {
+    expand(bytes, PACKAGE, ArchiveLimits::PACKAGE)
+}
+
+fn expand(
+    bytes: &[u8],
+    what: &str,
+    limits: ArchiveLimits,
+) -> Result<Payload, Problem> {
+    let mut budget = Budget::new(limits);
+    let members = read_members(bytes, what, &mut budget, |name| {
+        !is_signature_member(name)
+    })?;
+    let files = entries_at(&members, 1, &mut budget)?;
+    Ok(Payload { members, files })
 }
 
 /// The signed package: the delivery's members, then the manifest, its

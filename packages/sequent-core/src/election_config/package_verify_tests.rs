@@ -21,8 +21,8 @@ use super::*;
 use crate::election_config::archive::zip;
 use crate::election_config::design::BallotDesign;
 use crate::election_config::manifest::{
-    approval_payload, package, ConfigurationRevision, Content, Produced,
-    ReportFormat, ReportSetting, CHAIN_MEMBER, MANIFEST_MEMBER,
+    approval_payload, file_entries, package, ConfigurationRevision, Content,
+    Produced, ReportFormat, ReportSetting, CHAIN_MEMBER, MANIFEST_MEMBER,
     SIGNATURE_MEMBER,
 };
 
@@ -529,6 +529,158 @@ fn a_package_signed_after_the_key_expired_is_refused() {
     assert_eq!(
         refused(&bytes, &trust(&world)),
         vec!["package.untrusted-signer"]
+    );
+}
+
+fn at(rfc3339: &str) -> DateTime<Utc> {
+    DateTime::parse_from_rfc3339(rfc3339)
+        .unwrap()
+        .with_timezone(&Utc)
+}
+
+fn refused_at(bytes: &[u8], trust: &PackageTrust, now: &str) -> Vec<String> {
+    match verify_package_at(bytes, trust, at(now)) {
+        Ok(_) => panic!("expected the package to be refused"),
+        Err(report) => ids(&report),
+    }
+}
+
+#[test]
+fn a_package_dated_after_the_verifiers_time_is_refused() {
+    // Signed at 08:00 by its own account.
+    let world = world();
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+    let trust = trust(&world);
+
+    assert!(
+        verify_package_at(&bytes, &trust, at("2026-06-15T08:00:00Z")).is_ok()
+    );
+    assert_eq!(
+        refused_at(&bytes, &trust, "2026-06-15T07:00:00Z"),
+        vec!["package.signed-in-the-future"]
+    );
+}
+
+#[test]
+fn a_signing_clock_a_little_ahead_of_the_verifiers_is_allowed() {
+    let world = world();
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+    let trust = trust(&world);
+
+    assert!(
+        verify_package_at(&bytes, &trust, at("2026-06-15T07:55:00Z")).is_ok()
+    );
+    assert_eq!(
+        refused_at(&bytes, &trust, "2026-06-15T07:54:59Z"),
+        vec!["package.signed-in-the-future"]
+    );
+}
+
+#[test]
+fn an_approval_dated_after_the_verifiers_time_does_not_count() {
+    let world = world();
+    let mut manifest = approved(&world, 8);
+    manifest.approvals[1].signed_at = "2026-06-20T10:00:00Z".to_string();
+    let bytes = signed(&manifest, &world.key, &members());
+
+    let report =
+        verify_package_at(&bytes, &trust(&world), at("2026-06-15T09:00:00Z"))
+            .unwrap_err();
+    assert_eq!(
+        ids(&report),
+        vec!["package.approval-invalid", "package.too-few-approvals"]
+    );
+    let invalid = report.errors().next().unwrap();
+    assert!(invalid.details["reason"].contains("after now"));
+}
+
+#[test]
+fn a_key_that_expired_after_it_signed_still_verifies() {
+    let world = world();
+    let retired = leaf(
+        "Configuration Signing Key 2026",
+        &world.root,
+        LeafOptions {
+            serial: 2,
+            not_after: (2027, 1, 1),
+            ..LeafOptions::default()
+        },
+    );
+    let bytes = signed(&approved(&world, 8), &retired, &members());
+    assert!(verify_package_at(
+        &bytes,
+        &trust(&world),
+        at("2031-03-01T00:00:00Z")
+    )
+    .is_ok());
+}
+
+#[test]
+fn a_key_revoked_after_it_signed_is_refused_whenever_it_is_checked() {
+    let world = world();
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+    let mut trust = trust(&world);
+    trust.revocation_lists =
+        crls_from_pem(&crl(&world.root, &[world.key.serial])).unwrap();
+    assert_eq!(
+        refused_at(&bytes, &trust, "2031-03-01T00:00:00Z"),
+        vec!["package.revoked-signer"]
+    );
+}
+
+#[test]
+fn an_importer_with_a_clock_refuses_a_package_from_the_future() {
+    let world = world();
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+    let settings = settings(&world, ConfigurationSigningPolicy::Optional);
+
+    assert!(matches!(
+        admit_at(
+            &bytes,
+            Some(&settings),
+            Vec::new(),
+            at("2026-06-15T08:00:00Z")
+        ),
+        Ok(Admission::Verified(_))
+    ));
+    let report = admit_at(
+        &bytes,
+        Some(&settings),
+        Vec::new(),
+        at("2026-06-01T00:00:00Z"),
+    )
+    .unwrap_err();
+    assert_eq!(ids(&report), vec!["package.signed-in-the-future"]);
+}
+
+#[test]
+fn the_delivery_is_not_expanded_until_the_signature_holds() {
+    // A member that can't be expanded is only found by expanding it.
+    let world = world();
+    let mut broken = members();
+    broken.push(Artifact {
+        name: "broken.zip".to_string(),
+        bytes: b"not a zip".to_vec(),
+    });
+    let manifest = approved(&world, 8).to_bytes().unwrap();
+    let forged = package(
+        "p.zip",
+        &broken,
+        &manifest,
+        b"not a signature",
+        &world.key.chain_pem,
+    )
+    .unwrap()
+    .bytes;
+    assert_eq!(
+        refused(&forged, &trust(&world)),
+        vec!["package.bad-signature"]
+    );
+
+    let signed = signed(&approved(&world, 8), &world.key, &broken);
+    assert_eq!(
+        refused(&signed, &trust(&world)),
+        vec!["package.unreadable-zip"]
     );
 }
 

@@ -14,7 +14,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
 use sequent_core::election_config::package_verify::{
-    freshness, verify_package, Freshness, LastImport, PackageTrust, VerifiedPackage,
+    freshness, verify_package_at, Freshness, LastImport, PackageTrust, VerifiedPackage,
 };
 use sequent_core::election_config::{Severity, ValidationReport};
 use std::fs;
@@ -67,7 +67,7 @@ impl VerifyPackage {
         let bytes = fs::read(&self.package)
             .with_context(|| format!("could not read {}", self.package.display()))?;
         let trust = self.trust()?;
-        let verified = verify_package(&bytes, &trust).map_err(|report| {
+        let verified = verify_package_at(&bytes, &trust, chrono::Utc::now()).map_err(|report| {
             report_problems(&report);
             anyhow!(
                 "{} did not verify; nothing in it may be imported",

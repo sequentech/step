@@ -998,8 +998,17 @@ struct PackageCheck {
     freshness: Option<crate::election_config::package_verify::Freshness>,
 }
 
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen]
+extern "C" {
+    /// The browser's clock, in milliseconds since 1970.
+    #[wasm_bindgen(js_namespace = Date, js_name = now)]
+    fn browser_now() -> f64;
+}
+
 /// Checks a signed configuration package before `Import Configuration`
-/// reads anything in it: the same checks windmill runs at import.
+/// reads anything in it: the same checks windmill runs at import, at the
+/// browser's own time.
 ///
 /// A package that fails comes back as a report with no manifest, not as an
 /// exception, so the screen can name each problem.
@@ -1010,9 +1019,11 @@ pub fn verify_configuration_package_js(
     trust: JsValue,
 ) -> Result<JsValue, JsError> {
     use crate::election_config::package_verify::{
-        freshness, verify_package, PackageTrust,
+        freshness, verify_package_at, PackageTrust,
     };
 
+    let now = chrono::DateTime::from_timestamp_millis(browser_now() as i64)
+        .ok_or_else(|| JsError::new("the browser's clock can't be read"))?;
     let input: PackageTrustInput = serde_wasm_bindgen::from_value(trust)
         .map_err(|error| JsError::new(&format!("unreadable trust: {error}")))?;
     let refused = |report: Report| PackageCheck {
@@ -1033,7 +1044,7 @@ pub fn verify_configuration_package_js(
         Ok(trust) => trust,
         Err(problem) => return to_js(&refused(Report::from_problem(problem))),
     };
-    let verified = match verify_package(bytes, &trust) {
+    let verified = match verify_package_at(bytes, &trust, now) {
         Ok(verified) => verified,
         Err(report) => return to_js(&refused(report)),
     };

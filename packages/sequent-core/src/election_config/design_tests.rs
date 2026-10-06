@@ -173,3 +173,79 @@ fn keys_are_sorted_whatever_the_map_order() {
         r#"{"a":[1.5,{"c":true,"d":null}],"b":1}"#
     );
 }
+
+fn written(value: Value, keys: &DesignKeys) -> String {
+    let mut out = Vec::new();
+    write_sorted(&normalise(value, keys), &mut out);
+    String::from_utf8(out).unwrap()
+}
+
+fn president() -> DesignKeys {
+    let mut keys = DesignKeys::default();
+    keys.insert(EntityKind::Contest, "c1", Some("president"))
+        .unwrap();
+    keys
+}
+
+#[test]
+fn a_label_that_reads_like_an_id_is_hashed_as_written() {
+    let keys = president();
+    let style = |label: &str| {
+        json!({"contests": [{
+            "id": "c1",
+            "name": label,
+            "name_i18n": {"en": label},
+            "annotations": {"note": label}
+        }]})
+    };
+    let text = written(style("c1"), &keys);
+    assert!(text.contains(r#""id":"contest:president""#), "{text}");
+    assert!(text.contains(r#""name":"c1""#), "{text}");
+    assert!(text.contains(r#""en":"c1""#), "{text}");
+    assert!(text.contains(r#""note":"c1""#), "{text}");
+    assert_ne!(text, written(style("contest:president"), &keys));
+}
+
+#[test]
+fn an_annotation_named_like_an_id_keeps_its_name() {
+    let text = written(json!({"annotations": {"c1": "x"}}), &president());
+    assert_eq!(text, r#"{"annotations":{"c1":"x"}}"#);
+}
+
+#[test]
+fn a_translation_into_indonesian_is_not_an_id() {
+    let text =
+        written(json!({"name_i18n": {"en": "x", "id": "c1"}}), &president());
+    assert_eq!(text, r#"{"name_i18n":{"en":"x","id":"c1"}}"#);
+}
+
+#[test]
+fn references_are_replaced_wherever_a_field_holds_an_id() {
+    let keys = president().with_document("d1", "face.png");
+    let text = written(
+        json!({
+            "contest_id": "c1",
+            "image_document_id": "d1",
+            "contest_ids": ["c1", "unknown"],
+            "election_id": "unknown"
+        }),
+        &keys,
+    );
+    assert_eq!(
+        text,
+        r#"{"contest_id":"contest:president","contest_ids":["contest:president","unknown"],"election_id":"unknown","image_document_id":"document:face.png"}"#
+    );
+}
+
+#[test]
+fn a_bucket_path_is_replaced_in_a_url_and_nowhere_else() {
+    let path = "tenant-1/document-2/face.png";
+    let text = written(
+        json!({"url": path, "logo_url": path, "description": path}),
+        &DesignKeys::default(),
+    );
+    assert_eq!(
+        text,
+        r#"{"description":"tenant-1/document-2/face.png","logo_url":"document:face.png","url":"document:face.png"}"#
+    );
+}

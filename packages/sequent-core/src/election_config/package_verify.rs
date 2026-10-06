@@ -13,6 +13,10 @@
 //!   seen or carried in the package, or whose certificate isn't made for
 //!   signing;
 //! * a signature that doesn't verify;
+//! * a package or an approval dated later than the verifier's own time,
+//!   where the caller gives it ([`verify_package_at`]);
+//! * a delivery larger than a package may be, which is only expanded once
+//!   the signature holds;
 //! * a changed, missing or extra file, and a content digest that doesn't
 //!   match the content;
 //! * too few valid approvals from distinct people.
@@ -28,7 +32,7 @@ use std::time::Duration;
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::{
     CertificateDer, CertificateRevocationListDer,
@@ -46,8 +50,9 @@ use crate::signing::SignatureAlgorithm;
 
 use super::archive::Artifact;
 use super::manifest::{
-    approval_payload, declared_format, file_entries, open_package, sha256_hex,
-    Approval, FileEntry, Manifest, ManifestFormat,
+    approval_payload, declared_format, has_signature_members, payload,
+    sha256_hex, signature_members, Approval, FileEntry, Manifest,
+    ManifestFormat,
 };
 use super::problem::{Code, Problem, Report};
 
@@ -192,18 +197,38 @@ pub enum Admission {
 /// package is verified, and an unsigned file is refused where the policy
 /// requires signatures. `revocation_lists` are the lists (DER) the
 /// installation has seen.
+///
+/// Without a clock, a signing time is taken at the package's word. An
+/// importer that has one calls [`admit_at`].
 pub fn admit(
     bytes: &[u8],
     settings: Option<&ConfigurationSigning>,
     revocation_lists: Vec<Vec<u8>>,
 ) -> Result<Admission, Report> {
+    admission(bytes, settings, revocation_lists, None)
+}
+
+/// [`admit`] at `now`, the importer's own time: a package that says it was
+/// signed later than that is refused.
+pub fn admit_at(
+    bytes: &[u8],
+    settings: Option<&ConfigurationSigning>,
+    revocation_lists: Vec<Vec<u8>>,
+    now: DateTime<Utc>,
+) -> Result<Admission, Report> {
+    admission(bytes, settings, revocation_lists, Some(now))
+}
+
+fn admission(
+    bytes: &[u8],
+    settings: Option<&ConfigurationSigning>,
+    revocation_lists: Vec<Vec<u8>>,
+    now: Option<DateTime<Utc>>,
+) -> Result<Admission, Report> {
     let required = settings.is_some_and(|settings| {
         settings.policy == ConfigurationSigningPolicy::Required
     });
-    let signed = open_package(bytes)
-        .map(|opened| opened.is_signed())
-        .unwrap_or(false);
-    if !signed {
+    if !has_signature_members(bytes) {
         return if required {
             Err(Report::from_problem(unsigned(&[
                 super::manifest::MANIFEST_MEMBER,
@@ -219,7 +244,7 @@ pub fn admit(
         .unwrap_or_default()
         .trust(revocation_lists)
         .map_err(Report::from_problem)?;
-    verify_package(bytes, &trust)
+    verify(bytes, &trust, now)
         .map(|verified| Admission::Verified(Box::new(verified)))
 }
 
@@ -294,40 +319,63 @@ pub enum Freshness {
     AlreadyImported,
 }
 
+/// How far ahead of the verifier's clock a signing time may be: the clocks
+/// of the machine that signs and the one that verifies are not the same.
+pub const CLOCK_SKEW_ALLOWANCE: Duration = Duration::from_secs(5 * 60);
+
 /// Every check except the revision's freshness.
+///
+/// Without a clock, a signing time is taken at the package's word. A
+/// verifier that has one calls [`verify_package_at`].
 pub fn verify_package(
     bytes: &[u8],
     trust: &PackageTrust,
 ) -> Result<VerifiedPackage, Report> {
-    let opened = open_package(bytes).map_err(Report::from_problem)?;
-    let (manifest_bytes, signature, chain) =
-        match (&opened.manifest, &opened.signature, &opened.chain) {
-            (Some(manifest), Some(signature), Some(chain)) => {
-                (manifest, signature, chain)
-            }
-            _ => {
-                let missing: Vec<&str> = [
-                    (
-                        opened.manifest.is_none(),
-                        super::manifest::MANIFEST_MEMBER,
-                    ),
-                    (
-                        opened.signature.is_none(),
-                        super::manifest::SIGNATURE_MEMBER,
-                    ),
-                    (opened.chain.is_none(), super::manifest::CHAIN_MEMBER),
-                ]
-                .into_iter()
-                .filter_map(|(absent, name)| absent.then_some(name))
-                .collect();
-                return Err(Report::from_problem(unsigned(&missing)));
-            }
-        };
+    verify(bytes, trust, None)
+}
+
+/// [`verify_package`] at `now`, the verifier's own time.
+///
+/// The package's signing time and its approvals' are the signers' word, and
+/// a certificate is checked at the time its signature says. So a time later
+/// than `now`, past [`CLOCK_SKEW_ALLOWANCE`], is refused: nothing was signed
+/// in the future. A certificate that has expired since still verifies, as a
+/// retired key's packages must; one that is revoked by a list the verifier
+/// holds does not, whenever it signed.
+pub fn verify_package_at(
+    bytes: &[u8],
+    trust: &PackageTrust,
+    now: DateTime<Utc>,
+) -> Result<VerifiedPackage, Report> {
+    verify(bytes, trust, Some(now))
+}
+
+/// The signature is checked on the three small members alone. The delivery
+/// is expanded only once the manifest is known to be the signer's.
+fn verify(
+    bytes: &[u8],
+    trust: &PackageTrust,
+    now: Option<DateTime<Utc>>,
+) -> Result<VerifiedPackage, Report> {
+    let signed = signature_members(bytes).map_err(Report::from_problem)?;
+    let (Some(manifest_bytes), Some(signature), Some(chain)) =
+        (&signed.manifest, &signed.signature, &signed.chain)
+    else {
+        return Err(Report::from_problem(unsigned(&signed.missing())));
+    };
 
     let manifest =
         read_manifest(manifest_bytes).map_err(Report::from_problem)?;
     let produced_at =
         unix_time(&manifest.produced.at).map_err(Report::from_problem)?;
+    if let Some(now) = now {
+        if is_after(produced_at, now) {
+            return Err(Report::from_problem(signed_in_the_future(
+                &manifest.produced.at,
+                now,
+            )));
+        }
+    }
 
     // A revocation list that can't be read would protect nothing without
     // anyone being told, so it is refused rather than skipped. A list that
@@ -357,8 +405,9 @@ pub fn verify_package(
     verify_with(&chain[0], MANIFEST_ALGORITHMS, manifest_bytes, signature)
         .map_err(|reason| Report::from_problem(bad_signature(reason)))?;
 
+    let delivery = payload(bytes).map_err(Report::from_problem)?;
     let mut report = Report::default();
-    check_files(&opened.members, &manifest.content.files, &mut report);
+    compare_entries(&delivery.files, &manifest.content.files, "", &mut report);
     match manifest.content.sha256() {
         Ok(digest) if digest == manifest.content_sha256 => {}
         Ok(digest) => {
@@ -366,7 +415,7 @@ pub fn verify_package(
         }
         Err(problem) => report.push(problem),
     }
-    let approvers = check_approvals(&manifest, trust, &crls, &mut report);
+    let approvers = check_approvals(&manifest, trust, &crls, now, &mut report);
     if report.has_errors() {
         return Err(report);
     }
@@ -376,8 +425,30 @@ pub fn verify_package(
         manifest,
         signer,
         approvers,
-        members: opened.members,
+        members: delivery.members,
     })
+}
+
+/// Whether `at` is later than `now` by more than [`CLOCK_SKEW_ALLOWANCE`].
+fn is_after(at: UnixTime, now: DateTime<Utc>) -> bool {
+    let latest = u64::try_from(now.timestamp())
+        .unwrap_or_default()
+        .saturating_add(CLOCK_SKEW_ALLOWANCE.as_secs());
+    at.as_secs() > latest
+}
+
+fn signed_in_the_future(at: &str, now: DateTime<Utc>) -> Problem {
+    Problem::error(
+        Code::InvalidValue,
+        "manifest.produced.at",
+        format!(
+            "the package says it was signed at {at}, which is after now, {}",
+            now.to_rfc3339()
+        ),
+    )
+    .id("package.signed-in-the-future")
+    .detail("at", at)
+    .detail("now", now.to_rfc3339())
 }
 
 /// Whether a verified package may be imported after `last`, the last one
@@ -471,6 +542,7 @@ fn check_approvals(
     manifest: &Manifest,
     trust: &PackageTrust,
     crls: &[Vec<u8>],
+    now: Option<DateTime<Utc>>,
     report: &mut Report,
 ) -> Vec<CertificateIdentity> {
     let payload = match approval_payload(
@@ -487,7 +559,10 @@ fn check_approvals(
 
     let mut approvers: Vec<CertificateIdentity> = Vec::new();
     for (index, approval) in manifest.approvals.iter().enumerate() {
-        match verify_approval(approval, &payload, &trust.staff_roots, crls) {
+        let checked = not_from_the_future(approval, now).and_then(|()| {
+            verify_approval(approval, &payload, &trust.staff_roots, crls)
+        });
+        match checked {
             Ok(identity) => {
                 let repeated = approvers.iter().any(|seen| {
                     seen.subject == identity.subject
@@ -547,15 +622,24 @@ fn check_approvals(
     approvers
 }
 
-fn check_files(
-    members: &[Artifact],
-    listed: &[FileEntry],
-    report: &mut Report,
-) {
-    match file_entries(members) {
-        Ok(actual) => compare_entries(&actual, listed, "", report),
-        Err(problem) => report.push(problem),
+/// An approval dated later than `now` is refused, as a package is.
+fn not_from_the_future(
+    approval: &Approval,
+    now: Option<DateTime<Utc>>,
+) -> Result<(), String> {
+    let Some(now) = now else {
+        return Ok(());
+    };
+    let at =
+        unix_time(&approval.signed_at).map_err(|problem| problem.message)?;
+    if is_after(at, now) {
+        return Err(format!(
+            "it is dated {}, which is after now, {}",
+            approval.signed_at,
+            now.to_rfc3339()
+        ));
     }
+    Ok(())
 }
 
 fn compare_entries(
