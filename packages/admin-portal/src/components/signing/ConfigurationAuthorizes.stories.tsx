@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {IPermissions} from "@/types/keycloak"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
@@ -88,7 +89,11 @@ const meta = {
         })
     },
     render: () => (
-        <AdminStoryProvider boundary={graphql} dataProvider={data.provider}>
+        <AdminStoryProvider
+            boundary={graphql}
+            dataProvider={data.provider}
+            roles={[IPermissions.SIGN_APPROVE_CONFIGURATION]}
+        >
             <MyTimeZoneProvider zone={MY_TIME_ZONE}>
                 <ConfigurationAuthorizes
                     subject={subject()}

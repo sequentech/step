@@ -248,7 +248,7 @@ globs = [
 units = ["docker-images"]
 
 [[paths]]
-globs = ["scripts/dev/**"]
+globs = ["scripts/dev/**", "scripts/gen-tz-defaults.mjs"]
 units = ["scripts-dev"]
 
 [[paths]]

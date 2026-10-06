@@ -4,7 +4,7 @@
 import {gql} from "@apollo/client"
 
 export const GET_INITIALIZATION_COUNTRIES = gql`
-    query GetInitializationCountries($electionEventId: uuid!, $electionId: uuid!) {
+    query GetInitializationCountries($electionEventId: uuid!) {
         sequent_backend_area(
             where: {election_event_id: {_eq: $electionEventId}}
             order_by: [{name: asc}, {id: asc}]
@@ -13,17 +13,26 @@ export const GET_INITIALIZATION_COUNTRIES = gql`
             name
             parent_id
         }
-        sequent_backend_area_contest(
-            where: {
-                election_event_id: {_eq: $electionEventId}
-                contest: {election_id: {_eq: $electionId}}
-            }
-        ) {
+        sequent_backend_area_contest(where: {election_event_id: {_eq: $electionEventId}}) {
             area_id
-            contest {
-                election_id
-            }
+            contest_id
         }
+    }
+`
+
+export const GET_INITIALIZATION_CONTESTS = gql`
+    query GetInitializationContests($electionEventId: uuid!, $electionId: uuid!) {
+        sequent_backend_contest(
+            where: {election_event_id: {_eq: $electionEventId}, election_id: {_eq: $electionId}}
+        ) {
+            id
+            election_id
+        }
+    }
+`
+
+export const GET_INITIALIZATION_STYLES = gql`
+    query GetInitializationStyles($electionEventId: uuid!, $electionId: uuid!) {
         sequent_backend_ballot_style(
             where: {
                 election_event_id: {_eq: $electionEventId}

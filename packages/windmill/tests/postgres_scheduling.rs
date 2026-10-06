@@ -811,3 +811,254 @@ async fn a_queued_event_wide_task_cannot_execute_a_row_retargeted_to_a_post() {
     assert!(outbox_kinds(&tx, e).await.is_empty());
     tx.rollback().await.unwrap();
 }
+
+#[tokio::test]
+async fn stopped_schedule_rejects_nonfuture_edits_and_rearms_only_for_the_future() {
+    use windmill::postgres::scheduled_event::update_scheduled_event;
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let e = event(&tx, "UTC", &["UTC"]).await;
+    let id = schedule(
+        &tx,
+        e,
+        None,
+        EventProcessors::ALLOW_TALLY,
+        json!({"election_id": null}),
+        json!({"scheduled_date": "2000-01-01T00:00:00Z"}),
+    )
+    .await;
+    tx.execute(
+        "UPDATE sequent_backend.scheduled_event SET stopped_at = now() WHERE id = $1",
+        &[&id],
+    )
+    .await
+    .unwrap();
+    let original = row(&tx, "scheduled_event", id).await;
+    let now: chrono::DateTime<chrono::Utc> =
+        tx.query_one("SELECT NOW()", &[]).await.unwrap().get(0);
+    let now = now.to_rfc3339();
+    for date in [
+        Some("2001-01-01T00:00:00Z"),
+        Some(now.as_str()),
+        None,
+        Some("invalid"),
+    ] {
+        let cron = serde_json::from_value(json!({"scheduled_date": date})).unwrap();
+        assert_eq!(
+            update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None)
+                .await
+                .unwrap(),
+            0
+        );
+        assert_eq!(row(&tx, "scheduled_event", id).await, original);
+    }
+    let cron = serde_json::from_value(json!({"scheduled_date": "2099-01-01T00:00:00Z"})).unwrap();
+    assert_eq!(
+        update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None)
+            .await
+            .unwrap(),
+        1
+    );
+    assert!(row(&tx, "scheduled_event", id).await["stopped_at"].is_null());
+    tx.execute(
+        "UPDATE sequent_backend.scheduled_event SET archived_at = NOW() WHERE id = $1",
+        &[&id],
+    )
+    .await
+    .unwrap();
+    let archived = row(&tx, "scheduled_event", id).await;
+    let cron = serde_json::from_value(json!({"scheduled_date": "2099-02-01T00:00:00Z"})).unwrap();
+    assert_eq!(
+        update_scheduled_event(&tx, &e.t(), &id.to_string(), cron, None)
+            .await
+            .unwrap(),
+        0
+    );
+    assert_eq!(row(&tx, "scheduled_event", id).await, archived);
+}
+
+fn lifecycle_processors() -> [EventProcessors; 5] {
+    [
+        EventProcessors::ALLOW_TALLY,
+        EventProcessors::ALLOW_INIT_REPORT,
+        EventProcessors::ALLOW_VOTING_PERIOD_END,
+        EventProcessors::START_TEST_VOTING,
+        EventProcessors::START_LOCKDOWN_PERIOD,
+    ]
+}
+
+async fn run_lifecycle_task(
+    tx: &Transaction<'_>,
+    e: Event,
+    id: Uuid,
+    post: Uuid,
+    processor: &EventProcessors,
+) -> anyhow::Result<()> {
+    use windmill::tasks::{
+        manage_election_event_lockdown::manage_election_event_lockdown_wrapped,
+        manage_election_init_report::manage_election_init_report_wrapped,
+        manage_election_voting_period_end::manage_election_voting_period_end_wrapped,
+    };
+    match processor {
+        EventProcessors::ALLOW_TALLY => {
+            manage_election_allow_tally_wrapped(tx, e.t(), e.e(), id.to_string(), post.to_string())
+                .await
+        }
+        EventProcessors::ALLOW_INIT_REPORT => {
+            manage_election_init_report_wrapped(tx, e.t(), e.e(), id.to_string(), post.to_string())
+                .await
+        }
+        EventProcessors::ALLOW_VOTING_PERIOD_END => {
+            manage_election_voting_period_end_wrapped(
+                tx,
+                e.t(),
+                e.e(),
+                id.to_string(),
+                post.to_string(),
+            )
+            .await
+        }
+        EventProcessors::START_LOCKDOWN_PERIOD => {
+            manage_election_event_lockdown_wrapped(tx, e.t(), e.e(), id.to_string()).await
+        }
+        EventProcessors::START_TEST_VOTING => {
+            manage_election_lifecycle_window_wrapped(
+                tx,
+                &e.t(),
+                &e.e(),
+                &id.to_string(),
+                Some(&post.to_string()),
+            )
+            .await
+        }
+        _ => unreachable!("test processor"),
+    }
+}
+
+#[tokio::test]
+async fn archived_event_cannot_execute_queued_lifecycle_tasks() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let e = event(&tx, "UTC", &["UTC"]).await;
+    let post = election(&tx, e, None).await;
+    tx.execute(
+        "UPDATE sequent_backend.election_event SET is_archived = true WHERE id = $1",
+        &[&e.event],
+    )
+    .await
+    .unwrap();
+    let before_post = row(&tx, "election", post).await;
+    let before_event = row(&tx, "election_event", e.event).await;
+    for processor in lifecycle_processors() {
+        let id = schedule(
+            &tx,
+            e,
+            Some(post),
+            processor.clone(),
+            json!({"election_id": post}),
+            json!({"scheduled_date": "2000-01-01T00:00:00Z"}),
+        )
+        .await;
+        run_lifecycle_task(&tx, e, id, post, &processor)
+            .await
+            .unwrap();
+        assert_eq!(row(&tx, "election", post).await, before_post, "{processor}");
+        assert_eq!(
+            row(&tx, "election_event", e.event).await,
+            before_event,
+            "{processor}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn queued_lifecycle_tasks_recheck_direct_schedule_edits_before_deciding_to_fire() {
+    use std::time::Duration;
+    let pool = schema::pool().await;
+    #[derive(Clone, Copy)]
+    enum Edit {
+        Postpone,
+        Archive,
+    }
+    for processor in lifecycle_processors() {
+        for edit in [Edit::Postpone, Edit::Archive] {
+            let mut editor = pool.get().await.unwrap();
+            let tx = editor.transaction().await.unwrap();
+            let e = event(&tx, "UTC", &["UTC"]).await;
+            let post = election(&tx, e, None).await;
+            let id = schedule(
+                &tx,
+                e,
+                Some(post),
+                processor.clone(),
+                json!({"election_id": post}),
+                json!({"scheduled_date": "2000-01-01T00:00:00Z"}),
+            )
+            .await;
+            let before_post = row(&tx, "election", post).await;
+            let before_event = row(&tx, "election_event", e.event).await;
+            tx.commit().await.unwrap();
+            let mut worker = pool.get().await.unwrap();
+            let worker_pid: i32 = worker
+                .query_one("SELECT pg_backend_pid()", &[])
+                .await
+                .unwrap()
+                .get(0);
+            let tx = editor.transaction().await.unwrap();
+            let sql = match edit {
+            Edit::Postpone => r#"UPDATE sequent_backend.scheduled_event SET cron_config = '{"scheduled_date": "2099-01-01T00:00:00Z"}' WHERE id = $1"#,
+            Edit::Archive => "UPDATE sequent_backend.scheduled_event SET stopped_at = NOW(), archived_at = NOW() WHERE id = $1",
+        };
+            tx.execute(sql, &[&id]).await.unwrap();
+            let task_processor = processor.clone();
+            let task = tokio::spawn(async move {
+                let tx = worker.transaction().await.unwrap();
+                let result = run_lifecycle_task(&tx, e, id, post, &task_processor).await;
+                tx.commit().await.unwrap();
+                result
+            });
+            // Observe the actual row-lock wait rather than assuming the worker has started.
+            tokio::time::timeout(Duration::from_secs(5), async {
+                loop {
+                    if task.is_finished() {
+                        panic!("queued task executed before the schedule edit committed");
+                    }
+                    let blocked: bool = tx
+                        .query_one(
+                            "SELECT cardinality(pg_blocking_pids($1)) > 0",
+                            &[&worker_pid],
+                        )
+                        .await
+                        .unwrap()
+                        .get(0);
+                    if blocked {
+                        break;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .expect("queued task must lock its scheduled row");
+            tx.commit().await.unwrap();
+            let result = tokio::time::timeout(Duration::from_secs(5), task)
+                .await
+                .unwrap()
+                .unwrap();
+            match edit {
+                Edit::Archive => assert!(result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Can't find scheduled event")),
+                Edit::Postpone => result.unwrap(),
+            }
+            let tx = editor.transaction().await.unwrap();
+            assert_eq!(row(&tx, "election", post).await, before_post);
+            assert_eq!(row(&tx, "election_event", e.event).await, before_event);
+            let stored = row(&tx, "scheduled_event", id).await;
+            assert_eq!(
+                stored["stopped_at"].is_null(),
+                matches!(edit, Edit::Postpone)
+            );
+        }
+    }
+}

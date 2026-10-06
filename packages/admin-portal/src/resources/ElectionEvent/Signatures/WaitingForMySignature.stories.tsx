@@ -139,7 +139,7 @@ export const Sbei: Story = {
             )
         ).toBeVisible()
         await expect(
-            signedRow.getByText(label("requests.expires", {time: "May 8, 2028, 19:32 GMT+8"}))
+            signedRow.getByText(label("requests.expires", {time: "May 8, 2028, 19:32 PhST"}))
         ).toBeVisible()
         await expect(signedRow.getByText(label("waiting.signedByYou"))).toBeVisible()
         // One query per sign permission held whose requests Hasura lists, as that role.
