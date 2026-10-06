@@ -1,7 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {initializeLanguages, isString, overwriteTranslations} from "@sequentech/ui-core"
+import {
+    ETranslationScope,
+    initializeLanguages,
+    isString,
+    overwriteTranslations,
+} from "@sequentech/ui-core"
 import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
@@ -14,19 +19,8 @@ import i18next from "i18next"
 
 type I18N = Record<string, Record<string, string>>
 
-initializeLanguages({
-    en: englishTranslation,
-    es: spanishTranslation,
-    cat: catalanTranslation,
-    fr: frenchTranslation,
-    tl: tagalogTranslation,
-    gl: galegoTranslation,
-    nl: dutchTranslation,
-    eu: basqueTranslation,
-})
-
-export const triggerOverrideTranslations = (i18n: I18N) => {
-    initializeLanguages({
+initializeLanguages(
+    {
         en: englishTranslation,
         es: spanishTranslation,
         cat: catalanTranslation,
@@ -35,8 +29,30 @@ export const triggerOverrideTranslations = (i18n: I18N) => {
         gl: galegoTranslation,
         nl: dutchTranslation,
         eu: basqueTranslation,
+    },
+    undefined,
+    ETranslationScope.ADMIN_PORTAL
+)
+
+export const triggerOverrideTranslations = (i18n?: I18N) => {
+    initializeLanguages(
+        {
+            en: englishTranslation,
+            es: spanishTranslation,
+            cat: catalanTranslation,
+            fr: frenchTranslation,
+            tl: tagalogTranslation,
+            gl: galegoTranslation,
+            nl: dutchTranslation,
+            eu: basqueTranslation,
+        },
+        undefined,
+        ETranslationScope.ADMIN_PORTAL
+    )
+    overwriteTranslations(i18n ? {i18n} : undefined, {
+        scope: ETranslationScope.ADMIN_PORTAL,
+        legacyScope: ETranslationScope.ADMIN_PORTAL,
     })
-    overwriteTranslations({i18n} as any, true)
 }
 
 export const getAllLangs = (): Array<string> => ["en", "es", "cat", "fr", "tl", "gl", "nl", "eu"]

@@ -7,6 +7,7 @@ use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
 };
@@ -110,28 +111,21 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ImportElectionEventSchema {
-    pub tenant_id: Uuid,
-    pub keycloak_event_realm: Option<RealmRepresentation>,
-    pub election_event: ElectionEvent,
-    pub elections: Vec<Election>,
-    pub contests: Vec<Contest>,
-    pub candidates: Vec<Candidate>,
-    pub areas: Vec<Area>,
-    pub area_contests: Vec<AreaContest>,
-    pub scheduled_events: Option<Vec<ScheduledEvent>>,
-    pub reports: Vec<Report>,
-    pub keys_ceremonies: Option<Vec<KeysCeremony>>,
-    pub applications: Option<Vec<Application>>,
-    #[serde(default = "default_version")]
-    pub version: String,
-}
-
-/// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
-fn default_version() -> String {
-    HISTORICAL_DEFAULT_VERSION.to_string()
-}
+// The bundle schema now lives in sequent_core::election_config, so that the tools
+// which write an import describe it the same way this importer reads it.
+// Re-exported because windmill refers to it by this path throughout.
+//
+// Two field types differ from the struct that used to be here, both so the module
+// can compile to WASM for the browser-side tools:
+//
+//   tenant_id            String, not Uuid. Import replaces it with the importing
+//                        request's tenant regardless, and every use here
+//                        stringifies it. Its format is checked by validation.
+//   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
+//                        comes from the keycloak crate, which pulls reqwest.
+//                        Deserialized into the typed form where it is used.
+use sequent_core::election_config;
+pub use sequent_core::election_config::ImportElectionEventSchema;
 
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
@@ -489,7 +483,7 @@ pub fn replace_ids(
     // - Preserving UUIDs in Keycloak authenticator configurations
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
-    let (new_data, replacement_map) = replace_realm_ids(
+    let (new_data, mut replacement_map) = replace_realm_ids(
         data_str,
         vec![], // Empty keep list - replace_realm_ids will populate it automatically
         tenant_id_replacement,
@@ -498,6 +492,18 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+
+    // Explicit realm replacements are applied to the JSON but omitted from its
+    // map. Publication imports also need these scopes, including identity maps
+    // when importing back into the same tenant or keeping the event ID.
+    replacement_map.insert(
+        original_data.tenant_id.to_string(),
+        data.tenant_id.to_string(),
+    );
+    replacement_map.insert(
+        original_data.election_event.id.clone(),
+        data.election_event.id.clone(),
+    );
 
     // Return both the modified schema and the UUID replacement mapping
     Ok((data, replacement_map))
@@ -579,7 +585,7 @@ pub async fn get_election_event_schema(
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
     let raw: serde_json::Value = serde_json::from_str(data_str)
         .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
-    let default_ver = default_version();
+    let default_ver = HISTORICAL_DEFAULT_VERSION.to_string();
     let imported_version = raw
         .get(VERSION_KEY)
         .and_then(|v| v.as_str())
@@ -588,7 +594,45 @@ pub async fn get_election_event_schema(
         .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
     check_version_compatibility(imported_version, &current_version)?;
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    check_bundle(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
+}
+
+/// Run the shared validation, refusing the import if it found anything fatal.
+///
+/// The same code answers in the browser before an upload, so a bundle the
+/// configuration tools accepted reaches this and passes. When one does not, the
+/// operator gets every problem at once rather than the first — and the same
+/// wording they would have seen client-side.
+///
+/// Validates the bundle as written, before `replace_ids` rewrites the
+/// identifiers: a problem naming an id the author never chose is not much use to
+/// them.
+///
+/// This is deliberately additive. It does not replace the checks that follow —
+/// those need the database, and this pass by design does not touch it.
+#[instrument(err, skip_all)]
+fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
+    let report = election_config::validate(data);
+
+    for problem in report.warnings() {
+        event!(Level::WARN, "election event import: {problem}");
+    }
+
+    if report.has_errors() {
+        let listing = report
+            .errors()
+            .map(|problem| format!("  {problem}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let count = report.errors().count();
+        let noun = if count == 1 { "problem" } else { "problems" };
+        return Err(anyhow!(
+            "The election event bundle cannot be imported; {count} {noun} found:\n{listing}"
+        ));
+    }
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
@@ -670,10 +714,18 @@ pub async fn process_election_event_file(
         default_language = Some(data.election_event.get_default_language());
     }
 
+    // The bundle carries the realm opaquely; this is where it becomes typed.
+    let keycloak_event_realm: Option<RealmRepresentation> = data
+        .keycloak_event_realm
+        .clone()
+        .map(deserialize_value)
+        .transpose()
+        .with_context(|| "Error deserializing keycloak_event_realm")?;
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
-        data.keycloak_event_realm.clone(),
+        keycloak_event_realm,
         default_language
     )
     .await
@@ -791,6 +843,8 @@ async fn process_voters_file(
     election_event_id: Option<String>,
     tenant_id: String,
     is_admin: bool,
+    may_write_secret_attributes: bool,
+    secret_write_initiator: Option<&ElectoralLogAdminContext>,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -805,6 +859,8 @@ async fn process_voters_file(
         election_event_id,
         tenant_id,
         is_admin,
+        may_write_secret_attributes,
+        secret_write_initiator,
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1162,6 +1218,8 @@ pub async fn process_document(
         None => file_election_event_schema,
     };
 
+    let may_write_secret_attributes = object.may_write_secret_attributes;
+    let secret_write_initiator = object.secret_write_initiator.clone();
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1176,10 +1234,10 @@ pub async fn process_document(
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
-        for (file_name, mut file_contents) in zip_entries {
+        for (file_name, file_contents) in &zip_entries {
             info!("Importing file: {:?}", file_name);
 
-            let mut cursor = Cursor::new(&mut file_contents[..]);
+            let mut cursor = Cursor::new(&file_contents[..]);
 
             if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
                 let mut temp_file = NamedTempFile::new()
@@ -1212,6 +1270,8 @@ pub async fn process_document(
                     Some(election_event_schema.election_event.id.clone()),
                     election_event_schema.tenant_id.to_string(),
                     false,
+                    may_write_secret_attributes,
+                    secret_write_initiator.as_ref(),
                 )
                 .await
                 .context("Failed to import voters")?;
@@ -1341,6 +1401,7 @@ pub async fn process_document(
                     &election_event_schema.election_event.id,
                     temp_file,
                     replacement_map.clone(),
+                    &zip_entries,
                 )
                 .await
                 .with_context(|| "Error importing publications")?;
@@ -1421,7 +1482,8 @@ pub async fn process_document(
             if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
-                let tenant_uuid = election_event_schema.tenant_id;
+                let tenant_uuid = Uuid::parse_str(&election_event_schema.tenant_id)
+                    .context("Invalid tenant_id in the imported bundle")?;
                 let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
                     .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);
@@ -1467,67 +1529,58 @@ pub async fn manage_dates(
         return Ok(());
     };
 
-    //Manage election event
-    let election_event_dates = generate_voting_period_dates(
-        scheduled_events.clone(),
-        data.tenant_id.to_string().as_str(),
-        &data.election_event.id,
-        None,
-    )?;
-    if let Some(start_date) = election_event_dates.start_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::START_VOTING_PERIOD,
-            start_date,
-            None,
-        )
-        .await?;
-    }
-    if let Some(end_date) = election_event_dates.end_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::END_VOTING_PERIOD,
-            end_date,
-            None,
-        )
-        .await?;
-    }
-    //Manage elections
-    let elections = &data.elections;
-    for election in elections {
-        let dates = generate_voting_period_dates(
-            scheduled_events.clone(),
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            Some(&election.id),
+    for scheduled_event in scheduled_events {
+        let Some(
+            processor @ (EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD),
+        ) = scheduled_event.event_processor
+        else {
+            continue;
+        };
+        let payload: ManageElectionDatePayload = serde_json::from_value(
+            scheduled_event
+                .event_payload
+                .unwrap_or_else(|| serde_json::json!({})),
         )?;
-        if let Some(start_date) = dates.start_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::START_VOTING_PERIOD,
-                start_date,
-                Some(&election.id),
-            )
-            .await?;
+        if scheduled_event.tenant_id.as_deref() != Some(data.tenant_id.to_string().as_str())
+            || scheduled_event.election_event_id.as_deref() != Some(data.election_event.id.as_str())
+            || scheduled_event.task_id.as_deref()
+                != Some(
+                    generate_manage_date_task_name(
+                        &data.tenant_id.to_string(),
+                        &data.election_event.id,
+                        payload.election_id.as_deref(),
+                        &processor,
+                    )
+                    .as_str(),
+                )
+        {
+            continue;
         }
-        if let Some(end_date) = dates.end_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::END_VOTING_PERIOD,
-                end_date,
-                Some(&election.id),
-            )
-            .await?;
+        if payload
+            .election_id
+            .as_ref()
+            .is_some_and(|id| !data.elections.iter().any(|election| &election.id == id))
+        {
+            continue;
         }
+        let Some(date) = scheduled_event
+            .cron_config
+            .and_then(|config| config.scheduled_date)
+        else {
+            continue;
+        };
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            &data.tenant_id.to_string(),
+            &data.election_event.id,
+            processor,
+            date,
+            payload.election_id.as_deref(),
+            payload.voting_channels,
+        )
+        .await?;
     }
+
     Ok(())
 }
 
@@ -1539,14 +1592,13 @@ pub async fn maybe_create_scheduled_event(
     event_processor: EventProcessors,
     start_date: String,
     election_id: Option<&str>,
+    voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
     let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
+        election_id: election_id.map(str::to_string),
+        voting_channels,
     };
     let cron_config = CronConfig {
         cron: None,
@@ -1564,4 +1616,151 @@ pub async fn maybe_create_scheduled_event(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
+
+    /// A bundle that deserializes and is fatally invalid: its contest points at an
+    /// election that is not in it.
+    ///
+    /// Deliberately not a sound one — a sound bundle belongs in `election_config`'s
+    /// fixtures, shared by both callers rather than copied here.
+    fn a_bundle_with_a_dangling_election() -> String {
+        serde_json::json!({
+            "tenant_id": TENANT,
+            "keycloak_event_realm": null,
+            "election_event": {
+                "id": EVENT,
+                "tenant_id": TENANT,
+                "is_archived": false,
+                "encryption_protocol": "RSA256"
+            },
+            "elections": [{
+                "id": "e1000000-0000-5000-8000-000000000000",
+                "tenant_id": TENANT,
+                "election_event_id": EVENT,
+                "external_id": "officers"
+            }],
+            "contests": [{
+                "id": "c1000000-0000-5000-8000-000000000000",
+                "tenant_id": TENANT,
+                "election_event_id": EVENT,
+                "election_id": "e9000000-0000-5000-8000-000000000000",
+                "external_id": "president",
+                "min_votes": 0,
+                "max_votes": 1,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": "plurality-at-large"
+            }],
+            "candidates": [],
+            "areas": [],
+            "area_contests": [],
+            "scheduled_events": null,
+            "reports": [],
+            "keys_ceremonies": [],
+            "applications": []
+        })
+        .to_string()
+    }
+
+    /// The import refuses a bundle the shared rules call fatal, and says why.
+    ///
+    /// The integration boundary rather than the rule: `election_config`'s own suite
+    /// covers what counts as a problem.
+    #[tokio::test]
+    async fn a_fatal_bundle_does_not_import() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let outcome = get_election_event_schema(
+            &a_bundle_with_a_dangling_election(),
+            None,
+            TENANT.to_string(),
+        )
+        .await;
+
+        let error = outcome
+            .expect_err("a contest pointing at a missing election should not import")
+            .to_string();
+        assert!(
+            error.contains("cannot be imported"),
+            "unexpected message: {error}"
+        );
+        assert!(
+            error.contains("contests[0].election_id"),
+            "unexpected message: {error}"
+        );
+    }
+
+    /// And a bundle with no fatal problems gets through this gate.
+    ///
+    /// The same bundle with its one fault repaired, so the pair says which fault the
+    /// refusal was about.
+    #[tokio::test]
+    async fn a_bundle_whose_fault_is_fixed_gets_through() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
+
+        let (_schema, ids) =
+            get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
+                .await
+                .expect("a bundle with no fatal problems should get past validation");
+
+        assert!(!ids.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod publication_import_mapping_tests {
+    use super::*;
+
+    #[test]
+    fn includes_scope_mappings_from_the_event_import_path() {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let document = Uuid::new_v4().to_string();
+        let input = serde_json::json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA", "annotations": {"document_id": document}
+            },
+            "elections": [], "contests": [], "candidates": [], "areas": [],
+            "area_contests": [], "reports": []
+        });
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        for target_tenant in [tenant.clone(), Uuid::new_v4().to_string()] {
+            for target_event in [None, Some(event.clone()), Some(Uuid::new_v4().to_string())] {
+                let (imported, ids) = replace_ids(
+                    &input.to_string(),
+                    &original,
+                    target_event.clone(),
+                    target_tenant.clone(),
+                )
+                .unwrap();
+                assert_eq!(ids.get(&tenant), Some(&target_tenant));
+                assert_eq!(ids.get(&event), Some(&imported.election_event.id));
+                assert_eq!(imported.election_event.tenant_id, target_tenant);
+                if let Some(expected) = target_event {
+                    assert_eq!(imported.election_event.id, expected);
+                } else {
+                    assert_ne!(imported.election_event.id, event);
+                }
+                assert_ne!(ids[&document], document);
+                assert_eq!(
+                    imported.election_event.annotations.unwrap()["document_id"],
+                    ids[&document]
+                );
+            }
+        }
+    }
 }

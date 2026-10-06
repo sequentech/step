@@ -1,0 +1,13 @@
+mutation ImportUsers($tenantId: String!, $documentId: String!, $electionEventId: String, $sha256: String) {
+        import_users(
+            tenant_id: $tenantId
+            document_id: $documentId
+            election_event_id: $electionEventId
+            sha256: $sha256
+        ) {
+            task_execution {
+                id
+                execution_status
+            }
+        }
+    }

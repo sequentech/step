@@ -53,6 +53,19 @@ const parsePattern = (value) => {
   return { groups, source: value, totalSize: digitStart };
 };
 
+const parsePlaceholder = (value) => {
+  const characters = Array.from(value);
+  if (characters.length !== 1) {
+    return DIGIT_TOKEN;
+  }
+
+  const character = characters[0];
+  const codePoint = character.codePointAt(0);
+  const isControl =
+    codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
+  return /[0-9\s*-]/u.test(character) || isControl ? DIGIT_TOKEN : character;
+};
+
 const formatGroupStatus = (template, groupNumber, groupCount, entered, size) =>
   template
     .split("{0}")
@@ -109,6 +122,9 @@ if (container) {
   const realInput = container.querySelector('input[name="password"]');
   const toggle = container.querySelector("[data-structured-credential-toggle]");
   const pattern = parsePattern(container.dataset.credentialPattern || "");
+  const placeholder = parsePlaceholder(
+    container.dataset.credentialInputPlaceholder || DIGIT_TOKEN,
+  );
 
   if (!pattern) {
     if (realInput) {
@@ -171,10 +187,23 @@ if (container) {
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
 
-    const describedBy = [hintId, errorId, status.id].filter(Boolean).join(" ");
-    if (describedBy) {
-      displayInput.setAttribute("aria-describedby", describedBy);
-    }
+    // errorId is only added to aria-describedby while an error is actually
+    // showing (via setErrorDescribed below). Per the ARIA accessible-description
+    // computation, a node with the `hidden` attribute is still read out if it is
+    // explicitly referenced by aria-describedby - so including errorId
+    // unconditionally here would announce the (static, always-rendered) error
+    // text on every focus, even on a fresh load with no error.
+    const setErrorDescribed = (described) => {
+      const describedBy = [hintId, described ? errorId : null, status.id]
+        .filter(Boolean)
+        .join(" ");
+      if (describedBy) {
+        displayInput.setAttribute("aria-describedby", describedBy);
+      } else {
+        displayInput.removeAttribute("aria-describedby");
+      }
+    };
+    setErrorDescribed(false);
 
     const groupEnd = (group) => group.digitStart + group.length;
 
@@ -196,7 +225,7 @@ if (container) {
           const digit = digits[digitIndex];
           const value =
             digit === null
-              ? DIGIT_TOKEN
+              ? placeholder
               : passwordVisible || digitIndex === revealedIndex
                 ? digit
                 : MASK_CHARACTER;
@@ -257,6 +286,7 @@ if (container) {
         error.textContent = defaultErrorMessage;
       }
       displayInput.removeAttribute("aria-invalid");
+      setErrorDescribed(false);
       if (usernameInput) {
         usernameInput.removeAttribute("aria-invalid");
       }
@@ -267,6 +297,7 @@ if (container) {
       if (error) {
         error.textContent = message;
         error.hidden = false;
+        setErrorDescribed(true);
       } else {
         status.textContent = message;
       }
@@ -635,6 +666,15 @@ if (container) {
     render();
     if (hadServerError) {
       showError();
+    }
+
+    // The template puts autofocus on the real input, which this widget hides - a hidden field
+    // cannot hold focus, so the page would open with nothing focused. Move the intent onto the
+    // visible group input.
+    if (realInput.hasAttribute("autofocus")) {
+      realInput.removeAttribute("autofocus");
+      displayInput.focus();
+      selectGroup(activeGroup);
     }
 
     form.addEventListener(

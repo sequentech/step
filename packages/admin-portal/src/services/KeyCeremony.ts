@@ -22,6 +22,10 @@ export enum IKeysCeremonyTrusteeStatus {
     KEY_CHECKED = "KEY_CHECKED",
 }
 
+export const isKeysCeremonyTerminal = (status: IKeysCeremonyExecutionStatus): boolean =>
+    status === IKeysCeremonyExecutionStatus.SUCCESS ||
+    status === IKeysCeremonyExecutionStatus.CANCELLED
+
 export interface IKeysCeremonyTrustee {
     name: string
     status: IKeysCeremonyTrusteeStatus
@@ -32,4 +36,25 @@ export interface IExecutionStatus {
     public_key?: string
     logs: Array<IKeysCeremonyLog>
     trustees: Array<IKeysCeremonyTrustee>
+}
+
+interface CanTrusteeRecheckPrivateKeyParams {
+    executionStatus: IKeysCeremonyExecutionStatus
+    trusteeStatus?: IKeysCeremonyTrusteeStatus
+    isAutomaticCeremony: boolean
+}
+
+export const canTrusteeRecheckPrivateKey = ({
+    executionStatus,
+    trusteeStatus,
+    isAutomaticCeremony,
+}: CanTrusteeRecheckPrivateKeyParams): boolean => {
+    if (isAutomaticCeremony || trusteeStatus !== IKeysCeremonyTrusteeStatus.KEY_CHECKED) {
+        return false
+    }
+
+    return (
+        executionStatus === IKeysCeremonyExecutionStatus.IN_PROGRESS ||
+        executionStatus === IKeysCeremonyExecutionStatus.SUCCESS
+    )
 }

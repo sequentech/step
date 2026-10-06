@@ -175,6 +175,7 @@ async fn generate(
     password_secret_id: &str,
     password_change_initiator: &ElectoralLogAdminContext,
     task_execution: &TasksExecution,
+    may_read_secret_attributes: bool,
 ) -> Result<()> {
     let mut hasura_client: DbClient = get_hasura_pool()
         .await
@@ -241,6 +242,7 @@ async fn generate(
         election_event_id.to_string(),
         voter_id.to_string(),
         voter_password.clone(),
+        may_read_secret_attributes,
     );
     let pdf = report
         .render_pdf(&hasura_transaction, &keycloak_transaction)
@@ -251,8 +253,13 @@ async fn generate(
         write_into_named_temp_file(&encrypted_pdf, "voter-information-letter-", ".pdf")
             .context("Failed to create encrypted PDF temporary file")?;
     let document_name = format!("voter-information-letter-{voter_id}.pdf");
-    let document_annotations =
+    let mut document_annotations =
         DocumentAnnotations::password_protected(password_secret_id.to_string());
+    if may_read_secret_attributes {
+        if let Some(access) = document_annotations.access.as_mut() {
+            access.voter_secret_attributes = true;
+        }
+    }
     upload_and_return_document_with_annotations(
         &hasura_transaction,
         &path,
@@ -327,6 +334,7 @@ pub async fn generate_voter_information_letter(
     password_secret_id: String,
     password_change_initiator: ElectoralLogAdminContext,
     task_execution: TasksExecution,
+    may_read_secret_attributes: bool,
 ) -> std::result::Result<(), VoterInformationLetterTaskError> {
     let _permit = acquire_semaphore()
         .await
@@ -363,6 +371,7 @@ pub async fn generate_voter_information_letter(
             &password_secret_id,
             &password_change_initiator,
             &task_execution,
+            may_read_secret_attributes,
         ),
     )
     .await;

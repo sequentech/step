@@ -18,6 +18,7 @@ import LogoutIcon from "@mui/icons-material/Logout"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {EVotingPortalCountdownPolicy} from "@sequentech/ui-core"
+import {useInertBackground} from "../../services/useInertBackground"
 
 const Span = styled("span")`
     font-size: 14px;
@@ -40,6 +41,7 @@ const CountdownTooltipContent: React.FC<{timeLeft?: string}> = ({timeLeft = ""})
     return (
         <>
             <StyledButtonTooltipText
+                className="session-countdown-title"
                 sx={{
                     fontWeight: 500,
                     color: theme.palette.brandColor,
@@ -47,7 +49,7 @@ const CountdownTooltipContent: React.FC<{timeLeft?: string}> = ({timeLeft = ""})
             >
                 {t("header.session.title")}
             </StyledButtonTooltipText>
-            <StyledButtonTooltipText>
+            <StyledButtonTooltipText className="session-countdown-time">
                 {t("header.session.timeLeft", {time: timeLeft})}
             </StyledButtonTooltipText>
         </>
@@ -73,6 +75,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 }) => {
     const {t} = useTranslation()
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+    const setModalRoot = useInertBackground(Boolean(anchorEl))
     const [timeLeftText, setTimeLeftText] = useState("")
     const [timeLeft, setTimeLeft] = useState(0)
     const [totalDuration, setTotalDuration] = useState(0)
@@ -143,7 +146,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             : userProfile.username
 
     return (
-        <Box>
+        <Box className="profile-menu-container">
             <StyledButtonTooltip
                 disableHoverListener={
                     !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
@@ -169,11 +172,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
                     )}
                     <StyledButton
-                        className="logout-button"
+                        className="logout-button profile-menu-button"
                         aria-labelledby="welcome-text-name"
                         onClick={handleMenu}
                     >
-                        <AccountCircle sx={{fontSize: 40}} />
+                        <AccountCircle className="profile-menu-icon" sx={{fontSize: 40}} />
                         <Box
                             id="welcome-text-name"
                             className="user-first-name"
@@ -193,13 +196,21 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 values={{
                                     name: profileName,
                                 }}
-                                components={{br: <br />, span: <Name />}}
+                                components={{
+                                    br: <br className="profile-name-break" />,
+                                    span: <Name className="profile-name" />,
+                                }}
                             />
                         </Box>
                     </StyledButton>
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
+                ref={setModalRoot}
+                role="region"
+                aria-label={t("header.profile")}
+                className="profile-menu"
+                classes={{paper: "profile-menu-paper", list: "profile-menu-options"}}
                 id="menu-appbar"
                 anchorEl={anchorEl}
                 anchorOrigin={{
@@ -218,6 +229,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 {(!!userProfile.firstName || !!userProfile.username || !!userProfile.email) && (
                     <MenuItem className="user-details">
                         <Box
+                            className="profile-menu-identity"
                             sx={{
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -238,7 +250,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                             ? userProfile.firstName
                                             : userProfile.username}
                                     </span>
-                                    <br />
+                                    <br className="profile-name-break" />
                                 </>
                             )}
                             {!!userProfile.email && (
@@ -257,7 +269,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             userProfile?.openLink?.()
                         }}
                     >
-                        <AccountCircle sx={{marginRight: "14px"}} />
+                        <AccountCircle className="profile-menu-icon" sx={{marginRight: "14px"}} />
                         {t("header.profile")}
                     </MenuItem>
                 )}
@@ -269,7 +281,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             handleClose()
                         }}
                     >
-                        <LogoutIcon sx={{marginRight: "14px"}} />
+                        <LogoutIcon className="profile-logout-icon" sx={{marginRight: "14px"}} />
                         {t("logout.buttonText")}
                     </MenuItem>
                 )}

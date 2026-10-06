@@ -452,7 +452,7 @@ button#resend-otp-btn:hover {
 
 @media (max-width: 767px) {
     #kc-title {
-        display: none;
+        display: block;
     }
 }
 
@@ -770,4 +770,22 @@ button#resend-otp-btn:hover {
         [data-structured-credential-toggle]:focus-visible {
         outline-color: Highlight;
     }
+}
+
+/* The matchAttributes fields on the login page render through user-profile-commons.ftl, which
+   wraps each label and input in a grid column carrying horizontal padding. login.ftl's own
+   username and password blocks have no such wrapper, so the two sets of fields would otherwise
+   disagree on indent and width. register.ftl is unaffected: every field there is wrapped, so it
+   is already internally consistent. */
+#kc-form-login .form-group > .col-xs-12 {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Those same wrappers are floated grid columns. register.ftl's form carries kcFormClass
+   (form-horizontal), whose .form-group has a clearfix; login.ftl's form tag has no class, so each
+   .form-group collapsed to zero height and its 15px margin never produced the intended rhythm.
+   flow-root makes the group contain its floats without depending on the form class. */
+#kc-form-login .form-group {
+    display: flow-root;
 }

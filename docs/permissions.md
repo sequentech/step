@@ -26,7 +26,7 @@ CRUD endpoints for:
 
 # Permissions
 
-- tenant-create|read|write
+- tenant-create|read|write|delete
 - election-event-create|read|write|delete|archive
 - keycloak-realm-attributes-read|write
 - election-create|read|write|delete

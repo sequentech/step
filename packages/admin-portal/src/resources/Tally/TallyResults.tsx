@@ -10,7 +10,10 @@ import {useAtomValue} from "jotai"
 import {
     IContest,
     ICountingAlgorithm,
+    IElectionEventPresentation,
     IElectionPresentation,
+    parseEntityPresentation,
+    sortByPresentationOrder,
     sortContestList,
 } from "@sequentech/ui-core"
 import {
@@ -67,19 +70,6 @@ const parseDocuments = (rawDocuments: unknown): IResultDocuments | null => {
     }
 }
 
-const presentationFromElection = (presentation: unknown): IElectionPresentation | undefined => {
-    if (!presentation) return undefined
-
-    try {
-        return typeof presentation === "string"
-            ? (JSON.parse(presentation) as IElectionPresentation)
-            : (presentation as IElectionPresentation)
-    } catch (error) {
-        console.error("Failed to parse election presentation:", error)
-        return undefined
-    }
-}
-
 const withoutNestedContestData = (contest: TallyContestRow): Sequent_Backend_Contest => ({
     ...contest,
     candidates: [],
@@ -100,7 +90,7 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
             [tallyData?.sequent_backend_area]
         )
 
-        const elections = useMemo<Sequent_Backend_Election[]>(() => {
+        const unorderedElections = useMemo<Sequent_Backend_Election[]>(() => {
             const electionById = new Map(
                 tallyData?.sequent_backend_election?.map((election) => [election.id, election]) ??
                     []
@@ -120,19 +110,41 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
 
         const defaultLangByElectionId = useMemo(() => {
             const map = new Map<string, string | undefined>()
-            elections.forEach((election) => {
+            unorderedElections.forEach((election) => {
                 map.set(
                     election.id,
                     getDefaultElectionLang(tallyData, election.id, election.election_event_id)
                 )
             })
             return map
-        }, [elections, tallyData?.sequent_backend_election])
+        }, [unorderedElections, tallyData?.sequent_backend_election])
 
         const getElectionAlias = useCallback(
             (election: Sequent_Backend_Election) =>
                 aliasRenderer(election.presentation, defaultLangByElectionId.get(election.id)),
             [aliasRenderer, defaultLangByElectionId]
+        )
+
+        const getContestAlias = useCallback(
+            (contest: unknown, electionId?: string | null) =>
+                aliasRenderer(
+                    contest,
+                    electionId ? defaultLangByElectionId.get(electionId) : undefined
+                ),
+            [aliasRenderer, defaultLangByElectionId]
+        )
+
+        const electionsOrder = parseEntityPresentation<IElectionEventPresentation>(
+            tallyData?.sequent_backend_election_event[0]?.presentation
+        )?.elections_order
+
+        const elections = useMemo(
+            () =>
+                sortByPresentationOrder(unorderedElections, electionsOrder, {
+                    getLabel: getElectionAlias,
+                    getPresentation: (election) => election.presentation,
+                }),
+            [electionsOrder, getElectionAlias, unorderedElections]
         )
 
         const electionOptions = useMemo<ElectionOption[]>(
@@ -153,7 +165,9 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                 const backendContests = contests
                     .map(withoutNestedContestData)
                     .filter((contest) => contest.election_id === election.id)
-                const contestOrder = presentationFromElection(election.presentation)?.contests_order
+                const contestOrder = parseEntityPresentation<IElectionPresentation>(
+                    election.presentation
+                )?.contests_order
                 const convertedContests = convertContestsArray(backendContests)
                 map.set(election.id, sortContestList(convertedContests, contestOrder))
             })
@@ -169,11 +183,11 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
 
                 return contests.map((contest) => ({
                     id: contest.id,
-                    label: aliasRenderer(contest),
+                    label: getContestAlias(contest, selection.election?.id),
                     data: contest,
                 }))
             },
-            [aliasRenderer, contestsByElectionId, i18n.language]
+            [getContestAlias, contestsByElectionId, i18n.language]
         )
 
         const getAreaOptions = useCallback(
@@ -271,13 +285,13 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                     ? {
                           documents,
                           name: selection.contest?.data
-                              ? aliasRenderer(selection.contest.data)
+                              ? getContestAlias(selection.contest.data, selection.electionId)
                               : "contest",
                           class_type: "contest",
                       }
                     : null
             },
-            [aliasRenderer, resultsEventId, tallyData?.sequent_backend_results_contest]
+            [getContestAlias, resultsEventId, tallyData?.sequent_backend_results_contest]
         )
 
         const getAreaDocuments = useCallback(
@@ -300,13 +314,13 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                     ? {
                           documents,
                           name: selection.contest?.data
-                              ? aliasRenderer(selection.contest.data)
+                              ? getContestAlias(selection.contest.data, selection.electionId)
                               : "contest",
                           class_type: "contest-area",
                       }
                     : null
             },
-            [aliasRenderer, resultsEventId, tallyData?.sequent_backend_results_area_contest]
+            [getContestAlias, resultsEventId, tallyData?.sequent_backend_results_area_contest]
         )
 
         const renderElectionActions = useCallback(
@@ -360,14 +374,14 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                         electionEventId={selection.election.data.election_event_id}
                         itemName={
                             selection.contest?.data
-                                ? aliasRenderer(selection.contest.data)
+                                ? getContestAlias(selection.contest.data, selection.electionId)
                                 : "contest"
                         }
                         tallySessionId={tally.id}
                     />
                 )
             },
-            [aliasRenderer, canExportCeremony, getContestDocuments, tally?.id]
+            [getContestAlias, canExportCeremony, getContestDocuments, tally?.id]
         )
 
         const renderAreaActions = useCallback(
@@ -388,14 +402,14 @@ const TallyResultsElectionsTabs: React.MemoExoticComponent<React.FC<TallyResults
                         electionEventId={selection.election.data.election_event_id}
                         itemName={
                             selection.contest?.data
-                                ? aliasRenderer(selection.contest.data)
+                                ? getContestAlias(selection.contest.data, selection.electionId)
                                 : "contest"
                         }
                         tallySessionId={tally.id}
                     />
                 )
             },
-            [aliasRenderer, canExportCeremony, getAreaDocuments, tally?.id]
+            [getContestAlias, canExportCeremony, getAreaDocuments, tally?.id]
         )
 
         const renderResult = useCallback(

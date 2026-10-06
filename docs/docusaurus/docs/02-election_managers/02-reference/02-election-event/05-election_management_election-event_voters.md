@@ -40,6 +40,23 @@ The **Actions** column provides options to interact with voter records:
 
 ---
 
+#### Adding and editing a voter
+
+Fields are checked as they are left. One that is required and left empty, or whose value breaks a
+limit configured for that attribute, is marked and explains what it expects, and the voter cannot be
+saved until it is corrected. Where an attribute sets a limit worth knowing in advance, it is stated
+under the field before it is reached.
+
+If a voter still cannot be saved, the editor stays open with the values as entered, so nothing has to
+be typed again, and reports why. Where the rejection concerns particular fields, each one is named
+along with the rule it broke — up to ten of them, with any beyond that counted rather than listed.
+
+Limits come from the attribute's configuration in Keycloak; see
+[Adding User Attributes to Keycloak](../../01-tutorials/99-admin_portal_tutorials_add-user-attributes-to-keycloak.md)
+for how they are set and which ones the portal states up front.
+
+---
+
 #### Send Notifications
 
 Use this tab to send notifications to voters through various methods, schedules, and templates.

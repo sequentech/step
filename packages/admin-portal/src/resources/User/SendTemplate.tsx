@@ -32,6 +32,7 @@ import {useTranslation} from "react-i18next"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {CREATE_SCHEDULED_EVENT} from "@/queries/CreateScheduledEvent"
+import {getReferencedSecretAttributeNames} from "@/services/secretAttributeTemplates"
 import {CreateScheduledEventMutation, Sequent_Backend_Template} from "@/gql/graphql"
 import {ScheduledEventType} from "@/services/ScheduledEvent"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -59,6 +60,7 @@ interface ITemplatePayload {
     sms?: {
         message: string
     }
+    secret_attribute_names: string[]
 }
 
 interface ITemplate {
@@ -95,6 +97,7 @@ interface SendTemplateProps {
     audienceSelection?: AudienceSelection
     electionEventId?: string
     close?: () => void
+    secretAttributeNames?: string[]
 }
 
 export const SendTemplate: React.FC<SendTemplateProps> = ({
@@ -102,6 +105,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     audienceSelection,
     close,
     electionEventId,
+    secretAttributeNames = [],
 }) => {
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
@@ -141,6 +145,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     })
 
     const getPayload: (formData: ITemplate) => ITemplatePayload = (formData: ITemplate) => {
+        const templateContents = JSON.stringify(formData.i18n)
         return {
             audience_selection: formData.audience.selection,
             audience_voter_ids: formData.audience.voter_ids,
@@ -149,6 +154,10 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             schedule_date: formData.schedule.date,
             email: formData.i18n["en"].email,
             sms: formData.i18n["en"].sms,
+            secret_attribute_names: getReferencedSecretAttributeNames(
+                templateContents,
+                secretAttributeNames
+            ),
         }
     }
 

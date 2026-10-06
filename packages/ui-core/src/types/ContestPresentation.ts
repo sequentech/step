@@ -18,6 +18,10 @@ export enum EInvalidVotePolicy {
     WARN = "warn",
     WARN_INVALID_IMPLICIT_AND_EXPLICIT = "warn-invalid-implicit-and-explicit",
     NOT_ALLOWED = "not-allowed",
+    // Same as ALLOWED, except the explicit-invalid marker becomes a mutually
+    // exclusive selection: picking it clears any other selected candidates
+    // (and vice versa), mirroring how blank vote is already exclusive.
+    ALLOWED_WITH_EXCLUSIVE_EXPLICIT = "allowed-with-exclusive-explicit",
 }
 
 export enum EEnableCheckableLists {
