@@ -12,8 +12,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::{
-    serialization::deserialize_with_path::deserialize_value, temp_path::get_file_size,
-    types::hasura::core::BallotStyle,
+    serialization::deserialize_with_path::deserialize_value, types::hasura::core::BallotStyle,
 };
 use serde_json::Value;
 use std::fs::File;
@@ -38,8 +37,10 @@ pub fn construct_preview_url(
     Ok(url)
 }
 
+/// Reads an uploaded preview payload, returning it alongside the identifiers
+/// the preview URL is built from.
 #[instrument(err)]
-pub async fn get_document_data(preview_file_path: &str) -> Result<(String, String)> {
+pub fn read_preview(preview_file_path: &str) -> Result<(PublicationPreview, String, String)> {
     let file = File::open(preview_file_path)
         .map_err(|e| anyhow::anyhow!("Failed to open preview file: {}", e))?;
     let parsed: PublicationPreview = serde_json::from_reader(file)
@@ -66,7 +67,7 @@ pub async fn get_document_data(preview_file_path: &str) -> Result<(String, Strin
         .map(str::to_owned)
         .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-    Ok((ballot_style_id, area_id))
+    Ok((parsed, ballot_style_id, area_id))
 }
 
 #[instrument(err)]
@@ -86,15 +87,18 @@ pub async fn generate_preview_url(
     let temp_path = preview_temp_file.into_temp_path();
     let temp_path_string = temp_path.to_string_lossy().to_string();
 
-    let file_size =
-        get_file_size(temp_path_string.as_str()).with_context(|| "Error obtaining file size")?;
-
-    let (ballot_style_id, area_id) = get_document_data(&temp_path_string).await?;
+    let (preview, ballot_style_id, area_id) = read_preview(&temp_path_string)?;
     let doc_name = format!("{ballot_style_id}.json");
+
+    // Re-uploaded to the public bucket, so it is written out through the same
+    // sanitizing path as a freshly generated preview: one uploaded before the
+    // Datafix annotations were stripped still carries the credentials.
+    let (_preview_temp_path, preview_path_string, file_size) =
+        preview.into_temp_file(&format!("preview-{ballot_style_id}-"))?;
 
     let document = upload_and_return_document(
         hasura_transaction,
-        &temp_path_string,
+        &preview_path_string,
         file_size,
         "application/json",
         &tenant_id,
@@ -119,4 +123,67 @@ pub async fn generate_preview_url(
     .map_err(|err| anyhow!("Error insert preview: {err:?}"))?;
 
     Ok(preview_url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::external::utils::DATAFIX_VOTERVIEW_REQ_KEY;
+    use serde_json::json;
+    use std::io::Write;
+
+    fn preview_file(payload: Value) -> NamedTempFile {
+        let mut file = NamedTempFile::new().expect("temp file");
+        file.write_all(payload.to_string().as_bytes())
+            .expect("write payload");
+        file
+    }
+
+    #[test]
+    fn a_re_uploaded_preview_is_written_back_without_datafix_annotations() {
+        let file = preview_file(json!({
+            "ballot_styles": [{"id": "style-id", "area_id": "area-id"}],
+            "election_event": {
+                "id": "event",
+                "annotations": {
+                    DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret"}"#,
+                    "miru:election-event-id": "miru-event",
+                },
+            },
+            "elections": [],
+            "support_materials": [],
+            "documents": [],
+        }));
+
+        let (preview, ballot_style_id, area_id) =
+            read_preview(&file.path().to_string_lossy()).expect("preview read");
+        assert_eq!(ballot_style_id, "style-id");
+        assert_eq!(area_id, "area-id");
+
+        let (_temp_path, written_path, _size) = preview
+            .into_temp_file("preview-test-")
+            .expect("preview file");
+        let written: Value = serde_json::from_str(
+            &std::fs::read_to_string(&written_path).expect("read written preview"),
+        )
+        .expect("parse written preview");
+
+        assert_eq!(
+            written["election_event"]["annotations"],
+            json!({"miru:election-event-id": "miru-event"})
+        );
+    }
+
+    #[test]
+    fn reading_a_preview_without_ballot_styles_fails() {
+        let file = preview_file(json!({
+            "ballot_styles": [],
+            "election_event": {"id": "event"},
+            "elections": [],
+            "support_materials": [],
+            "documents": [],
+        }));
+
+        assert!(read_preview(&file.path().to_string_lossy()).is_err());
+    }
 }

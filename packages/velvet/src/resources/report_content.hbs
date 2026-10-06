@@ -100,6 +100,11 @@ SPDX-License-Identifier: AGPL-3.0-only
       {{/if}}
       <p class="contest-desc">{{ sanitize_html report.contest.description }}</p>
 
+      {{#if report.contest.is_acclaimed}}
+      <p class="contest-acclamation">Won by acclamation. This contest was decided without a vote,
+        so no votes were recorded for it and every candidate is elected.</p>
+      {{/if}}
+
       <table>
         <tr>
           <th colspan="2">Configuration Data</th>
@@ -120,6 +125,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         </tr>
       </table>
 
+      {{#unless report.contest.is_acclaimed}}
       <table>
         <tr>
           <th colspan="3">Participation</th>
@@ -177,6 +183,7 @@ SPDX-License-Identifier: AGPL-3.0-only
           </td>
         </tr>
       </table>
+      {{/unless}}
 
       {{#if report.participation_by_channel}}
         <table>
@@ -198,7 +205,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         </table>
       {{/if}}
 
-        {{#eq report.contest.counting_algorithm "plurality-at-large"}}
+        {{#if report.show_candidate_results}}
           <table>
             <tr>
               <th colspan="4">Candidate result</th>
@@ -218,7 +225,7 @@ SPDX-License-Identifier: AGPL-3.0-only
               </tr>
               {{/each}}
           </table>
-        {{/eq}}
+        {{/if}}
         
         {{#eq report.contest.counting_algorithm "instant-runoff"}}
           {{#if report.contest_result.process_results}}
@@ -239,17 +246,23 @@ SPDX-License-Identifier: AGPL-3.0-only
                 
                 <table>
                   <tr>
-                    <th>Candidate ID</th>
+                    <th>Candidate</th>
                     <th>Wins</th>
                     <th>Transference</th>
                     <th>Percentage</th>
                   </tr>
-                  {{#each round.candidates_wins}}
+                  {{#each report.contest_result.process_results.name_references as |candidate|}}
                     <tr>
-                      <td>{{ this.name }}</td>
-                      <td>{{ format_u64 this.wins }}</td>
-                      <td>{{ this.transference }}</td>
-                      <td>{{ format_percentage this.percentage }}%</td>
+                      <td>{{ candidate.name }}</td>
+                      {{#with (lookup round.candidates_wins candidate.id) as |candidate_result|}}
+                        <td>{{ format_u64 candidate_result.wins }}</td>
+                        <td>{{ candidate_result.transference }}</td>
+                        <td>{{ format_percentage candidate_result.percentage }}%</td>
+                      {{else}}
+                        <td>n/a</td>
+                        <td>n/a</td>
+                        <td>n/a</td>
+                      {{/with}}
                     </tr>
                   {{/each}}
                 </table>

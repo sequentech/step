@@ -47,6 +47,9 @@ const basqueTranslation: TranslationType = {
             version: "{{version}} bertsioa",
             publicAccess: "Sarbide publikoa",
             signedInAccess: "Saioa hasita sartzea",
+            acclaimed: "Aklamazioz hautatua",
+            acclamationNote:
+                "Aklamazioz hautatua. Galdera hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             published: "Argitaratua",
             notPublishedYet: "Oraindik argitaratu gabe",
             position_one: "{{count}} postu",
@@ -75,6 +78,7 @@ const basqueTranslation: TranslationType = {
                 totalVotesCounted: "Zenbatutako botoak guztira",
                 validVotes: "Baliozko botoak",
                 participation: "Parte-hartzea",
+                totalBlankBallots: "Boto-txartel zuriak guztira",
             },
             resultsAndParticipation: {
                 participationSummary: "Parte-hartzearen laburpena",

@@ -4,6 +4,9 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
+use ordered_float::NotNan;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::{ResultDocuments, ResultsElectionArea};
@@ -36,6 +39,14 @@ impl TryFrom<Row> for ResultsElectionAreaWrapper {
             created_at: item.get("created_at"),
             last_updated_at: item.get("last_updated_at"),
             documents,
+            blank_ballots: item
+                .try_get::<_, Option<i32>>("blank_ballots")?
+                .map(|v| v as i64),
+            blank_ballots_percent: item
+                .try_get::<&str, Option<Decimal>>("blank_ballots_percent")?
+                .map(|d| d.to_f64().map(NotNan::new).transpose())
+                .transpose()?
+                .flatten(),
         }))
     }
 }
@@ -50,6 +61,8 @@ pub async fn insert_results_election_area_documents(
     area_id: &str,
     area_name: &str,
     documents: &ResultDocuments,
+    blank_ballots: Option<i32>,
+    blank_ballots_percent: Option<f64>,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
@@ -62,20 +75,27 @@ pub async fn insert_results_election_area_documents(
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid =
         parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+    // blank_ballots_percent is a Postgres `numeric` column; tokio-postgres
+    // only maps f64 to `float8`, so bind the value as the same Decimal type
+    // the read path (ResultsElectionAreaWrapper) already uses.
+    let blank_ballots_percent_decimal: Option<Decimal> =
+        blank_ballots_percent.and_then(Decimal::from_f64_retain);
 
     let statement = hasura_transaction
         .prepare(
             r#"
                 INSERT INTO sequent_backend.results_election_area (
-                    documents, 
-                    tenant_id, 
-                    results_event_id, 
-                    election_event_id, 
-                    election_id, 
+                    documents,
+                    tenant_id,
+                    results_event_id,
+                    election_event_id,
+                    election_id,
                     area_id,
-                    name
+                    name,
+                    blank_ballots,
+                    blank_ballots_percent
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 RETURNING id;
             "#,
         )
@@ -91,6 +111,8 @@ pub async fn insert_results_election_area_documents(
                 &election_uuid,
                 &area_uuid,
                 &area_name,
+                &blank_ballots,
+                &blank_ballots_percent_decimal,
             ],
         )
         .await
@@ -153,6 +175,8 @@ struct InsertableResultsElectionArea {
     last_updated_at: Option<DateTime<Local>>,
     documents: Option<Value>,
     name: Option<String>,
+    blank_ballots: Option<i64>,
+    blank_ballots_percent: Option<f64>,
 }
 
 #[instrument(err, skip(hasura_transaction, areas))]
@@ -180,6 +204,8 @@ pub async fn insert_many_results_elections_areas(
                 last_updated_at: a.last_updated_at,
                 documents: documents_json,
                 name: a.name.clone(),
+                blank_ballots: a.blank_ballots,
+                blank_ballots_percent: a.blank_ballots_percent.map(|n| n.into_inner()),
             })
         })
         .collect::<Result<_>>()?;
@@ -198,18 +224,20 @@ pub async fn insert_many_results_elections_areas(
                 created_at TIMESTAMPTZ,
                 last_updated_at TIMESTAMPTZ,
                 documents JSONB,
-                name TEXT
+                name TEXT,
+                blank_ballots BIGINT,
+                blank_ballots_percent FLOAT8
             )
         )
         INSERT INTO sequent_backend.results_election_area (
             id, tenant_id, election_event_id, election_id,
             area_id, results_event_id, created_at, last_updated_at,
-            documents, name
+            documents, name, blank_ballots, blank_ballots_percent
         )
         SELECT
             id, tenant_id, election_event_id, election_id,
             area_id, results_event_id, created_at, last_updated_at,
-            documents, name
+            documents, name, blank_ballots, blank_ballots_percent
         FROM data
         RETURNING *;
     "#;

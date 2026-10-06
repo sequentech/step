@@ -33,6 +33,9 @@ const frenchTranslation: TranslationType = {
                 "Il y a eu un problème lors de l'importation du vote auditable. Avez-vous choisi le bon fichier ?",
             importErrorMoreInfo: "Plus d'informations",
             importErrorTitle: "Erreur",
+            ciphertextErrorTitle: "La vérification du vote a échoué",
+            ciphertextErrorDescription:
+                "Le texte chiffré de ce vote auditable ne correspond pas au chiffrement du texte en clair et de l'aléa qu'il contient. Ce vote n'est pas fiable.",
             useSampleLink: "Utiliser un vote exemple",
             nextButton: "Continuer",
             ballotIdLabel: "ID du bulletin",
@@ -76,6 +79,9 @@ const frenchTranslation: TranslationType = {
             points_other: "({{count}} Points)",
             contestNotFound: "Scrutin non trouvé : {{contestId}}",
             declineToVote: "A choisi de ne pas voter",
+            blankBallot: "Bulletin blanc",
+            acclamationDescription:
+                "Ce scrutin a été tranché par acclamation. Ses candidat(e)s sont élu(e)s sans vote : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
         },
         "footer": {
             poweredBy: "Propulsé par <1></1>",

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {IElection, sortElectionList} from "@sequentech/ui-core"
+import {IElection, IVotingChannelsConfig, sortElectionList} from "@sequentech/ui-core"
 
 export interface IElectionExtended extends IElection {
     annotations?: string | null
@@ -16,6 +16,7 @@ export interface IElectionExtended extends IElection {
     num_allowed_revotes?: number | null
     spoil_ballot_option?: boolean | null
     status?: string | null
+    voting_channels?: Partial<IVotingChannelsConfig> | null
 }
 
 export interface ElectionState {

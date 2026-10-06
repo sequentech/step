@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {initializeLanguages} from "@sequentech/ui-core"
+import {ETranslationScope, initializeLanguages} from "@sequentech/ui-core"
 import englishTranslation from "@/translations/en"
 import spanishTranslation from "@/translations/es"
 import catalanTranslation from "@/translations/cat"
@@ -34,5 +34,6 @@ initializeLanguages(
         nl: dutchTranslation,
         eu: basqueTranslation,
     },
-    getLanguageFromURL()
+    getLanguageFromURL(),
+    ETranslationScope.RESULTS_PORTAL
 )
