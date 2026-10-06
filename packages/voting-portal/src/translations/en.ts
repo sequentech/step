@@ -61,17 +61,17 @@ const englishTranslation = {
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
-            clearButton: "Clear selection",
+            clearButton: "Clear selections",
             ballotHelpDialog: {
                 title: "Information: Ballot screen",
                 content:
-                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selections</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Invalid or blank vote",
                 content:
-                    "Some of your answers will render the ballot in one or more questions invalid or blank.",
+                    "Some of your answers will render the ballot in one or more contests invalid or blank.",
                 ok: "Back and review",
                 continue: "Continue",
                 cancel: "Cancel",
@@ -104,9 +104,9 @@ const englishTranslation = {
             },
             instructionsTitle: "Instructions",
             instructionsDescription: "Please follow these steps to cast your ballot:",
-            step1Title: "1. Select your options",
+            step1Title: "1. Make your selections",
             step1Description:
-                "Choose your preferred candidates and answer the Ballot questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
+                "Choose your preferred candidates and make your selections in each contest as it appears. You can edit your ballot until you are ready to proceed.",
             step2Title: "2. Review your ballot",
             step2Description:
                 "Once you are satisfied with your selections, we will encrypt your ballot and show you a final review of your choices. You will also receive a unique tracker ID for your ballot.",
@@ -222,7 +222,7 @@ const englishTranslation = {
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting the vote. Please try again later or contact support for assistance.",
                 NO_BALLOT_SELECTION:
-                    "The selection state for this election is not present. Please ensure you have selected your choices correctly or contact support.",
+                    "The selection state for this election is not present. Please ensure you have made your selections correctly or contact support.",
                 NO_BALLOT_STYLE: "The ballot style is not available. Please contact support.",
                 NO_AUDITABLE_BALLOT: "No auditable ballot is available. Please contact support.",
                 INCONSISTENT_HASH:

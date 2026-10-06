@@ -61,13 +61,13 @@ const tagalogTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Impormasyon: Screen ng Balota",
                 content:
-                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. Maaari kang pumili sa pamamagitan ng pag-activate ng checkbox sa kanang bahagi ng Kandidato/Sagot. Upang i-reset ang iyong mga pagpili, i-click ang “<b>Burahin ang pagpili</b>” na button, upang pumunta sa susunod na hakbang, i-click ang “<b>Susunod</b>” na button sa ibaba.",
+                    "Ipinapakita sa screen na ito ang mga paligsahan na maaari mong botohan. Maaari kang pumili sa pamamagitan ng pag-activate ng checkbox sa kanang bahagi ng Kandidato/Sagot. Upang i-reset ang iyong mga pagpili, i-click ang “<b>Burahin ang mga napili</b>” na button, upang pumunta sa susunod na hakbang, i-click ang “<b>Susunod</b>” na button sa ibaba.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Di-wasto o blangkong boto",
                 content:
-                    "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga tanong.",
+                    "Ang ilan sa iyong mga sagot ay magreresulta sa pagkaka-invalidate o pagkakaroon ng blangko sa balota sa isa o higit pang mga paligsahan.",
                 ok: "Bumalik at suriin",
                 continue: "Ipagpatuloy",
                 cancel: "Kanselahin",
@@ -102,7 +102,7 @@ const tagalogTranslation: TranslationType = {
             instructionsDescription: "Sundin ang mga hakbang na ito upang ikaw ay makaboto:",
             step1Title: "1. Piliin ang iyong mga sagot",
             step1Description:
-                "Sagutin ang mga tanong ng halalan isa-isa habang ipinapakita ang mga ito. Maaari mong i-edit ang iyong balota hanggang handa ka nang magpatuloy.",
+                "Pumili sa bawat paligsahan isa-isa habang ipinapakita ang mga ito. Maaari mong i-edit ang iyong balota hanggang handa ka nang magpatuloy.",
             step2Title: "2. Suriin ang iyong balota",
             step2Description:
                 "Kapag ikaw ay kontento na sa iyong mga napili, aming i-eencript ang iyong balota at ipapakita sa iyo ang huling pagsusuri ng iyong mga napili. Makakatanggap ka rin ng natatanging tracker ID para sa iyong balota.",
@@ -173,7 +173,7 @@ const tagalogTranslation: TranslationType = {
                 UNABLE_TO_FETCH_DATA:
                     "Nagkaroon ng problema sa pagkuha ng data. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 LOAD_ELECTION_EVENT:
-                    "Hindi ma-load ang kaganapan ng eleksyon. Pakisubukan ulit mamaya.",
+                    "Hindi ma-load ang kaganapan ng halalan. Pakisubukan ulit mamaya.",
                 CAST_VOTE:
                     "Nagkaroon ng hindi inaasahang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 CAST_VOTE_CheckStatusFailed:
@@ -219,13 +219,13 @@ const tagalogTranslation: TranslationType = {
                 CAST_VOTE_UnknownError:
                     "Nagkaroon ng hindi kilalang error habang bumoboto. Pakisubukang muli mamaya o makipag-ugnayan sa suporta para sa tulong.",
                 NO_BALLOT_SELECTION:
-                    "Walang estado ng pagpili para sa eleksyon na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
+                    "Walang estado ng pagpili para sa halalan na ito. Pakitiyak na tama ang iyong pagpili o makipag-ugnayan sa helpdesk.",
                 NO_BALLOT_STYLE: "Walang estilo ng balota. Pakikontak ang helpdesk.",
                 NO_AUDITABLE_BALLOT: "Walang balota na maaring suriin. Pakikontak ang helpdesk.",
                 INCONSISTENT_HASH:
                     "Nagkaroon ng error kaugnay sa proseso ng pag-hash ng balota. BallotId: {{ballotId}} ay hindi tugma sa sinusuring Hash ng Balota: {{auditableBallotHash}}. Pakireport itong isyu sa helpdesk.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "Ang kaganapan ng eleksyon ay sarado na. Pakikontak ang helpdesk.",
+                    "Ang kaganapan ng halalan ay sarado na. Pakikontak ang helpdesk.",
                 PARSE_ERROR:
                     "Nagkaroon ng error sa pag-parse ng balota. Pakisubukan ulit mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
                 DESERIALIZE_AUDITABLE_ERROR:
