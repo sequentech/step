@@ -21,8 +21,10 @@ const catalanTranslation: TranslationType = {
             votingProgress: "Progrés de la votació",
             stepOf: "Pas {{current}} de {{total}}",
             selectUpTo_one: "Seleccioneu fins a {{count}} opció",
+            selectUpTo_many: "Seleccioneu fins a {{count}} opcions",
             selectUpTo_other: "Seleccioneu fins a {{count}} opcions",
             selectExactly_one: "Seleccioneu {{count}} opció",
+            selectExactly_many: "Seleccioneu {{count}} opcions",
             selectExactly_other: "Seleccioneu {{count}} opcions",
             selectBetween: "Seleccioneu entre {{min}} i {{max}} opcions",
         },
@@ -30,8 +32,9 @@ const catalanTranslation: TranslationType = {
             collapseToggle: "Alternar llista {{listTitle}}",
             showCandidates: "Mostra els candidats",
             hideCandidates: "Amaga els candidats",
-            selectedCandidate: "{{count}} candidat seleccionat",
-            selectedCandidates: "{{count}} candidats seleccionats",
+            selectedCandidates_one: "{{count}} candidat seleccionat",
+            selectedCandidates_many: "{{count}} candidats seleccionats",
+            selectedCandidates_other: "{{count}} candidats seleccionats",
             expandAll: "Expandir tot",
             collapseAll: "Reduir tot",
         },
@@ -396,24 +399,9 @@ const catalanTranslation: TranslationType = {
                 notEnoughChoices: "No hi ha prou opcions per descodificar",
                 writeInChoiceOutOfRange: "Opció d'escriptura lliure fora de rang: {{index}}",
                 writeInNotEndInZero: "L'escriptura lliure no acaba en 0",
-                writeInCharsExceeded:
-                    "L'escriptura lliure supera la longitud màxima en {{numCharsExceeded}} caràcters. Si us plau, escurceu-la.",
                 bytesToUtf8Conversion:
                     "Error en convertir l'escriptura lliure de bytes a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "La papereta és més gran de l'esperada",
-            },
-            implicit: {
-                selectedMax:
-                    "Vot en excés: el nombre d'opcions seleccionades {{numSelected}} supera el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és inferior al mínim {{min}}",
-                maxSelectionsPerType:
-                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} supera el màxim {{max}}",
-                underVote:
-                    "Vot incomplet: el nombre d'opcions seleccionades {{numSelected}} és inferior al màxim {{max}}",
-                overVoteDisabled:
-                    "Màxim assolit: heu seleccionat el màxim de {{numSelected}} opcions. Per canviar la vostra selecció, desseleccioneu primer una altra opció.",
-                blankVote: "Vot en blanc: 0 opcions seleccionades",
             },
             explicit: {
                 notAllowed:

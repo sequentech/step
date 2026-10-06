@@ -52,8 +52,9 @@ const tagalogTranslation: TranslationType = {
                 "Nanalo sa pamamagitan ng aklamasyon. Ang paligsahang ito ay napagpasyahan nang walang botohan, kaya walang naitalang boto.",
             published: "Nailathala",
             notPublishedYet: "Hindi pa nailalathala",
-            position: "{{count}} posisyon",
-            position_plural: "{{count}} posisyon",
+            position_one: "{{count}} posisyon",
+            position_many: "{{count}} posisyon",
+            position_other: "{{count}} posisyon",
             fallbackElectionName: "Halalan",
             fallbackContestName: "Labanan {{contestId}}",
             state: {

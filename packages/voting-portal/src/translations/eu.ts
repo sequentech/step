@@ -21,8 +21,10 @@ const basqueTranslation: TranslationType = {
             votingProgress: "Bozketaren aurrerapena",
             stepOf: "{{total}} urratsetik {{current}}. urratsa",
             selectUpTo_one: "Hautatu gehienez aukera {{count}}",
+            selectUpTo_many: "Hautatu gehienez {{count}} aukera",
             selectUpTo_other: "Hautatu gehienez {{count}} aukera",
             selectExactly_one: "Hautatu aukera {{count}}",
+            selectExactly_many: "Hautatu {{count}} aukera",
             selectExactly_other: "Hautatu {{count}} aukera",
             selectBetween: "Hautatu {{min}} eta {{max}} aukera artean",
         },
@@ -30,8 +32,9 @@ const basqueTranslation: TranslationType = {
             collapseToggle: "{{listTitle}} zerrenda txandakatu",
             showCandidates: "Hautagaiak erakutsi",
             hideCandidates: "Hautagaiak ezkutatu",
-            selectedCandidate: "{{count}} hautagai hautatuta",
-            selectedCandidates: "{{count}} hautagai hautatuta",
+            selectedCandidates_one: "{{count}} hautagai hautatuta",
+            selectedCandidates_many: "{{count}} hautagai hautatuta",
+            selectedCandidates_other: "{{count}} hautagai hautatuta",
             expandAll: "Dena zabaldu",
             collapseAll: "Dena tolestu",
         },
@@ -393,24 +396,9 @@ const basqueTranslation: TranslationType = {
                 notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
                 writeInChoiceOutOfRange: "Eskuz idatzitako aukera barrutitik kanpo dago: {{index}}",
                 writeInNotEndInZero: "Eskuz idatzitakoa ez da 0-rekin amaitzen",
-                writeInCharsExceeded:
-                    "Eskuz idatzitakoak gehieneko luzera gainditzen du {{numCharsExceeded}} karakteretan. Mesedez, laburtu ezazu.",
                 bytesToUtf8Conversion:
                     "Errorea eskuz idatzitakoa byte-etatik UTF-8 kate bihurtzerakoan: {{errorMessage}}",
                 ballotTooLarge: "Bozketa espero baino handiagoa da",
-            },
-            implicit: {
-                selectedMax:
-                    "Gehiegizko botoa: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino handiagoa da",
-                selectedMin:
-                    "Hautatutako aukeren kopurua {{numSelected}} gutxieneko {{min}} baino txikiagoa da",
-                maxSelectionsPerType:
-                    "Hautatutako aukeren kopurua {{numSelected}} {{type}} zerrendarako gehieneko {{max}} baino handiagoa da",
-                underVote:
-                    "Boto gutxiegiko: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino txikiagoa da",
-                overVoteDisabled:
-                    "Gehienekoa lortu da: {{numSelected}} aukera hautatu dituzu, gehieneko kopurua. Hautaketa aldatzeko, lehenik beste aukera bat kendu ezazu.",
-                blankVote: "Boto zuria: 0 aukera hautatuta",
             },
             explicit: {
                 notAllowed:

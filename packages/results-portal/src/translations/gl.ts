@@ -52,8 +52,9 @@ const galegoTranslation: TranslationType = {
                 "Elixido por aclamación. Este concurso resolveuse sen votación, polo que non se rexistrou ningún voto.",
             published: "Publicado",
             notPublishedYet: "Aínda non publicado",
-            position: "{{count}} posto",
-            position_plural: "{{count}} postos",
+            position_one: "{{count}} posto",
+            position_many: "{{count}} postos",
+            position_other: "{{count}} postos",
             fallbackElectionName: "Elección",
             fallbackContestName: "Concurso {{contestId}}",
             state: {

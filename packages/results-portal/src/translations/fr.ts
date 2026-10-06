@@ -52,8 +52,9 @@ const frenchTranslation: TranslationType = {
                 "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
             published: "Publié",
             notPublishedYet: "Pas encore publié",
-            position: "{{count}} position",
-            position_plural: "{{count}} positions",
+            position_one: "{{count}} position",
+            position_many: "{{count}} positions",
+            position_other: "{{count}} positions",
             fallbackElectionName: "Élection",
             fallbackContestName: "Scrutin {{contestId}}",
             state: {
