@@ -28,7 +28,15 @@ const APPROVER_ROLES = [
 ]
 
 async function openApprovals(page: Page, portal: PortalServices) {
+    // Authentication can redirect before the event has loaded. Wait for the
+    // event read that supplies the tab's record before checking its permission.
+    const eventLoaded = page.waitForResponse(
+        (response) =>
+            response.url() === `${portal.origin}/v1/graphql` &&
+            response.request().postDataJSON()?.operationName === "sequent_backend_election_event"
+    )
     await page.goto(`${portal.origin}/sequent_backend_election_event/${IDS.event}?lang=en`)
+    await eventLoaded
     await expect(page.getByRole("tab", {name: "Approvals", exact: true})).toBeVisible()
     await expect(page.getByRole("cell", {name: "carol-applicant"}).first()).toBeVisible()
 }

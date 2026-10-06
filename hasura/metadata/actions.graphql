@@ -126,6 +126,7 @@ type Mutation {
         election_ids: [uuid!]!
         configuration: jsonb
         tally_type: String
+        area_ids: [uuid!]
     ): CreateTallyOutput
 }
 
@@ -292,6 +293,9 @@ type Mutation {
     export_election_event_logs(
         election_event_id: uuid!
         format: String!
+        created_from: String
+        created_to: String
+        time_zone: String
     ): ExportLogsOutput
 }
 
@@ -671,6 +675,8 @@ type Mutation {
         scheduled_date: String
         event_processor: String!
         voting_channels: [VotingStatusChannel!]
+        local_date_time: String
+        time_zone: String
     ): ManageElectionDatesOutput
 }
 
@@ -934,6 +940,10 @@ input ElectoralLogFilter {
     statement_timestamp: String
     statement_kind: String
     username: String
+    created_from: String
+    created_to: String
+    statement_timestamp_from: String
+    statement_timestamp_to: String
 }
 
 input ElectoralLogOrderBy {
@@ -1566,6 +1576,8 @@ type OptionalImportEvent {
 
 type ManageElectionDatesOutput {
     error_msg: String
+    scheduled_date: String
+    warnings: [ScheduleWarning!]
 }
 
 type ExportLogsOutput {
@@ -2280,6 +2292,7 @@ type MonitoringGetDashboardOutput {
     snapshot: MonitoringSnapshot
     event_days: [String!]!
     refresh_seconds: Int
+    time_zone: String!
 }
 
 type MonitoringProblem {
@@ -2575,6 +2588,8 @@ type SigningPutRuleOutput {
     rule: jsonb!
     short_posts: jsonb!
     warnings: [String!]!
+    applies: String
+    outcome_changes: jsonb
 }
 
 type SigningEventInfoOutput {
@@ -2614,4 +2629,119 @@ type SigningPdfPrepareOutput {
 
 type SigningHeldReportRequestsOutput {
     requests: jsonb!
+}
+
+type ScheduleWarning {
+    code: String!
+    election_id: String
+    message_key: String!
+    params: jsonb!
+}
+
+type Mutation {
+    apply_schedule_recompute(
+        election_event_id: uuid!
+    ): ApplyScheduleRecomputeOutput
+}
+
+type ApplyScheduleRecomputeOutput {
+    updated: Int!
+}
+type Mutation {
+    preview_schedule_import(
+        election_event_id: uuid!
+        document_id: String!
+    ): SchedulePreviewOutput!
+}
+
+type Mutation {
+    import_schedule(
+        election_event_id: uuid!
+        document_id: String!
+    ): ImportScheduleOutput!
+}
+
+type Mutation {
+    export_schedule(election_event_id: uuid!): ExportScheduleOutput!
+}
+
+type ScheduleImportRow {
+    row: Int!
+    election_alias: String!
+    election_id: String
+    election_name: String
+    event_type: String!
+    local: String!
+    time_zone: String!
+    instant: String
+    primary_local: String
+    voting_channels: [String!]!
+    error_code: String
+    note_code: String
+}
+
+type SchedulePreviewOutput {
+    rows: [ScheduleImportRow!]!
+    ok: Int!
+    posts: Int!
+    errors: Int!
+    primary_time_zone: String!
+    outcome_changes: jsonb
+}
+
+type ImportScheduleOutput {
+    created: Int!
+    updated: Int!
+}
+
+type ExportScheduleOutput {
+    document_id: String!
+}
+
+type Query {
+    get_scheduled_outcomes(
+        election_event_id: uuid!
+    ): GetScheduledOutcomesOutput!
+}
+
+type GetScheduledOutcomesOutput {
+    outcomes: jsonb!
+    retained_closes: jsonb
+}
+
+type Query {
+    preview_scheduled_outcome_change(
+        election_event_id: uuid!
+        change: jsonb!
+    ): PreviewScheduledOutcomeChangeOutput!
+}
+
+type PreviewScheduledOutcomeChangeOutput {
+    applies: String
+    applies_message_key: String
+    changes: jsonb!
+}
+
+type Mutation {
+    save_lifecycle_policies(
+        election_event_id: uuid!
+        policies: jsonb!
+    ): SaveLifecyclePoliciesOutput!
+}
+
+type SaveLifecyclePoliciesOutput {
+    policies: jsonb!
+    applies: String
+    applies_message_key: String
+    changes: jsonb!
+}
+
+type Query {
+    get_lifecycle_snapshots(
+        election_event_id: uuid!
+    ): GetLifecycleSnapshotsOutput!
+}
+
+type GetLifecycleSnapshotsOutput {
+    snapshots: jsonb!
 }

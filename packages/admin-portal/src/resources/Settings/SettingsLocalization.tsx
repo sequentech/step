@@ -50,6 +50,7 @@ import {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {TranslationScopeInput, translationScopeLabel} from "@/components/TranslationScopeInput"
+import {timeZoneTextOverrideError} from "@/lib/timeZoneTextOverride"
 
 const TENANT_TRANSLATION_SCOPES = [
     ETranslationScope.GLOBAL,
@@ -145,6 +146,11 @@ const SettingsLocalization = () => {
             !isTranslationScope(newScope)
         )
             return
+        const newTimeZoneError = timeZoneTextOverrideError(t, newKey, newValue)
+        if (newTimeZoneError) {
+            notify(newTimeZoneError, {type: "error"})
+            return
+        }
         const currentTranslations =
             (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}
         const updatedTranslations = updateTranslationOverride(
@@ -196,6 +202,11 @@ const SettingsLocalization = () => {
         const editKey = parseTranslationOverrideKey(String(recordId)).key
         const editScope = e?.editableScope
         if (!editVal || !editKey.trim() || !isTranslationScope(editScope)) return
+        const editTimeZoneError = timeZoneTextOverrideError(t, editKey, editVal)
+        if (editTimeZoneError) {
+            notify(editTimeZoneError, {type: "error"})
+            return
+        }
         const currentTranslations =
             (record?.settings as ITenantSettings | undefined)?.i18n?.[selectedLanguage] ?? {}
         const updatedI18nForLanguage = updateTranslationOverride(

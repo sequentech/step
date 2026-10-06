@@ -86,6 +86,8 @@ export type PublishActionsProps = {
     /** Initializes voting at the Post (its initialization report); election level only. */
     onInitialize?: () => void
     initializing?: boolean
+    perCountryInitialization?: boolean
+    initializationReportPolicy?: EInitializeReportPolicy
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
@@ -106,6 +108,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     onChangeStatus = () => null,
     onInitialize,
     initializing = false,
+    perCountryInitialization = false,
+    initializationReportPolicy,
     data,
 }) => {
     const {t} = useTranslation()
@@ -121,11 +125,14 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         tenantId,
         IPermissions.ELECTION_STATE_WRITE
     )
-    // Only where the Post's policy asks for its initialization report.
+    const requiredInitialization =
+        (initializationReportPolicy ?? record?.presentation?.initialization_report_policy) ===
+        EInitializeReportPolicy.REQUIRED
+    // The trusted published requirement also controls ceremony availability.
     const canInitialize =
         publishType === EPublishType.Election &&
         !!onInitialize &&
-        record?.presentation?.initialization_report_policy === EInitializeReportPolicy.REQUIRED &&
+        requiredInitialization &&
         authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
     // const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [showDialog, setShowDialog] = useState(false)
@@ -274,7 +281,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const isInitializeDisabled = (): boolean =>
         changingStatus ||
         initializing ||
-        !!record?.initialization_report_generated ||
+        (!!record?.initialization_report_generated && !perCountryInitialization) ||
         (electionStatus?.voting_status ?? EVotingStatus.NOT_STARTED) !== EVotingStatus.NOT_STARTED
 
     /**
@@ -412,10 +419,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     const initializationReportNotGenerated = (): boolean => {
-        return (
-            record?.presentation?.initialization_report_policy ===
-                EInitializeReportPolicy.REQUIRED && !record?.initialization_report_generated
-        )
+        return requiredInitialization && !record?.initialization_report_generated
     }
 
     // Encapsulated original disabled logic for each main action button

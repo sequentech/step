@@ -5,6 +5,7 @@ import React from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {EventTimeZoneProvider, MyTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {MonitoringConflictDialog} from "./MonitoringConflictDialog"
 import {WIDGET_YAML} from "./storyFixtures"
 
@@ -13,6 +14,26 @@ let boundary: ReturnType<typeof graphqlBoundary>
 const meta = {
     title: "Admin/Monitoring/Editor/MonitoringConflictDialog",
     component: MonitoringConflictDialog,
+    decorators: [
+        (Story) => (
+            <MyTimeZoneProvider zone="America/New_York">
+                <EventTimeZoneProvider
+                    event={{
+                        id: "monitoring-event",
+                        presentation: {
+                            timezones: {
+                                configured: ["Asia/Manila"],
+                                primary: "Asia/Manila",
+                                logs: "primary",
+                            },
+                        },
+                    }}
+                >
+                    <Story />
+                </EventTimeZoneProvider>
+            </MyTimeZoneProvider>
+        ),
+    ],
     args: {
         open: true,
         mine: WIDGET_YAML.replace("title: Turnout by group", "title: Turnout by voter group"),
@@ -49,6 +70,9 @@ export const Conflict: Story = {
     play: async ({canvasElement, args}) => {
         const view = within(await dialog(canvasElement))
         await expect(view.getByText(/Luis Santos saved revision 9/)).toBeVisible()
+        await expect(view.getByText(/Luis Santos saved revision 9/)).toHaveTextContent(
+            /Sep 29, 2026, 5:15\s*PM PhST/
+        )
         const mine = await view.findByRole("region", {name: "My changes"})
         await expect(within(mine).getByText(/Turnout by voter group/)).toBeVisible()
         const saved = view.getByRole("region", {name: "Saved revision"})

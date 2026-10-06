@@ -388,6 +388,8 @@ const galegoTranslation: TranslationType = {
                 instructions:
                     "Debes ler <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
+            votingClosedAt: "A votación pechou o {{close}} ({{localClose}}).",
+            votingClosedOn: "A votación pechou o {{close}}.",
         },
         errors: {
             encoding: {

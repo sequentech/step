@@ -166,6 +166,14 @@ fn cases() -> Vec<Case> {
     use VoterPermissions::{ACK_SUPPORT_MATERIALS, CAST_VOTE};
     vec![
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/apply-schedule-recompute", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/export-schedule", {"election_event_id": UUID_EVENT_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/get-lifecycle-snapshots", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/get-scheduled-outcomes", {"election_event_id": UUID_EVENT_ID}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/import-schedule", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/preview-schedule-import", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/preview-scheduled-outcome-change", {"election_event_id": UUID_EVENT_ID, "change": {"policies": {"initialization_scope": "post", "unsigned_scheduled_close": "refuse"}}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/save-lifecycle-policies", {"election_event_id": UUID_EVENT_ID, "policies": {"initialization_scope": "post-and-country", "unsigned_scheduled_close": "refuse"}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/apply-reconciliation-changes", {"election_event_id": EVENT_ID, "diff_document_id": "test-document"}, [ELECTION_EVENT_VOTER_LIST_SYNC], BACKEND, FORBIDDEN),
         case!(Admin, "/change-application-status", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "id": "test-application", "user_id": USER_ID}, [APPLICATION_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/check-private-key", {"election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "private_key_base64": "not-a-key"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
@@ -348,9 +356,9 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/staff-certificates", {"election_event_id": UUID_EVENT_ID, "user_id": USER_ID, "pem": PEM}, [SIGNING_CERTIFICATES_REGISTER], BACKEND, FORBIDDEN_JSON),
         case!(UuidTenant, "/staff-certificates/<id>/revoke", {"election_event_id": UUID_EVENT_ID, "reason": "token lost"}, [SIGNING_CERTIFICATES_REVOKE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/submit-tally-resolution", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "resolutions": [{"contest_id": "test-contest", "selected_candidate_id": "test-candidate"}]}, [TALLY_RESOLUTION_SUBMIT], BACKEND, UNAUTHORIZED),
-        case!(Gold, "/update-election-voting-status", {"election_event_id": EVENT_ID, "election_id": "test-election", "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED),
-        case!(Gold, "/update-event-voting-status", {"election_event_id": EVENT_ID, "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/update-realm-attributes", {"election_event_id": EVENT_ID, "attributes": {}}, [KEYCLOAK_REALM_ATTRIBUTES_WRITE], BACKEND_TEXT, FORBIDDEN),
+        case!(Gold, "/update-election-voting-status", {"election_event_id": EVENT_ID, "election_id": "test-election", "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Gold, "/update-event-voting-status", {"election_event_id": EVENT_ID, "voting_status": "OPEN"}, [ELECTION_STATE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/update-realm-attributes", {"election_event_id": EVENT_ID, "attributes": {}}, [KEYCLOAK_REALM_ATTRIBUTES_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/update-realm-password-policy", {"election_event_id": EVENT_ID, "minimum_length": 8, "maximum_length": 64, "include_uppercase": true, "include_lowercase": true, "include_digits": true, "include_special_characters": false}, [ELECTION_EVENT_WRITE], BACKEND, FORBIDDEN_JSON),
         case!(Admin, "/update-tally-ceremony", {"election_event_id": EVENT_ID, "tally_session_id": "test-session", "status": "IN_PROGRESS"}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/upsert-area", {"name": "test-area", "election_event_id": UUID_EVENT_ID, "tenant_id": UUID_TENANT_ID, "area_contest_ids": []}, [AREA_CREATE], BACKEND, UNAUTHORIZED),
@@ -451,13 +459,13 @@ async fn gold_routes_refuse_complete_permissions_without_a_fresh_gold_login() {
             "/update-event-voting-status",
             json!({"election_event_id": EVENT_ID, "voting_status": "OPEN"}),
             ELECTION_STATE_WRITE,
-            json!(refusal),
+            json!({"message": refusal, "extensions": {"code": "Unauthorized"}}),
         ),
         (
             "/update-election-voting-status",
             json!({"election_event_id": EVENT_ID, "election_id": "test-election", "voting_status": "OPEN"}),
             ELECTION_STATE_WRITE,
-            json!(refusal),
+            json!({"message": refusal, "extensions": {"code": "Unauthorized"}}),
         ),
     ] {
         for claims in [

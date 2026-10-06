@@ -213,6 +213,52 @@ const tagalogTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Pakikonpirma na nais mong isagawa ang aksyong ito, maaaring magtagal ito bago matapos.",
+                title: "I-export ang mga log",
+                from: "Mula",
+                to: "Hanggang",
+                timeZone: "Timezone",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Bawat hilera ay may oras sa UTC (ISO 8601) at sa {{abbr}}, kasama ang pangalan ng timezone. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+                zoneNotePdf:
+                    "Ipinapakita ng PDF ang bawat oras sa {{abbr}}. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+                rowZones: "Ang timezone ng halalan ng bawat hilera",
+                zoneNoteRows:
+                    "Bawat hilera ay may oras sa UTC (ISO 8601) at sa timezone ng halalan nito, kasama ang pangalan ng timezone. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "Ipinapakita ng PDF ang bawat oras sa timezone ng halalan nito. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Nilikha mula",
+                createdTo: "hanggang",
+                statementTimestampFrom: "Timestamp ng pahayag mula",
+                statementTimestampTo: "Timestamp ng pahayag hanggang",
+                timeZone: "Timezone",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Naghihintay ng inisyalisasyon",
+                    "runs": "tumatakbo",
+                    "runs-unsigned": "tumatakbo nang walang lagda",
+                    "refused": "tinanggihan",
+                },
+                check: {
+                    "initialization": "Hindi pa kumpleto ang kinakailangang inisyalisasyon",
+                    "voting-close":
+                        "Hindi maaaring buksan ang pagboto pagkatapos ng takdang pagsasara",
+                    "needs-signatures": "kailangan ng lagda",
+                    "covered": "nasa nilagdaang configuration",
+                    "unsigned-close": "pagsasara nang walang lagda",
+                    "stricter-copy": "kasalukuyan at nailathalang setting",
+                    "defaults": "wala pang nailathala",
+                },
+                changed: "Ngayon ay {{after}} (dati: {{before}}).",
+                result: "Kinalabasan: {{outcome}}.",
+                deciding: "Nagpasyang pagsusuri: {{check}}. {{value}}",
+                authorizedBy: "Pinahintulutan ng configuration {{code}}.",
+                nextStep: "Susunod na hakbang: {{step}}",
             },
             column: {
                 id: "ID",
@@ -507,6 +553,7 @@ const tagalogTranslation: TranslationType = {
                     duplicateKey: "May override na para sa key at saklaw ng portal na ito.",
                     invalidDateTimeFormat:
                         "Di-wastong format ng petsa/oras. Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Dapat panatilihin ng tekstong ito ang {{placeholders}}.",
                 },
                 common: {
                     title: "Localization",
@@ -524,6 +571,7 @@ const tagalogTranslation: TranslationType = {
                     ballotVerifier: "Tagapagpatunay ng balota",
                     resultsPortal: "Portal ng mga resulta",
                     adminPortal: "Portal ng admin",
+                    templates: "Mga ulat at mensahe",
                 },
             },
             field: {
@@ -595,6 +643,8 @@ const tagalogTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "Kalagayan ng Lockdown",
+                    helperText:
+                        "Iiskedyul ang simula o katapusan ng panahon ng lockdown upang baguhin ang kalagayang ito.",
                     options: {
                         "locked-down": "Naka-lockdown",
                         "not-locked-down": "Hindi naka-lockdown",
@@ -1602,6 +1652,22 @@ const tagalogTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
                 END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
                 ALLOW_TALLY: "Payagan ang tally",
+                START_READINESS_TEST: "Simulan ang Pagsubok sa Kahandaan ng Halalan",
+                END_READINESS_TEST: "Tapusin ang Pagsubok sa Kahandaan ng Halalan",
+                START_FINAL_TESTING: "Simulan ang Huling Pagsubok at Lockdown",
+                END_FINAL_TESTING: "Tapusin ang Huling Pagsubok at Lockdown",
+                START_TEST_VOTING: "Simulan ang Pagsubok na Pagboto",
+                END_TEST_VOTING: "Tapusin ang Pagsubok na Pagboto",
+            },
+            warning: {
+                votingWindowDays:
+                    "Ang botohan ng {{election}} ay sumasaklaw sa {{days}} lokal na araw ({{start_local}} hanggang {{end_local}}, {{time_zone}}); {{expected}} ang hinihingi ng patakaran.",
+                finalTestingLeadTime:
+                    "Magsisimula ang final testing ng {{election}} sa {{final_testing_local}}, wala pang {{minimum_days}} araw bago magbukas ang botohan sa {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "Nagsasara ang botohan ng {{election}} bago o sa mismong pagbubukas nito ({{start_local}} hanggang {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "Ang huling araw ng botohan ng {{election}} ay may {{hours}} oras, kulang sa {{minimum_hours}}: nagsasara ang botohan sa {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Halalan",
@@ -2447,6 +2513,16 @@ const tagalogTranslation: TranslationType = {
                 "I-export ang resulta ng lahat ng lugar sa format na {{format}} para kay '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Bumuo ng ulat para sa buong Post o isang bansa. Mananatiling naka-block ang pagboto hanggang makumpleto ang lahat ng kinakailangang inisyalisasyon para sa mga bansa at sa buong kaganapan.",
+                countriesError:
+                    "Hindi ma-load ang mga kwalipikadong bansa. Isara at subukang muli.",
+                noCountries:
+                    "Walang kwalipikadong bansa na may aktibong mga estilo ng balota ang Post na ito. Suriin ang mga lugar at publikasyon nito bago mag-inisyalisa.",
+                country: "Bansa",
+                entirePost: "Buong Post",
+            },
             preview: {
                 publicationAreas: "Piliin ang Lugar para sa Preview",
                 action: "Preview",
@@ -4108,6 +4184,386 @@ const tagalogTranslation: TranslationType = {
                 redo: "Naiambag ang iyong piraso ng susi nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
                 notTaken:
                     "Hindi na tinatanggap ng seremonya ang piraso ng susi na ito. I-drop muli ang file ng iyong piraso ng susi.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Nilagdaang takdang pagsasara",
+                deadline: "{{election}}: {{time}} · pinahintulutan ng configuration {{code}}.",
+                explanation:
+                    "Mananatiling masusunod ang nilagdaang takdang oras na ito kahit baguhin o alisin ang nae-edit na iskedyul. Isinasara ng tagaiskedyul ang mga pinahintulutang channel na bukas pa.",
+                reached:
+                    "Lumipas na ang nilagdaang takdang oras na ito. Suriin ang kasalukuyang kalagayan ng pagboto at ang audit log; hindi pa naitala ang pagproseso.",
+                processed: "Naproseso ang nilagdaang takdang pagsasara noong {{time}}.",
+                signedAt: "Nilagdaang takdang oras: {{time}}.",
+                channels: "Mga channel na saklaw pa rin ng takdang oras na ito: {{channels}}.",
+                result: "Tingnan ang kalagayan ng pagboto at ang audit log para sa aktuwal na mga pagbabago at kumpletong resulta.",
+                unavailable:
+                    "Hindi ma-load ang mga nilagdaang takdang pagsasara. Suriin ang nailathalang iskedyul at ang audit log.",
+            },
+            picker: {
+                noMatch:
+                    "Walang tumugmang timezone. Mag-type ng lungsod, bansa, zone, daglat o offset.",
+            },
+            input: {
+                timezone: "Timezone",
+                scheduledAt: "Nakaiskedyul sa",
+                meetingStart: "Simula ng pulong",
+                cronZone: "Tumatakbo ang iskedyul sa pangunahing timezone ng event, {{zone}}.",
+                unconfiguredZone:
+                    "Ang {{zone}} ay hindi isa sa mga naka-configure na timezone ng event. Pumili ng isa sa mga ito.",
+            },
+            schedule: {
+                allElections: "Lahat ng halalan",
+                outcome: "Kalalabasan",
+                noOffset: "Walang timezone offset: hindi kailanman tatakbo",
+                unpublished: "Hindi pa nailalathala",
+                notPublished:
+                    "Wala pang nailalathala: makikita ng mga botante ang iskedyul pagkatapos ng unang paglalathala.",
+                unpublishedChanges_one:
+                    "{{count}} nakaiskedyul na event ang nagbago mula sa huling paglalathala. Makikita ito ng mga botante pagkatapos mong maglathala.",
+                unpublishedChanges_other:
+                    "{{count}} nakaiskedyul na event ang nagbago mula sa huling paglalathala. Makikita ang mga ito ng mga botante pagkatapos mong maglathala.",
+                offsetless_one:
+                    "{{count}} nakaiskedyul na oras ang walang timezone offset, kaya hindi ito kailanman tatakbo. I-edit ito para itakda ang timezone nito.",
+                offsetless_other:
+                    "{{count}} nakaiskedyul na oras ang walang timezone offset, kaya hindi kailanman tatakbo ang mga ito. I-edit ang mga ito para itakda ang kanilang timezone.",
+                outcomeChange:
+                    "Kapag na-save, mababago ang gagawin ng nakaiskedyul na transisyong ito: {{before}} → {{after}}.",
+                outcomeNew: "Kapag na-save, ang nakaiskedyul na transisyong ito: {{after}}.",
+                outcomeElections: "{{count}} sa {{total}} na halalan",
+                exportError: "Hindi ma-export ang iskedyul.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} nakaiskedyul na row ang tatanggihan ({{transitions}} transisyon ng halalan).",
+                    refused_other:
+                        "{{count}} nakaiskedyul na row ang tatanggihan ({{transitions}} transisyon ng halalan).",
+                    runsUnsigned_one:
+                        "{{count}} nakaiskedyul na pagsasara ang tatakbo nang walang lagda ({{transitions}} transisyon ng halalan).",
+                    runsUnsigned_other:
+                        "{{count}} nakaiskedyul na pagsasara ang tatakbo nang walang lagda ({{transitions}} transisyon ng halalan).",
+                    review: "Suriin",
+                    showAll: "Ipakita lahat",
+                    showing: {
+                        refused:
+                            "Ipinapakita ang {{count}} nakaiskedyul na row na tatanggihan ({{transitions}} transisyon ng halalan).",
+                        runsUnsigned:
+                            "Ipinapakita ang {{count}} nakaiskedyul na pagsasara na tatakbo nang walang lagda ({{transitions}} transisyon ng halalan).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Inililipat ng isang update sa timezone database ang {{count}} nakaiskedyul na oras sa hinaharap. Walang magbabago hangga't hindi mo ito inilalapat.",
+                    title_other:
+                        "Inililipat ng isang update sa timezone database ang {{count}} nakaiskedyul na oras sa hinaharap. Walang magbabago hangga't hindi mo inilalapat ang mga ito.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Ilapat",
+                    applied_one: "{{count}} nakaiskedyul na oras ang na-update.",
+                    applied_other: "{{count}} nakaiskedyul na oras ang na-update.",
+                    error: "Hindi ma-update ang mga nakaiskedyul na oras.",
+                },
+                outcomeChangeElections_one:
+                    "Binabago ng pag-save ang kalalabasan sa {{count}} halalan:",
+                outcomeChangeElections_other:
+                    "Binabago ng pag-save ang kalalabasan sa {{count}} halalan:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "Nananatiling kailangan ang isang ulat na kailangan sa nilagdaang configuration na ito kahit gawing hindi kailangan sa kasalukuyang setting ng Post.",
+                title: "Ano ang pinahihintulutan ng pag-apruba na ito",
+                schedule: "Mga nakaiskedyul na pagbubukas at pagsasara",
+                noSchedule:
+                    "Walang nakaiskedyul na pagbubukas o pagsasara: ang mga pumipirma ang nagbubukas at nagsasara ng pagboto.",
+                opens: "Magbubukas {{time}}",
+                closes: "Magsasara {{time}}",
+                settings: "Mga setting",
+                unsignedClose: "Nakaiskedyul na pagsasara nang walang lagda: {{value}}",
+                initialization: "Inisyalisasyon: {{value}}",
+                firstConfiguration:
+                    "Ito ang unang naaprubahang configuration: walang maihahambing.",
+                sameAsPrevious: "Pareho ang mga setting sa nakaraang naaprubahang configuration.",
+                rule: {
+                    openNeeds_one: "Kailangan ng {{count}} lagda para magbukas",
+                    openNeeds_other: "Kailangan ng {{count}} lagda para magbukas",
+                    openNoSignatures: "Hindi kailangan ng lagda para magbukas",
+                    closeNeeds_one: "Kailangan ng {{count}} lagda para magsara",
+                    closeNeeds_other: "Kailangan ng {{count}} lagda para magsara",
+                    closeNoSignatures: "Hindi kailangan ng lagda para magsara",
+                    openSetting: "Pagbubukas ng pagboto",
+                    closeSetting: "Pagsasara ng pagboto",
+                    signatures_one: "{{count}} lagda",
+                    signatures_other: "{{count}} lagda",
+                    none: "walang lagda",
+                },
+                diff: {
+                    tightens: "Hinihigpitan: {{setting}} {{before}} → {{after}}",
+                    loosens: "Niluluwagan: {{setting}} {{before}} → {{after}}",
+                    mixed: "Mga pagbabago: {{setting}} {{before}} → {{after}} (mas mahigpit sa isang paraan, mas maluwag sa iba)",
+                },
+                comparedWith: "Kumpara sa naunang aprubadong configuration, approval {{code}}:",
+                channels: "Mga voting channel bawat halalan",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "wala",
+            },
+            publish: {
+                openedAuthorized:
+                    "Nagbukas ang pagboto ayon sa iskedyul noong {{time}}, pinahintulutan ng pag-apruba ng configuration {{code}} (nilagdaan ni/nina {{names}}).",
+                closedAuthorized:
+                    "Nagsara ang pagboto ayon sa iskedyul noong {{time}}, pinahintulutan ng pag-apruba ng configuration {{code}} (nilagdaan ni/nina {{names}}).",
+                closedUnsigned:
+                    "Nagsara ang pagboto ayon sa iskedyul noong {{time}}. Walang lagda sa pagsasara: isinara ng iskedyul ang pagboto sa takdang oras nito.",
+                authorizedBy: "Pinahintulutan ni/ng",
+                cancelledRequest:
+                    "Ang kahilingang {{code}} ay may {{n}} sa {{k}} na lagda at kinansela.",
+                openedRefused: "Tinanggihan ang nakaiskedyul na pagbubukas sa {{time}}.",
+                closedRefused: "Tinanggihan ang nakaiskedyul na pagsasara sa {{time}}.",
+                openedNoSignaturesNeeded:
+                    "Nagbukas ang botohan ayon sa iskedyul ({{time}}); walang kailangang lagda.",
+                closedNoSignaturesNeeded:
+                    "Nagsara ang botohan ayon sa iskedyul ({{time}}); walang kailangang lagda.",
+                openedNothingToChange:
+                    "Noong {{time}}, walang mabubuksan ang nakaiskedyul na pagbubukas: bukas na ang mga channel nito.",
+                closedNothingToChange:
+                    "Noong {{time}}, walang maisasara ang nakaiskedyul na pagsasara: sarado na ang mga channel nito.",
+            },
+            import: {
+                title: "Mag-import ng iskedyul",
+                subtitle:
+                    "Isang row bawat event at halalan, sa lokal na oras. Iwanang blangko ang timezone para gamitin ang timezone ng halalan.",
+                chooseFile: "Pumili ng CSV file",
+                template: "I-download ang template",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} event ang handa para sa {{posts}} halalan.",
+                needsAttention_one:
+                    "{{ok}} event ang handa para sa {{posts}} halalan. {{count}} row ang kailangang ayusin; itama ang file at i-upload itong muli.",
+                needsAttention_other:
+                    "{{ok}} event ang handa para sa {{posts}} halalan. {{count}} row ang kailangang ayusin; itama ang file at i-upload itong muli.",
+                preview: "Mga row na ii-import",
+                row: "Row",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…at {{count}} pang row",
+                imported:
+                    "Na-import ang iskedyul: {{created}} ang nalikha, {{updated}} ang na-update.",
+                uploadError: "Hindi masuri ang file. I-upload itong muli.",
+                importError: "Hindi ma-import ang iskedyul.",
+                error: {
+                    unknownElection: "Walang halalan na may alias na {{election}}.",
+                    unknownEventType: "Ang {{type}} ay hindi uri ng nakaiskedyul na event.",
+                    invalidTimeZone: "Ang {{zone}} ay hindi isang timezone.",
+                    invalidDateTime: "Ang petsa at oras ay dapat nasa anyong YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "Hindi kilala ang mga channel ng pagboto, o sabay na nagbubukas ng Online at Maagang pagboto.",
+                    dstGap: "Hindi umiiral ang {{dateTime}} sa {{city}} dahil umuusad ang orasan. Maglagay ng oras na umiiral.",
+                    duplicate:
+                        "May ibang row na nag-iiskedyul ng parehong event para sa halalang ito.",
+                    other: "Hindi ma-import ang row na ito ({{code}}).",
+                    ambiguousElection: "Higit sa isang halalan ang may alias na {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Wika, Petsa at Oras",
+                dateAndTime: "Petsa at oras",
+                configured: "Mga naka-configure na timezone",
+                configuredHelp:
+                    "{{count}} timezone. Pumipili ang mga halalan ng kanilang timezone mula sa listahang ito; mag-type ng lungsod o bansa para magdagdag.",
+                moreZones: "+{{count}}",
+                primary: "Pangunahing timezone",
+                primaryHelp:
+                    "Ginagamit para sa mga iskedyul ng buong event, mga ulat at mga halalang walang sariling timezone.",
+                primaryInUse:
+                    "Ang {{zone}} ang pangunahing timezone. Pumili muna ng ibang pangunahing timezone.",
+                inUse: "Ginagamit ang {{zone}} ng {{names}}. Baguhin muna ang mga halalang iyon.",
+                logs: "Mga oras sa Logs at sa mga export ng log",
+                logsPrimary: "Pangunahing timezone ({{abbr}})",
+                logsElection: "Timezone ng halalan ng bawat row",
+                logsHelp: "Ginagamit ng mga row na walang halalan ang pangunahing timezone.",
+                electionZone: "Timezone",
+                electionPrimary: "Pangunahin ng event: {{zone}}",
+                electionZoneHelp:
+                    "Ginagamit ng mga iskedyul, screen ng botante at ulat para sa halalang ito ang timezone na ito, kasama ang bawat area sa ilalim nito. Kapag blangko, ginagamit ang pangunahing timezone ng event.",
+                electionUnconfigured:
+                    "Hindi na naka-configure sa event ang timezone na ito, kaya ginagamit ng halalan ang pangunahing timezone, {{zone}}. Pumili ng isa sa mga naka-configure na timezone.",
+                electionUnconfiguredSave:
+                    "Pumili ng isa sa mga naka-configure na timezone ng event.",
+            },
+            policies: {
+                accordion: "Lifecycle ng pagboto",
+                intro: "Bahagi ang mga setting na ito ng configuration ng election event: nilalagdaan ang mga ito ng pag-apruba ng configuration, at sinusunod ng mga nakaiskedyul na pagbubukas at pagsasara ang mas mahigpit sa kasalukuyan at sa nailathalang mga setting.",
+                nothingPublished:
+                    "Wala pang nailalathala: hanggang sa unang paglalathala, ginagamit ng mga nakaiskedyul na pagbubukas at pagsasara ang mga default (bawat halalan, tanggihan).",
+                publishedValue: "Nailathalang configuration: {{value}}",
+                changedSincePublished:
+                    "Nagbago mula sa nailathalang configuration: sinusunod ng mga nakaiskedyul na pagbubukas at pagsasara ang mas mahigpit sa dalawa hanggang sa susunod na aprubadong paglalathala.",
+                scope: {
+                    title: "Inisyalisasyon bago magbukas ang pagboto",
+                    post: {
+                        label: "Bawat halalan",
+                        help: "Nagbubukas ang isang halalan kapag na-initialize na ito.",
+                    },
+                    event: {
+                        label: "Buong event",
+                        help: "Walang halalang magbubukas hangga't hindi na-initialize ang bawat halalan.",
+                        warning:
+                            "Kapag may isang halalang hindi pa na-initialize, mananatiling sarado ang bawat halalan, kahit sa kanilang nakaiskedyul na pagbubukas.",
+                    },
+                    postAndCountry: {
+                        label: "Bawat halalan at bansa",
+                        help: "Nagbubukas ang isang halalan kapag na-initialize na ang bawat bansa (area) sa ilalim nito.",
+                        warning:
+                            "Mananatiling sarado ang isang halalan, kahit sa nakaiskedyul nitong pagbubukas, hangga't hindi na-initialize ang bawat bansa sa ilalim nito; ini-initialize ang bawat bansa gamit ang sarili nitong ulat.",
+                    },
+                },
+                close: {
+                    title: "Nakaiskedyul na pagsasara nang walang lagda",
+                    help: "Kapag kailangan ng lagda ang pagsasara ng pagboto at wala sa nilagdaang configuration ang isang nakaiskedyul na pagsasara.",
+                    refuse: {
+                        label: "Tanggihan",
+                        help: "Hindi tatakbo ang pagsasara; isinasara ng mga pumipirma ng halalan ang pagboto gamit ang kanilang lagda.",
+                    },
+                    runAsSystem: {
+                        label: "Patakbuhin bilang system",
+                        help: "Magsasara ang pagboto sa takdang oras, at itatala bilang isinara ng iskedyul nang walang lagda.",
+                        warning:
+                            "Isinasara ng mga nakaiskedyul na pagsasara na wala sa nilagdaang configuration ang pagboto nang walang lagda ng sinuman. Nakasaad ito sa log at sa mga dokumento.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero:
+                        "Walang nakaiskedyul na transisyon ang magbabago ng kalalabasan.",
+                    outcomes_one:
+                        "{{count}} nakaiskedyul na transisyon ang magbabago ng kalalabasan. Suriin ito sa Naka-schedule na Kaganapan.",
+                    outcomes_other:
+                        "{{count}} nakaiskedyul na transisyon ang magbabago ng kalalabasan. Suriin ang mga ito sa Naka-schedule na Kaganapan.",
+                },
+                saveError: "Hindi ma-save ang mga setting ng lifecycle ng pagboto.",
+                publishedPerTarget: "Nailathalang configuration, bawat target: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} target)",
+                publishedCount_other: "{{value}} ({{count}} target)",
+                savedWithoutPolicies:
+                    "Na-save ang election event, pero hindi ang mga setting ng voting lifecycle: {{reason}}. I-save muli ang mga ito.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Naghihintay ng inisyalisasyon",
+                runs: "Tatakbo",
+                runsUnsigned: "Tatakbo nang walang lagda",
+                refused: "Tatanggihan",
+            },
+            note: {
+                waitingForInitialization: "Naghihintay ng inisyalisasyon",
+                authorized: "Pinahintulutan ng configuration {{code}}",
+                noSignaturesNeeded: "Hindi kailangan ng lagda",
+                closesUnsigned: "Magsasara nang walang lagda",
+                refused: {
+                    initialization: "Hindi pa kumpleto ang kinakailangang inisyalisasyon",
+                    votingClose:
+                        "Hindi maaaring buksan ang pagboto pagkatapos ng takdang pagsasara",
+                    needsSignatures: "Kailangan ng lagda ng mga pumipirma",
+                    covered: "Wala sa nilagdaang configuration",
+                    unsignedClose: "Tinatanggihan ang pagsasara na walang lagda",
+                    stricterCopy:
+                        "Nagbago mula sa nailathalang configuration, na siya pa ring nagpapasya",
+                    defaults: "Wala pang nailathala: ang mga default ang ginagamit",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Bakit?",
+                title: {
+                    waitingForInitialization: "Bakit naghihintay ng inisyalisasyon",
+                    runs: "Bakit ito tatakbo",
+                    runsUnsigned: "Bakit ito tatakbo nang walang lagda",
+                    refused: "Bakit ito tatanggihan",
+                },
+                checks: "Mga pagsusuri",
+                check: "Pagsusuri",
+                current: "Kasalukuyang mga setting",
+                published: "Nailathalang configuration",
+                verdict: "Pasya",
+                allows: "Pinapayagan",
+                blocks: "Hinaharangan",
+                deciding: "Mapagpasyang pagsusuri",
+                nextStep: "Susunod na hakbang:",
+                signedBy: "Nilagdaan ni/nina {{names}}",
+            },
+            question: {
+                initialization: "Kumpleto na ba ang kinakailangang inisyalisasyon?",
+                votingClose: "Sinusunod ba ng pagbubukas na ito ang takdang pagsasara ng pagboto?",
+                needsSignatures: "Kailangan ba ng lagda ang aksyong ito?",
+                covered: "Nasa nilagdaang configuration ba ang eksaktong iskedyul na ito?",
+                unsignedClose: "Ano ang mangyayari sa pagsasara nang walang lagda?",
+                stricterCopy:
+                    "Magkaiba ba ang kasalukuyan at ang nailathalang mga setting? Alin ang nagpapasya?",
+                defaults: "May nailathala na ba?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Kailangang makumpleto ang mga inisyalisasyong hinihingi ng kasalukuyan at nailathalang mga setting.",
+                },
+                votingClose: {
+                    passed: "Magsasara ang pagboto sa {{closes_at}}; hindi maaaring isagawa ang pagbubukas na ito sa oras na iyon o pagkatapos nito.",
+                },
+                needsSignatures: {
+                    yes: "Oo, {{signatures}} lagda",
+                    yes_one: "Oo, {{count}} lagda",
+                    yes_other: "Oo, {{count}} lagda",
+                    no: "Hindi",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "Ginagamit ng nilagdaang configuration {{code}} ang sariling pagbubukas {{scheduled_event_id}} ng Post na ito. Hindi nalalapat ang pagbubukas para sa buong kaganapan.",
+                    yes: "Oo: pag-apruba {{code}}, walang pagbabago",
+                    changed: "Hindi: nagbago mula sa pag-apruba {{code}}",
+                    changedBy:
+                        "Hindi: in-edit noong {{edited_at}} ni {{edited_by}}, pagkatapos ng pag-apruba {{code}}",
+                    notInApproval: "Hindi: hindi ito kasama sa pag-apruba {{code}}",
+                    noApproval: "Wala pang naaprubahang configuration",
+                    channelsChanged:
+                        "Hindi: nagbago ang mga voting channel ng halalan mula sa approval {{code}}",
+                    alreadyFired:
+                        "Hindi: tumakbo na ang transisyong ito ng approval {{code}} noong {{fired_at}}; kailangan ng lagda para patakbuhin ito muli",
+                    late: "Hindi: lampas na ng 15 minuto mula {{scheduled_date}} (approval {{code}}); kailangan ng lagda para patakbuhin ito ngayon",
+                },
+                unsignedClose: {
+                    refuse: "Tanggihan",
+                    runAsSystem: "Patakbuhin bilang system",
+                },
+                stricterCopy: {
+                    same: "Pareho ang dalawa",
+                    currentStricter:
+                        "Mas mahigpit ang kasalukuyang mga setting: nalalapat na ngayon",
+                    currentLooser:
+                        "Mas maluwag ang kasalukuyang mga setting: malalapat ang mga ito pagkatapos ng susunod na naaprubahang paglalathala",
+                    combined: "Mas mahigpit ang bawat isa sa isang halaga: parehong nalalapat",
+                },
+                defaults: {
+                    published: "Nailathala noong {{published_at}}",
+                    nothingPublished: "Walang nailathala: ang mga default ang nalalapat",
+                    noSnapshot:
+                        "Nailathala noong {{published_at}}, bago itinatago ng mga paglalathala ang mga setting na ito: ang mga default ang nalalapat",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Kumpletuhin ang kinakailangang inisyalisasyon. Susubukan muli ng tagaiskedyul bago magsara ang pagboto.",
+                closed: "Hindi isasagawa ang pagbubukas na ito pagkatapos magsara ang pagboto.",
+                none: "Walang kailangang gawin.",
+                publishAndApprove: "Ilathala at aprubahan ang configuration.",
+                requireConfigurationApproval:
+                    "Gawing nangangailangan ng lagda ang Pag-apruba ng configuration, pagkatapos ay ilathala at aprubahan ang configuration.",
+                askSignersToOpen: "Hilingin sa mga pumipirma ng halalan na buksan ang pagboto.",
+                askSignersToClose: "Hilingin sa mga pumipirma ng halalan na isara ang pagboto.",
+            },
+            applies: {
+                tightens: "Nalalapat na ngayon sa mga manwal at nakaiskedyul na aksyon.",
+                loosens:
+                    "Nalalapat na ngayon sa mga manwal na aksyon; sa mga nakaiskedyul na pagbubukas at pagsasara pagkatapos ng susunod na naaprubahang paglalathala.",
+                tightensAndLoosens:
+                    "Nalalapat na ngayon ang mas mahigpit na bahagi nito sa mga manwal at nakaiskedyul na aksyon; nalalapat na ngayon ang mas maluwag na bahagi nito sa mga manwal na aksyon, at sa mga nakaiskedyul na pagbubukas at pagsasara pagkatapos ng susunod na naaprubahang paglalathala.",
             },
         },
     },

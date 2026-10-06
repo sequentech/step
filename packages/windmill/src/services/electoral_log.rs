@@ -1576,6 +1576,82 @@ pub enum OrderField {
     EventType,
     Description,
     Version,
+    /// Filter only (never a column or a sort key): the first minute of an
+    /// inclusive range of `created` (RFC 3339 instant).
+    CreatedFrom,
+    /// Filter only: the last minute of an inclusive range of `created`.
+    CreatedTo,
+    /// Filter only: the first minute of a range of `statement_timestamp`.
+    StatementTimestampFrom,
+    /// Filter only: the last minute of a range of `statement_timestamp`.
+    StatementTimestampTo,
+}
+
+impl OrderField {
+    /// The range keys filter a column but aren't one, so they never sort.
+    pub fn is_column(&self) -> bool {
+        !matches!(
+            self,
+            OrderField::CreatedFrom
+                | OrderField::CreatedTo
+                | OrderField::StatementTimestampFrom
+                | OrderField::StatementTimestampTo
+        )
+    }
+}
+
+/// The start of the minute of a Unix time in seconds. Every zone's offset is
+/// a whole number of minutes, so a minute is the same in every zone.
+fn minute_start(ts: i64) -> i64 {
+    ts - ts.rem_euclid(60)
+}
+
+/// Unix seconds of an RFC 3339 instant.
+fn parse_instant(value: &str) -> Result<i64> {
+    let datetime = ISO8601::to_date_utc(value)
+        .map_err(|err| anyhow!("Failed to parse timestamp {value:?}: {err:?}"))?;
+    Ok(datetime.timestamp())
+}
+
+/// A range of instants inclusive to the minute at both ends: `from` and `to`
+/// are RFC 3339 instants (the Admin Portal turns the wall times it shows in
+/// the chosen zone into instants), and a time is inside when it falls in or
+/// after `from`'s minute and in or before `to`'s minute.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MinuteRange {
+    /// The first second inside, if bounded.
+    pub start: Option<i64>,
+    /// The first second after the range, if bounded.
+    pub end: Option<i64>,
+}
+
+impl MinuteRange {
+    pub fn parse(from: Option<&str>, to: Option<&str>) -> Result<Self> {
+        let bound = |value: Option<&str>| -> Result<Option<i64>> {
+            value
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(parse_instant)
+                .transpose()
+        };
+        Ok(MinuteRange {
+            start: bound(from)?.map(minute_start),
+            end: bound(to)?.map(|ts| minute_start(ts) + 60),
+        })
+    }
+
+    /// The minute of one instant (the single-value filter).
+    pub fn minute_of(value: &str) -> Result<Self> {
+        Self::parse(Some(value), Some(value))
+    }
+
+    pub fn contains(&self, ts: i64) -> bool {
+        self.start.map_or(true, |start| start <= ts) && self.end.map_or(true, |end| ts < end)
+    }
+
+    pub fn is_unbounded(&self) -> bool {
+        self.start.is_none() && self.end.is_none()
+    }
 }
 
 #[derive(Deserialize, Debug, Default, Clone)]
@@ -1593,6 +1669,19 @@ pub struct GetElectoralLogBody {
 }
 
 impl GetElectoralLogBody {
+    /// `ORDER BY` over the requested columns; the filter-only range keys
+    /// never sort.
+    fn order_by_clause(&self) -> Option<String> {
+        let order_by_clauses: Vec<String> = self
+            .order_by
+            .as_ref()?
+            .iter()
+            .filter(|(field, _)| field.is_column())
+            .map(|(field, direction)| format!("{field} {direction}"))
+            .collect();
+        (!order_by_clauses.is_empty()).then(|| format!("ORDER BY {}", order_by_clauses.join(", ")))
+    }
+
     // Returns the SQL clauses related to the request along with the parameters
     #[instrument(ret)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
@@ -1617,15 +1706,28 @@ impl GetElectoralLogBody {
                         params.push(create_named_param(param_name, Value::S(value.to_string())));
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
-                        // these have their own column and are inside of Message´s column as well
-                        let datetime = ISO8601::to_date_utc(&value)
-                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
-                        let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
-                        let param_name_end = format!("{param_name}_end");
-                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
-                        params.push(create_named_param(param_name, Value::Ts(ts)));
-                        params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
+                        // These have their own column (and are inside the message too).
+                        // A single value means its minute.
+                        if let MinuteRange { start: Some(start), end: Some(end) } = MinuteRange::minute_of(value)? {
+                            let param_name_end = format!("{param_name}_end");
+                            where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
+                            params.push(create_named_param(param_name, Value::Ts(start)));
+                            params.push(create_named_param(param_name_end, Value::Ts(end)));
+                        }
+                    }
+                    OrderField::CreatedFrom | OrderField::StatementTimestampFrom => {
+                        let column = if *field == OrderField::CreatedFrom { OrderField::Created } else { OrderField::StatementTimestamp };
+                        if let Some(start) = MinuteRange::parse(Some(value), None)?.start {
+                            where_clauses.push(format!("{column} >= @{}", param_name));
+                            params.push(create_named_param(param_name, Value::Ts(start)));
+                        }
+                    }
+                    OrderField::CreatedTo | OrderField::StatementTimestampTo => {
+                        let column = if *field == OrderField::CreatedTo { OrderField::Created } else { OrderField::StatementTimestamp };
+                        if let Some(end) = MinuteRange::parse(None, Some(value))?.end {
+                            where_clauses.push(format!("{column} < @{}", param_name));
+                            params.push(create_named_param(param_name, Value::Ts(end)));
+                        }
                     }
                     OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
                     | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
@@ -1717,16 +1819,9 @@ impl GetElectoralLogBody {
         }
 
         // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .ok_or(anyhow!("Empty order clause"))?
-                .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
-                .collect();
-            if order_by_clauses.len() > 0 {
-                clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+        if !to_count {
+            if let Some(order_by) = self.order_by_clause() {
+                clauses.push(order_by);
             }
         }
 
@@ -2375,5 +2470,157 @@ mod election_published_tests {
             messages[0].statement.body,
             StatementBody::ElectionPublish(..)
         ));
+    }
+}
+
+#[cfg(test)]
+mod range_filter_tests {
+    use super::*;
+
+    fn ts(rfc3339: &str) -> i64 {
+        ISO8601::to_date_utc(rfc3339).unwrap().timestamp()
+    }
+
+    fn body(filter: &[(OrderField, &str)]) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            filter: Some(
+                filter
+                    .iter()
+                    .map(|(field, value)| (field.clone(), value.to_string()))
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn param(params: &[NamedParam], name: &str) -> i64 {
+        let found = params
+            .iter()
+            .find(|param| param.name == name)
+            .unwrap_or_else(|| panic!("no parameter {name}"));
+        match found.value.as_ref().and_then(|value| value.value.as_ref()) {
+            Some(Value::Ts(ts)) => *ts,
+            other => panic!("{name} isn't a timestamp: {other:?}"),
+        }
+    }
+
+    /// Two configurations: the wall times are entered in the chosen zone
+    /// (Manila, +08:00; Kathmandu, +05:45) and arrive as instants.
+    #[test]
+    fn the_range_includes_both_ends_to_the_minute_in_the_chosen_zone() {
+        for offset in ["+08:00", "+05:45"] {
+            let from = format!("2028-04-08T00:00:00{offset}");
+            let to = format!("2028-04-09T23:59:00{offset}");
+            let range = MinuteRange::parse(Some(&from), Some(&to)).unwrap();
+
+            assert!(range.contains(ts(&from)));
+            assert!(range.contains(ts(&format!("2028-04-09T23:59:59{offset}"))));
+            assert!(!range.contains(ts(&format!("2028-04-10T00:00:00{offset}"))));
+            assert!(!range.contains(ts(&format!("2028-04-07T23:59:59{offset}"))));
+        }
+    }
+
+    #[test]
+    fn seconds_in_the_bounds_still_cover_their_whole_minute() {
+        let range = MinuteRange::parse(
+            Some("2028-04-08T10:15:42+08:00"),
+            Some("2028-04-08T10:20:05+08:00"),
+        )
+        .unwrap();
+        assert!(range.contains(ts("2028-04-08T10:15:00+08:00")));
+        assert!(range.contains(ts("2028-04-08T10:20:59+08:00")));
+        assert!(!range.contains(ts("2028-04-08T10:14:59+08:00")));
+        assert!(!range.contains(ts("2028-04-08T10:21:00+08:00")));
+    }
+
+    #[test]
+    fn an_open_end_is_unbounded() {
+        let range = MinuteRange::parse(Some("2028-04-08T10:15:00Z"), None).unwrap();
+        assert!(range.contains(i64::MAX));
+        assert!(!range.contains(ts("2028-04-08T10:14:59Z")));
+        assert!(MinuteRange::parse(None, Some(" ")).unwrap().is_unbounded());
+    }
+
+    #[test]
+    fn the_list_filters_created_from_and_to_inclusive_to_the_minute() {
+        let (sql, params) = body(&[
+            (OrderField::CreatedFrom, "2028-04-08T00:00:00+08:00"),
+            (OrderField::CreatedTo, "2028-04-09T23:59:00+08:00"),
+        ])
+        .as_sql(true)
+        .unwrap();
+
+        assert!(sql.contains("created >= @param_created_from"), "{sql}");
+        assert!(sql.contains("created < @param_created_to"), "{sql}");
+        assert_eq!(
+            param(&params, "param_created_from"),
+            ts("2028-04-07T16:00:00Z")
+        );
+        assert_eq!(
+            param(&params, "param_created_to"),
+            ts("2028-04-09T16:00:00Z")
+        );
+    }
+
+    #[test]
+    fn the_list_filters_the_statement_timestamp_range() {
+        let (sql, params) = body(&[
+            (
+                OrderField::StatementTimestampFrom,
+                "2028-04-08T09:30:00-04:00",
+            ),
+            (
+                OrderField::StatementTimestampTo,
+                "2028-04-08T09:30:00-04:00",
+            ),
+        ])
+        .as_sql(true)
+        .unwrap();
+
+        assert!(
+            sql.contains("statement_timestamp >= @param_statement_timestamp_from"),
+            "{sql}"
+        );
+        assert!(
+            sql.contains("statement_timestamp < @param_statement_timestamp_to"),
+            "{sql}"
+        );
+        assert_eq!(
+            param(&params, "param_statement_timestamp_to")
+                - param(&params, "param_statement_timestamp_from"),
+            60
+        );
+    }
+
+    #[test]
+    fn a_single_value_still_means_its_minute() {
+        let (sql, params) = body(&[(OrderField::Created, "2028-04-08T10:15:42Z")])
+            .as_sql(true)
+            .unwrap();
+        assert!(
+            sql.contains("created >= @param_created AND created < @param_created_end"),
+            "{sql}"
+        );
+        assert_eq!(param(&params, "param_created"), ts("2028-04-08T10:15:00Z"));
+        assert_eq!(
+            param(&params, "param_created_end"),
+            ts("2028-04-08T10:16:00Z")
+        );
+    }
+
+    #[test]
+    fn the_range_keys_arrive_in_the_filter_and_never_sort() {
+        let body: GetElectoralLogBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant",
+            "election_event_id": "event",
+            "filter": {"created_from": "2028-04-08T00:00:00+08:00"},
+            "order_by": {"created_from": "desc"},
+        }))
+        .unwrap();
+        let (sql, _) = body.as_sql(true).unwrap();
+        assert!(sql.contains("created >= @param_created_from"), "{sql}");
+        assert_eq!(body.order_by_clause(), None);
     }
 }

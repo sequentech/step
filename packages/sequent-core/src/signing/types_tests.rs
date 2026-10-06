@@ -83,7 +83,7 @@ fn actions_map_to_their_scope_mode_document_and_group() {
     let table = [
         (
             SigningAction::InitializeVoting,
-            S::Post,
+            S::PostAndCountry,
             M::Deferred,
             D::NoDocument,
             G::Voting,

@@ -17,6 +17,8 @@
 //! one waiting for its target and the initializations waiting for its Post,
 //! and an event-level one every one waiting (PayloadChanged). The HSM/KMS
 //! signature of the configuration package stays with EMS-MANIFEST.
+//! The approval also signs the lifecycle policies, Open/Close voting rules,
+//! initialization report policies and target schedules with their fingerprints.
 
 use super::{event_ids, gate, refuse, subject_of, EffectProgress};
 use crate::adapters::publication_files::PgPublicationRows;
@@ -33,17 +35,25 @@ use crate::postgres::signing_actions::{
 use crate::services::ballot_styles::ballot_publication::{
     get_ballot_publication_diff, update_publish_ballot, BallotPublicationValidationError,
 };
+use crate::services::scheduled_outcome::{
+    lifecycle_snapshot, post_channels_of, PublicationLifecycle,
+};
 use crate::services::signing::guard::{GuardOutcome, GuardRequest, RequestScope};
 use crate::services::signing::requests::cancel_request;
 use crate::services::signing::{SigningCaller, SigningError, SigningResult};
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
+use sequent_core::ballot::{EInitializeReportPolicy, LifecyclePolicies};
 use sequent_core::signing::{CancelReason, SigningAction, SigningRequirement, SigningRule};
 use sequent_core::types::hasura::core::BallotPublication;
+use sequent_core::types::scheduled_outcome::{
+    LifecycleSnapshot, RuleSnapshot, ScheduledTransition,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 /// Whether the ballots and contests changed since the last publication.
@@ -66,12 +76,52 @@ pub struct ConfigurationSubject {
     pub scheduled_events: i64,
     /// [`FIRST_VERSION`], [`NO_CHANGES`] or [`CHANGED`].
     pub ballots_and_contests: String,
+    /// The lifecycle the approval authorizes (VOTE-LIFECYCLE §5a–§5b): the
+    /// policies, the Open/Close voting rules and the scheduled openings and
+    /// closings of the target, as the publication's snapshot records them.
+    /// A request from before these fields reads the defaults and an empty
+    /// schedule, which covers nothing.
+    #[serde(default)]
+    pub policies: LifecyclePolicies,
+    #[serde(default)]
+    pub open_voting: RuleSnapshot,
+    #[serde(default)]
+    pub close_voting: RuleSnapshot,
+    #[serde(default)]
+    pub schedule: Vec<ScheduledTransition>,
+    /// Each Post's enabled voting channels (the target's Post, or every Post
+    /// of the event): a covered transition runs only while they are the same.
+    #[serde(default)]
+    pub post_channels: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub initialization_report_policies: BTreeMap<String, EInitializeReportPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initialization_countries: Option<BTreeMap<String, Vec<String>>>,
+}
+
+impl ConfigurationSubject {
+    /// The lifecycle snapshot it signs.
+    pub fn lifecycle(&self) -> LifecycleSnapshot {
+        LifecycleSnapshot {
+            policies: self.policies.clone(),
+            open_voting: self.open_voting.clone(),
+            close_voting: self.close_voting.clone(),
+            schedule: self.schedule.clone(),
+            initialization_report_policies: self.initialization_report_policies.clone(),
+            initialization_countries: self.initialization_countries.clone(),
+        }
+    }
 }
 
 /// The key one approve-configuration request waits under: the Post of an
 /// election-level publication, or the event.
 pub fn target_key(election_id: Option<&str>) -> String {
     election_id.unwrap_or("event").to_owned()
+}
+
+/// The scope key of the approve-configuration requests of a target.
+pub fn target_scope_key(election_id: Option<&str>) -> String {
+    scope(Uuid::nil(), Uuid::nil(), election_id).scope_key()
 }
 
 fn scope(tenant_id: Uuid, election_event_id: Uuid, election_id: Option<&str>) -> RequestScope {
@@ -250,6 +300,8 @@ pub async fn configuration_subject(
     let scheduled_events =
         count_scheduled_events_since(hasura_transaction, tenant_id, election_event_id, since)
             .await?;
+    let lifecycle =
+        lifecycle_snapshot(hasura_transaction, tenant_id, election_event_id, target).await?;
     Ok(ConfigurationSubject {
         ballot_publication_id: publication.id.clone(),
         digest: publication_digest(
@@ -262,6 +314,23 @@ pub async fn configuration_subject(
         signing_rules,
         scheduled_events,
         ballots_and_contests: ballots_change(&diff).to_owned(),
+        policies: lifecycle.policies,
+        open_voting: lifecycle.open_voting,
+        close_voting: lifecycle.close_voting,
+        schedule: lifecycle.schedule,
+        initialization_report_policies: lifecycle.initialization_report_policies,
+        initialization_countries: Some(
+            crate::services::scheduled_outcome::capture_initialization_countries(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                publication_id,
+                target,
+            )
+            .await?,
+        ),
+        post_channels: post_channels_of(hasura_transaction, tenant_id, election_event_id, target)
+            .await?,
     })
 }
 
@@ -276,9 +345,20 @@ pub async fn gate_publication(
     let Some((tenant_id, election_event_id)) = event_ids(tenant_id, election_event_id) else {
         return Ok(GuardOutcome::Proceed);
     };
-    if Uuid::parse_str(ballot_publication_id).is_err() {
+    let Ok(publication_uuid) = Uuid::parse_str(ballot_publication_id) else {
         return Ok(GuardOutcome::Proceed);
-    }
+    };
+    // The signing lock, then the publication row: what is read below stays
+    // as read until the route publishes in this transaction.
+    lock_signing_event(hasura_transaction, tenant_id, election_event_id).await?;
+    hasura_transaction
+        .query_opt(
+            "SELECT id FROM sequent_backend.ballot_publication
+             WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3 FOR UPDATE",
+            &[&tenant_id, &election_event_id, &publication_uuid],
+        )
+        .await
+        .map_err(anyhow::Error::from)?;
     // An unknown or published publication fails or publishes again as today.
     let Some(publication) = get_ballot_publication_by_id(
         hasura_transaction,
@@ -431,12 +511,15 @@ pub async fn publish(
         )
     })?;
     if publication.published_at.is_some() {
-        // It was published meanwhile: nothing to do.
-        return Ok(json!({
-            "ballot_publication_id": signed.ballot_publication_id,
-            "digest": signed.digest,
-            "already_published": true,
-        }));
+        // Published meanwhile, not by this request: the request would count
+        // as executed without keeping what it signed. It fails instead.
+        return Err(refuse(
+            "payload-changed",
+            format!(
+                "The ballot publication was published before signing request {} ran.",
+                request.code
+            ),
+        ));
     }
     if publication.deleted_at.is_some() || !publication.is_generated.unwrap_or(false) {
         return Err(refuse(
@@ -462,6 +545,17 @@ pub async fn publish(
     }
     // Publishing writes the voter files and posts to the bulletin board.
     progress.reach_outside();
+    // The published copy is what the signers authorized, even if a rule or
+    // the schedule changed since the request started. A request from before
+    // these fields signed no lifecycle: the previous signed copy stays.
+    let lifecycle = if request.subject.get("policies").is_some() {
+        PublicationLifecycle::Signed {
+            request_id: request.id,
+            snapshot: signed.lifecycle(),
+        }
+    } else {
+        PublicationLifecycle::KeepPrevious
+    };
     update_publish_ballot(
         hasura_transaction,
         request.requested_by.clone(),
@@ -469,6 +563,7 @@ pub async fn publish(
         tenant_id,
         election_event_id,
         signed.ballot_publication_id.clone(),
+        &lifecycle,
     )
     .await
     .map_err(

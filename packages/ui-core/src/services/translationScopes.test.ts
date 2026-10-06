@@ -156,3 +156,32 @@ describe("translation override scopes", () => {
         expect(translations).toEqual({untouched: "Keep"})
     })
 })
+
+describe("templates scope", () => {
+    const templateOverrides = {
+        en: {
+            "templates:timezones.abbr.Asia/Manila": "PHT",
+            "global:timezones.abbr.Asia/Manila": "PhST global",
+        },
+    }
+
+    it("parses templates: keys as scoped keys", () => {
+        expect(parseTranslationOverrideKey("templates:timezones.abbr.Asia/Manila")).toEqual({
+            key: "timezones.abbr.Asia/Manila",
+            scope: ETranslationScope.TEMPLATES,
+        })
+    })
+
+    it("keeps reports-and-messages overrides out of every portal", () => {
+        for (const scope of [
+            ETranslationScope.VOTING_PORTAL,
+            ETranslationScope.BALLOT_VERIFIER,
+            ETranslationScope.RESULTS_PORTAL,
+            ETranslationScope.ADMIN_PORTAL,
+        ]) {
+            expect(filterTranslationOverrides(templateOverrides, scope, scope)).toEqual({
+                en: {"timezones.abbr.Asia/Manila": "PhST global"},
+            })
+        }
+    })
+})

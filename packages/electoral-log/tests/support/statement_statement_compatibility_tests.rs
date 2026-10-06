@@ -175,12 +175,24 @@ fn statement_type_borsh_discriminants_are_append_only() {
         vec![45]
     );
     assert_eq!(
-        borsh::to_vec(&StatementType::ConfigurationPackageImported).unwrap(),
+        borsh::to_vec(&StatementType::LifecycleWindowChanged).unwrap(),
         vec![46]
     );
     assert_eq!(
-        borsh::to_vec(&StatementType::ConfigurationPublished).unwrap(),
+        borsh::to_vec(&StatementType::ScheduleRecomputeApplied).unwrap(),
         vec![47]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::ScheduleImported).unwrap(),
+        vec![48]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::ConfigurationPackageImported).unwrap(),
+        vec![52]
+    );
+    assert_eq!(
+        borsh::to_vec(&StatementType::ConfigurationPublished).unwrap(),
+        vec![53]
     );
 }
 
@@ -247,5 +259,17 @@ fn external_api_subject_is_part_of_borsh_payload() {
     assert_ne!(
         borsh::to_vec(&without_subject).unwrap(),
         borsh::to_vec(&with_subject).unwrap()
+    );
+}
+
+#[test]
+fn a_schedule_import_is_a_signing_outbox_kind_of_its_own_type() {
+    assert!(matches!(
+        SigningStatementKind::ScheduleImported.statement_type(),
+        StatementType::ScheduleImported
+    ));
+    assert_eq!(
+        borsh::to_vec(&SigningStatementKind::ScheduleImported).unwrap(),
+        vec![18]
     );
 }

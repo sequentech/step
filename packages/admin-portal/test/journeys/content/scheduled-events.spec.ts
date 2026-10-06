@@ -49,6 +49,21 @@ function scheduledRow(overrides: Row = {}): Row {
 
 function scheduled(portal: PortalServices, initial = [scheduledRow()]) {
     eventPage(portal)
+    portal.graphql.on("GetScheduledOutcomes", () => ({
+        data: {get_scheduled_outcomes: {outcomes: [], retained_closes: []}},
+    }))
+    portal.graphql.on("GetLifecycleSnapshots", () => ({
+        data: {get_lifecycle_snapshots: {snapshots: []}},
+    }))
+    portal.graphql.on("PreviewScheduledOutcomeChange", () => ({
+        data: {
+            preview_scheduled_outcome_change: {
+                applies: null,
+                applies_message_key: null,
+                changes: [],
+            },
+        },
+    }))
     table(portal, "sequent_backend_election", [
         electionRow({presentation: names("Mayor election")}),
     ])
@@ -99,9 +114,13 @@ test.describe("schedule administrator", () => {
         await openSchedule(page, portal)
         const start = page.getByRole("row").filter({hasText: "Start Voting Period"})
         await expect(start.getByRole("cell", {name: "Mayor election", exact: true})).toBeVisible()
-        await expect(start.getByText(/Sun Feb 01 2026 09:00:00/)).toBeVisible()
+        await expect(
+            start.getByText("Feb 01, 2026, 09:00 UTC · my time", {exact: true})
+        ).toBeVisible()
         const enrollment = page.getByRole("row").filter({hasText: "Start Enrollment Period"})
-        await expect(enrollment.getByText(/Tue Jan 20 2026 10:00:00/)).toBeVisible()
+        await expect(
+            enrollment.getByText("Jan 20, 2026, 10:00 UTC · my time", {exact: true})
+        ).toBeVisible()
         // The list first asks for event-wide schedules, then adds the loaded elections.
         const list = portal.graphql
             .callsTo("sequent_backend_scheduled_event")
@@ -134,13 +153,17 @@ test.describe("schedule administrator", () => {
         await page.getByRole("option", {name: "Mayor election", exact: true}).click()
         await drawer.getByRole("checkbox", {name: "Early voting"}).check()
         await drawer.getByRole("checkbox", {name: "Kiosk"}).uncheck()
-        await drawer.getByLabel("End Date and Time (UTC)").fill("2026-02-02T18:30")
+        await drawer
+            .getByRole("textbox", {name: "Scheduled at", exact: true})
+            .fill("2026-02-02T18:30")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(drawer).not.toBeVisible()
         expect(portal.graphql.callsTo("ManageElectionDates")[0].variables).toEqual({
             electionEventId: IDS.event,
             electionId: IDS.election,
-            scheduledDate: "2026-02-02T18:30:00.000Z",
+            scheduledDate: "2026-02-02T18:30:00Z",
+            localDateTime: "2026-02-02T18:30",
+            timeZone: "UTC",
             eventProcessor: "END_VOTING_PERIOD",
             votingChannels: ["ONLINE", "EARLY_VOTING"],
         })
@@ -154,7 +177,9 @@ test.describe("schedule administrator", () => {
         await openSchedule(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog").filter({hasText: "Create Scheduled Event"})
-        await drawer.getByLabel("Start Date and Time (UTC)").fill("2026-02-01T09:00")
+        await drawer
+            .getByRole("textbox", {name: "Scheduled at", exact: true})
+            .fill("2026-02-01T09:00")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect.poll(() => portal.graphql.callsTo("ManageElectionDates").length).toBe(1)
 
@@ -191,6 +216,9 @@ test.describe("schedule administrator", () => {
             )
         ).toBeVisible()
         await expect(drawer.getByRole("button", {name: "Save", exact: true})).toBeDisabled()
+        await drawer
+            .getByRole("textbox", {name: "Scheduled at", exact: true})
+            .fill("2026-02-01T09:00")
         await drawer.getByRole("checkbox", {name: "Online"}).uncheck()
         await expect(drawer.getByRole("button", {name: "Save", exact: true})).toBeEnabled()
         expect(portal.graphql.callsTo("ManageElectionDates")).toHaveLength(0)
@@ -214,13 +242,17 @@ test.describe("schedule administrator", () => {
             "true"
         )
         await expect(drawer.getByRole("textbox", {name: "Election"})).toHaveValue("Mayor election")
-        await drawer.getByLabel("Start Date and Time (UTC)").fill("2026-02-01T10:15")
+        await drawer
+            .getByRole("textbox", {name: "Scheduled at", exact: true})
+            .fill("2026-02-01T10:15")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(notification(page, "Scheduled Event edited successfully")).toBeVisible()
         expect(portal.graphql.callsTo("ManageElectionDates")[0].variables).toEqual({
             electionEventId: IDS.event,
             electionId: IDS.election,
-            scheduledDate: "2026-02-01T10:15:00.000Z",
+            scheduledDate: "2026-02-01T10:15:00Z",
+            localDateTime: "2026-02-01T10:15",
+            timeZone: "UTC",
             eventProcessor: "START_VOTING_PERIOD",
             votingChannels: ["ONLINE", "KIOSK"],
         })
@@ -248,7 +280,9 @@ test.describe("schedule administrator", () => {
         await openSchedule(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog").filter({hasText: "Create Scheduled Event"})
-        await drawer.getByLabel("Start Date and Time (UTC)").fill("2026-02-01T09:00")
+        await drawer
+            .getByRole("textbox", {name: "Scheduled at", exact: true})
+            .fill("2026-02-01T09:00")
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(notification(page, "Error creating Scheduled Event")).toBeVisible()
         expect(portal.graphql.callsTo("ManageElectionDates")[0].variables).toMatchObject({

@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {eventRecord} from "@/__stories__/fixtures"
 import type {StoryObj} from "@storybook/react-vite"
-import {expect, fn, userEvent, waitFor, within} from "storybook/test"
+import {expect, fireEvent, fn, userEvent, waitFor, within} from "storybook/test"
 import type {Identifier} from "react-admin"
 import {
     AdminStoryProvider,
@@ -80,7 +81,12 @@ const meta = {
             },
             {schema: true}
         )
-        data = resourceBoundary({sequent_backend_template: templates})
+        // The event's zones: the schedule is entered in its primary timezone.
+        data = resourceBoundary({
+            sequent_backend_template: templates,
+            sequent_backend_election_event: [eventRecord()],
+            sequent_backend_election: [],
+        })
         await graphql.ready
     },
     render: ({ids, audienceSelection, secretAttributeNames, close}) => (
@@ -162,6 +168,29 @@ export const SendNowToTheSelectedVoters: Story = {
     },
 }
 
+/** The existing notification payload retains the entered time without changing dispatch. */
+export const ScheduledTimeKeepsItsZone: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByRole("switch", {name: "Send now"}))
+        fireEvent.change(canvas.getByLabelText("Date and time to start sending notifications"), {
+            target: {value: "2028-04-09T08:00"},
+        })
+        await send(canvasElement)
+        await waitFor(() =>
+            expect(sent()?.eventPayload).toEqual(
+                expect.objectContaining({
+                    schedule_now: false,
+                    schedule_date: "2028-04-09T08:00:00Z",
+                    schedule_local: "2028-04-09T08:00",
+                    schedule_timezone: "UTC",
+                })
+            )
+        )
+        expect(sent()?.cronConfig).toBeUndefined()
+    },
+}
+
 export const SendToVotersWhoHaveNotVoted: Story = {
     args: {ids: undefined},
     play: async ({args, canvasElement}) => {
@@ -182,7 +211,8 @@ export const EmailTemplateWithSecretAttribute: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         await waitFor(() => expect(data.calls).not.toHaveLength(0))
-        const [, , alias] = canvas.getAllByRole("combobox")
+        // The template is the third select (the schedule's timezone picker isn't one).
+        const [, , alias] = canvas.getAllByRole("combobox").filter((box) => box.tagName !== "INPUT")
         await userEvent.click(alias)
         await userEvent.click(await within(document.body).findByRole("option", {name: "welcome"}))
         await waitFor(() =>

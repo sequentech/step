@@ -5,14 +5,17 @@ use crate::postgres::area::{get_areas_by_ids, get_event_areas};
 use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
 use crate::postgres::candidate::export_candidate_csv;
 use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
-use crate::postgres::election::{export_elections, get_elections, get_elections_by_ids};
+use crate::postgres::election::{
+    export_elections, get_display_voting_closes, get_elections, get_elections_by_ids,
+    DisplayVotingClose,
+};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::consolidation::acm_json::get_acm_key_pair;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_dates::get_election_dates;
+use crate::services::election_dates::{apply_display_voting_close, get_election_dates};
 use crate::services::reports::ballot_images::BallotImagesTemplate;
 use crate::services::reports::report_variables::{
     configuration_annotations, configuration_stamp, get_app_hash, get_app_version, get_report_hash,
@@ -20,6 +23,7 @@ use crate::services::reports::report_variables::{
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::reports::template_time::load_i18n_defaults;
 use crate::services::tally_sheets::tally::create_tally_sheets_map;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
@@ -32,6 +36,7 @@ use sequent_core::ballot_codec::PlaintextCodec;
 use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
+use sequent_core::services::reports::template_time_variables;
 use sequent_core::services::s3;
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -42,6 +47,7 @@ use sequent_core::sqlite::candidate::{create_candidate_sqlite, import_candidate_
 use sequent_core::sqlite::contests::create_contest_sqlite;
 use sequent_core::sqlite::election::create_election_sqlite;
 use sequent_core::sqlite::election_event::create_election_event_sqlite;
+use sequent_core::time_zones::effective_time_zone;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
@@ -274,6 +280,7 @@ pub fn create_election_configs_blocking(
     cast_votes_count: &Vec<ElectionCastVotes>,
     scheduled_events: &Vec<ScheduledEvent>,
     elections_single_map: HashMap<String, Election>,
+    authoritative_closes: HashMap<String, DisplayVotingClose>,
     areas: Vec<TreeNodeArea>,
     default_lang: String,
     election_event: ElectionEvent,
@@ -318,10 +325,10 @@ pub fn create_election_configs_blocking(
             .find(|data| data.election_id == election_id);
 
         let election_dates = if let Some(election) = election_opt {
-            Some(
-                get_election_dates(&election, scheduled_events.clone())
-                    .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?,
-            )
+            let mut dates = get_election_dates(&election, scheduled_events.clone())
+                .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?;
+            apply_display_voting_close(&mut dates, authoritative_closes.get(&election.id));
+            Some(dates)
         } else {
             None
         };
@@ -445,6 +452,17 @@ pub async fn create_election_configs(
     .await
     .map_err(|e| anyhow!("Error getting scheduled event by election event_id: {e:?}"))?;
 
+    let authoritative_closes = get_display_voting_closes(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &elections
+            .iter()
+            .map(|election| election.id.clone())
+            .collect::<Vec<_>>(),
+    )
+    .await?;
+
     let event = election_event.clone();
 
     // Spawn the task
@@ -455,6 +473,7 @@ pub async fn create_election_configs(
             &cast_votes_count_r,
             &scheduled_events,
             elections_single_map.clone(),
+            authoritative_closes.clone(),
             areas_clone.clone(),
             default_language.clone(),
             event.clone(),
@@ -598,10 +617,25 @@ pub async fn build_ballot_images_pipe_config(
 
     let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
+    // The date helpers print in the event's zone with its timezone texts.
+    let mut extra_data = serde_json::to_value(ballot_images_extra_data)?;
+    if let serde_json::Value::Object(ref mut extra) = extra_data {
+        let event =
+            get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+        let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
+        let (variables, election_zones) =
+            report_time_zones(&event, &elections, &*load_i18n_defaults().await);
+        extra.extend(variables);
+        extra.insert(
+            velvet::pipes::ballot_images::ELECTION_TIME_ZONES_VAR.to_string(),
+            serde_json::to_value(election_zones)?,
+        );
+    }
+
     let ballot_images_pipe_config = PipeConfigBallotImages {
         template: user_tpl_document,
         system_template: ballot_imagest_system_template,
-        extra_data: serde_json::to_value(ballot_images_extra_data)?,
+        extra_data,
         enable_pdfs: true,
         pdf_options: Some(ext_cfg.pdf_options),
         report_options: Some(ext_cfg.report_options),
@@ -609,6 +643,37 @@ pub async fn build_ballot_images_pipe_config(
         acm_key: Some(acm_key),
     };
     Ok(ballot_images_pipe_config)
+}
+
+/// The zones a run's reports print in (VOTE-LIFECYCLE): the event's
+/// primary (`electionEventTimezone`, the run's variable) and each
+/// election's own zone (its reports' `electionTimezone`).
+pub fn report_time_zones(
+    election_event: &ElectionEvent,
+    elections: &[Election],
+    i18n_defaults: &serde_json::Value,
+) -> (
+    serde_json::Map<String, serde_json::Value>,
+    HashMap<String, String>,
+) {
+    let event_presentation = election_event.get_presentation().unwrap_or_else(|error| {
+        warn!("Unreadable event presentation, reports print in UTC: {error:?}");
+        None
+    });
+    let variables = template_time_variables(event_presentation.as_ref(), None, i18n_defaults);
+    let election_zones = elections
+        .iter()
+        .map(|election| {
+            (
+                election.id.clone(),
+                effective_time_zone(
+                    event_presentation.as_ref(),
+                    election.get_presentation().as_ref(),
+                ),
+            )
+        })
+        .collect();
+    (variables, election_zones)
 }
 
 async fn build_reports_pipe_config(
@@ -620,6 +685,10 @@ async fn build_reports_pipe_config(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
     stamp: Option<&ConfigurationStamp>,
+    time_zones: (
+        serde_json::Map<String, serde_json::Value>,
+        HashMap<String, String>,
+    ),
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
         title: String::new(),
@@ -668,6 +737,8 @@ async fn build_reports_pipe_config(
         extra_data: serde_json::to_value(extra_data)?,
         tally_type: tally_type.clone(),
         tally_session_configuration: tally_session.configuration.clone(),
+        template_variables: time_zones.0,
+        election_time_zones: time_zones.1,
     })
 }
 
@@ -680,6 +751,10 @@ pub async fn create_config_file(
     tally_session: &TallySession,
     tally_type: TallyType,
     stamp: Option<&ConfigurationStamp>,
+    time_zones: (
+        serde_json::Map<String, serde_json::Value>,
+        HashMap<String, String>,
+    ),
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -704,6 +779,7 @@ pub async fn create_config_file(
         pdf_options,
         tally_type,
         stamp,
+        time_zones,
     )
     .await?;
 
@@ -973,6 +1049,12 @@ pub async fn run_velvet_tally(
     )
     .await?;
 
+    let elections = export_elections(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+    )
+    .await?;
     create_config_file(
         base_tally_path.clone(),
         report_content_template,
@@ -981,6 +1063,7 @@ pub async fn run_velvet_tally(
         tally_session,
         tally_type,
         stamp.as_ref(),
+        report_time_zones(election_event, &elections, &*load_i18n_defaults().await),
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await

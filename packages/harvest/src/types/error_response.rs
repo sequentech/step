@@ -48,7 +48,14 @@ pub enum ErrorCode {
     BallotIdMismatch,
     BallotPublicationValidation,
     TallyValidation,
+    VotingStatusValidation,
+    RealmAttributesValidation,
     InvalidVotingChannels,
+    /// The election event is locked down (as the signing rules answer).
+    #[strum(serialize = "locked-down")]
+    LockedDown,
+    /// A sort key that isn't a column (the log list's range filter keys).
+    InvalidOrderBy,
     // Add any other needed error codes
 }
 

@@ -965,6 +965,25 @@ const tagalogTranslation: TranslationType = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · pangunahin",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · oras ko",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "Sa device na ito: {{dateTime}}",
+            gap: "Walang {{dateTime}} sa {{city}} dahil iniaabante ang orasan. Tatakbo ito sa oras na ipinapakita.",
+            overlap:
+                "Dalawang beses nangyayari ang {{dateTime}} sa {{city}}. Ang una ang gagamitin.",
+        },
     },
 }
 

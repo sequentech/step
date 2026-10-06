@@ -10,6 +10,7 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import type {ISigningApi, ISigningPanelData} from "@/lib/signing/api"
 import {CancelReason, SigningRequestStatus} from "@/lib/signing/types"
 import {IPermissions} from "@/types/keycloak"
+import {applyTenantTranslationOverrides} from "@/providers/TenantContextProvider"
 import {SigningRequestPanel} from "./SigningRequestPanel"
 import {
     ANA,
@@ -137,8 +138,23 @@ export const EventTimeZone: Story = {
     args: {viewer: JOSE, panel: {signed: [MARIA], timeZone: "Asia/Manila"}},
     play: async () => {
         const view = await panel()
-        await expect(view.getByText("Expires at 19:30 GMT+8")).toBeVisible()
-        await expect(signerRow(view, MARIA).getByText("Signed 18:41 GMT+8")).toBeVisible()
+        await expect(view.getByText("Expires at 19:30 PhST")).toBeVisible()
+        await expect(signerRow(view, MARIA).getByText("Signed 18:41 PhST")).toBeVisible()
+    },
+}
+
+export const EventTimeZoneOverride: Story = {
+    args: {viewer: JOSE, panel: {signed: [MARIA], timeZone: "Asia/Manila"}},
+    beforeEach: () => {
+        applyTenantTranslationOverrides({
+            i18n: {en: {"adminPortal:timezones.abbr.Asia/Manila": "PHT"}},
+        })
+        return () => applyTenantTranslationOverrides(undefined)
+    },
+    play: async () => {
+        const view = await panel()
+        await expect(view.getByText("Expires at 19:30 PHT")).toBeVisible()
+        await expect(signerRow(view, MARIA).getByText("Signed 18:41 PHT")).toBeVisible()
     },
 }
 

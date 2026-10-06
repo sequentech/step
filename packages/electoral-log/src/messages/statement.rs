@@ -576,6 +576,12 @@ pub enum StatementType {
     SigningChecksChanged,
     SigningCertificateRevoked,
     SigningRequestsExported,
+    LifecycleWindowChanged,
+    ScheduleRecomputeApplied,
+    ScheduleImported,
+    ScheduledOutcomeChanged,
+    ElectionInitialized,
+    LockdownChanged,
     ConfigurationPackageImported,
     ConfigurationPublished,
 }
@@ -629,3 +635,9 @@ mod monitoring_config_tests;
 #[cfg(test)]
 #[path = "../../tests/support/statement_signing_tests.rs"]
 mod signing_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/statement_election_initialized_tests.rs"]
+mod election_initialized_tests;
+#[path = "../../tests/support/statement_lockdown_tests.rs"]
+mod lockdown_tests;

@@ -312,3 +312,32 @@ fn jwt_auth_time_keeps_only_pre_close_sessions_eligible_after_manual_close() {
         }
     }
 }
+
+#[test]
+fn signed_channel_deadlines_do_not_wait_for_the_scheduler() {
+    let due = "2026-10-03T12:00:00+00:00";
+    let at = ISO8601::to_date(due).unwrap();
+    for channel in [
+        VotingStatusChannel::KIOSK,
+        VotingStatusChannel::EARLY_VOTING,
+        VotingStatusChannel::TELEPHONE,
+    ] {
+        assert!(
+            check_signed_channel_deadline(at - Duration::seconds(1), channel, Some(due)).is_ok()
+        );
+        assert!(matches!(
+            check_signed_channel_deadline(at, channel, Some(due)),
+            Err(CastVoteError::CheckStatusFailed(_))
+        ));
+        assert!(
+            check_signed_channel_deadline(at + Duration::seconds(1), channel, Some(due)).is_err()
+        );
+        assert!(check_signed_channel_deadline(at, channel, None).is_ok());
+    }
+    // ONLINE keeps its existing date/grace checker with the merged signed bound.
+    assert!(check_signed_channel_deadline(at, VotingStatusChannel::ONLINE, Some(due)).is_ok());
+    assert!(matches!(
+        check_signed_channel_deadline(at, VotingStatusChannel::KIOSK, Some("invalid")),
+        Err(CastVoteError::CheckStatusInternalFailed(_))
+    ));
+}

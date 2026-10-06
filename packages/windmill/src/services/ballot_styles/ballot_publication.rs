@@ -16,6 +16,7 @@ use crate::services::electoral_log::*;
 use crate::services::tasks_execution::{
     post as post_task_execution, update_fail as update_task_execution_fail,
 };
+use crate::services::{enrollment_windows, realm_localization};
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
@@ -24,7 +25,7 @@ use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{
     ConfigurationDesignDigest, ConfigurationPackageAction, ConfigurationPackageDetails,
 };
-use sequent_core::ballot::{ElectionEventStatus, ElectionStatus};
+use sequent_core::ballot::{ElectionEventPresentation, ElectionEventStatus, ElectionStatus};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
 use sequent_core::services::date::ISO8601;
@@ -33,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use thiserror::Error;
-use tracing::{event, instrument, Level};
+use tracing::{error, event, instrument, Level};
 
 use super::ballot_style;
 
@@ -348,6 +349,7 @@ pub async fn update_publish_ballot(
     tenant_id: String,
     election_event_id: String,
     ballot_publication_id: String,
+    lifecycle: &crate::services::scheduled_outcome::PublicationLifecycle,
 ) -> Result<()> {
     lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
 
@@ -422,6 +424,18 @@ pub async fn update_publish_ballot(
         &ballot_publication_id,
         true,
         Some(ISO8601::now()),
+    )
+    .await?;
+
+    // What the publication says scheduled openings and closings may do
+    // (VOTE-LIFECYCLE §5b): the current values, or what an approval signed.
+    crate::services::scheduled_outcome::keep_publication_lifecycle(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+        ballot_publication.election_id.as_deref(),
+        lifecycle,
     )
     .await?;
 
@@ -501,7 +515,61 @@ pub async fn update_publish_ballot(
         )
         .await
         .map_err(|e| anyhow!("error posting to the electoral log: {e}"))?;
+
+    sync_enrollment_pages(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        election_event.presentation.clone(),
+    )
+    .await;
     Ok(())
+}
+
+/// The enrollment pages (event realm) follow the published configuration:
+/// the event's timezone and enrollment texts, and each Post's enrollment
+/// window in its zone (VOTE-LIFECYCLE §4, §8). A Keycloak failure doesn't
+/// undo the publication: it is logged, and the next publication or
+/// enrollment schedule change writes both again.
+async fn sync_enrollment_pages(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    presentation: Option<Value>,
+) {
+    match presentation
+        .map(deserialize_value::<ElectionEventPresentation>)
+        .transpose()
+    {
+        Ok(presentation) => {
+            if let Err(err) = realm_localization::sync_event_realm_localization(
+                tenant_id,
+                election_event_id,
+                presentation.as_ref(),
+            )
+            .await
+            {
+                error!(
+                    "Publication of event {election_event_id}: the event realm's timezone and \
+                     enrollment texts were not updated: {err:?}"
+                );
+            }
+        }
+        Err(err) => error!(
+            "Publication of event {election_event_id}: unreadable event presentation, the event \
+             realm's timezone and enrollment texts were not updated: {err:?}"
+        ),
+    }
+    // In a savepoint, so a failed read can't abort the publication's transaction.
+    let refreshed =
+        enrollment_windows::refresh_in_savepoint(hasura_transaction, tenant_id, election_event_id)
+            .await;
+    if let Err(err) = refreshed {
+        error!(
+            "Publication of event {election_event_id}: the enrollment windows were not \
+             updated: {err:?}"
+        );
+    }
 }
 
 #[instrument(skip(hasura_transaction), err)]

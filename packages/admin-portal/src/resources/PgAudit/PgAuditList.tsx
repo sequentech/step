@@ -13,6 +13,7 @@ import {
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
+import {AdminDateTime} from "@/components/AdminDateTime"
 import {PgAuditTable} from "@/gql/graphql"
 
 const OMIT_FIELDS = ["audit_type", "class", "dbname", "session"]
@@ -54,9 +55,9 @@ export const PgAuditList: React.FC<PgAuditListProps> = ({aside, auditTable}) => 
                     <TextField source="dbname" />
                     <FunctionField
                         source="server_timestamp"
-                        render={(record: any) =>
-                            new Date(record.server_timestamp / 1000).toUTCString()
-                        }
+                        render={(record: any) => (
+                            <AdminDateTime value={record.server_timestamp / 1000} seconds />
+                        )}
                     />
                     <TextField source="session_id" />
                     <TextField source="statement" />

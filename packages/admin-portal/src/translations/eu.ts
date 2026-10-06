@@ -213,6 +213,51 @@ const basqueTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Mesedez, berretsi ekintza hau exekutatu nahi duzula, denbora pixka bat hartu dezake.",
+                title: "Esportatu erregistroak",
+                from: "Noiztik",
+                to: "Noiz arte",
+                timeZone: "Ordu-eremua",
+                format: "Formatua",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Errenkada bakoitzak bere ordua UTC-n (ISO 8601) eta {{abbr}}-n gordetzen du, ordu-eremuaren izenarekin. Data-tarteak bi muturrak barne hartzen ditu, {{abbr}}-n.",
+                zoneNotePdf:
+                    "PDFak ordu bakoitza {{abbr}}-n erakusten du. Data-tarteak bi muturrak barne hartzen ditu, {{abbr}}-n.",
+                rowZones: "Errenkada bakoitzaren hauteskundearen ordu-eremua",
+                zoneNoteRows:
+                    "Errenkada bakoitzak bere ordua UTC-n (ISO 8601) eta bere hauteskundearen ordu-eremuan gordetzen du, ordu-eremuaren izenarekin. Data-tarteak bi muturrak barne hartzen ditu, {{abbr}}-n.",
+                zoneNoteRowsPdf:
+                    "PDFak ordu bakoitza bere hauteskundearen ordu-eremuan erakusten du. Data-tarteak bi muturrak barne hartzen ditu, {{abbr}}-n.",
+            },
+            filter: {
+                createdFrom: "Sortua noiztik",
+                createdTo: "noiz arte",
+                statementTimestampFrom: "Adierazpenaren denbora-zigilua noiztik",
+                statementTimestampTo: "Adierazpenaren denbora-zigilua noiz arte",
+                timeZone: "Ordu-eremua",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Hasieratzearen zain",
+                    "runs": "exekutatzen da",
+                    "runs-unsigned": "sinadurarik gabe exekutatzen da",
+                    "refused": "baztertzen da",
+                },
+                check: {
+                    "initialization": "Beharrezko hasieratzea osatu gabe dago",
+                    "voting-close": "Bozketa ezin da itxiera-epearen ondoren ireki",
+                    "needs-signatures": "sinadurak behar dira",
+                    "covered": "sinatutako konfigurazioan",
+                    "unsigned-close": "sinadurarik gabeko itxiera",
+                    "stricter-copy": "uneko eta argitaratutako ezarpenak",
+                    "defaults": "ez da ezer argitaratu oraindik",
+                },
+                changed: "Orain {{after}} (lehen: {{before}}).",
+                result: "Emaitza: {{outcome}}.",
+                deciding: "Egiaztapen erabakigarria: {{check}}. {{value}}",
+                authorizedBy: "{{code}} konfigurazioak baimendua.",
+                nextStep: "Hurrengo urratsa: {{step}}",
             },
             column: {
                 id: "IDa",
@@ -506,6 +551,7 @@ const basqueTranslation: TranslationType = {
                     duplicateKey: "Giltza eta atari-esparru hori dituen ordezkapen bat badago.",
                     invalidDateTimeFormat:
                         "Data/orduaren formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Testu honek {{placeholders}} gorde behar ditu.",
                 },
                 common: {
                     title: "Lokalizazioa",
@@ -523,6 +569,7 @@ const basqueTranslation: TranslationType = {
                     ballotVerifier: "Boto-paperen egiaztatzailea",
                     resultsPortal: "Emaitzen ataria",
                     adminPortal: "Administrazio-ataria",
+                    templates: "Txostenak eta mezuak",
                 },
             },
             field: {
@@ -590,6 +637,8 @@ const basqueTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "Blokeo Egoera",
+                    helperText:
+                        "Programatu blokeo-aldiaren hasiera edo amaiera egoera hau aldatzeko.",
                     options: {
                         "locked-down": "Blokeatuta",
                         "not-locked-down": "Blokeatu gabe",
@@ -1592,6 +1641,22 @@ const basqueTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Hasi Blokeo Aldia",
                 END_LOCKDOWN_PERIOD: "Amaitu Blokeo Aldia",
                 ALLOW_TALLY: "Baimendu Zenbaketa",
+                START_READINESS_TEST: "Hasi hauteskundeetarako prestutasun-proba",
+                END_READINESS_TEST: "Amaitu hauteskundeetarako prestutasun-proba",
+                START_FINAL_TESTING: "Hasi azken probak eta blokeoa",
+                END_FINAL_TESTING: "Amaitu azken probak eta blokeoa",
+                START_TEST_VOTING: "Hasi proba-bozketa",
+                END_TEST_VOTING: "Amaitu proba-bozketa",
+            },
+            warning: {
+                votingWindowDays:
+                    "{{election}} hauteskundearen bozketa-aldiak {{days}} egun lokal hartzen ditu ({{start_local}} - {{end_local}}, {{time_zone}}); arauak {{expected}} eskatzen ditu.",
+                finalTestingLeadTime:
+                    "{{election}} hauteskundearen azken probak {{final_testing_local}}(e)an hasten dira, bozketa {{voting_start_local}}(e)an ireki baino {{minimum_days}} egun baino gutxiago lehenago ({{time_zone}}).",
+                closeBeforeOpen:
+                    "{{election}} hauteskundearen bozketa ireki aurretik edo irekitzean bertan ixten da ({{start_local}} - {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "{{election}} hauteskundearen azken bozketa-egunak {{hours}} ordu ditu, {{minimum_hours}} baino gutxiago: bozketa {{end_local}}(e)an ixten da ({{time_zone}}).",
             },
             election: {
                 label: "Hauteskundea",
@@ -2431,6 +2496,16 @@ const basqueTranslation: TranslationType = {
                 "Eremu guztien emaitzak {{format}} formatuan esportatu '{{item}}'-rentzat",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Sortu txostena hauteskunde-postu osorako edo herrialde baterako. Bozketa blokeatuta egongo da herrialdeen eta ekitaldi osoaren beharrezko hasieratze guztiak osatu arte.",
+                countriesError:
+                    "Ezin izan dira herrialde hautagarriak kargatu. Itxi eta saiatu berriro.",
+                noCountries:
+                    "Postu honek ez du boto-paperen estilo aktiboak dituen herrialde hautagarririk. Egiaztatu eremuak eta argitalpena hasieratu aurretik.",
+                country: "Herrialdea",
+                entirePost: "Postu osoa",
+            },
             preview: {
                 publicationAreas: "Hautatu Eremua Aurreikusteko",
                 action: "Aurreikusi",
@@ -4080,6 +4155,384 @@ const basqueTranslation: TranslationType = {
                 redo: "Zure giltza-zatia zure sinadurarik gabe eman zen, eta hauteskunde honek orain sinadura behar du. Eman berriro eta sinatu.",
                 notTaken:
                     "Zeremoniak ez du giltza-zati hau onartzen jada. Jaregin berriro zure giltza-zatiaren fitxategia.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Sinatutako itxiera-epea",
+                deadline: "{{election}}: {{time}} · {{code}} konfigurazioak baimenduta.",
+                explanation:
+                    "Sinatutako epe honek agintzen jarraitzen du egutegi editagarria aldatu edo kendu arren. Planifikatzaileak oraindik irekita dauden baimendutako kanalak ixten ditu.",
+                reached:
+                    "Sinatutako epe hau igaro da. Egiaztatu bozketaren uneko egoera eta auditoretza-erregistroa; prozesatzea ez da oraindik erregistratu.",
+                processed: "Sinatutako itxiera-epea {{time}} unean prozesatu da.",
+                signedAt: "Sinatutako epea: {{time}}.",
+                channels: "Epe honek oraindik hartzen dituen kanalak: {{channels}}.",
+                result: "Kontsultatu bozketaren egoera eta auditoretza-erregistroa benetako aldaketak eta emaitza osoa ezagutzeko.",
+                unavailable:
+                    "Ezin izan dira sinatutako itxiera-epeak kargatu. Egiaztatu argitaratutako egutegia eta auditoretza-erregistroa.",
+            },
+            picker: {
+                noMatch:
+                    "Ez dago bat datorren ordu-eremurik. Idatzi hiri, herrialde, eremu, laburdura edo desfase bat.",
+            },
+            input: {
+                timezone: "Ordu-eremua",
+                scheduledAt: "Programatutako unea",
+                meetingStart: "Bileraren hasiera",
+                cronZone: "Programazioa gertaeraren ordu-eremu nagusian exekutatzen da: {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} ez da gertaeraren ordu-eremu konfiguratuetako bat. Aukeratu horietako bat.",
+            },
+            schedule: {
+                allElections: "Hauteskunde guztiak",
+                outcome: "Emaitza",
+                noOffset: "Ordu-eremuaren desfaserik gabe: ez da inoiz exekutatzen",
+                unpublished: "Oraindik argitaratu gabe",
+                notPublished:
+                    "Oraindik ez dago ezer argitaratuta: hautesleek lehen argitalpenaren ondoren ikusiko dute programazioa.",
+                unpublishedChanges_one:
+                    "Programatutako gertaera {{count}} aldatu da azken argitalpenetik. Hautesleek argitaratu ondoren ikusiko dute.",
+                unpublishedChanges_other:
+                    "Programatutako {{count}} gertaera aldatu dira azken argitalpenetik. Hautesleek argitaratu ondoren ikusiko dituzte.",
+                offsetless_one:
+                    "Programatutako ordu {{count}}ek ez du ordu-eremuaren desfaserik, eta beraz ez da inoiz exekutatuko. Editatu bere ordu-eremua ezartzeko.",
+                offsetless_other:
+                    "Programatutako {{count}} orduk ez dute ordu-eremuaren desfaserik, eta beraz ez dira inoiz exekutatuko. Editatu itzazu beren ordu-eremua ezartzeko.",
+                outcomeChange:
+                    "Gordetzean, programatutako trantsizio honek egiten duena aldatuko da: {{before}} → {{after}}.",
+                outcomeNew: "Gorde ondoren, programatutako trantsizio hau: {{after}}.",
+                outcomeElections: "{{total}} hauteskundetatik {{count}}",
+                exportError: "Ezin izan da programazioa esportatu.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "Programatutako errenkada {{count}} baztertuko da ({{transitions}} hauteskunde-trantsizio).",
+                    refused_other:
+                        "Programatutako {{count}} errenkada baztertuko dira ({{transitions}} hauteskunde-trantsizio).",
+                    runsUnsigned_one:
+                        "Programatutako itxiera {{count}} sinadurarik gabe exekutatuko da ({{transitions}} hauteskunde-trantsizio).",
+                    runsUnsigned_other:
+                        "Programatutako {{count}} itxiera sinadurarik gabe exekutatuko dira ({{transitions}} hauteskunde-trantsizio).",
+                    review: "Berrikusi",
+                    showAll: "Erakutsi guztiak",
+                    showing: {
+                        refused:
+                            "Baztertuko diren programatutako {{count}} errenkadak erakusten dira ({{transitions}} hauteskunde-trantsizio).",
+                        runsUnsigned:
+                            "Sinadurarik gabe exekutatuko diren programatutako {{count}} itxierak erakusten dira ({{transitions}} hauteskunde-trantsizio).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Ordu-eremuen datu-basearen eguneratze batek etorkizuneko programatutako ordu {{count}} mugitzen du. Ez da ezer aldatuko aplikatzen duzun arte.",
+                    title_other:
+                        "Ordu-eremuen datu-basearen eguneratze batek etorkizuneko programatutako {{count}} ordu mugitzen ditu. Ez da ezer aldatuko aplikatzen dituzun arte.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Aplikatu",
+                    applied_one: "Programatutako ordu {{count}} eguneratu da.",
+                    applied_other: "Programatutako {{count}} ordu eguneratu dira.",
+                    error: "Ezin izan dira programatutako orduak eguneratu.",
+                },
+                outcomeChangeElections_one:
+                    "Gordetzeak emaitza aldatzen du {{count}} hauteskundetan:",
+                outcomeChangeElections_other:
+                    "Gordetzeak emaitza aldatzen du {{count}} hauteskundetan:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "Sinatutako konfigurazio honetan derrigorrezkoa den txostenak derrigorrezkoa izaten jarraitzen du, uneko postuaren ezarpena derrigorrezkoa ez izatera aldatzen bada.",
+                title: "Onarpen honek baimentzen duena",
+                schedule: "Programatutako irekierak eta itxierak",
+                noSchedule:
+                    "Ez dago programatutako irekierarik edo itxierarik: sinatzaileek irekitzen eta ixten dute bozketa.",
+                opens: "Irekiera: {{time}}",
+                closes: "Itxiera: {{time}}",
+                settings: "Ezarpenak",
+                unsignedClose: "Sinadurarik gabeko programatutako itxiera: {{value}}",
+                initialization: "Hasieratzea: {{value}}",
+                firstConfiguration:
+                    "Hau da onartutako lehen konfigurazioa: ez dago zerekin alderatu.",
+                sameAsPrevious: "Ezarpenak onartutako aurreko konfigurazioko berberak dira.",
+                rule: {
+                    openNeeds_one: "Irekitzeko sinadura {{count}} behar da",
+                    openNeeds_other: "Irekitzeko {{count}} sinadura behar dira",
+                    openNoSignatures: "Irekitzeko ez da sinadurarik behar",
+                    closeNeeds_one: "Ixteko sinadura {{count}} behar da",
+                    closeNeeds_other: "Ixteko {{count}} sinadura behar dira",
+                    closeNoSignatures: "Ixteko ez da sinadurarik behar",
+                    openSetting: "Bozketa irekitzea",
+                    closeSetting: "Bozketa ixtea",
+                    signatures_one: "Sinadura {{count}}",
+                    signatures_other: "{{count}} sinadura",
+                    none: "sinadurarik ez",
+                },
+                diff: {
+                    tightens: "Zorrozten du: {{setting}} {{before}} → {{after}}",
+                    loosens: "Malgutzen du: {{setting}} {{before}} → {{after}}",
+                    mixed: "Aldaketak: {{setting}} {{before}} → {{after}} (zorrotzagoa alde batetik, malguagoa bestetik)",
+                },
+                comparedWith: "Aurreko konfigurazio onartuarekin alderatuta, {{code}} onarpena:",
+                channels: "Bozketa-kanalak hauteskundeka",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "bat ere ez",
+            },
+            publish: {
+                openedAuthorized:
+                    "Bozketa programazioaren arabera ireki da {{time}}(e)an, {{code}} konfigurazio-onarpenak baimenduta (sinatzaileak: {{names}}).",
+                closedAuthorized:
+                    "Bozketa programazioaren arabera itxi da {{time}}(e)an, {{code}} konfigurazio-onarpenak baimenduta (sinatzaileak: {{names}}).",
+                closedUnsigned:
+                    "Bozketa programazioaren arabera itxi da {{time}}(e)an. Itxierako sinadurarik ez: programazioak itxi du bozketa epemugan.",
+                authorizedBy: "Baimena eman du",
+                cancelledRequest:
+                    "{{code}} eskaerak {{k}} sinaduratik {{n}} zituen, eta bertan behera utzi da.",
+                openedRefused: "{{time}}(e)ko irekiera programatua baztertu da.",
+                closedRefused: "{{time}}(e)ko itxiera programatua baztertu da.",
+                openedNoSignaturesNeeded:
+                    "Bozketa programazioaren arabera ireki da ({{time}}); ez zen sinadurarik behar.",
+                closedNoSignaturesNeeded:
+                    "Bozketa programazioaren arabera itxi da ({{time}}); ez zen sinadurarik behar.",
+                openedNothingToChange:
+                    "{{time}}(e)an irekiera programatuak ez zuen ezer irekitzeko: bere kanalak irekita zeuden jada.",
+                closedNothingToChange:
+                    "{{time}}(e)an itxiera programatuak ez zuen ezer ixteko: bere kanalak itxita zeuden jada.",
+            },
+            import: {
+                title: "Inportatu programazioa",
+                subtitle:
+                    "Errenkada bat gertaera eta hauteskunde bakoitzeko, tokiko orduan. Utzi ordu-eremua hutsik hauteskundearen ordu-eremua erabiltzeko.",
+                chooseFile: "Aukeratu CSV fitxategi bat",
+                template: "Deskargatu txantiloia",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} gertaera prest {{posts}} hauteskundetarako.",
+                needsAttention_one:
+                    "{{ok}} gertaera prest {{posts}} hauteskundetarako. Errenkada {{count}} berrikusi behar da; zuzendu fitxategia eta igo berriro.",
+                needsAttention_other:
+                    "{{ok}} gertaera prest {{posts}} hauteskundetarako. {{count}} errenkada berrikusi behar dira; zuzendu fitxategia eta igo berriro.",
+                preview: "Inportatu beharreko errenkadak",
+                row: "Errenkada",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…eta beste {{count}} errenkada",
+                imported:
+                    "Programazioa inportatu da: {{created}} sortuta, {{updated}} eguneratuta.",
+                uploadError: "Ezin izan da fitxategia egiaztatu. Igo berriro.",
+                importError: "Ezin izan da programazioa inportatu.",
+                error: {
+                    unknownElection: "Ez dago {{election}} aliasa duen hauteskunderik.",
+                    unknownEventType: "{{type}} ez da programatutako gertaera mota bat.",
+                    invalidTimeZone: "{{zone}} ez da ordu-eremu bat.",
+                    invalidDateTime: "Data eta orduak YYYY-MM-DDTHH:MM formatua izan behar du.",
+                    invalidVotingChannels:
+                        "Bozketa-kanalak ezezagunak dira, edo Online bozketa eta Aldez aurreko bozketa batera irekitzen dituzte.",
+                    dstGap: "{{dateTime}} ez da existitzen {{city}}(e)n, erlojuak aurrera egiten duelako. Idatzi existitzen den ordu bat.",
+                    duplicate:
+                        "Beste errenkada batek gertaera bera programatzen du hauteskunde honetarako.",
+                    other: "Ezin da errenkada hau inportatu ({{code}}).",
+                    ambiguousElection: "Hauteskunde batek baino gehiagok du {{election}} aliasa.",
+                },
+            },
+            settings: {
+                accordion: "Hizkuntza, data eta ordua",
+                dateAndTime: "Data eta ordua",
+                configured: "Konfiguratutako ordu-eremuak",
+                configuredHelp:
+                    "{{count}} ordu-eremu. Hauteskundeek zerrenda honetatik aukeratzen dute berea; idatzi hiri edo herrialde bat ordu-eremu bat gehitzeko.",
+                moreZones: "+{{count}}",
+                primary: "Ordu-eremu nagusia",
+                primaryHelp:
+                    "Gertaera osoko programazioetarako, txostenetarako eta ordu-eremu propiorik ez duten hauteskundeetarako erabiltzen da.",
+                primaryInUse:
+                    "{{zone}} da ordu-eremu nagusia. Aukeratu lehenik beste ordu-eremu nagusi bat.",
+                inUse: "{{names}}(e)k erabiltzen du {{zone}}. Aldatu lehenik hauteskunde horiek.",
+                logs: "Orduak erregistroetan eta erregistroen esportazioetan",
+                logsPrimary: "Ordu-eremu nagusia ({{abbr}})",
+                logsElection: "Errenkada bakoitzeko hauteskundearen ordu-eremua",
+                logsHelp: "Hauteskunderik gabeko errenkadek ordu-eremu nagusia erabiltzen dute.",
+                electionZone: "Ordu-eremua",
+                electionPrimary: "Gertaeraren nagusia: {{zone}}",
+                electionZoneHelp:
+                    "Hauteskunde honen programazioek, hautesleen pantailek eta txostenek ordu-eremu hau erabiltzen dute, haren azpiko eremu guztiak barne. Hutsik badago, gertaeraren ordu-eremu nagusia erabiltzen da.",
+                electionUnconfigured:
+                    "Gertaerak jada ez du ordu-eremu hau konfiguratzen; beraz, hauteskundeak ordu-eremu nagusia erabiltzen du: {{zone}}. Aukeratu konfiguratutako ordu-eremuetako bat.",
+                electionUnconfiguredSave: "Aukeratu gertaeraren ordu-eremu konfiguratuetako bat.",
+            },
+            policies: {
+                accordion: "Bozketaren bizi-zikloa",
+                intro: "Ezarpen hauek hauteskunde-gertaeraren konfigurazioaren parte dira: konfigurazio-onarpenak sinatzen ditu, eta programatutako irekierek eta itxierek uneko ezarpenen eta argitaratutakoen artean zorrotzenari jarraitzen diote.",
+                nothingPublished:
+                    "Oraindik ez dago ezer argitaratuta: lehen argitalpenera arte, programatutako irekierek eta itxierek balio lehenetsiak erabiltzen dituzte (hauteskunde bakoitzeko, ukatu).",
+                publishedValue: "Argitaratutako konfigurazioa: {{value}}",
+                changedSincePublished:
+                    "Argitaratutako konfiguraziotik aldatu da: programatutako irekierek eta itxierek bien artean zorrotzena jarraitzen dute hurrengo argitalpen onartura arte.",
+                scope: {
+                    title: "Hasieratzea bozketa ireki aurretik",
+                    post: {
+                        label: "Hauteskunde bakoitzeko",
+                        help: "Hauteskunde bat hasieratuta dagoenean irekitzen da.",
+                    },
+                    event: {
+                        label: "Gertaera osoa",
+                        help: "Ez da hauteskunderik irekitzen hauteskunde guztiak hasieratu arte.",
+                        warning:
+                            "Hasieratu gabeko hauteskunde bakar batek hauteskunde guztiak itxita mantentzen ditu, baita programatutako irekieretan ere.",
+                    },
+                    postAndCountry: {
+                        label: "Hauteskunde eta herrialde bakoitzeko",
+                        help: "Hauteskunde bat irekitzen da haren azpiko herrialde (eremu) guztiak hasieratuta daudenean.",
+                        warning:
+                            "Hauteskunde bat itxita geratzen da, baita programatutako irekieran ere, haren azpiko herrialde guztiak hasieratu arte; herrialde bakoitza bere txostenarekin hasieratzen da.",
+                    },
+                },
+                close: {
+                    title: "Sinadurarik gabeko programatutako itxiera",
+                    help: "Bozketa ixteko sinadurak behar direnean eta programatutako itxiera bat sinatutako konfigurazioan ez dagoenean.",
+                    refuse: {
+                        label: "Ukatu",
+                        help: "Itxiera ez da exekutatzen; hauteskundearen sinatzaileek ixten dute bozketa beren sinadurekin.",
+                    },
+                    runAsSystem: {
+                        label: "Exekutatu sistema gisa",
+                        help: "Bozketa epemugan ixten da, eta programazioak sinadurarik gabe itxi duela erregistratzen da.",
+                        warning:
+                            "Sinatutako konfiguraziotik kanpoko programatutako itxierek inoren sinadurarik gabe ixten dute bozketa. Erregistroak eta dokumentuek hala adierazten dute.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero:
+                        "Programatutako trantsizio batek ere ez du bere emaitza aldatzen.",
+                    outcomes_one:
+                        "Programatutako trantsizio {{count}}ek bere emaitza aldatzen du. Berrikusi Programatutako Gertaerak atalean.",
+                    outcomes_other:
+                        "Programatutako {{count}} trantsiziok beren emaitza aldatzen dute. Berrikusi Programatutako Gertaerak atalean.",
+                },
+                saveError: "Ezin izan dira bozketaren bizi-zikloaren ezarpenak gorde.",
+                publishedPerTarget: "Argitaratutako konfigurazioa, helburuka: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} helburu)",
+                publishedCount_other: "{{value}} ({{count}} helburu)",
+                savedWithoutPolicies:
+                    "Hauteskunde-gertaera gorde da, baina bozketaren bizi-zikloaren ezarpenak ez: {{reason}}. Gorde berriro.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Hasieratzearen zain",
+                runs: "Exekutatuko da",
+                runsUnsigned: "Sinadurarik gabe exekutatuko da",
+                refused: "Ukatuko da",
+            },
+            note: {
+                waitingForInitialization: "Hasieratzearen zain",
+                authorized: "{{code}} konfigurazioak baimenduta",
+                noSignaturesNeeded: "Ez da sinadurarik behar",
+                closesUnsigned: "Sinadurarik gabe ixten da",
+                refused: {
+                    initialization: "Beharrezko hasieratzea osatu gabe dago",
+                    votingClose: "Bozketa ezin da itxiera-epearen ondoren ireki",
+                    needsSignatures: "Sinatzaileen sinadurak behar ditu",
+                    covered: "Ez dago sinatutako konfigurazioan",
+                    unsignedClose: "Sinadurarik gabeko itxiera baztertu egiten da",
+                    stricterCopy:
+                        "Argitaratutako konfiguraziotik aldatu da, eta hark erabakitzen du oraindik",
+                    defaults: "Oraindik ez da ezer argitaratu: balio lehenetsiak aplikatzen dira",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Zergatik?",
+                title: {
+                    waitingForInitialization: "Zergatik dago hasieratzearen zain",
+                    runs: "Zergatik exekutatuko den",
+                    runsUnsigned: "Zergatik exekutatuko den sinadurarik gabe",
+                    refused: "Zergatik ukatuko den",
+                },
+                checks: "Egiaztapenak",
+                check: "Egiaztapena",
+                current: "Uneko ezarpenak",
+                published: "Argitaratutako konfigurazioa",
+                verdict: "Ebazpena",
+                allows: "Baimentzen du",
+                blocks: "Blokeatzen du",
+                deciding: "Egiaztapen erabakigarria",
+                nextStep: "Hurrengo urratsa:",
+                signedBy: "Sinatzaileak: {{names}}",
+            },
+            question: {
+                initialization: "Beharrezko hasieratzea osatu al da?",
+                votingClose: "Irekiera honek bozketaren itxiera-epea errespetatzen al du?",
+                needsSignatures: "Ekintza honek sinadurak behar ditu?",
+                covered: "Programazio zehatz hau sinatutako konfigurazioan dago?",
+                unsignedClose: "Zer gertatzen da sinadurarik gabeko itxiera batekin?",
+                stricterCopy:
+                    "Uneko ezarpenak eta argitaratutakoak desberdinak dira? Zeinek erabakitzen du?",
+                defaults: "Ba al dago ezer argitaratuta?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Uneko eta argitaratutako ezarpenek eskatutako hasieratze guztiak osatu behar dira.",
+                },
+                votingClose: {
+                    passed: "Bozketa {{closes_at}} unean ixten da; irekiera hau ezin da une horretan edo geroago exekutatu.",
+                },
+                needsSignatures: {
+                    yes: "Bai, {{signatures}} sinadura",
+                    yes_one: "Bai, sinadura {{count}}",
+                    yes_other: "Bai, {{count}} sinadura",
+                    no: "Ez",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "Sinatutako {{code}} konfigurazioak postu honen {{scheduled_event_id}} irekiera propioa erabiltzen du. Ekitaldi osorako irekiera ez da aplikatzen.",
+                    yes: "Bai: {{code}} onarpena, aldatu gabe",
+                    changed: "Ez: aldatu egin da {{code}} onarpenetik",
+                    changedBy:
+                        "Ez: {{edited_by}}(e)k editatu du {{edited_at}}(e)an, {{code}} onarpenaren ondoren",
+                    notInApproval: "Ez: {{code}} onarpenak ez du barne hartzen",
+                    noApproval: "Oraindik ez dago onartutako konfiguraziorik",
+                    channelsChanged:
+                        "Ez: hauteskundearen bozketa-kanalak aldatu dira {{code}} onarpenetik",
+                    alreadyFired:
+                        "Ez: {{code}} onarpenaren trantsizio hau {{fired_at}}(e)an exekutatu zen jada; berriro exekutatzeko sinadurak behar dira",
+                    late: "Ez: 15 minutu baino gehiago igaro dira {{scheduled_date}}(e)tik ({{code}} onarpena); orain exekutatzeko sinadurak behar dira",
+                },
+                unsignedClose: {
+                    refuse: "Ukatu",
+                    runAsSystem: "Exekutatu sistema gisa",
+                },
+                stricterCopy: {
+                    same: "Biak berdinak dira",
+                    currentStricter: "Uneko ezarpenak zorrotzagoak dira: orain aplikatzen dira",
+                    currentLooser:
+                        "Uneko ezarpenak malguagoak dira: onartutako hurrengo argitalpenaren ondoren aplikatuko dira",
+                    combined: "Bakoitza zorrotzagoa da balio batean: biak aplikatzen dira",
+                },
+                defaults: {
+                    published: "{{published_at}}(e)an argitaratua",
+                    nothingPublished:
+                        "Ez dago ezer argitaratuta: balio lehenetsiak aplikatzen dira",
+                    noSnapshot:
+                        "{{published_at}}(e)an argitaratua, argitalpenek ezarpen hauek gorde aurretik: balio lehenetsiak aplikatzen dira",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Osatu beharrezko hasieratzea. Planifikatzailea berriro saiatuko da bozketa itxi aurretik.",
+                closed: "Irekiera hau ez da exekutatuko bozketa itxi ondoren.",
+                none: "Ez da ekintzarik behar.",
+                publishAndApprove: "Argitaratu eta onartu konfigurazioa.",
+                requireConfigurationApproval:
+                    "Ezarri Onartu konfigurazioa ekintzak sinadurak behar ditzan, eta ondoren argitaratu eta onartu konfigurazioa.",
+                askSignersToOpen: "Eskatu hauteskundearen sinatzaileei bozketa irekitzeko.",
+                askSignersToClose: "Eskatu hauteskundearen sinatzaileei bozketa ixteko.",
+            },
+            applies: {
+                tightens: "Orain aplikatzen da eskuzko eta programatutako ekintzetan.",
+                loosens:
+                    "Orain aplikatzen da eskuzko ekintzetan; programatutako irekieretan eta itxieretan, onartutako hurrengo argitalpenaren ondoren.",
+                tightensAndLoosens:
+                    "Haren alde zorrotzagoa orain aplikatzen da eskuzko eta programatutako ekintzetan; alde malguagoa orain aplikatzen da eskuzko ekintzetan, eta programatutako irekieretan eta itxieretan onartutako hurrengo argitalpenaren ondoren.",
             },
         },
     },

@@ -17,7 +17,6 @@ import {
 import {
     stringToHtml,
     EShowCastVoteLogsPolicy,
-    formatVotingPortalDateTime,
     translateHtml,
     stringToText,
 } from "@sequentech/ui-core"
@@ -51,6 +50,8 @@ import TableHead from "@mui/material/TableHead"
 import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {ICastVoteEntry} from "../types/castVoteLogEntry"
+import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
+import {ballotTimeZones, formatBallotTime} from "../services/ElectionTimeZones"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
@@ -159,6 +160,31 @@ const BallotLocator: React.FC = () => {
         },
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
+
+    // The same (cached) query as the lookup panel: the election's zone.
+    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
+        variables: {electionIds: electionId ? [electionId] : []},
+        skip: globalSettings.DISABLE_AUTH || !electionId,
+    })
+    const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId ?? ""))
+    const logsElectionEvent = dataElectionEvent?.sequent_backend_election_event[0] as
+        | IElectionEvent
+        | undefined
+    // Log times show in the Post's zone, named in words (as before for an
+    // event without timezones).
+    const zones = ballotTimeZones(
+        logsElectionEvent?.presentation,
+        dataElections?.sequent_backend_election.find((item) => item.id === electionId)
+            ?.presentation,
+        ballotStyle?.ballot_eml
+    )
+    const formatLogTime = (timestamp: number) =>
+        formatBallotTime(new Date(timestamp), {
+            event: logsElectionEvent,
+            zones,
+            t,
+            lang: i18n.resolvedLanguage || i18n.language,
+        })
 
     useEffect(() => {
         const electionEvent = dataElectionEvent?.sequent_backend_election_event[0]
@@ -324,14 +350,7 @@ const BallotLocator: React.FC = () => {
                         page={page}
                         handleChangePage={handleChangePage}
                         somethingWentWrongErr={somethingWentWrongErr}
-                        formatDateTime={(timestamp) =>
-                            formatVotingPortalDateTime(
-                                timestamp,
-                                dataElectionEvent
-                                    ?.sequent_backend_election_event[0] as IElectionEvent,
-                                i18n.resolvedLanguage || i18n.language
-                            )
-                        }
+                        formatDateTime={formatLogTime}
                     />
                 </CustomTabPanel>
                 <Box

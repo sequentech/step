@@ -960,6 +960,24 @@ const englishTranslation = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · primary",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · my time",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "On this device: {{dateTime}}",
+            gap: "{{dateTime}} does not exist in {{city}} because clocks go forward. It will run at the time shown.",
+            overlap: "{{dateTime}} happens twice in {{city}}. The first one is used.",
+        },
     },
 }
 

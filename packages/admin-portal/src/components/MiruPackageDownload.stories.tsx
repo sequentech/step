@@ -4,7 +4,7 @@
 import React from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
-import {i18n} from "@sequentech/ui-core"
+import {i18n, browserTimeZone} from "@sequentech/ui-core"
 import {
     AdminStoryProvider,
     EVENT_ID,
@@ -27,11 +27,18 @@ import {
 } from "./tally/__stories__/DownloadFixture"
 import {MIRU_DOCUMENT_IDS, miruDocuments} from "./__stories__/MiruFixture"
 import {MiruPackageDownload} from "./MiruPackageDownload"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
+
+/** A time as the screen shows it outside an event's screens: labelled, in the viewer's zone. */
+const shownTime = (value: string, seconds = false) =>
+    formatZoned(value, browserTimeZone(), {t: i18n.t.bind(i18n), lang: i18n.language, seconds})
 
 const REPORT_ID = "d0c00000-0000-4000-8000-000000000060"
 const TASK_ID = "7a5c0000-0000-4000-8000-000000000001"
-/** The latest package was generated on 15 January at 12:45 UTC. */
-const LATEST = "15/01/2026 12:45"
+/** The latest package was generated on 15 January at 12:45 UTC; the menu shows it labelled. */
+const LATEST = shownTime("2026-01-15T12:45:00Z", false)
+/** The downloaded file names keep their compact date. */
+const LATEST_IN_NAME = "15/01/2026 12:45"
 const FILE_NAME = "area__North district-__event__Council"
 
 let boundary: ReturnType<typeof graphqlBoundary>
@@ -142,7 +149,10 @@ export const DownloadEmlAfterConfirmation: Story = {
         // The date is appended after the name is sanitized, so it keeps "/" and ":".
         await waitFor(() =>
             expect(downloads).toEqual([
-                {name: `${FILE_NAME}${LATEST}.eml`, href: documentUrl(MIRU_DOCUMENT_IDS.eml)},
+                {
+                    name: `${FILE_NAME}${LATEST_IN_NAME}.eml`,
+                    href: documentUrl(MIRU_DOCUMENT_IDS.eml),
+                },
             ])
         )
         expect(boundary.calls.find(({name}) => name === "GetDocument")?.variables).toEqual({
@@ -166,7 +176,7 @@ export const DownloadPackageAfterConfirmation: Story = {
         await waitFor(() =>
             expect(downloads).toEqual([
                 {
-                    name: `${FILE_NAME}${LATEST}.zip`,
+                    name: `${FILE_NAME}${LATEST_IN_NAME}.zip`,
                     href: documentUrl(MIRU_DOCUMENT_IDS.allServers),
                 },
             ])

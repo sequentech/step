@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::report_variables::{configuration_stamp, report_manifest_of_file, stamp_template_data};
+use super::template_time::{
+    insert_template_time_variables, load_i18n_defaults, load_template_time_variables,
+};
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::signing_report_release::{
@@ -37,6 +40,7 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
+use sequent_core::services::reports::template_time_variables;
 use sequent_core::services::{pdf, reports};
 use sequent_core::signing::SigningAction;
 use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
@@ -302,6 +306,29 @@ pub trait TemplateRenderer: Debug {
     }
 
     #[instrument(err, skip(self))]
+    /// The timezone variables of the report's event and election
+    /// (`electionEventTimezone`, `electionTimezone`, `timezoneTexts`).
+    async fn inject_time_variables(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        user_data_map: &mut Map<String, Value>,
+    ) -> Result<()> {
+        let election_event_id = self.get_election_event_id();
+        let time_variables = if election_event_id.is_empty() {
+            template_time_variables(None, None, &*load_i18n_defaults().await)
+        } else {
+            load_template_time_variables(
+                hasura_transaction,
+                &self.get_tenant_id(),
+                &election_event_id,
+                self.get_election_id().as_deref(),
+            )
+            .await?
+        };
+        insert_template_time_variables(user_data_map, time_variables);
+        Ok(())
+    }
+
     async fn prepare_preview_data(&self) -> Result<Self::UserData> {
         println!("!!!!!prepare_preview_data");
         let json_data = self
@@ -475,6 +502,8 @@ pub trait TemplateRenderer: Debug {
         let mut user_data_map = user_data
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+        self.inject_time_variables(hasura_transaction, &mut user_data_map)
+            .await?;
         if generate_mode == GenerateReportMode::REAL {
             self.inject_voter_secret_variables(
                 &mut user_data_map,
@@ -549,6 +578,8 @@ pub trait TemplateRenderer: Debug {
         let mut user_data_map = user_data
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
+        self.inject_time_variables(hasura_transaction, &mut user_data_map)
+            .await?;
         if generate_mode == GenerateReportMode::REAL {
             self.inject_voter_secret_variables(
                 &mut user_data_map,
