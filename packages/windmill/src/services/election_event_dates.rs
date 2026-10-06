@@ -19,7 +19,7 @@ pub async fn manage_dates(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    scheduled_date: Option<&str>,
+    cron_config: Option<CronConfig>,
     event_processor: &str,
     voting_channels: Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
@@ -37,14 +37,7 @@ pub async fn manage_dates(
             .map_err(|e| anyhow!("scheduled event by task id not found: {e:?}"))?;
 
     // if there's an schedule date, we have to either insert or create this
-    if let Some(date) = scheduled_date {
-        let cron_config = CronConfig {
-            local: None,
-            timezone: None,
-            cron: None,
-            scheduled_date: Some(date.to_string()),
-        };
-
+    if let Some(cron_config) = cron_config {
         match old_scheduled_event_opt {
             Some(old_scheduled_event) if old_scheduled_event.archived_at.is_none() => {
                 update_scheduled_event(
@@ -55,7 +48,7 @@ pub async fn manage_dates(
                     voting_channels.as_ref(),
                 )
                 .await
-                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?
+                .map_err(|e| anyhow!("error updating scheduled event: {e:?}"))?;
             }
             _ => {
                 let payload = ManageElectionDatePayload {

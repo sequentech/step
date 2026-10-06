@@ -29,7 +29,7 @@ const OTHER_TENANT_ID: &str = "tenant-b";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 145;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 153;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -705,4 +705,111 @@ async fn cast_log_range_sort_keys_fail_before_database_access_after_voter_author
         assert!(error["message"].as_str().unwrap().contains("hide-logs-tab"));
     }
     assert_eq!(connections.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+#[rocket::async_test]
+async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
+    const TEST: &str = "request_boundaries::schedule_recompute_noops_and_scope_refusals_preserve_stored_dates";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{json as response_json, post, rows, Services};
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let database: String =
+        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
+            .await[0]
+            .get("name");
+    // Recompute uses Windmill's global pool, unlike routes using managed state.
+    // This child owns one migrated database and initializes that pool only here.
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    let client = services.client().await;
+    let body = json!({"election_event_id": event.election_event_id});
+    let writer = || {
+        Claims::new(&event.tenant_id, USER_ID)
+            .roles([Permissions::SCHEDULED_EVENT_WRITE])
+    };
+
+    for claims in [
+        Claims::new(&event.tenant_id, USER_ID),
+        Claims::new(&event.tenant_id, USER_ID)
+            .roles([Permissions::ELECTION_EVENT_READ]),
+    ] {
+        let (status, error) = response_json(
+            post(&client, "/apply-schedule-recompute", &claims, &body).await,
+        )
+        .await;
+        assert_eq!(status, Status::Unauthorized);
+        assert_eq!(error["extensions"]["code"], "Unauthorized");
+    }
+    // No queued change means an idempotent success, even without a display name.
+    // The actor still falls back to the authenticated user ID.
+    assert_eq!(
+        response_json(
+            post(&client, "/apply-schedule-recompute", &writer(), &body).await,
+        )
+        .await,
+        (Status::Ok, json!({"updated": 0}))
+    );
+    let (status, error) = response_json(
+        post(
+            &client,
+            "/apply-schedule-recompute",
+            &writer(),
+            &json!({"election_event_id": "not-an-event-uuid"}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError);
+    assert_eq!(error["extensions"]["code"], "InternalServerError");
+    assert!(error["message"]
+        .as_str()
+        .unwrap()
+        .starts_with("apply schedule recompute failed:"));
+    let reader = Claims::new(&event.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_READ]);
+    let (status, error) = response_json(
+        post(
+            &client,
+            "/get-scheduled-outcomes",
+            &reader,
+            &json!({"election_event_id": "not-an-event-uuid"}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::BadRequest);
+    assert_eq!(error["extensions"]["code"], "UuidParseFailed");
+    assert_eq!(error["message"], "not-an-event-uuid is not a UUID");
+    // A real schedule with a pending timezone correction must remain untouched
+    // when another tenant's administrator presents the event's ID.
+    let id = uuid::Uuid::new_v4();
+    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    let event_id = uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let cron = json!({"scheduled_date": "2099-01-01T10:00:00Z",
+        "local": "2099-01-01T12:00", "timezone": "UTC"});
+    let annotations = json!({"schedule_recompute": {
+        "scheduled_date": "2099-01-01T12:00:00Z",
+        "previous": "2099-01-01T10:00:00Z", "local": "2099-01-01T12:00",
+        "timezone": "UTC", "checked_at": "2026-10-01T00:00:00Z"}});
+    rows::execute(&services.hasura,
+        "INSERT INTO sequent_backend.scheduled_event
+         (id, tenant_id, election_event_id, event_processor, cron_config, annotations)
+         VALUES ($1,$2,$3,'END_VOTING_PERIOD',$4,$5)",
+        &[&id, &tenant, &event_id, &cron, &annotations]).await;
+    let other = Claims::new(&uuid::Uuid::new_v4().to_string(), USER_ID)
+        .roles([Permissions::SCHEDULED_EVENT_WRITE]);
+    assert_eq!(
+        response_json(
+            post(&client, "/apply-schedule-recompute", &other, &body).await,
+        )
+        .await,
+        (Status::Ok, json!({"updated": 0}))
+    );
+    let saved = rows::query(&services.hasura,
+        "SELECT cron_config, annotations FROM sequent_backend.scheduled_event WHERE id = $1", &[&id]).await;
+    assert_eq!(saved[0].get::<_, Value>("cron_config"), cron);
+    assert_eq!(saved[0].get::<_, Value>("annotations"), annotations);
 }

@@ -28,6 +28,10 @@ use super::{
 use crate::postgres::signing::*;
 use crate::postgres::signing_actions::count_published_configuration_versions;
 use crate::services::election::is_election_event_locked_down_in;
+use crate::services::scheduled_outcome::{
+    preview_change, recompute_predictions, rule_change_applies, ChangeApplies, OutcomeChange,
+    PendingChange,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -293,6 +297,14 @@ pub struct SaveRuleOutcome {
     pub warnings: Vec<RuleWarning>,
     /// The waiting requests the save cancelled.
     pub cancelled: Vec<Uuid>,
+    /// For an Open or Close voting rule whose need for signatures changed:
+    /// how the change applies to scheduled openings and closings
+    /// (VOTE-LIFECYCLE §5c).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub applies: Option<ChangeApplies>,
+    /// The scheduled openings and closings (per Post) whose outcome the
+    /// save changed.
+    pub outcome_changes: Vec<OutcomeChange>,
 }
 
 /// The Keycloak side of a save, made by [`commit_rule`].
@@ -578,6 +590,34 @@ pub async fn save_rule(
         }
     }
 
+    let old_rule = current
+        .as_ref()
+        .map(|row| row.rule.clone())
+        .unwrap_or_else(|| SigningRule::default_for(action));
+    let applies = rule_change_applies(&old_rule, &rule);
+    let affects_schedule = matches!(
+        action,
+        SigningAction::OpenVoting
+            | SigningAction::CloseVoting
+            | SigningAction::ApproveConfiguration
+    );
+    let outcome_changes = if affects_schedule {
+        preview_change(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &PendingChange::Rule {
+                action,
+                required: rule.is_required(),
+                signatures: Some(rule.required()),
+            },
+        )
+        .await?
+        .changes
+    } else {
+        vec![]
+    };
+
     let saved = upsert_signing_rule(
         hasura_transaction,
         tenant_id,
@@ -612,9 +652,7 @@ pub async fn save_rule(
         cancelled.push(locked.id);
     }
 
-    let old = current
-        .map(|row| row.rule)
-        .unwrap_or_else(|| SigningRule::default_for(action));
+    let old = old_rule;
     stage(
         hasura_transaction,
         &LogStep {
@@ -623,9 +661,12 @@ pub async fn save_rule(
             system: SystemOutcome::Info,
             scope: log_scope(tenant_id, election_event_id, None, None),
             description: format!(
-                "Changed the signing rule of {}: {}",
+                "Changed the signing rule of {}: {}{}",
                 action_title(action).to_lowercase(),
-                requirement_text(&saved.rule)
+                requirement_text(&saved.rule),
+                applies
+                    .map(|applies| format!(". {}", applies.sentence()))
+                    .unwrap_or_default()
             ),
             details: json!({
                 "action": action.to_string(),
@@ -633,11 +674,21 @@ pub async fn save_rule(
                 "new": saved.rule,
                 "cancelled": cancelled,
                 "allowed_by": allowed_by_permission(Permissions::SIGNING_RULES_WRITE),
+                "applies": applies,
             }),
         },
     )
     .await
     .context("Error logging the rule change")?;
+    if affects_schedule {
+        recompute_predictions(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
+            &caller.actor(),
+        )
+        .await?;
+    }
     Ok(SavedRule {
         outcome: SaveRuleOutcome {
             revision: saved.rule.revision,
@@ -645,6 +696,8 @@ pub async fn save_rule(
             short_posts,
             warnings,
             cancelled,
+            applies,
+            outcome_changes,
         },
         roles: RoleChanges {
             realm,

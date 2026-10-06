@@ -445,12 +445,7 @@ async fn capacity_counts_each_posts_signers() {
             .await
             .unwrap()
             .get(0);
-        htx.execute(
-            "SELECT set_config('sequent.trusted_write', 'on', true)",
-            &[],
-        )
-        .await
-        .unwrap();
+        windmill::postgres::trusted_write(&htx).await.unwrap();
         for (election_id, published, deleted) in [
             (None, true, false),
             (None, true, false),
@@ -751,12 +746,7 @@ async fn a_locked_down_event_refuses_rule_changes() {
         let mut hasura = w.pool.get().await.unwrap();
         let htx = hasura.transaction().await.unwrap();
         // As the lockdown task does.
-        htx.execute(
-            "SELECT set_config('sequent.trusted_write', 'on', true)",
-            &[],
-        )
-        .await
-        .unwrap();
+        windmill::postgres::trusted_write(&htx).await.unwrap();
         htx.execute(
             "UPDATE sequent_backend.election_event SET presentation = '{\"locked_down\": \"locked-down\"}'
              WHERE id = $1",
@@ -1122,7 +1112,7 @@ async fn the_event_info_names_its_zone_and_titles_to_who_may_read_them() {
         // An event without configured timezones explicitly uses UTC.
         let unset = info(certificates.clone()).await.unwrap();
         assert_eq!(unset.time_zone.as_deref(), Some("UTC"));
-        assert_eq!(panel_zone().await.as_deref(), Some("UTC"));
+        assert_eq!(panel_zone().await, "UTC");
 
         let mut client = w.pool.get().await.unwrap();
         reset_to_preset(
@@ -1158,7 +1148,7 @@ async fn the_event_info_names_its_zone_and_titles_to_who_may_read_them() {
 
         let read = info(certificates).await.unwrap();
         assert_eq!(read.time_zone.as_deref(), Some(zone));
-        assert_eq!(panel_zone().await.as_deref(), Some(zone));
+        assert_eq!(panel_zone().await, zone);
         assert_eq!(
             read.titles.get("maria").map(String::as_str),
             Some("Chairperson")

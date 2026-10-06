@@ -1278,7 +1278,7 @@ async fn the_signature_prints_the_time_in_the_events_zone() {
         // The panel shows times in the zone the signature prints.
         let documents = PdfDocumentSigner::new(store.clone());
         let shown = panel(&w, &documents, &signers[0].caller, request_id).await;
-        assert_eq!(shown.time_zone.as_deref(), Some(primary));
+        assert_eq!(shown.time_zone, primary);
         let prepared = prepare(&w, &store, &signers[0], request_id, at(1))
             .await
             .unwrap();

@@ -549,8 +549,9 @@ pub struct SigningPanel {
     pub details: Vec<SigningDetail>,
     pub election_name: Option<String>,
     pub area_name: Option<String>,
-    /// The election event's time zone (IANA), which its times are shown in.
-    pub time_zone: Option<String>,
+    /// The event's primary timezone (IANA): the panel shows times in it, as
+    /// the signed PDF prints them.
+    pub time_zone: String,
     /// For a trustee's request, the names beside its ceremony and trustee ids.
     #[serde(flatten)]
     pub key_share: KeyShareLabels,
@@ -558,6 +559,21 @@ pub struct SigningPanel {
 
 /// The subject's fields in key order, lists joined with commas.
 pub fn subject_details(subject: &Value) -> Vec<SigningDetail> {
+    // Match the widget's displayValue without changing the signed payload.
+    // PostgreSQL JSONB does not preserve canonical object key order.
+    fn display_value(value: &Value) -> String {
+        match value {
+            Value::String(text) => text.clone(),
+            Value::Null => String::new(),
+            Value::Array(items) => items
+                .iter()
+                .map(display_value)
+                .collect::<Vec<_>>()
+                .join(", "),
+            Value::Object(_) => super::actions::configuration::canonical_text(value),
+            other => other.to_string(),
+        }
+    }
     let Value::Object(fields) = subject else {
         return vec![];
     };
@@ -565,19 +581,7 @@ pub fn subject_details(subject: &Value) -> Vec<SigningDetail> {
     keys.sort();
     keys.into_iter()
         .map(|key| {
-            let value = match &fields[key] {
-                Value::String(text) => text.clone(),
-                Value::Null => String::new(),
-                Value::Array(items) => items
-                    .iter()
-                    .map(|item| match item {
-                        Value::String(text) => text.clone(),
-                        other => other.to_string(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                other => other.to_string(),
-            };
+            let value = display_value(&fields[key]);
             SigningDetail {
                 key: key.clone(),
                 value,
@@ -739,12 +743,10 @@ pub async fn get_panel(
         details: subject_details(&request.subject),
         election_name,
         area_name,
-        time_zone: Some(
-            event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
-                .await?
-                .name()
-                .to_owned(),
-        ),
+        time_zone: event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
+            .await?
+            .name()
+            .to_owned(),
         key_share: key_share_labels(hasura_transaction, &request).await?,
     })
 }

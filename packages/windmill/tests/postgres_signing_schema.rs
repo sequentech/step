@@ -312,7 +312,7 @@ async fn staff_crl(tx: &Transaction<'_>, s: Scope, issuer: Uuid, status: &str) -
 }
 
 /// Every signing statement kind; the match keeps the list complete.
-const STATEMENT_KINDS: [SigningStatementKind; 16] = {
+const STATEMENT_KINDS: [SigningStatementKind; 22] = {
     use SigningStatementKind::*;
     [
         SigningRequestCreated,
@@ -331,6 +331,12 @@ const STATEMENT_KINDS: [SigningStatementKind; 16] = {
         SigningChecksChanged,
         SigningCertificateRevoked,
         SigningRequestsExported,
+        LifecycleWindowChanged,
+        ScheduleRecomputeApplied,
+        ScheduleImported,
+        ScheduledOutcomeChanged,
+        ElectionInitialized,
+        LockdownChanged,
     ]
 };
 
@@ -353,7 +359,13 @@ fn every_kind_is_listed(kind: SigningStatementKind) {
         | SigningIssuerChanged
         | SigningChecksChanged
         | SigningCertificateRevoked
-        | SigningRequestsExported => {}
+        | SigningRequestsExported
+        | LifecycleWindowChanged
+        | ScheduleRecomputeApplied
+        | ScheduleImported
+        | ScheduledOutcomeChanged
+        | ElectionInitialized
+        | LockdownChanged => {}
     }
 }
 
