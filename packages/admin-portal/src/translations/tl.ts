@@ -279,7 +279,7 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "I-export ang mga Template",
                 IMPORT_TEMPLATES: "I-import ang mga Template",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Tanggalin ang mga botante",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
@@ -519,7 +519,7 @@ const tagalogTranslation: TranslationType = {
                     value: "Halaga",
                 },
                 scopes: {
-                    legacy: "Legacy ({{portal}})",
+                    legacy: "Luma ({{portal}})",
                     global: "Pangkalahatan",
                     votingPortal: "Portal ng pagboto",
                     ballotVerifier: "Tagapagpatunay ng balota",
@@ -583,7 +583,7 @@ const tagalogTranslation: TranslationType = {
                 userVerification:
                     "Puede kang mag-introdusir nin sarong pasadyang plantilya na gagamiton tanganing mano-manong ma-verify an mga botante",
                 redirectFinishUrl: "Redirect Finish URL",
-                kioskRedirectFinishUrl: "Kiosk Redirect Finish URL",
+                kioskRedirectFinishUrl: "URL ng Pag-redirect sa Pagtatapos ng Kiosk",
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
@@ -1137,7 +1137,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Mga Karagdagang Materyales na Nakita",
                     "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",
@@ -1170,11 +1170,12 @@ const tagalogTranslation: TranslationType = {
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling tagagamit?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Tanggalin ang {{count}} napiling tagagamit? Hindi na ito maaaring bawiin.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} tagagamit ang napili. Maaari mo ring tanggalin ang lahat ng tagagamit na tumutugma sa kasalukuyang mga filter, na maaaring mas marami. Hindi na ito maaaring bawiin.",
+                    okSelected: "Tanggalin ang {{count}} napili",
+                    okAllMatching: "Tanggalin ang lahat ng tumutugma",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga tagagamit",
@@ -1269,11 +1270,11 @@ const tagalogTranslation: TranslationType = {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling botante?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Tanggalin ang {{count}} napiling botante? Hindi na ito maaaring bawiin.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} botante ang napili. Maaari mo ring tanggalin ang lahat ng botante na tumutugma sa kasalukuyang mga filter, na maaaring mas marami. Hindi na ito maaaring bawiin.",
+                    okSelected: "Tanggalin ang {{count}} napili",
+                    okAllMatching: "Tanggalin ang lahat ng tumutugma",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga botante",
@@ -1530,8 +1531,8 @@ const tagalogTranslation: TranslationType = {
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
                 "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
                 "google-meet-link": "Bumuo ng Google Meet Link",
-                "service-account": "Service account",
-                "datafix-account": "Datafix account",
+                "service-account": "Account ng serbisyo",
+                "datafix-account": "Account ng Datafix",
                 "gold": "Ginto",
                 "silver": "Pilak",
                 "election-event-ivr-tab": "Tingnan ang IVR ng election event",

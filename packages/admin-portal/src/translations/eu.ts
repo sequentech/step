@@ -279,7 +279,7 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Txantiloiak Esportatu",
                 IMPORT_TEMPLATES: "Txantiloiak Inportatu",
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Ezabatu bozkatzaileak",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
@@ -1129,7 +1129,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Laguntza Materialak Ikusita",
                     "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",
@@ -1159,11 +1159,12 @@ const basqueTranslation: TranslationType = {
                 delete: {
                     body: "Ziur zaude erabiltzaile hau ezabatu nahi duzula?",
                     bulkBody: "Ziur zaude hautatutako erabiltzaileak ezabatu nahi dituzula?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Hautatutako {{count}} erabiltzaileak ezabatu? Ezin da desegin.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} erabiltzaile daude hautatuta. Horren ordez, uneko iragazkiekin bat datozen erabiltzaile guztiak ezaba ditzakezu, eta gehiago izan daitezke. Ezin da desegin.",
+                    okSelected: "Ezabatu hautatutakoak ({{count}})",
+                    okAllMatching: "Ezabatu bat datozen guztiak",
                 },
                 notifications: {
                     exportError: "Errorea erabiltzaileak esportatzerakoan",
@@ -1258,11 +1259,11 @@ const basqueTranslation: TranslationType = {
                     body: "Ziur zaude bozkatzaile hau ezabatu nahi duzula?",
                     bulkBody: "Ziur zaude hautatutako bozkatzaileak ezabatu nahi dituzula?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Hautatutako {{count}} bozkatzaileak ezabatu? Ezin da desegin.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} bozkatzaile daude hautatuta. Horren ordez, uneko iragazkiekin bat datozen bozkatzaile guztiak ezaba ditzakezu, eta gehiago izan daitezke. Ezin da desegin.",
+                    okSelected: "Ezabatu hautatutakoak ({{count}})",
+                    okAllMatching: "Ezabatu bat datozen guztiak",
                 },
                 notifications: {
                     exportError: "Errorea bozkatzaileak esportatzerakoan",

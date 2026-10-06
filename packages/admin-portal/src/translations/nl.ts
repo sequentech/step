@@ -279,7 +279,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
                 IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Kiezers verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
@@ -1134,7 +1134,7 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Ondersteunend materiaal bekeken",
                     "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
@@ -1166,11 +1166,12 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze gebruiker wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde gebruikers wilt verwijderen?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "De {{count}} geselecteerde gebruikers verwijderen? Dit kan niet ongedaan worden gemaakt.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Er zijn {{count}} gebruikers geselecteerd. U kunt in plaats daarvan alle gebruikers verwijderen die aan de huidige filters voldoen; dat kunnen er meer zijn. Dit kan niet ongedaan worden gemaakt.",
+                    okSelected: "{{count}} geselecteerde verwijderen",
+                    okAllMatching: "Alle overeenkomende verwijderen",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren gebruikers",
@@ -1265,11 +1266,11 @@ const dutchTranslation: TranslationType = {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde kiezers wilt verwijderen?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "De {{count}} geselecteerde kiezers verwijderen? Dit kan niet ongedaan worden gemaakt.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Er zijn {{count}} kiezers geselecteerd. U kunt in plaats daarvan alle kiezers verwijderen die aan de huidige filters voldoen; dat kunnen er meer zijn. Dit kan niet ongedaan worden gemaakt.",
+                    okSelected: "{{count}} geselecteerde verwijderen",
+                    okAllMatching: "Alle overeenkomende verwijderen",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren kiezers",

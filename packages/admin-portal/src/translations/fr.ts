@@ -279,7 +279,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Supprimer les électeurs",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
@@ -1140,7 +1140,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Matériaux de Support consultés",
                     "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",
@@ -1172,11 +1172,12 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Supprimer les {{count}} utilisateurs sélectionnés ? Cette action est irréversible.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} utilisateurs sont sélectionnés. Vous pouvez plutôt supprimer tous les utilisateurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
@@ -1272,11 +1273,11 @@ const frenchTranslation: TranslationType = {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Supprimer les {{count}} électeurs sélectionnés ? Cette action est irréversible.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "{{count}} électeurs sont sélectionnés. Vous pouvez plutôt supprimer tous les électeurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des électeurs",

@@ -278,7 +278,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Eliminar votantes",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
@@ -1137,7 +1137,7 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votado",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Materiales de Soporte vistos",
                     "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",
@@ -1169,11 +1169,12 @@ const spanishTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "¿Borrar los {{count}} usuarios seleccionados? Esta acción no se puede deshacer.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Hay {{count}} usuarios seleccionados. En su lugar, puedes borrar todos los usuarios que coinciden con los filtros actuales, que pueden ser más. Esta acción no se puede deshacer.",
+                    okSelected: "Borrar {{count}} seleccionados",
+                    okAllMatching: "Borrar todos los que coinciden",
                 },
                 notifications: {
                     exportError: "Error al exportar usuarios",
@@ -1267,11 +1268,11 @@ const spanishTranslation: TranslationType = {
                     body: "¿Estás seguro que quieres borrar este votante?",
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "¿Borrar los {{count}} votantes seleccionados? Esta acción no se puede deshacer.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Hay {{count}} votantes seleccionados. En su lugar, puedes borrar todos los votantes que coinciden con los filtros actuales, que pueden ser más. Esta acción no se puede deshacer.",
+                    okSelected: "Borrar {{count}} seleccionados",
+                    okAllMatching: "Borrar todos los que coinciden",
                 },
                 notifications: {
                     exportError: "Error al exportar votantes",

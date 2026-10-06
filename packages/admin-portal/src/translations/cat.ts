@@ -246,7 +246,7 @@ const catalanTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar plantilles",
                 IMPORT_TEMPLATES: "Importar plantilles",
                 DELETE_ELECTION_EVENT: "Esborrar esdeveniment electoral",
-                DELETE_VOTERS: "Delete Voters",
+                DELETE_VOTERS: "Esborrar votants",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista prèvia de la publicació",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporta els resultats del recompte en format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoritats de certificació",
@@ -1139,7 +1139,7 @@ const catalanTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Ha votat",
-                    "support_materials_viewed": "Support Materials Viewed",
+                    "support_materials_viewed": "Materials de Suport vistos",
                     "vote-weight": "Pes del vot",
                     "voted-channel": "Canal de vot",
                     "disable-comment": "Comentari de desactivació",
@@ -1171,11 +1171,12 @@ const catalanTranslation: TranslationType = {
                 delete: {
                     body: "Estàs segur que vols esborrar aquest usuari?",
                     bulkBody: "Estàs segur que vols esborrar els usuaris seleccionats?",
-                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodySelected:
+                        "Vols esborrar els {{count}} usuaris seleccionats? Aquesta acció no es pot desfer.",
                     bulkBodyChoose:
-                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Hi ha {{count}} usuaris seleccionats. En lloc d'això, pots esborrar tots els usuaris que coincideixen amb els filtres actuals, que poden ser més. Aquesta acció no es pot desfer.",
+                    okSelected: "Esborrar {{count}} seleccionats",
+                    okAllMatching: "Esborrar tots els coincidents",
                 },
                 notifications: {
                     exportError: "Error exportant usuaris",
@@ -1270,11 +1271,11 @@ const catalanTranslation: TranslationType = {
                     body: "Estàs segur que vols esborrar aquest votant?",
                     bulkBody: "Estàs segur que vols esborrar els votants seleccionats?",
                     bulkBodySelected:
-                        "Delete the {{count}} selected voters? This cannot be undone.",
+                        "Vols esborrar els {{count}} votants seleccionats? Aquesta acció no es pot desfer.",
                     bulkBodyChoose:
-                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
-                    okSelected: "Delete {{count}} selected",
-                    okAllMatching: "Delete all matching",
+                        "Hi ha {{count}} votants seleccionats. En lloc d'això, pots esborrar tots els votants que coincideixen amb els filtres actuals, que poden ser més. Aquesta acció no es pot desfer.",
+                    okSelected: "Esborrar {{count}} seleccionats",
+                    okAllMatching: "Esborrar tots els coincidents",
                 },
                 notifications: {
                     exportError: "Error exportant votants",
