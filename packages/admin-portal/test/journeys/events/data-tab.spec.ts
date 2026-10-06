@@ -246,6 +246,12 @@ test("exports an encrypted archive, tracks its task and reveals the generated pa
     await expect(page.getByText("SUCCESS", {exact: true})).toBeVisible()
 })
 
+async function expandSection(page: Page, name: string) {
+    const summary = page.getByRole("button", {name, exact: true})
+    if ((await summary.getAttribute("aria-expanded")) !== "true") await summary.click()
+    await expect(summary).toHaveAttribute("aria-expanded", "true")
+}
+
 async function choose(page: Page, combobox: RegExp, option: string) {
     await page.getByRole("combobox", {name: combobox}).click()
     await page.getByRole("option", {name: option, exact: true}).click()
@@ -424,11 +430,11 @@ test("flags conflicting weighted voting and an invalid custom date format before
 }) => {
     editableEvent(portal)
     await openEvent(page, portal)
-    await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+    await expandSection(page, "Advanced Configurations")
     await choose(page, /^Weighted Voting Policy/, "Weighted Voting for Voters")
     await choose(page, /^Delegated Voting Policy/, "Enabled")
     await choose(page, /^Include decoded ballots/, "Include")
-    await page.getByRole("button", {name: "Language, Date and Time", exact: true}).click()
+    await expandSection(page, "Language, Date and Time")
     await choose(page, /^Voting Portal date & time format/, "Custom format")
     const custom = page.getByRole("textbox", {name: "Custom date & time format"})
     await custom.fill("every tuesday")
@@ -436,7 +442,7 @@ test("flags conflicting weighted voting and an invalid custom date format before
     await expect(
         page.getByText("The form is not valid. Please check for errors", {exact: true})
     ).toBeVisible()
-    await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+    await expandSection(page, "Advanced Configurations")
     await expect(
         page.getByText("Weighted Voting for Voters cannot be combined with Delegated Voting", {
             exact: true,
@@ -448,6 +454,7 @@ test("flags conflicting weighted voting and an invalid custom date format before
             {exact: true}
         )
     ).toBeVisible()
+    await expandSection(page, "Language, Date and Time")
     await expect(
         page.getByText("Invalid format. Use at least one of the tokens yyyy, MM, dd, HH, mm, ss.", {
             exact: true,
@@ -456,9 +463,9 @@ test("flags conflicting weighted voting and an invalid custom date format before
     expect(portal.graphql.callsTo("SetCustomUrls")).toHaveLength(0)
     expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
 
-    await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+    await expandSection(page, "Advanced Configurations")
     await choose(page, /^Weighted Voting Policy/, "Disabled Weighted Voting")
-    await page.getByRole("button", {name: "Language, Date and Time", exact: true}).click()
+    await expandSection(page, "Language, Date and Time")
     await custom.fill("dd.MM.yyyy HH:mm")
     const update = await save(page, portal)
     const presentation = (update._set as {presentation: Row}).presentation
