@@ -1054,30 +1054,57 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a publication and, for an event of a signed configuration, the
+    /// package entry that names the designs it published. The two are one
+    /// write: neither is logged without the other.
     #[instrument(skip(self))]
     pub async fn post_election_published(
         &self,
         event_id: String,
         election_ids_vec: Option<Vec<String>>,
         ballot_pub_id: String,
+        package: Option<ConfigurationPackageDetails>,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let election_ids = flatten_election_ids(election_ids_vec);
-        let election = ElectionIdString(election_ids.clone());
-        let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
-
-        let message = Message::election_published_message(
-            event,
-            election,
+        let messages = self.election_published_messages(
+            event_id,
+            election_ids_vec,
             ballot_pub_id,
-            &self.sd,
+            package,
             user_id,
             username,
         )?;
+        self.post_together(&messages).await
+    }
 
-        self.post(&message).await
+    fn election_published_messages(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        ballot_pub_id: String,
+        package: Option<ConfigurationPackageDetails>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Vec<Message>> {
+        let event = EventIdString(event_id);
+        let election = ElectionIdString(flatten_election_ids(election_ids_vec));
+        let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
+
+        let mut messages = vec![Message::election_published_message(
+            event.clone(),
+            election,
+            ballot_pub_id,
+            &self.sd,
+            user_id.clone(),
+            username.clone(),
+        )?];
+        if let Some(details) = package {
+            messages.push(Message::configuration_package_message(
+                event, details, &self.sd, user_id, username,
+            )?);
+        }
+        Ok(messages)
     }
 
     #[instrument(skip(self))]
@@ -1408,8 +1435,17 @@ impl ElectoralLog {
 
     #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
-        let board_message: ElectoralLogMessage = message.try_into()?;
-        let ms = vec![board_message];
+        self.post_together(std::slice::from_ref(message)).await
+    }
+
+    /// Posts `messages` in one board transaction: all of them are written,
+    /// or none is.
+    #[instrument(skip(self, messages), err)]
+    async fn post_together(&self, messages: &[Message]) -> Result<()> {
+        let ms = messages
+            .iter()
+            .map(ElectoralLogMessage::try_from)
+            .collect::<Result<Vec<_>>>()?;
 
         retry_with_exponential_backoff(
             // The closure we want to call repeatedly
@@ -2280,5 +2316,64 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod election_published_tests {
+    use super::*;
+
+    fn log() -> ElectoralLog {
+        let key = StrandSignatureSk::generate().unwrap();
+        ElectoralLog::for_system_with_signing_key("board", &key)
+    }
+
+    fn messages(package: Option<ConfigurationPackageDetails>) -> Vec<Message> {
+        log()
+            .election_published_messages(
+                "event".to_string(),
+                Some(vec!["election".to_string()]),
+                "publication".to_string(),
+                package,
+                Some("admin-id".to_string()),
+                Some("admin".to_string()),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn a_signed_configurations_publication_is_one_write_of_both_entries() {
+        let details = ConfigurationPackageDetails {
+            action: ConfigurationPackageAction::Published,
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            ballot_publication_id: Some("publication".to_string()),
+            design_digests: Vec::new(),
+        };
+        let messages = messages(Some(details.clone()));
+        assert_eq!(messages.len(), 2);
+        assert!(matches!(
+            messages[0].statement.body,
+            StatementBody::ElectionPublish(..)
+        ));
+        assert!(matches!(
+            &messages[1].statement.body,
+            StatementBody::ConfigurationPackage(_, logged) if *logged == details
+        ));
+        for message in &messages {
+            assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+            assert_eq!(message.username.as_deref(), Some("admin"));
+        }
+    }
+
+    #[test]
+    fn a_publication_without_a_package_is_the_publication_entry_alone() {
+        let messages = messages(None);
+        assert_eq!(messages.len(), 1);
+        assert!(matches!(
+            messages[0].statement.body,
+            StatementBody::ElectionPublish(..)
+        ));
     }
 }

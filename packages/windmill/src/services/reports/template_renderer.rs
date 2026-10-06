@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::report_variables::{configuration_stamp, report_manifest_of_file, stamp_template_data};
 use super::utils::get_public_asset_template;
-use crate::postgres::configuration_packages::manifest_of_event;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::signing_report_release::{
     ReleaseEncryption, ReleaseTarget, ReportEmail, ReportRelease,
@@ -34,8 +34,7 @@ use futures::future::join_all;
 use once_cell::sync::Lazy;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
-use sequent_core::election_config::archive::Artifact;
-use sequent_core::election_config::manifest::{report_manifest, report_stamp};
+use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
@@ -460,6 +459,7 @@ pub trait TemplateRenderer: Debug {
         user_tpl_document: &str,
         declared_secret_names: &HashSet<String>,
         may_read_secret_attributes: bool,
+        stamp: Option<&ConfigurationStamp>,
     ) -> Result<String> {
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
@@ -483,17 +483,23 @@ pub trait TemplateRenderer: Debug {
             )
             .await?;
         }
+        if let Some(stamp) = stamp {
+            stamp_template_data(&mut user_data_map, stamp);
+        }
         let rendered_user_template =
             reports::render_template_text(&user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
-        let system_data = self
+        let mut system_data = self
             .prepare_system_data(rendered_user_template)
             .await
             .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
             .to_map()
             .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+        if let Some(stamp) = stamp {
+            stamp_template_data(&mut system_data, stamp);
+        }
         let system_template = self
             .get_system_template()
             .await
@@ -514,6 +520,7 @@ pub trait TemplateRenderer: Debug {
         user_tpl_document: &str,
         declared_secret_names: &HashSet<String>,
         may_read_secret_attributes: bool,
+        stamp: Option<&ConfigurationStamp>,
         offset: &mut Option<i64>,
         limit: Option<i64>,
     ) -> Result<String> {
@@ -550,18 +557,24 @@ pub trait TemplateRenderer: Debug {
             )
             .await?;
         }
+        if let Some(stamp) = stamp {
+            stamp_template_data(&mut user_data_map, stamp);
+        }
 
         let rendered_user_template =
             reports::render_template_text(user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
-        let system_data = self
+        let mut system_data = self
             .prepare_system_data(rendered_user_template)
             .await
             .map_err(|e| anyhow!("Error preparing system data: {e:?}"))?
             .to_map()
             .map_err(|e| anyhow!("Error converting system data to map: {e:?}"))?;
+        if let Some(stamp) = stamp {
+            stamp_template_data(&mut system_data, stamp);
+        }
 
         let system_template = self
             .get_system_template()
@@ -694,24 +707,20 @@ pub trait TemplateRenderer: Debug {
 
         // A report of an event imported from a signed configuration is drawn
         // only with the template that configuration approved, and names it.
-        let stamp =
-            match manifest_of_event(hasura_transaction, tenant_id, election_event_id).await? {
-                Some((manifest, manifest_sha256)) => Some(
-                    report_stamp(
-                        &manifest,
-                        &manifest_sha256,
-                        &self.get_report_type().to_string(),
-                        &user_tpl_document,
-                    )
-                    .map_err(|problem| {
-                        if let Some(task) = task_execution_ref {
-                            block_on(update_fail(task, &problem.message)).ok();
-                        }
-                        anyhow!(problem.message)
-                    })?,
-                ),
-                None => None,
-            };
+        let stamp = configuration_stamp(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &self.get_report_type(),
+            &user_tpl_document,
+        )
+        .await
+        .map_err(|error| {
+            if let Some(task) = task_execution_ref {
+                block_on(update_fail(task, &error.to_string())).ok();
+            }
+            error
+        })?;
 
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
@@ -767,6 +776,7 @@ pub trait TemplateRenderer: Debug {
                                     &user_tpl_document,
                                     &declared_secret_names,
                                     may_read_secret_attributes,
+                                    stamp.as_ref(),
                                     &mut Some(offset),
                                     Some(per_report_limit),
                                 )
@@ -835,6 +845,7 @@ pub trait TemplateRenderer: Debug {
                 &user_tpl_document,
                 &declared_secret_names,
                 may_read_secret_attributes,
+                stamp.as_ref(),
                 generate_mode,
                 task_execution.clone(),
                 &ext_cfg,
@@ -849,17 +860,12 @@ pub trait TemplateRenderer: Debug {
             DocumentAnnotations::default()
         };
         if let Some(stamp) = &stamp {
-            let bytes = std::fs::read(&final_file_path)
-                .with_context(|| "Error reading the report to hash it")?;
-            let written = report_manifest(
-                &self.get_report_type().to_string(),
+            annotations.report_manifest = Some(report_manifest_of_file(
+                &self.get_report_type(),
                 stamp,
-                &[Artifact {
-                    name: final_report_name.clone(),
-                    bytes,
-                }],
-            );
-            annotations.report_manifest = Some(serde_json::to_value(&written)?);
+                &final_report_name,
+                &final_file_path,
+            )?);
         }
 
         // A report whose action needs signatures gets its signature page,
@@ -1146,6 +1152,7 @@ pub trait TemplateRenderer: Debug {
         user_tpl_document: &str,
         declared_secret_names: &HashSet<String>,
         may_read_secret_attributes: bool,
+        stamp: Option<&ConfigurationStamp>,
         generate_mode: GenerateReportMode,
         task_execution: Option<TasksExecution>,
         ext_cfg: &ReportExtraConfig,
@@ -1158,6 +1165,7 @@ pub trait TemplateRenderer: Debug {
                 &user_tpl_document,
                 declared_secret_names,
                 may_read_secret_attributes,
+                stamp,
                 &mut None,
                 None,
             )

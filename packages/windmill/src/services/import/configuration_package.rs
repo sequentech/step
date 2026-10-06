@@ -12,8 +12,9 @@ use std::io::Write;
 
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::election_config::manifest::open_package;
 use sequent_core::election_config::package_verify::{
-    admit, already_imported, crls_from_pem, freshness, importable_member, Admission,
+    admit_at, already_imported, crls_from_pem, freshness, importable_member, Admission,
     ConfigurationSigning, Freshness, VerifiedPackage, CONFIGURATION_SIGNING_SETTING,
 };
 use sequent_core::election_config::Rejected;
@@ -58,10 +59,16 @@ pub async fn admit_document(
     temp_file: NamedTempFile,
 ) -> Result<(NamedTempFile, Option<Box<VerifiedPackage>>)> {
     let bytes = std::fs::read(temp_file.path()).context("could not read the uploaded file")?;
+    // One package import per tenant at a time, from here until the importer
+    // records it: a concurrent one would not see this one's revision or the
+    // revocation lists it brings. An unsigned file reads neither.
+    if open_package(&bytes).is_ok_and(|opened| opened.is_signed()) {
+        configuration_packages::lock_imports(hasura_transaction, tenant_id).await?;
+    }
     let setting = tenant_setting(hasura_transaction, tenant_id).await?;
     let lists = configuration_packages::revocation_lists(hasura_transaction, tenant_id).await?;
 
-    let verified = match admit(&bytes, setting.as_ref(), lists) {
+    let verified = match admit_at(&bytes, setting.as_ref(), lists, chrono::Utc::now()) {
         Ok(Admission::Unsigned) => return Ok((temp_file, None)),
         Ok(Admission::Verified(verified)) => verified,
         Err(report) => return Err(anyhow::Error::new(Rejected::new(WHAT, report))),

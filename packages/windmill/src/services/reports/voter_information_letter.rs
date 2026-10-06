@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::report_variables::configuration_stamp;
 use super::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
@@ -105,6 +106,14 @@ impl VoterInformationLetterTemplate {
             .user_tpl_and_extra_cfg_provider(hasura_transaction)
             .await
             .with_context(|| "Failed to load Voter Information Letter template")?;
+        let stamp = configuration_stamp(
+            hasura_transaction,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_report_type(),
+            &user_template,
+        )
+        .await?;
         let html = self
             .generate_report_inner(
                 GenerateReportMode::REAL,
@@ -113,6 +122,7 @@ impl VoterInformationLetterTemplate {
                 &user_template,
                 &declared_secret_names,
                 self.may_read_secret_attributes,
+                stamp.as_ref(),
             )
             .await
             .with_context(|| "Failed to render Voter Information Letter template")?;

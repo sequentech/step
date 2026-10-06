@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{Document, DocumentAnnotations, SupportMaterial};
+use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -154,6 +155,48 @@ pub async fn get_document(
         .with_context(|| "Error converting rows into documents")?;
 
     Ok(documents.get(0).cloned())
+}
+
+/// The file names of `document_ids`, by id, among the event's documents and
+/// the tenant's own, which belong to no event (a candidate's imported image
+/// is one of those). A document of another event, and one without a name,
+/// is left out.
+#[instrument(err, skip(hasura_transaction, document_ids))]
+pub async fn get_event_or_tenant_document_names(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    document_ids: &[String],
+) -> Result<HashMap<String, String>> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let document_uuids = document_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id).with_context(|| "Error parsing document_id as UUID"))
+        .collect::<Result<Vec<Uuid>>>()?;
+
+    let rows = hasura_transaction
+        .query(
+            r#"
+            SELECT id, name
+            FROM "sequent_backend".document
+            WHERE
+                tenant_id = $1
+                AND (election_event_id = $2 OR election_event_id IS NULL)
+                AND id = ANY($3)
+                AND name IS NOT NULL
+            "#,
+            &[&tenant_uuid, &election_event_uuid, &document_uuids],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the document names query: {err}"))?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| (row.get::<_, Uuid>(0).to_string(), row.get(1)))
+        .collect())
 }
 
 #[instrument(err, skip(hasura_transaction, document_ids))]

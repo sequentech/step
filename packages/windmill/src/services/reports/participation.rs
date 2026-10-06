@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::report_variables::{
-    calc_voters_turnout, configuration_footer, get_app_hash, get_app_version, get_date_and_time,
-    get_report_hash, ExecutionAnnotations,
+    calc_voters_turnout, get_app_hash, get_app_version, get_date_and_time, get_report_hash,
+    ExecutionAnnotations,
 };
 use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
@@ -259,12 +259,6 @@ impl TemplateRenderer for ParticipationReportTemplate {
         let participation_percentage =
             calc_voters_turnout(cast_vote_stats.voted_voters, total_voters)?.unwrap_or(0.0);
         let generated_at = get_date_and_time();
-        let configuration = configuration_footer(
-            hasura_transaction,
-            &self.ids.tenant_id,
-            &self.ids.election_event_id,
-        )
-        .await?;
 
         Ok(UserData {
             execution_annotations: ExecutionAnnotations {
@@ -275,10 +269,6 @@ impl TemplateRenderer for ParticipationReportTemplate {
                 app_hash: get_app_hash(),
                 executer_username: self.ids.executer_username.clone(),
                 results_hash: None,
-                configuration_revision: configuration
-                    .as_ref()
-                    .map(|(revision, _)| revision.clone()),
-                configuration_manifest_sha256: configuration.map(|(_, digest)| digest),
             },
             participation: ParticipationReportStats {
                 scope: if self.ids.election_id.is_some() {

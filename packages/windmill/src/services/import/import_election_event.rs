@@ -1623,7 +1623,7 @@ pub async fn process_document(
             &tenant_id,
             &election_event_id,
             &package,
-            secret_write_initiator.as_ref(),
+            importer.as_ref(),
         )
         .await?;
     }

@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::report_variables::{configuration_stamp_without_template, report_manifest_of_file};
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
-use crate::services::documents::upload_and_return_document;
+use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
@@ -16,7 +17,7 @@ use electoral_log::messages::message::Message;
 use electoral_log::ElectoralLogMessage;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3::get_minio_url;
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -421,7 +422,30 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let file_size =
                 get_file_size(&temp_path_string).with_context(|| "Error obtaining file size")?;
 
-            let _document = upload_and_return_document(
+            // A CSV has no footer to print the configuration in: its
+            // document's hash manifest names it.
+            let stamp = configuration_stamp_without_template(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+            )
+            .await?;
+            let annotations = DocumentAnnotations {
+                report_manifest: stamp
+                    .as_ref()
+                    .map(|stamp| {
+                        report_manifest_of_file(
+                            &self.get_report_type(),
+                            stamp,
+                            &full_name,
+                            &temp_path_string,
+                        )
+                    })
+                    .transpose()?,
+                ..Default::default()
+            };
+
+            let _document = upload_and_return_document_with_annotations(
                 hasura_transaction,
                 &temp_path_string.clone(),
                 file_size,
@@ -431,6 +455,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 &full_name.clone(),
                 Some(document_id.to_string()),
                 false,
+                &annotations,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;

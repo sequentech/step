@@ -22,7 +22,7 @@ use crate::postgres::ballot_style::get_publication_ballot_styles;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::configuration_packages::manifest_of_event;
 use crate::postgres::contest::export_contests;
-use crate::postgres::document::get_document;
+use crate::postgres::document::get_event_or_tenant_document_names;
 use crate::postgres::election::get_elections;
 
 /// What the check found for a publication of a signed configuration.
@@ -55,20 +55,19 @@ pub async fn check_publication_designs(
     let candidates = export_candidates(hasura_transaction, tenant_id, election_event_id).await?;
     let mut keys = DesignKeys::of_entities(&areas, &elections, &contests, &candidates)
         .map_err(|problem| anyhow!(problem.message))?;
-    for document_id in candidates
+    let image_ids: Vec<String> = candidates
         .iter()
         .filter_map(|candidate| candidate.image_document_id.clone())
-    {
-        let document = get_document(
-            hasura_transaction,
-            tenant_id,
-            Some(election_event_id.to_string()),
-            &document_id,
-        )
-        .await?;
-        if let Some(name) = document.and_then(|document| document.name) {
-            keys = keys.with_document(&document_id, &name);
-        }
+        .collect();
+    let image_names = get_event_or_tenant_document_names(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &image_ids,
+    )
+    .await?;
+    for (document_id, name) in &image_names {
+        keys = keys.with_document(document_id, name);
     }
 
     let styles = get_publication_ballot_styles(

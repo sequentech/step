@@ -22,17 +22,23 @@ use base64::Engine;
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::archive::{zip, Artifact};
 use sequent_core::election_config::manifest::{
-    approval_payload, file_entries, package, Approval, ConfigurationRevision, Content, Manifest,
-    ManifestFormat, Produced,
+    approval_payload, file_entries, package, sha256_hex, Approval, ConfigurationRevision, Content,
+    Manifest, ManifestFormat, Produced, ReportFormat, ReportSetting,
 };
 use sequent_core::signing::SignatureAlgorithm;
 use serde_json::json;
 use signing_pki::{crl, crl_number, crl_with, ec_key, issued, pki_now, Issued, Pki, Spec};
+use std::time::Duration;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 use windmill::postgres::configuration_packages;
+use windmill::postgres::document::get_event_or_tenant_document_names;
+use windmill::postgres::reports::ReportType;
 use windmill::services::import::configuration_package::{admit_document, record};
 use windmill::services::import::rejection::problems_of;
+use windmill::services::reports::report_variables::{
+    configuration_stamp, configuration_stamp_without_template,
+};
 
 const SIGNING_KEY_SERIAL: u32 = 4001;
 
@@ -97,10 +103,14 @@ fn approval(
 }
 
 fn signed_package(revision: u64) -> Vec<u8> {
+    signed_package_with_reports(revision, Vec::new())
+}
+
+fn signed_package_with_reports(revision: u64, reports: Vec<ReportSetting>) -> Vec<u8> {
     let content = Content {
         files: file_entries(&members()).unwrap(),
         ballot_designs: Vec::new(),
-        reports: Vec::new(),
+        reports,
     };
     let mut manifest = Manifest {
         format: ManifestFormat::V1,
@@ -330,5 +340,261 @@ async fn a_tenant_without_the_setting_imports_unsigned_files_as_before() {
         .await
         .unwrap_err();
     assert_eq!(ids(&refused), vec!["package.untrusted-signer"]);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_import_waits_for_the_tenants_import_in_progress() {
+    // Two connections, as two import tasks have. The tenant is committed so
+    // both see it.
+    let pool = schema::pool().await;
+    let mut setup = pool.get().await.unwrap();
+    let setup_tx = setup.transaction().await.unwrap();
+    let tenant = tenant(&setup_tx, "required").await;
+    setup_tx.commit().await.unwrap();
+
+    let mut first = pool.get().await.unwrap();
+    let mut second = pool.get().await.unwrap();
+    let first_tx = first.transaction().await.unwrap();
+    let (_, newer) = admit_document(&first_tx, &tenant, file_of(&signed_package(2)))
+        .await
+        .unwrap();
+
+    let second_tx = second.transaction().await.unwrap();
+    let older = admit_document(&second_tx, &tenant, file_of(&signed_package(1)));
+    tokio::pin!(older);
+    assert!(
+        tokio::time::timeout(Duration::from_millis(500), &mut older)
+            .await
+            .is_err(),
+        "the second import was admitted while the first had not finished"
+    );
+
+    record(
+        &first_tx,
+        &tenant,
+        &Uuid::new_v4().to_string(),
+        &newer.unwrap(),
+    )
+    .await
+    .unwrap();
+    first_tx.commit().await.unwrap();
+
+    let refused = older.await.unwrap_err();
+    assert_eq!(ids(&refused), vec!["package.rollback"]);
+}
+
+#[tokio::test]
+async fn an_unsigned_import_does_not_wait_for_a_package_import() {
+    let pool = schema::pool().await;
+    let mut setup = pool.get().await.unwrap();
+    let setup_tx = setup.transaction().await.unwrap();
+    let tenant = tenant(&setup_tx, "optional").await;
+    setup_tx.commit().await.unwrap();
+
+    let mut first = pool.get().await.unwrap();
+    let mut second = pool.get().await.unwrap();
+    let first_tx = first.transaction().await.unwrap();
+    admit_document(&first_tx, &tenant, file_of(&signed_package(1)))
+        .await
+        .unwrap();
+
+    let second_tx = second.transaction().await.unwrap();
+    let plain = zip(&members()).unwrap();
+    let (_, package) = tokio::time::timeout(
+        Duration::from_secs(5),
+        admit_document(&second_tx, &tenant, file_of(&plain)),
+    )
+    .await
+    .expect("an unsigned import reads nothing the lock protects")
+    .unwrap();
+    assert!(package.is_none());
+    first_tx.rollback().await.unwrap();
+}
+
+async fn event(tx: &Transaction<'_>, tenant: &str) -> String {
+    let id = Uuid::new_v4();
+    tx.execute(
+        "INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol)
+         VALUES ($1, $2, 'RSA256')",
+        &[&id, &Uuid::parse_str(tenant).unwrap()],
+    )
+    .await
+    .unwrap();
+    id.to_string()
+}
+
+async fn document(tx: &Transaction<'_>, tenant: &str, event: Option<&str>, name: &str) -> String {
+    let id = Uuid::new_v4();
+    tx.execute(
+        "INSERT INTO sequent_backend.document (id, tenant_id, election_event_id, name)
+         VALUES ($1, $2, $3, $4)",
+        &[
+            &id,
+            &Uuid::parse_str(tenant).unwrap(),
+            &event.map(|event| Uuid::parse_str(event).unwrap()),
+            &name,
+        ],
+    )
+    .await
+    .unwrap();
+    id.to_string()
+}
+
+#[tokio::test]
+async fn an_imported_candidate_image_is_found_among_the_tenants_documents() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = tenant(&tx, "required").await;
+    let other_tenant = self::tenant(&tx, "required").await;
+    let event = event(&tx, &tenant).await;
+    let other_event = self::event(&tx, &tenant).await;
+
+    // The importer stores a candidate's image with no event.
+    let imported = document(&tx, &tenant, None, "maria-santos.png").await;
+    let uploaded = document(&tx, &tenant, Some(&event), "jose-reyes.png").await;
+    let elsewhere = document(&tx, &tenant, Some(&other_event), "elsewhere.png").await;
+    let foreign = document(&tx, &other_tenant, None, "foreign.png").await;
+    let unknown = Uuid::new_v4().to_string();
+
+    let names = get_event_or_tenant_document_names(
+        &tx,
+        &tenant,
+        &event,
+        &[
+            imported.clone(),
+            uploaded.clone(),
+            elsewhere,
+            foreign,
+            unknown,
+        ],
+    )
+    .await
+    .unwrap();
+    assert_eq!(names.len(), 2);
+    assert_eq!(names[&imported], "maria-santos.png");
+    assert_eq!(names[&uploaded], "jose-reyes.png");
+
+    assert!(
+        get_event_or_tenant_document_names(&tx, &tenant, &event, &[])
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    tx.rollback().await.unwrap();
+}
+
+const APPROVED_TEMPLATE: &str = "<h1>{{election_name}}</h1>";
+
+#[tokio::test]
+async fn a_report_is_stamped_only_with_the_template_its_configuration_approved() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = tenant(&tx, "required").await;
+    let event = Uuid::new_v4().to_string();
+    let reports = vec![
+        ReportSetting {
+            report_type: ReportType::ELECTORAL_RESULTS.to_string(),
+            formats: vec![ReportFormat::Pdf],
+            copies: 1,
+            template: Some("results".to_string()),
+            template_sha256: Some(sha256_hex(APPROVED_TEMPLATE.as_bytes())),
+        },
+        ReportSetting {
+            report_type: ReportType::ACTIVITY_LOGS.to_string(),
+            formats: vec![ReportFormat::Csv],
+            copies: 1,
+            template: None,
+            template_sha256: None,
+        },
+    ];
+    let (_, package) = admit_document(
+        &tx,
+        &tenant,
+        file_of(&signed_package_with_reports(4, reports)),
+    )
+    .await
+    .unwrap();
+    let package = package.expect("a verified package");
+    record(&tx, &tenant, &event, &package).await.unwrap();
+
+    let stamp = configuration_stamp(
+        &tx,
+        &tenant,
+        &event,
+        &ReportType::ELECTORAL_RESULTS,
+        APPROVED_TEMPLATE,
+    )
+    .await
+    .unwrap()
+    .expect("the event's stamp");
+    assert_eq!(stamp.external_id, "ov-2028");
+    assert_eq!(stamp.revision, 4);
+    assert_eq!(stamp.manifest_sha256, package.manifest_sha256);
+    assert_eq!(
+        stamp.template_sha256,
+        sha256_hex(APPROVED_TEMPLATE.as_bytes())
+    );
+
+    // The tally's results report with another template, or with none.
+    for changed in ["<h1>Results</h1>", ""] {
+        let refused = configuration_stamp(
+            &tx,
+            &tenant,
+            &event,
+            &ReportType::ELECTORAL_RESULTS,
+            changed,
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            refused
+                .to_string()
+                .contains("not the one the signed configuration approved"),
+            "{refused}"
+        );
+    }
+
+    // A report the configuration sets no design for takes any template.
+    for report_type in [ReportType::ACTIVITY_LOGS, ReportType::BALLOT_RECEIPT] {
+        let stamp = configuration_stamp(&tx, &tenant, &event, &report_type, "<p>any</p>")
+            .await
+            .unwrap()
+            .expect("the event's stamp");
+        assert_eq!(stamp.revision, 4);
+        assert_eq!(stamp.template_sha256, sha256_hex(b"<p>any</p>"));
+    }
+
+    let without = configuration_stamp_without_template(&tx, &tenant, &event)
+        .await
+        .unwrap()
+        .expect("the event's stamp");
+    assert_eq!(without.revision, 4);
+    assert_eq!(without.manifest_sha256, package.manifest_sha256);
+    assert_eq!(without.template_sha256, sha256_hex(b""));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_event_without_a_package_has_no_stamp() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant = tenant(&tx, "optional").await;
+    let event = Uuid::new_v4().to_string();
+
+    assert!(configuration_stamp(
+        &tx,
+        &tenant,
+        &event,
+        &ReportType::ELECTORAL_RESULTS,
+        "<h1>Results</h1>",
+    )
+    .await
+    .unwrap()
+    .is_none());
+    assert!(configuration_stamp_without_template(&tx, &tenant, &event)
+        .await
+        .unwrap()
+        .is_none());
     tx.rollback().await.unwrap();
 }

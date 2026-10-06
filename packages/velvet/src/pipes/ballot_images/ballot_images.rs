@@ -83,7 +83,10 @@ impl BallotImages {
         };
 
         info!("election_input: {}", election_input.name);
-        let data = compute_data(data);
+        let mut data = compute_data(data);
+        if let Some(annotations) = &pipe_config.execution_annotations {
+            data.execution_annotations.extend(annotations.clone());
+        }
 
         let mut map = Map::new();
         map.insert("data".to_string(), serde_json::to_value(&data)?);

@@ -15,7 +15,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
 use crate::services::reports::ballot_images::BallotImagesTemplate;
 use crate::services::reports::report_variables::{
-    configuration_footer, get_app_hash, get_app_version, get_report_hash,
+    configuration_annotations, configuration_stamp, get_app_hash, get_app_version, get_report_hash,
 };
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -29,6 +29,7 @@ use sequent_core::ballot::{
     BallotStyle, Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
 };
 use sequent_core::ballot_codec::PlaintextCodec;
+use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::s3;
@@ -521,6 +522,22 @@ pub async fn call_velvet(base_tally_path: PathBuf, pipe_id: &str) -> Result<Stat
     state_opt.ok_or_else(|| anyhow!("State unexpectedly None at the end of processing"))
 }
 
+/// The report a tally of `tally_type` draws.
+fn tally_report_type(tally_type: &TallyType) -> ReportType {
+    match tally_type {
+        TallyType::ELECTORAL_RESULTS => ReportType::ELECTORAL_RESULTS,
+        TallyType::INITIALIZATION_REPORT => ReportType::INITIALIZATION_REPORT,
+    }
+}
+
+/// The stamp as Velvet's execution annotations carry it.
+fn stamp_annotations(stamp: &ConfigurationStamp) -> HashMap<String, String> {
+    configuration_annotations(stamp)
+        .into_iter()
+        .map(|(name, value)| (name.to_string(), value))
+        .collect()
+}
+
 #[derive(Debug, Serialize, Clone)]
 struct VelvetTemplateData {
     pub title: String,
@@ -553,6 +570,14 @@ pub async fn build_ballot_images_pipe_config(
         .user_tpl_and_extra_cfg_provider(hasura_transaction)
         .await
         .map_err(|e| anyhow!("Error providing the user template and extra config: {e:?}"))?;
+    let stamp = configuration_stamp(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &ReportType::BALLOT_IMAGES,
+        &user_tpl_document,
+    )
+    .await?;
 
     let ballot_imagest_system_template = ballot_images_renderer
         .get_system_template()
@@ -580,7 +605,7 @@ pub async fn build_ballot_images_pipe_config(
         enable_pdfs: true,
         pdf_options: Some(ext_cfg.pdf_options),
         report_options: Some(ext_cfg.report_options),
-        execution_annotations: None,
+        execution_annotations: stamp.as_ref().map(stamp_annotations),
         acm_key: Some(acm_key),
     };
     Ok(ballot_images_pipe_config)
@@ -594,7 +619,7 @@ async fn build_reports_pipe_config(
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
-    configuration: Option<(String, String)>,
+    stamp: Option<&ConfigurationStamp>,
 ) -> Result<PipeConfigGenerateReports> {
     let extra_data = VelvetTemplateData {
         title: String::new(),
@@ -630,9 +655,8 @@ async fn build_reports_pipe_config(
         ("report_hash".to_string(), report_hash),
         ("executer_username".to_string(), tally_executer_username),
     ]);
-    if let Some((revision, manifest_sha256)) = configuration {
-        execution_annotations.insert("configuration_revision".to_string(), revision);
-        execution_annotations.insert("configuration_manifest_sha256".to_string(), manifest_sha256);
+    if let Some(stamp) = stamp {
+        execution_annotations.extend(stamp_annotations(stamp));
     }
 
     Ok(PipeConfigGenerateReports {
@@ -655,7 +679,7 @@ pub async fn create_config_file(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_session: &TallySession,
     tally_type: TallyType,
-    configuration: Option<(String, String)>,
+    stamp: Option<&ConfigurationStamp>,
 ) -> Result<()> {
     let contest_encryption_policy = tally_session
         .configuration
@@ -679,7 +703,7 @@ pub async fn create_config_file(
         report_system_template,
         pdf_options,
         tally_type,
-        configuration,
+        stamp,
     )
     .await?;
 
@@ -909,6 +933,18 @@ pub async fn run_velvet_tally(
     tally_type: TallyType,
     tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
+    // Before anything is tallied: an event imported from a signed
+    // configuration reports its results only with the template that
+    // configuration approved.
+    let stamp = configuration_stamp(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+        &tally_report_type(&tally_type),
+        report_content_template.as_deref().unwrap_or_default(),
+    )
+    .await?;
+
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
@@ -937,12 +973,6 @@ pub async fn run_velvet_tally(
     )
     .await?;
 
-    let configuration = configuration_footer(
-        hasura_transaction,
-        &election_event.tenant_id,
-        &election_event.id,
-    )
-    .await?;
     create_config_file(
         base_tally_path.clone(),
         report_content_template,
@@ -950,7 +980,7 @@ pub async fn run_velvet_tally(
         pdf_options,
         tally_session,
         tally_type,
-        configuration,
+        stamp.as_ref(),
     )
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await

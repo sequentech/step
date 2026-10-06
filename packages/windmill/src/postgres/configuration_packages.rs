@@ -13,6 +13,25 @@ use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sha2::{Digest, Sha256};
 use tracing::instrument;
 
+/// Names the advisory lock that serializes a tenant's package imports.
+const IMPORT_LOCK_NAMESPACE: &str = "configuration-package-import";
+
+/// Holds the tenant's other package imports back until this transaction
+/// ends, so the revocation lists and the last revision an import reads are
+/// the ones every earlier import left.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_imports(hasura_transaction: &Transaction<'_>, tenant_id: &str) -> Result<()> {
+    let lock_key = format!("{IMPORT_LOCK_NAMESPACE}:{}", parse_uuid_v4(tenant_id)?);
+    hasura_transaction
+        .query_one(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&lock_key],
+        )
+        .await
+        .context("could not lock the tenant's configuration package imports")?;
+    Ok(())
+}
+
 /// The newest package imported for a configuration.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn last_import(
