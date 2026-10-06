@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::add_ballot_image_time_variables;
+use super::ballot_images::BALLOT_IMAGES_REPORT_TYPE;
 use crate::config::ballot_images_config::{PipeConfigBallotImages, DEFAULT_MCBALLOT_TITLE};
 use crate::pipes::decode_ballots::decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
+use crate::pipes::report_manifest::write_folder_manifest;
 use crate::pipes::Pipe;
 use anyhow::{anyhow, Context};
 use csv::Writer;
@@ -665,6 +667,10 @@ impl Pipe for MCBallotImages {
                     // A missing PDF or manifest is an incomplete output. Let
                     // the caller stop the pipeline rather than announce success.
                     result?;
+
+                    if let Some(stamp) = &pipe_config.configuration {
+                        write_folder_manifest(&path, BALLOT_IMAGES_REPORT_TYPE, stamp)?;
+                    }
                 } else {
                     println!(
                         "[{}] File not found: {} -- Not processed",

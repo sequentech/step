@@ -2,12 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::report_variables::{configuration_stamp_without_template, report_manifest_of_file};
+use super::generation::{
+    attach_report_manifest, write_report_manifest, GeneratedFile, ReportRequester,
+};
+use super::report_variables::configuration_stamp_without_template;
 use super::template_renderer::*;
 use super::template_time::load_i18n_defaults;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::{Report, ReportType};
+use crate::postgres::reports::{Report, ReportFormat as OutputFormat, ReportType};
 use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::electoral_log::{
     count_electoral_log, ElectoralLogRow, GetElectoralLogBody, MinuteRange, OrderField,
@@ -25,6 +28,7 @@ use deadpool_postgres::Transaction;
 use electoral_log::messages::message::Message;
 use electoral_log::ElectoralLogMessage;
 use sequent_core::ballot::{ElectionEventPresentation, ElectionPresentation};
+use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::services::reports::{template_time_variables, DateTimeZoneStyle, TimeZoneTexts};
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::time_zones::log_time_zone;
@@ -33,7 +37,9 @@ use sequent_core::types::templates::{ReportExtraConfig, SendTemplateBody};
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Write;
 use std::mem;
+use std::path::Path;
 use strand::serialization::StrandDeserialize;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
@@ -258,18 +264,36 @@ pub struct SystemData {
 pub struct ActivityLogsTemplate {
     ids: ReportOrigins,
     report_format: ReportFormat,
+    formats: Vec<OutputFormat>,
     options: ActivityLogExportOptions,
     zones: OnceCell<LogZones>,
 }
 
 impl ActivityLogsTemplate {
+    /// An export in the one format its caller chose.
     pub fn new(ids: ReportOrigins, report_format: ReportFormat) -> Self {
         ActivityLogsTemplate {
             ids,
             report_format,
+            formats: vec![match report_format {
+                ReportFormat::CSV => OutputFormat::Csv,
+                ReportFormat::PDF => OutputFormat::Pdf,
+            }],
             options: ActivityLogExportOptions::default(),
             zones: OnceCell::new(),
         }
+    }
+
+    /// The report in the formats its definition asks for.
+    pub fn in_formats(ids: ReportOrigins, formats: Vec<OutputFormat>) -> Self {
+        ActivityLogsTemplate {
+            formats,
+            ..Self::new(ids, ReportFormat::PDF)
+        }
+    }
+
+    fn export_name(&self) -> String {
+        format!("export-election-event-logs-{}", self.ids.election_event_id)
     }
 
     /// The export's range as the log list's filter (inclusive to the minute).
@@ -356,6 +380,57 @@ impl ActivityLogsTemplate {
         name: &str,
         zones: &LogZones,
     ) -> Result<NamedTempFile> {
+        let mut temp_file =
+            generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
+        let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+        self.export_rows(zones, |row| {
+            csv_writer
+                .serialize(row)
+                .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))
+        })
+        .await?;
+        csv_writer
+            .flush()
+            .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
+        drop(csv_writer);
+
+        Ok(temp_file)
+    }
+
+    /// The same rows as PostgreSQL statements: the table and an `INSERT` for
+    /// each row, in one transaction. Its first line names the configuration
+    /// of an event imported from a signed one.
+    #[instrument(err, skip(self, zones, stamp))]
+    pub async fn generate_export_sql_data_in(
+        &self,
+        name: &str,
+        zones: &LogZones,
+        stamp: Option<&ConfigurationStamp>,
+    ) -> Result<NamedTempFile> {
+        let mut temp_file =
+            generate_temp_file(name, ".sql").with_context(|| "Error creating named temp file")?;
+        let file = temp_file.as_file_mut();
+        file.write_all(sql_header(stamp).as_bytes())
+            .context("Error writing the SQL export")?;
+        self.export_rows(zones, |row| {
+            file.write_all(sql_insert(&row).as_bytes())
+                .context("Error writing the SQL export")
+        })
+        .await?;
+        file.write_all(SQL_FOOTER.as_bytes())
+            .context("Error writing the SQL export")?;
+        file.flush().context("Error flushing the SQL export")?;
+
+        Ok(temp_file)
+    }
+
+    /// Each row in the export's range, in the order of the board, streamed
+    /// from it in batches.
+    async fn export_rows(
+        &self,
+        zones: &LogZones,
+        mut write: impl FnMut(ElectoralLogCsvRow) -> Result<()>,
+    ) -> Result<()> {
         let range = self.options.range()?;
         let limit = IMMUDB_ROWS_LIMIT as i64;
         let mut last_id: i64 = 0;
@@ -367,10 +442,6 @@ impl ActivityLogsTemplate {
         );
 
         let mut board_client = get_board_client().await?;
-
-        let mut temp_file =
-            generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
-        let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
 
         loop {
             info!("last_id: {last_id}");
@@ -394,9 +465,7 @@ impl ActivityLogsTemplate {
                 }
                 let row = ElectoralLogCsvRow::new(entry, zones)
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
-                csv_writer
-                    .serialize(row)
-                    .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
+                write(row)?;
             }
 
             if is_last_batch {
@@ -404,13 +473,67 @@ impl ActivityLogsTemplate {
             }
         }
 
-        csv_writer
-            .flush()
-            .map_err(|e| anyhow!("Error flushing CSV writer: {e:?}"))?;
-        drop(csv_writer);
-
-        Ok(temp_file)
+        Ok(())
     }
+}
+
+/// The table an SQL export of the log fills.
+pub const SQL_TABLE: &str = "electoral_log";
+const SQL_FOOTER: &str = "COMMIT;\n";
+
+/// A text as an SQL literal. PostgreSQL text holds no NUL.
+fn sql_text(value: &str) -> String {
+    format!("'{}'", value.replace('\0', "").replace('\'', "''"))
+}
+
+fn sql_optional_text(value: Option<&str>) -> String {
+    value.map(sql_text).unwrap_or_else(|| "NULL".to_string())
+}
+
+/// What an SQL export starts with: the configuration it came from, as a
+/// comment, for an event imported from a signed one, and the table.
+pub fn sql_header(stamp: Option<&ConfigurationStamp>) -> String {
+    let comment = stamp
+        .map(|stamp| format!("-- {}\n", stamp.line()))
+        .unwrap_or_default();
+    format!(
+        "{comment}BEGIN;\n\
+         CREATE TABLE {SQL_TABLE} (\n  \
+         id BIGINT PRIMARY KEY,\n  \
+         created BIGINT NOT NULL,\n  \
+         statement_timestamp BIGINT NOT NULL,\n  \
+         statement_kind TEXT NOT NULL,\n  \
+         message TEXT NOT NULL,\n  \
+         data TEXT NOT NULL,\n  \
+         user_id TEXT,\n  \
+         username TEXT,\n  \
+         event_type TEXT NOT NULL,\n  \
+         log_type TEXT NOT NULL,\n  \
+         created_utc TIMESTAMPTZ NOT NULL,\n  \
+         created_local TEXT NOT NULL,\n  \
+         time_zone TEXT NOT NULL\n\
+         );\n"
+    )
+}
+
+/// A row of the log as its `INSERT`, on one line.
+pub fn sql_insert(row: &ElectoralLogCsvRow) -> String {
+    format!(
+        "INSERT INTO {SQL_TABLE} VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {});\n",
+        row.id,
+        row.created,
+        row.statement_timestamp,
+        sql_text(&row.statement_kind),
+        sql_text(&row.message),
+        sql_text(&row.data.replace('\n', " ").replace('\r', " ")),
+        sql_optional_text(row.user_id.as_deref()),
+        sql_optional_text(row.username.as_deref()),
+        sql_text(&row.event_type),
+        sql_text(&row.log_type),
+        sql_text(&row.created_utc),
+        sql_text(&row.created_local),
+        sql_text(&row.time_zone),
+    )
 }
 
 impl ActivityLogRow {
@@ -612,6 +735,46 @@ impl TemplateRenderer for ActivityLogsTemplate {
         })
     }
 
+    /// The formats it was built for: the one an export from the Logs tab
+    /// asked for, or those the Reports tab read from its report.
+    fn output_formats(&self, _report: Option<&Report>) -> Result<Vec<OutputFormat>> {
+        Ok(self.formats.clone())
+    }
+
+    fn requested_by(&self) -> Option<String> {
+        self.ids.executer_username.clone()
+    }
+
+    #[instrument(err, skip_all)]
+    async fn write_format(
+        &self,
+        format: OutputFormat,
+        hasura_transaction: &Transaction<'_>,
+        stamp: Option<&ConfigurationStamp>,
+        directory: &Path,
+    ) -> Result<Option<GeneratedFile>> {
+        let name = self.export_name();
+        let zones = self.log_zones(hasura_transaction).await?;
+        let temp_file = match format {
+            // A line that is not a row would be read as one by the importer
+            // of this file: its configuration is named in the hash manifest
+            // stored with it.
+            OutputFormat::Csv => self.generate_export_csv_data_in(&name, zones).await,
+            OutputFormat::Sql => self.generate_export_sql_data_in(&name, zones, stamp).await,
+            OutputFormat::Pdf | OutputFormat::Xml => return Ok(None),
+        }
+        .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+        let full_name = format!("{name}.{}", format.extension());
+        let path = directory.join(&full_name);
+        std::fs::copy(temp_file.path(), &path)
+            .with_context(|| format!("Error writing {full_name}"))?;
+        Ok(Some(GeneratedFile {
+            name: full_name,
+            path: path.to_string_lossy().to_string(),
+            media_type: format.media_type().to_string(),
+        }))
+    }
+
     #[instrument(err, skip_all)]
     async fn execute_report(
         &self,
@@ -670,20 +833,32 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 election_event_id,
             )
             .await?;
-            let annotations = DocumentAnnotations {
-                report_manifest: stamp
-                    .as_ref()
-                    .map(|stamp| {
-                        report_manifest_of_file(
-                            &self.get_report_type(),
-                            stamp,
-                            &full_name,
-                            &temp_path_string,
-                        )
-                    })
-                    .transpose()?,
-                ..Default::default()
-            };
+            let report_manifest = stamp
+                .as_ref()
+                .map(|stamp| {
+                    write_report_manifest(
+                        &self.get_report_type(),
+                        stamp,
+                        &[GeneratedFile {
+                            name: full_name.clone(),
+                            path: temp_path_string.clone(),
+                            media_type: OutputFormat::Csv.media_type().to_string(),
+                        }],
+                    )
+                })
+                .transpose()?;
+            let mut annotations = DocumentAnnotations::default();
+            if let Some(written) = &report_manifest {
+                attach_report_manifest(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    written,
+                    &ReportRequester::named(self.requested_by()),
+                    &mut annotations,
+                )
+                .await?;
+            }
 
             let _document = upload_and_return_document_with_annotations(
                 hasura_transaction,
@@ -1038,6 +1213,96 @@ mod tests {
                 OrderField::CreatedFrom,
                 "2028-04-01T00:00:00+08:00".to_string()
             )]))
+        );
+    }
+
+    fn origins() -> ReportOrigins {
+        ReportOrigins {
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: None,
+            template_alias: None,
+            voter_id: None,
+            report_origin: ReportOriginatedFrom::ReportsTab,
+            executer_username: None,
+            tally_session_id: None,
+        }
+    }
+
+    #[test]
+    fn an_export_writes_the_format_its_caller_chose_and_a_report_those_it_asks_for() {
+        let csv = ActivityLogsTemplate::new(origins(), ReportFormat::CSV);
+        assert_eq!(csv.output_formats(None).unwrap(), vec![OutputFormat::Csv]);
+        let pdf = ActivityLogsTemplate::new(origins(), ReportFormat::PDF);
+        assert_eq!(pdf.output_formats(None).unwrap(), vec![OutputFormat::Pdf]);
+
+        let asked = vec![OutputFormat::Pdf, OutputFormat::Csv, OutputFormat::Sql];
+        let report = ActivityLogsTemplate::in_formats(origins(), asked.clone());
+        assert_eq!(report.output_formats(None).unwrap(), asked);
+        assert_eq!(report.report_format, ReportFormat::PDF);
+        assert_eq!(report.export_name(), "export-election-event-logs-event");
+    }
+
+    fn sql_row() -> ElectoralLogCsvRow {
+        let (event, elections) = configurations().remove(0);
+        let zones = LogZones::new(Some(Tz::UTC), Some(&event), &elections);
+        let mut row = ElectoralLogCsvRow::new(entry(None, "2028-04-08T22:00:03Z"), &zones).unwrap();
+        row.message = "the voter's ballot; DROP TABLE electoral_log; --".to_string();
+        row.data = "line one\nline two\0".to_string();
+        row.user_id = None;
+        row.username = Some("o'brien".to_string());
+        row
+    }
+
+    #[test]
+    fn the_sql_export_names_the_configuration_in_its_first_line() {
+        let stamp = ConfigurationStamp {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            template_sha256: "cd".repeat(32),
+        };
+        let stamped = sql_header(Some(&stamp));
+        assert_eq!(
+            stamped.lines().next(),
+            Some(
+                format!(
+                    "-- Configuration revision 3, manifest SHA-256 {}",
+                    "ab".repeat(32)
+                )
+                .as_str()
+            )
+        );
+
+        let plain = sql_header(None);
+        assert!(plain.starts_with("BEGIN;\nCREATE TABLE electoral_log (\n  id BIGINT PRIMARY KEY,"));
+        assert!(plain.ends_with("time_zone TEXT NOT NULL\n);\n"));
+        assert_eq!(
+            stamped.lines().skip(1).collect::<Vec<_>>(),
+            plain.lines().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn the_sql_export_writes_each_row_as_one_statement_that_cannot_end_early() {
+        let row = sql_row();
+        let statement = sql_insert(&row);
+        assert_eq!(statement.matches('\n').count(), 1);
+        assert!(statement.ends_with(");\n"));
+        assert_eq!(
+            statement,
+            format!(
+                "INSERT INTO electoral_log VALUES ({}, {}, {}, '{}', \
+                 'the voter''s ballot; DROP TABLE electoral_log; --', 'line one line two', \
+                 NULL, 'o''brien', '{}', '{}', '2028-04-08T22:00:03Z', \
+                 '2028-04-08T22:00:03+00:00', 'UTC');\n",
+                row.id,
+                row.created,
+                row.statement_timestamp,
+                row.statement_kind,
+                row.event_type,
+                row.log_type,
+            )
         );
     }
 

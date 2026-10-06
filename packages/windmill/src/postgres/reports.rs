@@ -435,6 +435,41 @@ pub async fn insert_reports(
     Ok(())
 }
 
+/// How many copies the event prints of the `report_type` reports a tally
+/// draws for all its elections at once: the event's own setting, else the
+/// most any of its elections asks for. `None` when no report sets copies.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_report_copies(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &ReportType,
+) -> Result<Option<u32>> {
+    let tenant_uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .with_context(|| "Error parsing election_event_id as UUID")?;
+    let row = hasura_transaction
+        .query_opt(
+            r#"
+            SELECT copies
+            FROM "sequent_backend".report
+            WHERE tenant_id = $1
+              AND election_event_id = $2
+              AND report_type = $3
+              AND copies IS NOT NULL
+            ORDER BY (election_id IS NULL) DESC, copies DESC
+            LIMIT 1
+            "#,
+            &[&tenant_uuid, &election_event_uuid, &report_type.to_string()],
+        )
+        .await
+        .map_err(|err| anyhow!("Error reading the report's copies: {err}"))?;
+    row.map(|row| u32::try_from(row.get::<_, i32>("copies")))
+        .transpose()
+        .map_err(|err| anyhow!("Error reading the report's copies: {err}"))
+}
+
 #[instrument(skip_all, err)]
 pub async fn get_report_by_type(
     hasura_transaction: &Transaction<'_>,

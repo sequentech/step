@@ -173,6 +173,78 @@ impl ReportType {
             | ReportType::CREDENTIALS => &[ReportFormat::Pdf],
         }
     }
+
+    /// The formats a generation of this report writes itself. The election
+    /// returns' XML is not one of them: the transmission package writes it.
+    pub fn generated_formats(&self) -> Vec<ReportFormat> {
+        self.formats()
+            .iter()
+            .copied()
+            .filter(|format| {
+                !(*self == ReportType::ELECTORAL_RESULTS
+                    && *format == ReportFormat::Xml)
+            })
+            .collect()
+    }
+
+    /// The formats one generation writes for a report that asks for
+    /// `requested`: each once, in the order asked, or the type's default
+    /// when it asks for none or only for formats written elsewhere. A format
+    /// the type does not support is refused.
+    pub fn generation_formats(
+        &self,
+        requested: Option<&[ReportFormat]>,
+    ) -> Result<Vec<ReportFormat>, String> {
+        let supported = self.formats();
+        let generated = self.generated_formats();
+        let mut formats: Vec<ReportFormat> = Vec::new();
+        for format in requested.unwrap_or_default() {
+            if !supported.contains(format) {
+                let supported: Vec<String> =
+                    supported.iter().map(ToString::to_string).collect();
+                return Err(format!(
+                    "the {self} report cannot be generated in {format}: it \
+                     supports {}",
+                    supported.join(", ")
+                ));
+            }
+            if generated.contains(format) && !formats.contains(format) {
+                formats.push(*format);
+            }
+        }
+        if formats.is_empty() {
+            formats.extend(generated.first());
+        }
+        Ok(formats)
+    }
+}
+
+impl ReportFormat {
+    pub fn extension(self) -> &'static str {
+        match self {
+            ReportFormat::Pdf => "pdf",
+            ReportFormat::Csv => "csv",
+            ReportFormat::Xml => "xml",
+            ReportFormat::Sql => "sql",
+        }
+    }
+
+    pub fn media_type(self) -> &'static str {
+        match self {
+            ReportFormat::Pdf => "application/pdf",
+            ReportFormat::Csv => "text/csv",
+            ReportFormat::Xml => "application/xml",
+            ReportFormat::Sql => "application/sql",
+        }
+    }
+}
+
+impl Report {
+    /// How many copies each generation prints: one unless the report says
+    /// more.
+    pub fn copy_count(&self) -> u32 {
+        self.copies.unwrap_or(1).max(1)
+    }
 }
 
 /// The kinds of report the platform can generate.
@@ -220,6 +292,102 @@ mod tests {
             &[ReportFormat::Pdf, ReportFormat::Csv, ReportFormat::Sql]
         );
         assert_eq!(ReportType::BALLOT_RECEIPT.formats(), &[ReportFormat::Pdf]);
+    }
+
+    #[test]
+    fn a_generation_writes_the_formats_its_report_asks_for() {
+        let logs = ReportType::ACTIVITY_LOGS;
+        assert_eq!(logs.generation_formats(None), Ok(vec![ReportFormat::Pdf]));
+        assert_eq!(
+            logs.generation_formats(Some(&[])),
+            Ok(vec![ReportFormat::Pdf])
+        );
+        assert_eq!(
+            logs.generation_formats(Some(&[
+                ReportFormat::Sql,
+                ReportFormat::Csv,
+                ReportFormat::Sql,
+            ])),
+            Ok(vec![ReportFormat::Sql, ReportFormat::Csv])
+        );
+    }
+
+    #[test]
+    fn a_format_the_type_does_not_support_is_refused() {
+        assert_eq!(
+            ReportType::PARTICIPATION_REPORT.generation_formats(Some(&[
+                ReportFormat::Pdf,
+                ReportFormat::Csv
+            ])),
+            Err(
+                "the PARTICIPATION_REPORT report cannot be generated in csv: \
+                 it supports pdf"
+                    .to_string()
+            )
+        );
+        assert_eq!(
+            ReportType::ACTIVITY_LOGS
+                .generation_formats(Some(&[ReportFormat::Xml])),
+            Err("the ACTIVITY_LOGS report cannot be generated in xml: it \
+                 supports pdf, csv, sql"
+                .to_string())
+        );
+    }
+
+    #[test]
+    fn the_returns_xml_is_left_to_the_transmission_package() {
+        let returns = ReportType::ELECTORAL_RESULTS;
+        assert_eq!(returns.generated_formats(), vec![ReportFormat::Pdf]);
+        assert_eq!(
+            returns.generation_formats(Some(&[
+                ReportFormat::Pdf,
+                ReportFormat::Xml
+            ])),
+            Ok(vec![ReportFormat::Pdf])
+        );
+        assert_eq!(
+            returns.generation_formats(Some(&[ReportFormat::Xml])),
+            Ok(vec![ReportFormat::Pdf])
+        );
+        for report_type in ReportType::ALL {
+            let generated = report_type.generated_formats();
+            assert_eq!(generated.first(), report_type.formats().first());
+            assert!(generated
+                .iter()
+                .all(|format| report_type.formats().contains(format)));
+        }
+    }
+
+    #[test]
+    fn a_report_prints_one_copy_unless_it_says_more() {
+        let mut report: Report = serde_json::from_value(serde_json::json!({
+            "id": "r",
+            "election_event_id": "e",
+            "tenant_id": "t",
+            "election_id": null,
+            "report_type": "ELECTORAL_RESULTS",
+            "template_alias": null,
+            "encryption_policy": "unencrypted",
+            "cron_config": null,
+            "created_at": "2026-01-01T00:00:00Z",
+            "permission_label": null
+        }))
+        .unwrap();
+        assert_eq!(report.copy_count(), 1);
+        report.copies = Some(0);
+        assert_eq!(report.copy_count(), 1);
+        report.copies = Some(7);
+        assert_eq!(report.copy_count(), 7);
+    }
+
+    #[test]
+    fn a_format_names_its_file() {
+        assert_eq!(ReportFormat::Pdf.extension(), "pdf");
+        assert_eq!(ReportFormat::Csv.media_type(), "text/csv");
+        assert_eq!(ReportFormat::Sql.media_type(), "application/sql");
+        assert_eq!(ReportFormat::Xml.media_type(), "application/xml");
+        assert_eq!(ReportFormat::Pdf.media_type(), "application/pdf");
+        assert_eq!(ReportFormat::Sql.extension(), "sql");
     }
 
     #[test]

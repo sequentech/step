@@ -638,6 +638,33 @@ fn a_report_manifest_lists_each_file_with_its_digest() {
 }
 
 #[test]
+fn a_report_manifest_is_written_as_a_file_that_reads_back() {
+    let stamp = report_stamp(&manifest(), "m", "ACTIVITY_LOGS", "t").unwrap();
+    let written = report_manifest(
+        "ACTIVITY_LOGS",
+        &stamp,
+        &[artifact("report.csv", b"a,b\n")],
+    );
+    let bytes = written.to_bytes().unwrap();
+    assert_eq!(bytes.last(), Some(&b'\n'));
+    let read: ReportManifest = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(read, written);
+    assert_eq!(read.files[0].size, 4);
+    assert_eq!(read.configuration.revision, 8);
+    assert_eq!(REPORT_MANIFEST_NAME, "report-manifest.json");
+}
+
+#[test]
+fn a_stamp_names_its_configuration_in_one_line() {
+    let stamp =
+        report_stamp(&manifest(), "digest", "ACTIVITY_LOGS", "t").unwrap();
+    assert_eq!(
+        stamp.line(),
+        "Configuration revision 8, manifest SHA-256 digest"
+    );
+}
+
+#[test]
 fn packaging_the_same_members_gives_the_same_bytes() {
     let manifest = manifest().to_bytes().unwrap();
     let make = || {

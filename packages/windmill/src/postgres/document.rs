@@ -378,6 +378,31 @@ pub async fn insert_document(
     .await
 }
 
+/// Replaces the annotations of a document of the event. Whether there was
+/// such a document.
+#[instrument(err, skip(hasura_transaction, annotations))]
+pub async fn set_document_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    document_id: Uuid,
+    annotations: &DocumentAnnotations,
+) -> Result<bool> {
+    let annotations = serde_json::to_value(annotations)?;
+    let updated = hasura_transaction
+        .execute(
+            r#"
+                UPDATE sequent_backend.document
+                SET annotations = $4
+                WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3
+            "#,
+            &[&tenant_id, &election_event_id, &document_id, &annotations],
+        )
+        .await
+        .context("Error annotating the document")?;
+    Ok(updated == 1)
+}
+
 #[instrument(err, skip(hasura_transaction, annotations))]
 pub async fn insert_document_with_annotations(
     hasura_transaction: &Transaction<'_>,

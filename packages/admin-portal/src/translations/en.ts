@@ -345,6 +345,7 @@ const englishTranslation = {
                 taskTitle: "Task: {{title}}",
                 viewTask: "View Task",
                 downloadDocument: "Download File",
+                downloadHashManifest: "Hash manifest",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",

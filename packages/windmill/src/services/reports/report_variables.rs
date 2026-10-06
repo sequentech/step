@@ -2,6 +2,7 @@ use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::generation::annotate_template_data;
 use crate::postgres::configuration_packages::manifest_of_event;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::reports::ReportType;
@@ -22,10 +23,7 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
-use sequent_core::election_config::archive::Artifact;
-use sequent_core::election_config::manifest::{
-    report_manifest, report_stamp, sha256_hex, ConfigurationStamp,
-};
+use sequent_core::election_config::manifest::{report_stamp, sha256_hex, ConfigurationStamp};
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
@@ -119,40 +117,10 @@ pub fn configuration_annotations(stamp: &ConfigurationStamp) -> [(&'static str, 
     ]
 }
 
-/// The hash manifest a stamped report's document carries: the stamp, and
-/// the generated file at `path` under the name it is delivered with.
-pub fn report_manifest_of_file(
-    report_type: &ReportType,
-    stamp: &ConfigurationStamp,
-    file_name: &str,
-    path: &str,
-) -> Result<Value> {
-    let bytes = std::fs::read(path).with_context(|| "Error reading the report to hash it")?;
-    let written = report_manifest(
-        &report_type.to_string(),
-        stamp,
-        &[Artifact {
-            name: file_name.to_string(),
-            bytes,
-        }],
-    );
-    Ok(serde_json::to_value(&written)?)
-}
-
 /// Adds the stamp to a template's data under `execution_annotations`, beside
 /// what the report already says there.
 pub fn stamp_template_data(data: &mut Map<String, Value>, stamp: &ConfigurationStamp) {
-    let annotations = data
-        .entry(EXECUTION_ANNOTATIONS)
-        .or_insert_with(|| Value::Object(Map::new()));
-    if !annotations.is_object() {
-        *annotations = Value::Object(Map::new());
-    }
-    if let Value::Object(annotations) = annotations {
-        for (name, value) in configuration_annotations(stamp) {
-            annotations.insert(name.to_string(), Value::String(value));
-        }
-    }
+    annotate_template_data(data, configuration_annotations(stamp));
 }
 
 pub fn get_app_hash() -> String {

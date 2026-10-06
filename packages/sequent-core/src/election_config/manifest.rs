@@ -256,6 +256,31 @@ pub struct ReportManifest {
     pub files: Vec<FileEntry>,
 }
 
+/// The file a generation writes its hash manifest to, beside the report's
+/// files.
+pub const REPORT_MANIFEST_NAME: &str = "report-manifest.json";
+
+impl ReportManifest {
+    /// `report-manifest.json` as written: pretty, with a trailing newline.
+    pub fn to_bytes(&self) -> serde_json::Result<Vec<u8>> {
+        serde_json::to_vec_pretty(self).map(|mut bytes| {
+            bytes.push(b'\n');
+            bytes
+        })
+    }
+}
+
+impl ConfigurationStamp {
+    /// The line a report names its configuration with, where it has no
+    /// template to print it: a comment in an SQL or XML file.
+    pub fn line(&self) -> String {
+        format!(
+            "Configuration revision {}, manifest SHA-256 {}",
+            self.revision, self.manifest_sha256
+        )
+    }
+}
+
 /// The stamp of a report of `report_type` drawn with `template`, or a
 /// refusal when the signed configuration sets a design for that report and
 /// `template` is not it. A type may be set more than once, for the event and

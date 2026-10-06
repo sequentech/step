@@ -215,6 +215,17 @@ pub struct DocumentAnnotations {
     /// and template digests, and every file the generation wrote.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub report_manifest: Option<Value>,
+    /// The document that stores that `report-manifest.json` as a file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_manifest_file: Option<ReportManifestFile>,
+}
+
+/// A report's `report-manifest.json`, stored as a document of its own.
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ReportManifestFile {
+    pub document_id: String,
+    /// The SHA-256 of the file's bytes.
+    pub sha256: String,
 }
 
 impl DocumentAnnotations {
@@ -224,7 +235,7 @@ impl DocumentAnnotations {
                 password_secret_id: Some(password_secret_id.into()),
                 voter_secret_attributes: false,
             }),
-            report_manifest: None,
+            ..Default::default()
         }
     }
 
@@ -240,7 +251,7 @@ impl DocumentAnnotations {
                 password_secret_id: None,
                 voter_secret_attributes: true,
             }),
-            report_manifest: None,
+            ..Default::default()
         }
     }
 
@@ -280,7 +291,7 @@ pub struct Document {
 
 #[cfg(test)]
 mod document_annotations_tests {
-    use super::DocumentAnnotations;
+    use super::{DocumentAnnotations, ReportManifestFile};
     use serde_json::json;
 
     #[test]
@@ -306,6 +317,29 @@ mod document_annotations_tests {
         assert_eq!(
             serde_json::to_value(&annotations).unwrap(),
             json!({"access": {"voter_secret_attributes": true}})
+        );
+    }
+
+    #[test]
+    fn links_a_report_to_its_stored_hash_manifest() {
+        let annotations = DocumentAnnotations {
+            report_manifest_file: Some(ReportManifestFile {
+                document_id: "manifest-document".to_string(),
+                sha256: "ab".repeat(32),
+            }),
+            ..Default::default()
+        };
+        let written = serde_json::to_value(&annotations).unwrap();
+        assert_eq!(
+            written,
+            json!({"report_manifest_file": {
+                "document_id": "manifest-document",
+                "sha256": "ab".repeat(32),
+            }})
+        );
+        assert_eq!(
+            serde_json::from_value::<DocumentAnnotations>(written).unwrap(),
+            annotations
         );
     }
 }

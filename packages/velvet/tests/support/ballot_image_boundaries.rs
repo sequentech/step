@@ -461,3 +461,61 @@ fn receipt_batch_configuration_is_validated_even_without_input_files() {
             if message == ZERO_BATCH_ERROR));
     }
 }
+
+#[test]
+fn the_images_of_a_signed_configuration_get_the_hash_manifest_of_their_folder() {
+    use sequent_core::election_config::manifest::{sha256_hex, ReportManifest};
+
+    let manifest_name = "report-manifest.json";
+    let ballots: Vec<_> = [1, 2, 3]
+        .into_iter()
+        .map(|serial| {
+            let mut ballot = ballot(&["ada"]);
+            ballot.serial_number = Some(format!("{serial:09}"));
+            ballot
+        })
+        .collect();
+
+    let unsigned = tempdir().unwrap();
+    let mut pipe = file_image_pipe(unsigned.path(), &ballots);
+    pipe.pipe_inputs.stage.pipeline[0].config.as_mut().unwrap()["enable_pdfs"] = json!(false);
+    pipe.exec().unwrap();
+    assert!(!image_output(unsigned.path()).join(manifest_name).exists());
+
+    let signed = tempdir().unwrap();
+    let mut pipe = file_image_pipe(signed.path(), &ballots);
+    let config = pipe.pipe_inputs.stage.pipeline[0].config.as_mut().unwrap();
+    config["enable_pdfs"] = json!(false);
+    config["configuration"] = json!({
+        "external_id": "ov-2028",
+        "revision": 3,
+        "manifest_sha256": "ab".repeat(32),
+        "template_sha256": "cd".repeat(32),
+    });
+    pipe.exec().unwrap();
+
+    let output = image_output(signed.path());
+    let manifest: ReportManifest =
+        serde_json::from_slice(&fs::read(output.join(manifest_name)).unwrap()).unwrap();
+    assert_eq!(manifest.report_type, "BALLOT_IMAGES");
+    assert_eq!(manifest.configuration.revision, 3);
+    assert_eq!(manifest.configuration.manifest_sha256, "ab".repeat(32));
+    let names: Vec<&str> = manifest
+        .files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            "ballots_batch-0.html",
+            "ballots_batch-1.html",
+            "ballots_files.csv"
+        ]
+    );
+    for file in &manifest.files {
+        let written = fs::read(output.join(&file.path)).unwrap();
+        assert_eq!(file.size, written.len() as u64);
+        assert_eq!(file.sha256, sha256_hex(&written));
+    }
+}

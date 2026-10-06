@@ -10,7 +10,7 @@ use crate::postgres::election::{
     DisplayVotingClose,
 };
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
+use crate::postgres::reports::{get_report_copies, ReportType};
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::consolidation::acm_json::get_acm_key_pair;
@@ -641,6 +641,7 @@ pub async fn build_ballot_images_pipe_config(
         report_options: Some(ext_cfg.report_options),
         execution_annotations: stamp.as_ref().map(stamp_annotations),
         acm_key: Some(acm_key),
+        configuration: stamp,
     };
     Ok(ballot_images_pipe_config)
 }
@@ -685,6 +686,7 @@ async fn build_reports_pipe_config(
     pdf_options: Option<PrintToPdfOptionsLocal>,
     tally_type: TallyType,
     stamp: Option<&ConfigurationStamp>,
+    copies: Option<u32>,
     time_zones: (
         serde_json::Map<String, serde_json::Value>,
         HashMap<String, String>,
@@ -739,6 +741,8 @@ async fn build_reports_pipe_config(
         tally_session_configuration: tally_session.configuration.clone(),
         template_variables: time_zones.0,
         election_time_zones: time_zones.1,
+        copies,
+        configuration: stamp.cloned(),
     })
 }
 
@@ -751,6 +755,7 @@ pub async fn create_config_file(
     tally_session: &TallySession,
     tally_type: TallyType,
     stamp: Option<&ConfigurationStamp>,
+    copies: Option<u32>,
     time_zones: (
         serde_json::Map<String, serde_json::Value>,
         HashMap<String, String>,
@@ -779,6 +784,7 @@ pub async fn create_config_file(
         pdf_options,
         tally_type,
         stamp,
+        copies,
         time_zones,
     )
     .await?;
@@ -1020,6 +1026,15 @@ pub async fn run_velvet_tally(
         report_content_template.as_deref().unwrap_or_default(),
     )
     .await?;
+    // The copies its reports are printed in are the report's: the Reports
+    // step set them.
+    let copies = get_report_copies(
+        hasura_transaction,
+        &election_event.tenant_id,
+        &election_event.id,
+        &tally_report_type(&tally_type),
+    )
+    .await?;
 
     let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
@@ -1063,6 +1078,7 @@ pub async fn run_velvet_tally(
         tally_session,
         tally_type,
         stamp.as_ref(),
+        copies,
         report_time_zones(election_event, &elections, &*load_i18n_defaults().await),
     )
     .await?;

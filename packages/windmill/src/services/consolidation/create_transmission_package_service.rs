@@ -28,6 +28,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document;
 use crate::services::folders::list_files;
+use crate::services::reports::report_variables::configuration_stamp_without_template;
 use crate::services::signing::actions::transmission::{guard_transmission_package, PackageToSign};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{
@@ -346,6 +347,9 @@ pub async fn create_transmission_package_service(
         })
         .map(|report_computed| report_computed.into())
         .collect();
+    let stamp =
+        configuration_stamp_without_template(&hasura_transaction, tenant_id, &election_event.id)
+            .await?;
     let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
@@ -355,6 +359,7 @@ pub async fn create_transmission_package_service(
         &election_annotations,
         &area_annotations,
         &reports,
+        stamp.as_ref(),
     )
     .await?;
 

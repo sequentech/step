@@ -270,6 +270,7 @@ const catalanTranslation: TranslationType = {
                 taskTitle: "Tasca: {{title}}",
                 viewTask: "Veure Tasca",
                 downloadDocument: "Descarregar Fitxer",
+                downloadHashManifest: "Manifest de hashes",
             },
             exportTasksExecution: {
                 success: "L'exportació s'ha completat amb èxit",
