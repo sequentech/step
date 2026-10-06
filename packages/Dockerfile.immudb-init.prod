@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY ./braid/scripts/Cargo-init.toml ./Cargo.toml
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board
