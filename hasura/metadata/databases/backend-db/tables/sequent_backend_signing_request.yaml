@@ -20,6 +20,8 @@ select_permissions:
               - tenant_id
               - election_event_id
               - action
+              - scope_key
+              - subject
               - election_id
               - area_id
               - code

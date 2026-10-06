@@ -269,8 +269,8 @@ pub async fn archive_scheduled_event(
 }
 
 /// Replaces the cron config (and the channels, when given) of an active
-/// scheduled event. Returns how many rows it changed: 0 when the event has
-/// already run or doesn't exist.
+/// scheduled event, or re-arms a stopped one for a future instant. Returns
+/// 0 when archived, missing, or stopped without a future instant.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_scheduled_event(
     hasura_transaction: &Transaction<'_>,
@@ -311,6 +311,7 @@ pub async fn update_scheduled_event(
                 tenant_id = $1
                 AND id = $2
                 AND archived_at IS NULL
+                AND (stopped_at IS NULL OR $5::timestamptz > NOW())
             "#,
         )
         .await?;

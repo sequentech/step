@@ -346,6 +346,17 @@ HASURA_DB__HOST = "127.0.0.1"
                 self.assertEqual(run.main(), 0)
             measure.assert_called_once_with("sequent-core", True, False, None, True)
 
+    def test_native_measurements_bound_build_storage_per_checkout(self) -> None:
+        self.attempt()
+        for environment in self.command_environments:
+            self.assertEqual(environment["CARGO_PROFILE_DEV_DEBUG"], "0")
+            self.assertEqual(environment["CARGO_PROFILE_TEST_DEBUG"], "0")
+            self.assertEqual(environment["CARGO_INCREMENTAL"], "0")
+            self.assertEqual(
+                environment["CARGO_LLVM_COV_TARGET_DIR"],
+                str(self.workspace / "rust-local-target" / "package-coverage"),
+            )
+
     def test_overlapping_runs_cannot_clear_each_others_counters(self) -> None:
         lock_path = self.root / ".git" / "package-coverage.lock"
         lock_path.parent.mkdir()

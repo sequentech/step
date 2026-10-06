@@ -8,6 +8,11 @@ import "@testing-library/jest-dom"
 import {MonitoringHeader, type MonitoringHeaderProps} from "./MonitoringHeader"
 
 // The portal's top action button: a labelled button, as react-admin draws it.
+// Exercise the real timezone formatter without loading the shared UI barrel.
+jest.mock("@sequentech/ui-core", () => ({
+    ...jest.requireActual("../../../../ui-core/src/services/timeZones"),
+}))
+
 jest.mock("react-admin", () => ({
     Button: ({
         label,
@@ -92,7 +97,7 @@ describe("MonitoringHeader", () => {
         header(30_000, {revision: 4, as_of: "2026-09-30T02:00:00Z"})
         expect(
             screen.getByText(
-                /monitoring\.header\.updated \{"time":"[^"]*10:00[^"]*","timeZone":"Asia\/Manila"\}/
+                /monitoring\.header\.updated \{"time":"[^"]*10:00[^"]*","timeZone":"PhST"\}/
             )
         ).toBeInTheDocument()
     })
