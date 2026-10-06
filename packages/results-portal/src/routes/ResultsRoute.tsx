@@ -21,6 +21,8 @@ import {manifestCustomCss} from "@/services/customCss"
 import {StateMessage} from "@/components/StateMessage"
 import {ResultsPageContent} from "@/components/ResultsPageContent"
 import {entityClassName} from "@/services/cssClassNames"
+import {getElectionEventPresentation} from "@/services/resultsOrdering"
+import {ETranslationScope, overwriteTranslations} from "@sequentech/ui-core"
 
 interface ResultsRouteParams {
     eeId: string
@@ -160,6 +162,13 @@ export const ResultsRoute: React.FC = () => {
     useEffect(() => {
         let mounted = true
 
+        // Do not display wording from the previous publication while a new
+        // route is loading or after it fails to load.
+        overwriteTranslations(undefined, {
+            scope: ETranslationScope.RESULTS_PORTAL,
+            changeDefaultLanguage: false,
+        })
+
         const load = async () => {
             if (!eeId) {
                 setState({
@@ -221,6 +230,10 @@ export const ResultsRoute: React.FC = () => {
                 db.close()
 
                 if (mounted) {
+                    overwriteTranslations(getElectionEventPresentation(manifest, dataset), {
+                        scope: ETranslationScope.RESULTS_PORTAL,
+                        changeDefaultLanguage: false,
+                    })
                     setState({
                         loading: false,
                         authenticatedAccess: access === "authenticated",
@@ -246,6 +259,10 @@ export const ResultsRoute: React.FC = () => {
 
         return () => {
             mounted = false
+            overwriteTranslations(undefined, {
+                scope: ETranslationScope.RESULTS_PORTAL,
+                changeDefaultLanguage: false,
+            })
         }
     }, [eeId, electionId, globalSettings, hasAuthToken])
 

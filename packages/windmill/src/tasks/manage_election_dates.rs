@@ -6,6 +6,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
+use crate::services::election_event_status::scheduled_transition_applies;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
@@ -48,7 +49,7 @@ async fn manage_election_date_wrapper(
         ));
     };
 
-    let Some(_election) = get_election_by_id(
+    let Some(election) = get_election_by_id(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -75,18 +76,31 @@ async fn manage_election_date_wrapper(
         }
     };
 
-    let voting_channels: Vec<VotingStatusChannel> = match event_processor {
-        EventProcessors::START_VOTING_PERIOD => {
-            vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
-        }
-        EventProcessors::END_VOTING_PERIOD => vec![VotingStatusChannel::ONLINE],
-        _ => {
-            info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
-            return Ok(());
-        }
-    };
+    let payload: ManageElectionDatePayload = serde_json::from_value(
+        scheduled_manage_date
+            .event_payload
+            .clone()
+            .unwrap_or_else(|| serde_json::json!({})),
+    )?;
+    let configured = election
+        .voting_channels
+        .clone()
+        .map(serde_json::from_value::<sequent_core::types::hasura::core::VotingChannels>)
+        .transpose()?
+        .unwrap_or_default();
+    let election_status: ElectionStatus = election
+        .status
+        .clone()
+        .map(serde_json::from_value)
+        .transpose()?
+        .unwrap_or_default();
+    let voting_channels = payload
+        .enabled_channels(&configured)
+        .into_iter()
+        .filter(|channel| {
+            scheduled_transition_applies(&election_status.status_by_channel(*channel), &status)
+        })
+        .collect();
 
     let result = voting_status::update_election_status(
         tenant_id.clone(),

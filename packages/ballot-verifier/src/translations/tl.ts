@@ -31,6 +31,9 @@ const tagalogTranslation = {
                 "Nagkaroon ng problema sa pag-import ng sinisiyasat na balota. Tama ba ang napili mong file?",
             importErrorMoreInfo: "Karagdagang impormasyon",
             importErrorTitle: "Error",
+            ciphertextErrorTitle: "Nabigo ang pagberipika ng balota",
+            ciphertextErrorDescription:
+                "Ang ciphertext ng sinisiyasat na balotang ito ay hindi ang pag-encrypt ng plaintext at randomness na nilalaman nito. Hindi mapagkakatiwalaan ang balota.",
             useSampleLink: "Gamitin ang sample na balota",
             nextButton: "Susunod",
             ballotIdLabel: "ID ng Balota",
@@ -74,6 +77,9 @@ const tagalogTranslation = {
             points_other: "({{count}} Mga Punto)",
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
             declineToVote: "Hindi bumoto",
+            blankBallot: "Blangkong balota",
+            acclamationDescription:
+                "Ang paligsahang ito ay napagpasyahan sa pamamagitan ng aklamasyon. Ang mga kandidato nito ay nahalal nang walang botohan, kaya walang opsyong mapipili at walang botong naitatala.",
         },
         footer: {
             poweredBy: "Pinapagana ng <1></1>",

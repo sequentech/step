@@ -1,0 +1,240 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: wbraid
+
+# packages/wbraid is its own Cargo workspace (see packages/wbraid/PROVENANCE.md),
+# so it gets its own workflow, scoped to changes under that subtree.
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+    paths:
+      - 'packages/wbraid/**'
+      - '.github/workflows/wbraid.yml'
+      - '.github/actions/setup-rust-tests/**'
+  push:
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    paths:
+      - 'packages/wbraid/**'
+      - '.github/workflows/wbraid.yml'
+      - '.github/actions/setup-rust-tests/**'
+
+defaults:
+  run:
+    working-directory: packages/wbraid
+
+jobs:
+  lint:
+    name: Format and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-lint
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      # vsc is a vendored fork with its own strict lint levels; its test modules
+      # and the shuffle_scaling example fail those upstream levels (identically
+      # on nightly, see PROVENANCE.md), and under -D warnings its warn-level
+      # lints (indexing_slicing) would fail too. --no-deps keeps -D warnings
+      # from leaking into vsc through the workspace wrapper; the second
+      # invocation lints vsc's lib at exactly the levels upstream chose.
+      - name: Clippy (workspace except vsc, all targets)
+        run: cargo clippy --workspace --exclude vsc --features sqlite,postgres --all-targets --no-deps -- -D warnings
+
+      - name: Clippy (vsc lib, upstream lint levels)
+        run: cargo clippy -p vsc --no-deps
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-test
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+
+      # The live-b4 protocol tests (test_protocol_http*) and the Verificatum
+      # interop tests are #[ignore]d: they need a running b4 + LocalStack or a
+      # JVM with the Verificatum jars. The live-b4 ones run in the live-b4 job below.
+      - name: Run tests
+        run: cargo test --release --features sqlite,postgres
+        env:
+          RUST_BACKTRACE: 'full'
+
+  build-wasm-core:
+    name: Build wasm-core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-wasm
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+          targets: wasm32-unknown-unknown
+
+      # Run from the workspace root so crates/braid/.cargo/config.toml (atomics
+      # + build-std, which need RUSTC_BOOTSTRAP on stable) does not apply; the
+      # wasm-core feature needs neither, and the build stops before bindings,
+      # so no wasm-bindgen-cli is required. The full atomics `wasm` feature
+      # build stays a dev-loop concern (build-wasm.sh / build-wasm.ps1).
+      - name: Build braid wasm-core
+        run: >-
+          cargo build -p braid --lib --release
+          --target wasm32-unknown-unknown
+          --no-default-features --features wasm-core
+
+  live-b4:
+    name: Live b4 protocol tests
+    # A release build of b4 and braid plus two full protocol runs
+    # against a real b4 and the S3 emulator. The same two tests run in
+    # the devcontainer with `cargo test -p braid --release -- --ignored`
+    # (TESTING.md, "Live-b4 tests").
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    services:
+      localstack:
+        image: localstack/localstack:4
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "curl -sf http://127.0.0.1:4566/_localstack/health"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 25
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: b4
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d b4"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # b4 only presigns against this endpoint; the tests, on the same runner,
+      # fetch the bodies from it. Credentials are LocalStack's dummies.
+      AWS_ENDPOINT_URL: http://127.0.0.1:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET_NAME: wbraid-messages
+      RUST_LOG: info,b4=debug,b4v6=debug
+      SQLITE_B4_PORT: 3005
+      POSTGRES_B4_PORT: 3006
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-test
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+
+      # What localstack.sh / configure-localstack do in the dev loop.
+      - name: Create the S3 bucket and apply its CORS rules
+        run: |
+          aws s3 mb s3://wbraid-messages
+          aws s3api put-bucket-cors --bucket wbraid-messages --cors-configuration file://s3-cors.json
+
+      - name: Build b4v6
+        run: cargo build --release --features postgres,sqlite --bin b4v6
+
+      - name: Start b4v6 sqlite
+        id: b4v6-sqlite
+        background: true
+        env:
+          DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+        run: target/release/b4v6
+
+      - name: Wait b4v6 sqlite
+        env:
+          DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          
+          echo "b4v6 did not come up" >&2
+          exit 1
+
+      - name: Run the live-b4 protocol tests with sqlite
+        run: cargo test -p braid --release -- --ignored
+        env:
+          RUST_BACKTRACE: 'full'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+
+      - name: Start b4v6 postgres
+        id: b4v6-postgres
+        background: true
+        env:
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+        run: target/release/b4v6
+
+      - name: Wait b4v6 postgres
+        env:
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          
+          echo "b4v6 did not come up" >&2
+          exit 1
+
+      - name: Run the live-b4 protocol tests with postgres
+        run: cargo test -p braid --release -- --ignored
+        env:
+          RUST_BACKTRACE: 'full'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+
+      - name: Stop sqlite b4v6
+        cancel: b4v6-sqlite
+
+      - name: Stop postgres b4v6
+        cancel: b4v6-postgres

@@ -1,6 +1,17 @@
 table:
     name: ballot_style
     schema: sequent_backend
+object_relationships:
+    - name: election
+      using:
+          manual_configuration:
+              column_mapping:
+                  tenant_id: tenant_id
+                  election_event_id: election_event_id
+                  election_id: id
+              remote_table:
+                  name: election
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
@@ -170,6 +181,8 @@ select_permissions:
               - tenant_id
           filter:
               _and:
+                  - election_event_id:
+                        _eq: X-Hasura-Election-Event-Id
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - area_id:

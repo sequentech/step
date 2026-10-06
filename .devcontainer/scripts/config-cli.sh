@@ -12,7 +12,7 @@ if [ -z "$SUPER_ADMIN_TENANT_ID" ] \
 then
     echo "missing default environments for auto config"
 else
-    cli step config \
+    step-cli step config \
         --tenant-id "$SUPER_ADMIN_TENANT_ID" \
         --endpoint-url "$HASURA_ENDPOINT" \
         --keycloak-url "$KEYCLOAK_URL" \

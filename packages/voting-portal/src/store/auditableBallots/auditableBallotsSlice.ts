@@ -5,8 +5,13 @@ import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
 import {IAuditableBallot} from "@sequentech/ui-core"
 
+export interface AuditableBallotEntry {
+    auditableBallot: IAuditableBallot
+    isBlankBallot: boolean
+}
+
 export interface AuditableBallotsState {
-    [ballotStyleId: string]: IAuditableBallot | undefined
+    [ballotStyleId: string]: AuditableBallotEntry | undefined
 }
 
 const initialState: AuditableBallotsState = {}
@@ -20,9 +25,13 @@ export const auditableBallotsSlice = createSlice({
             action: PayloadAction<{
                 electionId: string
                 auditableBallot: IAuditableBallot
+                isBlankBallot: boolean
             }>
         ): AuditableBallotsState => {
-            state[action.payload.electionId] = action.payload.auditableBallot
+            state[action.payload.electionId] = {
+                auditableBallot: action.payload.auditableBallot,
+                isBlankBallot: action.payload.isBlankBallot,
+            }
 
             return state
         },
@@ -32,6 +41,9 @@ export const auditableBallotsSlice = createSlice({
 export const {setAuditableBallot} = auditableBallotsSlice.actions
 
 export const selectAuditableBallot = (electionId: string) => (state: RootState) =>
-    state.auditableBallots[electionId]
+    state.auditableBallots[electionId]?.auditableBallot
+
+export const selectIsBlankBallot = (electionId: string) => (state: RootState) =>
+    state.auditableBallots[electionId]?.isBlankBallot ?? false
 
 export default auditableBallotsSlice.reducer

@@ -219,26 +219,31 @@ export const IvrPrompts: React.FC = () => {
     const pendingPayload = useMemo<string>(() => {
         return JSON.stringify(editorData)
     }, [editorData])
+    const baselinePayload = useMemo<string>(() => JSON.stringify(parsedPrompts), [parsedPrompts])
     const dirty: boolean = useMemo<boolean>(() => {
-        return pendingPayload !== recordPrompts
-    }, [pendingPayload, recordPrompts])
+        return pendingPayload !== baselinePayload
+    }, [pendingPayload, baselinePayload])
 
     // Data / editor validation
     const promptsValid = (prompts: Prompts): boolean => {
-        return Object.entries(prompts).every(([_lang, entries]) => {
-            return Object.entries(entries).every(([key, value]) => {
-                // Required prompts must be given for all languages, no exceptions.
-                if (requiredPromptKeys.has(key)) {
-                    return Boolean(key.trim() && value.trim())
-                }
-                return Boolean(key.trim())
-            })
+        if (!prompts || typeof prompts !== "object" || Array.isArray(prompts)) {
+            return false
+        }
+        return Object.entries(prompts).every(([language, entries]) => {
+            if (
+                !language.trim() ||
+                !entries ||
+                typeof entries !== "object" ||
+                Array.isArray(entries)
+            ) {
+                return false
+            }
+            return Object.entries(entries).every(
+                ([key, value]) => Boolean(key.trim()) && typeof value === "string"
+            )
         })
     }
-    const editorValid = useMemo<boolean>(
-        () => promptsValid(editorData),
-        [editorData, requiredPromptKeys]
-    )
+    const editorValid = useMemo<boolean>(() => promptsValid(editorData), [editorData])
     const promptsEmpty: boolean = Object.keys(editorData[selectedLanguage] || {}).length < 1
 
     if (!record?.id) {

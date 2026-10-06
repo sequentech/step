@@ -9,6 +9,7 @@ import {
 import {useEffect, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {IConfirmationBallot} from "../../services/BallotService"
+import {getBallotStyleDefaultLanguageCode} from "../../services/defaultLanguageCode"
 
 /**
  * Manages election class on <html>
@@ -18,10 +19,9 @@ export const useElectionClassName = (confirmationBallot: IConfirmationBallot | n
 
     const extractElectionName = (election: {presentation: IElectionPresentation; id: string}) => {
         const language = i18n.resolvedLanguage || i18n.language
-        const defaultLanguageCode =
-            election.presentation.language_conf?.default_language_code ??
-            confirmationBallot?.election_config.election_event_presentation?.language_conf
-                ?.default_language_code
+        const defaultLanguageCode = getBallotStyleDefaultLanguageCode(
+            confirmationBallot?.election_config
+        )
         return (
             translateFromPresentation(election.presentation, "alias", language) ||
             translateFromPresentation(election.presentation, "name", language) ||

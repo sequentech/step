@@ -31,6 +31,9 @@ const englishTranslation = {
                 "There was a problem importing the auditable ballot. Did you choose  the right file?",
             importErrorMoreInfo: "More info",
             importErrorTitle: "Error",
+            ciphertextErrorTitle: "Ballot verification failed",
+            ciphertextErrorDescription:
+                "The ciphertext in this auditable ballot is not the encryption of the plaintext and randomness it contains. The ballot cannot be trusted.",
             useSampleLink: "Use a sample ballot",
             nextButton: "Next",
             ballotIdLabel: "Ballot ID",
@@ -77,6 +80,9 @@ const englishTranslation = {
             points_other: "({{count}} Points)",
             contestNotFound: "Contest not found: {{contestId}}",
             declineToVote: "Declined to vote",
+            blankBallot: "Blank ballot",
+            acclamationDescription:
+                "This contest was decided by acclamation. Its candidates are elected without a vote, so no option can be selected and no vote is recorded for it.",
         },
         footer: {
             poweredBy: "Powered by <1></1>",

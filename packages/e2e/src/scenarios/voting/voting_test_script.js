@@ -45,18 +45,32 @@ client => {
     
             contests.forEach((contest, contestIndex) => {
     
-                const titleElement = contest.querySelector('h5[data-max]');
+                // Matched on the data attribute rather than on a heading level:
+                // the contest title's level follows the screen's heading outline.
+                const titleElement = contest.querySelector('[data-max]');
                 const maxVotes = parseInt(titleElement.getAttribute('data-max'), 10);
-    
-                const candidateCheckboxes = contest.querySelectorAll('input[type="checkbox"][aria-label]');
-    
+
+                const candidateCheckboxes = contest.querySelectorAll('input[type="checkbox"].candidate-input');
+
                 votingData.push({
                     contestIndex: contestIndex,
                     maxVotes: maxVotes,
-                    candidates: Array.from(candidateCheckboxes).map(checkbox => ({
-                        name: checkbox.getAttribute('aria-label'),
-                        selector: `input[aria-label="${checkbox.getAttribute('aria-label')}"]`
-                    }))
+                    // Candidate checkboxes are named by reference to the rendered
+                    // title, so the name has to be resolved through aria-labelledby.
+                    candidates: Array.from(candidateCheckboxes).map(checkbox => {
+                        const labelledBy = checkbox.getAttribute('aria-labelledby') || '';
+                        const name = labelledBy
+                            .split(' ')
+                            .map(id => document.getElementById(id))
+                            .filter(Boolean)
+                            .map(label => label.textContent.trim())
+                            .filter(Boolean)
+                            .join(' ');
+                        return {
+                            name: name,
+                            selector: `input.candidate-input[aria-labelledby="${labelledBy}"]`
+                        };
+                    })
                 });
             });
     
