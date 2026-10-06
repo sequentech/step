@@ -204,6 +204,7 @@ export const Populated: Story = {
 }
 
 export const SearchableRangeZone: Story = {
+    parameters: {widgets: ["LogTimeZoneFilter"]},
     args: {zones: ["Asia/Manila", "Asia/Dubai"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)

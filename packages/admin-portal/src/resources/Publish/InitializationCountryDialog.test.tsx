@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+import {useQuery} from "@apollo/client"
+import {IPermissions} from "@/types/keycloak"
 import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import {InitializationCountryDialog} from "./InitializationCountryDialog"
 import type {ILifecycleSnapshotEntry} from "@/queries/Lifecycle"
@@ -13,17 +15,31 @@ jest.mock("@sequentech/ui-core", () => ({
 }))
 jest.mock("@apollo/client", () => ({
     gql: (s: TemplateStringsArray) => s.join(""),
-    useQuery: () => ({
+    useQuery: jest.fn(() => ({
         data: {
             sequent_backend_area: [],
             sequent_backend_area_contest: [],
             sequent_backend_ballot_style: [],
+            sequent_backend_contest: [],
         },
         loading: false,
-    }),
+    })),
 }))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
-afterEach(cleanup)
+const mockPermissions = [
+    IPermissions.AREA_READ,
+    IPermissions.PUBLISH_READ,
+    IPermissions.CONTEST_READ,
+]
+jest.mock("@/providers/AuthContextProvider", () => ({
+    AuthContext: jest.requireActual("react").createContext({
+        hasRole: (role: IPermissions) => mockPermissions.includes(role),
+    }),
+}))
+afterEach(() => {
+    cleanup()
+    jest.clearAllMocks()
+})
 
 const snapshot = (countries?: Record<string, string[]>): ILifecycleSnapshotEntry => ({
     election_id: "post",
@@ -76,4 +92,58 @@ it("keeps unknown legacy membership blocked rather than treating it as empty", (
     expect(button.disabled).toBe(true)
     fireEvent.click(button)
     expect(generate).not.toHaveBeenCalled()
+})
+
+it("reads country labels and published material with their own held permissions", () => {
+    render(
+        <InitializationCountryDialog
+            electionEventId="event"
+            electionId="post"
+            busy={false}
+            onClose={jest.fn()}
+            onGenerate={jest.fn()}
+        />
+    )
+    expect(useQuery).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+            context: {headers: {"x-hasura-role": IPermissions.AREA_READ}},
+        })
+    )
+    expect(useQuery).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+            context: {headers: {"x-hasura-role": IPermissions.PUBLISH_READ}},
+        })
+    )
+})
+
+it("refuses generation when country material cannot be read with held permissions", () => {
+    const saved = mockPermissions.splice(0)
+    try {
+        render(
+            <InitializationCountryDialog
+                electionEventId="event"
+                electionId="post"
+                busy={false}
+                snapshots={[snapshot({post: []})]}
+                onClose={jest.fn()}
+                onGenerate={jest.fn()}
+            />
+        )
+        expect(screen.getByText("publish.initialization.countriesError")).toBeTruthy()
+        expect(
+            (
+                screen.getByRole("button", {
+                    name: "publish.action.generateInitializationReport",
+                }) as HTMLButtonElement
+            ).disabled
+        ).toBe(true)
+        expect(useQuery).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({skip: true})
+        )
+    } finally {
+        mockPermissions.push(...saved)
+    }
 })

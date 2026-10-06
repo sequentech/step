@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useState} from "react"
+import React, {useContext, useState} from "react"
 import {useQuery} from "@apollo/client"
 import {
     Alert,
@@ -15,7 +15,18 @@ import {
     TextField,
 } from "@mui/material"
 import {useTranslation} from "react-i18next"
-import {GET_INITIALIZATION_COUNTRIES} from "@/queries/GetInitializationCountries"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import type {
+    GetInitializationCountriesQuery,
+    GetInitializationContestsQuery,
+    GetInitializationStylesQuery,
+} from "@/gql/graphql"
+import {IPermissions} from "@/types/keycloak"
+import {
+    GET_INITIALIZATION_COUNTRIES,
+    GET_INITIALIZATION_CONTESTS,
+    GET_INITIALIZATION_STYLES,
+} from "@/queries/GetInitializationCountries"
 import {
     initializationCountries,
     initializationAreaIds,
@@ -41,13 +52,58 @@ export const InitializationCountryDialog = ({
 }) => {
     const {t} = useTranslation()
     const [country, setCountry] = useState("")
-    const {data, loading, error} = useQuery<InitializationCountriesData>(
-        GET_INITIALIZATION_COUNTRIES,
-        {
-            variables: {electionEventId, electionId},
-            fetchPolicy: "network-only",
-        }
-    )
+    const {hasRole} = useContext(AuthContext)
+    const roleFor = (permission: IPermissions) =>
+        hasRole(permission)
+            ? permission
+            : hasRole(IPermissions.ADMIN_USER)
+              ? IPermissions.ADMIN_USER
+              : null
+    const areaRole = roleFor(IPermissions.AREA_READ)
+    const contestRole = roleFor(IPermissions.CONTEST_READ)
+    const styleRole = roleFor(IPermissions.PUBLISH_READ)
+    const areaQuery = useQuery<GetInitializationCountriesQuery>(GET_INITIALIZATION_COUNTRIES, {
+        variables: {electionEventId},
+        context: {headers: {"x-hasura-role": areaRole}},
+        skip: !areaRole,
+        fetchPolicy: "network-only",
+    })
+    const contestQuery = useQuery<GetInitializationContestsQuery>(GET_INITIALIZATION_CONTESTS, {
+        variables: {electionEventId, electionId},
+        context: {headers: {"x-hasura-role": contestRole}},
+        skip: !contestRole,
+        fetchPolicy: "network-only",
+    })
+    const styleQuery = useQuery<GetInitializationStylesQuery>(GET_INITIALIZATION_STYLES, {
+        variables: {electionEventId, electionId},
+        context: {headers: {"x-hasura-role": styleRole}},
+        skip: !styleRole,
+        fetchPolicy: "network-only",
+    })
+    const loading = areaQuery.loading || contestQuery.loading || styleQuery.loading
+    const error =
+        areaQuery.error ||
+        contestQuery.error ||
+        styleQuery.error ||
+        !areaRole ||
+        !contestRole ||
+        !styleRole
+    const data: InitializationCountriesData | undefined =
+        areaQuery.data && contestQuery.data && styleQuery.data
+            ? {
+                  sequent_backend_area: areaQuery.data.sequent_backend_area,
+                  sequent_backend_area_contest: areaQuery.data.sequent_backend_area_contest.map(
+                      (link) => ({
+                          area_id: link.area_id,
+                          contest:
+                              contestQuery.data?.sequent_backend_contest.find(
+                                  ({id}) => id === link.contest_id
+                              ) ?? null,
+                      })
+                  ),
+                  sequent_backend_ballot_style: styleQuery.data.sequent_backend_ballot_style,
+              }
+            : undefined
     const countries = data ? initializationCountries(data, electionId, snapshots) : []
     const published = snapshots.find(
         (entry) => entry.election_id === null || entry.election_id === electionId
