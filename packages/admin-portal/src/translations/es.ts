@@ -1136,7 +1136,7 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear usuario",
                 },
                 fields: {
-                    "has_voted": "Votado",
+                    "has_voted": "Ha votado",
                     "support_materials_viewed": "Materiales de Soporte vistos",
                     "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",

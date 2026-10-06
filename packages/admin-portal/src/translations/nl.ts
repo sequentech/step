@@ -2110,7 +2110,7 @@ const dutchTranslation: TranslationType = {
                 enabled: "Ingeschakeld",
                 disabled: "Uitgeschakeld",
                 fullEvent: "Volledig evenement",
-                areaBased: "Op gebied",
+                areaBased: "Per gebied",
                 publishStarted: "Publicatie van resultaten gestart",
                 publishError: "Kon de publicatie van resultaten niet starten",
                 revoked: "Publicatie van resultaten ingetrokken",
