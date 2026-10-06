@@ -647,3 +647,342 @@ fn packaging_the_same_members_gives_the_same_bytes() {
     };
     assert_eq!(make(), make());
 }
+
+#[test]
+fn a_delivery_cannot_carry_a_member_named_like_the_manifest() {
+    let mut members = delivery_members();
+    members.push(artifact(MANIFEST_MEMBER, b"{}"));
+    let problem = package("p.zip", &members, b"{}", b"s", "c").unwrap_err();
+    assert_eq!(problem.code, Code::InvalidValue);
+    assert_eq!(problem.path, "archive");
+}
+
+#[test]
+fn a_number_too_large_to_sign_exactly_is_refused() {
+    // Canonical JSON holds integers up to 2^53 - 1: past that, two readers
+    // may not agree on the number that was signed.
+    let problem = approval_payload("ov-2028", 1 << 53, "abc").unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.unhashable-content"));
+    assert_eq!(problem.path, "content");
+    assert!(problem.details["reason"].contains("9007199254740992"));
+
+    let mut huge = content();
+    huge.files[0].size = 1 << 53;
+    assert_eq!(refusal(huge.sha256()), "package.unhashable-content");
+}
+
+#[test]
+fn a_manifest_that_does_not_say_its_format_declares_none() {
+    assert_eq!(declared_format(b"not json"), None);
+    assert_eq!(declared_format(b"{}"), None);
+    assert_eq!(declared_format(br#"{"format": 1}"#), None);
+}
+
+#[test]
+fn a_file_that_is_gone_is_named_as_removed() {
+    let mut members = delivery_members();
+    members[0].bytes =
+        zip(&[artifact("export_election_event-1.json", b"{}\n")]).unwrap();
+    members.pop();
+    let mut after = content();
+    after.files = file_entries(&members).unwrap();
+
+    let removed: Vec<(ChangeKind, String)> = changes(&content(), &after)
+        .into_iter()
+        .map(|change| (change.kind, change.name))
+        .collect();
+    assert_eq!(
+        removed,
+        vec![
+            (
+                ChangeKind::Removed,
+                "official_election_setup.zip/export_areas-1.csv".to_string()
+            ),
+            (ChangeKind::Removed, "blueprint.json".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn a_removed_design_is_named_by_its_area_and_election() {
+    let mut after = content();
+    after.ballot_designs.clear();
+    assert_eq!(
+        changes(&content(), &after),
+        vec![Change {
+            subject: ChangeSubject::BallotDesign,
+            kind: ChangeKind::Removed,
+            name: "North / officers".to_string(),
+            versions: None,
+        }]
+    );
+}
+
+#[test]
+fn a_change_is_written_in_snake_case_without_versions_it_does_not_have() {
+    let change = Change {
+        subject: ChangeSubject::BallotDesign,
+        kind: ChangeKind::Changed,
+        name: "North / officers".to_string(),
+        versions: Some((1, 2)),
+    };
+    let written = serde_json::to_value(&change).unwrap();
+    assert_eq!(
+        written,
+        json!({
+            "subject": "ballot_design",
+            "kind": "changed",
+            "name": "North / officers",
+            "versions": [1, 2]
+        })
+    );
+    assert_eq!(serde_json::from_value::<Change>(written).unwrap(), change);
+
+    let file: Change = serde_json::from_value(
+        json!({"subject": "file", "kind": "removed", "name": "voters.csv"}),
+    )
+    .unwrap();
+    assert_eq!(file.versions, None);
+    assert!(serde_json::to_value(&file)
+        .unwrap()
+        .get("versions")
+        .is_none());
+}
+
+fn unreadable(bytes: &[u8]) -> String {
+    let problem = read_zip(bytes, "package").unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.unreadable-zip"));
+    assert_eq!(problem.details["archive"], "package");
+    problem.details["reason"].clone()
+}
+
+/// A directory entry for `name`, with no file behind it.
+fn directory_entry(name: &str) -> Vec<u8> {
+    let mut entry = CENTRAL_DIRECTORY_HEADER.to_vec();
+    entry.resize(46, 0);
+    entry[28..30].copy_from_slice(&(name.len() as u16).to_le_bytes());
+    entry.extend_from_slice(name.as_bytes());
+    entry
+}
+
+/// The record a zip ends with: how many entries its directory has and where
+/// the directory starts.
+fn end_of_directory(count: u16, offset: u32) -> Vec<u8> {
+    let mut end = END_OF_CENTRAL_DIRECTORY.to_vec();
+    end.resize(22, 0);
+    end[8..10].copy_from_slice(&count.to_le_bytes());
+    end[10..12].copy_from_slice(&count.to_le_bytes());
+    end[16..20].copy_from_slice(&offset.to_le_bytes());
+    end
+}
+
+/// The locator a zip64 file carries before its end record, pointing at the
+/// zip64 end record.
+fn zip64_locator(record_at: u64) -> Vec<u8> {
+    let mut locator = ZIP64_LOCATOR.to_vec();
+    locator.resize(20, 0);
+    locator[8..16].copy_from_slice(&record_at.to_le_bytes());
+    locator
+}
+
+/// The zip64 end record, which holds the count and the offset the short end
+/// record has no room for.
+fn zip64_end_of_directory(count: u64, offset: u64) -> Vec<u8> {
+    let mut end = ZIP64_END_OF_CENTRAL_DIRECTORY.to_vec();
+    end.resize(56, 0);
+    end[32..40].copy_from_slice(&count.to_le_bytes());
+    end[48..56].copy_from_slice(&offset.to_le_bytes());
+    end
+}
+
+/// A zip64 file's directory alone, naming `names`.
+fn zip64_directory(names: &[&str]) -> Vec<u8> {
+    let mut bytes: Vec<u8> = names
+        .iter()
+        .flat_map(|name| directory_entry(name))
+        .collect();
+    let record_at = bytes.len() as u64;
+    bytes.extend(zip64_end_of_directory(names.len() as u64, 0));
+    bytes.extend(zip64_locator(record_at));
+    bytes.extend(end_of_directory(u16::MAX, u32::MAX));
+    bytes
+}
+
+#[test]
+fn a_file_without_a_zips_end_record_is_not_a_zip() {
+    assert_eq!(unreadable(b"PK"), "it is too short");
+    assert_eq!(unreadable(&[0u8; 64]), "it has no central directory");
+}
+
+#[test]
+fn a_directory_that_starts_where_no_entry_is_is_refused() {
+    let mut no_entry = vec![0u8; 46];
+    no_entry.extend(end_of_directory(1, 0));
+    assert_eq!(unreadable(&no_entry), "its central directory is damaged");
+
+    assert_eq!(
+        unreadable(&end_of_directory(1, 4000)),
+        "its central directory is damaged"
+    );
+}
+
+#[test]
+fn a_directory_entry_cut_short_is_refused() {
+    let entry = directory_entry("a.csv");
+    // With the 22-byte end record right behind it, an entry cut before byte
+    // 24 leaves a file shorter than the 46 bytes an entry's header takes.
+    for kept in 4..24 {
+        let mut bytes = entry[..kept].to_vec();
+        bytes.extend(end_of_directory(1, 0));
+        assert_eq!(unreadable(&bytes), "it ends early", "cut at {kept}");
+    }
+
+    let mut long_name = directory_entry("a.csv");
+    long_name[28..30].copy_from_slice(&500u16.to_le_bytes());
+    long_name.extend(end_of_directory(1, 0));
+    assert_eq!(unreadable(&long_name), "it ends early");
+}
+
+#[test]
+fn a_directory_with_no_file_behind_it_is_refused() {
+    let mut bytes = directory_entry("a.csv");
+    bytes.extend(end_of_directory(1, 0));
+    assert_eq!(
+        central_directory_names(&bytes, 8),
+        Ok(vec!["a.csv".to_string()])
+    );
+    unreadable(&bytes);
+}
+
+#[test]
+fn a_name_used_twice_cannot_hide_behind_a_directory_that_counts_no_entries() {
+    let mut twice =
+        zip(&[artifact("a.csv", b"1"), artifact("b.csv", b"2")]).unwrap();
+    let mut at = 0;
+    while let Some(found) = twice[at..].windows(5).position(|w| w == b"b.csv") {
+        twice[at + found] = b'a';
+        at += found + 5;
+    }
+    // The end record's total, which the directory is read by here; its
+    // count for this disk still says two.
+    let end = twice.len() - 22;
+    twice[end + 10..end + 12].fill(0);
+
+    assert_eq!(central_directory_names(&twice, 8), Ok(Vec::new()));
+    unreadable(&twice);
+}
+
+#[test]
+fn the_directory_is_read_no_further_than_one_past_the_limit() {
+    let five = zip(&[
+        artifact("a.csv", b"1"),
+        artifact("b.csv", b"2"),
+        artifact("c.csv", b"3"),
+        artifact("d.csv", b"4"),
+        artifact("e.csv", b"5"),
+    ])
+    .unwrap();
+    assert_eq!(central_directory_names(&five, 8).unwrap().len(), 5);
+    assert_eq!(
+        central_directory_names(&five, 2).unwrap(),
+        vec!["a.csv", "b.csv", "c.csv"]
+    );
+}
+
+#[test]
+fn a_zip64_directory_is_read_through_its_locator() {
+    let signed = zip64_directory(&["voters.csv", MANIFEST_MEMBER]);
+    assert_eq!(
+        central_directory_names(&signed, 8).unwrap(),
+        vec!["voters.csv", MANIFEST_MEMBER]
+    );
+    assert!(has_signature_members(&signed));
+    assert!(!has_signature_members(&zip64_directory(&["voters.csv"])));
+}
+
+#[test]
+fn a_zip64_file_without_its_zip64_directory_is_refused() {
+    let missing = "its zip64 directory is missing";
+
+    // No room for a locator before the end record.
+    assert_eq!(unreadable(&end_of_directory(u16::MAX, 0)), missing);
+
+    // Room, and no locator in it. An offset of all ones asks for zip64 as
+    // a count of all ones does.
+    let mut no_locator = vec![0u8; 20];
+    no_locator.extend(end_of_directory(1, u32::MAX));
+    assert_eq!(unreadable(&no_locator), missing);
+
+    // A locator that points past the end of the file.
+    let mut nowhere = zip64_locator(4000);
+    nowhere.extend(end_of_directory(u16::MAX, 0));
+    assert_eq!(unreadable(&nowhere), missing);
+
+    // A locator that points at something else.
+    let mut elsewhere = directory_entry("a.csv");
+    elsewhere.extend(zip64_locator(0));
+    elsewhere.extend(end_of_directory(u16::MAX, 0));
+    assert_eq!(unreadable(&elsewhere), missing);
+
+    // A zip64 end record cut off after its signature.
+    let mut cut = ZIP64_END_OF_CENTRAL_DIRECTORY.to_vec();
+    cut.extend(zip64_locator(0));
+    cut.extend(end_of_directory(u16::MAX, 0));
+    assert_eq!(unreadable(&cut), "it ends early");
+}
+
+fn directory_of(zipped: &[u8]) -> usize {
+    zipped
+        .windows(CENTRAL_DIRECTORY_HEADER.len())
+        .rposition(|window| window == CENTRAL_DIRECTORY_HEADER)
+        .unwrap()
+}
+
+#[test]
+fn a_member_that_does_not_match_its_checksum_is_refused() {
+    let mut damaged = zip(&[artifact("a.csv", b"id,name\n")]).unwrap();
+    let directory = directory_of(&damaged);
+    // The CRC-32, in the directory entry.
+    damaged[directory + 16] ^= 0xff;
+    assert!(!unreadable(&damaged).is_empty());
+}
+
+#[test]
+fn a_member_whose_own_header_is_gone_is_refused() {
+    let mut damaged = zip(&[artifact("a.csv", b"id,name\n")]).unwrap();
+    // The member's local header, which the directory points at.
+    damaged[..4].fill(0);
+    assert_eq!(central_directory_names(&damaged, 8).unwrap(), vec!["a.csv"]);
+    assert!(!unreadable(&damaged).is_empty());
+}
+
+#[test]
+fn a_file_that_is_not_a_zip_opens_as_neither_a_package_nor_a_delivery() {
+    assert_eq!(
+        refusal(open_package(b"not a zip")),
+        "package.unreadable-zip"
+    );
+    assert_eq!(refusal(payload(b"not a zip")), "package.unreadable-zip");
+    assert_eq!(
+        refusal(signature_members(b"not a zip")),
+        "package.unreadable-zip"
+    );
+}
+
+#[test]
+fn a_package_missing_one_signature_member_says_which() {
+    let mut members = delivery_members();
+    members.push(artifact(MANIFEST_MEMBER, b"{}"));
+    members.push(artifact(CHAIN_MEMBER, b"chain"));
+    let bytes = zip(&members).unwrap();
+
+    assert_eq!(
+        signature_members(&bytes).unwrap().missing(),
+        vec![SIGNATURE_MEMBER]
+    );
+    let opened = open_package(&bytes).unwrap();
+    assert!(opened.is_signed());
+    assert_eq!(opened.chain.as_deref(), Some(&b"chain"[..]));
+    assert_eq!(opened.signature, None);
+    assert_eq!(opened.members, delivery_members());
+}

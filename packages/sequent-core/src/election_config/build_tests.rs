@@ -1498,6 +1498,19 @@ fn a_reports_copies_and_formats_travel_in_their_own_columns() {
 }
 
 #[test]
+fn a_reports_formats_may_be_written_as_a_json_list() {
+    let bundle = built(&with_sheet(
+        "Reports",
+        vec![
+            vec![text("report_type"), text("output_formats")],
+            vec![text("ELECTORAL_RESULTS"), text(r#"["xml", "PDF"]"#)],
+        ],
+    ));
+    let row = &bundle.reports.expect("a reports table").rows[0];
+    assert_eq!(row[9], "xml|pdf");
+}
+
+#[test]
 fn a_report_needs_at_least_one_copy() {
     for copies in ["0", "two", "-1"] {
         let report = refused(&with_sheet(

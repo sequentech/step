@@ -652,3 +652,75 @@ fn a_signing_entry_is_signed_with_the_time_of_its_step() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn a_configuration_package_is_an_event_wide_record_of_its_import_and_publication() -> Result<()> {
+    let (data, public) = signer()?;
+    let imported = ConfigurationPackageDetails {
+        action: ConfigurationPackageAction::Imported,
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+        ballot_publication_id: None,
+        design_digests: vec![],
+    };
+    let message =
+        Message::configuration_package_message(event(), imported.clone(), &data, actor(), actor())?;
+    assert_record(&message, &public, "ConfigurationPackageImported", None)?;
+    assert!(matches!(
+        message.statement.head.event_type,
+        StatementEventType::USER
+    ));
+    assert_eq!(
+        message.statement.head.description,
+        format!(
+            "Configuration ov-2028 revision 8 imported from a signed package (manifest {}).",
+            imported.manifest_sha256
+        )
+    );
+    match &message.statement.body {
+        StatementBody::ConfigurationPackage(event_id, signed) => {
+            assert_eq!(event_id, &event());
+            assert_eq!(signed, &imported);
+        }
+        other => panic!("unexpected body {other:?}"),
+    }
+
+    let published = ConfigurationPackageDetails {
+        action: ConfigurationPackageAction::Published,
+        ballot_publication_id: Some("synthetic-publication".into()),
+        design_digests: vec![
+            ConfigurationDesignDigest {
+                area: "Post 1".into(),
+                election: "national".into(),
+                sha256: "cd".repeat(32),
+            },
+            ConfigurationDesignDigest {
+                area: "Post 2".into(),
+                election: "national".into(),
+                sha256: "ef".repeat(32),
+            },
+        ],
+        ..imported
+    };
+    let message = Message::configuration_package_message(
+        event(),
+        published.clone(),
+        &data,
+        actor(),
+        actor(),
+    )?;
+    assert_record(&message, &public, "ConfigurationPublished", None)?;
+    assert_eq!(
+        message.statement.head.description,
+        format!(
+            "Ballots of configuration ov-2028 revision 8 published as approved (manifest {}, 2 designs).",
+            published.manifest_sha256
+        )
+    );
+    match &message.statement.body {
+        StatementBody::ConfigurationPackage(_, signed) => assert_eq!(signed, &published),
+        other => panic!("unexpected body {other:?}"),
+    }
+    Ok(())
+}

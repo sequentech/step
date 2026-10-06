@@ -214,6 +214,69 @@ fn a_signing_entry_is_encoded_field_by_field() {
     assert!(borsh::from_slice::<SigningLogEntry>(&expected[..expected.len() - 1]).is_err());
 }
 
+/// Field order is signed: every field of a configuration package entry, in
+/// order, as independently assembled bytes.
+#[test]
+fn a_configuration_package_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let details = ConfigurationPackageDetails {
+        action: ConfigurationPackageAction::Published,
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+        ballot_publication_id: Some("publication".into()),
+        design_digests: vec![ConfigurationDesignDigest {
+            area: "Post 1".into(),
+            election: "national".into(),
+            sha256: "cd".repeat(32),
+        }],
+    };
+    let mut expected = vec![1];
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.push(1);
+    expected.extend(text("publication"));
+    expected.extend(1_u32.to_le_bytes());
+    expected.extend(text("Post 1"));
+    expected.extend(text("national"));
+    expected.extend(text(&"cd".repeat(32)));
+    assert_eq!(borsh::to_vec(&details).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<ConfigurationPackageDetails>(&expected).unwrap(),
+        details
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<ConfigurationPackageDetails>(&trailing).is_err());
+    assert!(
+        borsh::from_slice::<ConfigurationPackageDetails>(&expected[..expected.len() - 1]).is_err()
+    );
+
+    // An import has no publication and no designs yet.
+    let imported = ConfigurationPackageDetails {
+        action: ConfigurationPackageAction::Imported,
+        ballot_publication_id: None,
+        design_digests: vec![],
+        ..details
+    };
+    let mut expected = vec![0];
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.push(0);
+    expected.extend(0_u32.to_le_bytes());
+    assert_eq!(borsh::to_vec(&imported).unwrap(), expected);
+
+    // An action this version doesn't know is not read as one it does.
+    expected[0] = 2;
+    assert!(borsh::from_slice::<ConfigurationPackageDetails>(&expected).is_err());
+}
+
 #[test]
 fn empty_lists_and_absent_lists_remain_distinct() {
     assert_eq!(borsh::to_vec(&ElectionsIdsString(None)).unwrap(), vec![0]);

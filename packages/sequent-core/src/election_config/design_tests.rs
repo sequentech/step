@@ -249,3 +249,180 @@ fn a_bucket_path_is_replaced_in_a_url_and_nowhere_else() {
         r#"{"description":"tenant-1/document-2/face.png","logo_url":"document:face.png","url":"document:face.png"}"#
     );
 }
+
+/// A row of the event, with the fields a test is about.
+fn row<T: serde::de::DeserializeOwned>(id: &str, fields: Value) -> T {
+    let mut row = json!({
+        "id": id,
+        "tenant_id": "t",
+        "election_event_id": "ev",
+        "election_id": "e1",
+        "name": "A name voters read"
+    });
+    for (field, value) in fields.as_object().unwrap() {
+        row[field.as_str()] = value.clone();
+    }
+    serde_json::from_value(row).unwrap()
+}
+
+fn event_keys() -> DesignKeys {
+    DesignKeys::of_entities(
+        &[row("a1", json!({"name": "North"}))],
+        &[row("e1", json!({"external_id": "officers"}))],
+        &[row("c1", json!({"external_id": "president"}))],
+        &[row("k1", json!({"external_id": "alice"}))],
+    )
+    .unwrap()
+}
+
+#[test]
+fn each_entity_is_keyed_by_what_survives_an_import() {
+    let keys = event_keys();
+    assert_eq!(keys.key("a1"), Some("North"));
+    assert_eq!(keys.key("e1"), Some("officers"));
+    assert_eq!(keys.key("unknown"), None);
+    assert_eq!(
+        written(
+            json!({
+                "area_id": "a1",
+                "election_id": "e1",
+                "contest_id": "c1",
+                "candidate_id": "k1"
+            }),
+            &keys
+        ),
+        r#"{"area_id":"area:North","candidate_id":"candidate:alice","contest_id":"contest:president","election_id":"election:officers"}"#
+    );
+}
+
+#[test]
+fn an_entity_without_its_stable_key_is_named_with_what_it_lacks() {
+    let unnamed_area: Area = row("a1", json!({"name": null}));
+    let problem =
+        DesignKeys::of_entities(&[unnamed_area], &[], &[], &[]).unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("design.no-stable-key"));
+    assert_eq!(problem.path, "areas");
+    assert_eq!(problem.details["kind"], "area");
+    assert_eq!(problem.details["id"], "a1");
+    assert!(
+        problem.message.contains("area a1 has no name"),
+        "{problem:?}"
+    );
+
+    let contest: Contest = row("c1", json!({"external_id": null}));
+    let problem =
+        DesignKeys::of_entities(&[], &[], &[contest], &[]).unwrap_err();
+    assert_eq!(problem.details["kind"], "contest");
+    assert!(
+        problem.message.contains("contest c1 has no external id"),
+        "{problem:?}"
+    );
+
+    // Blank is as good as absent: nothing could be matched by it.
+    let candidate: Candidate = row("k1", json!({"external_id": "  "}));
+    let problem =
+        DesignKeys::of_entities(&[], &[], &[], &[candidate]).unwrap_err();
+    assert_eq!(problem.details["kind"], "candidate");
+    assert_eq!(problem.details["id"], "k1");
+}
+
+fn style(id: &str, area: &str, election: &str) -> BallotStyle {
+    serde_json::from_value(json!({
+        "id": id,
+        "tenant_id": format!("tenant-of-{id}"),
+        "election_event_id": "ev",
+        "election_id": election,
+        "area_id": area,
+        "contests": []
+    }))
+    .unwrap()
+}
+
+#[test]
+fn a_style_is_digested_under_its_areas_name_and_its_elections_external_id() {
+    let keys = event_keys();
+    let digest = ballot_design_digest(&style("s1", "a1", "e1"), &keys).unwrap();
+    assert_eq!(digest.area, "North");
+    assert_eq!(digest.election, "officers");
+    assert_eq!(
+        digest,
+        ballot_design_digest(&style("s2", "a1", "e1"), &keys).unwrap(),
+        "the style's own id and its tenant are not part of the design"
+    );
+}
+
+#[test]
+fn a_style_of_an_area_or_election_the_event_lacks_has_no_digest() {
+    let keys = event_keys();
+    let problem =
+        ballot_design_digest(&style("s1", "a9", "e1"), &keys).unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("design.no-stable-key"));
+    assert_eq!(problem.details["kind"], "area");
+    assert_eq!(problem.details["id"], "a9");
+
+    let problem =
+        ballot_design_digest(&style("s1", "a1", "e9"), &keys).unwrap_err();
+    assert_eq!(problem.details["kind"], "election");
+    assert_eq!(problem.details["id"], "e9");
+
+    // One style that can't be digested leaves the whole list without digests.
+    let styles = [style("s1", "a1", "e1"), style("s2", "a1", "e9")];
+    assert_eq!(
+        ballot_design_digests(&styles, &keys).unwrap_err().details["id"],
+        "e9"
+    );
+}
+
+#[test]
+fn digests_are_listed_by_area_and_then_election() {
+    let keys = DesignKeys::of_entities(
+        &[
+            row("a1", json!({"name": "South"})),
+            row("a2", json!({"name": "North"})),
+        ],
+        &[
+            row("e1", json!({"external_id": "officers"})),
+            row("e2", json!({"external_id": "auditors"})),
+        ],
+        &[],
+        &[],
+    )
+    .unwrap();
+    let styles = [
+        style("s1", "a1", "e1"),
+        style("s2", "a2", "e1"),
+        style("s3", "a2", "e2"),
+    ];
+    let listed: Vec<(String, String)> = ballot_design_digests(&styles, &keys)
+        .unwrap()
+        .into_iter()
+        .map(|digest| (digest.area, digest.election))
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            ("North", "auditors"),
+            ("North", "officers"),
+            ("South", "officers")
+        ]
+        .map(|(area, election)| (area.to_string(), election.to_string()))
+    );
+}
+
+#[test]
+fn a_path_outside_a_tenants_documents_is_not_a_bucket_path() {
+    assert_eq!(public_file_name("tenant-1/face.png"), None);
+    assert_eq!(public_file_name("tenant-1/document-2"), None);
+    assert_eq!(public_file_name("face.png"), None);
+}
+
+#[test]
+fn a_contest_list_that_is_not_a_list_is_hashed_as_it_is() {
+    assert_eq!(
+        written(
+            json!({"contests": null, "candidates": "none"}),
+            &president()
+        ),
+        r#"{"candidates":"none","contests":null}"#
+    );
+}

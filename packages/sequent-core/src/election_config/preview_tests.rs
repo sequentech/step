@@ -1018,3 +1018,27 @@ fn the_design_digest_leaves_the_voting_window_to_the_schedule_file() {
         ballot_design_digests(&built(&later)).unwrap()
     );
 }
+
+#[test]
+fn a_bundle_that_is_not_an_import_document_has_no_design_digests() {
+    let mut bundle = built(&two_elections());
+    bundle.export = json!({"elections": "none"});
+    let report = ballot_design_digests(&bundle).unwrap_err();
+    assert!(report.has_errors());
+    assert!(
+        report
+            .errors()
+            .any(|problem| problem.message.contains("import schema")),
+        "{report}"
+    );
+}
+
+#[test]
+fn an_area_that_lost_its_name_has_no_design_digests() {
+    let mut bundle = built(&two_elections());
+    bundle.export["areas"][0]["name"] = Value::Null;
+    let report = ballot_design_digests(&bundle).unwrap_err();
+    let problem = report.errors().next().expect("an error");
+    assert_eq!(problem.id.as_deref(), Some("design.no-stable-key"));
+    assert_eq!(problem.details["kind"], "area");
+}

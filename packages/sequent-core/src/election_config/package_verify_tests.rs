@@ -1019,6 +1019,504 @@ fn trust_settings_that_are_not_pem_are_reported() {
 }
 
 #[test]
+fn every_trust_setting_that_cannot_be_read_is_named() {
+    let world = world();
+    let root = world.root.pem();
+    let staff = world.staff_root.pem();
+
+    let problem = PackageTrust::from_pem(&root, "", &[], 2).unwrap_err();
+    assert_eq!(problem.details["setting"], "staff_roots");
+    assert_eq!(problem.details["reason"], "there are no certificates in it");
+
+    let broken = "-----BEGIN X509 CRL-----\n!!!\n-----END X509 CRL-----\n";
+    let problem =
+        PackageTrust::from_pem(&root, &staff, &[broken.to_string()], 2)
+            .unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.unreadable-trust"));
+    assert_eq!(problem.details["setting"], "revocation_lists");
+    assert!(problem.details["reason"].starts_with("unreadable PEM"));
+
+    let lists = [crl(&world.root, &[3]), crl(&world.staff_root, &[4])];
+    let trust = PackageTrust::from_pem(&root, &staff, &lists, 2).unwrap();
+    assert_eq!(trust.revocation_lists.len(), 2);
+    assert_eq!(trust.required_approvals, 2);
+}
+
+#[test]
+fn an_installations_settings_that_are_not_pem_admit_nothing() {
+    let world = world();
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+
+    let mut settings = settings(&world, ConfigurationSigningPolicy::Optional);
+    settings.staff_roots = "not a certificate".to_string();
+    let problem = settings.trust(Vec::new()).unwrap_err();
+    assert_eq!(problem.details["setting"], "staff_roots");
+    let report = admit(&bytes, Some(&settings), Vec::new()).unwrap_err();
+    assert_eq!(ids(&report), vec!["package.unreadable-trust"]);
+
+    settings.package_roots = "not a certificate".to_string();
+    let problem = settings.trust(Vec::new()).unwrap_err();
+    assert_eq!(problem.details["setting"], "package_roots");
+}
+
+#[test]
+fn settings_without_roots_trust_nobody_and_keep_the_lists_they_are_given() {
+    let world = world();
+    let lists = crls_from_pem(&crl(&world.root, &[3])).unwrap();
+    let trust = ConfigurationSigning {
+        required_approvals: 3,
+        ..ConfigurationSigning::default()
+    }
+    .trust(lists.clone())
+    .unwrap();
+    assert!(trust.package_roots.is_empty());
+    assert!(trust.staff_roots.is_empty());
+    assert_eq!(trust.revocation_lists, lists);
+    assert_eq!(trust.required_approvals, 3);
+}
+
+#[test]
+fn the_package_imported_last_is_reported_as_already_imported() {
+    let problem = already_imported(8);
+    assert_eq!(problem.id.as_deref(), Some("package.already-imported"));
+    assert_eq!(problem.code, Code::Rollback);
+    assert_eq!(problem.path, "manifest.configuration.revision");
+    assert_eq!(problem.details["revision"], "8");
+}
+
+/// A package with `manifest` as its manifest, byte for byte, signed by the
+/// organization's key.
+fn signed_bytes(world: &World, manifest: &[u8]) -> Vec<u8> {
+    package(
+        "p.zip",
+        &members(),
+        manifest,
+        &sign(&world.key.key, manifest),
+        &world.key.chain_pem,
+    )
+    .unwrap()
+    .bytes
+}
+
+/// A good package that says `chain` is its signer's certificates.
+fn with_chain(world: &World, chain: &str) -> Vec<u8> {
+    let manifest = approved(world, 8).to_bytes().unwrap();
+    package(
+        "p.zip",
+        &members(),
+        &manifest,
+        &sign(&world.key.key, &manifest),
+        chain,
+    )
+    .unwrap()
+    .bytes
+}
+
+/// The one error a package is refused with.
+fn refusal(bytes: &[u8], trust: &PackageTrust) -> Problem {
+    let report = verify_package(bytes, trust).unwrap_err();
+    let errors: Vec<&Problem> = report.errors().collect();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    errors[0].clone()
+}
+
+#[test]
+fn a_file_that_is_not_a_zip_is_not_verified() {
+    let world = world();
+    assert_eq!(
+        refused(b"not a zip", &trust(&world)),
+        vec!["package.unreadable-zip"]
+    );
+}
+
+#[test]
+fn a_manifest_that_cannot_be_read_is_refused() {
+    let world = world();
+    for manifest in [&b"not json"[..], b"{}", br#"{"format": 1}"#] {
+        let problem = refusal(&signed_bytes(&world, manifest), &trust(&world));
+        assert_eq!(problem.id.as_deref(), Some("package.unreadable-manifest"));
+        assert_eq!(problem.path, MANIFEST_MEMBER);
+        assert!(!problem.details["reason"].is_empty());
+    }
+}
+
+#[test]
+fn a_signing_time_that_is_not_a_time_is_refused() {
+    let world = world();
+    let mut manifest = approved(&world, 8);
+
+    manifest.produced.at = "yesterday".to_string();
+    let bytes = signed(&manifest, &world.key, &members());
+    let problem = refusal(&bytes, &trust(&world));
+    assert_eq!(problem.id.as_deref(), Some("package.invalid-time"));
+    assert_eq!(problem.details["value"], "yesterday");
+
+    manifest.produced.at = "1969-12-31T23:59:59Z".to_string();
+    let bytes = signed(&manifest, &world.key, &members());
+    let problem = refusal(&bytes, &trust(&world));
+    assert_eq!(problem.id.as_deref(), Some("package.invalid-time"));
+    assert!(problem.message.contains("before 1970"), "{problem:?}");
+}
+
+#[test]
+fn a_revocation_list_that_cannot_be_read_is_refused_rather_than_skipped() {
+    let world = world();
+    let unreadable = "package.unreadable-revocation-list";
+
+    // Carried in the package: PEM that doesn't decode, and PEM that decodes
+    // to something that is not a revocation list.
+    for list in [
+        "-----BEGIN X509 CRL-----\n!!!\n-----END X509 CRL-----\n",
+        "-----BEGIN X509 CRL-----\nAAAA\n-----END X509 CRL-----\n",
+    ] {
+        let mut manifest = approved(&world, 8);
+        manifest.revocation_lists = vec![list.to_string()];
+        let bytes = signed(&manifest, &world.key, &members());
+        let problem = refusal(&bytes, &trust(&world));
+        assert_eq!(problem.id.as_deref(), Some(unreadable));
+        assert_eq!(problem.path, "revocation_lists");
+    }
+
+    // Held by the installation.
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+    let mut trust = trust(&world);
+    trust.revocation_lists = vec![b"not a revocation list".to_vec()];
+    assert_eq!(refused(&bytes, &trust), vec![unreadable]);
+    assert!(check_revocation_list(b"not a revocation list").is_err());
+    assert!(check_revocation_list(
+        &crls_from_pem(&crl(&world.root, &[3])).unwrap()[0]
+    )
+    .is_ok());
+}
+
+#[test]
+fn a_chain_that_holds_no_certificate_is_refused() {
+    let world = world();
+    let trust = trust(&world);
+
+    let problem = refusal(&with_chain(&world, "no certificates here"), &trust);
+    assert_eq!(problem.id.as_deref(), Some("package.unreadable-chain"));
+    assert_eq!(problem.path, CHAIN_MEMBER);
+    assert_eq!(problem.details["reason"], "there are no certificates in it");
+
+    let broken =
+        "-----BEGIN CERTIFICATE-----\n!!!\n-----END CERTIFICATE-----\n";
+    let problem = refusal(&with_chain(&world, broken), &trust);
+    assert_eq!(problem.id.as_deref(), Some("package.unreadable-chain"));
+    assert!(problem.details["reason"].starts_with("unreadable PEM"));
+}
+
+#[test]
+fn a_chain_whose_first_certificate_is_not_one_is_not_trusted() {
+    let world = world();
+    let not_der =
+        "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n";
+    let problem = refusal(&with_chain(&world, not_der), &trust(&world));
+    assert_eq!(problem.id.as_deref(), Some("package.untrusted-signer"));
+    assert!(
+        problem.details["reason"].starts_with("the certificate is unreadable"),
+        "{problem:?}"
+    );
+    assert!(verify_with(
+        b"AAAA",
+        MANIFEST_ALGORITHMS,
+        b"message",
+        b"signature"
+    )
+    .unwrap_err()
+    .starts_with("the certificate is unreadable"));
+}
+
+#[test]
+fn a_root_that_is_not_a_certificate_trusts_nothing() {
+    let world = world();
+    let bytes = signed(&approved(&world, 8), &world.key, &members());
+    let mut trust = trust(&world);
+    trust.package_roots = vec![b"not a certificate".to_vec()];
+    let problem = refusal(&bytes, &trust);
+    assert_eq!(problem.id.as_deref(), Some("package.untrusted-signer"));
+    assert!(
+        problem.details["reason"].starts_with("a trusted root is unreadable"),
+        "{problem:?}"
+    );
+}
+
+#[test]
+fn an_approval_with_no_certificate_behind_it_is_not_trusted() {
+    let world = world();
+    let problem = check_certificate(
+        &[],
+        &trust(&world).staff_roots,
+        &[],
+        unix_time("2026-06-15T08:00:00Z").unwrap(),
+        Role::Approver,
+    )
+    .unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.untrusted-approver"));
+    assert_eq!(problem.path, "manifest.approvals");
+    assert_eq!(problem.details["reason"], "there is no certificate");
+}
+
+#[test]
+fn a_package_signed_before_its_key_was_valid_is_refused() {
+    // The key's certificate starts in 2025.
+    let world = world();
+    let mut manifest = approved(&world, 8);
+    manifest.produced.at = "2024-06-15T08:00:00Z".to_string();
+    let bytes = signed(&manifest, &world.key, &members());
+    let problem = refusal(&bytes, &trust(&world));
+    assert_eq!(problem.id.as_deref(), Some("package.untrusted-signer"));
+    assert_eq!(
+        problem.details["reason"],
+        "it was not valid yet when it was used"
+    );
+}
+
+#[test]
+fn a_certificate_authority_does_not_sign_packages_itself() {
+    let world = world();
+    let manifest = approved(&world, 8).to_bytes().unwrap();
+    let bytes = package(
+        "p.zip",
+        &members(),
+        &manifest,
+        &sign(world.root.key(), &manifest),
+        &world.root.pem(),
+    )
+    .unwrap()
+    .bytes;
+    let problem = refusal(&bytes, &trust(&world));
+    assert_eq!(problem.id.as_deref(), Some("package.untrusted-signer"));
+    assert_eq!(
+        problem.details["reason"],
+        "it is a certificate authority, which doesn't sign as a person"
+    );
+}
+
+#[test]
+fn a_key_certified_by_a_certificate_that_may_not_certify_is_refused() {
+    let world = world();
+    let mut params = CertificateParams::new(Vec::<String>::new()).unwrap();
+    params
+        .distinguished_name
+        .push(DnType::CommonName, "Not An Authority");
+    params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    params.not_before = date_time_ymd(2025, 1, 1);
+    params.not_after = date_time_ymd(2035, 1, 1);
+    let not_an_authority = CertifiedIssuer::signed_by(
+        params,
+        KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap(),
+        &world.root,
+    )
+    .unwrap();
+    let key = leaf(
+        "Configuration Signing Key",
+        &not_an_authority,
+        LeafOptions::default(),
+    );
+    let bytes = signed(&approved(&world, 8), &key, &members());
+    let problem = refusal(&bytes, &trust(&world));
+    assert_eq!(problem.id.as_deref(), Some("package.untrusted-signer"));
+    assert!(
+        problem.details["reason"]
+            .starts_with("its certificate path doesn't verify"),
+        "{problem:?}"
+    );
+}
+
+/// 1.3.6.1.5.5.7.3.36, documentSigning.
+const DOCUMENT_SIGNING: [u64; 9] = [1, 3, 6, 1, 5, 5, 7, 3, 36];
+
+fn key_for(world: &World, extended: Vec<ExtendedKeyUsagePurpose>) -> Signer {
+    leaf(
+        "Configuration Signing Key",
+        &world.root,
+        LeafOptions {
+            extended,
+            ..LeafOptions::default()
+        },
+    )
+}
+
+#[test]
+fn a_certificate_for_signing_documents_or_mail_signs_packages() {
+    let world = world();
+    for purpose in [
+        ExtendedKeyUsagePurpose::EmailProtection,
+        ExtendedKeyUsagePurpose::Other(DOCUMENT_SIGNING.to_vec()),
+        ExtendedKeyUsagePurpose::Any,
+    ] {
+        let key = key_for(&world, vec![purpose.clone()]);
+        let bytes = signed(&approved(&world, 8), &key, &members());
+        assert!(
+            verify_package(&bytes, &trust(&world)).is_ok(),
+            "{purpose:?}"
+        );
+    }
+}
+
+#[test]
+fn a_certificate_for_something_other_than_signing_does_not_sign_packages() {
+    let world = world();
+    for purpose in [
+        ExtendedKeyUsagePurpose::ServerAuth,
+        ExtendedKeyUsagePurpose::CodeSigning,
+        // 1.3.6.1.5.5.7.3.17, which is not one of the document signing ones.
+        ExtendedKeyUsagePurpose::Other(vec![1, 3, 6, 1, 5, 5, 7, 3, 17]),
+    ] {
+        let key = key_for(&world, vec![purpose.clone()]);
+        let bytes = signed(&approved(&world, 8), &key, &members());
+        assert_eq!(
+            refused(&bytes, &trust(&world)),
+            vec!["package.signer-key-usage"],
+            "{purpose:?}"
+        );
+    }
+}
+
+/// The reason the second approval of an otherwise good package doesn't
+/// count, once `change` has been made to it.
+fn second_approval_refused(change: fn(&mut Approval)) -> String {
+    let world = world();
+    let mut manifest = approved(&world, 8);
+    change(&mut manifest.approvals[1]);
+    let bytes = signed(&manifest, &world.key, &members());
+    let report = verify_package(&bytes, &trust(&world)).unwrap_err();
+    assert_eq!(
+        ids(&report),
+        vec!["package.approval-invalid", "package.too-few-approvals"]
+    );
+    let invalid = report.errors().next().unwrap();
+    assert_eq!(invalid.path, "manifest.approvals[1]");
+    assert_eq!(invalid.details["name"], "Security Officer");
+    invalid.details["reason"].clone()
+}
+
+#[test]
+fn an_approval_that_cannot_be_checked_does_not_count() {
+    let reason = second_approval_refused(|approval| {
+        approval.signed_at = "this morning".to_string()
+    });
+    assert!(reason.contains("'this morning' is not a time"), "{reason}");
+
+    let reason = second_approval_refused(|approval| {
+        approval.certificate_chain = String::new()
+    });
+    assert_eq!(reason, "there are no certificates in it");
+
+    let reason = second_approval_refused(|approval| {
+        approval.signature = "not base64!".to_string()
+    });
+    assert!(
+        reason.starts_with("the signature is not base64"),
+        "{reason}"
+    );
+
+    // An ECDSA signature said to be RSA.
+    let reason = second_approval_refused(|approval| {
+        approval.algorithm = SignatureAlgorithm::RsaPkcs1Sha256
+    });
+    assert_eq!(reason, "the signature does not match the signed bytes");
+}
+
+#[test]
+fn an_approval_without_a_time_does_not_count_when_the_verifier_has_a_clock() {
+    let world = world();
+    let mut manifest = approved(&world, 8);
+    manifest.approvals[0].signed_at = "this morning".to_string();
+    let bytes = signed(&manifest, &world.key, &members());
+    let report =
+        verify_package_at(&bytes, &trust(&world), at("2026-06-15T09:00:00Z"))
+            .unwrap_err();
+    let invalid = report.errors().next().unwrap();
+    assert_eq!(invalid.id.as_deref(), Some("package.approval-invalid"));
+    assert_eq!(invalid.details["name"], "Configuration Manager");
+    assert!(invalid.details["reason"].contains("is not a time"));
+}
+
+#[test]
+fn an_approval_by_a_certificate_that_is_not_for_signing_does_not_count() {
+    let world = world();
+    let clerk = leaf(
+        "Clerk",
+        &world.staff_root,
+        LeafOptions {
+            serial: 12,
+            key_usages: vec![KeyUsagePurpose::KeyEncipherment],
+            ..LeafOptions::default()
+        },
+    );
+    let mut manifest = unsigned_manifest(8);
+    approve(&mut manifest, &world.manager, "Configuration Manager");
+    approve(&mut manifest, &clerk, "Clerk");
+    let bytes = signed(&manifest, &world.key, &members());
+    let report = verify_package(&bytes, &trust(&world)).unwrap_err();
+    let invalid = report.errors().next().unwrap();
+    assert_eq!(invalid.id.as_deref(), Some("package.approval-invalid"));
+    assert_eq!(
+        invalid.details["reason"],
+        "the approver's certificate is not made for signing"
+    );
+}
+
+#[test]
+fn a_manifest_with_a_number_too_large_to_sign_exactly_is_refused() {
+    let world = world();
+    let mut trust = trust(&world);
+    trust.required_approvals = 0;
+
+    // A revision nobody can have approved: its payload can't be written.
+    let bytes = signed(&unsigned_manifest(1 << 53), &world.key, &members());
+    assert_eq!(refused(&bytes, &trust), vec!["package.unhashable-content"]);
+
+    // A file size the content digest can't cover.
+    let mut manifest = unsigned_manifest(8);
+    manifest.content.files[0].size = 1 << 53;
+    let bytes = signed(&manifest, &world.key, &members());
+    assert_eq!(refused(&bytes, &trust), vec!["package.unhashable-content"]);
+}
+
+#[test]
+fn a_signing_certificate_that_cannot_be_read_is_not_checked() {
+    let world = world();
+    let trust = trust(&world);
+
+    let problem = verify_signing_certificate(
+        "not a certificate",
+        &trust.package_roots,
+        &[],
+        "2026-06-15T08:00:00Z",
+    )
+    .unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.unreadable-chain"));
+
+    let problem = verify_signing_certificate(
+        &world.key.chain_pem,
+        &trust.package_roots,
+        &[],
+        "next week",
+    )
+    .unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.invalid-time"));
+    assert_eq!(problem.details["value"], "next week");
+}
+
+#[test]
+fn a_signing_certificate_revoked_by_a_list_given_is_refused_before_use() {
+    let world = world();
+    let lists = crls_from_pem(&crl(&world.root, &[world.key.serial])).unwrap();
+    let problem = verify_signing_certificate(
+        &world.key.chain_pem,
+        &trust(&world).package_roots,
+        &lists,
+        "2026-06-15T08:00:00Z",
+    )
+    .unwrap_err();
+    assert_eq!(problem.id.as_deref(), Some("package.revoked-signer"));
+    assert_eq!(problem.path, CHAIN_MEMBER);
+}
+
+#[test]
 fn the_signature_members_are_named_as_the_manifest_module_names_them() {
     assert_eq!(
         (MANIFEST_MEMBER, SIGNATURE_MEMBER, CHAIN_MEMBER),
