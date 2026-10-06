@@ -212,6 +212,51 @@ const galegoTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Confirme que quere executar esta acción; pode levar un tempo executarse.",
+                title: "Exportar rexistros",
+                from: "Desde",
+                to: "Ata",
+                timeZone: "Fuso horario",
+                format: "Formato",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Cada fila conserva a súa hora en UTC (ISO 8601) e en {{abbr}}, co nome do fuso horario. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+                zoneNotePdf:
+                    "O PDF amosa cada hora en {{abbr}}. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+                rowZones: "O fuso horario da elección de cada fila",
+                zoneNoteRows:
+                    "Cada fila conserva a súa hora en UTC (ISO 8601) e no fuso horario da súa elección, co nome do fuso horario. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "O PDF amosa cada hora no fuso horario da súa elección. O intervalo de datas inclúe ambos os extremos, en {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Creado desde",
+                createdTo: "ata",
+                statementTimestampFrom: "Marca de tempo da declaración desde",
+                statementTimestampTo: "Marca de tempo da declaración ata",
+                timeZone: "Fuso horario",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Agardando pola inicialización",
+                    "runs": "execútase",
+                    "runs-unsigned": "execútase sen sinaturas",
+                    "refused": "rexéitase",
+                },
+                check: {
+                    "initialization": "A inicialización requirida está incompleta",
+                    "voting-close": "A votación non pode abrirse despois do prazo de peche",
+                    "needs-signatures": "sinaturas necesarias",
+                    "covered": "na configuración asinada",
+                    "unsigned-close": "peche sen sinaturas",
+                    "stricter-copy": "configuración actual ou publicada",
+                    "defaults": "aínda non hai nada publicado",
+                },
+                changed: "Agora {{after}} (antes: {{before}}).",
+                result: "Resultado: {{outcome}}.",
+                deciding: "Comprobación decisiva: {{check}}. {{value}}",
+                authorizedBy: "Autorizado pola configuración {{code}}.",
+                nextStep: "Seguinte paso: {{step}}",
             },
             column: {
                 id: "ID",
@@ -505,6 +550,7 @@ const galegoTranslation: TranslationType = {
                     duplicateKey: "Xa existe unha substitución con esta clave e ámbito do portal.",
                     invalidDateTimeFormat:
                         "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Este texto debe conservar {{placeholders}}.",
                 },
                 common: {
                     title: "Localización",
@@ -522,6 +568,7 @@ const galegoTranslation: TranslationType = {
                     ballotVerifier: "Verificador de papeletas",
                     resultsPortal: "Portal de resultados",
                     adminPortal: "Portal de administración",
+                    templates: "Informes e mensaxes",
                 },
             },
             field: {
@@ -593,6 +640,8 @@ const galegoTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "Estado de Bloqueo",
+                    helperText:
+                        "Programe o inicio ou o fin do período de bloqueo para cambiar este estado.",
                     options: {
                         "locked-down": "Bloqueado",
                         "not-locked-down": "Non Bloqueado",
@@ -1600,6 +1649,22 @@ const galegoTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Inicio do Período de Bloqueo",
                 END_LOCKDOWN_PERIOD: "Fin do Período de Bloqueo",
                 ALLOW_TALLY: "Permitir Recuento",
+                START_READINESS_TEST: "Iniciar proba de preparación electoral",
+                END_READINESS_TEST: "Finalizar proba de preparación electoral",
+                START_FINAL_TESTING: "Iniciar probas finais e bloqueo",
+                END_FINAL_TESTING: "Finalizar probas finais e bloqueo",
+                START_TEST_VOTING: "Iniciar votación de proba",
+                END_TEST_VOTING: "Finalizar votación de proba",
+            },
+            warning: {
+                votingWindowDays:
+                    "O período de votación de {{election}} abrangue {{days}} días locais (do {{start_local}} ao {{end_local}}, {{time_zone}}); a regra pide {{expected}}.",
+                finalTestingLeadTime:
+                    "As probas finais de {{election}} comezan o {{final_testing_local}}, menos de {{minimum_days}} días antes de que se abra a votación o {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "A votación de {{election}} péchase antes ou no momento de abrirse ({{start_local}} a {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "O último día de votación de {{election}} ten {{hours}} horas, menos de {{minimum_hours}}: a votación péchase o {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Elección",
@@ -2438,6 +2503,16 @@ const galegoTranslation: TranslationType = {
                 "Exportar os resultados de todas as áreas en formato {{format}} para '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Xere o informe para todo o posto ou para un país. A votación permanece bloqueada ata completar toda a inicialización requirida por país e para o evento.",
+                countriesError:
+                    "Non se puideron cargar os países elixibles. Peche e volva intentalo.",
+                noCountries:
+                    "Este posto non ten países elixibles con estilos de papeleta activos. Comprobe as súas áreas e a publicación antes de inicializar.",
+                country: "País",
+                entirePost: "Todo o posto",
+            },
             preview: {
                 publicationAreas: "Seleccionar Área para Vista Previa",
                 action: "Vista Previa",
@@ -4081,6 +4156,376 @@ const galegoTranslation: TranslationType = {
                 redo: "O seu fragmento de chave achegouse sen a súa sinatura, que esta elección agora require. Achégueo de novo e asíneo.",
                 notTaken:
                     "A cerimonia xa non acepta este fragmento de chave. Volva soltar o seu ficheiro de fragmento de chave.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Prazo de peche asinado",
+                deadline: "{{election}}: {{time}} · autorizado pola configuración {{code}}.",
+                explanation:
+                    "Este prazo asinado segue sendo vinculante aínda que se cambie ou elimine o calendario editable. O planificador pecha as canles autorizadas que aínda estean abertas.",
+                reached:
+                    "Este prazo asinado xa venceu. Comprobe o estado actual da votación e o rexistro de auditoría; aínda non se rexistrou o seu procesamento.",
+                processed: "Prazo de peche asinado procesado ás {{time}}.",
+                signedAt: "Prazo asinado: {{time}}.",
+                channels: "Canles que seguen cubertas por este prazo: {{channels}}.",
+                result: "Consulte o estado da votación e o rexistro de auditoría para coñecer os cambios reais e o resultado completo.",
+                unavailable:
+                    "Non se puideron cargar os prazos de peche asinados. Comprobe o calendario publicado e o rexistro de auditoría.",
+            },
+            picker: {
+                noMatch:
+                    "Ningún fuso horario coincide. Escribe unha cidade, un país, unha zona, unha abreviatura ou un desprazamento.",
+            },
+            input: {
+                timezone: "Fuso horario",
+                scheduledAt: "Programado para",
+                meetingStart: "Inicio da reunión",
+                cronZone: "A programación execútase no fuso horario principal do evento, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} non é un dos fusos horarios configurados do evento. Escolle un deles.",
+            },
+            schedule: {
+                allElections: "Todas as eleccións",
+                outcome: "Resultado",
+                noOffset: "Sen desprazamento horario: nunca se executa",
+                unpublished: "Aínda sen publicar",
+                notPublished:
+                    "Aínda non hai nada publicado: os votantes ven a programación tras a primeira publicación.",
+                unpublishedChanges_one:
+                    "{{count}} evento programado cambiou desde a última publicación. Os votantes verano cando publiques.",
+                unpublishedChanges_other:
+                    "{{count}} eventos programados cambiaron desde a última publicación. Os votantes veranos cando publiques.",
+                offsetless_one:
+                    "{{count}} hora programada non ten desprazamento horario, así que nunca se executa. Edítaa para fixar o seu fuso horario.",
+                offsetless_other:
+                    "{{count}} horas programadas non teñen desprazamento horario, así que nunca se executan. Edítaas para fixar o seu fuso horario.",
+                outcomeChange:
+                    "Ao gardar cambia o que fai esta transición programada: {{before}} → {{after}}.",
+                outcomeNew: "Unha vez gardada, esta transición programada: {{after}}.",
+                outcomeElections: "{{count}} de {{total}} eleccións",
+                exportError: "Non se puido exportar a programación.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} fila programada será rexeitada ({{transitions}} transicións de eleccións).",
+                    refused_other:
+                        "{{count}} filas programadas serán rexeitadas ({{transitions}} transicións de eleccións).",
+                    runsUnsigned_one:
+                        "{{count}} peche programado executarase sen sinaturas ({{transitions}} transicións de eleccións).",
+                    runsUnsigned_other:
+                        "{{count}} peches programados executaranse sen sinaturas ({{transitions}} transicións de eleccións).",
+                    review: "Revisar",
+                    showAll: "Amosar todo",
+                    showing: {
+                        refused:
+                            "Móstranse as {{count}} filas programadas que serán rexeitadas ({{transitions}} transicións de eleccións).",
+                        runsUnsigned:
+                            "Móstranse os {{count}} peches programados que se executarán sen sinaturas ({{transitions}} transicións de eleccións).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Unha actualización da base de datos de fusos horarios move {{count}} hora programada futura. Non cambia nada ata que a apliques.",
+                    title_other:
+                        "Unha actualización da base de datos de fusos horarios move {{count}} horas programadas futuras. Non cambia nada ata que as apliques.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Aplicar",
+                    applied_one: "{{count}} hora programada actualizada.",
+                    applied_other: "{{count}} horas programadas actualizadas.",
+                    error: "Non se puideron actualizar as horas programadas.",
+                },
+                outcomeChangeElections_one: "Gardar cambia o resultado en {{count}} elección:",
+                outcomeChangeElections_other: "Gardar cambia o resultado en {{count}} eleccións:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "Un informe obrigatorio nesta configuración asinada segue sendo obrigatorio se a configuración actual do Posto cambia a non obrigatorio.",
+                title: "Que autoriza esta aprobación",
+                schedule: "Aperturas e peches programados",
+                noSchedule:
+                    "Non hai aperturas nin peches programados: os asinantes abren e pechan a votación.",
+                opens: "Ábrese {{time}}",
+                closes: "Péchase {{time}}",
+                settings: "Axustes",
+                unsignedClose: "Peche programado sen sinaturas: {{value}}",
+                initialization: "Inicialización: {{value}}",
+                firstConfiguration:
+                    "É a primeira configuración aprobada: non hai nada con que comparar.",
+                sameAsPrevious: "Os axustes son os mesmos que na configuración aprobada anterior.",
+                rule: {
+                    openNeeds_one: "Abrir require {{count}} sinatura",
+                    openNeeds_other: "Abrir require {{count}} sinaturas",
+                    openNoSignatures: "Abrir non require sinaturas",
+                    closeNeeds_one: "Pechar require {{count}} sinatura",
+                    closeNeeds_other: "Pechar require {{count}} sinaturas",
+                    closeNoSignatures: "Pechar non require sinaturas",
+                    openSetting: "Apertura da votación",
+                    closeSetting: "Peche da votación",
+                    signatures_one: "{{count}} sinatura",
+                    signatures_other: "{{count}} sinaturas",
+                    none: "sen sinaturas",
+                },
+                diff: {
+                    tightens: "Endurece: {{setting}} {{before}} → {{after}}",
+                    loosens: "Relaxa: {{setting}} {{before}} → {{after}}",
+                    mixed: "Cambia: {{setting}} {{before}} → {{after}} (máis estrito nun aspecto e menos noutro)",
+                },
+                comparedWith: "Comparado coa configuración aprobada anterior, aprobación {{code}}:",
+                channels: "Canles de votación por elección",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "ningunha",
+            },
+            publish: {
+                openedAuthorized:
+                    "A votación abriuse segundo a programación ({{time}}), autorizada pola aprobación de configuración {{code}} (asinada por {{names}}).",
+                closedAuthorized:
+                    "A votación pechouse segundo a programación ({{time}}), autorizada pola aprobación de configuración {{code}} (asinada por {{names}}).",
+                closedUnsigned:
+                    "A votación pechouse segundo a programación ({{time}}). Sen sinaturas de peche: a programación pechou a votación na súa hora límite.",
+                authorizedBy: "Autorizado por",
+                cancelledRequest:
+                    "A solicitude {{code}} tiña {{n}} de {{k}} sinaturas e cancelouse.",
+                openedRefused: "A apertura programada de {{time}} foi rexeitada.",
+                closedRefused: "O peche programado de {{time}} foi rexeitado.",
+                openedNoSignaturesNeeded:
+                    "A votación abriuse segundo a programación ({{time}}); non facían falta sinaturas.",
+                closedNoSignaturesNeeded:
+                    "A votación pechouse segundo a programación ({{time}}); non facían falta sinaturas.",
+                openedNothingToChange:
+                    "Ás {{time}} a apertura programada non tiña nada que abrir: as súas canles xa estaban abertas.",
+                closedNothingToChange:
+                    "Ás {{time}} o peche programado non tiña nada que pechar: as súas canles xa estaban pechadas.",
+            },
+            import: {
+                title: "Importar programación",
+                subtitle:
+                    "Unha fila por evento e elección, en hora local. Deixa o fuso horario baleiro para usar o fuso horario da elección.",
+                chooseFile: "Escolle un ficheiro CSV",
+                template: "Descargar modelo",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} eventos listos para {{posts}} eleccións.",
+                needsAttention_one:
+                    "{{ok}} eventos listos para {{posts}} eleccións. {{count}} fila require atención; corrixe o ficheiro e vólveo subir.",
+                needsAttention_other:
+                    "{{ok}} eventos listos para {{posts}} eleccións. {{count}} filas requiren atención; corrixe o ficheiro e vólveo subir.",
+                preview: "Filas que se importarán",
+                row: "Fila",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…e {{count}} filas máis",
+                imported: "Programación importada: {{created}} creados, {{updated}} actualizados.",
+                uploadError: "Non se puido comprobar o ficheiro. Vólveo subir.",
+                importError: "Non se puido importar a programación.",
+                error: {
+                    unknownElection: "Ningunha elección ten o alias {{election}}.",
+                    unknownEventType: "{{type}} non é un tipo de evento programado.",
+                    invalidTimeZone: "{{zone}} non é un fuso horario.",
+                    invalidDateTime: "A data e a hora deben ter o formato YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "As canles de votación son descoñecidas ou abren á vez a votación en liña e a anticipada.",
+                    dstGap: "{{dateTime}} non existe en {{city}} porque se adiantan os reloxos. Escribe unha hora que exista.",
+                    duplicate: "Outra fila programa o mesmo evento para esta elección.",
+                    other: "Esta fila non se pode importar ({{code}}).",
+                    ambiguousElection: "Máis dunha elección ten o alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Idioma, data e hora",
+                dateAndTime: "Data e hora",
+                configured: "Fusos horarios configurados",
+                configuredHelp:
+                    "{{count}} fusos horarios. As eleccións escollen o seu desta lista; escribe unha cidade ou un país para engadir un.",
+                moreZones: "+{{count}}",
+                primary: "Fuso horario principal",
+                primaryHelp:
+                    "Úsase para as programacións de todo o evento, os informes e as eleccións sen fuso horario propio.",
+                primaryInUse:
+                    "{{zone}} é o fuso horario principal. Escolle antes outro fuso horario principal.",
+                inUse: "{{zone}} úsano {{names}}. Cambia antes esas eleccións.",
+                logs: "Horas nos rexistros e nas súas exportacións",
+                logsPrimary: "Fuso horario principal ({{abbr}})",
+                logsElection: "O fuso horario da elección de cada fila",
+                logsHelp: "As filas sen elección usan o fuso horario principal.",
+                electionZone: "Fuso horario",
+                electionPrimary: "Principal do evento: {{zone}}",
+                electionZoneHelp:
+                    "As programacións, as pantallas dos votantes e os informes desta elección usan este fuso horario, tamén en todas as súas áreas. Baleiro usa o fuso horario principal do evento.",
+                electionUnconfigured:
+                    "O evento xa non configura este fuso horario, así que a elección usa o fuso horario principal, {{zone}}. Escolle un dos fusos horarios configurados.",
+                electionUnconfiguredSave: "Escolle un dos fusos horarios configurados do evento.",
+            },
+            policies: {
+                accordion: "Ciclo da votación",
+                intro: "Estes axustes forman parte da configuración do evento electoral: a aprobación da configuración asínaos, e as aperturas e peches programados seguen os máis estritos entre os axustes actuais e os publicados.",
+                nothingPublished:
+                    "Aínda non hai nada publicado: ata a primeira publicación, as aperturas e peches programados usan os valores predeterminados (por elección, rexeitar).",
+                publishedValue: "Configuración publicada: {{value}}",
+                changedSincePublished:
+                    "Cambiou desde a configuración publicada: as aperturas e peches programados seguen a máis estrita das dúas ata a próxima publicación aprobada.",
+                scope: {
+                    title: "Inicialización antes de abrir a votación",
+                    post: {
+                        label: "Por elección",
+                        help: "Unha elección ábrese cando está inicializada.",
+                    },
+                    event: {
+                        label: "Todo o evento",
+                        help: "Ningunha elección se abre ata que todas estean inicializadas.",
+                        warning:
+                            "Unha elección sen inicializar mantén pechadas todas as eleccións, tamén nas súas aperturas programadas.",
+                    },
+                    postAndCountry: {
+                        label: "Por elección e país",
+                        help: "Unha elección ábrese cando todos os seus países (áreas) están inicializados.",
+                        warning:
+                            "Unha elección segue pechada, tamén na súa apertura programada, ata que todos os seus países están inicializados; cada país inicialízase co seu propio informe.",
+                    },
+                },
+                close: {
+                    title: "Peche programado sen sinaturas",
+                    help: "Cando pechar a votación require sinaturas e un peche programado non está na configuración asinada.",
+                    refuse: {
+                        label: "Rexeitar",
+                        help: "O peche non se executa; os asinantes da elección pechan a votación coas súas sinaturas.",
+                    },
+                    runAsSystem: {
+                        label: "Executar como sistema",
+                        help: "A votación péchase na hora límite e queda rexistrada como pechada pola programación sen sinaturas.",
+                        warning:
+                            "Os peches programados fóra da configuración asinada pechan a votación sen a sinatura de ninguén. O rexistro e os documentos indícano.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "Ningunha transición programada cambia de resultado.",
+                    outcomes_one:
+                        "{{count}} transición programada cambia de resultado. Revísaa en Eventos Programados.",
+                    outcomes_other:
+                        "{{count}} transicións programadas cambian de resultado. Revísaas en Eventos Programados.",
+                },
+                saveError: "Non se puideron gardar os axustes do ciclo da votación.",
+                publishedPerTarget: "Configuración publicada, por destino: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} destino)",
+                publishedCount_other: "{{value}} ({{count}} destinos)",
+                savedWithoutPolicies:
+                    "O evento electoral gardouse, pero os axustes do ciclo da votación non: {{reason}}. Gárdaos de novo.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Agardando pola inicialización",
+                runs: "Executarase",
+                runsUnsigned: "Executarase sen sinaturas",
+                refused: "Rexeitarase",
+            },
+            note: {
+                waitingForInitialization: "Agardando pola inicialización",
+                authorized: "Autorizado pola configuración {{code}}",
+                noSignaturesNeeded: "Non necesita sinaturas",
+                closesUnsigned: "Péchase sen sinaturas",
+                refused: {
+                    initialization: "A inicialización requirida está incompleta",
+                    votingClose: "A votación non pode abrirse despois do prazo de peche",
+                    needsSignatures: "Necesita as sinaturas dos asinantes",
+                    covered: "Non está na configuración asinada",
+                    unsignedClose: "Un peche sen sinaturas rexéitase",
+                    stricterCopy: "Cambiou desde a configuración publicada, que segue a decidir",
+                    defaults: "Aínda non hai nada publicado: aplícanse os valores predeterminados",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Por que?",
+                title: {
+                    waitingForInitialization: "Por que agarda pola inicialización",
+                    runs: "Por que se executará",
+                    runsUnsigned: "Por que se executará sen sinaturas",
+                    refused: "Por que se rexeitará",
+                },
+                checks: "Comprobacións",
+                check: "Comprobación",
+                current: "Axustes actuais",
+                published: "Configuración publicada",
+                verdict: "Resultado",
+                allows: "Permite",
+                blocks: "Bloquea",
+                deciding: "Comprobación decisiva",
+                nextStep: "Seguinte paso:",
+                signedBy: "Asinado por {{names}}",
+            },
+            question: {
+                initialization: "Completouse a inicialización requirida?",
+                votingClose: "Esta apertura respecta o prazo de peche da votación?",
+                needsSignatures: "Esta acción necesita sinaturas?",
+                covered: "Está esta programación exacta na configuración asinada?",
+                unsignedClose: "Que pasa cun peche sen sinaturas?",
+                stricterCopy: "Difiren os axustes actuais e os publicados? Cales deciden?",
+                defaults: "Hai xa algo publicado?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Deben completarse as inicializacións esixidas pola configuración actual e a publicada.",
+                },
+                votingClose: {
+                    passed: "A votación pecha ás {{closes_at}}; esta apertura non pode executarse nese momento nin despois.",
+                },
+                needsSignatures: {
+                    yes: "Si, {{signatures}} sinaturas",
+                    yes_one: "Si, {{count}} sinatura",
+                    yes_other: "Si, {{count}} sinaturas",
+                    no: "Non",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "A configuración asinada {{code}} utiliza a apertura propia deste posto, {{scheduled_event_id}}. A apertura para todo o evento non se aplica.",
+                    yes: "Si: aprobación {{code}}, sen cambios",
+                    changed: "Non: cambiou desde a aprobación {{code}}",
+                    changedBy:
+                        "Non: editado o {{edited_at}} por {{edited_by}}, despois da aprobación {{code}}",
+                    notInApproval: "Non: a aprobación {{code}} non o inclúe",
+                    noApproval: "Aínda non hai ningunha configuración aprobada",
+                    channelsChanged:
+                        "Non: as canles de votación da elección cambiaron desde a aprobación {{code}}",
+                    alreadyFired:
+                        "Non: esta transición da aprobación {{code}} xa se executou o {{fired_at}}; executala de novo precisa sinaturas",
+                    late: "Non: pasaron máis de 15 minutos desde {{scheduled_date}} (aprobación {{code}}); executala agora precisa sinaturas",
+                },
+                unsignedClose: {
+                    refuse: "Rexeitar",
+                    runAsSystem: "Executar como sistema",
+                },
+                stricterCopy: {
+                    same: "Ambos son iguais",
+                    currentStricter: "Os axustes actuais son máis estritos: aplícanse xa",
+                    currentLooser:
+                        "Os axustes actuais son menos estritos: aplícanse tras a próxima publicación aprobada",
+                    combined: "Cada un é máis estrito nun valor: aplícanse ambos",
+                },
+                defaults: {
+                    published: "Publicado o {{published_at}}",
+                    nothingPublished: "Nada publicado: aplícanse os valores predeterminados",
+                    noSnapshot:
+                        "Publicado o {{published_at}}, antes de que as publicacións gardasen estes axustes: aplícanse os valores predeterminados",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Complete a inicialización requirida. O planificador volverá intentalo antes do peche da votación.",
+                closed: "Esta apertura non se executará despois do peche da votación.",
+                none: "Non fai falta facer nada.",
+                publishAndApprove: "Publica e aproba a configuración.",
+                requireConfigurationApproval:
+                    "Fai que Aprobar configuración requira sinaturas e, despois, publica e aproba a configuración.",
+                askSignersToOpen: "Pídelles aos asinantes da elección que abran a votación.",
+                askSignersToClose: "Pídelles aos asinantes da elección que pechen a votación.",
+            },
+            applies: {
+                tightens: "Aplícase xa ás accións manuais e programadas.",
+                loosens:
+                    "Aplícase xa ás accións manuais; ás aperturas e peches programados, tras a próxima publicación aprobada.",
+                tightensAndLoosens:
+                    "A súa parte máis estrita aplícase xa ás accións manuais e programadas; a súa parte menos estrita aplícase xa ás accións manuais e, ás aperturas e peches programados, tras a próxima publicación aprobada.",
             },
         },
     },

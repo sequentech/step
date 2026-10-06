@@ -305,10 +305,17 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
             anchor="right"
             open={open}
             onClose={onClose}
+            sx={{
+                "& .MuiDrawer-paper": {
+                    width: {xs: "100%", sm: 640},
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                },
+            }}
             slotProps={{
                 paper: {
                     "aria-labelledby": titleId,
-                    "sx": {width: {xs: "100%", sm: 640}, p: {xs: 2, sm: 3}},
+                    "sx": {p: {xs: 2, sm: 3}},
                 },
             }}
         >

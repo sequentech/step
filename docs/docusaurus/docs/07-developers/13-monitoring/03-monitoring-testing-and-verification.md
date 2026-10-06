@@ -294,7 +294,8 @@ the write protocols.
    `live_snapshot_revision` points at it; the Windmill log shows
    `Monitoring snapshot pass, outcome=Completed { revision: …, figures_written: … }`.
    Reload the Dashboard tab. *Expect* the **Overview** dashboard, **Updated**
-   and a time in Asia/Manila (the comelec time zone) in the header, and
+   and a time in the event's primary timezone (Asia/Manila when the event is
+   set up like the comelec fixture) in the header, and
    widgets drawn. Before the first run completes the header says **Not
    counted yet**.
 4. **Unchanged passes.** Wait for two more beats without changing anything.
@@ -428,7 +429,7 @@ the write protocols.
     revisions stay in the history (`monitoringGetConfig { history { revision origin } }`).
 22. **Switch preset, no code change.** Reset to `Campus elections`. *Expect*
     the Participation and Operations dashboards, selectors named **Campus**,
-    **Polling station** and **Nationality**, the Europe/Madrid time zone, and
+    **Polling station** and **Nationality**, and
     "Counting with the new settings…" until the next pass counts with the
     campus settings. Reset back to comelec afterwards.
 23. **LEGACY fallback.** Switch the tab back to the standard dashboard:
