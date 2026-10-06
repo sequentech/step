@@ -318,7 +318,8 @@ pub fn initialization_log_step(row: &ElectionInitialization) -> LogStep {
 /// signing lock first (the tally's transaction holds tally locks, so it
 /// doesn't take it). Each row's step id is the row's id, so an entry is
 /// staged once; rows left by a crash before this runs are staged by the
-/// next call for the event. Returns how many it staged.
+/// next call for the event or the periodic signing sweep. Returns how many
+/// it staged.
 #[instrument(skip(hasura_client), err)]
 pub async fn stage_initialization_log(
     hasura_client: &mut Client,
@@ -353,6 +354,32 @@ pub async fn stage_initialization_log(
     }
     transaction.commit().await?;
     Ok(rows.len())
+}
+
+/// Recover committed records whose after-tally staging failed. Each event
+/// has its own transaction so a bad event cannot starve the others.
+#[instrument(skip(hasura_client), err)]
+pub async fn sweep_initialization_logs(hasura_client: &mut Client) -> Result<usize> {
+    let events = hasura_client
+        .query(
+            "SELECT DISTINCT tenant_id, election_event_id
+             FROM sequent_backend.election_initialization
+             WHERE log_staged_at IS NULL
+             ORDER BY tenant_id, election_event_id",
+            &[],
+        )
+        .await?;
+    let mut staged = 0;
+    for event in events {
+        let tenant_id: Uuid = event.try_get("tenant_id")?;
+        let election_event_id: Uuid = event.try_get("election_event_id")?;
+        match stage_initialization_log(hasura_client, tenant_id, election_event_id).await {
+            Ok(count) => staged += count,
+            Err(error) => warn!(%tenant_id, %election_event_id, ?error,
+                "Initialization log recovery failed; the next sweep will retry"),
+        }
+    }
+    Ok(staged)
 }
 
 #[cfg(test)]
