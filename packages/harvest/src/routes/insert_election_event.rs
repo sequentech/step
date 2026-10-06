@@ -18,7 +18,7 @@ use sequent_core::util::integrity_check::{
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
 use uuid::Uuid;
-use windmill::postgres::election_event::get_election_event_by_id_if_exist;
+use windmill::postgres::election_event::election_event_id_exists;
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
@@ -48,9 +48,10 @@ pub struct CreateElectionEventOutput {
 
 /// The task treats an id that already exists as its own earlier attempt (celery
 /// retries it) and upserts that event's realm, so an existing id has to be
-/// refused before the task is queued.
+/// refused before the task is queued. Ids are unique across tenants, so the
+/// check is global: an id owned by another tenant would otherwise create a
+/// realm for this tenant and then fail on the primary key.
 async fn reject_existing_election_event(
-    tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(), JsonError> {
     let mut hasura_db_client: DbClient =
@@ -70,28 +71,25 @@ async fn reject_existing_election_event(
             )
         })?;
 
-    let existing = get_election_event_by_id_if_exist(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-    )
-    .await
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("{e:?}"),
-            ErrorCode::InternalServerError,
-        )
-    })?;
+    let exists =
+        election_event_id_exists(&hasura_transaction, election_event_id)
+            .await
+            .map_err(|e| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("{e:?}"),
+                    ErrorCode::InternalServerError,
+                )
+            })?;
 
-    match existing {
-        Some(_) => Err(ErrorResponse::new(
+    if exists {
+        return Err(ErrorResponse::new(
             Status::BadRequest,
             &format!("Election event {election_event_id} already exists"),
             ErrorCode::ElectionEventAlreadyExists,
-        )),
-        None => Ok(()),
+        ));
     }
+    Ok(())
 }
 
 #[instrument(skip(claims))]
@@ -123,10 +121,12 @@ pub async fn insert_election_event_f(
         ErrorResponse::new(Status::BadRequest, &err.to_string(), code)
     })?;
     if let Some(id) = object.id.as_deref() {
-        reject_existing_election_event(&object.tenant_id, id).await?;
+        reject_existing_election_event(id).await?;
     }
 
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    // The task belongs to the tenant the event is created for, which a super
+    // admin may pick independently of their own tenant.
+    let tenant_id = object.tenant_id.clone();
 
     let executer_name = claims
         .name
