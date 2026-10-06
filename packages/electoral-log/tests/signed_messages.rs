@@ -170,11 +170,13 @@ fn election_lifecycle_keeps_single_election_and_event_wide_actions_distinct() ->
         event(),
         election(),
         BallotPublicationIdString("publication".into()),
+        None,
         &data,
         actor(),
         actor(),
     )?;
     assert_record(&published, &public, "ElectionPublish", Some(ELECTION))?;
+    assert_eq!(published.statement.head.description, "Election published.");
     assert!(
         matches!(published.statement.body, StatementBody::ElectionPublish(_, BallotPublicationIdString(ref id)) if id == "publication")
     );
@@ -654,14 +656,13 @@ fn a_signing_entry_is_signed_with_the_time_of_its_step() -> Result<()> {
 }
 
 #[test]
-fn a_configuration_package_is_an_event_wide_record_of_its_import_and_publication() -> Result<()> {
+fn a_configuration_package_is_an_event_wide_record_of_its_import() -> Result<()> {
     let (data, public) = signer()?;
     let imported = ConfigurationPackageDetails {
         action: ConfigurationPackageAction::Imported,
         external_id: "ov-2028".into(),
         revision: 8,
         manifest_sha256: "ab".repeat(32),
-        ballot_publication_id: None,
         design_digests: vec![],
     };
     let message =
@@ -686,9 +687,60 @@ fn a_configuration_package_is_an_event_wide_record_of_its_import_and_publication
         other => panic!("unexpected body {other:?}"),
     }
 
-    let published = ConfigurationPackageDetails {
-        action: ConfigurationPackageAction::Published,
-        ballot_publication_id: Some("synthetic-publication".into()),
+    Ok(())
+}
+
+#[test]
+fn a_generated_report_is_an_event_wide_record_of_its_hash_manifest() -> Result<()> {
+    let (data, public) = signer()?;
+    let generated = ReportGeneratedDetails {
+        report_type: "ACTIVITY_LOGS".into(),
+        document_id: Some("document".into()),
+        report_manifest_sha256: "12".repeat(32),
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+    };
+    let message =
+        Message::report_generated_message(event(), generated.clone(), &data, actor(), actor())?;
+    assert_record(&message, &public, "ReportGenerated", None)?;
+    assert!(matches!(
+        message.statement.head.event_type,
+        StatementEventType::USER
+    ));
+    assert_eq!(
+        message.statement.head.description,
+        format!(
+            "ACTIVITY_LOGS report generated with hash manifest {} (document document), for configuration ov-2028 revision 8 (manifest {}).",
+            generated.report_manifest_sha256, generated.manifest_sha256
+        )
+    );
+    match &message.statement.body {
+        StatementBody::ReportGenerated(event_id, signed) => {
+            assert_eq!(event_id, &event());
+            assert_eq!(signed, &generated);
+        }
+        other => panic!("unexpected body {other:?}"),
+    }
+
+    let by_the_system = Message::report_generated_message(event(), generated, &data, None, None)?;
+    assert_record(&by_the_system, &public, "ReportGenerated", None)?;
+    assert!(matches!(
+        by_the_system.statement.head.event_type,
+        StatementEventType::SYSTEM
+    ));
+    assert_eq!(by_the_system.user_id, None);
+
+    Ok(())
+}
+
+#[test]
+fn the_publication_of_a_signed_configuration_is_one_election_publish_entry() -> Result<()> {
+    let (data, public) = signer()?;
+    let configuration = PublishedConfiguration {
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
         design_digests: vec![
             ConfigurationDesignDigest {
                 area: "Post 1".into(),
@@ -701,26 +753,40 @@ fn a_configuration_package_is_an_event_wide_record_of_its_import_and_publication
                 sha256: "ef".repeat(32),
             },
         ],
-        ..imported
     };
-    let message = Message::configuration_package_message(
+    let message = Message::election_published_message(
         event(),
-        published.clone(),
+        election(),
+        BallotPublicationIdString("synthetic-publication".into()),
+        Some(configuration.clone()),
         &data,
         actor(),
         actor(),
     )?;
-    assert_record(&message, &public, "ConfigurationPublished", None)?;
+    assert_record(&message, &public, "ElectionPublish", Some(ELECTION))?;
     assert_eq!(
         message.statement.head.description,
         format!(
-            "Ballots of configuration ov-2028 revision 8 published as approved (manifest {}, 2 designs).",
-            published.manifest_sha256
+            "Election published as approved: configuration ov-2028 revision 8 (manifest {}, 2 designs).",
+            configuration.manifest_sha256
         )
     );
     match &message.statement.body {
-        StatementBody::ConfigurationPackage(_, signed) => assert_eq!(signed, &published),
+        StatementBody::ElectionPublishWithConfiguration(election_id, publication, signed) => {
+            assert_eq!(election_id, &election());
+            assert_eq!(publication.0, "synthetic-publication");
+            assert_eq!(signed, &configuration);
+        }
         other => panic!("unexpected body {other:?}"),
     }
+
+    // The digests are signed: an entry naming another design does not verify.
+    let mut changed = Message::strand_deserialize(&message.strand_serialize()?)?;
+    if let StatementBody::ElectionPublishWithConfiguration(_, _, signed) =
+        &mut changed.statement.body
+    {
+        signed.design_digests[0].sha256 = "00".repeat(32);
+    }
+    assert!(changed.verify(&public).is_err());
     Ok(())
 }

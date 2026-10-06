@@ -127,7 +127,6 @@ pub async fn log_import(
                 external_id: package.manifest.configuration.external_id.clone(),
                 revision: package.manifest.configuration.revision,
                 manifest_sha256: package.manifest_sha256.clone(),
-                ballot_publication_id: None,
                 design_digests: package
                     .manifest
                     .content

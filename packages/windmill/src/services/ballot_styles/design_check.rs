@@ -10,6 +10,7 @@
 
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
+use electoral_log::messages::newtypes::{ConfigurationDesignDigest, PublishedConfiguration};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::election_config::design::{
     ballot_design_digests, mismatches, DesignDigest, DesignKeys, DesignMismatch,
@@ -33,6 +34,28 @@ pub struct DesignCheck {
     pub manifest_sha256: String,
     pub digests: Vec<DesignDigest>,
     pub mismatches: Vec<DesignMismatch>,
+}
+
+impl DesignCheck {
+    /// What the publication's electoral log entry says of the configuration:
+    /// its revision, the manifest SHA-256 and the digest of each design
+    /// published.
+    pub fn published(self) -> PublishedConfiguration {
+        PublishedConfiguration {
+            external_id: self.external_id,
+            revision: self.revision,
+            manifest_sha256: self.manifest_sha256,
+            design_digests: self
+                .digests
+                .into_iter()
+                .map(|digest| ConfigurationDesignDigest {
+                    area: digest.area,
+                    election: digest.election,
+                    sha256: digest.sha256,
+                })
+                .collect(),
+        }
+    }
 }
 
 /// `None` for an event that was not imported from a signed package.
@@ -92,4 +115,48 @@ pub async fn check_publication_designs(
         manifest_sha256,
         digests,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_publication_logs_the_manifest_and_every_design_it_published() {
+        let design = |area: &str, byte: &str| DesignDigest {
+            area: area.to_string(),
+            election: "national".to_string(),
+            sha256: byte.repeat(32),
+        };
+        let published = DesignCheck {
+            external_id: "ov-2028".to_string(),
+            revision: 8,
+            manifest_sha256: "ab".repeat(32),
+            digests: vec![design("Post 1", "cd"), design("Post 2", "ef")],
+            mismatches: Vec::new(),
+        }
+        .published();
+
+        assert_eq!(published.external_id, "ov-2028");
+        assert_eq!(published.revision, 8);
+        assert_eq!(published.manifest_sha256, "ab".repeat(32));
+        let designs: Vec<_> = published
+            .design_digests
+            .iter()
+            .map(|design| {
+                (
+                    design.area.as_str(),
+                    design.election.as_str(),
+                    design.sha256.clone(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            designs,
+            vec![
+                ("Post 1", "national", "cd".repeat(32)),
+                ("Post 2", "national", "ef".repeat(32)),
+            ]
+        );
+    }
 }

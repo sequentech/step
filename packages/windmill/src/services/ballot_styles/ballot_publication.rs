@@ -22,9 +22,6 @@ use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::Transaction;
-use electoral_log::messages::newtypes::{
-    ConfigurationDesignDigest, ConfigurationPackageAction, ConfigurationPackageDetails,
-};
 use sequent_core::ballot::{ElectionEventPresentation, ElectionEventStatus, ElectionStatus};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::connection;
@@ -488,28 +485,12 @@ pub async fn update_publish_ballot(
         None,
     )
     .await?;
-    let package = design_check.map(|check| ConfigurationPackageDetails {
-        action: ConfigurationPackageAction::Published,
-        external_id: check.external_id,
-        revision: check.revision,
-        manifest_sha256: check.manifest_sha256,
-        ballot_publication_id: Some(ballot_publication_id.clone()),
-        design_digests: check
-            .digests
-            .into_iter()
-            .map(|digest| ConfigurationDesignDigest {
-                area: digest.area,
-                election: digest.election,
-                sha256: digest.sha256,
-            })
-            .collect(),
-    });
     electoral_log
         .post_election_published(
             election_event_id.clone(),
             Some(election_ids.clone()),
             ballot_publication_id.clone(),
-            package,
+            design_check.map(super::design_check::DesignCheck::published),
             Some(user_id),
             Some(username),
         )

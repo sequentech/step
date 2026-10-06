@@ -1034,7 +1034,7 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    /// Posts a signed configuration package's import or publication.
+    /// Posts a signed configuration package's import.
     #[instrument(skip(self))]
     pub async fn post_configuration_package(
         &self,
@@ -1054,57 +1054,68 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
-    /// Posts a publication and, for an event of a signed configuration, the
-    /// package entry that names the designs it published. The two are one
-    /// write: neither is logged without the other.
+    /// Posts the hash manifest of a generated report.
+    #[instrument(skip(self))]
+    pub async fn post_report_generated(
+        &self,
+        event_id: String,
+        details: ReportGeneratedDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::report_generated_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    /// Posts a publication. For an event imported from a signed
+    /// configuration package the entry carries `configuration`: the
+    /// manifest SHA-256 and the digest of each design published.
     #[instrument(skip(self))]
     pub async fn post_election_published(
         &self,
         event_id: String,
         election_ids_vec: Option<Vec<String>>,
         ballot_pub_id: String,
-        package: Option<ConfigurationPackageDetails>,
+        configuration: Option<PublishedConfiguration>,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let messages = self.election_published_messages(
+        let message = self.election_published_message(
             event_id,
             election_ids_vec,
             ballot_pub_id,
-            package,
+            configuration,
             user_id,
             username,
         )?;
-        self.post_together(&messages).await
+        self.post(&message).await
     }
 
-    fn election_published_messages(
+    fn election_published_message(
         &self,
         event_id: String,
         election_ids_vec: Option<Vec<String>>,
         ballot_pub_id: String,
-        package: Option<ConfigurationPackageDetails>,
+        configuration: Option<PublishedConfiguration>,
         user_id: Option<String>,
         username: Option<String>,
-    ) -> Result<Vec<Message>> {
-        let event = EventIdString(event_id);
-        let election = ElectionIdString(flatten_election_ids(election_ids_vec));
-        let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
-
-        let mut messages = vec![Message::election_published_message(
-            event.clone(),
-            election,
-            ballot_pub_id,
+    ) -> Result<Message> {
+        Message::election_published_message(
+            EventIdString(event_id),
+            ElectionIdString(flatten_election_ids(election_ids_vec)),
+            BallotPublicationIdString(ballot_pub_id),
+            configuration,
             &self.sd,
-            user_id.clone(),
-            username.clone(),
-        )?];
-        if let Some(details) = package {
-            messages.push(Message::configuration_package_message(
-                event, details, &self.sd, user_id, username,
-            )?);
-        }
-        Ok(messages)
+            user_id,
+            username,
+        )
     }
 
     #[instrument(skip(self))]
@@ -1435,17 +1446,8 @@ impl ElectoralLog {
 
     #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
-        self.post_together(std::slice::from_ref(message)).await
-    }
-
-    /// Posts `messages` in one board transaction: all of them are written,
-    /// or none is.
-    #[instrument(skip(self, messages), err)]
-    async fn post_together(&self, messages: &[Message]) -> Result<()> {
-        let ms = messages
-            .iter()
-            .map(ElectoralLogMessage::try_from)
-            .collect::<Result<Vec<_>>>()?;
+        let board_message: ElectoralLogMessage = message.try_into()?;
+        let ms = vec![board_message];
 
         retry_with_exponential_backoff(
             // The closure we want to call repeatedly
@@ -2423,13 +2425,13 @@ mod election_published_tests {
         ElectoralLog::for_system_with_signing_key("board", &key)
     }
 
-    fn messages(package: Option<ConfigurationPackageDetails>) -> Vec<Message> {
+    fn message(configuration: Option<PublishedConfiguration>) -> Message {
         log()
-            .election_published_messages(
+            .election_published_message(
                 "event".to_string(),
                 Some(vec!["election".to_string()]),
                 "publication".to_string(),
-                package,
+                configuration,
                 Some("admin-id".to_string()),
                 Some("admin".to_string()),
             )
@@ -2437,37 +2439,52 @@ mod election_published_tests {
     }
 
     #[test]
-    fn a_signed_configurations_publication_is_one_write_of_both_entries() {
-        let details = ConfigurationPackageDetails {
-            action: ConfigurationPackageAction::Published,
+    fn a_signed_configurations_publication_is_one_entry_with_its_manifest_and_designs() {
+        let configuration = PublishedConfiguration {
             external_id: "ov-2028".to_string(),
             revision: 3,
             manifest_sha256: "ab".repeat(32),
-            ballot_publication_id: Some("publication".to_string()),
-            design_digests: Vec::new(),
+            design_digests: vec![ConfigurationDesignDigest {
+                area: "Post 1".to_string(),
+                election: "national".to_string(),
+                sha256: "cd".repeat(32),
+            }],
         };
-        let messages = messages(Some(details.clone()));
-        assert_eq!(messages.len(), 2);
+        let message = message(Some(configuration.clone()));
         assert!(matches!(
-            messages[0].statement.body,
-            StatementBody::ElectionPublish(..)
+            message.statement.head.kind,
+            StatementType::ElectionPublish
         ));
-        assert!(matches!(
-            &messages[1].statement.body,
-            StatementBody::ConfigurationPackage(_, logged) if *logged == details
-        ));
-        for message in &messages {
-            assert_eq!(message.user_id.as_deref(), Some("admin-id"));
-            assert_eq!(message.username.as_deref(), Some("admin"));
+        match &message.statement.body {
+            StatementBody::ElectionPublishWithConfiguration(election, publication, logged) => {
+                assert_eq!(election.0.as_deref(), Some("election"));
+                assert_eq!(publication.0, "publication");
+                assert_eq!(logged, &configuration);
+            }
+            other => panic!("unexpected body {other:?}"),
         }
+        assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+        assert_eq!(message.username.as_deref(), Some("admin"));
+        assert_eq!(message.election_id.as_deref(), Some("election"));
+
+        let stored = ElectoralLogMessage::try_from(&message).unwrap();
+        assert_eq!(stored.statement_kind, "ElectionPublish");
+        let read = Message::strand_deserialize(&stored.message).unwrap();
+        assert!(matches!(
+            read.statement.body,
+            StatementBody::ElectionPublishWithConfiguration(_, _, logged) if logged == configuration
+        ));
     }
 
     #[test]
-    fn a_publication_without_a_package_is_the_publication_entry_alone() {
-        let messages = messages(None);
-        assert_eq!(messages.len(), 1);
+    fn a_publication_without_a_package_is_the_entry_older_logs_hold() {
+        let message = message(None);
         assert!(matches!(
-            messages[0].statement.body,
+            message.statement.head.kind,
+            StatementType::ElectionPublish
+        ));
+        assert!(matches!(
+            message.statement.body,
             StatementBody::ElectionPublish(..)
         ));
     }

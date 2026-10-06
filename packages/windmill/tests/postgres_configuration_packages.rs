@@ -20,6 +20,7 @@ use std::io::Write;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use deadpool_postgres::Transaction;
+use openssl::x509::X509Crl;
 use sequent_core::election_config::archive::{zip, Artifact};
 use sequent_core::election_config::manifest::{
     approval_payload, file_entries, package, sha256_hex, Approval, ConfigurationRevision, Content,
@@ -107,6 +108,17 @@ fn signed_package(revision: u64) -> Vec<u8> {
 }
 
 fn signed_package_with_reports(revision: u64, reports: Vec<ReportSetting>) -> Vec<u8> {
+    package_signed_by(revision, reports, signing_key(), Vec::new())
+}
+
+/// A package signed with `key`, whose manifest carries `revocation_lists`
+/// (PEM).
+fn package_signed_by(
+    revision: u64,
+    reports: Vec<ReportSetting>,
+    key: &Issued,
+    revocation_lists: Vec<String>,
+) -> Vec<u8> {
     let content = Content {
         files: file_entries(&members()).unwrap(),
         ballot_designs: Vec::new(),
@@ -129,7 +141,7 @@ fn signed_package_with_reports(revision: u64, reports: Vec<ReportSetting>) -> Ve
             key_label: "configuration-signing".to_string(),
             producer: BTreeMap::new(),
         },
-        revocation_lists: Vec::new(),
+        revocation_lists,
     };
     let pki = Pki::get();
     manifest.approvals = vec![
@@ -151,8 +163,8 @@ fn signed_package_with_reports(revision: u64, reports: Vec<ReportSetting>) -> Ve
         "ov-2028.zip",
         &members(),
         &bytes,
-        &signing_key().sign(&bytes),
-        &chain(signing_key()),
+        &key.sign(&bytes),
+        &chain(key),
     )
     .unwrap()
     .bytes
@@ -272,6 +284,92 @@ async fn a_revocation_list_the_tenant_has_seen_applies_to_later_imports() {
         .await
         .unwrap_err();
     assert_eq!(ids(&refused), vec!["package.revoked-signer"]);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_revocation_arrives_in_the_next_package_and_the_revoked_keys_packages_are_refused() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    // The tenant starts with the root certificate and nothing else.
+    let tenant = tenant(&tx, "required").await;
+    let ca = &Pki::get().individual_ca;
+    let replacement = issued(
+        &Spec::signer(
+            &[
+                ("O", "Election Commission"),
+                ("CN", "Configuration Signing Key 2"),
+            ],
+            SIGNING_KEY_SERIAL + 1,
+        ),
+        ec_key(),
+        Some(ca),
+    );
+
+    let first = signed_package(1);
+    let (_, admitted) = admit_document(&tx, &tenant, file_of(&first)).await.unwrap();
+    record(
+        &tx,
+        &tenant,
+        &Uuid::new_v4().to_string(),
+        &admitted.unwrap(),
+    )
+    .await
+    .unwrap();
+    assert!(configuration_packages::revocation_lists(&tx, &tenant)
+        .await
+        .unwrap()
+        .is_empty());
+
+    // The next package is signed with the replacement key and carries the
+    // list that revokes the first key's certificate.
+    let list = crl_with(
+        ca,
+        &ca.key,
+        &[SIGNING_KEY_SERIAL],
+        pki_now() - 86_400,
+        Some(pki_now() + 6 * 86_400),
+        &[crl_number(1)],
+    );
+    let pem = String::from_utf8(X509Crl::from_der(&list).unwrap().to_pem().unwrap()).unwrap();
+    let second = package_signed_by(2, Vec::new(), &replacement, vec![pem]);
+    let (_, admitted) = admit_document(&tx, &tenant, file_of(&second))
+        .await
+        .unwrap();
+    let admitted = admitted.expect("a verified package");
+    assert_eq!(admitted.manifest.configuration.revision, 2);
+
+    // Until that package is imported the tenant has not seen the list.
+    assert!(admit_document(&tx, &tenant, file_of(&signed_package(3)))
+        .await
+        .is_ok());
+    record(&tx, &tenant, &Uuid::new_v4().to_string(), &admitted)
+        .await
+        .unwrap();
+    assert_eq!(
+        configuration_packages::revocation_lists(&tx, &tenant)
+            .await
+            .unwrap(),
+        vec![list]
+    );
+
+    let later = admit_document(&tx, &tenant, file_of(&signed_package(3)))
+        .await
+        .unwrap_err();
+    assert_eq!(ids(&later), vec!["package.revoked-signer"]);
+    let earlier = admit_document(&tx, &tenant, file_of(&first))
+        .await
+        .unwrap_err();
+    assert_eq!(ids(&earlier), vec!["package.revoked-signer"]);
+
+    // The replacement key keeps signing, and another tenant that has not
+    // imported the list is not affected.
+    let next = package_signed_by(3, Vec::new(), &replacement, Vec::new());
+    assert!(admit_document(&tx, &tenant, file_of(&next)).await.is_ok());
+    let elsewhere = self::tenant(&tx, "required").await;
+    assert!(admit_document(&tx, &elsewhere, file_of(&first))
+        .await
+        .is_ok());
     tx.rollback().await.unwrap();
 }
 
