@@ -515,8 +515,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         rolesInitializedRef.current = true
     }, [createMode, userRoles])
 
-    // Harvest reads the voter's votes wherever the event stores them: its ballot
-    // box or the cast_vote table.
+    // Harvest reads the voter's votes from the event's ballot box.
     const {data: voterVotes} = useQuery<GetUsersQuery, GetUsersQueryVariables>(LIST_USERS, {
         variables: {
             tenant_id: tenantId,

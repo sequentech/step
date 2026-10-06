@@ -326,10 +326,10 @@ step-cli load report runs/smoke \
 
 Screenshot capture needs Playwright and Chromium configured in `runtime`; ordinary HTML reporting does not. Screenshot dimensions are in `reporting`.
 
-For an optional read-only receipt audit, use a DSN with `sslmode=require` for remote PostgreSQL; the native TLS connector validates the server certificate against system trust. Plain HTTP and non-TLS PostgreSQL are supported for isolated synthetic local deployments only. Remote CLI and Keycloak endpoints should use HTTPS.
+For an optional read-only receipt audit against the event's ballot box, use a DSN of the tenant's electoral-log database with `sslmode=require` for remote PostgreSQL; the native TLS connector validates the server certificate against system trust. Plain HTTP and non-TLS PostgreSQL are supported for isolated synthetic local deployments only. Remote CLI and Keycloak endpoints should use HTTPS.
 
 ```bash
-read -rs -p 'Read-only backend PostgreSQL DSN: ' LOAD_AUDIT_DSN
+read -rs -p 'Read-only electoral-log PostgreSQL DSN: ' LOAD_AUDIT_DSN
 export LOAD_AUDIT_DSN
 step-cli load report runs/smoke \
   --dsn-env LOAD_AUDIT_DSN

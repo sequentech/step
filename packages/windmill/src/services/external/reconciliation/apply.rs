@@ -21,10 +21,10 @@
 //! rather than reused from the inbound Datafix API, since those take a
 //! `DatafixClaims` (the inbound request guard) that doesn't exist on this
 //! path — this module re-validates the same underlying condition
-//! (`VoterCastVoteState`, including unresolved and valid votes) directly.
+//! (`VoterBallotState`, including pending and valid votes) directly.
 
 use crate::postgres::area::{get_area_by_id, get_area_id_from_event_by_name};
-use crate::postgres::cast_vote::get_voter_cast_vote_state;
+use crate::services::ballot_box::get_voter_ballot_state;
 use crate::services::external::reconciliation::diff::DiffItem;
 use crate::services::external::types::{ReconciliationChangeCategory, SequentReconciliationField};
 use crate::services::external::utils::{
@@ -36,7 +36,6 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, VOTED_CHANNEL};
 use std::collections::{HashMap, HashSet};
 use tracing::{error, info, instrument};
@@ -156,14 +155,10 @@ async fn apply_voter_changes_locked(
         )
     });
     if needs_no_active_vote {
-        let state = get_voter_cast_vote_state(
-            hasura_transaction,
-            &parse_uuid_v4(tenant_id)?,
-            &parse_uuid_v4(election_event_id)?,
-            &user_id,
-        )
-        .await?;
-        if state.has_unresolved_vote || state.has_valid_vote {
+        let state =
+            get_voter_ballot_state(hasura_transaction, tenant_id, election_event_id, &user_id)
+                .await?;
+        if state.has_pending || state.has_valid {
             return Ok(VoterApplyOutcome::Failed {
                 reason: "Voter now has an active Internet ballot; the reconciliation change is stale and was not applied"
                     .to_string(),

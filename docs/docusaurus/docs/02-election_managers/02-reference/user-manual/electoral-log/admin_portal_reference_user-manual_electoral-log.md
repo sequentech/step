@@ -26,8 +26,6 @@ To open it, select **Electoral Log** in the Admin Portal's left panel. It requir
 4. Use the arrows below the table to move to the next or previous page. Above the table, the page shows about how many rows the table has before filters.
 5. In **Records**, select the eye icon of an entry to see all its fields and its decoded message. **Copy JSON** copies them.
 
-Election events that store their votes in the cast-vote table instead of the ballot box have empty **Ballots**, **Voters** and **Sequencer Queue** tables.
-
 ## Personal Data
 
 Usernames, IP addresses and countries show as `hidden` unless you have the `electoral-log-personal-data-read` permission.

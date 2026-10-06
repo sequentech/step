@@ -1386,7 +1386,6 @@ const basqueTranslation: TranslationType = {
                 "tally-sheet-view": "Ikusi Zenbaketa Orria",
                 "admin-ceremony": "Admin Zeremonia",
                 "tally-sheet-delete": "Ezabatu Zenbaketa Orria",
-                "cast-vote-read": "Irakurri Emandako Botoak",
                 "document-read": "Irakurri Dokumentuak",
                 "document-write": "Editatu Dokumentuak",
                 "support-material-read": "Irakurri Laguntza Materialak",

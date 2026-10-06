@@ -10,6 +10,7 @@ use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotSta
 use electoral_log::adapters::ballot_box_reads::{
     tally_ballots_query, BallotIdMatch, BucketRange, IpBallotsFilter, Participation,
 };
+use electoral_log::adapters::ballot_box_status::{BallotToReview, VoterBallotState};
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry};
@@ -92,8 +93,12 @@ impl Vote {
     }
 
     async fn accept(&self, store: &PostgresStore) -> Result<i64> {
+        Ok(self.accept_with_id(store).await?.0)
+    }
+
+    async fn accept_with_id(&self, store: &PostgresStore) -> Result<(i64, String)> {
         match store.accept_ballot(&self.request()).await? {
-            AcceptOutcome::Accepted { seq, .. } => Ok(seq),
+            AcceptOutcome::Accepted { seq, id } => Ok((seq, id)),
             other => anyhow::bail!("unexpected {other:?}"),
         }
     }
@@ -228,6 +233,207 @@ async fn concurrent_votes_of_one_voter_respect_the_limit() -> Result<()> {
         3
     );
     assert_eq!(store.pending_count(&event).await?, 3);
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn pending_ballots_become_valid_or_rejected_and_rejections_give_votes_back() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, other_area) = ids();
+    store.create_ballot_box(&event).await?;
+
+    let pending =
+        Vote::new(&event, &election, &area, "voter-a", 1).with_status(BallotStatus::Pending);
+    let (_, pending_id) = pending.accept_with_id(&store).await?;
+    let found = store.pending_ballot(&event, &pending_id).await?.unwrap();
+    assert_eq!(found.voter_id, "voter-a");
+    assert_eq!(found.status, BallotStatus::Pending);
+    assert_eq!(
+        store.voter_ballot_state(&event, "voter-a").await?,
+        VoterBallotState {
+            has_pending: true,
+            has_valid: false
+        }
+    );
+    // A pending ballot counts toward the limit.
+    let again = Vote::new(&event, &election, &area, "voter-a", 1);
+    assert_eq!(
+        store.accept_ballot(&again.request()).await?,
+        AcceptOutcome::TooManyVotes
+    );
+
+    // Only the expected status changes, and only once.
+    assert!(
+        !store
+            .set_ballot_status(
+                &event,
+                "voter-a",
+                &pending_id,
+                BallotStatus::Valid,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    assert!(
+        store
+            .set_ballot_status(
+                &event,
+                "voter-a",
+                &pending_id,
+                BallotStatus::Pending,
+                BallotStatus::Valid
+            )
+            .await?
+    );
+    assert!(
+        !store
+            .set_ballot_status(
+                &event,
+                "voter-a",
+                &pending_id,
+                BallotStatus::Pending,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    assert!(store.pending_ballot(&event, &pending_id).await?.is_none());
+    assert_eq!(
+        store.voter_ballot_state(&event, "voter-a").await?,
+        VoterBallotState {
+            has_pending: false,
+            has_valid: true
+        }
+    );
+    assert!(store
+        .set_ballot_status(
+            &event,
+            "voter-a",
+            &pending_id,
+            BallotStatus::Rejected,
+            BallotStatus::Valid
+        )
+        .await
+        .is_err());
+
+    // A rejected ballot no longer counts: the voter votes again, even in another area.
+    let rejected =
+        Vote::new(&event, &election, &area, "voter-b", 1).with_status(BallotStatus::Pending);
+    let (_, rejected_id) = rejected.accept_with_id(&store).await?;
+    assert!(
+        store
+            .set_ballot_status(
+                &event,
+                "voter-b",
+                &rejected_id,
+                BallotStatus::Pending,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    assert_eq!(
+        store
+            .voter_state(&event, &election, "voter-b")
+            .await?
+            .unwrap()
+            .votes,
+        0
+    );
+    assert_eq!(
+        store.voter_ballot_state(&event, "voter-b").await?,
+        VoterBallotState::default()
+    );
+    let elsewhere = Vote::new(&event, &election, &other_area, "voter-b", 1);
+    elsewhere.accept(&store).await?;
+    let state = store
+        .voter_state(&event, &election, "voter-b")
+        .await?
+        .unwrap();
+    assert_eq!((state.votes, state.area_id), (1, other_area.clone()));
+
+    // Rejecting a voter's ballots covers pending and valid ones, in every election.
+    let other_election = Uuid::new_v4().to_string();
+    Vote::new(&event, &election, &area, "voter-c", 0)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &election, &area, "voter-c", 0)
+        .with_status(BallotStatus::Pending)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &other_election, &area, "voter-c", 0)
+        .accept(&store)
+        .await?;
+    assert_eq!(store.reject_voter_ballots(&event, "voter-c").await?, 3);
+    assert_eq!(store.reject_voter_ballots(&event, "voter-c").await?, 0);
+    for election in [&election, &other_election] {
+        assert_eq!(
+            store
+                .voter_state(&event, election, "voter-c")
+                .await?
+                .unwrap()
+                .votes,
+            0
+        );
+    }
+
+    let mut states = store.voter_ballot_states(&event).await?;
+    states.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        states,
+        vec![
+            (
+                "voter-a".to_string(),
+                VoterBallotState {
+                    has_pending: false,
+                    has_valid: true
+                }
+            ),
+            (
+                "voter-b".to_string(),
+                VoterBallotState {
+                    has_pending: false,
+                    has_valid: true
+                }
+            ),
+        ]
+    );
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn pending_ballots_are_listed_for_review_in_pages() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let mut ids = Vec::new();
+    for voter in ["v1", "v2", "v3"] {
+        let vote = Vote::new(&event, &election, &area, voter, 1).with_status(BallotStatus::Pending);
+        ids.push(vote.accept_with_id(&store).await?.1);
+    }
+    Vote::new(&event, &election, &area, "v4", 1)
+        .accept(&store)
+        .await?;
+    ids.sort();
+
+    let mut listed = Vec::new();
+    let mut after: Option<BallotToReview> = None;
+    loop {
+        let page = store.ballots_to_review(after.as_ref(), 0.0, 2).await?;
+        let Some(last) = page.last().cloned() else {
+            break;
+        };
+        listed.extend(
+            page.into_iter()
+                .filter(|ballot| ballot.election_event_id == event)
+                .map(|ballot| ballot.id),
+        );
+        after = Some(last);
+    }
+    assert_eq!(listed, ids);
+    // Ballots younger than the given age wait for the next review.
+    let young = store.ballots_to_review(None, 3600.0, 1000).await?;
+    assert!(young.iter().all(|ballot| ballot.election_event_id != event));
     drop_ballot_box(&store, &event).await
 }
 

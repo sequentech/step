@@ -6,6 +6,9 @@
     "username": "REPLACE",
     "password": "REPLACE"
   },
+  "ballot_box": {
+    "dsn_env": "VOTING_E2E_ELECTORAL_LOG_DSN"
+  },
   "databases": {
     "backend": {
       "dsn_env": "VOTING_E2E_BACKEND_DSN",

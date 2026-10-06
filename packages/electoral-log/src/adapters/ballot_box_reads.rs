@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Reads of the ballot box for voters, administrators and reports. Counts and
-//! statistics cover valid ballots, as those of `cast_vote` cover valid cast votes.
+//! statistics cover valid ballots.
 
 use super::ballot_box::{canonical_uuid, BallotStatus};
 use super::postgres::PostgresStore;

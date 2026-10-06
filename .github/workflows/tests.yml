@@ -138,15 +138,8 @@ jobs:
         run: cargo test
         working-directory: packages/windmill
 
-      - name: Run PostgreSQL-backed voter-channel regression
-        run: >-
-          cargo test
-          services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote
-          -- --ignored --exact
-        working-directory: packages/windmill
-
       - name: Test PostgreSQL electoral-log contract
-        run: cd packages && cargo test -p electoral-log --lib --test postgres -- --ignored --test-threads=1
+        run: cd packages && cargo test -p electoral-log --lib --test postgres --test ballot_box -- --ignored --test-threads=1
 
       - name: Test electoral-log application wiring
         run: cd packages && cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1

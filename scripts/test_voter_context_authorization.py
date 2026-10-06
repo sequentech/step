@@ -27,7 +27,6 @@ query CompatibilityPermissions($tenantId: uuid!, $electionEventId: uuid!) {
         tenant_id election_event_id election_id area_id
         election { id tenant_id election_event_id }
     }
-    sequent_backend_cast_vote(where: {tenant_id: {_eq: $tenantId}, election_event_id: {_eq: $electionEventId}}) { id }
     sequent_backend_election_event(where: {tenant_id: {_eq: $tenantId}, id: {_eq: $electionEventId}}) { id }
 }
 """
@@ -84,7 +83,6 @@ def main():
         assert row["election"]["id"] == style["election_id"]
         assert row["election"]["tenant_id"] == style["tenant_id"]
         assert row["election"]["election_event_id"] == style["election_event_id"]
-    assert result["sequent_backend_cast_vote"] == []
     election_query = (
         "query($id: uuid!) { sequent_backend_election(where: {id: {_eq: $id}}) { id } }"
     )
@@ -113,11 +111,9 @@ def main():
         if name in ("x-hasura-tenant-id", "x-hasura-election-event-id"):
             assert result["sequent_backend_election_event"] == []
         assert result["sequent_backend_ballot_style"] == []
-        assert result["sequent_backend_cast_vote"] == []
     for name in ("tenantId", "electionEventId"):
         result = query(QUERY, {**variables, name: str(uuid.uuid4())}, claims)
         assert result["sequent_backend_ballot_style"] == []
-        assert result["sequent_backend_cast_vote"] == []
         assert result["sequent_backend_election_event"] == []
     print(
         "Voter context: scoped access, nested election isolation, empty eligibility and tenant/event/area mismatches passed"

@@ -85,7 +85,7 @@ test("measure authenticated GetVoterStatus", async () => {
                                 (key) => typeof file.urls[key] === "string"
                             )
                     ) &&
-                    Array.isArray(data.data?.sequent_backend_cast_vote) &&
+                    Array.isArray(data.data?.cast_votes) &&
                     !body.toString().includes('"ballot_eml"')
                 await result.dispose()
             } finally {
