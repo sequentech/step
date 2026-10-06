@@ -7,6 +7,7 @@
 //! has not reported back.
 
 use crate::services::database::get_hasura_pool;
+use crate::services::initialization_record::sweep_initialization_logs;
 use crate::services::signing::actions::reports::{
     start_all_held_tally_reports, sweep_held_mails, StoredReports,
 };
@@ -45,6 +46,8 @@ pub async fn expire_signing_requests() -> Result<()> {
 #[celery::task(max_retries = 0, expires = 60)]
 pub async fn sweep_signing_executions() -> Result<()> {
     let mut client = hasura_client().await?;
+    let staged = sweep_initialization_logs(&mut client).await?;
+    info!("staged {staged} initialization records for electoral logging");
     let sent = redispatch_unexecuted_requests(&mut client, &default_registry()).await?;
     info!("sent {sent} signing executions again");
     // Held tally reports whose request didn't start after their tally.

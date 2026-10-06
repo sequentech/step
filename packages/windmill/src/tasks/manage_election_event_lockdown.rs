@@ -52,6 +52,22 @@ pub async fn manage_election_event_lockdown_wrapped(
     election_event_id: String,
     scheduled_event_id: String,
 ) -> AnyhowResult<()> {
+    // Re-read only after the editor's transaction has released the schedule.
+    lock_scheduled_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &scheduled_event_id,
+    )
+    .await?;
+    if get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
+        .await?
+        .is_archived
+    {
+        info!("Skipping scheduled transition {scheduled_event_id}: the event is archived");
+        return Ok(());
+    }
+
     let scheduled_event = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.clone()),

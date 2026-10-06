@@ -1101,8 +1101,8 @@ async fn update_scheduled_event_adds_the_voting_channels_to_the_payload() {
 }
 
 /// Editing a schedule that already ran to a future time arms it again
-/// (VOTE-LIFECYCLE); a past time keeps it done. An archived one is left
-/// alone, and a pending tz database recompute no longer applies.
+/// (VOTE-LIFECYCLE); a past edit leaves the stopped row unchanged. An
+/// archived one is left alone; a successful edit clears pending recompute.
 #[tokio::test]
 async fn update_scheduled_event_rearms_a_stopped_schedule_edited_to_a_future_time() {
     let mut client = schema::pool().await.get().await.unwrap();
@@ -1128,12 +1128,13 @@ async fn update_scheduled_event_rearms_a_stopped_schedule_edited_to_a_future_tim
     )
     .await;
 
-    for (n, date) in [
-        (10, "2099-03-01T10:00:00Z"),
-        (11, "2026-03-01T10:00:00Z"),
-        (12, "2099-03-01T10:00:00Z"),
+    let original_past = stored(&tx, "scheduled_event", &w.id(11), &["created_at"]).await;
+    for (n, date, expected) in [
+        (10, "2099-03-01T10:00:00Z", 1),
+        (11, "2000-03-01T10:00:00Z", 0),
+        (12, "2099-03-01T10:00:00Z", 0),
     ] {
-        scheduled_event::update_scheduled_event(
+        let updated = scheduled_event::update_scheduled_event(
             &tx,
             &w.tenant,
             &w.id(n),
@@ -1142,6 +1143,7 @@ async fn update_scheduled_event_rearms_a_stopped_schedule_edited_to_a_future_tim
         )
         .await
         .unwrap();
+        assert_eq!(updated, expected, "schedule {n}");
     }
 
     let future = stored(&tx, "scheduled_event", &w.id(10), &["created_at"]).await;
@@ -1158,10 +1160,7 @@ async fn update_scheduled_event_rearms_a_stopped_schedule_edited_to_a_future_tim
         )
     );
     let past = stored(&tx, "scheduled_event", &w.id(11), &["created_at"]).await;
-    assert_eq!(
-        past["cron_config"],
-        json!({"cron": null, "scheduled_date": "2026-03-01T10:00:00Z"})
-    );
+    assert_eq!(past, original_past);
     assert_ne!(past["stopped_at"], Value::Null);
     let archived = stored(
         &tx,
