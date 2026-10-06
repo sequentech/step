@@ -56,10 +56,10 @@ Each election event has a ballot box policy, `ballot_box` in its `bulletin_board
 
 | Policy | Where cast votes go | Which events |
 | --- | --- | --- |
-| `cast-vote-table` (no value) | Hasura's `cast_vote` table, with the log record queued as before | Events created before the ballot box |
-| `electoral-log` | The ballot box of the event's electoral-log database | Events created or imported from now on |
+| `cast-vote-table` (no value) | Hasura's `cast_vote` table, with the log record queued as before | Events created before the ballot box, and Datafix events |
+| `electoral-log` | The ballot box of the event's electoral-log database | Other events created or imported from now on |
 
-Windmill sets the policy and creates the event's partitions when it creates the event's board. Events created before keep `cast_vote` until they finish, so both paths exist until `cast_vote` is retired. Datafix events with the `electoral-log` policy refuse votes for now: their pending status, confirmation and rejection records are not implemented yet.
+Windmill sets the policy and creates the event's partitions when it creates the event's board. Events created before keep `cast_vote` until they finish, so both paths exist until `cast_vote` is retired. Datafix events keep `cast_vote`, because Datafix's pending status, confirmation and rejection are not recorded in the ballot box yet: an event whose annotations carry `datafix:id` when it is created gets `cast-vote-table`. An event marked as Datafix after its creation keeps `electoral-log` and refuses votes.
 
 ## 4. The accept path
 

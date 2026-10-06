@@ -12,6 +12,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::external::utils::DATAFIX_ID_KEY;
 use crate::services::protocol_manager::{
     get_electoral_log_router, get_electoral_log_store, get_protocol_manager,
 };
@@ -80,6 +81,20 @@ pub enum BallotBoxPolicy {
     CastVoteTable,
     /// The ballot box of the event's electoral-log database.
     ElectoralLog,
+}
+
+/// Where a new election event stores its cast votes: the ballot box, except for a
+/// Datafix event, which keeps `cast_vote` until Datafix's outcomes are recorded in
+/// the ballot box.
+pub fn new_event_ballot_box_policy(annotations: Option<&serde_json::Value>) -> BallotBoxPolicy {
+    let datafix = annotations
+        .and_then(|annotations| annotations.get(DATAFIX_ID_KEY))
+        .is_some();
+    if datafix {
+        BallotBoxPolicy::CastVoteTable
+    } else {
+        BallotBoxPolicy::ElectoralLog
+    }
 }
 
 /// How a stored ballot's content is encoded, so that formats can coexist.
@@ -308,6 +323,22 @@ mod tests {
         })
         .await
         .is_err());
+    }
+
+    #[test]
+    fn new_events_use_the_ballot_box_except_datafix_events() {
+        assert_eq!(
+            new_event_ballot_box_policy(None),
+            BallotBoxPolicy::ElectoralLog
+        );
+        assert_eq!(
+            new_event_ballot_box_policy(Some(&serde_json::json!({"other": "x"}))),
+            BallotBoxPolicy::ElectoralLog
+        );
+        assert_eq!(
+            new_event_ballot_box_policy(Some(&serde_json::json!({ DATAFIX_ID_KEY: "event" }))),
+            BallotBoxPolicy::CastVoteTable
+        );
     }
 
     #[test]
