@@ -3305,6 +3305,14 @@
       "builtIn": true,
       "authenticationExecutions": [
         {
+          "authenticator": "enrollment-window-check",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
           "authenticator": "registration-user-creation",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",

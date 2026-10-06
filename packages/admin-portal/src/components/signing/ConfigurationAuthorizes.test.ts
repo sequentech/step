@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {useQuery} from "@apollo/client"
+import {IPermissions} from "@/types/keycloak"
 import {renderToStaticMarkup} from "react-dom/server"
 import {testI18n} from "@/components/timezones/__fixtures__/testI18n"
 import type {TFunction} from "i18next"
@@ -31,7 +33,13 @@ jest.mock("react-admin", () => ({
 }))
 jest.mock("@apollo/client", () => ({
     gql: (s: TemplateStringsArray) => s.join(""),
-    useQuery: () => ({loading: false}),
+    useQuery: jest.fn(() => ({loading: false})),
+}))
+const mockPermissions = [IPermissions.SIGN_APPROVE_CONFIGURATION]
+jest.mock("@/providers/AuthContextProvider", () => ({
+    AuthContext: jest.requireActual("react").createContext({
+        hasRole: (role: IPermissions) => mockPermissions.includes(role),
+    }),
 }))
 const mockI18n = testI18n()
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: mockI18n.t})}))
@@ -265,4 +273,21 @@ it("explains a country replacement as mixed and keeps missing-area ID fallback",
         }),
     ])
     expect(configurationDiff(mockI18n.t, snapshotOfSubject({}), after)).toEqual([])
+})
+
+it("compares configuration approvals with the signer's held role", () => {
+    renderToStaticMarkup(
+        React.createElement(ConfigurationAuthorizes, {
+            subject: {},
+            electionEventId: "event",
+            requestId: "request",
+        })
+    )
+    expect(useQuery).toHaveBeenLastCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+            skip: false,
+            context: {headers: {"x-hasura-role": IPermissions.SIGN_APPROVE_CONFIGURATION}},
+        })
+    )
 })

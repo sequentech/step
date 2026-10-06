@@ -18,8 +18,7 @@
                       <td class="left">
                         <div>
                           <p>
-                            {{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
-                            with_timezone="UTC"}}
+                            {{datetime_zone execution_annotations.date_printed output_format="%B %d, %Y %H:%M"}}
                           </p>
                         </div>
                       </td>
@@ -46,12 +45,7 @@
                       </div>
                       <div class="online">ONLINE VOTING AND COUNTING SYSTEM</div>
                       <div class="voting-period">
-                        Voting Period: {{datetime
-                        from_rfc3339=election_dates.scheduled_event_dates.ALLOW_INIT_REPORT.scheduled_at
-                        output_format="%d %B %Y" with_timezone="UTC"}} - {{datetime
-                        from_rfc3339=election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at
-                        output_format="%d %B %Y"
-                        with_timezone="UTC"}}
+                        Voting Period: {{#if election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at}}{{datetime_zone election_dates.scheduled_event_dates.START_VOTING_PERIOD.scheduled_at output_format="%d %B %Y"}}{{else}}{{#if election_dates.first_started_at}}{{datetime_zone election_dates.first_started_at output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}} - {{#if election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at}}{{datetime_zone election_dates.scheduled_event_dates.END_VOTING_PERIOD.scheduled_at @root.electionEventTimezone output_format="%d %B %Y"}}{{else}}{{#if election_dates.last_stopped_at}}{{datetime_zone election_dates.last_stopped_at @root.electionTimezone output_format="%d %B %Y"}}{{else}}-{{/if}}{{/if}}
                       </div>
 
                     </td>
@@ -147,9 +141,9 @@
                 <tr>
                   <td class="sequence-data">{{format_u64 number}}</td>
                   <td class="sequence-data">
-                    {{datetime from_rfc3339=datetime output_format="%B %d" with_timezone="UTC"}}
+                    {{datetime_zone datetime output_format="%B %d"}}
                     <br />
-                    {{datetime from_rfc3339=datetime output_format="%Y, %H:%M" with_timezone="UTC"}}
+                    {{datetime_zone datetime output_format="%Y, %H:%M"}}
                   </td>
                   <td class="sequence-data" style="white-space: normal; overflow-wrap: anywhere;">
                     {{username}}
@@ -213,8 +207,7 @@
     let systemHash = '{{{execution_annotations.app_hash}}}';
     let softwareVersion = '{{{execution_annotations.software_version}}}';
     let ovcsVersion = '{{{execution_annotations.app_version}}}';
-    let date = `{{datetime from_rfc3339=execution_annotations.date_printed output_format="%B %d, %Y %H:%M"
-                          with_timezone="UTC"}}`
+    let date = `{{datetime_zone execution_annotations.date_printed output_format="%B %d, %Y %H:%M"}}`
     let user = '{{expr execution_annotations.executer_username}}'
 
     const qrcode = new QRCode(document.getElementById("qrcode"), {

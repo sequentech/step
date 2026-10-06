@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {IPermissions} from "@/types/keycloak"
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
@@ -44,6 +45,16 @@ const meta = {
     beforeEach: () => {
         graphql = graphqlBoundary(
             {
+                GetInitializationContests: () => ({
+                    data: {
+                        sequent_backend_contest: [
+                            {id: "contest-a", election_id: STORY_IDS.election},
+                        ],
+                    },
+                }),
+                GetInitializationStyles: () => ({
+                    data: {sequent_backend_ballot_style: [{area_id: A}, {area_id: B}]},
+                }),
                 GetInitializationCountries: () => ({
                     data: {
                         sequent_backend_area: [
@@ -51,10 +62,7 @@ const meta = {
                             {id: B, name: "Country B", parent_id: null},
                         ],
                         // B's editable link is gone; its signed publication still retains it.
-                        sequent_backend_area_contest: [
-                            {area_id: A, contest: {election_id: STORY_IDS.election}},
-                        ],
-                        sequent_backend_ballot_style: [{area_id: A}, {area_id: B}],
+                        sequent_backend_area_contest: [{area_id: A, contest_id: "contest-a"}],
                     },
                 }),
             },
@@ -65,16 +73,22 @@ const meta = {
     },
     render: (args) => (
         <AdminStoryProvider
+            roles={[IPermissions.AREA_READ, IPermissions.CONTEST_READ, IPermissions.PUBLISH_READ]}
             boundary={
                 args.membership === "retained"
                     ? graphql
                     : graphqlBoundary(
                           {
+                              GetInitializationContests: () => ({
+                                  data: {sequent_backend_contest: []},
+                              }),
+                              GetInitializationStyles: () => ({
+                                  data: {sequent_backend_ballot_style: []},
+                              }),
                               GetInitializationCountries: () => ({
                                   data: {
                                       sequent_backend_area: [],
                                       sequent_backend_area_contest: [],
-                                      sequent_backend_ballot_style: [],
                                   },
                               }),
                           },

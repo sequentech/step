@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useMemo} from "react"
+import React, {useContext, useMemo} from "react"
 import {useGetList} from "react-admin"
 import {useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
@@ -14,6 +14,8 @@ import {
     type ILifecyclePolicies,
 } from "@sequentech/ui-core"
 import type {Sequent_Backend_Election, Sequent_Backend_Area} from "@/gql/graphql"
+import {AuthContext} from "@/providers/AuthContextProvider"
+import {configurationApprovalRole} from "@/lib/signing/roles"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {
     GET_CONFIGURATION_APPROVALS,
@@ -226,6 +228,8 @@ export const ConfigurationAuthorizes: React.FC<{
     requestId: string
 }> = ({subject, electionEventId, requestId}) => {
     const {t} = useTranslation()
+    const {hasRole} = useContext(AuthContext)
+    const approvalRole = configurationApprovalRole(hasRole)
     const service = useTimeZoneService()
     const aliasRenderer = useAliasRenderer()
     const zones = useTimeZoneContext(electionEventId)
@@ -247,10 +251,15 @@ export const ConfigurationAuthorizes: React.FC<{
         const name = area ? aliasRenderer(area) : undefined
         return name && name !== "-" ? name : areaId
     }
-    const {data: approvalsData, loading} = useQuery<GetConfigurationApprovalsData>(
-        GET_CONFIGURATION_APPROVALS,
-        {variables: {electionEventId, requestId}}
-    )
+    const {
+        data: approvalsData,
+        loading,
+        error,
+    } = useQuery<GetConfigurationApprovalsData>(GET_CONFIGURATION_APPROVALS, {
+        variables: {electionEventId, requestId},
+        skip: !approvalRole,
+        context: {headers: {"x-hasura-role": approvalRole}},
+    })
     const previous = approvalsData
         ? previousApproval(
               approvalsData.approvals,
@@ -419,7 +428,9 @@ export const ConfigurationAuthorizes: React.FC<{
                     ) : null}
                 </Box>
             ) : null}
-            {loading ? null : diffs === null ? (
+            {loading ? null : error || !approvalRole ? (
+                <Alert severity="warning">{t("signing.widget.loadError")}</Alert>
+            ) : diffs === null ? (
                 <Typography variant="body2" color="text.secondary">
                     {t("lifecycle.authorizes.firstConfiguration")}
                 </Typography>

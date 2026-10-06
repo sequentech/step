@@ -39,6 +39,8 @@ import {styled} from "@mui/material/styles"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {heldByReports, useReportSignatures} from "./ReportSigning"
 import {FormStyles} from "@/components/styles/FormStyles"
+import {useTimeZoneContext} from "@/components/timezones/useTimeZoneContext"
+import {useTimeZoneService} from "@/components/timezones/timeZoneService"
 
 type Choice = {
     id: string
@@ -573,6 +575,9 @@ const FormContent: React.FC<CreateReportProps> = ({
     const [electionId, setElectionId] = useState<string | null | undefined>(undefined)
     const [templateAlias, setTemplateAlias] = useState<string | null | undefined>(undefined)
     const [isCronActive, setIsCronActive] = useState<boolean>(false)
+    // Scheduled reports run in the event's primary zone (design §7).
+    const zones = useTimeZoneContext(electionEventId)
+    const timeZones = useTimeZoneService()
 
     const {setValue, register} = useFormContext()
 
@@ -771,6 +776,11 @@ const FormContent: React.FC<CreateReportProps> = ({
                             }
                         }}
                     />
+                    <Typography variant="body2" color="text.secondary" data-testid="cron-zone">
+                        {t("lifecycle.input.cronZone", {
+                            zone: timeZones.timeZoneOption(zones.primary, timeZones.text).label,
+                        })}
+                    </Typography>
                     <EmailRecipientsInput
                         source="cron_config.email_recipients"
                         label={String(t("reportsScreen.fields.emailRecipients"))}
