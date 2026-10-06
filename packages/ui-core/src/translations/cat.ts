@@ -712,6 +712,14 @@ const catalanTranslation: TranslationType = {
                         lead: "No és una data i hora",
                         text: "No és una data i hora — «{{value}}» al manifest no és una data i hora.",
                     },
+                    "member-too-large": {
+                        lead: "Fitxer massa gran",
+                        text: "Fitxer massa gran — «{{file}}» a {{archive}} ocupa, descomprimit, més dels {{limit}} bytes que pot ocupar un fitxer.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Massa zips imbricats",
+                        text: "Massa zips imbricats — «{{file}}» és dins de més zips dels {{limit}} en què pot estar imbricat un fitxer.",
+                    },
                     "no-importable": {
                         lead: "Res a importar",
                         text: "Res a importar — el paquet no té official_election_setup.zip, l'arxiu que llegeix l'importador.",
@@ -723,6 +731,10 @@ const catalanTranslation: TranslationType = {
                     "report-template-missing": {
                         lead: "Falta la plantilla de l'informe",
                         text: "Falta la plantilla de l'informe — l'informe {{report}} es genera amb la plantilla «{{template}}», que no és a la configuració, així que el seu disseny no es pot signar.",
+                    },
+                    "report-unreadable": {
+                        lead: "L'informe no es pot signar",
+                        text: "L'informe no es pot signar — {{message}}",
                     },
                     "revoked-approver": {
                         lead: "Certificat d'aprovador revocat",
@@ -736,6 +748,10 @@ const catalanTranslation: TranslationType = {
                         lead: "No és una revisió més recent",
                         text: "No és una revisió més recent — la revisió {{revision}} no és més recent que la revisió {{last}}, l'última importada.",
                     },
+                    "signed-in-the-future": {
+                        lead: "Signat en el futur",
+                        text: "Signat en el futur — el paquet indica {{at}} com a moment de la signatura, i ara és {{now}}.",
+                    },
                     "signer-key-usage": {
                         lead: "La clau de signatura no pot signar",
                         text: "La clau de signatura no pot signar — el certificat de la clau que ha signat aquest paquet no està fet per signar.",
@@ -743,6 +759,14 @@ const catalanTranslation: TranslationType = {
                     "too-few-approvals": {
                         lead: "Massa poques aprovacions",
                         text: "Massa poques aprovacions — {{count}} aprovacions vàlides de persones diferents, i se'n necessiten {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquet massa gran",
+                        text: "Paquet massa gran — descomprimit ocupa més dels {{limit}} bytes que pot ocupar un paquet: «{{file}}» a {{archive}} els sobrepassa.",
+                    },
+                    "too-many-members": {
+                        lead: "Massa fitxers",
+                        text: "Massa fitxers — {{archive}} conté més fitxers que els {{limit}} que pot contenir un paquet.",
                     },
                     "unhashable-content": {
                         lead: "No es pot calcular l'empremta",

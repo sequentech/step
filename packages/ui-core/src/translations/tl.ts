@@ -716,6 +716,14 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi petsa at oras",
                         text: "Hindi petsa at oras — hindi petsa at oras ang '{{value}}' sa manifest.",
                     },
+                    "member-too-large": {
+                        lead: "Masyadong malaki ang file",
+                        text: "Masyadong malaki ang file — kapag na-extract, lampas sa {{limit}} byte na pinapayagan sa isang file ang '{{file}}' sa {{archive}}.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Masyadong malalim ang pagkaka-nest",
+                        text: "Masyadong malalim ang pagkaka-nest — nasa loob ng mahigit sa {{limit}} zip na pinapayagan sa isang file ang '{{file}}'.",
+                    },
                     "no-importable": {
                         lead: "Walang maiimport",
                         text: "Walang maiimport — walang official_election_setup.zip ang package, ang archive na binabasa ng importer.",
@@ -727,6 +735,10 @@ const tagalogTranslation: TranslationType = {
                     "report-template-missing": {
                         lead: "Nawawala ang template ng report",
                         text: "Nawawala ang template ng report — ginagawa ang report na {{report}} gamit ang template na '{{template}}', na wala sa configuration, kaya hindi ma-sign ang design nito.",
+                    },
+                    "report-unreadable": {
+                        lead: "Hindi ma-sign ang report",
+                        text: "Hindi ma-sign ang report — {{message}}",
                     },
                     "revoked-approver": {
                         lead: "Binawi ang certificate ng approver",
@@ -740,6 +752,10 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi mas bagong revision",
                         text: "Hindi mas bagong revision — hindi mas bago ang revision {{revision}} kaysa sa revision {{last}}, ang huling na-import.",
                     },
+                    "signed-in-the-future": {
+                        lead: "Na-sign sa hinaharap",
+                        text: "Na-sign sa hinaharap — ayon sa package, {{at}} ito na-sign, at {{now}} pa lang ngayon.",
+                    },
                     "signer-key-usage": {
                         lead: "Hindi makapag-sign ang signing key",
                         text: "Hindi makapag-sign ang signing key — hindi ginawa para sa pag-sign ang certificate ng key na nag-sign sa package na ito.",
@@ -747,6 +763,14 @@ const tagalogTranslation: TranslationType = {
                     "too-few-approvals": {
                         lead: "Kulang ang mga pag-apruba",
                         text: "Kulang ang mga pag-apruba — {{count}} na valid na pag-apruba mula sa magkakaibang tao, at {{required}} ang kailangan.",
+                    },
+                    "too-large": {
+                        lead: "Masyadong malaki ang package",
+                        text: "Masyadong malaki ang package — kapag na-extract, lampas ito sa {{limit}} byte na pinapayagan sa isang package: ang '{{file}}' sa {{archive}} ang lumampas.",
+                    },
+                    "too-many-members": {
+                        lead: "Masyadong maraming file",
+                        text: "Masyadong maraming file — mas marami ang file sa {{archive}} kaysa sa {{limit}} na pinapayagan sa isang package.",
                     },
                     "unhashable-content": {
                         lead: "Hindi ma-hash ang content",

@@ -715,6 +715,14 @@ const galegoTranslation: TranslationType = {
                         lead: "Non é unha data e hora",
                         text: "Non é unha data e hora — «{{value}}» no manifesto non é unha data e hora.",
                     },
+                    "member-too-large": {
+                        lead: "Ficheiro demasiado grande",
+                        text: "Ficheiro demasiado grande — «{{file}}» en {{archive}} ocupa, descomprimido, máis dos {{limit}} bytes que pode ocupar un ficheiro.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Demasiados zips aniñados",
+                        text: "Demasiados zips aniñados — «{{file}}» está dentro de máis zips dos {{limit}} nos que pode estar aniñado un ficheiro.",
+                    },
                     "no-importable": {
                         lead: "Nada que importar",
                         text: "Nada que importar — o paquete non ten official_election_setup.zip, o arquivo que le o importador.",
@@ -726,6 +734,10 @@ const galegoTranslation: TranslationType = {
                     "report-template-missing": {
                         lead: "Falta o modelo do informe",
                         text: "Falta o modelo do informe — o informe {{report}} xérase co modelo «{{template}}», que non está na configuración, así que o seu deseño non se pode asinar.",
+                    },
+                    "report-unreadable": {
+                        lead: "O informe non se pode asinar",
+                        text: "O informe non se pode asinar — {{message}}",
                     },
                     "revoked-approver": {
                         lead: "Certificado de aprobador revogado",
@@ -739,6 +751,10 @@ const galegoTranslation: TranslationType = {
                         lead: "Non é unha revisión máis recente",
                         text: "Non é unha revisión máis recente — a revisión {{revision}} non é máis recente cá revisión {{last}}, a última importada.",
                     },
+                    "signed-in-the-future": {
+                        lead: "Asinado no futuro",
+                        text: "Asinado no futuro — o paquete indica {{at}} como momento da sinatura, e agora é {{now}}.",
+                    },
                     "signer-key-usage": {
                         lead: "A chave de sinatura non pode asinar",
                         text: "A chave de sinatura non pode asinar — o certificado da chave que asinou este paquete non está feito para asinar.",
@@ -746,6 +762,14 @@ const galegoTranslation: TranslationType = {
                     "too-few-approvals": {
                         lead: "Moi poucas aprobacións",
                         text: "Moi poucas aprobacións — {{count}} aprobacións válidas de persoas distintas, e fan falta {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquete demasiado grande",
+                        text: "Paquete demasiado grande — descomprimido ocupa máis dos {{limit}} bytes que pode ocupar un paquete: «{{file}}» en {{archive}} sobrepásaos.",
+                    },
+                    "too-many-members": {
+                        lead: "Demasiados ficheiros",
+                        text: "Demasiados ficheiros — {{archive}} contén máis ficheiros ca os {{limit}} que pode conter un paquete.",
                     },
                     "unhashable-content": {
                         lead: "Non se pode calcular a pegada",

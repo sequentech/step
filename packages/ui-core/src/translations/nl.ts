@@ -712,6 +712,14 @@ const dutchTranslation: TranslationType = {
                         lead: "Geen tijdstip",
                         text: "Geen tijdstip — '{{value}}' in het manifest is geen datum en tijd.",
                     },
+                    "member-too-large": {
+                        lead: "Bestand te groot",
+                        text: "Bestand te groot — '{{file}}' in {{archive}} is uitgepakt groter dan de {{limit}} bytes die een bestand mag zijn.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Te diep genest",
+                        text: "Te diep genest — '{{file}}' zit in meer zips dan de {{limit}} waarin een bestand genest mag zijn.",
+                    },
                     "no-importable": {
                         lead: "Niets te importeren",
                         text: "Niets te importeren — het pakket bevat geen official_election_setup.zip, het archief dat bij het importeren wordt gelezen.",
@@ -723,6 +731,10 @@ const dutchTranslation: TranslationType = {
                     "report-template-missing": {
                         lead: "Rapportsjabloon ontbreekt",
                         text: "Rapportsjabloon ontbreekt — het rapport {{report}} wordt opgemaakt met sjabloon '{{template}}', dat niet in de configuratie staat, dus het ontwerp kan niet worden ondertekend.",
+                    },
+                    "report-unreadable": {
+                        lead: "Rapport kan niet worden ondertekend",
+                        text: "Rapport kan niet worden ondertekend — {{message}}",
                     },
                     "revoked-approver": {
                         lead: "Certificaat van goedkeurder ingetrokken",
@@ -736,6 +748,10 @@ const dutchTranslation: TranslationType = {
                         lead: "Geen nieuwere revisie",
                         text: "Geen nieuwere revisie — revisie {{revision}} is niet nieuwer dan revisie {{last}}, de laatst geïmporteerde.",
                     },
+                    "signed-in-the-future": {
+                        lead: "In de toekomst ondertekend",
+                        text: "In de toekomst ondertekend — volgens het pakket is het ondertekend op {{at}}, en het is nu {{now}}.",
+                    },
                     "signer-key-usage": {
                         lead: "Ondertekeningssleutel kan niet ondertekenen",
                         text: "Ondertekeningssleutel kan niet ondertekenen — het certificaat van de sleutel die dit pakket ondertekende is niet bedoeld om mee te ondertekenen.",
@@ -743,6 +759,14 @@ const dutchTranslation: TranslationType = {
                     "too-few-approvals": {
                         lead: "Te weinig goedkeuringen",
                         text: "Te weinig goedkeuringen — {{count}} geldige goedkeuringen van verschillende personen, en er zijn er {{required}} nodig.",
+                    },
+                    "too-large": {
+                        lead: "Pakket te groot",
+                        text: "Pakket te groot — uitgepakt is het groter dan de {{limit}} bytes die een pakket mag zijn: '{{file}}' in {{archive}} gaat eroverheen.",
+                    },
+                    "too-many-members": {
+                        lead: "Te veel bestanden",
+                        text: "Te veel bestanden — {{archive}} bevat meer bestanden dan de {{limit}} die een pakket mag bevatten.",
                     },
                     "unhashable-content": {
                         lead: "Inhoud kan niet worden gehasht",

@@ -711,6 +711,14 @@ const englishTranslation = {
                         lead: "Not a time",
                         text: "Not a time — '{{value}}' in the manifest is not a date and time.",
                     },
+                    "member-too-large": {
+                        lead: "File too large",
+                        text: "File too large — '{{file}}' in {{archive}} expands to more than the {{limit}} bytes a file may.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Nested too deep",
+                        text: "Nested too deep — '{{file}}' is inside more zips than the {{limit}} a file may be nested in.",
+                    },
                     "no-importable": {
                         lead: "Nothing to import",
                         text: "Nothing to import — the package has no official_election_setup.zip, the archive the importer reads.",
@@ -722,6 +730,10 @@ const englishTranslation = {
                     "report-template-missing": {
                         lead: "Report template missing",
                         text: "Report template missing — the {{report}} report is drawn with template '{{template}}', which isn't in the configuration, so its design can't be signed.",
+                    },
+                    "report-unreadable": {
+                        lead: "Report can't be signed",
+                        text: "Report can't be signed — {{message}}",
                     },
                     "revoked-approver": {
                         lead: "Approver's certificate revoked",
@@ -735,6 +747,10 @@ const englishTranslation = {
                         lead: "Not a newer revision",
                         text: "Not a newer revision — revision {{revision}} is not newer than revision {{last}}, the last one imported.",
                     },
+                    "signed-in-the-future": {
+                        lead: "Signed in the future",
+                        text: "Signed in the future — the package says it was signed at {{at}}, and it is now {{now}}.",
+                    },
                     "signer-key-usage": {
                         lead: "Signing key can't sign",
                         text: "Signing key can't sign — the certificate of the key that signed this package is not made for signing.",
@@ -742,6 +758,14 @@ const englishTranslation = {
                     "too-few-approvals": {
                         lead: "Too few approvals",
                         text: "Too few approvals — {{count}} valid approvals from different people, and {{required}} are needed.",
+                    },
+                    "too-large": {
+                        lead: "Package too large",
+                        text: "Package too large — it expands to more than the {{limit}} bytes a package may: '{{file}}' in {{archive}} is past them.",
+                    },
+                    "too-many-members": {
+                        lead: "Too many files",
+                        text: "Too many files — {{archive}} holds more files than the {{limit}} a package may hold.",
                     },
                     "unhashable-content": {
                         lead: "Content can't be hashed",

@@ -714,6 +714,14 @@ const spanishTranslation: TranslationType = {
                         lead: "No es una fecha y hora",
                         text: "No es una fecha y hora — «{{value}}» en el manifiesto no es una fecha y hora.",
                     },
+                    "member-too-large": {
+                        lead: "Archivo demasiado grande",
+                        text: "Archivo demasiado grande — «{{file}}» en {{archive}} ocupa, descomprimido, más de los {{limit}} bytes que puede ocupar un archivo.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Demasiados zips anidados",
+                        text: "Demasiados zips anidados — «{{file}}» está dentro de más zips de los {{limit}} en que puede estar anidado un archivo.",
+                    },
                     "no-importable": {
                         lead: "Nada que importar",
                         text: "Nada que importar — el paquete no tiene official_election_setup.zip, el archivo comprimido que lee el importador.",
@@ -725,6 +733,10 @@ const spanishTranslation: TranslationType = {
                     "report-template-missing": {
                         lead: "Falta la plantilla del informe",
                         text: "Falta la plantilla del informe — el informe {{report}} se genera con la plantilla «{{template}}», que no está en la configuración, así que su diseño no se puede firmar.",
+                    },
+                    "report-unreadable": {
+                        lead: "El informe no se puede firmar",
+                        text: "El informe no se puede firmar — {{message}}",
                     },
                     "revoked-approver": {
                         lead: "Certificado de aprobador revocado",
@@ -738,6 +750,10 @@ const spanishTranslation: TranslationType = {
                         lead: "No es una revisión más reciente",
                         text: "No es una revisión más reciente — la revisión {{revision}} no es más reciente que la revisión {{last}}, la última importada.",
                     },
+                    "signed-in-the-future": {
+                        lead: "Firmado en el futuro",
+                        text: "Firmado en el futuro — el paquete indica {{at}} como momento de la firma, y ahora es {{now}}.",
+                    },
                     "signer-key-usage": {
                         lead: "La clave de firma no puede firmar",
                         text: "La clave de firma no puede firmar — el certificado de la clave que firmó este paquete no está hecho para firmar.",
@@ -745,6 +761,14 @@ const spanishTranslation: TranslationType = {
                     "too-few-approvals": {
                         lead: "Muy pocas aprobaciones",
                         text: "Muy pocas aprobaciones — {{count}} aprobaciones válidas de personas distintas, y se necesitan {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquete demasiado grande",
+                        text: "Paquete demasiado grande — descomprimido ocupa más de los {{limit}} bytes que puede ocupar un paquete: «{{file}}» en {{archive}} los sobrepasa.",
+                    },
+                    "too-many-members": {
+                        lead: "Demasiados archivos",
+                        text: "Demasiados archivos — {{archive}} contiene más archivos que los {{limit}} que puede contener un paquete.",
                     },
                     "unhashable-content": {
                         lead: "No se puede calcular la huella",

@@ -715,6 +715,14 @@ const frenchTranslation: TranslationType = {
                         lead: "Pas une date et heure",
                         text: "Pas une date et heure — '{{value}}' dans le manifeste n'est pas une date et heure.",
                     },
+                    "member-too-large": {
+                        lead: "Fichier trop volumineux",
+                        text: "Fichier trop volumineux — '{{file}}' dans {{archive}} occupe, une fois décompressé, plus que les {{limit}} octets permis pour un fichier.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Trop de zips imbriqués",
+                        text: "Trop de zips imbriqués — '{{file}}' se trouve dans plus de zips que les {{limit}} dans lesquels un fichier peut être imbriqué.",
+                    },
                     "no-importable": {
                         lead: "Rien à importer",
                         text: "Rien à importer — le paquet ne contient pas official_election_setup.zip, l'archive que lit l'importateur.",
@@ -726,6 +734,10 @@ const frenchTranslation: TranslationType = {
                     "report-template-missing": {
                         lead: "Modèle de rapport manquant",
                         text: "Modèle de rapport manquant — le rapport {{report}} est produit avec le modèle '{{template}}', qui n'est pas dans la configuration, donc sa conception ne peut pas être signée.",
+                    },
+                    "report-unreadable": {
+                        lead: "Rapport impossible à signer",
+                        text: "Rapport impossible à signer — {{message}}",
                     },
                     "revoked-approver": {
                         lead: "Certificat d'approbateur révoqué",
@@ -739,6 +751,10 @@ const frenchTranslation: TranslationType = {
                         lead: "Pas une révision plus récente",
                         text: "Pas une révision plus récente — la révision {{revision}} n'est pas plus récente que la révision {{last}}, la dernière importée.",
                     },
+                    "signed-in-the-future": {
+                        lead: "Signé dans le futur",
+                        text: "Signé dans le futur — le paquet indique {{at}} comme moment de la signature, et il est maintenant {{now}}.",
+                    },
                     "signer-key-usage": {
                         lead: "La clé de signature ne peut pas signer",
                         text: "La clé de signature ne peut pas signer — le certificat de la clé qui a signé ce paquet n'est pas fait pour signer.",
@@ -746,6 +762,14 @@ const frenchTranslation: TranslationType = {
                     "too-few-approvals": {
                         lead: "Trop peu d'approbations",
                         text: "Trop peu d'approbations — {{count}} approbations valides de personnes différentes, et il en faut {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquet trop volumineux",
+                        text: "Paquet trop volumineux — une fois décompressé, il occupe plus que les {{limit}} octets permis pour un paquet : '{{file}}' dans {{archive}} les dépasse.",
+                    },
+                    "too-many-members": {
+                        lead: "Trop de fichiers",
+                        text: "Trop de fichiers — {{archive}} contient plus de fichiers que les {{limit}} qu'un paquet peut contenir.",
                     },
                     "unhashable-content": {
                         lead: "Contenu impossible à hacher",
