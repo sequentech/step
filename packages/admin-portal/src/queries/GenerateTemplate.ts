@@ -6,7 +6,7 @@ import {gql} from "@apollo/client"
 
 export const GENERATE_TEMPLATE = gql`
     mutation GenerateTemplate(
-        $electionEventId: String!
+        $electionEventId: uuid!
         $electionId: String!
         $tallySessionId: String!
         $type: String!

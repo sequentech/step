@@ -53,6 +53,7 @@ import {
     type IRuleDraft,
 } from "./signingSettings"
 import {usePutRule, useWriteErrorMessage} from "./useSigningSettings"
+import {RuleChangeNotice, appliesKey, useRuleChangePreview} from "./RuleChangeNotice"
 
 export interface IRuleDrawerProps {
     electionEventId: string
@@ -155,6 +156,12 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
         return t("signing.rule.signaturesNeededHelp", {n: check.minSigners})
     })()
     const changed = draftChanged(initial, draft)
+    // The rule as it would be saved, for the preview of how it applies to scheduled transitions.
+    const pending = {
+        required: draft.requirement === SigningRequirement.Required,
+        signatures: parseSignatures(draft.signatures),
+    }
+    const preview = useRuleChangePreview(electionEventId, rule.action, pending, changed)
     const valid = !required || trustee || check.problem === null
     const waiting = capacity?.waiting ?? 0
 
@@ -188,7 +195,11 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
         } else if (saved?.warnings?.includes(SigningRuleWarning.RequesterExcluded)) {
             notify(t("signing.rule.savedRequesterShort"), {type: "success"})
         } else {
-            notify(t("signing.rule.saved"), {type: "success"})
+            // How the save applies to scheduled transitions, in the server's words.
+            const applies = preview?.applies_message_key ?? appliesKey(preview?.applies)
+            notify(applies ? `${t("signing.rule.saved")} ${t(applies)}` : t("signing.rule.saved"), {
+                type: "success",
+            })
         }
         onSaved()
     }
@@ -398,6 +409,8 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                         </FormControl>
                     </>
                 )}
+
+                {!readOnly && <RuleChangeNotice preview={preview} />}
 
                 {!readOnly && waiting > 0 && (
                     <Alert severity="info">{t("signing.pendingRequests", {count: waiting})}</Alert>

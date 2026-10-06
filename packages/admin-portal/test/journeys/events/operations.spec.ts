@@ -165,7 +165,10 @@ test.describe("event activity log exports", () => {
             ).toBeVisible()
             for (const confirm of [false, true]) {
                 await page.getByRole("button", {name: "Export", exact: true}).click()
-                await page.getByRole("menuitem", {name: `Export in ${format}`, exact: true}).click()
+                await page
+                    .getByRole("dialog")
+                    .getByRole("radio", {name: format, exact: true})
+                    .check()
                 expect(portal.graphql.callsTo("ExportElectionEventLogs")).toHaveLength(0)
                 await page
                     .getByRole("dialog")
@@ -176,7 +179,13 @@ test.describe("event activity log exports", () => {
             await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
             const calls = portal.graphql.callsTo("ExportElectionEventLogs")
             expect(calls).toHaveLength(1)
-            expect(calls[0].variables).toEqual({electionEventId: EVENT_ID, format})
+            expect(calls[0].variables).toEqual({
+                electionEventId: EVENT_ID,
+                format,
+                createdFrom: null,
+                createdTo: null,
+                timeZone: "UTC",
+            })
             expect(calls[0].headers["x-hasura-role"]).toBe("logs-export")
             expect(
                 portal.oidc.verifyAccessToken(

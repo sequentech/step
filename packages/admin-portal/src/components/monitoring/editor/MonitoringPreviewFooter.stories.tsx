@@ -1,14 +1,36 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, within} from "storybook/test"
+import {EventTimeZoneProvider, MyTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {EEditorBusy, MonitoringPreviewFooter} from "./MonitoringPreviewFooter"
 import {EPreviewStatus} from "./yamlDraft"
 
 const meta = {
     title: "Admin/Monitoring/Editor/MonitoringPreviewFooter",
     component: MonitoringPreviewFooter,
+    decorators: [
+        (Story) => (
+            <MyTimeZoneProvider zone="America/New_York">
+                <EventTimeZoneProvider
+                    event={{
+                        id: "monitoring-event",
+                        presentation: {
+                            timezones: {
+                                configured: ["Asia/Manila"],
+                                primary: "Asia/Manila",
+                                logs: "primary",
+                            },
+                        },
+                    }}
+                >
+                    <Story />
+                </EventTimeZoneProvider>
+            </MyTimeZoneProvider>
+        ),
+    ],
     args: {
         scopeLabel: "All authorized Posts",
         errors: 0,
@@ -37,7 +59,7 @@ export const Valid: Story = {
         await expect(status).toHaveTextContent("no chart warnings")
         await expect(status).toHaveTextContent("rendered in 42 ms")
         await expect(status).toHaveTextContent("Revision 7")
-        await expect(status).toHaveTextContent(/saved .+ by Ana Reyes/)
+        await expect(status).toHaveTextContent(/saved Sep 28, 2026, 4:30\s*PM PhST by Ana Reyes/)
         await userEvent.click(canvas.getByRole("button", {name: "Validate"}))
         await userEvent.click(canvas.getByRole("button", {name: "Save widget"}))
         await userEvent.click(canvas.getByRole("button", {name: "Cancel"}))
