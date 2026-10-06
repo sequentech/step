@@ -133,7 +133,7 @@ jobs:
           chmod +x "$RUNNER_TEMP/immudb"
           echo "ELECTORAL_LOG_TEST_IMMUDB_BINARY=$RUNNER_TEMP/immudb" >> "$GITHUB_ENV"
       - name: Install the local PDF test browser
-        if: env.COVERAGE_PROFILE == 'velvet'
+        if: env.COVERAGE_PROFILE == 'sequent-core' || env.COVERAGE_PROFILE == 'velvet'
         uses: ./head/.github/actions/setup-test-browser
       - name: Install both repository Rust toolchains
         run: |
