@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election_event::{election_event_id_exists, update_bulletin_board};
+use crate::postgres::election_event::{
+    election_event_id_exists, is_duplicate_election_event, update_bulletin_board,
+};
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::import::import_election_event::insert_election_event_db;
@@ -62,8 +64,11 @@ pub async fn insert_election_event_anyhow(
 
     // Harvest already refused ids that existed when the request came in, but a
     // second request for the same id can be queued before this one commits.
-    // The realm upsert overwrites an existing realm with the template, so the
-    // row has to be checked before anything outside the transaction is touched.
+    // This check gives that case a readable failure; the insert below is what
+    // actually claims the id, since the primary key makes a concurrent insert
+    // of the same id wait for this transaction and then fail. Both run before
+    // the realm upsert, which would overwrite an existing realm with the
+    // template.
     match election_event_id_exists(&hasura_transaction, &id).await {
         Ok(false) => (),
         Ok(true) => {
@@ -83,31 +88,24 @@ pub async fn insert_election_event_anyhow(
         }
     }
 
-    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
-        Ok(realm) => Some(realm),
+    match insert_election_event_db(&hasura_transaction, &final_object).await {
+        Ok(_) => (),
+        Err(err) if is_duplicate_election_event(&err) => {
+            let message = format!("Election event {id} already exists");
+            update_fail(&task_execution, &message).await?;
+            return Err(anyhow!(message));
+        }
         Err(err) => {
-            update_fail(
-                &task_execution,
-                "Failed to update task execution status to COMPLETED",
-            )
-            .await?;
-            return Err(anyhow!(
-                "Failed to update task execution status to COMPLETED {err}"
-            ));
+            update_fail(&task_execution, "Failed to insert the election event").await?;
+            return Err(anyhow!("Failed to insert the election event: {err}"));
         }
     };
 
-    match insert_election_event_db(&hasura_transaction, &final_object).await {
-        Ok(_) => (),
+    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
+        Ok(realm) => Some(realm),
         Err(err) => {
-            update_fail(
-                &task_execution,
-                "Failed to update task execution status to COMPLETED",
-            )
-            .await?;
-            return Err(
-                anyhow!("Failed to update task execution status to COMPLETED {err}").into(),
-            );
+            update_fail(&task_execution, "Failed to upsert the Keycloak realm").await?;
+            return Err(anyhow!("Failed to upsert the Keycloak realm: {err}"));
         }
     };
 

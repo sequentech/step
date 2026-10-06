@@ -8,6 +8,7 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::ElectionEvent as ElectionEventData;
 use serde_json::Value;
+use tokio_postgres::error::SqlState;
 use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -89,9 +90,17 @@ pub async fn insert_election_event(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+        .context("Error inserting the election event")?;
 
     Ok(())
+}
+
+/// Whether an insert lost the primary key race on `election_event.id`.
+pub fn is_duplicate_election_event(err: &anyhow::Error) -> bool {
+    err.downcast_ref::<tokio_postgres::Error>()
+        .and_then(|err| err.as_db_error())
+        .map(|err| err.code() == &SqlState::UNIQUE_VIOLATION)
+        .unwrap_or(false)
 }
 
 #[instrument(err, skip_all)]
