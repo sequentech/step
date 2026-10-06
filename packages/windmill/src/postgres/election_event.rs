@@ -8,6 +8,7 @@ use sequent_core::ballot::VotingStatus;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::ElectionEvent as ElectionEventData;
 use serde_json::Value;
+use tokio_postgres::error::SqlState;
 use tokio_postgres::row::Row;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -89,9 +90,17 @@ pub async fn insert_election_event(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error running the document query: {err}"))?;
+        .context("Error inserting the election event")?;
 
     Ok(())
+}
+
+/// Whether an insert lost the primary key race on `election_event.id`.
+pub fn is_duplicate_election_event(err: &anyhow::Error) -> bool {
+    err.downcast_ref::<tokio_postgres::Error>()
+        .and_then(|err| err.as_db_error())
+        .map(|err| err.code() == &SqlState::UNIQUE_VIOLATION)
+        .unwrap_or(false)
 }
 
 #[instrument(err, skip_all)]
@@ -180,6 +189,32 @@ pub async fn get_election_event_by_id_if_exist(
         .get(0)
         .map(|election_event| election_event.clone());
     Ok((election_event))
+}
+
+/// Election event ids are globally unique (the table's primary key is just
+/// `id`), so this checks across every tenant without returning the row.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn election_event_id_exists(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM sequent_backend.election_event
+                    WHERE id = $1
+                );
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(&statement, &[&parse_uuid_v4(election_event_id)?])
+        .await?;
+
+    Ok(row.try_get(0)?)
 }
 
 /// Returns all the Election events as ElectionEventDatafix
