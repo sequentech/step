@@ -9,6 +9,7 @@
 //! belongs to the readiness and test voting features.
 
 use crate::postgres::election::{get_election_by_id, update_election_voting_status};
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
@@ -81,6 +82,22 @@ pub async fn manage_election_lifecycle_window_wrapped(
     scheduled_event_id: &str,
     election_id: Option<&str>,
 ) -> AnyhowResult<()> {
+    // Re-read only after the editor's transaction has released the schedule.
+    lock_scheduled_event(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        scheduled_event_id,
+    )
+    .await?;
+    if get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .is_archived
+    {
+        info!("Skipping scheduled transition {scheduled_event_id}: the event is archived");
+        return Ok(());
+    }
+
     let Some(scheduled_event) = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.to_owned()),
