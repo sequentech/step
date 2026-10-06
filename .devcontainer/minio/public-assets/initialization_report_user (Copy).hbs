@@ -337,6 +337,9 @@
           <td align="center">
             <div>
               Report hash: <span class="hash">{{sanitize_html (expr execution_annotations.report_hash)}}</span><br />
+              {{#if execution_annotations.configuration_revision}}
+              Configuration revision {{sanitize_html execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html execution_annotations.configuration_manifest_sha256}}<br />
+              {{/if}}
               Software version: {{sanitize_html (expr execution_annotations.app_version)}}<br />
               System hash: <span class="hash">{{sanitize_html (expr execution_annotations.app_hash)}}</span>
             </div>
