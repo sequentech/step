@@ -119,6 +119,12 @@ pub enum Permissions {
     LOGS_READ,
     #[strum(serialize = "electoral-log-audit")]
     ELECTORAL_LOG_AUDIT,
+    #[strum(serialize = "electoral-log-console-read")]
+    ELECTORAL_LOG_CONSOLE_READ,
+    #[strum(serialize = "electoral-log-console-query")]
+    ELECTORAL_LOG_CONSOLE_QUERY,
+    #[strum(serialize = "electoral-log-personal-data-read")]
+    ELECTORAL_LOG_PERSONAL_DATA_READ,
     #[strum(serialize = "tasks-read")]
     TASKS_READ,
     #[strum(serialize = "keys-read")]

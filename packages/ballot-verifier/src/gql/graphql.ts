@@ -4967,6 +4967,12 @@ export enum Order_By {
 export type Query_Root = {
     __typename?: "query_root"
     count_users: CountUsersOutput
+    /** A page of an election event's electoral-log records or ballot box */
+    electoral_log_console_page: Scalars["jsonb"]["output"]
+    /** A read-only SQL query on the tenant's electoral-log database */
+    electoral_log_console_query: Scalars["jsonb"]["output"]
+    /** An electoral-log record with its message decoded */
+    electoral_log_console_record: Scalars["jsonb"]["output"]
     /** fetch document */
     fetchDocument?: Maybe<FetchDocumentOutput>
     /** Fetch voter-authorized results website artifact URLs */
@@ -5260,6 +5266,24 @@ export type Query_Root = {
 
 export type Query_RootCount_UsersArgs = {
     body: CountUsersInput
+}
+
+export type Query_RootElectoral_Log_Console_PageArgs = {
+    after?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
+    filters?: InputMaybe<Scalars["jsonb"]["input"]>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    order?: InputMaybe<Scalars["String"]["input"]>
+    table: Scalars["String"]["input"]
+}
+
+export type Query_RootElectoral_Log_Console_QueryArgs = {
+    sql: Scalars["String"]["input"]
+}
+
+export type Query_RootElectoral_Log_Console_RecordArgs = {
+    election_event_id: Scalars["String"]["input"]
+    position: Scalars["Int"]["input"]
 }
 
 export type Query_RootFetchDocumentArgs = {

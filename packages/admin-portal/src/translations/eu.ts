@@ -1367,6 +1367,10 @@ const basqueTranslation: TranslationType = {
                 "publish-results-write": "Editatu Emaitzen Argitalpena",
                 "logs-read": "Irakurri Egunkariak",
                 "electoral-log-audit": "Hauteskunde Erregistroa Ikuskatu",
+                "electoral-log-console-read": "Hauteskunde Erregistroa Arakatu",
+                "electoral-log-console-query": "Hauteskunde Erregistroa Kontsultatu",
+                "electoral-log-personal-data-read":
+                    "Hauteskunde Erregistroko Datu Pertsonalak Irakurri",
                 "tasks-read": "Irakurri Ataza Exekuzioa",
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",
@@ -1775,6 +1779,7 @@ const basqueTranslation: TranslationType = {
             electionEvents: "Hauteskunde Gertaerak",
             search: "Bilatu",
             usersAndRoles: "Erabiltzaileak eta Rolak",
+            electoralLogConsole: "Hauteskunde Erregistroa",
             logs: "Egunkariak",
             settings: "Ezarpenak",
             help: "Laguntza",
@@ -2923,6 +2928,71 @@ const basqueTranslation: TranslationType = {
             confirmDelete: "Ziurtagiri-agintaritza ezabatu",
             confirmDeleteDescription:
                 'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
+        },
+        electoralLogConsole: {
+            title: "Hauteskunde Erregistroa",
+            subtitle:
+                "Arakatu hauteskunde-gertaera baten hauteskunde-erregistroa eta hautetontzia, edo kontsultatu hauteskunde-erregistroaren datu-basea. Orri honetan ez da daturik aldatzen.",
+            notAllowed:
+                "electoral-log-console-read baimena behar duzu hauteskunde-erregistroa irekitzeko.",
+            tabs: {
+                tables: "Taulak",
+                query: "Kontsulta",
+            },
+            electionEvent: "Hauteskunde Gertaera",
+            table: "Taula",
+            tables: {
+                records: "Sarrerak",
+                ballots: "Botoak",
+                voters: "Hautesleak",
+                queue: "Sekuentziadorearen Ilara",
+            },
+            order: {
+                "label": "Ordena",
+                "newest-first": "Berrienak lehenik",
+                "oldest-first": "Zaharrenak lehenik",
+            },
+            filters: {
+                statement_kind: "Mota",
+                election_id: "Hauteskundea",
+                area_id: "Eremuaren IDa",
+                user_id: "Erabiltzaile edo Hautesle IDa",
+                ballot_id: "Botoaren IDa",
+                status: "Egoera",
+                created_after: "Noiztik",
+                created_before: "Noiz arte",
+                any: "Edozein",
+                apply: "Aplikatu Iragazkiak",
+                clear: "Garbitu",
+                invalid:
+                    "Berrikusi markatutako iragazkiak: datek baliozkoak izan behar dute eta hautetontziaren eremu IDek UUIDak izan behar dute.",
+            },
+            statuses: {
+                valid: "Baliozkoa",
+                pending: "Zain",
+                rejected: "Baztertua",
+            },
+            estimatedRows: "{{rows}} errenkada inguru taula honetan iragazi aurretik.",
+            personalDataHidden:
+                "Erabiltzaile-izenak, IP helbideak eta herrialdeak ezkutatuta daude: ikusteko electoral-log-personal-data-read baimena behar da.",
+            loadError: "Ezin izan da hauteskunde-erregistroa irakurri.",
+            record: {
+                title: "{{position}}. sarrera",
+                view: "Ikusi sarrera",
+                message: "Mezua (deskodetua)",
+                copy: "Kopiatu JSONa",
+                close: "Itxi",
+                loadError: "Ezin izan da sarrera irakurri.",
+            },
+            query: {
+                help: "Kontsultak hauteskunde-erregistroaren datu-basean exekutatzen dira, irakurtzeko soilik den transakzio batean. Bere taulak hauek dira: electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending eta ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Irakurtzeko soilik · gehienez 1.000 errenkada · 30 s-ko muga · kontsulta bakoitza zerbitzariaren erregistroetan gordetzen da zure erabiltzailearekin",
+                run: "Exekutatu Kontsulta",
+                summary: "Errenkadak: {{rows}} · {{ms}} ms",
+                truncated: "Lehen {{rows}} errenkadak bakarrik erakusten dira.",
+                error: "Ezin izan da kontsulta exekutatu.",
+            },
         },
     },
 }

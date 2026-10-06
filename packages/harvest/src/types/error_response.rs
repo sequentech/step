@@ -50,6 +50,8 @@ pub enum ErrorCode {
     TallyValidation,
     InvalidVotingChannels,
     InvalidCastVoteOrder,
+    InvalidElectoralLogConsoleRequest,
+    ElectoralLogRecordNotFound,
     // Add any other needed error codes
 }
 

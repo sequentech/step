@@ -115,7 +115,7 @@ impl PostgresConnection {
         let (client, connection) = config.connect(self.tls.clone()).await?;
         tokio::spawn(async move {
             if let Err(error) = connection.await {
-                tracing::error!("Electoral-log provisioning connection failed: {error}");
+                tracing::error!("Electoral-log connection failed: {error}");
             }
         });
         Ok(client)

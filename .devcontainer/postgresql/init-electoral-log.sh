@@ -34,3 +34,18 @@ WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'provisioning_user') \ge
 SELECT format('GRANT %I TO %I', :'log_user', :'provisioning_user') \gexec
 SQL
 fi
+
+# The role that administrators' console queries run as. It only connects and reads:
+# provisioning lets it read each tenant database, and it gets nothing on the shared
+# database, which holds every tenant's boards.
+if [ -n "${ELECTORAL_LOG_PG_READER_USER:-}" ]; then
+    : "${ELECTORAL_LOG_PG_READER_PASSWORD:?must be set}"
+    psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER:-postgres}" --dbname postgres \
+        -v reader_user="$ELECTORAL_LOG_PG_READER_USER" \
+        -v reader_password="$ELECTORAL_LOG_PG_READER_PASSWORD" <<'SQL'
+SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'reader_user', :'reader_password')
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'reader_user') \gexec
+SELECT format('ALTER ROLE %I SET default_transaction_read_only = on', :'reader_user') \gexec
+SELECT format('ALTER ROLE %I SET statement_timeout = %L', :'reader_user', '30s') \gexec
+SQL
+fi

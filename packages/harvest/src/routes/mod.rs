@@ -69,4 +69,5 @@ pub mod voting_status;
 pub mod ballot_files;
 
 pub mod electoral_log_audit;
+pub mod electoral_log_console;
 pub mod electoral_log_proofs;

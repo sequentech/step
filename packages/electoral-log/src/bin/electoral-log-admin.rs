@@ -72,16 +72,20 @@ async fn main() -> Result<()> {
     let router = StoreRouter::from_env()?;
     // `init` and `backfill-nodes` without a board cover the shared database and every
     // tenant database of the environment.
-    let mut databases = vec![router.shared()];
+    let mut tenants = Vec::new();
     for database in router.tenant_databases().await? {
-        databases.push(router.database_store(&database).await?);
+        tenants.push(router.database_store(&database).await?);
     }
     if matches!(args.action, Action::Init) {
-        for store in &databases {
-            store.initialize().await?;
+        // The reader role may read tenant databases only: the shared one holds every
+        // tenant's boards.
+        router.shared().initialize().await?;
+        for store in &tenants {
+            router.initialize(store).await?;
         }
         return Ok(());
     }
+    let databases: Vec<_> = std::iter::once(router.shared()).chain(tenants).collect();
     if matches!(args.action, Action::ProvisionTenant) {
         let tenant_id = args.tenant_id.context("--tenant-id is required")?;
         return router.provision_tenant(&tenant_id).await;

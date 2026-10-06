@@ -603,6 +603,29 @@ electoral-log-admin backfill-nodes [--board BOARD]
 
 Run them from `packages/` with `cargo run -p electoral-log --bin electoral-log-admin -- <command>`.
 
+### 9.6 Console
+
+The admin portal's **Electoral Log** page (`/electoral-log-console`) lets administrators browse an election event's records and ballot box, open a record, and run SQL queries on their tenant's electoral-log database. Nothing in the console writes. It reads the tenant of the signed-in administrator; there is no tenant selector.
+
+| Action (Harvest route) | Permissions | Returns |
+| --- | --- | --- |
+| `electoral_log_console_page` (`POST /electoral-log-console/page`) | `electoral-log-console-read` | A page of a table |
+| `electoral_log_console_record` (`POST /electoral-log-console/record`) | `electoral-log-console-read` | One record with its message decoded |
+| `electoral_log_console_query` (`POST /electoral-log-console/query`) | `electoral-log-console-query` and `electoral-log-personal-data-read` | Up to 1,000 rows of a read-only query, or the server's error |
+
+- **Tables:** `records` (the board's `electoral_log_messages`), `ballots` (the event's `ballot_box_ballot` rows, with the content's size instead of the content), `voters` (`ballot_box_voter`) and `queue` (the ballots in `ballot_box_pending`, with their election, area and acceptance time). Events that keep the `cast_vote` table have empty `ballots`, `voters` and `queue` tables.
+- **Paging by key:** a page has at most 200 rows, newest or oldest first by the table's key: `id` for records, `seq` for ballots and the queue, election and voter for voters. It answers with the key of its last row as `next`, and the next page starts after it, so no page reads the rows before it. The portal moves forward one page at a time and back through the pages it has read; it cannot jump to a page number.
+- **Filters:** kind, election, user, ballot ID and creation time for records; election, area, voter, ballot ID, status and acceptance time for ballots; election, area and voter for voters; election and area for the queue. Harvest ignores the filters a table does not have. A filter that matches few rows can make a page read many rows in key order before it fills.
+- **Row counts:** each page reports the table's rows for the board or event before filters: the board's committed size for records, and for the ballot box the planner's estimate of the event's partition (`pg_class.reltuples`), or a count while the partition has never been analyzed.
+- **Records:** the record dialog decodes the signed message into JSON, as the Logs tab does, except that the artifact shows as its size in bytes, and hashes and other byte arrays of 16 bytes or more as hexadecimal.
+- **Personal data:** usernames and voters' IP addresses and countries. Without `electoral-log-personal-data-read`, pages show `hidden` in the `username`, `voter_ip` and `voter_country` columns, and records show `hidden` for every `username` and for the cast votes' `ip: …` and `country: …` values.
+- **Queries** run on the tenant's database only, so they need the `per-tenant` layout. With `shared`, or without the reader role, the console answers that queries are not available, since the shared database holds every tenant's boards.
+  - Harvest connects as `ELECTORAL_LOG_PG_READER_USER`, a role with `SELECT` on the tenant databases and nothing else, on a connection of its own that closes after the query. The query runs in a `READ ONLY` transaction with a 30-second `statement_timeout`, which Harvest rolls back.
+  - Harvest wraps the query as `SELECT row_to_json(q)::text FROM (…) q LIMIT 1001`, so only a statement that can be a subquery runs: `SELECT`, `VALUES`, `TABLE`, or `WITH` without data-modifying statements. It accepts up to 20,000 characters and returns at most 1,000 rows, saying when there were more.
+  - A query reads personal data as stored, which is why it also needs `electoral-log-personal-data-read`.
+  - Harvest logs each query with its tenant and user at INFO level. Queries are not recorded in the electoral log.
+- **Export:** the portal writes CSV in the browser: the current page of a table, or all the rows a query returned.
+
 ## 10. Audits
 
 ### 10.1 What an audit checks
@@ -697,12 +720,16 @@ A wrong root at the size of a supplied checkpoint is reported as `Diverged` only
 | Users of the super-admin tenant with `logs-read` | Through Harvest directly, list records and request checkpoints and proofs of any tenant |
 | Hasura's `admin-user` role | Read its tenant's published checkpoints |
 | Users with `electoral-log-audit` | Start audits |
+| Users with `electoral-log-console-read` | Browse their tenant's records and ballot boxes in the console, without personal data (section 9.6) |
+| Users with `electoral-log-personal-data-read` | See usernames, IP addresses and countries in the console |
+| Users with `electoral-log-console-query` and `electoral-log-personal-data-read` | Run read-only SQL queries on their tenant's electoral-log database |
+| The reader role (`ELECTORAL_LOG_PG_READER_USER`) | Read every table of the tenant databases |
 | Hasura's `service-account` role | Read every tenant's published checkpoints |
 | Windmill | Append and read through the electoral-log role, read and write the Hasura database, load the protocol-manager and administrator signing keys from the secret store, and sign and store checkpoints |
 | Harvest | The same, except that it does not publish checkpoints: it appends and reads, reads and writes the Hasura database, and loads the same keys to sign cast votes and administrative records |
 | The electoral-log database role | Everything in that database, because it owns it |
 
-`electoral-log-audit` is in the `/admin` group of the default tenant template and of the COMELEC template. Existing realms need the role added.
+`electoral-log-audit`, `electoral-log-console-read`, `electoral-log-console-query` and `electoral-log-personal-data-read` are in the `/admin` group of the default tenant template and of the COMELEC template. Existing realms need the roles added.
 
 ### 12.2 What each kind of tampering runs into
 
@@ -767,6 +794,8 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | `ELECTORAL_LOG_PG_TENANT_POOL_SIZE` | Connections per tenant database and pool; 4 by default |
 | `ELECTORAL_LOG_PG_PROVISIONING_USER`, `ELECTORAL_LOG_PG_PROVISIONING_PASSWORD` | Windmill only: the role that creates tenant databases. Without it, the `per-tenant` layout cannot create them |
 | `ELECTORAL_LOG_PG_PROVISIONING_DATABASE` | Database the provisioning role connects to; `postgres` by default |
+| `ELECTORAL_LOG_PG_READER_USER` | The role of console queries (section 9.6). Windmill and `electoral-log-admin init` let it read each tenant database they provision or initialize, and Harvest connects as it. Unset, queries are not available |
+| `ELECTORAL_LOG_PG_READER_PASSWORD` | Harvest only: the reader role's password |
 | `ELECTORAL_LOG_PG_SSLMODE` | `disable`, `require` (default) or `verify-full` |
 | `ELECTORAL_LOG_PG_SSLROOTCERT` | Optional CA file for `verify-full` |
 | `ELECTORAL_LOG_BATCH_SIZE` | Maximum events per dispatcher batch; 1,000 when unset or empty |
@@ -795,7 +824,7 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
   - **Creation:** Windmill creates a tenant's database when the tenant is created, before the tenant is stored, and also when it first creates a board in a tenant database that does not exist yet, as for tenants created before the switch. It connects as the provisioning role, runs `CREATE DATABASE … OWNER` the application role, and applies the schema as the application role. That role therefore owns each tenant database, as in development's shared one. The provisioning role needs `CREATEDB` and membership in the application role, and nothing else.
   - **Isolation:** a tenant's events cannot be read through another tenant's database, and an event's data can be backed up, restored or dropped per tenant. All tenant databases share the application role, so a process that holds its credentials can open any of them, as it can today.
   - **`electoral-log-admin`** routes `--board` the same way. `init` and `backfill-nodes` without a board cover the shared database and every tenant database of the environment, and `provision-tenant --tenant-id` creates a tenant's database.
-- **Development (Compose):** development uses the `per-tenant` layout. On an empty data directory, the `postgres` service creates the role, the provisioning role `electoral_log_provisioner` and the database, and applies the schema, with `.devcontainer/postgresql/init-electoral-log.sh`. On an existing volume, refresh the service's environment and mounts, then run `docker exec postgres sh /docker-entrypoint-initdb.d/20-electoral-log.sh`. The script creates what is missing and does not rotate an existing password.
+- **Development (Compose):** development uses the `per-tenant` layout. On an empty data directory, the `postgres` service creates the role, the provisioning role `electoral_log_provisioner`, the console's reader role `electoral_log_reader` (read-only by default, with a 30-second statement timeout) and the database, and applies the schema, with `.devcontainer/postgresql/init-electoral-log.sh`. On an existing volume, refresh the service's environment and mounts, then run `docker exec postgres sh /docker-entrypoint-initdb.d/20-electoral-log.sh`. The script creates what is missing and does not rotate an existing password.
 - **Cloud:** companion changes in the `gitops` repository create the password, role, database and backup grants on AWS and GCP. Apply its `client-secrets` module before `client-postgres-init`, then apply the schema as the database owner (`electoral-log-admin init`). The new-environment templates in the `beyond` repository provide the endpoint, database, role and the `electoral-log-db-credentials` ExternalSecret mapping.
 - **Schema upgrades:** `init` is idempotent, so apply it with each upgrade; it covers every tenant database. After upgrading a database written by an earlier build, run `backfill-nodes` before starting producers (section 7.10).
 
@@ -920,6 +949,10 @@ Performance and operation:
 - An automatic recount that starts while an audit runs can drop the audit's summary line from the latest tally execution; the result remains on the audit task.
 - The `sequent-core` WebAssembly package was not rebuilt for the new permission; the admin portal uses its own permission list.
 
+- Console queries are recorded in Harvest's logs, not in the electoral log, and the console's CSV export covers one page of a table at a time.
+- The cloud templates do not create the console's reader role yet, so console queries are not available there until it exists and `ELECTORAL_LOG_PG_READER_USER` and `ELECTORAL_LOG_PG_READER_PASSWORD` are set.
+- Existing tenant databases let the reader role read them after `electoral-log-admin init` runs with `ELECTORAL_LOG_PG_READER_USER` set.
+
 ## 18. Code map
 
 | Path | Responsibility |
@@ -928,6 +961,7 @@ Performance and operation:
 | `packages/electoral-log/src/ports.rs`, `service.rs` | The storage port and `BoardClient` |
 | `packages/electoral-log/src/adapters/postgres.rs` | PostgreSQL store: appends, queries, counts, record proofs, audits |
 | `packages/electoral-log/src/adapters/router.rs` | Database layouts, routing boards to databases, creating tenant databases |
+| `packages/electoral-log/src/adapters/console.rs` | Console pages, records and read-only queries |
 | `packages/electoral-log/src/proofs.rs` | Record commitments, checkpoint signing and verification, `RecordProof` |
 | `packages/electoral-log/src/messages/` | Signed message and statement types |
 | `packages/electoral-log/src/bin/electoral-log-admin.rs` | Administration and offline verification CLI |
@@ -941,4 +975,5 @@ Performance and operation:
 | `packages/harvest/src/routes/electoral_log*.rs`, `voter_electoral_log.rs` | HTTP routes |
 | `hasura/metadata/actions.*`, `hasura/migrations/backend-db/*electoral_log_checkpoint*` | Actions and the checkpoint table |
 | `packages/admin-portal/src/components/ElectoralLogList.tsx` | Logs tab and Audit button |
+| `packages/admin-portal/src/screens/ElectoralLogConsole.tsx` | Electoral Log console |
 | `packages/step-cli/src/commands/audit_electoral_log.rs`, `export_cast_votes.rs` | CLI commands |

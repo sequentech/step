@@ -25,6 +25,28 @@ type Mutation {
     audit_electoral_log(election_event_id: String!): taskOutput!
 }
 
+type Query {
+    electoral_log_console_page(
+        election_event_id: String!
+        table: String!
+        filters: jsonb
+        order: String
+        after: String
+        limit: Int
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_record(
+        election_event_id: String!
+        position: Int!
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_query(sql: String!): jsonb!
+}
+
 type Mutation {
     call_plugin_route(path: String!, data: jsonb!): PluginsRouteOutput!
 }

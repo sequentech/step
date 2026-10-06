@@ -47,6 +47,8 @@ CRUD endpoints for:
 - publish-read|write
 - logs-read
 - electoral-log-audit
+- electoral-log-console-read|query
+- electoral-log-personal-data-read
 - keys-read
 - contest-create|read|write|delete
 - candidate-create|read|write|delete

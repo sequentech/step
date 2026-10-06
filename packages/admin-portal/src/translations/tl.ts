@@ -1373,6 +1373,10 @@ const tagalogTranslation: TranslationType = {
                 "publish-results-write": "I-edit ang Results Publication",
                 "logs-read": "Basahin ang Logs",
                 "electoral-log-audit": "I-audit ang Electoral Log",
+                "electoral-log-console-read": "I-browse ang Electoral Log",
+                "electoral-log-console-query": "I-query ang Electoral Log",
+                "electoral-log-personal-data-read":
+                    "Basahin ang Personal na Datos ng Electoral Log",
                 "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
@@ -1784,6 +1788,7 @@ const tagalogTranslation: TranslationType = {
             electionEvents: "Mga Kaganapan ng Halalan",
             search: "Maghanap",
             usersAndRoles: "Mga Tagagamit at Tungkulin",
+            electoralLogConsole: "Electoral Log",
             logs: "Mga Log",
             settings: "Mga Setting",
             help: "Tulong",
@@ -2942,6 +2947,71 @@ const tagalogTranslation: TranslationType = {
             confirmDelete: "Burahin ang awtoridad sa sertipikasyon",
             confirmDeleteDescription:
                 'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Electoral Log",
+            subtitle:
+                "I-browse ang electoral log at ballot box ng isang election event, o i-query ang database ng electoral log. Walang binabagong datos ang pahinang ito.",
+            notAllowed:
+                "Kailangan mo ang pahintulot na electoral-log-console-read para buksan ang electoral log.",
+            tabs: {
+                tables: "Mga Talahanayan",
+                query: "Query",
+            },
+            electionEvent: "Election Event",
+            table: "Talahanayan",
+            tables: {
+                records: "Mga Record",
+                ballots: "Mga Balota",
+                voters: "Mga Botante",
+                queue: "Pila ng Sequencer",
+            },
+            order: {
+                "label": "Pagkakasunod",
+                "newest-first": "Pinakabago muna",
+                "oldest-first": "Pinakaluma muna",
+            },
+            filters: {
+                statement_kind: "Uri",
+                election_id: "Halalan",
+                area_id: "ID ng Lugar",
+                user_id: "ID ng User o Botante",
+                ballot_id: "ID ng Balota",
+                status: "Katayuan",
+                created_after: "Mula",
+                created_before: "Hanggang",
+                any: "Kahit ano",
+                apply: "Ilapat ang mga Filter",
+                clear: "I-clear",
+                invalid:
+                    "Suriin ang mga minarkahang filter: dapat wasto ang mga petsa at dapat UUID ang mga ID ng lugar ng ballot box.",
+            },
+            statuses: {
+                valid: "Wasto",
+                pending: "Nakabinbin",
+                rejected: "Tinanggihan",
+            },
+            estimatedRows: "Mga {{rows}} hilera sa talahanayang ito bago i-filter.",
+            personalDataHidden:
+                "Nakatago ang mga username, IP address at bansa: kailangan ang pahintulot na electoral-log-personal-data-read para makita ang mga ito.",
+            loadError: "Hindi mabasa ang electoral log.",
+            record: {
+                title: "Record {{position}}",
+                view: "Tingnan ang record",
+                message: "Mensahe (na-decode)",
+                copy: "Kopyahin ang JSON",
+                close: "Isara",
+                loadError: "Hindi mabasa ang record.",
+            },
+            query: {
+                help: "Tumatakbo ang mga query sa database ng electoral log sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
+                run: "Patakbuhin ang Query",
+                summary: "Mga hilera: {{rows}} · {{ms}} ms",
+                truncated: "Ang unang {{rows}} hilera lang ang ipinapakita.",
+                error: "Hindi napatakbo ang query.",
+            },
         },
     },
 }

@@ -969,6 +969,33 @@
         "attributes": {}
       },
       {
+        "id": "099d422b-8ee0-4792-991a-41c13643b380",
+        "name": "electoral-log-console-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "dc90b19b-6119-482b-bc16-0ad279465e5e",
+        "name": "electoral-log-console-query",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c162751b-950c-4664-9dc5-91f564a4d310",
+        "name": "electoral-log-personal-data-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "81ff4801-d4bb-4c3e-8d46-f525443c21d1",
         "name": "miru-create",
         "description": "",
@@ -2481,6 +2508,9 @@
         "candidate-delete",
         "logs-read",
         "electoral-log-audit",
+        "electoral-log-console-read",
+        "electoral-log-console-query",
+        "electoral-log-personal-data-read",
         "election-state-write",
         "candidate-write",
         "role-create",

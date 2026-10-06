@@ -28,6 +28,10 @@ pub const PROVISIONING_USER_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_USER";
 pub const PROVISIONING_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_PASSWORD";
 /// Database the provisioning role connects to in order to create others.
 pub const PROVISIONING_DATABASE_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_DATABASE";
+/// Role that may only read the electoral-log databases, for administrators' queries.
+/// When set, provisioning lets it read each new tenant database.
+pub const READER_USER_ENV: &str = "ELECTORAL_LOG_PG_READER_USER";
+pub const READER_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_READER_PASSWORD";
 /// Connections per tenant database and process.
 pub const TENANT_POOL_SIZE_ENV: &str = "ELECTORAL_LOG_PG_TENANT_POOL_SIZE";
 pub const DEFAULT_PROVISIONING_DATABASE: &str = "postgres";
@@ -67,6 +71,7 @@ pub struct StoreRouter {
     shared: PostgresStore,
     tenant_pool_size: usize,
     provisioning: Option<Provisioning>,
+    reader: Option<String>,
     stores: Mutex<HashMap<String, PostgresStore>>,
     boards: Mutex<HashMap<String, Location>>,
 }
@@ -111,7 +116,9 @@ impl StoreRouter {
             (Some(_), None) => anyhow::bail!("{PROVISIONING_PASSWORD_ENV} must be set"),
             (None, _) => None,
         };
-        Self::new(connection, layout, slug, tenant_pool_size, provisioning)
+        let mut router = Self::new(connection, layout, slug, tenant_pool_size, provisioning)?;
+        router.reader = non_empty(env::var(READER_USER_ENV).ok());
+        Ok(router)
     }
 
     fn new(
@@ -129,6 +136,7 @@ impl StoreRouter {
             shared,
             tenant_pool_size,
             provisioning,
+            reader: None,
             stores: Mutex::new(HashMap::new()),
             boards: Mutex::new(HashMap::new()),
         })
@@ -163,6 +171,55 @@ impl StoreRouter {
             &tenant_prefix(tenant_id),
         )?;
         self.tenant_store(&database, true).await.map(|_| ())
+    }
+
+    /// The connection settings of the server.
+    pub fn connection(&self) -> &PostgresConnection {
+        &self.connection
+    }
+
+    /// The role of `ELECTORAL_LOG_PG_READER_USER`, if set.
+    pub fn reader(&self) -> Option<&str> {
+        self.reader.as_deref()
+    }
+
+    /// The database that holds only a tenant's boards, which exists only with the
+    /// `per-tenant` layout.
+    pub fn tenant_database(&self, tenant_id: &str) -> Result<String> {
+        ensure!(
+            self.layout == DatabaseLayout::PerTenant,
+            "Tenants have no database of their own with the shared layout"
+        );
+        tenant_database_name(
+            self.connection.database(),
+            &self.slug,
+            &tenant_prefix(tenant_id),
+        )
+    }
+
+    /// A connection of its own to a tenant's database as the reader role, which
+    /// needs the `per-tenant` layout and `ELECTORAL_LOG_PG_READER_USER` and
+    /// `ELECTORAL_LOG_PG_READER_PASSWORD`.
+    pub async fn reader_client(&self, tenant_id: &str) -> Result<tokio_postgres::Client> {
+        let reader = self
+            .reader()
+            .with_context(|| format!("{READER_USER_ENV} is not set"))?;
+        let password = env::var(READER_PASSWORD_ENV)
+            .with_context(|| format!("{READER_PASSWORD_ENV} must be set"))?;
+        let database = self.tenant_database(tenant_id)?;
+        self.connection
+            .client(&database, reader, &password)
+            .await
+            .with_context(|| format!("Error connecting to {database} as {reader}"))
+    }
+
+    /// Apply the schema to a tenant database and let the reader role, if set, read it.
+    pub async fn initialize(&self, store: &PostgresStore) -> Result<()> {
+        store.initialize().await?;
+        if let Some(reader) = &self.reader {
+            store.grant_read(reader).await?;
+        }
+        Ok(())
     }
 
     /// The tenant databases of this environment that exist on the server.
@@ -230,8 +287,7 @@ impl StoreRouter {
         }
         let store = self.connection.store(database, self.tenant_pool_size)?;
         if provision {
-            store
-                .initialize()
+            self.initialize(&store)
                 .await
                 .with_context(|| format!("Error applying the schema to {database}"))?;
         }
