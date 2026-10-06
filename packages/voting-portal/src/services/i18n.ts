@@ -6,7 +6,7 @@ import englishTranslation from "../translations/en"
 import spanishTranslation from "../translations/es"
 import catalanTranslation from "../translations/cat"
 import frenchTranslation from "../translations/fr"
-import tagalotTranslation from "../translations/tl"
+import tagalogTranslation from "../translations/tl"
 import galegoTranslation from "../translations/gl"
 import dutchTranslation from "../translations/nl"
 import basqueTranslation from "../translations/eu"
@@ -20,7 +20,7 @@ initializeLanguages(
         es: spanishTranslation,
         cat: catalanTranslation,
         fr: frenchTranslation,
-        tl: tagalotTranslation,
+        tl: tagalogTranslation,
         gl: galegoTranslation,
         nl: dutchTranslation,
         eu: basqueTranslation,
