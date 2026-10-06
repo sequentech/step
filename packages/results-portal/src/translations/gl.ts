@@ -49,7 +49,7 @@ const galegoTranslation: TranslationType = {
             signedInAccess: "Acceso con sesión iniciada",
             acclaimed: "Elixido por aclamación",
             acclamationNote:
-                "Elixido por aclamación. Este concurso resolveuse sen votación, polo que non se rexistrou ningún voto.",
+                "Elixido por aclamación. Esta pregunta resolveuse sen votación, polo que non se rexistrou ningún voto.",
             published: "Publicado",
             notPublishedYet: "Aínda non publicado",
             position_one: "{{count}} posto",
