@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {test as unit, type Page} from "@playwright/test"
+import {setTimeout as delay} from "node:timers/promises"
 import {IPermissions} from "../../../src/types/keycloak"
 import {test, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {appRoutes} from "./routes"
@@ -38,6 +39,8 @@ const nextFrames = (page: Page) =>
     )
 
 const eventPage = async (page: Page) => {
+    // OIDC reloads the production bundle; wait for login before timing event loading.
+    await expect(page.getByRole("button", {name: "Welcome, synthetic-admin"})).toBeVisible()
     await text(page, "Council 2026")
     await text(page, "Election event configuration.")
     await expect(page.getByRole("tab", {name: "Dashboard", exact: true})).toHaveAttribute(
@@ -362,6 +365,28 @@ test.describe("route smoke", () => {
             expect(consoleErrors, "console errors").toEqual([])
         }
     }
+
+    test("event content waits for login and then loads within its own deadline", async ({
+        page,
+        portal,
+    }) => {
+        // Each phase fits the deadline; login plus event loading exceeds one deadline.
+        await page.route("**/protocol/openid-connect/token", async (route) => {
+            await delay(5_000)
+            await route.fallback()
+        })
+        await page.route("**/v1/graphql", async (route) => {
+            const {operationName} = route.request().postDataJSON() as {operationName?: string}
+            if (
+                ["election_events_tree", "sequent_backend_election_event"].includes(
+                    operationName ?? ""
+                )
+            )
+                await delay(5_000)
+            await route.fallback()
+        })
+        await checkRoute(page, portal, SMOKE["/sequent_backend_election_event/:id"])
+    })
 
     for (const [path, smoke] of Object.entries(SMOKE)) {
         test(`${path} renders its main content`, async ({page, portal}) => {
