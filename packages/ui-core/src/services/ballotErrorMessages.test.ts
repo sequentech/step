@@ -51,6 +51,18 @@ describe("getBallotErrorOptions", () => {
         expect(options.type).toBe("statewide-officers")
     })
 
+    it.each(["001", "+3", "0x1A", "1e3"])("keeps a candidate type named %s as written", (type) => {
+        const options = getBallotErrorOptions("errors.implicit.maxSelectionsPerType", {
+            numSelected: "2",
+            max: "1",
+            type,
+        })
+
+        expect(options.type).toBe(type)
+        expect(options.numSelected).toBe(2)
+        expect(options.count).toBe(1)
+    })
+
     it("derives count as the action left to take, not as the state observed", () => {
         // 2 of a required minimum of 5: five minus two still to select.
         expect(
@@ -214,6 +226,16 @@ describe("ballot validation messages", () => {
                 type: "Party A",
             })
         ).toBe("Deselect 2 candidates from Party A.")
+    })
+
+    it("names a candidate type that looks like a number as written", () => {
+        expect(
+            render("errors.implicit.maxSelectionsPerType", {
+                numSelected: "2",
+                max: "1",
+                type: "001",
+            })
+        ).toBe("Deselect 1 candidate from 001.")
     })
 
     it("names the maximum when further selection is disabled", () => {
