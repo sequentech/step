@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
+use crate::postgres::election_event::update_bulletin_board;
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
@@ -396,25 +396,6 @@ pub async fn insert_election_event_db(
         .id
         .clone()
         .ok_or(anyhow!("Empty election event id"))?;
-    let tenant_id = object.tenant_id.clone();
-    // fetch election_event
-    let found_election_event = get_election_event_by_id_if_exist(
-        hasura_transaction,
-        &tenant_id.clone(),
-        &election_event_id.clone(),
-    )
-    .await?;
-
-    if found_election_event.is_some() {
-        event!(
-            Level::INFO,
-            "Election event {} for tenant {} already exists",
-            election_event_id,
-            tenant_id
-        );
-        return Ok(());
-    }
-
     let new_election_input = ElectionEvent {
         id: election_event_id.clone(),
         tenant_id: object.tenant_id.clone(),
