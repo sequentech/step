@@ -10,6 +10,7 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {faLanguage, faCaretDown} from "@fortawesome/free-solid-svg-icons"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
+import {useInertBackground} from "../../services/useInertBackground"
 
 interface ButtonProps {
     isactive?: string
@@ -32,6 +33,7 @@ const LanguageMenu: React.FC<{
     const {t, i18n} = useTranslation()
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const open = Boolean(anchorEl)
+    const setModalRoot = useInertBackground(open)
 
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorEl(event.currentTarget)
@@ -40,6 +42,24 @@ const LanguageMenu: React.FC<{
     const handleClose = () => {
         setAnchorEl(null)
     }
+
+    React.useEffect(() => {
+        if (!open) {
+            return
+        }
+
+        const closeOnFileDrag = (event: DragEvent) => {
+            if (Array.from(event.dataTransfer?.types ?? []).includes("Files")) {
+                setAnchorEl(null)
+            }
+        }
+
+        document.addEventListener("dragenter", closeOnFileDrag, true)
+
+        return () => {
+            document.removeEventListener("dragenter", closeOnFileDrag, true)
+        }
+    }, [open])
 
     const changeLanguage = async (lang: string) => {
         handleClose()
@@ -50,35 +70,48 @@ const LanguageMenu: React.FC<{
     }
 
     return (
-        <Box>
+        <Box className="language-selector">
             <StyledButton
+                className="language-selector-button"
                 id="lang-button"
                 variant="actionbar"
                 data-testid="lang-button-test"
+                aria-label={t("language")}
                 aria-controls={open ? "lang-menu" : undefined}
                 aria-haspopup="true"
                 aria-expanded={open ? "true" : undefined}
                 onClick={handleClick}
                 isactive={String(open)}
             >
-                <FontAwesomeIcon icon={faLanguage} size="lg" />
-                <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
+                <FontAwesomeIcon className="language-selector-icon" icon={faLanguage} size="lg" />
+                <Box
+                    className="language-selector-label"
+                    component="span"
+                    sx={{display: {xs: "none", md: "block"}}}
+                >
                     {t("language")}
                 </Box>
-                <FontAwesomeIcon icon={faCaretDown} size="lg" />
+                <FontAwesomeIcon className="language-selector-caret" icon={faCaretDown} size="lg" />
             </StyledButton>
             <Menu
+                ref={setModalRoot}
+                role="region"
+                aria-label={t("language")}
+                className="language-selector-menu"
+                classes={{paper: "language-selector-paper", list: "language-selector-options"}}
                 id="lang-menu"
                 data-testid="lang-menu-test"
                 anchorEl={anchorEl}
                 open={open}
                 onClose={handleClose}
+                transitionDuration={0}
                 MenuListProps={{
                     "aria-labelledby": "lang-button",
                 }}
             >
                 {languagesList.map((language) => (
                     <MenuItem
+                        className="language-option"
                         onClick={() => changeLanguage(language)}
                         key={`menu-language-${language}`}
                     >

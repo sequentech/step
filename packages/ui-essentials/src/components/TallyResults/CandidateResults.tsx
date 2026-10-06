@@ -10,7 +10,6 @@ import {
     CANDIDATE_CHART_COLORS,
     DATA_GRID_INITIAL_STATE,
     DATA_GRID_PAGE_SIZE_OPTIONS,
-    MAX_CANDIDATES_REPRESENTED,
     RESPONSIVE_PIE_OPTIONS,
     TALLY_RESULTS_PIE_HEIGHT,
     TALLY_RESULTS_PIE_PANEL_WIDTH,
@@ -23,9 +22,9 @@ import type {
     ResultsAndParticipationLabels,
 } from "./types"
 import {
+    buildCandidateChartData,
     mergeLabels,
     percentOrDash,
-    sortCandidateResults,
     toFiniteNumber,
     valueOrDash,
 } from "./utils"
@@ -40,27 +39,6 @@ interface CandidateResultsProps {
     candidates: CandidateResultRow[]
     chartName: string
     labels?: ResultsAndParticipationLabelOverrides
-}
-
-const buildCandidateChartData = (
-    results: CandidateResultRow[],
-    labels: ResultsAndParticipationLabels
-) => {
-    const representedResults = results
-        .map((candidate) => ({
-            label: candidate.name || "-",
-            value: toFiniteNumber(candidate.castVotes) ?? 0,
-        }))
-        .filter((item) => item.value > 0)
-        .sort((left, right) => right.value - left.value)
-
-    if (representedResults.length > MAX_CANDIDATES_REPRESENTED) {
-        const deletedItems = representedResults.splice(MAX_CANDIDATES_REPRESENTED)
-        const othersSum = deletedItems.reduce((sum, item) => sum + item.value, 0)
-        representedResults.push({label: labels.others, value: othersSum})
-    }
-
-    return representedResults
 }
 
 const winningPositionComparator = (left: NumericValue, right: NumericValue) => {
@@ -181,16 +159,12 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
     labels,
 }) => {
     const mergedLabels = useMemo(() => mergeLabels(labels), [labels])
-    const orderedCandidates = useMemo(
-        () => [...candidates].sort(sortCandidateResults),
+    const hasCandidateChartData = useMemo(
+        () => candidates.some((candidate) => (toFiniteNumber(candidate.castVotes) ?? 0) > 0),
         [candidates]
     )
-    const hasCandidateChartData = useMemo(
-        () => orderedCandidates.some((candidate) => (toFiniteNumber(candidate.castVotes) ?? 0) > 0),
-        [orderedCandidates]
-    )
     const columns = useCandidateResultColumns(mergedLabels)
-    const gridHeight = Math.min(Math.max(orderedCandidates.length * 52 + 116, 260), 680)
+    const gridHeight = Math.min(Math.max(candidates.length * 52 + 116, 260), 680)
 
     return (
         <Box
@@ -206,7 +180,7 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
                 {mergedLabels.candidateResults}
             </Typography>
 
-            {orderedCandidates.length ? (
+            {candidates.length ? (
                 <Box
                     className="seq-tally-results-candidate-results__content"
                     sx={{
@@ -230,7 +204,7 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
                             }}
                         >
                             <CandidateResultsChart
-                                results={orderedCandidates}
+                                results={candidates}
                                 chartName={chartName}
                                 labels={mergedLabels}
                             />
@@ -250,7 +224,7 @@ export const CandidateResults: React.FC<CandidateResultsProps> = ({
                         <DataGrid
                             className="seq-tally-results-candidate-results__grid"
                             sx={{mt: 0}}
-                            rows={orderedCandidates}
+                            rows={candidates}
                             columns={columns}
                             getRowId={(row) => row.id}
                             getRowClassName={({id}) =>

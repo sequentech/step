@@ -5,6 +5,25 @@
 import {ParsedAnnotations, RunoffStatus} from "./types"
 import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "@/gql/graphql"
 import {ICandidate, IContest, ICountingAlgorithm} from "@sequentech/ui-core"
+import {
+    ETallyKeyRestoreEligibility,
+    ITallyExecutionStatus,
+    ITallyTrusteeStatus,
+} from "@/types/ceremonies"
+
+/**
+ * A trustee may restore their private key only while they are part of the tally
+ * ceremony, still waiting to upload it, and the tally is accepting keys.
+ */
+export const getTallyKeyRestoreEligibility = (
+    trusteeStatus: ITallyTrusteeStatus | null,
+    tallyExecutionStatus: string | null | undefined
+): ETallyKeyRestoreEligibility =>
+    trusteeStatus === ITallyTrusteeStatus.WAITING &&
+    (tallyExecutionStatus === ITallyExecutionStatus.STARTED ||
+        tallyExecutionStatus === ITallyExecutionStatus.CONNECTED)
+        ? ETallyKeyRestoreEligibility.ALLOWED
+        : ETallyKeyRestoreEligibility.DENIED
 
 /**
  * Safely extracts the value from a GraphQL 'Maybe<T>' type.
@@ -12,6 +31,23 @@ import {ICandidate, IContest, ICountingAlgorithm} from "@sequentech/ui-core"
  */
 const safeExtract = <T>(maybeValue: T | null | undefined): T | undefined => {
     return maybeValue === null || maybeValue === undefined ? undefined : maybeValue
+}
+
+export const orderItemsByIds = <T extends {id: string}>(
+    items: readonly T[],
+    orderedIds: readonly string[]
+): T[] => {
+    const itemById = new Map(items.map((item) => [item.id, item]))
+    const seenIds = new Set<string>()
+
+    return orderedIds.reduce<T[]>((orderedItems, id) => {
+        if (seenIds.has(id)) return orderedItems
+        seenIds.add(id)
+
+        const item = itemById.get(id)
+        if (item) orderedItems.push(item)
+        return orderedItems
+    }, [])
 }
 
 const convertSequentCandidateToICandidate = (

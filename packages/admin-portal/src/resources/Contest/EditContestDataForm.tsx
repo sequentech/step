@@ -335,7 +335,7 @@ export const ContestDataForm: React.FC = () => {
             tenant_id: record?.tenant_id,
             election_event_id: record?.election_event_id,
         },
-        pagination: {page: 1, perPage: 500},
+        pagination: {page: 1, perPage: 9999},
     })
 
     useEffect(() => {
@@ -741,7 +741,11 @@ export const ContestDataForm: React.FC = () => {
                                 </ContestStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <BooleanInput source="is_acclaimed" />
+                                <BooleanInput
+                                    source="is_acclaimed"
+                                    label={String(t("contestScreen.isAcclaimed.label"))}
+                                    helperText={String(t("contestScreen.isAcclaimed.helperText"))}
+                                />
                                 <BooleanInput
                                     source="presentation.allow_writeins"
                                     label={String(t(`contestScreen.allowWriteins.label`))}

@@ -52,6 +52,7 @@ export const normalizeAreaContestResults = (content: IAreaContestResults): IArea
     total_valid_votes: toOptionalU64(content.total_valid_votes),
     invalid_votes: normalizeInvalidVotes(content.invalid_votes),
     total_blank_votes: toOptionalU64(content.total_blank_votes),
+    blank_ballots: toOptionalU64(content.blank_ballots),
     census: toOptionalU64(content.census),
     candidate_results: normalizeCandidateResults(content.candidate_results),
 })

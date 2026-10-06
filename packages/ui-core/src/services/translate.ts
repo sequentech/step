@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {ETranslationScope, getActiveTranslationScope} from "./translationScopes"
+
 export type TranslationDict = {[lang: string]: string}
 
 export const translate = <T, K extends keyof T>(
@@ -96,8 +98,27 @@ const getTranslatedValue = (
         return undefined
     }
 
-    const value = presentation?.i18n?.[language]?.[key]
-    return typeof value === "string" && value.length > 0 ? value : undefined
+    const translations = presentation?.i18n?.[language]
+    if (!translations) {
+        return undefined
+    }
+
+    const activeScope = getActiveTranslationScope()
+    const candidateKeys = [
+        ...(activeScope && activeScope !== ETranslationScope.GLOBAL
+            ? [`${activeScope}:${key}`]
+            : []),
+        `${ETranslationScope.GLOBAL}:${key}`,
+        key,
+    ]
+
+    for (const candidateKey of candidateKeys) {
+        const value = translations[candidateKey]
+        if (typeof value === "string" && value.length > 0) {
+            return value
+        }
+    }
+    return undefined
 }
 
 export const translateFromPresentation = <K extends string>(

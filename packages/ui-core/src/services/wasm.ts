@@ -7,11 +7,13 @@ import SequentCoreLibInit, {
     IDecodedVoteChoice,
     generate_sample_auditable_ballot_js,
     get_candidate_points_js,
+    is_eligible_acclaimed_candidate_js,
     get_layout_properties_from_contest_js,
     set_hooks,
     get_default_consolidated_report_policy_js,
     get_default_language_detection_policy_js,
     get_default_decline_to_vote_policy_js,
+    get_default_blank_ballots_policy_js,
     get_default_voting_screen_back_policy_js,
     get_voting_screen_back_policy_values_js,
     IVotingScreenBackPolicy,
@@ -40,6 +42,8 @@ import {
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_auditable_ballot_ciphertext_js,
+    verify_auditable_multi_ballot_ciphertext_js,
     get_default_duplicated_rank_policy_js,
     get_default_preference_gaps_policy_js,
 } from "sequent-core"
@@ -62,6 +66,7 @@ import {
     EConsolidatedReportPolicy,
     ELanguageDetectionPolicy,
     EDeclineToVotePolicy,
+    EBlankBallotsPolicy,
 } from ".."
 
 export type {
@@ -138,6 +143,20 @@ export const sortCandidatesInContest = (
     try {
         if (!candidates || !candidates.length) return candidates
         return sort_candidates_list_js(candidates, order, applyRandom)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * Canonical eligibility policy for candidates elected by acclamation.
+ * The implementation lives in Sequent Core and is shared with tally,
+ * publication, the verifier, and IVR.
+ */
+export const isEligibleAcclaimedCandidate = (candidate: ICandidate): boolean => {
+    try {
+        return is_eligible_acclaimed_candidate_js(candidate)
     } catch (error) {
         console.log(error)
         throw error
@@ -350,6 +369,30 @@ export const verifyBallotSignature = (
     }
 }
 
+export const verifyAuditableBallotCiphertext = (
+    auditableBallot: IAuditableSingleBallot
+): boolean => {
+    try {
+        let isConsistent: boolean = verify_auditable_ballot_ciphertext_js(auditableBallot)
+        return isConsistent
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyAuditableMultiBallotCiphertext = (
+    auditableBallot: IAuditableMultiBallot
+): boolean => {
+    try {
+        let isConsistent: boolean = verify_auditable_multi_ballot_ciphertext_js(auditableBallot)
+        return isConsistent
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
 export const verifyMultiBallotSignature = (
     ballot_id: string,
     election_id: string,
@@ -466,6 +509,15 @@ export const getDefaultLanguageDetectionPolicy = (): ELanguageDetectionPolicy =>
 export const getDefaultDeclineToVotePolicy = (): EDeclineToVotePolicy => {
     try {
         return get_default_decline_to_vote_policy_js() as EDeclineToVotePolicy
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const getDefaultBlankBallotsPolicy = (): EBlankBallotsPolicy => {
+    try {
+        return get_default_blank_ballots_policy_js() as EBlankBallotsPolicy
     } catch (error) {
         console.log(error)
         throw error

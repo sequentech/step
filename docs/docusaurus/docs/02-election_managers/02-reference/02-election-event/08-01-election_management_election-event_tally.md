@@ -45,6 +45,9 @@ Before initiating the tally process:
 3. Click the Key Action invitation or the key icon next to the Tally ceremony.
 4. Select the Election to tally.
 5. Drag and drop or upload your encrypted key fragment for verification.
+   After a valid upload, the upload area is locked. Re-uploading the same key
+   from a stale browser tab is accepted as already restored, while a different
+   key is rejected.
 6. Repeat for each trustee until the threshold is reached.
 7. Once all required fragments are verified, click **Start Tally** to begin decryption and tallying.
 

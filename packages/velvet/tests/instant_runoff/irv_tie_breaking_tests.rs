@@ -13,6 +13,7 @@ use velvet::pipes::do_tally::counting_algorithm::instant_runoff::{BallotsStatus,
 fn create_test_contest_3_candidates() -> Contest {
     Contest {
         id: "contest1".to_string(),
+        external_id: None,
         tenant_id: "tenant1".to_string(),
         election_event_id: "event1".to_string(),
         election_id: "election1".to_string(),
@@ -28,6 +29,7 @@ fn create_test_contest_3_candidates() -> Contest {
         voting_type: Some("instant-runoff".to_string()),
         counting_algorithm: Some(CountingAlgType::InstantRunoff),
         is_encrypted: false,
+        is_acclaimed: None,
         candidates: vec![
             Candidate {
                 id: "candidate_a".to_string(),
@@ -70,6 +72,7 @@ fn create_vote(preferences: &[&str]) -> (DecodedVoteContest, Weight) {
             choices,
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
         },

@@ -38,6 +38,7 @@ import {ResetFilters} from "@/components/ResetFilters"
 import {useAreaPermissions} from "./useAreaPermissions"
 import {UpsertArea} from "./UpsertArea"
 import {EElectionEventWeightedVotingPolicy} from "@sequentech/ui-core"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const ActionsBox = styled(Box)`
     display: flex;
@@ -293,7 +294,11 @@ export const ListArea: React.FC<ListAreaProps> = (props) => {
                             disableSyncWithLocation
                         >
                             <ResetFilters />
-                            <DatagridConfigurable omit={OMIT_FIELDS} rowClick={false}>
+                            <DatagridConfigurable
+                                header={ThreeStateDatagridHeader}
+                                omit={OMIT_FIELDS}
+                                rowClick={false}
+                            >
                                 <TextField source="id" />
                                 <TextField source="name" className="area-name" />
                                 <TextField source="description" className="area-description" />

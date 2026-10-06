@@ -81,6 +81,17 @@ pub async fn get_keys_ceremonies(
     Ok(keys_ceremonies)
 }
 
+const KEYS_CEREMONY_BY_ID_QUERY: &str = r#"
+    SELECT
+        *
+    FROM
+        sequent_backend.keys_ceremony
+    WHERE
+        tenant_id = $1 AND
+        election_event_id = $2 AND
+        id = $3
+"#;
+
 #[instrument(err, skip_all)]
 pub async fn get_keys_ceremony_by_id(
     hasura_transaction: &Transaction<'_>,
@@ -88,20 +99,44 @@ pub async fn get_keys_ceremony_by_id(
     election_event_id: &str,
     keys_ceremony_id: &str,
 ) -> Result<KeysCeremony> {
-    let statement = hasura_transaction
-        .prepare(
-            r#"
-                SELECT
-                    *
-                FROM
-                    sequent_backend.keys_ceremony
-                WHERE
-                    tenant_id = $1 AND
-                    election_event_id = $2 AND
-                    id = $3;
-            "#,
-        )
-        .await?;
+    query_keys_ceremony_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        keys_ceremony_id,
+        KEYS_CEREMONY_BY_ID_QUERY,
+    )
+    .await
+}
+
+/// Reads the keys ceremony and locks its row until the transaction ends, so
+/// that a status derived from what was read cannot overwrite a concurrent
+/// update of the same ceremony.
+#[instrument(err, skip_all)]
+pub async fn lock_keys_ceremony_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<KeysCeremony> {
+    query_keys_ceremony_by_id(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        keys_ceremony_id,
+        &format!("{KEYS_CEREMONY_BY_ID_QUERY} FOR UPDATE"),
+    )
+    .await
+}
+
+async fn query_keys_ceremony_by_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+    query: &str,
+) -> Result<KeysCeremony> {
+    let statement = hasura_transaction.prepare(query).await?;
 
     let rows: Vec<Row> = hasura_transaction
         .query(
