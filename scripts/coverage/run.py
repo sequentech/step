@@ -302,14 +302,23 @@ def measure(
     # Profiles may declare public, synthetic fixture settings. These override
     # ambient service endpoints so a test cannot inherit a production database.
     environment.update(profile.get("test_environment", {}))
-    environment.update(CARGO_TERM_COLOR="never", CARGO_BUILD_JOBS="2")
+    # LLVM's coverage mappings do not need DWARF debug information. Full
+    # symbols in every Windmill test binary can exhaust a hosted runner before
+    # measurements finish. Use the same bounded build profile for both revisions.
+    environment.update(
+        CARGO_TERM_COLOR="never",
+        CARGO_BUILD_JOBS="2",
+        CARGO_INCREMENTAL="0",
+        CARGO_PROFILE_DEV_DEBUG="0",
+        CARGO_PROFILE_TEST_DEBUG="0",
+    )
     if offline:
         # Report generation also invokes Cargo metadata internally.
         environment["CARGO_NET_OFFLINE"] = "true"
     # Profiles share dependency compilation. Clear counters explicitly below:
     # --no-report intentionally preserves them for multi-invocation collection.
     environment["CARGO_LLVM_COV_TARGET_DIR"] = str(
-        WORKSPACE / "target" / "package-coverage"
+        WORKSPACE / "rust-local-target" / "package-coverage"
     )
     result: dict[str, Any] = {
         "status": "running",
@@ -373,6 +382,15 @@ def measure(
                 "consumer_packages": profile.get("consumer_packages", []),
                 "test_environment": profile.get("test_environment", {}),
                 "command_timeout_seconds": command_timeout_seconds(environment),
+                "build_environment": {
+                    key: environment[key]
+                    for key in (
+                        "CARGO_BUILD_JOBS",
+                        "CARGO_INCREMENTAL",
+                        "CARGO_PROFILE_DEV_DEBUG",
+                        "CARGO_PROFILE_TEST_DEBUG",
+                    )
+                },
                 "tools": {"rust": rust, "cargo_llvm_cov": tool},
                 "limitations": profile["limitations"],
                 "issue": profile["issue"],
