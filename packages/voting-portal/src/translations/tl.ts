@@ -102,7 +102,7 @@ const tagalogTranslation: TranslationType = {
             instructionsDescription: "Sundin ang mga hakbang na ito para bumoto:",
             step1Title: "1. Piliin ang iyong mga sagot",
             step1Description:
-                "Sagutin ang bawat paligsahan isa-isa. Maaari mong i-edit ang iyong balota hanggang handa ka.",
+                "Pumili sa bawat paligsahan isa-isa. Maaari mong i-edit ang iyong balota hanggang handa ka.",
             step2Title: "2. Suriin ang iyong balota",
             step2Description:
                 "Ie-encrypt namin ang iyong balota at ipapakita ang huling pagsusuri. Makakatanggap ka ng natatanging tracker ID.",

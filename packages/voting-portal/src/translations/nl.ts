@@ -102,7 +102,7 @@ const dutchTranslation: TranslationType = {
             instructionsDescription: "Volg deze stappen om te stemmen:",
             step1Title: "1. Selecteer uw opties",
             step1Description:
-                "Kies uw kandidaten en beantwoord elke stemming. Bewerk uw stembiljet totdat u klaar bent.",
+                "Kies uw kandidaten en maak uw keuzes in elke stemming. Bewerk uw stembiljet totdat u klaar bent.",
             step2Title: "2. Controleer uw stembiljet",
             step2Description:
                 "We versleutelen uw stembiljet en tonen een laatste overzicht. U ontvangt een unieke tracker-ID.",

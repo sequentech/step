@@ -928,7 +928,7 @@ const basqueTranslation: TranslationType = {
                     "Esportazioa eragiketa luzea izan daiteke. Ziur zaude erregistroak esportatu nahi dituzula?",
                 encryptWithPassword: "Zifratu Pasahitzarekin",
                 passwordForcedNote:
-                    "Artxiboa pasahitzarekin babestuko da nolanahi ere: txostenak, eskaerak eta iragarki-taulako datuak beti zifratzen dira. Markatu laukia hautesleen eremu sekretu deszifratuak ere sartzeko.",
+                    "Artxiboa pasahitzarekin babestuko da nolanahi ere: txostenak, eskaerak eta iragarki-taulako datuak beti zifratzen dira. Markatu laukia bozkatzaileen eremu sekretu deszifratuak ere sartzeko.",
                 includeVoters: "Sartu Bozkatzaileak",
                 activityLogs: "Jarduera Egunkariak",
                 bulletinBoard: "Iragarki Taula",
@@ -1962,7 +1962,7 @@ const basqueTranslation: TranslationType = {
             isAcclaimed: {
                 label: "Aklamazioz erabakia",
                 helperText:
-                    "Botoemaileek lehiaketa hau ikusten dute baina ezin dute ezer hautatu, ez da ezer erregistratzen eta hautagai guztiak irabazle gisa jasotzen dira zero bozkarekin. Ezarri hau boto-txartelak argitaratu aurretik: ondoren aldatzeak dagoeneko emandako boto-txartelak baliogabetzen ditu.",
+                    "Bozkatzaileek galdera hau ikusten dute baina ezin dute ezer hautatu, ez da ezer erregistratzen eta hautagai guztiak irabazle gisa jasotzen dira zero bozkarekin. Ezarri hau boto-txartelak argitaratu aurretik: ondoren aldatzeak dagoeneko emandako boto-txartelak baliogabetzen ditu.",
             },
             allowWriteins: {
                 label: "Eskuzko hautagaitzak baimendu",
@@ -2358,7 +2358,7 @@ const basqueTranslation: TranslationType = {
                 channel_postal: "Posta",
                 channel_in_person: "Aurrez aurre",
                 acclamation_note:
-                    "Aklamazioz hautatua. Lehiaketa hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
+                    "Aklamazioz hautatua. Galdera hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",
@@ -2547,7 +2547,7 @@ const basqueTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Hautagaien botoek ({{candidateVotesSum}}) {{lowerBound}} eta {{upperBound}} artean egon behar dute lehiaketa honen bozketa-arauen arabera ({{nonBlankValidVotes}} baliozko boto ez-zuri × gehienez {{maxMarks}} marka boto-txartel bakoitzeko)",
+                    "Hautagaien botoek ({{candidateVotesSum}}) {{lowerBound}} eta {{upperBound}} artean egon behar dute galdera honen bozketa-arauen arabera ({{nonBlankValidVotes}} baliozko boto ez-zuri × gehienez {{maxMarks}} marka boto-txartel bakoitzeko)",
                 censusTooSmall:
                     "Boto guztien kopurua ({{totalVotes}}) ezin da erroldakoa ({{census}}) baino handiagoa izan",
                 totalInvalidDoesNotMatch:
@@ -2555,11 +2555,11 @@ const basqueTranslation: TranslationType = {
                 totalVotesDoesNotMatch:
                     "Boto guztizkoak ({{totalVotes}}) boto baliodun guztizkoen ({{totalValidVotes}}) eta boto baliogabe guztizkoen ({{totalInvalid}}) baturaren berdina izan behar du",
                 unknownCountingAlgorithm:
-                    "Lehiaketa honen zenbaketa-algoritmoa ({{countingAlgorithm}}) ez da ezaguna, beraz ezin da zehaztu hautagaien botoen baimendutako kopurua. Egiaztatu lehiaketaren konfigurazioa.",
+                    "Galdera honen zenbaketa-algoritmoa ({{countingAlgorithm}}) ez da ezaguna, beraz ezin da zehaztu hautagaien botoen baimendutako kopurua. Egiaztatu galderaren konfigurazioa.",
                 blankBallotsInconsistent:
-                    "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako hautagaitza-orri guztietan",
+                    "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako kontaketa-orri guztietan",
                 blankBallotsOutOfBounds:
-                    "Boto-txartel Zuriak balioa ontzi honen hautagaitzako boto zurien kontaketek ezartzen duten tartetik kanpo dago",
+                    "Boto-txartel Zuriak balioa ontzi honen galderako boto zurien kontaketek ezartzen duten tartetik kanpo dago",
             },
             label: {
                 area: "Eremua",

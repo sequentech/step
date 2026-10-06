@@ -2558,7 +2558,7 @@ const spanishTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Los votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} y {{upperBound}} según las reglas de votación de esta contienda ({{nonBlankValidVotes}} votos válidos no en blanco × hasta {{maxMarks}} marcas por papeleta)",
+                    "Los votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} y {{upperBound}} según las reglas de votación de esta pregunta ({{nonBlankValidVotes}} votos válidos no en blanco × hasta {{maxMarks}} marcas por papeleta)",
                 censusTooSmall:
                     "El total de votos ({{totalVotes}}) no puede ser mayor que el censo ({{census}})",
                 totalInvalidDoesNotMatch:
@@ -2566,11 +2566,11 @@ const spanishTranslation: TranslationType = {
                 totalVotesDoesNotMatch:
                     "El total de votos ({{totalVotes}}) debe ser igual al total de votos válidos ({{totalValidVotes}}) más el total de votos inválidos ({{totalInvalid}})",
                 unknownCountingAlgorithm:
-                    "El algoritmo de recuento de esta contienda ({{countingAlgorithm}}) no se reconoce, por lo que no se puede determinar el número permitido de votos de candidatos. Revise la configuración de la contienda.",
+                    "El algoritmo de recuento de esta pregunta ({{countingAlgorithm}}) no se reconoce, por lo que no se puede determinar el número permitido de votos de candidatos. Revise la configuración de la pregunta.",
                 blankBallotsInconsistent:
                     "Las Papeletas en Blanco deben tener el mismo valor en todas las hojas de escrutinio de esta urna",
                 blankBallotsOutOfBounds:
-                    "El valor de Papeletas en Blanco está fuera del rango que implican los recuentos de votos en blanco por contienda de esta urna",
+                    "El valor de Papeletas en Blanco está fuera del rango que implican los recuentos de votos en blanco por pregunta de esta urna",
             },
             label: {
                 area: "Area",

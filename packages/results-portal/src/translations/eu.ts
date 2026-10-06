@@ -49,7 +49,7 @@ const basqueTranslation: TranslationType = {
             signedInAccess: "Saioa hasita sartzea",
             acclaimed: "Aklamazioz hautatua",
             acclamationNote:
-                "Aklamazioz hautatua. Lehiaketa hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
+                "Aklamazioz hautatua. Galdera hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             published: "Argitaratua",
             notPublishedYet: "Oraindik argitaratu gabe",
             position_one: "{{count}} postu",

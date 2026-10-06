@@ -51,7 +51,7 @@ const frenchTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
+                    "Ce scrutin a été tranché par acclamation. Ses candidat(e)s sont élu(e)s sans vote : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
             },
         },
         votingScreen: {
@@ -102,7 +102,7 @@ const frenchTranslation: TranslationType = {
             instructionsDescription: "Suivez les étapes suivantes pour voter:",
             step1Title: "1. Sélectionnez votre option de vote",
             step1Description:
-                "Sélectionnez vos candidats et répondez à chaque scrutin. Vous pourrez modifier votre bulletin jusqu'au moment de le soumettre.",
+                "Sélectionnez vos candidats et faites vos choix dans chaque scrutin. Vous pourrez modifier votre bulletin jusqu'au moment de le soumettre.",
             step2Title: "2. Révisez votre bulletin",
             step2Description:
                 "Votre bulletin sera chiffré, puis une dernière vérification vous sera présentée. Vous recevrez un identifiant de suivi unique.",
@@ -264,11 +264,11 @@ const frenchTranslation: TranslationType = {
             acclamation: {
                 title: "Acquis par acclamation",
                 description:
-                    "Tous les votes de cette élection ont été acquis par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
+                    "Tous les scrutins de cette élection ont été tranchés par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
                 helpDialog: {
                     title: "Information : Acclamation",
                     content:
-                        "Tous les votes de cette élection ont été acquis par acclamation : leurs candidat(e)s sont élu(e)s sans scrutin. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
+                        "Tous les scrutins de cette élection ont été tranchés par acclamation : leurs candidat(e)s sont élu(e)s sans vote. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
                     ok: "OK",
                 },
             },

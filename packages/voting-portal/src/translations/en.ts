@@ -102,7 +102,7 @@ const englishTranslation = {
             instructionsDescription: "Follow these steps to cast your ballot",
             step1Title: "1. Make your selections",
             step1Description:
-                "Pick your preferred candidates and answer each contest as it appears. You can change your ballot anytime before casting your vote",
+                "Pick your preferred candidates and make your selections in each contest as it appears. You can change your ballot anytime before casting your vote",
             step2Title: "2. Review your selections",
             step2Description:
                 "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",

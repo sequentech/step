@@ -51,7 +51,7 @@ const basqueTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Lehiaketa hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
+                    "Galdera hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
             },
         },
         votingScreen: {
@@ -264,11 +264,11 @@ const basqueTranslation: TranslationType = {
             acclamation: {
                 title: "Aklamazioz erabakia",
                 description:
-                    "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
+                    "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
                 helpDialog: {
                     title: "Informazioa: Aklamazioa",
                     content:
-                        "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
+                        "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
                     ok: "Ados",
                 },
             },

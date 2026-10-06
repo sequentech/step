@@ -2575,9 +2575,9 @@ const tagalogTranslation: TranslationType = {
                 unknownCountingAlgorithm:
                     "Hindi nakikilala ang counting algorithm ng paligsahang ito ({{countingAlgorithm}}), kaya hindi matukoy ang pinapayagang bilang ng mga boto ng kandidato. Suriin ang konpigurasyon ng paligsahan.",
                 blankBallotsInconsistent:
-                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng kontest sa kahong ito",
+                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng paligsahan sa kahong ito",
                 blankBallotsOutOfBounds:
-                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat kontest sa kahong ito",
+                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat paligsahan sa kahong ito",
             },
             label: {
                 area: "Lugar",

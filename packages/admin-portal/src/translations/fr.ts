@@ -1981,7 +1981,7 @@ const frenchTranslation: TranslationType = {
             isAcclaimed: {
                 label: "Acquis par acclamation",
                 helperText:
-                    "Les électeurs voient ce vote mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
+                    "Les électeurs voient ce scrutin mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
             },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
@@ -2380,7 +2380,7 @@ const frenchTranslation: TranslationType = {
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
                 acclamation_note:
-                    "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
+                    "Élu par acclamation. Ce scrutin a été tranché sans vote : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -2585,7 +2585,7 @@ const frenchTranslation: TranslationType = {
                 blankBallotsInconsistent:
                     "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
                 blankBallotsOutOfBounds:
-                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par scrutin de cette urne",
             },
             label: {
                 area: "Zone",

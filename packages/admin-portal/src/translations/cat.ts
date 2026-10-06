@@ -2568,7 +2568,7 @@ const catalanTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta contesa ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
+                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta pregunta ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
                 censusTooSmall:
                     "El total de vots ({{totalVotes}}) no pot ser major que el cens ({{census}})",
                 totalInvalidDoesNotMatch:
@@ -2576,11 +2576,11 @@ const catalanTranslation: TranslationType = {
                 totalVotesDoesNotMatch:
                     "El total de vots ({{totalVotes}}) ha de ser igual al total de vots vàlids ({{totalValidVotes}}) més el total de vots invàlids ({{totalInvalid}})",
                 unknownCountingAlgorithm:
-                    "L'algorisme de recompte d'aquesta contesa ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la contesa.",
+                    "L'algorisme de recompte d'aquesta pregunta ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la pregunta.",
                 blankBallotsInconsistent:
-                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de contesa d'aquesta urna",
+                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de recompte d'aquesta urna",
                 blankBallotsOutOfBounds:
-                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per contesa d'aquesta urna",
+                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per pregunta d'aquesta urna",
             },
             label: {
                 area: "Àrea",
