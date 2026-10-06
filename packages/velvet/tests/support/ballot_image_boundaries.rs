@@ -250,17 +250,52 @@ async fn manifest_csv_quotes_special_characters_and_replaces_old_content() {
         file_name: "ballot,\"north\".pdf".into(),
         hash: "digest".into(),
     }];
-    write_file_hash_csv(records, path.clone()).await.unwrap();
+    write_file_hash_csv(records.clone(), path.clone(), None)
+        .await
+        .unwrap();
+    let unstamped = "file_name,hash\n\"ballot,\"\"north\"\".pdf\",digest\n";
+    assert_eq!(fs::read_to_string(&path).unwrap(), unstamped);
+
+    // For an event imported from a signed configuration the same file
+    // follows one comment line, and reads back the same.
+    let stamp = sequent_core::election_config::manifest::ConfigurationStamp {
+        external_id: "ov-2028".into(),
+        revision: 3,
+        manifest_sha256: "ab".repeat(32),
+        template_sha256: "cd".repeat(32),
+    };
+    write_file_hash_csv(records, path.clone(), Some(&stamp))
+        .await
+        .unwrap();
     assert_eq!(
         fs::read_to_string(&path).unwrap(),
-        "file_name,hash\n\"ballot,\"\"north\"\".pdf\",digest\n"
+        format!(
+            "# Configuration revision 3, manifest SHA-256 {}\n{unstamped}",
+            "ab".repeat(32)
+        )
     );
+    let mut reader =
+        crate::pipes::report_manifest::csv_report_reader(fs::File::open(&path).unwrap()).unwrap();
+    assert_eq!(
+        reader.headers().unwrap().iter().collect::<Vec<_>>(),
+        ["file_name", "hash"]
+    );
+    let rows: Vec<csv::StringRecord> = reader
+        .records()
+        .collect::<std::result::Result<_, _>>()
+        .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(&rows[0][0], "ballot,\"north\".pdf");
 
-    write_file_hash_csv(vec![], path.clone()).await.unwrap();
-    assert_eq!(fs::read_to_string(path).unwrap(), "file_name,hash\n");
-    assert!(write_file_hash_csv(vec![], directory.path().to_path_buf())
+    write_file_hash_csv(vec![], path.clone(), None)
         .await
-        .is_err());
+        .unwrap();
+    assert_eq!(fs::read_to_string(path).unwrap(), "file_name,hash\n");
+    assert!(
+        write_file_hash_csv(vec![], directory.path().to_path_buf(), None)
+            .await
+            .is_err()
+    );
 }
 
 /// A single area keeps the real file-to-PDF path cheap. The template has no
@@ -481,6 +516,10 @@ fn the_images_of_a_signed_configuration_get_the_hash_manifest_of_their_folder() 
     pipe.pipe_inputs.stage.pipeline[0].config.as_mut().unwrap()["enable_pdfs"] = json!(false);
     pipe.exec().unwrap();
     assert!(!image_output(unsigned.path()).join(manifest_name).exists());
+    assert_eq!(
+        fs::read_to_string(image_output(unsigned.path()).join("ballots_files.csv")).unwrap(),
+        "file_name,hash\n"
+    );
 
     let signed = tempdir().unwrap();
     let mut pipe = file_image_pipe(signed.path(), &ballots);
@@ -518,4 +557,12 @@ fn the_images_of_a_signed_configuration_get_the_hash_manifest_of_their_folder() 
         assert_eq!(file.size, written.len() as u64);
         assert_eq!(file.sha256, sha256_hex(&written));
     }
+    let index = fs::read_to_string(output.join("ballots_files.csv")).unwrap();
+    assert!(
+        index.starts_with(&format!(
+            "# Configuration revision 3, manifest SHA-256 {}\nfile_name,hash\n",
+            "ab".repeat(32)
+        )),
+        "{index}"
+    );
 }

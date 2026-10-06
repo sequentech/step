@@ -45,6 +45,7 @@ use strum_macros::EnumString;
 use tempfile::NamedTempFile;
 use tokio::sync::OnceCell;
 use tracing::{debug, info, instrument, warn};
+use velvet::pipes::report_manifest::csv_stamp_line;
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
 pub enum ReportFormat {
@@ -368,21 +369,23 @@ impl ActivityLogsTemplate {
     /// The CSV of every row with the zone columns in UTC, as the election
     /// event export (a backup the importer reads) writes it.
     pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
-        self.generate_export_csv_data_in(name, &LogZones::new(Some(Tz::UTC), None, &[]))
+        self.generate_export_csv_data_in(name, &LogZones::new(Some(Tz::UTC), None, &[]), None)
             .await
     }
 
     /// The CSV of the rows in the export's range, each row's time in its
-    /// zone, streamed from the electoral-log board in batches.
-    #[instrument(err, skip(self, zones))]
+    /// zone, streamed from the electoral-log board in batches. Its first
+    /// line names the configuration of an event imported from a signed one.
+    #[instrument(err, skip(self, zones, stamp))]
     pub async fn generate_export_csv_data_in(
         &self,
         name: &str,
         zones: &LogZones,
+        stamp: Option<&ConfigurationStamp>,
     ) -> Result<NamedTempFile> {
         let mut temp_file =
             generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
-        let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
+        let mut csv_writer = csv_export_writer(temp_file.as_file_mut(), stamp)?;
         self.export_rows(zones, |row| {
             csv_writer
                 .serialize(row)
@@ -475,6 +478,18 @@ impl ActivityLogsTemplate {
 
         Ok(())
     }
+}
+
+/// The writer of a CSV export of the log into `file`. For an event imported
+/// from a signed configuration the file starts with a comment line naming
+/// it, which `exported_log_reader` skips; otherwise with its header row.
+pub fn csv_export_writer<W: Write>(
+    mut file: W,
+    stamp: Option<&ConfigurationStamp>,
+) -> Result<csv::Writer<W>> {
+    file.write_all(csv_stamp_line(stamp).as_bytes())
+        .context("Error writing the CSV export")?;
+    Ok(WriterBuilder::new().from_writer(file))
 }
 
 /// The table an SQL export of the log fills.
@@ -756,10 +771,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         let name = self.export_name();
         let zones = self.log_zones(hasura_transaction).await?;
         let temp_file = match format {
-            // A line that is not a row would be read as one by the importer
-            // of this file: its configuration is named in the hash manifest
-            // stored with it.
-            OutputFormat::Csv => self.generate_export_csv_data_in(&name, zones).await,
+            OutputFormat::Csv => self.generate_export_csv_data_in(&name, zones, stamp).await,
             OutputFormat::Sql => self.generate_export_sql_data_in(&name, zones, stamp).await,
             OutputFormat::Pdf | OutputFormat::Xml => return Ok(None),
         }
@@ -814,8 +826,14 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let name = format!("export-election-event-logs-{}", election_event_id);
             let full_name = format!("{}.csv", name);
             let zones = self.log_zones(hasura_transaction).await?;
+            let stamp = configuration_stamp_without_template(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+            )
+            .await?;
             let temp_file = self
-                .generate_export_csv_data_in(&name, zones)
+                .generate_export_csv_data_in(&name, zones, stamp.as_ref())
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
@@ -825,14 +843,6 @@ impl TemplateRenderer for ActivityLogsTemplate {
             let file_size =
                 get_file_size(&temp_path_string).with_context(|| "Error obtaining file size")?;
 
-            // A CSV has no footer to print the configuration in: its
-            // document's hash manifest names it.
-            let stamp = configuration_stamp_without_template(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-            )
-            .await?;
             let report_manifest = stamp
                 .as_ref()
                 .map(|stamp| {
@@ -959,6 +969,7 @@ pub async fn generate_export_data(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::electoral_log::exported_log_reader;
     use crate::services::protocol_manager::get_event_board;
     use crate::services::reports::template_renderer::ReportOriginatedFrom;
     use chrono::Utc;
@@ -1367,7 +1378,7 @@ mod tests {
         assert_eq!(row.log_type, "ERROR");
         assert!(!row.message.contains('\n'));
 
-        let mut writer = WriterBuilder::new().from_writer(vec![]);
+        let mut writer = csv_export_writer(vec![], None).unwrap();
         writer.serialize(&row).unwrap();
         let file = String::from_utf8(writer.into_inner().unwrap()).unwrap();
         let header = file.lines().next().unwrap();
@@ -1378,13 +1389,80 @@ mod tests {
         );
         assert_eq!(row.time_zone, "UTC");
 
-        let imported: ElectoralLogRow = csv::Reader::from_reader(file.as_bytes())
+        let imported: ElectoralLogRow = exported_log_reader(file.as_bytes())
+            .unwrap()
             .deserialize()
             .next()
             .unwrap()
             .unwrap();
         assert_eq!(imported.data, row.data);
         assert_eq!(imported.statement_kind, "SigningSignatureRefused");
+    }
+
+    /// The CSV of an event imported from a signed configuration is the CSV
+    /// of any other event after one comment line, and the importer reads
+    /// the same rows from both.
+    #[test]
+    fn the_csv_export_names_the_configuration_in_a_first_line_the_importer_skips() {
+        let (event, elections) = configurations().remove(0);
+        let zones = LogZones::new(Some(Tz::UTC), Some(&event), &elections);
+        let rows: Vec<ElectoralLogCsvRow> = ["2028-04-08T22:00:03Z", "2028-04-08T22:05:00Z"]
+            .iter()
+            .map(|created| ElectoralLogCsvRow::new(entry(None, created), &zones).unwrap())
+            .collect();
+        let written = |stamp: Option<&ConfigurationStamp>| {
+            let mut writer = csv_export_writer(vec![], stamp).unwrap();
+            for row in &rows {
+                writer.serialize(row).unwrap();
+            }
+            String::from_utf8(writer.into_inner().unwrap()).unwrap()
+        };
+        let stamp = ConfigurationStamp {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            template_sha256: "cd".repeat(32),
+        };
+
+        let plain = written(None);
+        assert!(plain.starts_with("id,created,statement_timestamp,"));
+        let stamped = written(Some(&stamp));
+        assert_eq!(
+            stamped,
+            format!(
+                "# Configuration revision 3, manifest SHA-256 {}\n{plain}",
+                "ab".repeat(32)
+            )
+        );
+        // The words are those of the SQL export's comment.
+        assert_eq!(
+            stamped.lines().next().map(|line| &line[2..]),
+            sql_header(Some(&stamp))
+                .lines()
+                .next()
+                .map(|line| &line[3..])
+        );
+
+        for file in [&plain, &stamped] {
+            let imported: Vec<ElectoralLogRow> = exported_log_reader(file.as_bytes())
+                .unwrap()
+                .deserialize()
+                .collect::<std::result::Result<_, _>>()
+                .unwrap();
+            assert_eq!(imported.len(), rows.len());
+            for (imported, row) in imported.iter().zip(&rows) {
+                assert_eq!(imported.id, row.id);
+                assert_eq!(imported.created, row.created);
+                assert_eq!(imported.data, row.data);
+            }
+        }
+
+        // What the importer did before: the comment line taken for the header.
+        let unaware: std::result::Result<Vec<ElectoralLogRow>, _> =
+            csv::Reader::from_reader(stamped.as_bytes())
+                .deserialize()
+                .collect();
+        assert!(unaware.is_err());
     }
 
     // Run: cargo test --release test_generate_export_csv_data_120k_memory -- --nocapture --ignored

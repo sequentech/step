@@ -12,6 +12,7 @@ use sequent_core::election_config::manifest::{
     REPORT_MANIFEST_NAME,
 };
 use std::fs;
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 
 fn entry_of(path: &Path, name: String) -> Result<FileEntry> {
@@ -22,6 +23,28 @@ fn entry_of(path: &Path, name: String) -> Result<FileEntry> {
         sha256: sha256_hex(&bytes),
         members: Vec::new(),
     })
+}
+
+/// What a comment line of a CSV report starts with.
+pub const CSV_COMMENT: u8 = b'#';
+
+/// What a CSV report starts with, before its header row: the configuration
+/// it came from, as a comment line, for an event imported from a signed one.
+pub fn csv_stamp_line(stamp: Option<&ConfigurationStamp>) -> String {
+    stamp
+        .map(|stamp| format!("{} {}\n", char::from(CSV_COMMENT), stamp.line()))
+        .unwrap_or_default()
+}
+
+/// A reader of a CSV report, with or without that line: the comment lines
+/// the file starts with are skipped, and its header row is the first line
+/// after them. A later row that starts with the comment character is a row.
+pub fn csv_report_reader<R: Read>(file: R) -> std::io::Result<csv::Reader<BufReader<R>>> {
+    let mut file = BufReader::new(file);
+    while file.fill_buf()?.first() == Some(&CSV_COMMENT) {
+        file.read_until(b'\n', &mut Vec::new())?;
+    }
+    Ok(csv::Reader::from_reader(file))
 }
 
 /// Writes in `folder` the hash manifest of the files the `report_type`
@@ -145,6 +168,44 @@ pub fn seal_report_manifests(root: &Path) -> Result<Option<SealedManifests>> {
 mod tests {
     use super::*;
     use sequent_core::election_config::manifest::sha256_hex;
+
+    #[test]
+    fn a_csv_report_names_its_configuration_in_a_comment_line_its_reader_skips() {
+        let line = csv_stamp_line(Some(&stamp()));
+        assert_eq!(
+            line,
+            format!(
+                "# Configuration revision 3, manifest SHA-256 {}\n",
+                "ab".repeat(32)
+            )
+        );
+        assert_eq!(csv_stamp_line(None), "");
+
+        let rows = "file_name,hash\na.pdf,one\n#b.pdf,two\n";
+        for file in [format!("{line}{rows}"), rows.to_string()] {
+            let mut reader = csv_report_reader(file.as_bytes()).unwrap();
+            assert_eq!(
+                reader.headers().unwrap().iter().collect::<Vec<_>>(),
+                ["file_name", "hash"]
+            );
+            let read: Vec<csv::StringRecord> = reader
+                .records()
+                .collect::<std::result::Result<_, _>>()
+                .unwrap();
+            let names: Vec<&str> = read.iter().map(|row| &row[0]).collect();
+            assert_eq!(names, ["a.pdf", "#b.pdf"]);
+        }
+        let mut empty = csv_report_reader(line.as_bytes()).unwrap();
+        assert_eq!(empty.records().count(), 0);
+
+        // A reader that knows no comments takes the line for the header.
+        let stamped = format!("{line}{rows}");
+        let mut plain = csv::Reader::from_reader(stamped.as_bytes());
+        assert_ne!(
+            plain.headers().unwrap().iter().collect::<Vec<_>>(),
+            ["file_name", "hash"]
+        );
+    }
 
     #[test]
     fn sealing_lists_what_each_folder_delivers_and_every_folders_manifest() {

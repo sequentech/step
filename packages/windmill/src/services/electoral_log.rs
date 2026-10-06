@@ -46,6 +46,7 @@ use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use velvet::pipes::report_manifest::csv_report_reader;
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
@@ -476,6 +477,15 @@ async fn prepare_voter_secret_attribute_audit(
         )
         .context("Failed to build the secret-attribute electoral-log entry")?;
     Ok(PreparedVoterPasswordChangeLog { board, message })
+}
+
+/// A reader of the log's CSV export: the backup an event export holds, or
+/// the report, which starts with a comment line naming the configuration
+/// when the event was imported from a signed one.
+pub fn exported_log_reader<R: std::io::Read>(
+    file: R,
+) -> Result<csv::Reader<std::io::BufReader<R>>> {
+    csv_report_reader(file).context("Failed to read the CSV file")
 }
 
 pub struct ElectoralLog {
@@ -1520,7 +1530,7 @@ impl ElectoralLog {
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-        let mut rdr = csv::Reader::from_reader(logs_file);
+        let mut rdr = exported_log_reader(logs_file)?;
 
         let mut client = get_board_client().await?;
         client.open_session(self.elog_database.as_str()).await?;
