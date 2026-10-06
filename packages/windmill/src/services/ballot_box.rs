@@ -429,14 +429,7 @@ mod tests {
         assert!(report.is_clean(), "{:?}", report.findings());
 
         store.delete_board(&board).await?;
-        let suffix = event.replace('-', "");
-        store
-            .client()
-            .await?
-            .batch_execute(&format!(
-                "DROP TABLE ballot_box_ballot_{suffix}, ballot_box_voter_{suffix};"
-            ))
-            .await?;
+        store.drop_ballot_box(&event).await?;
         Ok(())
     }
 }

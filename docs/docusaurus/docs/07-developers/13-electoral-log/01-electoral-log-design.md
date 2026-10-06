@@ -199,7 +199,7 @@ Section 13 lists the queries these indexes do not cover.
 
 ### 5.5 Deleting an event
 
-Deleting an election event deletes its board's Trellis log. The delete cascades to the board row, the records, the leaves and the subtrees. Later deliveries to that board fail instead of silently recreating it. Published checkpoints are deleted with the event in the Hasura database.
+Deleting an election event deletes its board's Trellis log and drops its ballot box, with its ballots ([ballot box](03-electoral-log-ballot-box.md), section 3.1). The delete cascades to the board row, the records, the leaves and the subtrees. Later deliveries to that board fail instead of silently recreating it. Published checkpoints are deleted with the event in the Hasura database.
 
 ## 6. Writing: how a record is appended
 
@@ -966,6 +966,7 @@ Performance and operation:
 | `packages/electoral-log/src/messages/` | Signed message and statement types |
 | `packages/electoral-log/src/bin/electoral-log-admin.rs` | Administration and offline verification CLI |
 | `packages/electoral-log/examples/load_test.rs` | Load-test tool |
+| `packages/electoral-log/examples/ballot_box_load.rs`, `bench/ballot-box/` | Ballot box load tests |
 | `packages/electoral-log/schema.sql`, `packages/trellis/schema.sql` | Schema |
 | `packages/trellis/src/rfc6962.rs` | Subtree arithmetic, roots, inclusion and consistency paths |
 | `packages/trellis/src/journal.rs` | Transactional journal: appends, checks, proofs, tree audit, rebuild |

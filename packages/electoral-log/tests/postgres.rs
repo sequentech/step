@@ -7,10 +7,19 @@ use std::sync::Arc;
 use trellis::journal::INSERT_CHUNK;
 use uuid::Uuid;
 
+/// Applying the schema takes locks that deadlock with the appends of tests running
+/// at the same time, so each test binary applies it once.
+static SCHEMA: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
+async fn initialized(store: &PostgresStore) -> Result<()> {
+    SCHEMA.get_or_try_init(|| store.initialize()).await?;
+    Ok(())
+}
+
 async fn setup() -> Result<(BoardClient, String)> {
     let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
     let store = PostgresStore::new(config)?;
-    store.initialize().await?;
+    initialized(&store).await?;
     let client = BoardClient::new(Arc::new(store));
     let board = format!("test-{}", Uuid::new_v4());
     client.create_board(&board).await?;
@@ -264,7 +273,7 @@ async fn trellis_store() -> Result<(PostgresStore, String, tokio_postgres::Clien
     use electoral_log::ports::ElectoralLogStore;
     let url = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?;
     let store = PostgresStore::new(url.parse()?)?;
-    store.initialize().await?;
+    initialized(&store).await?;
     let board = format!("trellis-{}", Uuid::new_v4());
     store.create_board(&board).await?;
     let (db, connection) = tokio_postgres::connect(&url, tokio_postgres::NoTls).await?;

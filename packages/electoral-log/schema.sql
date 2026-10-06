@@ -88,6 +88,10 @@ CREATE TABLE IF NOT EXISTS ballot_box_ballot (
 ) PARTITION BY LIST (election_event_id);
 -- A voter's ballots, for the voter's status and lookups.
 CREATE INDEX IF NOT EXISTS ballot_box_ballot_voter ON ballot_box_ballot (election_event_id, voter_id);
+-- The tally input of an area: each voter's latest ballot, in voter order, without
+-- reading the rest of the event's ballots.
+CREATE INDEX IF NOT EXISTS ballot_box_ballot_area
+    ON ballot_box_ballot (election_event_id, election_id, area_id, voter_id, seq DESC);
 CREATE TABLE IF NOT EXISTS ballot_box_voter (
     election_event_id UUID NOT NULL,
     election_id UUID NOT NULL,

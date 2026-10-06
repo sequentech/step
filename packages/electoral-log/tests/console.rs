@@ -16,10 +16,19 @@ use serde_json::{json, Value};
 use std::time::Duration;
 use uuid::Uuid;
 
+/// Applying the schema takes locks that deadlock with the appends of tests running
+/// at the same time, so each test binary applies it once.
+static SCHEMA: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
+async fn initialized(store: &PostgresStore) -> Result<()> {
+    SCHEMA.get_or_try_init(|| store.initialize()).await?;
+    Ok(())
+}
+
 async fn store() -> Result<PostgresStore> {
     let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
     let store = PostgresStore::new(config)?;
-    store.initialize().await?;
+    initialized(&store).await?;
     Ok(store)
 }
 

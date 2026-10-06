@@ -13,25 +13,28 @@ use electoral_log::adapters::ballot_box_reads::{
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry};
+use std::time::Duration;
 use uuid::Uuid;
+
+/// Applying the schema takes locks that deadlock with the appends of tests running
+/// at the same time, so each test binary applies it once.
+static SCHEMA: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
+async fn initialized(store: &PostgresStore) -> Result<()> {
+    SCHEMA.get_or_try_init(|| store.initialize()).await?;
+    Ok(())
+}
 
 async fn store() -> Result<PostgresStore> {
     let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
     let store = PostgresStore::new(config)?;
-    store.initialize().await?;
+    initialized(&store).await?;
     Ok(store)
 }
 
 async fn drop_ballot_box(store: &PostgresStore, event: &str) -> Result<()> {
-    let suffix = event.replace('-', "");
-    store
-        .client()
-        .await?
-        .batch_execute(&format!(
-            "DELETE FROM ballot_box_pending WHERE election_event_id = '{event}';
-             DROP TABLE ballot_box_ballot_{suffix}, ballot_box_voter_{suffix};"
-        ))
-        .await?;
+    store.drop_ballot_box(event).await?;
+    assert!(!store.has_ballot_box(event).await?);
     Ok(())
 }
 
@@ -619,5 +622,51 @@ async fn the_tally_reads_each_voters_latest_valid_recorded_ballot() -> Result<()
 
     store.remove_pending(&event, &[waiting]).await?;
     store.delete_board(&board).await?;
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn ballot_boxes_come_and_go_without_holding_back_other_events_votes() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    // A vote of the event in progress: its open transaction holds a lock on the
+    // partitioned tables until it ends.
+    let in_progress = store.client().await?;
+    in_progress
+        .batch_execute(&format!(
+            "BEGIN;
+             INSERT INTO ballot_box_voter (election_event_id, election_id, voter_id, area_id,
+                 votes, last_ballot_id, updated_at)
+             VALUES ('{event}', '{election}', 'in-progress', '{area}', 1, 'ballot', now());"
+        ))
+        .await?;
+
+    let other = Uuid::new_v4().to_string();
+    tokio::time::timeout(Duration::from_secs(5), store.create_ballot_box(&other)).await??;
+    assert!(store.has_ballot_box(&other).await?);
+    store.create_ballot_box(&other).await?;
+
+    // Dropping waits for the transaction in progress, and votes go on meanwhile.
+    let dropping = tokio::spawn({
+        let store = store.clone();
+        let other = other.clone();
+        async move { store.drop_ballot_box(&other).await }
+    });
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(!dropping.is_finished());
+    let vote = Vote::new(&event, &election, &area, "voter", 0);
+    let accepted =
+        tokio::time::timeout(Duration::from_secs(5), store.accept_ballot(&vote.request()))
+            .await??;
+    assert!(matches!(accepted, AcceptOutcome::Accepted { .. }));
+    in_progress.batch_execute("ROLLBACK").await?;
+    tokio::time::timeout(Duration::from_secs(10), dropping).await???;
+    assert!(!store.has_ballot_box(&other).await?);
+    store.drop_ballot_box(&other).await?;
+
+    let ballots = store.voter_ballots(&event, "voter").await?;
+    assert_eq!(ballots.len(), 1);
     drop_ballot_box(&store, &event).await
 }
