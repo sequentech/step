@@ -52,8 +52,9 @@ const basqueTranslation: TranslationType = {
                 "Aklamazioz hautatua. Lehiaketa hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             published: "Argitaratua",
             notPublishedYet: "Oraindik argitaratu gabe",
-            position: "{{count}} postu",
-            position_plural: "{{count}} postu",
+            position_one: "{{count}} postu",
+            position_many: "{{count}} postu",
+            position_other: "{{count}} postu",
             fallbackElectionName: "Hauteskundea",
             fallbackContestName: "{{contestId}} lehiaketa",
             state: {

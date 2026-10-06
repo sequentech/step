@@ -52,8 +52,9 @@ const spanishTranslation: TranslationType = {
                 "Elegido por aclamación. Esta votación se resolvió sin votación, por lo que no se registró ningún voto.",
             published: "Publicado",
             notPublishedYet: "Todavía no publicado",
-            position: "{{count}} puesto",
-            position_plural: "{{count}} puestos",
+            position_one: "{{count}} puesto",
+            position_many: "{{count}} puestos",
+            position_other: "{{count}} puestos",
             fallbackElectionName: "Elección",
             fallbackContestName: "Contienda {{contestId}}",
             state: {

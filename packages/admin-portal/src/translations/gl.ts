@@ -1995,6 +1995,8 @@ const galegoTranslation: TranslationType = {
                 threshold: "Limiar",
                 errorMinTrustees_one:
                     "Seleccionaches só {{selected}} fiduciario, pero debes seleccionar polo menos {{threshold}}.",
+                errorMinTrustees_many:
+                    "Seleccionaches só {{selected}} fiduciarios, pero debes seleccionar polo menos {{threshold}}.",
                 errorMinTrustees_other:
                     "Seleccionaches só {{selected}} fiduciarios, pero debes seleccionar polo menos {{threshold}}.",
                 errorThreshold:
@@ -2133,8 +2135,9 @@ const galegoTranslation: TranslationType = {
                 contests: "Contests",
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
+                selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",

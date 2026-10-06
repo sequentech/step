@@ -18,6 +18,7 @@ import {
     BallotSelection,
     EInvalidVotePolicy,
     EOverVotePolicy,
+    getBallotErrorOptions,
     translateHtml,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
@@ -229,7 +230,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     warnType={IInvalidPlaintextErrorType.EncodingError}
                 >
                     {translateHtml(t, "errors.encoding.writeInCharsExceeded", {
-                        numCharsExceeded: -numAvailableChars,
+                        count: -numAvailableChars,
                     })}
                 </WarnBox>
             ) : null}
@@ -242,7 +243,11 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     warnId={error.message}
                     warnType={error.error_type}
                 >
-                    {translateHtml(t, error.message || "", error.message_map ?? {})}
+                    {translateHtml(
+                        t,
+                        error.message || "",
+                        getBallotErrorOptions(error.message, error.message_map)
+                    )}
                 </WarnBox>
             ))}
             {filteredSelection?.invalid_alerts.map((error, index) => (
@@ -254,7 +259,11 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     warnId={error.message}
                     warnType={error.error_type}
                 >
-                    {translateHtml(t, error.message || "", error.message_map ?? {})}
+                    {translateHtml(
+                        t,
+                        error.message || "",
+                        getBallotErrorOptions(error.message, error.message_map)
+                    )}
                 </WarnBox>
             ))}
         </ErrorWrapper>

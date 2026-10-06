@@ -119,12 +119,7 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         }).length ?? 0
     const selectedCandidatesLabel =
         !isReview && selectedCandidatesCount > 0
-            ? t(
-                  selectedCandidatesCount === 1
-                      ? "candidatesList.selectedCandidate"
-                      : "candidatesList.selectedCandidates",
-                  {count: selectedCandidatesCount}
-              )
+            ? t("candidatesList.selectedCandidates", {count: selectedCandidatesCount})
             : undefined
 
     // An acclaimed contest is display-only: every list stays greyed out, and
