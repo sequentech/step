@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::election_event::update_bulletin_board;
+use crate::postgres::election_event::{election_event_id_exists, update_bulletin_board};
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::BoardSerializable;
@@ -82,6 +82,29 @@ pub async fn insert_election_event_anyhow(
             }
         };
         final_object.voting_channels = Some(serde_json::to_value(tenant_channels)?);
+    }
+
+    // Harvest already refused ids that existed when the request came in, but a
+    // second request for the same id can be queued before this one commits.
+    // The realm upsert overwrites an existing realm with the template, so the
+    // row has to be checked before anything outside the transaction is touched.
+    match election_event_id_exists(&hasura_transaction, &id).await {
+        Ok(false) => (),
+        Ok(true) => {
+            let message = format!("Election event {id} already exists");
+            update_fail(&task_execution, &message).await?;
+            return Err(anyhow!(message));
+        }
+        Err(err) => {
+            update_fail(
+                &task_execution,
+                "Failed to check whether the election event exists",
+            )
+            .await?;
+            return Err(anyhow!(
+                "Failed to check whether the election event exists: {err}"
+            ));
+        }
     }
 
     match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
