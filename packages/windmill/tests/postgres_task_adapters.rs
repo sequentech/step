@@ -1048,6 +1048,7 @@ async fn update_scheduled_event_replaces_the_cron_config_and_keeps_the_payload()
             ..Default::default()
         },
         None,
+        None,
     )
     .await
     .unwrap();
@@ -1084,6 +1085,7 @@ async fn update_scheduled_event_adds_the_voting_channels_to_the_payload() {
             &id,
             cron("2026-03-01T10:00:00Z"),
             Some(&channels),
+            None,
         )
         .await
         .unwrap();
@@ -1140,6 +1142,7 @@ async fn update_scheduled_event_rearms_a_stopped_schedule_edited_to_a_future_tim
             &w.id(n),
             cron(date),
             Some(&vec![VotingStatusChannel::ONLINE]),
+            None,
         )
         .await
         .unwrap();

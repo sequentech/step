@@ -4503,6 +4503,7 @@ export type Mutation_RootLimit_Access_By_CountriesArgs = {
 export type Mutation_RootManage_Election_DatesArgs = {
   election_event_id: Scalars['uuid']['input'];
   election_id?: InputMaybe<Scalars['uuid']['input']>;
+  scheduled_event_id?: InputMaybe<Scalars['uuid']['input']>;
   event_processor: Scalars['String']['input'];
   local_date_time?: InputMaybe<Scalars['String']['input']>;
   scheduled_date?: InputMaybe<Scalars['String']['input']>;

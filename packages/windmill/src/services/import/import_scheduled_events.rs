@@ -11,7 +11,8 @@ use regex::Regex;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::{
-    generate_manage_date_task_name, CronConfig, EventProcessors, ScheduledEvent,
+    generate_channel_date_task_name, CronConfig, EventProcessors, ManageElectionDatePayload,
+    ScheduledEvent,
 };
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -150,13 +151,15 @@ pub async fn process_record(
             serde_json::to_value(&election_id)?,
         );
     }
+    let voting_payload: ManageElectionDatePayload = serde_json::from_value(event_payload.clone())?;
     let event_payload = Some(event_payload);
     let task_id = match &event_processor {
-        Some(event_processor) => Some(generate_manage_date_task_name(
+        Some(event_processor) => Some(generate_channel_date_task_name(
             tenant_id,
             election_event_id,
             election_id.as_deref(),
             event_processor,
+            voting_payload.voting_channels.as_deref(),
         )),
         None => None,
     };

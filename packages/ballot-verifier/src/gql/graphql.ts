@@ -3614,6 +3614,7 @@ export type Mutation_RootLimit_Access_By_CountriesArgs = {
 
 /** mutation root */
 export type Mutation_RootManage_Election_DatesArgs = {
+    scheduled_event_id?: InputMaybe<Scalars["String"]["input"]>
     election_event_id: Scalars["String"]["input"]
     election_id?: InputMaybe<Scalars["String"]["input"]>
     event_processor: Scalars["String"]["input"]
