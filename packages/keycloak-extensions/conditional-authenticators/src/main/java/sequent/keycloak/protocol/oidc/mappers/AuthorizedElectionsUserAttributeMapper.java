@@ -450,9 +450,9 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   }
 
   /**
-   * Maps each election's external ID, or its ID when it has none, to its ID, and then each ID that
-   * is not already a key to itself: voter imports used to store election IDs, and an election whose
-   * external ID another one repeats can only be named by its ID.
+   * Maps each election's external ID to its ID, and then each ID that is not already a key to
+   * itself: voter imports used to store election IDs, and an election that has no external ID, or
+   * whose external ID another one repeats, can only be named by its ID.
    */
   static Map<String, String> electionIdsByKey(JsonNode electionsNode) {
     StringBuilder keyAreaLog = new StringBuilder();
@@ -463,19 +463,23 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       // Use asText(null) so that if external_id is missing it returns null.
       String external_id =
           election.hasNonNull("external_id") ? election.get("external_id").asText() : null;
-      String key = (external_id != null && !external_id.isEmpty()) ? external_id : id;
+      boolean hasExternalId = external_id != null && !external_id.isEmpty();
+      String key = hasExternalId ? external_id : id;
 
       keyAreaLog.append(String.format("Key: %s, Id: %s, External ID: %s\t", key, id, external_id));
 
-      if (electionIds.containsKey(key)) {
+      if (hasExternalId && electionIds.containsKey(key)) {
         log.infov(
             "Warning: Two elections found with the same external_id: {0} id_1: {1} id_2: {2}",
             external_id, electionIds.get(key), id);
       }
       log.info(keyAreaLog.toString());
-      electionIds.put(key, id);
+      if (hasExternalId) {
+        electionIds.put(key, id);
+      }
       ids.add(id);
     }
+    // After the external IDs, which take precedence over an equal ID.
     for (String id : ids) {
       electionIds.putIfAbsent(id, id);
     }
