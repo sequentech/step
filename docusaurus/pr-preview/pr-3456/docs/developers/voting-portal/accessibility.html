@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voting Portal accessibility | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/accessibility"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voting Portal accessibility | Sequent Online Voting"><meta data-rh="true" name="description" content="How the Voting Portal satisfies WCAG 2.0 SC 1.3.1 and 4.1.2 (Level A), and the conventions to follow when changing voter-facing UI."><meta data-rh="true" property="og:description" content="How the Voting Portal satisfies WCAG 2.0 SC 1.3.1 and 4.1.2 (Level A), and the conventions to follow when changing voter-facing UI."><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3456/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/accessibility"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/accessibility" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/accessibility" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voting Portal accessibility","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/accessibility"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3456/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3456/assets/js/runtime~main.7d2204da.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3456/assets/js/main.506144ab.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3456/assets/js/runtime~main.48016ee3.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3456/assets/js/main.2ffa1492.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -57,6 +57,12 @@ the two cannot cancel each other out and toggle twice.</p>
 write test or automation selectors against <code>aria-label</code> — resolve the name through
 <code>aria-labelledby</code>, or match on the stable <code>class</code> hooks (<code>candidate-input</code>, <code>contest-title</code>)
 instead.</p>
+<p>The language selector is the worked example of a name that must say more than the visible
+text. Its button shows only the current language&#x27;s own name, so its accessible name is
+&quot;Language: English&quot; (<code>a11y.languageSelector</code>), which still contains the visible label
+(SC 2.5.3). Its options are <code>menuitemradio</code>s with the current language checked, and each
+carries the <code>lang</code> of the language it names, so a screen reader pronounces &quot;Français&quot; with a
+French voice (SC 3.1.2).</p>
 <p>Use the shared <code>VisuallyHidden</code> component from <code>ui-essentials</code> for text that assistive
 technology should read but that should not be painted. It wraps MUI&#x27;s <code>visuallyHidden</code>
 style, and is the right tool instead of <code>display: none</code> — content hidden with <code>display: none</code>
@@ -117,6 +123,59 @@ as the ballot-locator result and the print status do.</p>
 <p>Messages that explain why a specific control is rejected must also be linked to it with
 <code>aria-describedby</code>. The write-in length error does this via the exported <code>writeInErrorId</code>
 helper.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="respect-the-voters-display-settings">Respect the voter&#x27;s display settings<a href="#respect-the-voters-display-settings" class="hash-link" aria-label="Direct link to Respect the voter&#x27;s display settings" title="Direct link to Respect the voter&#x27;s display settings" translate="no">​</a></h3>
+<p>Where the event enables them (<code>voter_accessibility_settings_policy</code>, see
+<a class="" href="/docusaurus/pr-preview/pr-3456/docs/election_managers/reference/voter_accessibility">Voter Accessibility</a>), the
+header&#x27;s <code>AccessibilityMenu</code> lets the voter choose text size, contrast, text spacing and
+motion. The logic lives in <code>ui-core</code> (<code>services/accessibilitySettings.ts</code>), the menu and its
+stylesheet in <code>ui-essentials</code>. Each setting is a <code>data-a11y-*</code> attribute on <code>&lt;html&gt;</code>; nothing
+reads React state for it, so the login pages and tenant CSS can use the same attributes.</p>
+<p>To keep new UI working with them:</p>
+<ul>
+<li class=""><strong>Size text in <code>rem</code>, never <code>px</code>.</strong> Text size scales the root font size, so a <code>px</code> size
+ignores both this setting and the browser&#x27;s own default font size.</li>
+<li class=""><strong>Do not fix the height of anything that holds text.</strong> Use <code>min-height</code>. The stylesheet
+already lets <code>.candidate-item</code> and the header row grow; a new fixed-height row would clip at
+150% or with wide spacing.</li>
+<li class=""><strong>Do not carry meaning by background color alone.</strong> High contrast repaints text and borders
+black and inverts buttons, but it never adds a background to an element that had none,
+because transparent overlays (ripples, input outlines) sit above the text they decorate. A
+state shown only by a tint disappears; pair it with an icon, a border or text.</li>
+<li class=""><strong>Leave motion to CSS animations and transitions.</strong> Reduced motion shortens those; it cannot
+reach an animation driven from JavaScript.</li>
+</ul>
+<p><code>AccessibilityMenu.test.tsx</code> covers the behaviour. For the look, render the screen&#x27;s story
+with the attributes set on <code>&lt;html&gt;</code> at 1280 and 320 CSS px wide and check that
+<code>document.documentElement.scrollWidth</code> does not exceed its <code>clientWidth</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="give-each-screen-its-spoken-instructions">Give each screen its spoken instructions<a href="#give-each-screen-its-spoken-instructions" class="hash-link" aria-label="Direct link to Give each screen its spoken instructions" title="Direct link to Give each screen its spoken instructions" translate="no">​</a></h3>
+<p>Where the event enables them (<code>audio_instructions_policy</code>), <code>PortalChrome</code> renders
+<code>ScreenAudioInstructions</code> as the first thing in <code>&lt;main&gt;</code>. It maps the route to an
+<code>EAudioInstructionsScreen</code>, takes that screen&#x27;s text from
+<code>audioInstructions.screens.&lt;screen&gt;</code> in <code>voting-portal/src/translations</code>, and looks for an
+uploaded recording among the event&#x27;s support materials (<code>data.audio_instructions</code>, with a
+<code>screen</code> and a <code>language</code>). The shared <code>AudioInstructions</code> player in <code>ui-essentials</code> plays
+the recording, or speaks the text with the Web Speech API when there is none, and always
+offers the text as a transcript.</p>
+<p>When adding a voter screen:</p>
+<ul>
+<li class="">add it to <code>EAudioInstructionsScreen</code> in <code>ui-core</code> and to <code>SCREEN_PATHS</code>;</li>
+<li class="">write its text in every language file, describing the screen by what its controls do
+rather than by their labels, which events can rename;</li>
+<li class="">add the screen&#x27;s name to the Admin Portal&#x27;s <code>materials.audioInstructions.screens</code>.</li>
+</ul>
+<p>Never start audio without the voter asking (SC 1.4.2): it would talk over a screen reader.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="keep-the-login-pages-in-step">Keep the login pages in step<a href="#keep-the-login-pages-in-step" class="hash-link" aria-label="Direct link to Keep the login pages in step" title="Direct link to Keep the login pages in step" translate="no">​</a></h3>
+<p>The login pages (<code>packages/keycloak-ui</code>) have their own layout and theme and do not load
+<code>ui-essentials</code>, so they have their own small <code>AccessibilitySettings</code> and <code>AudioInstructions</code>
+components in <code>src/login/accessibility</code>. Those import the shared pieces by source path: the
+settings logic and the audio source decision from <code>ui-core</code>, the stylesheet from
+<code>ui-essentials</code>, and the words from the <code>ui-core</code> translation files. A new setting or a
+changed string therefore reaches the login pages without being written twice. What is
+login-specific is the dark page background and white logo under high contrast (<code>auth.css</code>)
+and the per-page instruction texts (<code>copy.ts</code>).</p>
+<p>The policies reach the login pages as the realm attributes
+<code>voter-accessibility-settings-policy</code> and <code>audio-instructions-policy</code>, which <code>context.ftl</code>
+passes into <code>kcContext.sequent</code>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="known-deviations">Known deviations<a href="#known-deviations" class="hash-link" aria-label="Direct link to Known deviations" title="Direct link to Known deviations" translate="no">​</a></h2>
 <p>Two things were deliberately left as they are. Both are recorded here so a future audit does
 not treat them as oversights.</p>
@@ -195,6 +254,6 @@ multi-select contests; both <code>ECandidatesIconCheckboxPolicy</code> values; p
 counting; write-ins; slates with <code>ECollapsibleLists</code> enabled and collapsed; explicit blank
 and explicit invalid options; each <code>EOverVotePolicy</code> including
 <code>NOT_ALLOWED_WITH_MSG_AND_DISABLE</code>; paginated multi-page ballots; and <code>skip_election_list</code>,
-which changes the stepper&#x27;s step count.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/05-voting-portal/accessibility.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/voter-status-performance"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Voting load tests</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/cast_vote_errors"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Cast Vote Errors in ReviewScreen.tsx</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#conformance-target" class="table-of-contents__link toc-highlight">Conformance target</a></li><li><a href="#conventions-to-follow-when-changing-voter-facing-ui" class="table-of-contents__link toc-highlight">Conventions to follow when changing voter-facing UI</a><ul><li><a href="#name-every-control" class="table-of-contents__link toc-highlight">Name every control</a></li><li><a href="#keep-structure-in-the-markup" class="table-of-contents__link toc-highlight">Keep structure in the markup</a></li><li><a href="#announce-what-changes" class="table-of-contents__link toc-highlight">Announce what changes</a></li></ul></li><li><a href="#known-deviations" class="table-of-contents__link toc-highlight">Known deviations</a><ul><li><a href="#single-choice-contests-use-checkboxes-not-radio-buttons" class="table-of-contents__link toc-highlight">Single-choice contests use checkboxes, not radio buttons</a></li><li><a href="#whole-row-and-whole-card-click-targets-are-mouse-only" class="table-of-contents__link toc-highlight">Whole-row and whole-card click targets are mouse-only</a></li></ul></li><li><a href="#related-work-outside-this-scope" class="table-of-contents__link toc-highlight">Related work outside this scope</a></li><li><a href="#verifying-changes" class="table-of-contents__link toc-highlight">Verifying changes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+which changes the stepper&#x27;s step count.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/05-voting-portal/accessibility.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/voter-status-performance"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Voting load tests</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3456/docs/developers/voting-portal/cast_vote_errors"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Cast Vote Errors in ReviewScreen.tsx</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#conformance-target" class="table-of-contents__link toc-highlight">Conformance target</a></li><li><a href="#conventions-to-follow-when-changing-voter-facing-ui" class="table-of-contents__link toc-highlight">Conventions to follow when changing voter-facing UI</a><ul><li><a href="#name-every-control" class="table-of-contents__link toc-highlight">Name every control</a></li><li><a href="#keep-structure-in-the-markup" class="table-of-contents__link toc-highlight">Keep structure in the markup</a></li><li><a href="#announce-what-changes" class="table-of-contents__link toc-highlight">Announce what changes</a></li><li><a href="#respect-the-voters-display-settings" class="table-of-contents__link toc-highlight">Respect the voter&#39;s display settings</a></li><li><a href="#give-each-screen-its-spoken-instructions" class="table-of-contents__link toc-highlight">Give each screen its spoken instructions</a></li><li><a href="#keep-the-login-pages-in-step" class="table-of-contents__link toc-highlight">Keep the login pages in step</a></li></ul></li><li><a href="#known-deviations" class="table-of-contents__link toc-highlight">Known deviations</a><ul><li><a href="#single-choice-contests-use-checkboxes-not-radio-buttons" class="table-of-contents__link toc-highlight">Single-choice contests use checkboxes, not radio buttons</a></li><li><a href="#whole-row-and-whole-card-click-targets-are-mouse-only" class="table-of-contents__link toc-highlight">Whole-row and whole-card click targets are mouse-only</a></li></ul></li><li><a href="#related-work-outside-this-scope" class="table-of-contents__link toc-highlight">Related work outside this scope</a></li><li><a href="#verifying-changes" class="table-of-contents__link toc-highlight">Verifying changes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
