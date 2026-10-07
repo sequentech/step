@@ -13,9 +13,9 @@ MODEL="face_detection_yunet_2023mar.onnx"
 PUBLISHED_MODEL="face_detection_yunet.onnx"
 
 crate_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-workspace_dir="$(dirname "${crate_dir}")"
+packages_dir="$(dirname "${crate_dir}")"
 target_dir="${crate_dir}/rust-local-target"
-out_dir="${workspace_dir}/keycloak-ui/src/login/scanovate/capture-wasm"
+out_dir="${packages_dir}/keycloak-ui/src/login/scanovate/capture-wasm"
 
 installed="$(wasm-bindgen --version | awk '{print $2}')"
 if [[ "${installed}" != "${WASM_BINDGEN_VERSION}" ]]; then
@@ -25,11 +25,11 @@ fi
 
 # simd128 is required anyway: rustfft, pulled in by tract, always ships SIMD code for wasm32.
 (
-  cd "${workspace_dir}"
+  cd "${crate_dir}"
   RUSTFLAGS="-C target-feature=+simd128" CARGO_TARGET_DIR="${target_dir}" cargo build \
     --release \
     --target wasm32-unknown-unknown \
-    --package id-capture \
+    --locked \
     --config 'profile.release.opt-level="s"' \
     --config 'profile.release.lto=true' \
     --config 'profile.release.codegen-units=1' \

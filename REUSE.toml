@@ -122,6 +122,7 @@ SPDX-License-Identifier = "AGPL-3.0-only"
 [[annotations]]
 path = [
 	"packages/wbraid/Cargo.lock",
+	"packages/id-capture/Cargo.lock",
 	"packages/wbraid/s3-cors.json",
 	"packages/wbraid/crates/braid/LICENSE",
 	"packages/wbraid/crates/braid/LICENSES/**"

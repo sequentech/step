@@ -93,7 +93,7 @@ to `packages/keycloak-ui/src/login/scanovate/capture-wasm/`.
 Tests run natively:
 
 ```bash
-cd packages && CARGO_TARGET_DIR=$PWD/id-capture/rust-local-target cargo test -p id-capture
+cd packages/id-capture && CARGO_TARGET_DIR=$PWD/rust-local-target cargo test --locked
 ```
 
 [blur-effect]: https://hal.science/hal-00232709
