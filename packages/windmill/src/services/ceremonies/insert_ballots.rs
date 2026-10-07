@@ -251,18 +251,14 @@ pub async fn insert_ballots_messages(
                         users_temp_file.path()
                     );
 
-                    let election_alias =
-                        match election_ids_alias_clone.get(&tally_session_contest.election_id) {
-                            Some(alias) => alias,
-                            None => "",
-                        }
-                        .to_string();
-
                     list_keycloak_enabled_users_by_area_id_and_authorized_elections(
                         &keycloak_transaction_clone,
                         &realm_clone,
                         &tally_session_contest.area_id,
-                        &election_alias,
+                        &tally_session_contest.election_id,
+                        election_ids_alias_clone
+                            .get(&tally_session_contest.election_id)
+                            .map(String::as_str),
                         &users_temp_file.path().to_path_buf(),
                         multiplicity_column,
                     )
