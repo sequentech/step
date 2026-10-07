@@ -3,3 +3,5 @@
 
 ALTER TABLE sequent_backend.scheduled_event
     DROP CONSTRAINT scheduled_event_channel_task_valid;
+
+DROP INDEX IF EXISTS sequent_backend.scheduled_event_active_channel_task_idx;

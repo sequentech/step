@@ -166,6 +166,41 @@ fn channel_keys_preserve_online_deadlines_and_normalize_channel_order() {
     );
 }
 
+fn executed(mut event: ScheduledEvent) -> ScheduledEvent {
+    event.stopped_at = Some(chrono::Utc::now());
+    event
+}
+
+#[test]
+fn executed_schedules_must_be_deleted_before_rescheduling() {
+    let kiosk = executed(event("kiosk", None, Some(vec![KIOSK])));
+    let message = ensure_schedulable(&[&kiosk], Some(&kiosk), &[KIOSK])
+        .unwrap_err()
+        .to_string();
+    assert!(message.contains("already run"), "{message}");
+    let message = ensure_schedulable(&[&kiosk], None, &[ONLINE, KIOSK])
+        .unwrap_err()
+        .to_string();
+    assert!(
+        message.contains("already run") && message.contains("KIOSK"),
+        "{message}"
+    );
+}
+
+#[test]
+fn pending_overlaps_ask_to_edit_the_other_schedule() {
+    let kiosk = event("kiosk", None, Some(vec![KIOSK]));
+    let online = event("online", None, Some(vec![ONLINE]));
+    let message = ensure_schedulable(&[&kiosk, &online], Some(&online), &[ONLINE, KIOSK])
+        .unwrap_err()
+        .to_string();
+    assert!(
+        message.contains("Edit or delete") && message.contains("KIOSK"),
+        "{message}"
+    );
+    assert!(ensure_schedulable(&[&kiosk, &online], Some(&online), &[ONLINE]).is_ok());
+}
+
 async fn client() -> deadpool_postgres::Client {
     let mut config = deadpool_postgres::Config::new();
     config.url = Some(

@@ -1,6 +1,11 @@
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+CREATE UNIQUE INDEX IF NOT EXISTS scheduled_event_active_channel_task_idx
+    ON sequent_backend.scheduled_event (tenant_id, election_event_id, task_id)
+    WHERE archived_at IS NULL
+      AND task_id ~ '^tenant_[0-9a-f-]{36}_event_[0-9a-f-]{36}(_election_[0-9a-f-]{36})?_(START|END)_VOTING_PERIOD_channels_';
+
 ALTER TABLE sequent_backend.scheduled_event
 ADD CONSTRAINT scheduled_event_channel_task_valid CHECK (
     CASE WHEN archived_at IS NULL AND task_id ~ '^tenant_[0-9a-f-]{36}_event_[0-9a-f-]{36}(_election_[0-9a-f-]{36})?_(START|END)_VOTING_PERIOD_channels_' THEN

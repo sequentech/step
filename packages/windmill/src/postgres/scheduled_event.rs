@@ -596,7 +596,7 @@ pub async fn lock_scheduling_event(
     election_event_id: &str,
 ) -> Result<()> {
     let rows = hasura_transaction.query(
-        "SELECT id FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2 FOR UPDATE",
+        "SELECT id FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2 FOR NO KEY UPDATE",
         &[&parse_uuid_v4(tenant_id)?, &parse_uuid_v4(election_event_id)?],
     ).await?;
     if rows.len() != 1 {

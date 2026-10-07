@@ -307,7 +307,7 @@ pub fn prepare_scheduled_dates(
             };
             let Ok(ManageElectionDatePayload {
                 election_id: se_election_id,
-                ..
+                voting_channels,
             }) = serde_json::from_value(event_payload.clone())
             else {
                 return None;
@@ -321,6 +321,22 @@ pub fn prepare_scheduled_dates(
                     && election_id.is_some()
                     && se_election_id.as_deref() != election_id)
             {
+                return None;
+            }
+            let voting_period = matches!(
+                event_processor,
+                EventProcessors::START_VOTING_PERIOD
+                    | EventProcessors::END_VOTING_PERIOD
+            );
+            let online = ManageElectionDatePayload {
+                election_id: None,
+                voting_channels,
+            }
+            .channels()
+            .contains(&VotingStatusChannel::ONLINE);
+            // Voting period dates describe online voting, like
+            // generate_voting_period_dates.
+            if voting_period && !online {
                 return None;
             }
             return Some((
@@ -454,5 +470,35 @@ mod voting_channel_tests {
             .unwrap();
             assert_eq!(dates.end_date.is_some(), channels != json!(["KIOSK"]));
         }
+    }
+    #[test]
+    fn scheduled_voting_dates_ignore_kiosk_only_schedules() {
+        let schedule = |id: &str,
+                        channels: Value,
+                        date: &str|
+         -> ScheduledEvent {
+            serde_json::from_value(json!({
+                "id": id, "tenant_id": "tenant", "election_event_id": "event",
+                "event_processor": "END_VOTING_PERIOD",
+                "event_payload": {"election_id": "el1", "voting_channels": channels},
+                "cron_config": {"scheduled_date": date}
+            }))
+            .unwrap()
+        };
+        let online =
+            schedule("online", json!(["ONLINE"]), "2027-01-01T20:00:00Z");
+        let kiosk = schedule("kiosk", json!(["KIOSK"]), "2027-01-01T17:00:00Z");
+        for events in [
+            vec![online.clone(), kiosk.clone()],
+            vec![kiosk.clone(), online.clone()],
+        ] {
+            let dates = prepare_scheduled_dates(events, Some("el1")).unwrap();
+            assert_eq!(
+                dates["END_VOTING_PERIOD"].scheduled_at.as_deref(),
+                Some("2027-01-01T20:00:00Z")
+            );
+        }
+        let dates = prepare_scheduled_dates(vec![kiosk], Some("el1")).unwrap();
+        assert!(!dates.contains_key("END_VOTING_PERIOD"));
     }
 }

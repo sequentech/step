@@ -78,6 +78,13 @@ class ScheduledChannelTests(unittest.TestCase):
                FROM sequent_backend.scheduled_event WHERE id = %s RETURNING id""", (online,),
         ).fetchone()[0]
         self.assertEqual(self.connection.execute(CONFIGURATION_QUERY, self.election.scope).fetchone()[4], "2027-01-01T20:00:00Z")
+        with self.assertRaises(psycopg.errors.UniqueViolation), self.connection.transaction():
+            self.connection.execute(
+                """INSERT INTO sequent_backend.scheduled_event
+                   (tenant_id, election_event_id, task_id, event_processor, event_payload, cron_config)
+                   SELECT tenant_id, election_event_id, task_id, event_processor, event_payload, cron_config
+                   FROM sequent_backend.scheduled_event WHERE id = %s""", (kiosk,),
+            )
         for channels in [["ONLINE"], ["TELEPHONE"], [], ["INVALID"]]:
             with self.subTest(channels=channels), self.assertRaises(psycopg.errors.CheckViolation):
                 self.connection.execute(

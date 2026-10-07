@@ -184,7 +184,8 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const confirmDeleteAction = async () => {
         if (scheduledEventToDelete) {
             let payload = scheduledEventToDelete.event_payload as
-                IManageElectionDatePayload | undefined
+                | IManageElectionDatePayload
+                | undefined
             if (
                 scheduledEventToDelete.election_event_id &&
                 scheduledEventToDelete.event_processor
