@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Tally Engine | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/main/docs/developers/velvet/velvet_tally"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Tally Engine | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/main/docs/developers/velvet/velvet_tally"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/developers/velvet/velvet_tally" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/developers/velvet/velvet_tally" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Tally Engine","item":"https://sequentech.github.io/docusaurus/main/docs/developers/velvet/velvet_tally"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/main/assets/js/runtime~main.65f9c811.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/runtime~main.51e60eb8.js" defer="defer"></script>
 <script src="/docusaurus/main/assets/js/main.b18d7991.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -141,17 +141,18 @@ invalid vote, not as a blank vote.</p>
 <table><thead><tr><th>Counting algorithm type</th><th>Contest default</th><th>Area default</th></tr></thead><tbody><tr><td>Preferential (ranked-choice)</td><td><code>process-ballots-all</code></td><td><code>skip-candidate-results</code></td></tr><tr><td>Non-preferential</td><td><code>aggregate-results</code></td><td><code>process-ballots-all</code></td></tr></tbody></table>
 <p>When in doubt or when configuration is missing, the tally engine will always choose a safe default based on the counting algorithm, so tallying can proceed even without explicit <code>tally_operation</code> settings.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="cast-vote-status-guard">Cast vote status guard<a href="#cast-vote-status-guard" class="hash-link" aria-label="Direct link to Cast vote status guard" title="Direct link to Cast vote status guard" translate="no">​</a></h2>
-<p>Each cast vote carries a <code>status</code> (<code>in-progress</code>, <code>valid</code>, or <code>discarded</code>).
-Ordinary election events store votes as <code>valid</code> immediately. A Datafix vote
-enters as <code>in-progress</code> and is promoted to <code>valid</code> or <code>discarded</code> by
-<code>process_cast_vote</code>. A vote whose <code>SetVoted</code> request could not be delivered, or
-whose outcome is ambiguous, stays <code>in-progress</code> and is retried automatically by
+<p>Each ballot in the election event&#x27;s ballot box carries a status (<code>pending</code>,
+<code>valid</code> or <code>rejected</code>, which the portals show as <code>in-progress</code>, <code>valid</code> and
+<code>discarded</code>). Ordinary election events accept ballots as <code>valid</code>. A Datafix
+ballot is accepted as <code>pending</code> and becomes <code>valid</code> or <code>rejected</code> through
+<code>process_cast_vote</code>. A ballot whose <code>SetVoted</code> request could not be delivered,
+or whose outcome is ambiguous, stays <code>pending</code> and is retried automatically by
 the <code>review_cast_votes</code> beat.</p>
-<p>Only <code>valid</code> votes are extracted. To avoid silently under-counting, a tally
-session refuses to proceed while its election and area contain an <code>in-progress</code>
-vote. A second check runs immediately before ballot extraction.</p>
-<p>Wait for <code>in-progress</code> votes to drain, then re-run the tally. A vote that stays
-<code>in-progress</code> needs an operator to investigate why <code>SetVoted</code> keeps failing to
+<p>Only <code>valid</code> ballots are extracted. To avoid silently under-counting, a tally
+session refuses to proceed while its election and area contain a <code>pending</code>
+ballot. A second check runs immediately before ballot extraction.</p>
+<p>Wait for <code>pending</code> ballots to drain, then re-run the tally. A ballot that stays
+<code>pending</code> needs an operator to investigate why <code>SetVoted</code> keeps failing to
 be delivered or keeps ending in an ambiguous outcome. See the Datafix /
 VoterView integration reference in the <code>beyond</code> repository
 (<code>docs/docusaurus/docs/engineering/datafix_voterview_integration.md</code>) for the
