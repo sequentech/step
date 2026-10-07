@@ -633,6 +633,22 @@ const dutchTranslation: TranslationType = {
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Toegankelijkheidsinstellingen voor de kiezer",
+                    options: {
+                        disabled: "Toegankelijkheidsinstellingen verbergen",
+                        enabled: "Tekstgrootte, contrast, tekstafstand en beweging aanbieden",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Gesproken instructies",
+                    options: {
+                        "disabled": "Geen gesproken instructies",
+                        "recorded": "Alleen geüploade opnamen",
+                        "recorded-or-synthesized":
+                            "Geüploade opnamen, of de stem van de browser waar er geen is",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Logboeken stemmen tonen",
                     options: {
@@ -2828,6 +2844,23 @@ const dutchTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Gesproken instructies voor scherm",
+                languageLabel: "Taal van de opname",
+                none: "Geen gesproken instructies",
+                helperText:
+                    "Kiezers horen dit bestand wanneer ze op dat scherm om de instructies vragen.",
+                screens: {
+                    "election-chooser": "Lijst met verkiezingen",
+                    "start": "Start",
+                    "ballot": "Stembiljet",
+                    "review": "Controle",
+                    "confirmation": "Bevestiging",
+                    "audit": "Audit",
+                    "ballot-locator": "Stembiljetzoeker",
+                    "support-materials": "Ondersteunend materiaal",
+                },
+            },
             createMaterialSuccess: "Ondersteunend materiaal aangemaakt",
             createMaterialError: "Fout bij aanmaken ondersteunend materiaal",
             updateMaterialSuccess: "Ondersteunend materiaal bijgewerkt",

@@ -16,7 +16,10 @@ import {authTheme} from "./theme"
 import {getAuthCopy} from "./authCopy"
 import {buildDetail} from "./buildDetail"
 import {messageLanguage, type I18n} from "./i18n"
-import type {KcContext} from "./KcContext"
+import {EVoterAccessibilitySettingsPolicy, type KcContext} from "./KcContext"
+import {AccessibilitySettings} from "./accessibility/AccessibilitySettings"
+import {AudioInstructions} from "./accessibility/AudioInstructions"
+import {getAccessibilityCopy, isInstructionsPage} from "./accessibility/copy"
 import "./auth.css"
 
 const MESSAGE_SEVERITY: Record<string, AlertColor> = {
@@ -81,6 +84,7 @@ export default function Template(props: SequentTemplateProps) {
     const direction =
         (kcContext.locale?.rtl ?? document.documentElement.dir === "rtl") ? "rtl" : "ltr"
     const copy = getAuthCopy(currentLanguage.languageTag)
+    const accessibilityCopy = getAccessibilityCopy(currentLanguage.languageTag)
 
     useEffect(() => {
         document.title = documentTitle ?? msgStr("loginTitle", realm.displayName || realm.name)
@@ -189,6 +193,10 @@ export default function Template(props: SequentTemplateProps) {
                                     )}
                                 </dl>
                             )}
+                            {kcContext.sequent.voterAccessibilitySettingsPolicy ===
+                                EVoterAccessibilitySettingsPolicy.ENABLED && (
+                                <AccessibilitySettings copy={accessibilityCopy} />
+                            )}
                             {enabledLanguages.length > 1 && (
                                 <LanguageSelect
                                     label={msgStr("languages")}
@@ -266,6 +274,13 @@ export default function Template(props: SequentTemplateProps) {
                                     {headerNode}
                                 </Typography>
                                 {feedback}
+                                {isInstructionsPage(kcContext.pageId) && (
+                                    <AudioInstructions
+                                        policy={kcContext.sequent.audioInstructionsPolicy}
+                                        text={accessibilityCopy.instructions[kcContext.pageId]}
+                                        copy={accessibilityCopy}
+                                    />
+                                )}
                                 {children}
                                 {displayInfo && <Box className="auth-info">{infoNode}</Box>}
                             </Paper>

@@ -791,7 +791,7 @@ const ElectionSelectionScreen: React.FC = () => {
                         buttonClassName="screen-help-button"
                         icon={faCircleQuestion}
                         sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                        fontSize="16px"
+                        fontSize="1rem"
                         onClick={() => setOpenChooserHelp(true)}
                         ariaLabel={t("a11y.helpAbout", {
                             topic: t("electionSelectionScreen.chooserHelpDialog.title"),

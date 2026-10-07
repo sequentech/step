@@ -628,6 +628,22 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Boto-emailearen irisgarritasun-ezarpenak",
+                    options: {
+                        disabled: "Ezkutatu irisgarritasun-ezarpenak",
+                        enabled: "Eskaini testuaren tamaina, kontrastea, tartea eta mugimendua",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Audio-argibideak",
+                    options: {
+                        "disabled": "Audio-argibiderik ez",
+                        "recorded": "Igotako grabazioak soilik",
+                        "recorded-or-synthesized":
+                            "Igotako grabazioak, edo nabigatzailearen ahotsa halakorik ez dagoenean",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Erakutsi Logs Bozketa Taba",
                     options: {
@@ -2819,6 +2835,23 @@ const basqueTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Audio-argibideak pantaila honetarako",
+                languageLabel: "Grabazioaren hizkuntza",
+                none: "Ez dira audio-argibideak",
+                helperText:
+                    "Boto-emaileek fitxategi hau entzuten dute pantaila horretan argibideak eskatzean.",
+                screens: {
+                    "election-chooser": "Hauteskundeen zerrenda",
+                    "start": "Hasiera",
+                    "ballot": "Boto-papera",
+                    "review": "Berrikuspena",
+                    "confirmation": "Baieztapena",
+                    "audit": "Ikuskapena",
+                    "ballot-locator": "Boto-paperen bilatzailea",
+                    "support-materials": "Laguntza-materialak",
+                },
+            },
             createMaterialSuccess: "Laguntza materiala sortua",
             createMaterialError: "Errorea laguntza materiala sortzerakoan",
             updateMaterialSuccess: "Laguntza materiala eguneratua",

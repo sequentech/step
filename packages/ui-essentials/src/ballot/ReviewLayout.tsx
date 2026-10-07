@@ -174,7 +174,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
                 className="screen-title"
                 variant="h4"
                 component="h1"
-                fontSize="24px"
+                fontSize="1.5rem"
                 fontWeight="bold"
                 sx={{margin: 0}}
             >
@@ -190,7 +190,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
                             lineHeight: "unset",
                             paddingBottom: "2px",
                         }}
-                        fontSize="16px"
+                        fontSize="1rem"
                         onClick={onTitleHelp}
                         ariaLabel={t("a11y.helpAbout", {
                             topic: t("reviewScreen.reviewScreenHelpDialog.title"),

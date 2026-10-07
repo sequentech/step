@@ -219,7 +219,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     className="candidate-title"
                     id={titleId}
                     fontWeight="bold"
-                    fontSize="16px"
+                    fontSize="1rem"
                     lineHeight="22px"
                     marginTop="4px"
                     marginBottom="4px"
@@ -231,7 +231,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     className="candidate-description"
                     component="div"
                     color={theme.palette.customGrey.dark}
-                    fontSize="16px"
+                    fontSize="1rem"
                     marginTop="4px"
                     marginBottom="4px"
                 >
