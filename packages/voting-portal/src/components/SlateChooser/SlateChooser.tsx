@@ -167,7 +167,7 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
                 <Typography
                     className="slate-contest-name"
                     component="h4"
-                    fontSize="14px"
+                    fontSize="0.875rem"
                     fontWeight="bold"
                     margin={0}
                 >
@@ -212,7 +212,7 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
                 className="slate-chooser-title"
                 id={titleId}
                 component="h2"
-                fontSize="20px"
+                fontSize="1.25rem"
                 fontWeight="bold"
                 marginBottom="4px"
             >
@@ -243,7 +243,7 @@ export const SlateChooser: React.FC<ISlateChooserProps> = ({
                                 <Typography
                                     className="slate-name"
                                     component="h3"
-                                    fontSize="18px"
+                                    fontSize="1.125rem"
                                     fontWeight="bold"
                                     margin={0}
                                 >

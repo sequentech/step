@@ -14,6 +14,26 @@ const basqueTranslation: TranslationType = {
             showMore: "Erakutsi Gehiago",
             showLess: "Erakutsi Gutxiago",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Orri honetan botoa eman dezakezun hauteskundeak agertzen dira. Erabili Tabulazio tekla hauteskunde batetik hurrengora joateko. Hauteskunde bakoitzak bozketa hasteko botoi bat du. Sakatu Sartu tekla botoi horretan bere boto-papera irekitzeko.",
+                "start":
+                    "Orri honek botoa nola eman azaltzen du. Lehenik aukerak hautatzen dituzu, gero berrikusten dituzu eta azkenik botoa ematen duzu. Erabili Tabulazio tekla bozketa hasten duen botoira iristeko eta sakatu Sartu. Adierazpen bat agertzen bada, markatu lehenik bere laukia zuriune-barrarekin.",
+                "ballot":
+                    "Hau da zure boto-papera. Galdera bakoitza aukera-talde bat da, eta galderak esaten du zenbat aukera hauta ditzakezun. Erabili Tabulazio tekla aukeren artean mugitzeko eta zuriune-barra aukera bat markatzeko edo kentzeko. Amaitzean, joan orriaren amaierako jarraitzeko botoira eta sakatu Sartu zure aukerak berrikusteko. Aukera guztiak ezabatzeko botoi bat ere badago. Ez da ezer ematen berrikuspen-orrian baieztatu arte.",
+                "review":
+                    "Orri honek egin dituzun aukerak erakusten ditu. Egiaztatu arretaz. Zerbait aldatzeko, erabili boto-papera editatzeko botoia. Botoa emateko, joan boto-papera emateko botoira eta sakatu Sartu. Zure boto-paperaren identifikatzailea orriaren hasieran dago. Kopiatu dezakezu boto-papera geroago aurkitzeko.",
+                "confirmation":
+                    "Zure botoa eman da. Orri honek zure boto-paperaren identifikatzailea erakusten du; harekin egiaztatu dezakezu erregistratu dela. Kopiatu dezakezu edo orri hau inprimatu. Amaitzean, erabili orriaren amaierako botoia bukatzeko.",
+                "audit":
+                    "Orri honek boto-papera eman beharrean ikuskatzeko aukera ematen dizu. Boto-paperen egiaztatzailearekin egiazta dezakezun informazioa erakusten du. Ikuskatutako boto-papera ez da ematen; beraz, itzuli gero zure boto-paperera botoa emateko.",
+                "ballot-locator":
+                    "Orri honek boto-paper bat erregistratu dela egiaztatzeko aukera ematen dizu. Idatzi edo itsatsi boto-paperaren identifikatzaile bat testu-eremuan eta sakatu Sartu. Emaitza eremuaren azpian agertzen da.",
+                "support-materials":
+                    "Orri honetan botoa ematen laguntzen dizuten dokumentuak agertzen dira. Erabili Tabulazio tekla haien artean mugitzeko eta sakatu Sartu dokumentu baten botoian hura irekitzeko. Erabili atzera egiteko botoia hauteskundeen zerrendara itzultzeko.",
+            },
+        },
         a11y: {
             skipToContent: "Joan eduki nagusira",
             helpAbout: "{{topic}} atalari buruzko laguntza",

@@ -14,6 +14,26 @@ const dutchTranslation: TranslationType = {
             showMore: "Toon meer",
             showLess: "Toon minder",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Deze pagina toont de verkiezingen waarin u kunt stemmen. Gebruik de Tab-toets om van de ene verkiezing naar de volgende te gaan. Elke verkiezing heeft een knop om te beginnen met stemmen. Druk op Enter op die knop om het stembiljet te openen.",
+                "start":
+                    "Deze pagina legt uit hoe u stemt. Eerst kiest u uw opties, daarna controleert u ze en ten slotte brengt u uw stem uit. Gebruik de Tab-toets om naar de knop te gaan waarmee het stemmen begint en druk op Enter. Als er een verklaring wordt getoond, vink dan eerst het selectievakje aan met de spatiebalk.",
+                "ballot":
+                    "Dit is uw stembiljet. Elke vraag is een groep opties, en de vraag vermeldt hoeveel opties u kunt kiezen. Gebruik de Tab-toets om tussen de opties te bewegen en de spatiebalk om er een te selecteren of te wissen. Ga als u klaar bent naar de knop om verder te gaan, onderaan de pagina, en druk op Enter om uw keuzes te controleren. Er is ook een knop om al uw keuzes te wissen. Er wordt niets uitgebracht totdat u op de controlepagina bevestigt.",
+                "review":
+                    "Deze pagina toont de keuzes die u hebt gemaakt. Controleer ze zorgvuldig. Gebruik de knop om uw stembiljet te bewerken als u iets wilt wijzigen. Ga naar de knop om uw stem uit te brengen en druk op Enter om te stemmen. Uw stembiljet-ID staat bovenaan de pagina. U kunt het kopiëren om uw stembiljet later terug te vinden.",
+                "confirmation":
+                    "Uw stem is uitgebracht. Deze pagina toont uw stembiljet-ID, waarmee u kunt controleren of uw stembiljet is geregistreerd. U kunt het kopiëren of deze pagina afdrukken. Gebruik als u klaar bent de knop onderaan de pagina om af te sluiten.",
+                "audit":
+                    "Op deze pagina kunt u uw stembiljet controleren in plaats van het uit te brengen. De pagina toont de informatie die u met de stembiljetverificatie kunt nagaan. Een gecontroleerd stembiljet wordt niet uitgebracht; ga daarna dus terug naar uw stembiljet om te stemmen.",
+                "ballot-locator":
+                    "Op deze pagina kunt u nagaan of een stembiljet is geregistreerd. Typ of plak een stembiljet-ID in het tekstveld en druk op Enter. Het resultaat verschijnt onder het veld.",
+                "support-materials":
+                    "Deze pagina toont documenten die u helpen bij het stemmen. Gebruik de Tab-toets om ertussen te bewegen en druk op Enter op de knop van een document om het te openen. Gebruik de knop om terug te gaan naar de lijst met verkiezingen.",
+            },
+        },
         a11y: {
             skipToContent: "Ga naar hoofdinhoud",
             helpAbout: "Hulp over {{topic}}",

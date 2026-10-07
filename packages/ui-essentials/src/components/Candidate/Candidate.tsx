@@ -225,7 +225,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     className="candidate-title"
                     id={nameId}
                     fontWeight="bold"
-                    fontSize="16px"
+                    fontSize="1rem"
                     lineHeight="22px"
                     marginTop="4px"
                     marginBottom="4px"
@@ -237,7 +237,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     <UnselectableTypography
                         className="candidate-subtitle"
                         id={subtitleId}
-                        fontSize="14px"
+                        fontSize="0.875rem"
                         lineHeight="20px"
                         marginTop="0"
                         marginBottom="4px"
@@ -250,7 +250,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     className="candidate-description"
                     component="div"
                     color={theme.palette.customGrey.dark}
-                    fontSize="16px"
+                    fontSize="1rem"
                     marginTop="4px"
                     marginBottom="4px"
                 >

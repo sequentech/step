@@ -20,7 +20,7 @@ const SummaryBox = styled("section")(({theme}) => ({
 const SummaryList = styled("ul")({
     margin: "8px 0 0",
     paddingInlineStart: "20px",
-    fontSize: "14px",
+    fontSize: "0.875rem",
 })
 
 export interface ReviewSelectionSummaryProps {
@@ -42,7 +42,7 @@ export const ReviewSelectionSummary: React.FC<ReviewSelectionSummaryProps> = ({
                 className="review-selection-title"
                 component="h2"
                 id={titleId}
-                sx={{fontSize: "16px", fontWeight: 700, margin: 0}}
+                sx={{fontSize: "1rem", fontWeight: 700, margin: 0}}
             >
                 {t("slates.review.title")}
             </Typography>

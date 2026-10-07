@@ -37,7 +37,7 @@ export const SlateCoverageLine: React.FC<ISlateCoverageLineProps> = ({coverage, 
             <Typography
                 className="slate-coverage-kind"
                 component="span"
-                fontSize="14px"
+                fontSize="0.875rem"
                 fontWeight="bold"
             >
                 {kind}
@@ -45,7 +45,7 @@ export const SlateCoverageLine: React.FC<ISlateCoverageLineProps> = ({coverage, 
             <Typography
                 className="slate-coverage-count"
                 component="span"
-                fontSize="14px"
+                fontSize="0.875rem"
                 color={theme.palette.customGrey.dark}
             >
                 {" · "}

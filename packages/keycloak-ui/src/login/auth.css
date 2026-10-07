@@ -283,6 +283,87 @@
     background: white;
     color: #173449;
 }
+.sequent-auth .auth-accessibility {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #d5e9ed;
+    background: transparent;
+    cursor: pointer;
+}
+.sequent-auth .auth-accessibility svg {
+    width: 19px;
+    height: 19px;
+}
+.sequent-auth .auth-accessibility:focus-visible {
+    outline-color: #43e3a1;
+    box-shadow: 0 0 0 2px #102d44;
+}
+.auth-accessibility-dialog .auth-accessibility-description {
+    margin: 0 0 16px;
+}
+.auth-accessibility-dialog .auth-accessibility-setting {
+    display: block;
+    margin-bottom: 12px;
+}
+.auth-accessibility-dialog .auth-accessibility-setting legend {
+    font-weight: 700;
+    color: #173449;
+}
+.auth-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+.sequent-auth .auth-audio-instructions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.sequent-auth .auth-audio-instructions .MuiButton-root {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 0.875rem;
+}
+.sequent-auth .auth-audio-instructions-transcript {
+    flex-basis: 100%;
+}
+.sequent-auth .auth-audio-instructions-transcript p {
+    margin: 0;
+    line-height: 1.6;
+}
+/* The shared high contrast rules repaint text and borders; the dark page and the
+   white logo are this layout's own. */
+html[data-a11y-contrast="high"] .sequent-auth {
+    background: #fff;
+}
+html[data-a11y-contrast="high"] .sequent-auth .auth-brand img {
+    filter: invert(1);
+}
+html[data-a11y-contrast="high"] .sequent-auth .auth-card {
+    border: 2px solid #000;
+}
+html[data-a11y-contrast="high"] .sequent-auth :is(.auth-accessibility, .auth-language select) {
+    border-color: #000;
+}
+html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visible {
+    outline-color: #000;
+    box-shadow: 0 0 0 2px #fff;
+}
 .sequent-auth :is(a, button, select):focus-visible,
 .sequent-auth .Mui-focusVisible,
 .sequent-auth .MuiOutlinedInput-root:has(input:focus-visible) {

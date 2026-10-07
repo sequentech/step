@@ -25,7 +25,7 @@ const MemberItem = styled("li")(({theme}) => ({
     },
     "& .slate-member-check": {
         flex: "0 0 15px",
-        fontSize: "13px",
+        fontSize: "0.8125rem",
     },
 }))
 

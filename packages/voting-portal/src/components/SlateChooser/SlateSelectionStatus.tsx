@@ -9,7 +9,7 @@ import {ESlateSelectionStatus, ISlateSelectionSummary} from "../../services/Slat
 
 const StatusLine = styled("p")(({theme}) => ({
     "margin": "0 0 12px",
-    "fontSize": "14px",
+    "fontSize": "0.875rem",
     "fontWeight": 700,
     "color": theme.palette.brandColor,
     "&.slate-selection-status-all": {
