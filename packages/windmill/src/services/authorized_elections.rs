@@ -22,7 +22,7 @@ fn external_id(election: &ElectionHead) -> Option<&str> {
 
 /// Whether `value` reads back unchanged from a voters CSV cell, whose values
 /// are separated by `|` and trimmed.
-fn fits_in_a_cell(value: &str) -> bool {
+pub(crate) fn fits_in_a_cell(value: &str) -> bool {
     !value.is_empty()
         && value.trim() == value
         && !value.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)

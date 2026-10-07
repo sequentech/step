@@ -60,7 +60,9 @@ imported.
 
 Export writes `authorized-election-ids` the same way, and adds one column per election, named
 `election__` followed by the value that names the election, holding when the voter last voted in
-it. Import ignores these columns.
+it. Import ignores these columns. A stored value that names no election, or more than one, is
+exported unchanged, so that importing it fails instead of giving the voter other elections. It is
+put in double quotes if it is blank, starts or ends with a space, or contains `|`.
 
 When an election event export is imported, its elections get new IDs. Voters whose
 `authorized-election-ids` name elections by the IDs they had in the exported event keep those
