@@ -170,6 +170,8 @@ const englishTranslation = {
                     "Invalid ballot configuration: the contest defines {{count}} explicitly invalid candidates, but only one is allowed.",
                 multipleExplicitBlankCandidates:
                     "Invalid ballot configuration: the contest defines {{count}} explicit blank candidates, but only one is allowed.",
+                invalidSlateConfiguration:
+                    "Invalid ballot configuration: the slates are not valid ({{reason}}).",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",

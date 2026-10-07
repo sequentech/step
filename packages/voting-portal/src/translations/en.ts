@@ -185,6 +185,15 @@ const englishTranslation = {
                 ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
             },
+            unfilledContestsDialog: {
+                title: "Some selections are unfilled",
+                content:
+                    "You may leave a selection blank or choose fewer options than allowed. Check the following before continuing.",
+                selected: "{{selected}} of {{max}} selected",
+                nothingSelected: "Nothing selected",
+                ok: "Continue with these selections",
+                cancel: "Review selections",
+            },
             error: {
                 NETWORK_ERROR:
                     "A network problem occurred. Please try again later or contact support",
@@ -455,6 +464,67 @@ const englishTranslation = {
                 checkboxLabel: "I have read the Support Materials",
                 continueButton: "Continue",
                 error: "There was a problem recording your acknowledgment. Please try again.",
+            },
+        },
+        slates: {
+            title: "Slates",
+            description:
+                "A slate is a group of candidates running together. Each candidate shows the slate they belong to.",
+            independent: "Independent",
+            contestMembers: "{{slate}} candidates for {{contest}}",
+            noCandidate: "No candidate",
+            coverage: {
+                full: "Full slate",
+                singleContest: "{{contest}} only",
+                partial: "Partial slate",
+                candidates_one: "{{count}} candidate",
+                candidates_other: "{{count}} candidates",
+                offices_one: "{{count}} office",
+                offices_other: "{{count}} offices",
+            },
+            candidateList: {
+                show: "Show candidates",
+                hide: "Hide candidates",
+            },
+            tabs: {
+                label: "Ways to fill in your ballot",
+                slates: "Choose a slate",
+                candidates: "Individual candidates",
+            },
+            review: {
+                title: "Your selections",
+                total: "Candidates selected: {{selected}} of {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Independent candidates selected: {{count}}",
+                note: "Your vote is recorded for each selected candidate. A slate is not a vote of its own.",
+                contestCount: "{{selected}} of {{max}} selected",
+                edit: "Edit",
+                editLabel: "Edit {{contest}}",
+            },
+            selection: {
+                all: "All {{total}} selected",
+                mixed: "Mixed · {{selected}} of {{total}} selected",
+                partly: "Partly selected · {{selected}} of {{total}}",
+                selected: "Selected",
+                edit: "Edit selections",
+            },
+            apply: {
+                button: "Choose this slate",
+                buttonLabel: "Choose slate {{slate}}",
+                chosen: "{{slate}} chosen. Candidates selected: {{candidates}}. Contests: {{contests}}.",
+                overMaximum:
+                    "{{slate}} cannot be chosen: it has {{candidates}} candidates for {{contest}}, which allows {{max}}. You can still choose candidates individually.",
+                unavailable:
+                    "{{slate}} cannot be chosen on this ballot. You can still choose candidates individually.",
+                replaceDialog: {
+                    title: "Replace your current choices?",
+                    content:
+                        "Choosing {{slate}} replaces your choices in the contests below. Your other choices stay as they are.",
+                    removed: "Removed:",
+                    added: "Selected instead:",
+                    ok: "Replace choices",
+                    cancel: "Keep my choices",
+                },
             },
         },
         ballotLocator: {

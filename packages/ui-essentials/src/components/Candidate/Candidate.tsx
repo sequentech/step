@@ -103,6 +103,9 @@ const StyledLink = styled("a")`
 
 export interface CandidateProps extends PropsWithChildren {
     title: string | ReactNode
+    // A short line under the name, part of what every control in the row is
+    // labelled by: the slate a candidate belongs to.
+    subtitle?: string
     description?: string | ReactNode
     isSelectable?: boolean // Shall the candidate be selectable (Checkbox or Position combo box)?
     isInvalidVote?: boolean
@@ -130,6 +133,7 @@ export interface CandidateProps extends PropsWithChildren {
 
 const Candidate: React.FC<CandidateProps> = ({
     title,
+    subtitle,
     description,
     isSelectable: isSelectable,
     isInvalidVote,
@@ -159,7 +163,9 @@ const Candidate: React.FC<CandidateProps> = ({
     // accessible name in sync even when `title` is rich content rather than a
     // plain string.
     const generatedId = useId()
-    const titleId = `${generatedId}-title`
+    const nameId = `${generatedId}-title`
+    const subtitleId = `${generatedId}-subtitle`
+    const titleId = subtitle ? `${nameId} ${subtitleId}` : nameId
     const positionLabelId = `${generatedId}-position-label`
     const writeInLabelId = `${generatedId}-writein-label`
     const moreInfoLabelId = `${generatedId}-more-info-label`
@@ -217,7 +223,7 @@ const Candidate: React.FC<CandidateProps> = ({
             <Box className="candidate-text" flexGrow={2}>
                 <UnselectableTypography
                     className="candidate-title"
-                    id={titleId}
+                    id={nameId}
                     fontWeight="bold"
                     fontSize="1rem"
                     lineHeight="22px"
@@ -227,6 +233,19 @@ const Candidate: React.FC<CandidateProps> = ({
                 >
                     {title}
                 </UnselectableTypography>
+                {subtitle ? (
+                    <UnselectableTypography
+                        className="candidate-subtitle"
+                        id={subtitleId}
+                        fontSize="0.875rem"
+                        lineHeight="20px"
+                        marginTop="0"
+                        marginBottom="4px"
+                        color={theme.palette.customGrey.dark}
+                    >
+                        {subtitle}
+                    </UnselectableTypography>
+                ) : null}
                 <UnselectableTypography
                     className="candidate-description"
                     component="div"

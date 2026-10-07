@@ -1115,6 +1115,21 @@ const spanishTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Candidaturas",
+                configuration: "Configuración de candidaturas (JSON)",
+                helper: "Candidaturas con nombre y los candidatos que cada una presenta en cada contienda. Déjalo vacío para una elección sin candidaturas.",
+                loading:
+                    "Las contiendas y los candidatos de la elección aún se están cargando. Inténtalo de nuevo en un momento.",
+                mobileCandidateLists: {
+                    label: "Listas de candidatos en móvil",
+                    helper: "Cómo aparece inicialmente la lista de candidatos de cada candidatura en el móvil. El votante siempre puede abrirla o cerrarla.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Desplegadas",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Política de título de pantalla de inicio",
                 options: {
@@ -2020,6 +2035,7 @@ const spanishTranslation: TranslationType = {
                 "warn-only-in-review": "Advertir en Revisión",
                 "warn": "Advertir",
                 "warn-and-alert": "Advertir y Alertar",
+                "warn-and-confirm-in-review": "Advertir y Confirmar en Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Inválido",

@@ -173,6 +173,8 @@ const dutchTranslation: TranslationType = {
                     "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
                 multipleExplicitBlankCandidates:
                     "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
+                invalidSlateConfiguration:
+                    "Ongeldige stemconfiguratie: de lijsten zijn niet geldig ({{reason}}).",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",

@@ -163,7 +163,7 @@ export type {
     IvrEmulatorConfig,
     IvrEmulatorFailure,
 } from "./ballot/ivrEmulator"
-export {Question} from "./ballot/Question"
+export {Question, contestTitleId} from "./ballot/Question"
 export type {IQuestionProps} from "./ballot/Question"
 export {Answer} from "./ballot/Answer"
 export {AnswersList} from "./ballot/AnswersList"
@@ -171,6 +171,12 @@ export {InvalidErrorsList} from "./ballot/InvalidErrorsList"
 export {BallotSelectionProvider, useBallotSelection} from "./ballot/selection"
 export {BallotEngineProvider, useBallotEngine} from "./ballot/engine"
 export type {BallotEngine} from "./ballot/engine"
+export {
+    BallotSlatesProvider,
+    getDefaultLanguageCode,
+    useBallotSlates,
+    useCandidateSlateLabel,
+} from "./ballot/slates"
 export type {BallotSelectionPort, ContestSelection, VoteChoice} from "./ballot/selection"
 export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
 export * from "./ballot/presentation"

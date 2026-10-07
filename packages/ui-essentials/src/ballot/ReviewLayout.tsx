@@ -84,6 +84,12 @@ export interface IReviewLayoutProps {
      */
     isBlankBallot?: boolean
 
+    /** What the host says about the ballot as a whole, above the contests. */
+    summary?: React.ReactNode
+
+    /** What the host adds under a contest, such as a way back to edit it. */
+    renderContestFooter?: (contest: IContest) => React.ReactNode
+
     /** What sits under the contests: cast, go back, audit. */
     actions?: React.ReactNode
 
@@ -129,6 +135,8 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
     errorSelectionState,
     isDeclineToVote,
     isBlankBallot,
+    summary,
+    renderContestFooter,
     actions,
     children,
 }) => {
@@ -217,6 +225,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
             >
                 {stringToHtml(description)}
             </Typography>
+            {summary}
             {contests.map((question, index) => (
                 <Box
                     key={question.id}
@@ -231,6 +240,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
                         isDeclineToVote={isDeclineToVote}
                         isBlankBallot={isBlankBallot}
                     />
+                    {renderContestFooter?.(question)}
                 </Box>
             ))}
             {actions}

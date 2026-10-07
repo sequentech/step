@@ -187,6 +187,15 @@ const spanishTranslation: TranslationType = {
                 ok: "Sí, quiero emitir mi papeleta en blanco",
                 cancel: "Cancelar",
             },
+            unfilledContestsDialog: {
+                title: "Hay selecciones sin completar",
+                content:
+                    "Puede dejar selecciones en blanco o elegir menos opciones de las permitidas. Revise lo siguiente antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sin selección",
+                ok: "Continuar con estas selecciones",
+                cancel: "Revisar selecciones",
+            },
             error: {
                 NETWORK_ERROR:
                     "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
@@ -466,6 +475,67 @@ const spanishTranslation: TranslationType = {
                 checkboxLabel: "He leído los Materiales de Soporte",
                 continueButton: "Continuar",
                 error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
+            },
+        },
+        slates: {
+            title: "Candidaturas conjuntas",
+            description:
+                "Una candidatura conjunta es un grupo de candidatos que se presentan juntos. Cada candidato muestra la candidatura a la que pertenece.",
+            independent: "Independiente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sin candidato",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Solo {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
+            candidateList: {
+                show: "Mostrar candidaturas",
+                hide: "Ocultar candidaturas",
+            },
+            tabs: {
+                label: "Formas de rellenar su papeleta",
+                slates: "Elegir una lista",
+                candidates: "Candidaturas individuales",
+            },
+            review: {
+                title: "Tus selecciones",
+                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidaturas independientes seleccionadas: {{count}}",
+                note: "Tu voto se registra para cada candidatura seleccionada. Una lista no es un voto por sí misma.",
+                contestCount: "{{selected}} de {{max}} seleccionadas",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "Las {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar la selección",
+            },
+            apply: {
+                button: "Elegir esta candidatura",
+                buttonLabel: "Elegir la candidatura {{slate}}",
+                chosen: "{{slate}} elegida. Candidatos seleccionados: {{candidates}}. Contiendas: {{contests}}.",
+                overMaximum:
+                    "{{slate}} no se puede elegir: tiene {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Puede seguir eligiendo candidaturas individualmente.",
+                unavailable:
+                    "{{slate}} no se puede elegir en esta papeleta. Puede seguir eligiendo candidaturas individualmente.",
+                replaceDialog: {
+                    title: "¿Reemplazar tus opciones actuales?",
+                    content:
+                        "Elegir {{slate}} reemplaza tus opciones en las contiendas siguientes. El resto de tus opciones no cambia.",
+                    removed: "Se quita:",
+                    added: "Se selecciona en su lugar:",
+                    ok: "Reemplazar opciones",
+                    cancel: "Mantener mis opciones",
+                },
             },
         },
         ballotLocator: {
