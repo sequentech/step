@@ -159,7 +159,7 @@ const catalanTranslation: TranslationType = {
         },
         dragNDrop: {
             firstLine: "Arrossegueu i deixeu anar fitxers o",
-            browse: "Carrega fitxer",
+            browse: "Carregar fitxer",
             format: "Formats suportats: txt",
         },
         selectElection: {

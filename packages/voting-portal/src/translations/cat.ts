@@ -77,14 +77,14 @@ const catalanTranslation: TranslationType = {
                     "La vostra papereta conté seleccions que poden necessitar la vostra atenció (com ara seleccionar menys opcions de les permeses). La vostra papereta és vàlida i es comptarà tal com s'ha enviat.",
                 ok: "Torneu i reviseu",
                 continue: "Continueu",
-                cancel: "Cancel·la",
+                cancel: "Cancel·lar",
             },
             blankBallotDialog: {
                 title: "No heu seleccionat cap candidat",
                 content:
                     "No heu fet cap selecció. La vostra papereta s'emetrà com a papereta en blanc, que és una elecció vàlida i deliberada i es comptabilitzarà com a tal.",
-                continue: "Continua",
-                cancel: "Cancel·la",
+                continue: "Continuar",
+                cancel: "Cancel·lar",
             },
         },
         startScreen: {
@@ -119,7 +119,7 @@ const catalanTranslation: TranslationType = {
                     ok: "D'acord",
                 },
                 description:
-                    "Revisi el que s'ha resolt per aclamació en aquesta elecció. No s'emetrà cap papereta.",
+                    "Reviseu el que s'ha resolt per aclamació en aquesta elecció. No s'emetrà cap papereta.",
                 finishButton: "Finalitzar",
             },
             title: "Reviseu el vostre vot",
@@ -130,7 +130,7 @@ const catalanTranslation: TranslationType = {
             backButton: "Editeu el vostre vot",
             castBallotButton: "Envieu el vot",
             auditButton: "Auditar papereta",
-            copyBallotId: "Copia l'ID de la papereta",
+            copyBallotId: "Copiar l'ID de la papereta",
             ballotIdCopied: "ID de la papereta copiat",
             ballotIdCopyError: "No s'ha pogut copiar l'ID de la papereta",
             reviewScreenHelpDialog: {
@@ -149,7 +149,7 @@ const catalanTranslation: TranslationType = {
             auditBallotHelpDialog: {
                 title: "Voleu auditar la vostra papereta?",
                 content:
-                    "<p>Auditar la vostra papereta l'invalidarà i haureu de reiniciar el procés de votació. Continueu només si us sentiu còmode amb els passos tècnics avançats. En cas contrari, feu clic a <u>Cancel·la</u> per tornar.</p>",
+                    "<p>Auditar la vostra papereta l'invalidarà i haureu de reiniciar el procés de votació. Continueu només si us sentiu còmode amb els passos tècnics avançats. En cas contrari, feu clic a <u>Cancel·lar</u> per tornar.</p>",
                 ok: "Sí, descartar la meva papereta per auditar-la",
                 cancel: "Cancel·lar",
             },
@@ -284,8 +284,8 @@ const catalanTranslation: TranslationType = {
             printButton: "Imprimir",
             finishButton: "Finalitzar",
             remainingElectionsError:
-                "No hem pogut comprovar si tens més eleccions en què votar. Torna-ho a provar.",
-            retryButton: "Torna-ho a provar",
+                "No hem pogut comprovar si teniu més eleccions en què votar. Torneu-ho a provar.",
+            retryButton: "Tornar-ho a provar",
             verifyCastTitle: "Comproveu que el vostre vot va ser emès",
             verifyCastDescription:
                 "Podeu verificar en qualsevol moment que la vostra papereta va ser emesa correctament usant el codi QR a continuació",
@@ -390,7 +390,7 @@ const catalanTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
+                    "Heu de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
             },
         },
         errors: {
@@ -429,8 +429,8 @@ const catalanTranslation: TranslationType = {
             },
             mandatory: {
                 checkboxLabel: "He llegit els Materials de Suport",
-                continueButton: "Continua",
-                error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
+                continueButton: "Continuar",
+                error: "Hi ha hagut un problema en registrar la vostra confirmació. Si us plau, torneu-ho a intentar.",
             },
         },
         ballotLocator: {

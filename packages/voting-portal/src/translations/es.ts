@@ -124,9 +124,9 @@ const spanishTranslation: TranslationType = {
             },
             title: "Revise su voto",
             description:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar su voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar su voto</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
             descriptionNoAudit:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar su voto</b>” debajo.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar su voto</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar voto</b>” debajo.",
             backButton: "Editar su voto",
             castBallotButton: "Enviar voto",
             auditButton: "Auditar papeleta",
@@ -283,7 +283,7 @@ const spanishTranslation: TranslationType = {
             printButton: "Imprimir",
             finishButton: "Finalizar",
             remainingElectionsError:
-                "No pudimos comprobar si tienes más elecciones en las que votar. Vuelve a intentarlo.",
+                "No pudimos comprobar si tiene más elecciones en las que votar. Vuelva a intentarlo.",
             retryButton: "Reintentar",
             verifyCastTitle: "Compruebe que su voto fue emitido",
             verifyCastDescription:
@@ -389,7 +389,7 @@ const spanishTranslation: TranslationType = {
             },
             materialsGate: {
                 instructions:
-                    "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
+                    "Debe leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
         },
         errors: {
@@ -429,7 +429,7 @@ const spanishTranslation: TranslationType = {
             mandatory: {
                 checkboxLabel: "He leído los Materiales de Soporte",
                 continueButton: "Continuar",
-                error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
+                error: "Hubo un problema al registrar su confirmación. Por favor, inténtelo de nuevo.",
             },
         },
         ballotLocator: {
