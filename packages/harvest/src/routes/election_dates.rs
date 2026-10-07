@@ -23,6 +23,7 @@ use windmill::services::{election_dates, election_event_dates};
 pub struct ManageElectionDatesBody {
     election_event_id: String,
     election_id: Option<String>,
+    scheduled_event_id: Option<String>,
     scheduled_date: Option<String>,
     event_processor: EventProcessors,
     voting_channels: Option<Vec<VotingStatusChannel>>,
@@ -86,9 +87,9 @@ pub async fn manage_election_dates(
             )
         })?;
 
-    match input.election_id {
+    let result = match input.election_id {
         Some(id) => {
-            match election_dates::manage_dates(
+            election_dates::manage_dates(
                 &hasura_transaction,
                 &claims.hasura_claims.tenant_id,
                 &input.election_event_id,
@@ -96,16 +97,9 @@ pub async fn manage_election_dates(
                 input.scheduled_date.as_deref(),
                 input.event_processor.to_string().as_str(),
                 input.voting_channels.clone(),
+                input.scheduled_event_id.as_deref(),
             )
             .await
-            {
-                Ok(_) => (),
-                Err(err) => {
-                    return Ok(Json(ManageElectionDatesResponse {
-                        error_msg: Some(err.to_string()),
-                    }));
-                }
-            }
         }
         None => {
             election_event_dates::manage_dates(
@@ -115,16 +109,15 @@ pub async fn manage_election_dates(
                 input.scheduled_date.as_deref(),
                 input.event_processor.to_string().as_str(),
                 input.voting_channels.clone(),
+                input.scheduled_event_id.as_deref(),
             )
             .await
-            .map_err(|e| {
-                ErrorResponse::new(
-                    Status::InternalServerError,
-                    &format!("manage election event dates failed: {e:?}"),
-                    ErrorCode::InternalServerError,
-                )
-            })?;
         }
+    };
+    if let Err(err) = result {
+        return Ok(Json(ManageElectionDatesResponse {
+            error_msg: Some(err.to_string()),
+        }));
     }
 
     let _commit = hasura_transaction.commit().await.map_err(|e| {
