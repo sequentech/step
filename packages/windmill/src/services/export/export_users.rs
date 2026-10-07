@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas_by_id;
-use crate::services::authorized_elections::{authorized_election_id, AuthorizedElectionIds};
+use crate::services::authorized_elections::AuthorizedElectionIds;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::import::import_users::ELECTION_COL_PREFIX;
@@ -98,12 +98,18 @@ fn get_headers(
         user_headers,
         match elections {
             // Display names are not unique, and import ignores these columns.
-            Some(ref some_elections) => some_elections
-                .iter()
-                .map(|election| {
-                    format!("{ELECTION_COL_PREFIX}{}", authorized_election_id(election))
-                })
-                .collect::<Vec<String>>(),
+            Some(ref some_elections) => {
+                let authorized_elections = AuthorizedElectionIds::new(some_elections);
+                some_elections
+                    .iter()
+                    .map(|election| {
+                        let name = authorized_elections
+                            .stored_value(&election.id)
+                            .unwrap_or(&election.id);
+                        format!("{ELECTION_COL_PREFIX}{name}")
+                    })
+                    .collect::<Vec<String>>()
+            }
             None => vec![],
         },
     ]
@@ -111,8 +117,8 @@ fn get_headers(
 }
 
 /// Writes the voter's authorized elections the way import reads them. Values
-/// that name no election are kept, so that importing them fails rather than
-/// leaving the voter unrestricted.
+/// that do not name a single election are kept, so that importing them fails
+/// rather than leaving the voter unrestricted.
 fn get_authorized_election_ids(
     user: &User,
     authorized_elections: Option<&AuthorizedElectionIds>,
@@ -120,7 +126,7 @@ fn get_authorized_election_ids(
     let mut values: Vec<String> = Vec::new();
     for value in user.get_authorized_election_ids().unwrap_or_default() {
         let value = authorized_elections
-            .and_then(|elections| elections.resolve(&value))
+            .and_then(|elections| elections.resolve(&value).ok())
             .map(str::to_string)
             .unwrap_or(value);
         if !values.contains(&value) {
@@ -610,6 +616,31 @@ mod tests {
             .collect()
     }
 
+    fn export(
+        elections: &[ElectionHead],
+        attributes: &Vec<UserProfileAttribute>,
+        voters: &[User],
+    ) -> Vec<u8> {
+        let authorized_elections = AuthorizedElectionIds::new(elections);
+        let elections = Some(elections.to_vec());
+        let mut writer = csv::Writer::from_writer(vec![]);
+        writer
+            .write_record(get_headers(&elections, attributes))
+            .expect("headers");
+        for user in voters {
+            writer
+                .write_record(get_user_record(
+                    &elections,
+                    Some(&authorized_elections),
+                    &None,
+                    user,
+                    attributes,
+                ))
+                .expect("record");
+        }
+        writer.into_inner().expect("csv")
+    }
+
     #[test]
     fn exported_voters_import_with_their_elections() {
         let elections = elections();
@@ -617,31 +648,15 @@ mod tests {
             attribute("custom_attribute"),
             attribute(AUTHORIZED_ELECTION_IDS_NAME),
         ];
-        let authorized_elections = AuthorizedElectionIds::new(&elections);
         let voters = vec![
             voter("legacy", &[ELECTION_A, ELECTION_C]),
             voter("current", &["GIAMBI30-3-31", "GTELEC31+GCIBER30-1-01"]),
             voter("unrestricted", &[]),
         ];
 
-        let mut writer = csv::Writer::from_writer(vec![]);
-        writer
-            .write_record(get_headers(&Some(elections.clone()), &attributes))
-            .expect("headers");
-        for user in &voters {
-            writer
-                .write_record(get_user_record(
-                    &Some(elections.clone()),
-                    Some(&authorized_elections),
-                    &None,
-                    user,
-                    &attributes,
-                ))
-                .expect("record");
-        }
-        let csv = writer.into_inner().expect("csv");
+        let csv = export(&elections, &attributes, &voters);
 
-        let imported = import(&csv, &authorized_elections);
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections));
         let stored = imported
             .iter()
             .map(|row| {
@@ -661,6 +676,29 @@ mod tests {
                 ),
                 ("unrestricted", String::new()),
             ]
+        );
+    }
+
+    /// Written as they are, these external IDs would read back as another
+    /// election, as two values, or as a blank cell that leaves the voter
+    /// unrestricted.
+    #[test]
+    fn elections_without_a_usable_external_id_round_trip_by_id() {
+        let elections = vec![
+            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_C, Some(" ")),
+            election(ELECTION_D, Some("GTELEC31|GCIBER30")),
+        ];
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        let voters = [voter("voter", &[ELECTION_A, " ", "GTELEC31|GCIBER30"])];
+
+        let csv = export(&elections, &attributes, &voters);
+
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections));
+        assert_eq!(
+            imported[0][AUTHORIZED_ELECTION_IDS_NAME],
+            format!("{ELECTION_A}|{ELECTION_C}|{ELECTION_D}")
         );
     }
 

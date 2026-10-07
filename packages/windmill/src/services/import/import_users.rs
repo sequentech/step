@@ -123,10 +123,10 @@ pub(crate) fn resolve_authorized_election_ids(
     let mut values: Vec<&str> = Vec::new();
     for reference in cell.split(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR) {
         let reference = reference.trim();
-        let value = elections.resolve(reference).ok_or_else(|| {
+        let value = elections.resolve(reference).map_err(|unresolved| {
             anyhow!(
                 "Invalid `{AUTHORIZED_ELECTION_IDS_NAME}` value {reference:?} on row {row}: \
-                 no election in this election event has that external ID or ID"
+                 {unresolved}"
             )
         })?;
         if !values.contains(&value) {
@@ -1074,26 +1074,20 @@ mod tests {
     const ELECTION_B: &str = "7a2b3c4d-5e6f-4a7b-9c8d-1e2f3a4b5c6d";
     const ELECTION_C: &str = "8b3c4d5e-6f7a-4b8c-ad9e-2f3a4b5c6d7e";
 
+    fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
+        ElectionHead {
+            id: id.to_string(),
+            name: "-".to_string(),
+            alias: None,
+            external_id: external_id.map(str::to_string),
+        }
+    }
+
     fn authorized_elections() -> AuthorizedElectionIds {
         AuthorizedElectionIds::new(&[
-            ElectionHead {
-                id: ELECTION_A.to_string(),
-                name: "-".to_string(),
-                alias: None,
-                external_id: Some("GTELEC31+GCIBER30-1-01".to_string()),
-            },
-            ElectionHead {
-                id: ELECTION_B.to_string(),
-                name: "-".to_string(),
-                alias: None,
-                external_id: Some("GIAMBI30-3-31".to_string()),
-            },
-            ElectionHead {
-                id: ELECTION_C.to_string(),
-                name: "-".to_string(),
-                alias: None,
-                external_id: None,
-            },
+            election(ELECTION_A, Some("GTELEC31+GCIBER30-1-01")),
+            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_C, None),
         ])
     }
 
@@ -1199,6 +1193,29 @@ mod tests {
                 "error must name the value {value}, got: {message}"
             );
         }
+    }
+
+    /// The token mapper would resolve the shared external ID to only one of
+    /// them, so they can only be named by ID.
+    #[test]
+    fn authorized_elections_naming_several_elections_are_rejected() {
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, Some("GIAMBI30-3-31")),
+        ]);
+
+        let message = resolve_authorized_election_ids("GIAMBI30-3-31", 3, &elections)
+            .expect_err("the external ID names two elections")
+            .to_string();
+        assert!(
+            message.contains("\"GIAMBI30-3-31\" on row 3: more than one election"),
+            "error must name the value, the row and the reason, got: {message}"
+        );
+        assert_eq!(
+            resolve_authorized_election_ids(&format!("{ELECTION_A}|{ELECTION_B}"), 3, &elections)
+                .expect("each ID names one election"),
+            format!("{ELECTION_A}|{ELECTION_B}")
+        );
     }
 
     #[test]
