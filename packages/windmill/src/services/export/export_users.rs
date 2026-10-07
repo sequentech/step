@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas_by_id;
-use crate::services::authorized_elections::AuthorizedElectionIds;
+use crate::services::authorized_elections::{fits_in_a_cell, AuthorizedElectionIds};
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::import::import_users::ELECTION_COL_PREFIX;
@@ -118,17 +118,21 @@ fn get_headers(
 
 /// Writes the voter's authorized elections the way import reads them. Values
 /// that do not name a single election are kept, so that importing them fails
-/// rather than leaving the voter unrestricted.
+/// rather than leaving the voter unrestricted, in double quotes when the cell
+/// would not read them back as they are.
 fn get_authorized_election_ids(
     user: &User,
     authorized_elections: Option<&AuthorizedElectionIds>,
 ) -> String {
     let mut values: Vec<String> = Vec::new();
     for value in user.get_authorized_election_ids().unwrap_or_default() {
-        let value = authorized_elections
-            .and_then(|elections| elections.resolve(&value).ok())
-            .map(str::to_string)
-            .unwrap_or(value);
+        let stored_value =
+            authorized_elections.and_then(|elections| elections.resolve(&value).ok());
+        let value = match stored_value {
+            Some(stored_value) => stored_value.to_string(),
+            None if fits_in_a_cell(&value) => value,
+            None => format!("{value:?}"),
+        };
         if !values.contains(&value) {
             values.push(value);
         }
@@ -572,6 +576,29 @@ mod tests {
             exported_authorized_election_ids(&voter("stale", &["GONE-1"])),
             "GONE-1"
         );
+    }
+
+    /// Written as they are, the cell would read them back as other values, or
+    /// as a blank one that leaves the voter unrestricted.
+    #[test]
+    fn authorized_elections_naming_no_election_that_do_not_fit_in_a_cell_are_quoted() {
+        let elections = AuthorizedElectionIds::new(&elections());
+        for (stored, exported) in [
+            ("", r#""""#),
+            (" GIAMBI30-3-31 ", r#"" GIAMBI30-3-31 ""#),
+            (
+                "GIAMBI30-3-31|GTELEC31+GCIBER30-1-01",
+                r#""GIAMBI30-3-31|GTELEC31+GCIBER30-1-01""#,
+            ),
+        ] {
+            let cell = exported_authorized_election_ids(&voter("stale", &[stored]));
+
+            assert_eq!(cell, exported);
+            assert!(
+                resolve_authorized_election_ids(&cell, 2, &elections).is_err(),
+                "{cell:?} must not import"
+            );
+        }
     }
 
     /// Reads an exported file the way the voters import does, returning each
