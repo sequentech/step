@@ -27,17 +27,16 @@ This page describes the ballot box, which stores every election event's cast vot
 | --- | --- |
 | Where the throughput target applies | Per election event, for peaks of minutes. A tenant's other events and other tenants are additional load. |
 | Ballot size | Up to about 5 KB |
-| When the voter gets the answer | After durable acceptance: the vote and the voter's state are committed in the tenant's database. Adding the vote to the Merkle log follows asynchronously. |
+| When the voter gets the answer | After durable acceptance: the vote and the voter's state are committed in the electoral-log database. Adding the vote to the Merkle log follows asynchronously. |
 | Datafix events | Datafix outcomes are records in the log. A vote starts as pending; the Datafix confirmation or rejection, and inbound "voted through another channel" marks and their reversal, are appended as their own records. |
-| Who creates tenant databases | Windmill, when a tenant is created, with a provisioning role that can only create databases and roles. |
-| Reads | From each tenant's primary. Read replicas are not planned. |
+| Reads | From the electoral-log database's primary. Read replicas are not planned. |
 
 ## 3. Architecture
 
 ```mermaid
 flowchart LR
     V[Voter] -->|cast| H[Harvest]
-    H -->|1 statement: ballot + voter state| T[(Tenant electoral-log database)]
+    H -->|1 statement: ballot + voter state| T[(Electoral-log database)]
     H -->|receipt| V
     S[Sequencer] -->|read accepted ballots| T
     S -->|append cast-vote records| T
@@ -45,7 +44,7 @@ flowchart LR
     W[Windmill: tally, reports] --> T
 ```
 
-- **Tenant database:** implemented as the `per-tenant` layout of the [design](01-electoral-log-design.md) (section 14.2). Windmill creates it when the tenant is created. It holds the Merkle log tables for the tenant's boards and the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
+- **Electoral-log database:** the one database of the [design](01-electoral-log-design.md) (section 14.2). It holds the Merkle log tables for every board and the ballot box tables, partitioned by election event so that an event's data can be dropped, archived or moved on its own.
 - **Accept path:** Harvest validates the ballot and checks the voting period and channel, then runs one SQL statement that counts the vote for the voter, stores the ballot and queues it for the sequencer. When it commits, Harvest answers with the receipt.
 - **Sequencer:** one at a time per election event. It reads queued ballots in acceptance order, builds and signs their cast-vote records, which carry the ballot's hash rather than its content, and appends them to the event's board in batches. Checkpoints and proofs cover what it has appended.
 - **Readers and the tally:** every reader of cast votes, the tally included, reads the event's ballot box (section 6). The voting portal reads the voter's own votes through a Hasura action served by Harvest.
@@ -54,8 +53,8 @@ flowchart LR
 
 Windmill creates an event's ballot box, its partitions of the ballot box tables, when it creates the event's board, for every event it creates or imports.
 
-- **Creating an event's partitions** does not hold back the votes of the tenant's other events. Each partition is created as a table of its own and then attached, which takes a `SHARE UPDATE EXCLUSIVE` lock on the partitioned table. `CREATE TABLE … PARTITION OF` would need an `ACCESS EXCLUSIVE` lock, which waits for every vote in progress in the tenant database and holds back new ones until it gets it (section 9.2).
-- **Deleting an election event drops its ballot box,** with its ballots, voter counts and queue. Each partition is detached with `DETACH PARTITION … CONCURRENTLY`, which needs PostgreSQL 14 or later, and then dropped. PostgreSQL detaches one partition of a table at a time, so deletions of several events of a tenant take turns, each waiting up to two minutes.
+- **Creating an event's partitions** does not hold back the votes of other events. Each partition is created as a table of its own and then attached, which takes a `SHARE UPDATE EXCLUSIVE` lock on the partitioned table. `CREATE TABLE … PARTITION OF` would need an `ACCESS EXCLUSIVE` lock, which waits for every vote in progress in the database and holds back new ones until it gets it (section 9.2).
+- **Deleting an election event drops its ballot box,** with its ballots, voter counts and queue. Each partition is detached with `DETACH PARTITION … CONCURRENTLY`, which needs PostgreSQL 14 or later, and then dropped. PostgreSQL detaches one partition of a table at a time, so deletions of several events take turns, each waiting up to two minutes.
 
 ### 3.2 Datafix events
 
@@ -101,7 +100,7 @@ SELECT seq, id FROM ballot;
 - **Prepared once per connection.** Each connection prepares the statement the first time it accepts a vote. Parsing and planning it for every vote halved the throughput (section 9.1).
 - **Unique ballot IDs.** A ballot ID already used in the event fails the whole statement, so the voter's count does not change either.
 - **Answers:** `insert_failed_exceeds_allowed_revotes`, `check_votes_in_other_areas_failed` or `insert_failed`, and on success a cast vote with the ballot's ID.
-- **What is durable when the voter gets the receipt:** the ballot, the voter's count and the queue entry, in the tenant database, with synchronous commit. Until the sequencer appends the vote, no checkpoint covers it.
+- **What is durable when the voter gets the receipt:** the ballot, the voter's count and the queue entry, in the electoral-log database, with synchronous commit. Until the sequencer appends the vote, no checkpoint covers it.
 - **Schema upgrades:** the tables are part of `schema.sql`, so `electoral-log-admin init` creates them in existing databases. Run it before deploying a Windmill that creates ballot boxes: without the tables, creating an election event fails.
 
 ## 5. The sequencer
@@ -130,7 +129,7 @@ Windmill finds an event's ballot box through the board in its `bulletin_board_re
 - **What a voter can read:** `get_voter_cast_votes` returns the voter's own votes, in the area and elections of their token. Without arguments it returns all of them without their content. With an election and a ballot ID, or the first characters of one, as telephone voters give it, it returns the matching ones with their content. Any other combination is refused.
 - **Statuses:** a ballot's status reads as the cast-vote status the portals know: `valid` as `valid`, `pending` as `in-progress` and `rejected` as `discarded`. Statistics count valid ballots.
 - **Indexes:** `ballot_box_ballot (election_event_id, voter_id)` serves the voter's lookups, and `(election_event_id, election_id, area_id, voter_id, seq DESC)` the tally input of each area (section 6.1). Each adds an entry for every accepted vote; section 9.1 measures what they cost. The partial index `ballot_box_ballot_pending (election_event_id, id)` holds only pending ballots, for the Datafix review (section 3.2).
-- **Statistics scan the event's partition.** They read every valid ballot of the event. On events with millions of ballots, dashboards that refresh often put that load on the tenant database: at 1.3 million ballots each statistic took 1 to 5 seconds (section 9.3).
+- **Statistics scan the event's partition.** They read every valid ballot of the event. On events with millions of ballots, dashboards that refresh often put that load on the electoral-log database: at 1.3 million ballots each statistic took 1 to 5 seconds (section 9.3).
 
 ### 6.1 Tally input
 
@@ -141,7 +140,7 @@ For each election and area it tallies, the tally reads one row per voter with th
 - **Every ballot has its record:** the tally refuses the area if a valid ballot the sequencer appended has no cast-vote record on the board, because the record was deleted or never written.
 - **Pending outcomes:** the tally refuses an area with ballots whose outcome is pending.
 - **Deterministic once voting is closed:** with voting closed and the queue empty, the ballot box no longer changes, so reading an area again yields the same rows in the same order.
-- **Not checked:** that a ballot's content still hashes to the hash in its signed record. Someone who can write the tenant database can change the content of a stored ballot without the tally noticing.
+- **Not checked:** that a ballot's content still hashes to the hash in its signed record. Someone who can write the electoral-log database can change the content of a stored ballot without the tally noticing.
 
 ## 7. VoteSecure compatibility
 
@@ -196,7 +195,7 @@ Measured on 6 October 2026 with `packages/electoral-log/bench/ballot-box/load.sh
 
 ### 9.2 Creating and dropping ballot boxes while votes go on
 
-- **Before the fix:** with one vote's transaction open, `CREATE TABLE … PARTITION OF` waited until a 3-second `lock_timeout` cancelled it, and while it waited it held back every new vote of the tenant database. `DROP TABLE` of a partition waited for the vote too. The integration tests, which create and drop ballot boxes while other tests vote, failed with deadlocks when run in parallel.
+- **Before the fix:** with one vote's transaction open, `CREATE TABLE … PARTITION OF` waited until a 3-second `lock_timeout` cancelled it, and while it waited it held back every new vote in the database. `DROP TABLE` of a partition waited for the vote too. The integration tests, which create and drop ballot boxes while other tests vote, failed with deadlocks when run in parallel.
 - **Now (section 3.1):** at 5,000 votes/s, with a ballot box created and dropped every 10 seconds, creating one took 8 to 20 ms and dropping one 16 to 24 ms. The votes' p50, p95 and p99 were 1.4, 2.3 and 3.3 ms, against 1.6, 2.6 and 3.6 ms in the same run without them.
 
 ### 9.3 Reads at 1.3 million ballots
@@ -238,7 +237,7 @@ The load tool's `sequence` command does what Windmill's sequencer does, in a rel
 
 ### 9.5 Through Harvest
 
-- **Voters:** 300 voters of the voting load tool, 20 at a time, voted through the development stack, with debug builds of Harvest and Windmill: all 300 journeys passed, at 21.9 votes/s. Casting a vote took 93 ms at the median and 198 ms at p95, and a whole journey 840 ms at the median. All 300 receipts matched ballots of the event's ballot box: the load tool's database audit reads the ballot box when given a tenant's electoral-log database.
+- **Voters:** 300 voters of the voting load tool, 20 at a time, voted through the development stack, with debug builds of Harvest and Windmill: all 300 journeys passed, at 21.9 votes/s. Casting a vote took 93 ms at the median and 198 ms at p95, and a whole journey 840 ms at the median. All 300 receipts matched ballots of the event's ballot box: the load tool's database audit reads the ballot box when given the electoral-log database.
 - **Census (fixed):** the event's election had no external ID, so its voters are authorized by the election's ID, as Keycloak's mapper reads it. The tally's census query found none of the 300 voters before the fix and all 300 after it.
 
 ### 9.6 Not measured

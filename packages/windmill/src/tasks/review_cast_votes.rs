@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::ballot_box::{electoral_log_stores, event_tenants};
+use crate::services::ballot_box::event_tenants;
+use crate::services::protocol_manager::get_electoral_log_store;
 use crate::services::{celery_app::get_celery_app, database::PgConfig};
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::types::error::Result;
@@ -21,8 +22,7 @@ const RECOVERY_TASK_EXPIRES_SECS: u32 = 90;
 const PENDING_ENQUEUE_GRACE_SECS: f64 = 90.0;
 
 /// Enqueues `process_cast_vote` for every Datafix vote whose outcome is still
-/// pending, in every electoral-log database. A database that cannot be read is
-/// logged and skipped.
+/// pending.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0, expires = 90)]
@@ -31,52 +31,44 @@ pub async fn review_cast_votes() -> Result<()> {
     let batch_size: i64 = PgConfig::from_env()?.default_sql_batch_size.into();
 
     info!("review_cast_votes: Checking pending cast votes");
-    for store in electoral_log_stores().await? {
-        let mut after: Option<BallotToReview> = None;
-        loop {
-            let ballots = match store
-                .ballots_to_review(after.as_ref(), PENDING_ENQUEUE_GRACE_SECS, batch_size)
-                .await
-            {
-                Ok(ballots) => ballots,
-                Err(error) => {
-                    warn!("Skipping an electoral-log database: {error:#}");
-                    break;
-                }
+    let store = get_electoral_log_store().await?;
+    let mut after: Option<BallotToReview> = None;
+    loop {
+        let ballots = store
+            .ballots_to_review(after.as_ref(), PENDING_ENQUEUE_GRACE_SECS, batch_size)
+            .await?;
+        let Some(last) = ballots.last().cloned() else {
+            break;
+        };
+        info!("review_cast_votes: Processing {} cast votes", ballots.len());
+        let mut events: Vec<String> = ballots
+            .iter()
+            .map(|ballot| ballot.election_event_id.clone())
+            .collect();
+        events.dedup();
+        let tenants = event_tenants(&events).await?;
+        // For this Celery has to be properly configured with acks_late=true and a realistic value for prefetch_count, which establishes the number of tasks executed in parallel.
+        for ballot in &ballots {
+            let Some(tenant_id) = tenants.get(&ballot.election_event_id) else {
+                warn!(
+                    "Pending cast vote {} belongs to an unknown election event {}",
+                    ballot.id, ballot.election_event_id
+                );
+                continue;
             };
-            let Some(last) = ballots.last().cloned() else {
-                break;
-            };
-            info!("review_cast_votes: Processing {} cast votes", ballots.len());
-            let mut events: Vec<String> = ballots
-                .iter()
-                .map(|ballot| ballot.election_event_id.clone())
-                .collect();
-            events.dedup();
-            let tenants = event_tenants(&events).await?;
-            // For this Celery has to be properly configured with acks_late=true and a realistic value for prefetch_count, which establishes the number of tasks executed in parallel.
-            for ballot in &ballots {
-                let Some(tenant_id) = tenants.get(&ballot.election_event_id) else {
-                    warn!(
-                        "Pending cast vote {} belongs to an unknown election event {}",
-                        ballot.id, ballot.election_event_id
-                    );
-                    continue;
-                };
-                celery_app
-                    .send_task(
-                        process_cast_vote::new(
-                            tenant_id.clone(),
-                            ballot.election_event_id.clone(),
-                            ballot.id.clone(),
-                        )
-                        .with_expires_in(RECOVERY_TASK_EXPIRES_SECS),
+            celery_app
+                .send_task(
+                    process_cast_vote::new(
+                        tenant_id.clone(),
+                        ballot.election_event_id.clone(),
+                        ballot.id.clone(),
                     )
-                    .await
-                    .map_err(|e| anyhow!("Error sending cast_vote_actions task: {e:?}"))?;
-            }
-            after = Some(last);
+                    .with_expires_in(RECOVERY_TASK_EXPIRES_SECS),
+                )
+                .await
+                .map_err(|e| anyhow!("Error sending cast_vote_actions task: {e:?}"))?;
         }
+        after = Some(last);
     }
     Ok(())
 }

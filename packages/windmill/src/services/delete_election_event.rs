@@ -90,8 +90,7 @@ pub async fn delete_election_event_electoral_log(
 ) -> Result<()> {
     let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
     let board = get_event_board(tenant_id, election_event_id, &slug);
-    // The ballot box lives in the board's database, which is found by the board.
-    get_electoral_log_store(&board)
+    get_electoral_log_store()
         .await?
         .drop_ballot_box(election_event_id)
         .await?;

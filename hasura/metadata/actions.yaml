@@ -120,7 +120,21 @@ actions:
               version: 2
       permissions:
           - role: electoral-log-console-query
-      comment: A read-only SQL query on the tenant's electoral-log database
+      comment: A read-only SQL query on the electoral-log database, for the super-admin tenant
+    - name: electoral_log_console_tenants
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log-console/tenants
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: electoral-log-console-read
+      comment: Every tenant with its election events, for the super-admin tenant's electoral-log console
     - name: call_plugin_route
       definition:
           kind: synchronous

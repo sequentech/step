@@ -41,7 +41,7 @@ pub async fn get_event_ballot_box(
     let board =
         get_election_event_board(reference).context("Election event has no electoral-log board")?;
     Ok(EventBallotBox {
-        store: get_electoral_log_store(&board).await?,
+        store: get_electoral_log_store().await?,
         board,
     })
 }

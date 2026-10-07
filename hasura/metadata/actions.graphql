@@ -27,6 +27,7 @@ type Mutation {
 
 type Query {
     electoral_log_console_page(
+        tenant_id: String
         election_event_id: String!
         table: String!
         filters: jsonb
@@ -38,6 +39,7 @@ type Query {
 
 type Query {
     electoral_log_console_record(
+        tenant_id: String
         election_event_id: String!
         position: Int!
     ): jsonb!
@@ -45,6 +47,10 @@ type Query {
 
 type Query {
     electoral_log_console_query(sql: String!): jsonb!
+}
+
+type Query {
+    electoral_log_console_tenants: jsonb!
 }
 
 type Mutation {

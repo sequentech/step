@@ -5,6 +5,7 @@ import {gql} from "@apollo/client"
 
 export const ELECTORAL_LOG_CONSOLE_PAGE = gql`
     query ElectoralLogConsolePage(
+        $tenantId: String
         $electionEventId: String!
         $table: String!
         $filters: jsonb
@@ -13,6 +14,7 @@ export const ELECTORAL_LOG_CONSOLE_PAGE = gql`
         $limit: Int
     ) {
         electoral_log_console_page(
+            tenant_id: $tenantId
             election_event_id: $electionEventId
             table: $table
             filters: $filters
@@ -24,13 +26,23 @@ export const ELECTORAL_LOG_CONSOLE_PAGE = gql`
 `
 
 export const ELECTORAL_LOG_CONSOLE_RECORD = gql`
-    query ElectoralLogConsoleRecord($electionEventId: String!, $position: Int!) {
-        electoral_log_console_record(election_event_id: $electionEventId, position: $position)
+    query ElectoralLogConsoleRecord($tenantId: String, $electionEventId: String!, $position: Int!) {
+        electoral_log_console_record(
+            tenant_id: $tenantId
+            election_event_id: $electionEventId
+            position: $position
+        )
     }
 `
 
 export const ELECTORAL_LOG_CONSOLE_QUERY = gql`
     query ElectoralLogConsoleQuery($sql: String!) {
         electoral_log_console_query(sql: $sql)
+    }
+`
+
+export const ELECTORAL_LOG_CONSOLE_TENANTS = gql`
+    query ElectoralLogConsoleTenants {
+        electoral_log_console_tenants
     }
 `

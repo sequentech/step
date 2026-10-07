@@ -2,8 +2,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 BEGIN;
--- Serializes concurrent initializations of one database, such as two processes
--- provisioning the same tenant.
+-- Serializes concurrent initializations of the database.
 SELECT pg_advisory_xact_lock(7307648119525449473);
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only

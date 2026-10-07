@@ -2961,6 +2961,7 @@ const tagalogTranslation: TranslationType = {
                 query: "Query",
             },
             electionEvent: "Election Event",
+            tenant: "Tenant",
             table: "Talahanayan",
             tables: {
                 records: "Mga Record",
@@ -3007,6 +3008,7 @@ const tagalogTranslation: TranslationType = {
             },
             query: {
                 help: "Tumatakbo ang mga query sa database ng electoral log sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer.",
+                scope: "Nasa database ang datos ng lahat ng tenant.",
                 placeholder: "SELECT …",
                 limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
                 run: "Patakbuhin ang Query",

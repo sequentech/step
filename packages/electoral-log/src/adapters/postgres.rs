@@ -29,14 +29,19 @@ const AUDIT_LOCK_RETRY: Duration = Duration::from_secs(2);
 
 const COLUMNS: &str = "id, created, sender_pk, statement_timestamp, statement_kind, message, version, user_id, username, election_id, area_id, ballot_id";
 
-/// Connection settings of the electoral-log PostgreSQL server, shared by its
-/// databases.
+/// Role that may only read the electoral-log database, for the super-admin tenant's
+/// console queries.
+pub const READER_USER_ENV: &str = "ELECTORAL_LOG_PG_READER_USER";
+pub const READER_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_READER_PASSWORD";
+/// Connections of a store's pool.
+const POOL_SIZE: usize = 8;
+
+/// Connection settings of the electoral-log database.
 #[derive(Clone)]
 pub struct PostgresConnection {
     config: Config,
     tls: MakeTlsConnector,
     database: String,
-    user: String,
 }
 
 impl PostgresConnection {
@@ -50,8 +55,7 @@ impl PostgresConnection {
                 .parse()
                 .context("Invalid electoral-log PostgreSQL port")?,
         );
-        let user = required("ELECTORAL_LOG_PG_USER")?;
-        config.user(&user);
+        config.user(&required("ELECTORAL_LOG_PG_USER")?);
         config.password(required("ELECTORAL_LOG_PG_PASSWORD")?);
         let database = required("ELECTORAL_LOG_PG_DATABASE")?;
         config.dbname(&database);
@@ -82,7 +86,6 @@ impl PostgresConnection {
             config,
             tls: MakeTlsConnector::new(tls.build()),
             database,
-            user,
         })
     }
 
@@ -91,28 +94,39 @@ impl PostgresConnection {
         &self.database
     }
 
-    /// The application role, which owns the electoral-log databases.
-    pub fn user(&self) -> &str {
-        &self.user
+    /// A store of the database, with its own connection pool.
+    pub fn store(&self) -> Result<PostgresStore> {
+        self.store_of(&self.database, POOL_SIZE)
     }
 
-    /// A store of one database of the server, with at most `pool_size` connections.
-    pub fn store(&self, database: &str, pool_size: usize) -> Result<PostgresStore> {
+    /// A store of a database of the server, with at most `pool_size` connections, as
+    /// load tests use.
+    pub fn store_of(&self, database: &str, pool_size: usize) -> Result<PostgresStore> {
         let mut config = self.config.clone();
         config.dbname(database);
         PostgresStore::with_tls(config, self.tls.clone(), pool_size)
     }
 
-    /// One connection to a database of the server as another role.
-    pub async fn client(
-        &self,
-        database: &str,
-        user: &str,
-        password: &str,
-    ) -> Result<tokio_postgres::Client> {
+    /// The role of `ELECTORAL_LOG_PG_READER_USER`, if set.
+    pub fn reader() -> Option<String> {
+        env::var(READER_USER_ENV)
+            .ok()
+            .map(|reader| reader.trim().to_string())
+            .filter(|reader| !reader.is_empty())
+    }
+
+    /// A connection of its own to the database as the reader role, which needs
+    /// `ELECTORAL_LOG_PG_READER_USER` and `ELECTORAL_LOG_PG_READER_PASSWORD`.
+    pub async fn reader_client(&self) -> Result<tokio_postgres::Client> {
+        let reader = Self::reader().with_context(|| format!("{READER_USER_ENV} is not set"))?;
+        let password = env::var(READER_PASSWORD_ENV)
+            .with_context(|| format!("{READER_PASSWORD_ENV} must be set"))?;
         let mut config = self.config.clone();
-        config.dbname(database).user(user).password(password);
-        let (client, connection) = config.connect(self.tls.clone()).await?;
+        config.user(&reader).password(password);
+        let (client, connection) = config
+            .connect(self.tls.clone())
+            .await
+            .with_context(|| format!("Error connecting to {} as {reader}", self.database))?;
         tokio::spawn(async move {
             if let Err(error) = connection.await {
                 tracing::error!("Electoral-log connection failed: {error}");
@@ -130,7 +144,7 @@ pub struct PostgresStore {
 impl PostgresStore {
     pub fn new(config: Config) -> Result<Self> {
         let tls = MakeTlsConnector::new(SslConnector::builder(SslMethod::tls())?.build());
-        Self::with_tls(config, tls, 8)
+        Self::with_tls(config, tls, POOL_SIZE)
     }
 
     fn with_tls(config: Config, tls: MakeTlsConnector, pool_size: usize) -> Result<Self> {
@@ -142,8 +156,7 @@ impl PostgresStore {
 
     /// The store of the database of `ELECTORAL_LOG_PG_DATABASE`.
     pub fn from_env() -> Result<Self> {
-        let connection = PostgresConnection::from_env()?;
-        connection.store(connection.database(), 8)
+        PostgresConnection::from_env()?.store()
     }
 
     /// A pooled connection, for queries outside the store's API.

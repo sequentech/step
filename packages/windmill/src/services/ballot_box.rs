@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Cast votes, stored in the ballot box of each election event's electoral-log
+//! Cast votes, stored in each election event's ballot box in the electoral-log
 //! database.
 
 use crate::postgres::election_event::get_election_event_by_id;
@@ -10,9 +10,7 @@ use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::{
-    get_electoral_log_router, get_electoral_log_store, get_protocol_manager,
-};
+use crate::services::protocol_manager::{get_electoral_log_store, get_protocol_manager};
 use anyhow::{Context, Result};
 use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
@@ -104,12 +102,9 @@ pub async fn get_allowed_votes(
     Ok(allowed.unwrap_or(1))
 }
 
-/// Accept a vote into the ballot box of the board's database.
-pub async fn accept_ballot(board: &str, ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
-    get_electoral_log_store(board)
-        .await?
-        .accept_ballot(ballot)
-        .await
+/// Accept a vote into the ballot box.
+pub async fn accept_ballot(ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
+    get_electoral_log_store().await?.accept_ballot(ballot).await
 }
 
 /// Delivery ID of an accepted ballot's cast-vote record, so that appending it again
@@ -175,7 +170,7 @@ pub async fn sequence_event(tenant_id: &str, election_event_id: &str) -> Result<
         .await?;
         (board, protocol_manager.get_signing_key().clone())
     };
-    let store = get_electoral_log_store(&board).await?;
+    let store = get_electoral_log_store().await?;
     let holder = uuid::Uuid::new_v4().to_string();
     if !store
         .take_sequencer_lease(election_event_id, &holder, SEQUENCER_LEASE_SECS)
@@ -270,16 +265,6 @@ pub async fn reject_voter_ballots(
         .await
 }
 
-/// The store of every electoral-log database: the shared one and each tenant's.
-pub async fn electoral_log_stores() -> Result<Vec<PostgresStore>> {
-    let router = get_electoral_log_router().await?;
-    let mut stores = vec![router.shared()];
-    for database in router.tenant_databases().await? {
-        stores.push(router.database_store(&database).await?);
-    }
-    Ok(stores)
-}
-
 /// The tenant of each of these election events.
 pub async fn event_tenants(election_event_ids: &[String]) -> Result<HashMap<String, String>> {
     if election_event_ids.is_empty() {
@@ -302,17 +287,13 @@ pub async fn event_tenants(election_event_ids: &[String]) -> Result<HashMap<Stri
 }
 
 /// `(tenant_id, election_event_id)` of every event whose ballot box holds ballots
-/// waiting for the sequencer, in every electoral-log database. A database that
-/// cannot be read is logged and skipped.
+/// waiting for the sequencer.
 #[instrument(err)]
 pub async fn events_waiting_for_sequencer() -> Result<Vec<(String, String)>> {
-    let mut events = Vec::new();
-    for store in electoral_log_stores().await? {
-        match store.events_with_pending_ballots().await {
-            Ok(found) => events.extend(found),
-            Err(error) => tracing::warn!("Skipping an electoral-log database: {error:#}"),
-        }
-    }
+    let events = get_electoral_log_store()
+        .await?
+        .events_with_pending_ballots()
+        .await?;
     let tenants = event_tenants(&events).await?;
     Ok(events
         .into_iter()

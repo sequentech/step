@@ -2926,6 +2926,7 @@ const englishTranslation = {
                 query: "Query",
             },
             electionEvent: "Election Event",
+            tenant: "Tenant",
             table: "Table",
             tables: {
                 records: "Records",
@@ -2972,6 +2973,7 @@ const englishTranslation = {
             },
             query: {
                 help: "Queries run on the electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer.",
+                scope: "The database holds every tenant's data.",
                 placeholder: "SELECT …",
                 limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
                 run: "Run Query",

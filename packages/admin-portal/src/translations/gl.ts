@@ -2951,6 +2951,7 @@ const galegoTranslation: TranslationType = {
                 query: "Consulta",
             },
             electionEvent: "Evento Electoral",
+            tenant: "Inquilino",
             table: "Táboa",
             tables: {
                 records: "Entradas",
@@ -2997,6 +2998,7 @@ const galegoTranslation: TranslationType = {
             },
             query: {
                 help: "As consultas execútanse sobre a base de datos do rexistro electoral nunha transacción de só lectura. As súas táboas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending e ballot_box_sequencer.",
+                scope: "A base de datos contén os datos de todos os inquilinos.",
                 placeholder: "SELECT …",
                 limits: "Só lectura · ata 1.000 filas · límite de 30 s · cada consulta queda anotada nos rexistros do servidor co seu usuario",
                 run: "Executar Consulta",

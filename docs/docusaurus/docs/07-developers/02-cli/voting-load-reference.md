@@ -176,7 +176,7 @@ Arguments:
 
 Options:
       --dsn-env <DSN_ENV>
-          Environment variable containing a read-only PostgreSQL DSN of the tenant's electoral-log database, whose ballot box holds the event's votes
+          Environment variable containing a read-only PostgreSQL DSN of the electoral-log database, whose ballot box holds the event's votes
 
       --open
           Open the standalone report with the configured browser opener

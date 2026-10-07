@@ -6,4 +6,3 @@ pub mod ballot_box_reads;
 pub mod ballot_box_status;
 pub mod console;
 pub mod postgres;
-pub mod router;

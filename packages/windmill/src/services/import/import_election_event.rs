@@ -139,7 +139,7 @@ pub async fn upsert_b3_and_elog(
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
     let electoral_log = get_board_client().await?;
     electoral_log.create_board(&board_name).await?;
-    get_electoral_log_store(&board_name)
+    get_electoral_log_store()
         .await?
         .create_ballot_box(election_event_id)
         .await?;

@@ -128,7 +128,7 @@ pub async fn publish_event_checkpoint(
     // Ballots accepted before voting closed reach the log through the sequencer, so
     // the closing checkpoint waits for them.
     if matches!(reason, ElectoralLogCheckpointReason::VotingClosed) {
-        let store = get_electoral_log_store(&board).await?;
+        let store = get_electoral_log_store().await?;
         let waiting = wait_for_sequencer(CLOSING_SEQUENCER_WAIT, || {
             store.pending_count(election_event_id)
         })
@@ -246,7 +246,7 @@ async fn publish_periodic_checkpoint(tenant_id: &str, election_event_id: &str) -
         let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
         let board = get_election_event_board(event.bulletin_board_reference)
             .context("Election event has no electoral-log board")?;
-        let checkpoint = get_electoral_log_store(&board)
+        let checkpoint = get_electoral_log_store()
             .await?
             .journal()
             .checkpoint(&board)
@@ -413,7 +413,7 @@ pub async fn run_electoral_log_audit(
             )),
         }
     }
-    let report = get_electoral_log_store(&board)
+    let report = get_electoral_log_store()
         .await?
         .audit(&board, &checkpoints)
         .await?;

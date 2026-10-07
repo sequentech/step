@@ -2963,6 +2963,7 @@ const catalanTranslation: TranslationType = {
                 query: "Consulta",
             },
             electionEvent: "Esdeveniment Electoral",
+            tenant: "Inquilí",
             table: "Taula",
             tables: {
                 records: "Entrades",
@@ -3009,6 +3010,7 @@ const catalanTranslation: TranslationType = {
             },
             query: {
                 help: "Les consultes s'executen sobre la base de dades del registre electoral en una transacció de només lectura. Les seves taules són electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending i ballot_box_sequencer.",
+                scope: "La base de dades conté les dades de tots els inquilins.",
                 placeholder: "SELECT …",
                 limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
                 run: "Executar Consulta",

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The electoral-log console: administrators browse an election event's records
-//! and ballot box page by page, open a record, and run read-only SQL queries on
-//! their tenant's electoral-log database.
+//! and ballot box page by page and open a record. Users of the super-admin tenant
+//! browse any tenant's events and run read-only SQL queries on the electoral-log
+//! database, which holds every tenant's data.
 
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -11,6 +12,7 @@ use electoral_log::adapters::console::{
     run_read_only_query, ConsoleFilters, ConsoleTable, Page, PageOrder,
     PageRequest, PersonalData, QueryResult,
 };
+use electoral_log::adapters::postgres::PostgresConnection;
 use rocket::{http::Status, serde::json::Json};
 use sequent_core::{
     services::{jwt::JwtClaims, uuid_validation::parse_uuid_v4},
@@ -18,15 +20,14 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::time::Duration;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
-use windmill::services::protocol_manager::{
-    get_electoral_log_router, get_electoral_log_store,
-};
+use windmill::services::protocol_manager::get_electoral_log_store;
 
 /// Rows of a page unless the request asks for another number.
 const DEFAULT_PAGE_ROWS: i64 = 25;
@@ -54,35 +55,77 @@ fn bad_request(message: &str) -> JsonError {
     )
 }
 
-/// Let the request through if the user has the permissions in their own tenant.
-fn authorize_tenant(
-    claims: &JwtClaims,
-    permissions: Vec<Permissions>,
-) -> Result<String, JsonError> {
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+fn unauthorized(
+    status: Status,
+    scope: &str,
+    permissions: &[Permissions],
+) -> JsonError {
     let names: Vec<String> = permissions
         .iter()
         .map(|permission| permission.to_string())
         .collect();
-    authorize(claims, true, Some(tenant_id.clone()), permissions).map_err(
-        |(status, _)| {
-            ErrorResponse::new(
-                status,
-                &format!("This needs the permissions {}", names.join(", ")),
-                ErrorCode::Unauthorized,
-            )
-        },
-    )?;
-    Ok(tenant_id)
+    ErrorResponse::new(
+        status,
+        &format!(
+            "This needs {scope} with the permissions {}",
+            names.join(", ")
+        ),
+        ErrorCode::Unauthorized,
+    )
+}
+
+/// The tenant a request reads: the user's own, or, for users of the super-admin
+/// tenant, the one the request names.
+fn requested_tenant(
+    claims: &JwtClaims,
+    requested: Option<&str>,
+) -> Result<String, JsonError> {
+    match requested.map(str::trim).filter(|tenant| !tenant.is_empty()) {
+        None => Ok(claims.hasura_claims.tenant_id.clone()),
+        Some(tenant) => Uuid::parse_str(tenant)
+            .map(|_| tenant.to_string())
+            .map_err(|_| bad_request("Invalid tenant ID")),
+    }
+}
+
+/// Let the request through if the user has the permissions in the tenant, which is
+/// their own unless they belong to the super-admin tenant.
+fn authorize_tenant(
+    claims: &JwtClaims,
+    tenant_id: &str,
+    permissions: Vec<Permissions>,
+) -> Result<(), JsonError> {
+    authorize(
+        claims,
+        true,
+        Some(tenant_id.to_string()),
+        permissions.clone(),
+    )
+    .map_err(|(status, _)| {
+        unauthorized(status, "access to the tenant", &permissions)
+    })
+}
+
+/// Let the request through if the user belongs to the super-admin tenant and has
+/// the permissions.
+fn authorize_super_admin(
+    claims: &JwtClaims,
+    permissions: Vec<Permissions>,
+) -> Result<(), JsonError> {
+    authorize(claims, true, None, permissions.clone()).map_err(|(status, _)| {
+        unauthorized(status, "a user of the super-admin tenant", &permissions)
+    })
 }
 
 /// Whether the user may see voters' personal data.
 fn personal_data(claims: &JwtClaims) -> PersonalData {
+    let own_tenant = claims.hasura_claims.tenant_id.clone();
     match authorize_tenant(
         claims,
+        &own_tenant,
         vec![Permissions::ELECTORAL_LOG_PERSONAL_DATA_READ],
     ) {
-        Ok(_) => PersonalData::Shown,
+        Ok(()) => PersonalData::Shown,
         Err(_) => PersonalData::Hidden,
     }
 }
@@ -181,8 +224,135 @@ async fn event_board(
     })
 }
 
+#[derive(Debug, PartialEq, Serialize)]
+pub struct ConsoleElection {
+    id: String,
+    presentation: Option<Value>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+pub struct ConsoleEvent {
+    id: String,
+    presentation: Option<Value>,
+    is_archived: bool,
+    elections: Vec<ConsoleElection>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+pub struct ConsoleTenant {
+    id: String,
+    slug: String,
+    events: Vec<ConsoleEvent>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ConsoleTenantsOutput {
+    tenants: Vec<ConsoleTenant>,
+}
+
+/// Nest events under their tenants and elections under their events, keeping
+/// each list's order.
+fn nest_tenants(
+    tenants: Vec<(String, String)>,
+    events: Vec<(String, String, Option<Value>, bool)>,
+    elections: Vec<(String, String, Option<Value>)>,
+) -> Vec<ConsoleTenant> {
+    let mut elections_by_event: HashMap<String, Vec<ConsoleElection>> =
+        HashMap::new();
+    for (id, event_id, presentation) in elections {
+        elections_by_event
+            .entry(event_id)
+            .or_default()
+            .push(ConsoleElection { id, presentation });
+    }
+    let mut events_by_tenant: HashMap<String, Vec<ConsoleEvent>> =
+        HashMap::new();
+    for (id, tenant_id, presentation, is_archived) in events {
+        let elections = elections_by_event.remove(&id).unwrap_or_default();
+        events_by_tenant
+            .entry(tenant_id)
+            .or_default()
+            .push(ConsoleEvent {
+                id,
+                presentation,
+                is_archived,
+                elections,
+            });
+    }
+    tenants
+        .into_iter()
+        .map(|(id, slug)| ConsoleTenant {
+            events: events_by_tenant.remove(&id).unwrap_or_default(),
+            id,
+            slug,
+        })
+        .collect()
+}
+
+/// Every tenant, with its election events and their elections, for users of the
+/// super-admin tenant to choose what to browse.
+#[instrument(skip(claims))]
+#[post("/electoral-log-console/tenants", format = "json")]
+pub async fn electoral_log_console_tenants(
+    claims: JwtClaims,
+) -> Result<Json<ConsoleTenantsOutput>, JsonError> {
+    authorize_super_admin(
+        &claims,
+        vec![Permissions::ELECTORAL_LOG_CONSOLE_READ],
+    )?;
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(internal_error)?;
+    let transaction = client
+        .build_transaction()
+        .read_only(true)
+        .start()
+        .await
+        .map_err(internal_error)?;
+    let tenants: Vec<(String, String)> = transaction
+        .query(
+            "SELECT id::text, slug FROM sequent_backend.tenant ORDER BY slug",
+            &[],
+        )
+        .await
+        .map_err(internal_error)?
+        .into_iter()
+        .map(|row| (row.get(0), row.get(1)))
+        .collect();
+    let events: Vec<(String, String, Option<Value>, bool)> = transaction
+        .query(
+            "SELECT id::text, tenant_id::text, presentation, is_archived \
+             FROM sequent_backend.election_event ORDER BY created_at DESC",
+            &[],
+        )
+        .await
+        .map_err(internal_error)?
+        .into_iter()
+        .map(|row| (row.get(0), row.get(1), row.get(2), row.get(3)))
+        .collect();
+    let elections: Vec<(String, String, Option<Value>)> = transaction
+        .query(
+            "SELECT id::text, election_event_id::text, presentation \
+             FROM sequent_backend.election ORDER BY created_at",
+            &[],
+        )
+        .await
+        .map_err(internal_error)?
+        .into_iter()
+        .map(|row| (row.get(0), row.get(1), row.get(2)))
+        .collect();
+    transaction.commit().await.map_err(internal_error)?;
+    Ok(Json(ConsoleTenantsOutput {
+        tenants: nest_tenants(tenants, events, elections),
+    }))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ConsolePageInput {
+    /// The tenant of the election event; the user's own unless given.
+    tenant_id: Option<String>,
     election_event_id: String,
     /// `records`, `ballots`, `voters` or `queue`.
     table: String,
@@ -209,18 +379,18 @@ pub async fn electoral_log_console_page(
     body: Json<ConsolePageInput>,
     claims: JwtClaims,
 ) -> Result<Json<ConsolePageOutput>, JsonError> {
-    let tenant_id = authorize_tenant(
+    let input = body.into_inner();
+    let tenant_id = requested_tenant(&claims, input.tenant_id.as_deref())?;
+    authorize_tenant(
         &claims,
+        &tenant_id,
         vec![Permissions::ELECTORAL_LOG_CONSOLE_READ],
     )?;
-    let input = body.into_inner();
     let (table, order) = table_and_order(&input.table, input.order.as_deref())?;
     let filters = input.filters.unwrap_or_default();
     check_filters(table, &filters)?;
     let board = event_board(&tenant_id, &input.election_event_id).await?;
-    let store = get_electoral_log_store(&board)
-        .await
-        .map_err(internal_error)?;
+    let store = get_electoral_log_store().await.map_err(internal_error)?;
     let mut page = store
         .console_page(&PageRequest {
             table,
@@ -245,6 +415,8 @@ pub async fn electoral_log_console_page(
 
 #[derive(Debug, Deserialize)]
 pub struct ConsoleRecordInput {
+    /// The tenant of the election event; the user's own unless given.
+    tenant_id: Option<String>,
     election_event_id: String,
     position: i64,
 }
@@ -256,15 +428,15 @@ pub async fn electoral_log_console_record(
     body: Json<ConsoleRecordInput>,
     claims: JwtClaims,
 ) -> Result<Json<Value>, JsonError> {
-    let tenant_id = authorize_tenant(
+    let input = body.into_inner();
+    let tenant_id = requested_tenant(&claims, input.tenant_id.as_deref())?;
+    authorize_tenant(
         &claims,
+        &tenant_id,
         vec![Permissions::ELECTORAL_LOG_CONSOLE_READ],
     )?;
-    let input = body.into_inner();
     let board = event_board(&tenant_id, &input.election_event_id).await?;
-    let store = get_electoral_log_store(&board)
-        .await
-        .map_err(internal_error)?;
+    let store = get_electoral_log_store().await.map_err(internal_error)?;
     let record = store
         .console_record(&board, input.position)
         .await
@@ -296,16 +468,17 @@ pub enum ConsoleQueryOutput {
     Error { error: String },
 }
 
-/// Run a read-only SQL query on the tenant's electoral-log database, as a role
-/// that can only read, with a time limit. Queries read personal data as they
-/// are stored, so they need the personal-data permission too.
+/// Run a read-only SQL query on the electoral-log database, as a role that can
+/// only read, with a time limit. The database holds every tenant's data, so only
+/// users of the super-admin tenant query it. Queries read personal data as it is
+/// stored, so they need the personal-data permission too.
 #[instrument(skip(claims, body))]
 #[post("/electoral-log-console/query", format = "json", data = "<body>")]
 pub async fn electoral_log_console_query(
     body: Json<ConsoleQueryInput>,
     claims: JwtClaims,
 ) -> Result<Json<ConsoleQueryOutput>, JsonError> {
-    let tenant_id = authorize_tenant(
+    authorize_super_admin(
         &claims,
         vec![
             Permissions::ELECTORAL_LOG_CONSOLE_QUERY,
@@ -315,13 +488,13 @@ pub async fn electoral_log_console_query(
     let sql = body.into_inner().sql;
     check_query(&sql)?;
     tracing::info!(
-        tenant_id = %tenant_id,
+        tenant_id = %claims.hasura_claims.tenant_id,
         user_id = %claims.hasura_claims.user_id,
         sql = %sql,
         "Electoral-log console query"
     );
-    let router = get_electoral_log_router().await.map_err(internal_error)?;
-    let mut client = match router.reader_client(&tenant_id).await {
+    let connection = PostgresConnection::from_env().map_err(internal_error)?;
+    let mut client = match connection.reader_client().await {
         Ok(client) => client,
         Err(error) => {
             tracing::error!(
@@ -402,6 +575,84 @@ mod tests {
             ..filters
         };
         assert!(check_filters(ConsoleTable::Ballots, &valid).is_ok());
+    }
+
+    const OWN_TENANT: &str = "6f1c3a6e-2a61-4d6b-9a52-3f0f8a3c2b10";
+
+    fn admin(roles: &[&str]) -> JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": true,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": OWN_TENANT,
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": roles,
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn requests_read_the_users_tenant_unless_they_name_one() {
+        let claims = admin(&[]);
+        assert_eq!(requested_tenant(&claims, None).ok().unwrap(), OWN_TENANT);
+        assert_eq!(
+            requested_tenant(&claims, Some(" ")).ok().unwrap(),
+            OWN_TENANT
+        );
+        let other = Uuid::new_v4().to_string();
+        assert_eq!(
+            requested_tenant(&claims, Some(&other)).ok().unwrap(),
+            other
+        );
+        assert_eq!(
+            requested_tenant(&claims, Some("acme")).unwrap_err().0,
+            Status::BadRequest
+        );
+    }
+
+    #[test]
+    fn administrators_read_their_own_tenant_with_the_permission() {
+        let read = Permissions::ELECTORAL_LOG_CONSOLE_READ;
+        let reader = admin(&[&read.to_string()]);
+        assert!(
+            authorize_tenant(&reader, OWN_TENANT, vec![read.clone()]).is_ok()
+        );
+        assert!(authorize_tenant(&admin(&[]), OWN_TENANT, vec![read]).is_err());
+    }
+
+    #[test]
+    fn tenants_list_their_events_and_elections_in_order() {
+        let label = |name: &str| Some(serde_json::json!({"name": name}));
+        let tenants = nest_tenants(
+            vec![("t1".into(), "acme".into()), ("t2".into(), "empty".into())],
+            vec![
+                ("e2".into(), "t1".into(), label("Second"), false),
+                ("e1".into(), "t1".into(), label("First"), true),
+            ],
+            vec![
+                ("a".into(), "e1".into(), label("A")),
+                ("b".into(), "e1".into(), label("B")),
+                ("orphan".into(), "gone".into(), None),
+            ],
+        );
+        assert_eq!(tenants.len(), 2);
+        assert_eq!(tenants[0].slug, "acme");
+        let ids: Vec<&str> =
+            tenants[0].events.iter().map(|e| e.id.as_str()).collect();
+        assert_eq!(ids, ["e2", "e1"]);
+        assert!(tenants[0].events[0].elections.is_empty());
+        let elections: Vec<&str> = tenants[0].events[1]
+            .elections
+            .iter()
+            .map(|e| e.id.as_str())
+            .collect();
+        assert_eq!(elections, ["a", "b"]);
+        assert!(tenants[0].events[1].is_archived);
+        assert!(tenants[1].events.is_empty());
     }
 
     #[test]

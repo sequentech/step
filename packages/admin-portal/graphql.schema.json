@@ -35618,6 +35618,18 @@
                 "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
               }
             ],
             "type": {
@@ -35634,7 +35646,7 @@
           },
           {
             "name": "electoral_log_console_query",
-            "description": "A read-only SQL query on the tenant's electoral-log database",
+            "description": "A read-only SQL query on the electoral-log database, for the super-admin tenant",
             "args": [
               {
                 "name": "sql",
@@ -35700,8 +35712,36 @@
                 "defaultValue": null,
                 "isDeprecated": false,
                 "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
               }
             ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "jsonb",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "electoral_log_console_tenants",
+            "description": "Every tenant with its election events, for the super-admin tenant's electoral-log console",
+            "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,

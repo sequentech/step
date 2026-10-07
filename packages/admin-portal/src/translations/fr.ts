@@ -2970,6 +2970,7 @@ const frenchTranslation: TranslationType = {
                 query: "Requête",
             },
             electionEvent: "Événement Électoral",
+            tenant: "Locataire",
             table: "Table",
             tables: {
                 records: "Entrées",
@@ -3016,6 +3017,7 @@ const frenchTranslation: TranslationType = {
             },
             query: {
                 help: "Les requêtes s'exécutent sur la base de données du journal électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer.",
+                scope: "La base de données contient les données de tous les locataires.",
                 placeholder: "SELECT …",
                 limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
                 run: "Exécuter la Requête",

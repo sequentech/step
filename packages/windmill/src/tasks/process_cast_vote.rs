@@ -4,7 +4,6 @@
 
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_board::get_election_event_board;
 use crate::services::external;
 use crate::services::external::datafix_types::{SoapRequest, SoapRequestResponse};
 use crate::services::external::utils::{
@@ -300,9 +299,7 @@ async fn load_pending_vote(
             .await
             .map_err(|err| format!("Error loading election event: {err:?}"))?
     };
-    let board = get_election_event_board(election_event.bulletin_board_reference.clone())
-        .ok_or("Election event has no electoral-log board")?;
-    let store = get_electoral_log_store(&board)
+    let store = get_electoral_log_store()
         .await
         .map_err(|err| format!("Error opening the event's ballot box: {err:?}"))?;
     let Some(ballot) = store

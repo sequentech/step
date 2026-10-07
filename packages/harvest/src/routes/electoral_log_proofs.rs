@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 use electoral_log::{
-    adapters::{postgres::PostgresStore, router::StoreRouter},
+    adapters::postgres::PostgresStore,
     proofs::{Checkpoint, Consistency, JournalError, RecordProof},
 };
 use rocket::{http::Status, serde::json::Json, State};
@@ -12,18 +12,9 @@ use windmill::services::protocol_manager::get_event_board;
 
 type ApiResult<T> = Result<Json<T>, (Status, String)>;
 
-/// Proofs use their own connection pools, separate from Windmill's.
+/// Proofs use their own connection pool, separate from Windmill's.
 pub struct ProofService {
-    pub router: StoreRouter,
-}
-
-impl ProofService {
-    async fn store(
-        &self,
-        board: &str,
-    ) -> Result<PostgresStore, (Status, String)> {
-        self.router.store_for(board).await.map_err(internal_error)
-    }
+    pub store: PostgresStore,
 }
 
 #[derive(Deserialize)]
@@ -100,8 +91,7 @@ pub async fn checkpoint(
 ) -> ApiResult<CheckpointResponse> {
     let board = body.board(&claims)?;
     let checkpoint = state
-        .store(&board)
-        .await?
+        .store
         .journal()
         .checkpoint(&board)
         .await
@@ -126,7 +116,7 @@ pub async fn inclusion(
             "Checkpoint belongs to another board".into(),
         ));
     }
-    let store = state.store(&board).await?;
+    let store = &state.store;
     store
         .record_proof(
             &store.journal(),
@@ -153,8 +143,7 @@ pub async fn consistency(
         ));
     }
     state
-        .store(&board)
-        .await?
+        .store
         .journal()
         .consistency(&body.checkpoint)
         .await
@@ -166,8 +155,8 @@ pub fn fairing() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::try_on_ignite(
         "Trellis electoral-log proofs",
         |rocket| async {
-            match StoreRouter::from_env() {
-                Ok(router) => Ok(rocket.manage(ProofService { router })),
+            match PostgresStore::from_env() {
+                Ok(store) => Ok(rocket.manage(ProofService { store })),
                 Err(error) => {
                     tracing::error!(
                         "Cannot configure electoral-log proofs: {error}"

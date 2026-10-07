@@ -21,23 +21,8 @@ PGPASSWORD="$ELECTORAL_LOG_PG_PASSWORD" psql -v ON_ERROR_STOP=1 \
     --username "$ELECTORAL_LOG_PG_USER" --dbname "$ELECTORAL_LOG_PG_DATABASE" \
     --file /electoral-log-schema.sql
 
-# The role that creates tenant databases: it may create databases and act as the
-# application role, which owns them.
-if [ -n "${ELECTORAL_LOG_PG_PROVISIONING_USER:-}" ]; then
-    : "${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:?must be set}"
-    psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER:-postgres}" --dbname postgres \
-        -v log_user="$ELECTORAL_LOG_PG_USER" \
-        -v provisioning_user="$ELECTORAL_LOG_PG_PROVISIONING_USER" \
-        -v provisioning_password="$ELECTORAL_LOG_PG_PROVISIONING_PASSWORD" <<'SQL'
-SELECT format('CREATE ROLE %I LOGIN CREATEDB PASSWORD %L', :'provisioning_user', :'provisioning_password')
-WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'provisioning_user') \gexec
-SELECT format('GRANT %I TO %I', :'log_user', :'provisioning_user') \gexec
-SQL
-fi
-
-# The role that administrators' console queries run as. It only connects and reads:
-# provisioning lets it read each tenant database, and it gets nothing on the shared
-# database, which holds every tenant's boards.
+# The role that the super-admin tenant's console queries run as. It only connects and
+# reads the electoral-log database, which holds every tenant's data.
 if [ -n "${ELECTORAL_LOG_PG_READER_USER:-}" ]; then
     : "${ELECTORAL_LOG_PG_READER_PASSWORD:?must be set}"
     psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER:-postgres}" --dbname postgres \
@@ -47,5 +32,12 @@ SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'reader_user', :'reader_passw
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'reader_user') \gexec
 SELECT format('ALTER ROLE %I SET default_transaction_read_only = on', :'reader_user') \gexec
 SELECT format('ALTER ROLE %I SET statement_timeout = %L', :'reader_user', '30s') \gexec
+SQL
+    PGPASSWORD="$ELECTORAL_LOG_PG_PASSWORD" psql -v ON_ERROR_STOP=1 \
+        --username "$ELECTORAL_LOG_PG_USER" --dbname "$ELECTORAL_LOG_PG_DATABASE" \
+        -v reader_user="$ELECTORAL_LOG_PG_READER_USER" <<'SQL'
+GRANT USAGE ON SCHEMA public TO :"reader_user";
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"reader_user";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO :"reader_user";
 SQL
 fi

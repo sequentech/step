@@ -2942,6 +2942,7 @@ const basqueTranslation: TranslationType = {
                 query: "Kontsulta",
             },
             electionEvent: "Hauteskunde Gertaera",
+            tenant: "Maizterra",
             table: "Taula",
             tables: {
                 records: "Sarrerak",
@@ -2988,6 +2989,7 @@ const basqueTranslation: TranslationType = {
             },
             query: {
                 help: "Kontsultak hauteskunde-erregistroaren datu-basean exekutatzen dira, irakurtzeko soilik den transakzio batean. Bere taulak hauek dira: electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending eta ballot_box_sequencer.",
+                scope: "Datu-baseak maizter guztien datuak ditu.",
                 placeholder: "SELECT …",
                 limits: "Irakurtzeko soilik · gehienez 1.000 errenkada · 30 s-ko muga · kontsulta bakoitza zerbitzariaren erregistroetan gordetzen da zure erabiltzailearekin",
                 run: "Exekutatu Kontsulta",

@@ -2949,6 +2949,7 @@ const dutchTranslation: TranslationType = {
                 query: "Query",
             },
             electionEvent: "Verkiezingsevenement",
+            tenant: "Tenant",
             table: "Tabel",
             tables: {
                 records: "Records",
@@ -2995,6 +2996,7 @@ const dutchTranslation: TranslationType = {
             },
             query: {
                 help: "Query's worden uitgevoerd op de database van het verkiezingslog in een alleen-lezen transactie. De tabellen zijn electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending en ballot_box_sequencer.",
+                scope: "De database bevat de gegevens van alle tenants.",
                 placeholder: "SELECT …",
                 limits: "Alleen-lezen · tot 1.000 rijen · limiet van 30 s · elke query wordt met uw gebruiker vastgelegd in de serverlogs",
                 run: "Query Uitvoeren",

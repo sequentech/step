@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use electoral_log::{
-    adapters::router::StoreRouter,
+    adapters::postgres::PostgresConnection,
     proofs::{Checkpoint, Consistency, RecordProof},
     BoardClient,
 };
@@ -22,9 +22,6 @@ struct Cli {
     checkpoint: Option<PathBuf>,
     #[arg(long)]
     proof: Option<PathBuf>,
-    /// Tenant whose database `provision-tenant` creates.
-    #[arg(long)]
-    tenant_id: Option<String>,
 }
 #[derive(Clone, ValueEnum)]
 enum Action {
@@ -38,7 +35,6 @@ enum Action {
     VerifyConsistency,
     Audit,
     BackfillNodes,
-    ProvisionTenant,
 }
 fn read_json<T: serde::de::DeserializeOwned>(path: Option<&PathBuf>, name: &str) -> Result<T> {
     Ok(serde_json::from_slice(&std::fs::read(
@@ -69,40 +65,24 @@ async fn main() -> Result<()> {
         println!("Verified");
         return Ok(());
     }
-    let router = StoreRouter::from_env()?;
-    // `init` and `backfill-nodes` without a board cover the shared database and every
-    // tenant database of the environment.
-    let mut tenants = Vec::new();
-    for database in router.tenant_databases().await? {
-        tenants.push(router.database_store(&database).await?);
-    }
+    let store = PostgresConnection::from_env()?.store()?;
     if matches!(args.action, Action::Init) {
-        // The reader role may read tenant databases only: the shared one holds every
-        // tenant's boards.
-        router.shared().initialize().await?;
-        for store in &tenants {
-            router.initialize(store).await?;
+        store.initialize().await?;
+        if let Some(reader) = PostgresConnection::reader() {
+            store.grant_read(&reader).await?;
         }
         return Ok(());
     }
-    let databases: Vec<_> = std::iter::once(router.shared()).chain(tenants).collect();
-    if matches!(args.action, Action::ProvisionTenant) {
-        let tenant_id = args.tenant_id.context("--tenant-id is required")?;
-        return router.provision_tenant(&tenant_id).await;
-    }
     // Without a board, back-fill every log created before subtrees were stored.
     if matches!(args.action, Action::BackfillNodes) && args.board.is_none() {
+        let journal = store.journal();
         let mut rebuilt = Vec::new();
-        for store in &databases {
-            let journal = store.journal();
-            for board in journal.unbuilt_logs().await? {
-                rebuilt.push(journal.rebuild(&board).await?);
-            }
+        for board in journal.unbuilt_logs().await? {
+            rebuilt.push(journal.rebuild(&board).await?);
         }
         return output(&rebuilt);
     }
     let board = args.board.context("--board is required")?;
-    let store = router.store_for(&board).await?;
     let journal = store.journal();
     // Optional trusted checkpoint for inclusion (anchor) and audit (extra history check).
     let checkpoint: Option<Checkpoint> = match args.checkpoint.as_ref() {
@@ -136,16 +116,8 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Action::BackfillNodes => output(&journal.rebuild(&board).await?),
-        Action::CreateBoard => {
-            BoardClient::new(Arc::new(router))
-                .create_board(&board)
-                .await
-        }
-        Action::DeleteBoard => {
-            BoardClient::new(Arc::new(router))
-                .delete_board(&board)
-                .await
-        }
+        Action::CreateBoard => BoardClient::new(Arc::new(store)).create_board(&board).await,
+        Action::DeleteBoard => BoardClient::new(Arc::new(store)).delete_board(&board).await,
         _ => unreachable!(),
     }
 }

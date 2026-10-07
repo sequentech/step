@@ -4,11 +4,14 @@
 
 import {
     columnField,
+    ConsoleTenant,
     displayValue,
+    eventElections,
     invalidFilters,
     isQueryError,
     ROW_ID,
     toConsoleFilters,
+    tenantEvents,
     toGridRows,
 } from "./ElectoralLogConsole"
 
@@ -73,5 +76,34 @@ describe("electoral-log console rows", () => {
     it("tell query errors from results", () => {
         expect(isQueryError({error: "syntax error"})).toBe(true)
         expect(isQueryError({columns: [], rows: [], truncated: false, elapsed_ms: 3})).toBe(false)
+    })
+})
+
+describe("electoral-log console tenants", () => {
+    const tenants: ConsoleTenant[] = [
+        {
+            id: "acme",
+            slug: "acme",
+            events: [
+                {id: "spring", is_archived: false, elections: [{id: "mayor"}, {id: "council"}]},
+                {id: "autumn", is_archived: true, elections: []},
+            ],
+        },
+        {id: "empty", slug: "empty", events: []},
+    ]
+
+    it("list a tenant's election events", () => {
+        expect(tenantEvents(tenants, "acme").map((event) => event.id)).toEqual(["spring", "autumn"])
+        expect(tenantEvents(tenants, "empty")).toEqual([])
+        expect(tenantEvents(tenants, "unknown")).toEqual([])
+    })
+
+    it("list an election event's elections", () => {
+        expect(eventElections(tenants, "acme", "spring").map((election) => election.id)).toEqual([
+            "mayor",
+            "council",
+        ])
+        expect(eventElections(tenants, "acme", "autumn")).toEqual([])
+        expect(eventElections(tenants, "empty", "spring")).toEqual([])
     })
 })

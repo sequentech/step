@@ -76,7 +76,7 @@ flowchart LR
 
 | Component | Role |
 | --- | --- |
-| `packages/electoral-log` | Domain types (`ElectoralLogMessage`, `LogEntry`, `LogQuery`), the `ElectoralLogStore` port, the `BoardClient` service, the PostgreSQL adapter (`PostgresStore`) and the router to each board's database (`StoreRouter`), record commitments and signed-checkpoint formats (`proofs.rs`), the signed message types, the `electoral-log-admin` CLI and the `load_test` example. |
+| `packages/electoral-log` | Domain types (`ElectoralLogMessage`, `LogEntry`, `LogQuery`), the `ElectoralLogStore` port, the `BoardClient` service, the PostgreSQL adapter (`PostgresStore`), record commitments and signed-checkpoint formats (`proofs.rs`), the signed message types, the `electoral-log-admin` CLI and the `load_test` example. |
 | `packages/trellis` | RFC 6962 tree arithmetic (`rfc6962.rs`) and the transactional journal (`journal.rs`) that stores leaves and subtrees and answers proofs. |
 | Windmill | The library code that builds, signs and posts records (`services/electoral_log.rs`), and the workers that run the queue dispatcher and batch task, checkpoint publication, audits, reports and exports. |
 | Harvest | The HTTP API. It runs Windmill's library code in-process: casting a vote builds, signs and queues its record, and administrative routes such as user management, the phone blacklist, reports and exports sign and append records directly. It also lists records, lists cast votes for the ballot locator, serves checkpoints and proofs, and starts audits. |
@@ -605,13 +605,16 @@ Run them from `packages/` with `cargo run -p electoral-log --bin electoral-log-a
 
 ### 9.6 Console
 
-The admin portal's **Electoral Log** page (`/electoral-log-console`) lets administrators browse an election event's records and ballot box, open a record, and run SQL queries on their tenant's electoral-log database. Nothing in the console writes. It reads the tenant of the signed-in administrator; there is no tenant selector.
+The admin portal's **Electoral Log** page (`/electoral-log-console`) lets administrators browse an election event's records and ballot box and open a record. Nothing in the console writes. Administrators browse their own tenant's events; users of the super-admin tenant choose the tenant, and they alone run SQL queries on the electoral-log database, which holds every tenant's data.
 
 | Action (Harvest route) | Permissions | Returns |
 | --- | --- | --- |
 | `electoral_log_console_page` (`POST /electoral-log-console/page`) | `electoral-log-console-read` | A page of a table |
 | `electoral_log_console_record` (`POST /electoral-log-console/record`) | `electoral-log-console-read` | One record with its message decoded |
-| `electoral_log_console_query` (`POST /electoral-log-console/query`) | `electoral-log-console-query` and `electoral-log-personal-data-read` | Up to 1,000 rows of a read-only query, or the server's error |
+| `electoral_log_console_tenants` (`POST /electoral-log-console/tenants`) | `electoral-log-console-read`, in the super-admin tenant | Every tenant with its election events and their elections |
+| `electoral_log_console_query` (`POST /electoral-log-console/query`) | `electoral-log-console-query` and `electoral-log-personal-data-read`, in the super-admin tenant | Up to 1,000 rows of a read-only query, or the server's error |
+
+- **Tenants:** pages and records read the user's own tenant unless the request names another with `tenant_id`, which only users of the super-admin tenant (`SUPER_ADMIN_TENANT_ID`) may do. Harvest checks that the election event belongs to that tenant. The super-admin tenant cannot list other tenants' events through Hasura, so the portal reads them from `electoral_log_console_tenants`.
 
 - **Tables:** `records` (the board's `electoral_log_messages`), `ballots` (the event's `ballot_box_ballot` rows, with the content's size instead of the content), `voters` (`ballot_box_voter`) and `queue` (the ballots in `ballot_box_pending`, with their election, area and acceptance time). Events that keep the `cast_vote` table have empty `ballots`, `voters` and `queue` tables.
 - **Paging by key:** a page has at most 200 rows, newest or oldest first by the table's key: `id` for records, `seq` for ballots and the queue, election and voter for voters. It answers with the key of its last row as `next`, and the next page starts after it, so no page reads the rows before it. The portal moves forward one page at a time and back through the pages it has read; it cannot jump to a page number.
@@ -619,8 +622,8 @@ The admin portal's **Electoral Log** page (`/electoral-log-console`) lets admini
 - **Row counts:** each page reports the table's rows for the board or event before filters: the board's committed size for records, and for the ballot box the planner's estimate of the event's partition (`pg_class.reltuples`), or a count while the partition has never been analyzed.
 - **Records:** the record dialog decodes the signed message into JSON, as the Logs tab does, except that the artifact shows as its size in bytes, and hashes and other byte arrays of 16 bytes or more as hexadecimal.
 - **Personal data:** usernames and voters' IP addresses and countries. Without `electoral-log-personal-data-read`, pages show `hidden` in the `username`, `voter_ip` and `voter_country` columns, and records show `hidden` for every `username` and for the cast votes' `ip: …` and `country: …` values.
-- **Queries** run on the tenant's database only, so they need the `per-tenant` layout. With `shared`, or without the reader role, the console answers that queries are not available, since the shared database holds every tenant's boards.
-  - Harvest connects as `ELECTORAL_LOG_PG_READER_USER`, a role with `SELECT` on the tenant databases and nothing else, on a connection of its own that closes after the query. The query runs in a `READ ONLY` transaction with a 30-second `statement_timeout`, which Harvest rolls back.
+- **Queries** read the whole electoral-log database, every tenant's boards and ballot boxes, so only users of the super-admin tenant run them. Without the reader role, the console answers that queries are not available.
+  - Harvest connects as `ELECTORAL_LOG_PG_READER_USER`, a role with `SELECT` on the electoral-log database and nothing else, on a connection of its own that closes after the query. The query runs in a `READ ONLY` transaction with a 30-second `statement_timeout`, which Harvest rolls back.
   - Harvest wraps the query as `SELECT row_to_json(q)::text FROM (…) q LIMIT 1001`, so only a statement that can be a subquery runs: `SELECT`, `VALUES`, `TABLE`, or `WITH` without data-modifying statements. It accepts up to 20,000 characters and returns at most 1,000 rows, saying when there were more.
   - A query reads personal data as stored, which is why it also needs `electoral-log-personal-data-read`.
   - Harvest logs each query with its tenant and user at INFO level. Queries are not recorded in the electoral log.
@@ -720,10 +723,10 @@ A wrong root at the size of a supplied checkpoint is reported as `Diverged` only
 | Users of the super-admin tenant with `logs-read` | Through Harvest directly, list records and request checkpoints and proofs of any tenant |
 | Hasura's `admin-user` role | Read its tenant's published checkpoints |
 | Users with `electoral-log-audit` | Start audits |
-| Users with `electoral-log-console-read` | Browse their tenant's records and ballot boxes in the console, without personal data (section 9.6) |
+| Users with `electoral-log-console-read` | Browse their tenant's records and ballot boxes in the console, without personal data (section 9.6); in the super-admin tenant, any tenant's |
 | Users with `electoral-log-personal-data-read` | See usernames, IP addresses and countries in the console |
-| Users with `electoral-log-console-query` and `electoral-log-personal-data-read` | Run read-only SQL queries on their tenant's electoral-log database |
-| The reader role (`ELECTORAL_LOG_PG_READER_USER`) | Read every table of the tenant databases |
+| Users of the super-admin tenant with `electoral-log-console-query` and `electoral-log-personal-data-read` | Run read-only SQL queries on the electoral-log database, which holds every tenant's data |
+| The reader role (`ELECTORAL_LOG_PG_READER_USER`) | Read every table of the electoral-log database |
 | Hasura's `service-account` role | Read every tenant's published checkpoints |
 | Windmill | Append and read through the electoral-log role, read and write the Hasura database, load the protocol-manager and administrator signing keys from the secret store, and sign and store checkpoints |
 | Harvest | The same, except that it does not publish checkpoints: it appends and reads, reads and writes the Hasura database, and loads the same keys to sign cast votes and administrative records |
@@ -789,12 +792,8 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | --- | --- |
 | `ELECTORAL_LOG_PG_HOST`, `ELECTORAL_LOG_PG_PORT` | PostgreSQL server |
 | `ELECTORAL_LOG_PG_USER`, `ELECTORAL_LOG_PG_PASSWORD` | The dedicated role |
-| `ELECTORAL_LOG_PG_DATABASE` | The dedicated database; with the `per-tenant` layout, the shared database and the start of tenant database names |
-| `ELECTORAL_LOG_PG_DATABASE_LAYOUT` | `shared` (default): every board in the dedicated database. `per-tenant`: each tenant's new boards in a database of their own (section 14.2) |
-| `ELECTORAL_LOG_PG_TENANT_POOL_SIZE` | Connections per tenant database and pool; 4 by default |
-| `ELECTORAL_LOG_PG_PROVISIONING_USER`, `ELECTORAL_LOG_PG_PROVISIONING_PASSWORD` | Windmill only: the role that creates tenant databases. Without it, the `per-tenant` layout cannot create them |
-| `ELECTORAL_LOG_PG_PROVISIONING_DATABASE` | Database the provisioning role connects to; `postgres` by default |
-| `ELECTORAL_LOG_PG_READER_USER` | The role of console queries (section 9.6). Windmill and `electoral-log-admin init` let it read each tenant database they provision or initialize, and Harvest connects as it. Unset, queries are not available |
+| `ELECTORAL_LOG_PG_DATABASE` | The dedicated database, which holds every board |
+| `ELECTORAL_LOG_PG_READER_USER` | The role of console queries (section 9.6). `electoral-log-admin init` lets it read the database, and Harvest connects as it. Unset, queries are not available |
 | `ELECTORAL_LOG_PG_READER_PASSWORD` | Harvest only: the reader role's password |
 | `ELECTORAL_LOG_PG_SSLMODE` | `disable`, `require` (default) or `verify-full` |
 | `ELECTORAL_LOG_PG_SSLROOTCERT` | Optional CA file for `verify-full` |
@@ -807,26 +806,22 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | `ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS` | Days each copy is locked; 3,650 by default |
 | `ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS` (Windmill beat) | Seconds between periodic checkpoints while voting is open; 300 when unset or empty. Any other value than a positive integer stops beat at startup, naming the variable. |
 
-- **Who reads them:** Windmill, Harvest, `electoral-log-admin`, `step export-cast-votes` and Windmill's `generate-logs` tool, which also needs `ENV_SLUG`, as all of them do with the `per-tenant` layout. Harvest refuses to start without the `ELECTORAL_LOG_PG_*` variables.
+- **Who reads them:** Windmill, Harvest, `electoral-log-admin`, `step export-cast-votes` and Windmill's `generate-logs` tool, which also needs `ENV_SLUG`. Harvest refuses to start without the `ELECTORAL_LOG_PG_*` variables.
 - **Sizing the dispatcher batch:** a batch closes at whichever limit it reaches first; a single message larger than the byte limit still goes out as a batch of one. Any value other than a positive integer stops the worker that runs the dispatcher at startup, naming the variable. The log no longer reads the shared `DEFAULT_SQL_BATCH_SIZE`, which still sizes user exports, send-template and the cast-vote review.
   - keep `ELECTORAL_LOG_BATCH_MAX_BYTES` well below RabbitMQ's `max_message_size` (128 MiB by default in RabbitMQ 3.12), or a larger batch is lost and the worker cannot send tasks until it restarts (section 6.1);
   - a smaller `ELECTORAL_LOG_BATCH_SIZE` shortens how long one append holds a board and limits how many events one failing batch delays (section 6.5), and keeps each dispatcher run well within its 30 seconds;
   - a larger one makes fewer, bigger appends.
 - **Queues:** some worker must consume `electoral_log_beat_queue` (the dispatcher) and `electoral_log_batch_queue` (batch tasks). In development one Windmill worker consumes both, together with the other queues. Audits run on `reports_queue` and voting-closed publications on `short_queue`. No worker may consume `electoral_log_event_queue`, because it would discard every event (section 6.1), or `electoral_log_dead_letter_queue`, which holds set-aside events (section 14.7); Windmill refuses to start a worker configured to consume either. All names carry the `ENV_SLUG` prefix.
 - **TLS modes:** `require` encrypts without verifying the server, and `verify-full` also verifies its certificate and hostname. Mount the CA file when its issuer is not in the image's trust store. `disable` is meant for the internal development connection.
-- **Connections:** the pool of the shared database has at most eight connections, and each tenant database's pool `ELECTORAL_LOG_PG_TENANT_POOL_SIZE`, all with a ten-second connection timeout. Pools open when a database is first used and stay open. Windmill uses one set of pools for appends, reads and audits; Harvest opens two, one for proofs and one for everything else. With the `per-tenant` layout, a process can therefore hold up to 8 + 4 connections per active tenant per set: size the server's `max_connections` for the instances and active tenants, or put a connection pooler in front.
+- **Connections:** a pool has at most eight connections, with a ten-second connection timeout. Pools open when the database is first used and stay open. Windmill uses one pool for appends, reads and audits; Harvest opens two, one for proofs and one for everything else. Console queries open a connection of their own as the reader role.
 - **Secrets:** no connection string or password is logged.
 
 ### 14.2 Provisioning and schema
 
-- **Layouts:** with `shared`, every board lives in `ELECTORAL_LOG_PG_DATABASE`. With `per-tenant`, the boards of each tenant live in a database named after that database, the environment slug and the first 17 characters of the tenant ID without dashes, as in `electoral_log_dev90505c8a23a94cdfa`: the same characters the board names carry. Characters of the slug other than letters and digits become underscores.
-  - **Routing:** a process finds a board's database from its name. A board of an election event of this environment whose name is not already in the shared database goes to its tenant's database; any other board, including every board created before the switch, stays in the shared database. So switching an installation to `per-tenant` moves no data: existing events keep their logs where they are, and new events get their tenant's database.
-  - **Creation:** Windmill creates a tenant's database when the tenant is created, before the tenant is stored, and also when it first creates a board in a tenant database that does not exist yet, as for tenants created before the switch. It connects as the provisioning role, runs `CREATE DATABASE … OWNER` the application role, and applies the schema as the application role. That role therefore owns each tenant database, as in development's shared one. The provisioning role needs `CREATEDB` and membership in the application role, and nothing else.
-  - **Isolation:** a tenant's events cannot be read through another tenant's database, and an event's data can be backed up, restored or dropped per tenant. All tenant databases share the application role, so a process that holds its credentials can open any of them, as it can today.
-  - **`electoral-log-admin`** routes `--board` the same way. `init` and `backfill-nodes` without a board cover the shared database and every tenant database of the environment, and `provision-tenant --tenant-id` creates a tenant's database.
-- **Development (Compose):** development uses the `per-tenant` layout. On an empty data directory, the `postgres` service creates the role, the provisioning role `electoral_log_provisioner`, the console's reader role `electoral_log_reader` (read-only by default, with a 30-second statement timeout) and the database, and applies the schema, with `.devcontainer/postgresql/init-electoral-log.sh`. On an existing volume, refresh the service's environment and mounts, then run `docker exec postgres sh /docker-entrypoint-initdb.d/20-electoral-log.sh`. The script creates what is missing and does not rotate an existing password.
-- **Cloud:** companion changes in the `gitops` repository create the password, role, database and backup grants on AWS and GCP. Apply its `client-secrets` module before `client-postgres-init`, then apply the schema as the database owner (`electoral-log-admin init`). The new-environment templates in the `beyond` repository provide the endpoint, database, role and the `electoral-log-db-credentials` ExternalSecret mapping.
-- **Schema upgrades:** `init` is idempotent, so apply it with each upgrade; it covers every tenant database. After upgrading a database written by an earlier build, run `backfill-nodes` before starting producers (section 7.10).
+- **One database:** every board, and every election event's ballot box, lives in `ELECTORAL_LOG_PG_DATABASE`. Boards and ballot boxes are keyed by tenant and election event, so a process reads one tenant's data by its board and events. The application role owns the database; there is no setting for another layout.
+- **Development (Compose):** on an empty data directory, the `postgres` service creates the role, the database and the console's reader role `electoral_log_reader` (read-only by default, with a 30-second statement timeout), applies the schema and lets the reader read the database, with `.devcontainer/postgresql/init-electoral-log.sh`. On an existing volume, refresh the service's environment and mounts, then run `docker exec postgres sh /docker-entrypoint-initdb.d/20-electoral-log.sh`. The script creates what is missing and does not rotate an existing password.
+- **Cloud:** companion changes in the `gitops` repository create the password, role, database, reader role and backup grants on AWS and GCP. Apply its `client-secrets` module before `client-postgres-init`, then apply the schema as the database owner (`electoral-log-admin init`). The new-environment templates in the `beyond` repository provide the endpoint, database, role and the `electoral-log-db-credentials` ExternalSecret mapping, and Harvest's reader-role credentials.
+- **Schema upgrades:** `init` is idempotent, so apply it with each upgrade; with `ELECTORAL_LOG_PG_READER_USER` set, it also lets the reader role read the database. After upgrading a database written by an earlier build, run `backfill-nodes` before starting producers (section 7.10).
 
 ### 14.3 Backups
 
@@ -897,7 +892,6 @@ A board whose stored tree fails the right-edge check refuses every append (secti
 | Tree arithmetic: every root, inclusion proof and consistency proof compared byte for byte with `ct-merkle` | `packages/trellis` | `cargo test -p trellis --lib` |
 | Record encoding golden vector, checkpoint signing, audit findings and annotations | `packages/electoral-log` unit tests | `cargo test -p electoral-log` |
 | PostgreSQL contract tests | `packages/electoral-log/tests/postgres.rs` and the plan test in `src/adapters/postgres.rs` | `ELECTORAL_LOG_TEST_DATABASE_URL=… cargo test -p electoral-log --lib --test postgres -- --ignored --test-threads=1` |
-| Per-tenant databases: a tenant's new board gets the tenant's database, created by the provisioning role, and an existing board stays shared | `packages/electoral-log/tests/router.rs` | With the `ELECTORAL_LOG_PG_*` variables and the provisioning role: `cargo test -p electoral-log --test router -- --ignored` |
 | Windmill wiring: records written through Windmill pass an audit | Windmill `postgres_wiring_tests` | `cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1` |
 | Queued events: batch limits, delivery IDs, which events are set aside, one lookup per election event, the dead-letter message format | Windmill unit tests in `tasks::electoral_log` and `services::electoral_log_dead_letter` | `cargo test -p windmill --lib -- tasks::electoral_log electoral_log_dead_letter` |
 | Load and query plans at scale | `packages/electoral-log/examples/load_test.rs` | See the [load test page](02-electoral-log-load-test.md) |
@@ -950,8 +944,8 @@ Performance and operation:
 - The `sequent-core` WebAssembly package was not rebuilt for the new permission; the admin portal uses its own permission list.
 
 - Console queries are recorded in Harvest's logs, not in the electoral log, and the console's CSV export covers one page of a table at a time.
-- The cloud templates do not create the console's reader role yet, so console queries are not available there until it exists and `ELECTORAL_LOG_PG_READER_USER` and `ELECTORAL_LOG_PG_READER_PASSWORD` are set.
-- Existing tenant databases let the reader role read them after `electoral-log-admin init` runs with `ELECTORAL_LOG_PG_READER_USER` set.
+- An existing database lets the reader role read it after `electoral-log-admin init` runs with `ELECTORAL_LOG_PG_READER_USER` set.
+- Installations that ran the removed `per-tenant` layout keep the events of those tenant databases there, unread: they are not migrated.
 
 ## 18. Code map
 
@@ -960,7 +954,6 @@ Performance and operation:
 | `packages/electoral-log/src/domain.rs` | Records, queries, filters and visibility |
 | `packages/electoral-log/src/ports.rs`, `service.rs` | The storage port and `BoardClient` |
 | `packages/electoral-log/src/adapters/postgres.rs` | PostgreSQL store: appends, queries, counts, record proofs, audits |
-| `packages/electoral-log/src/adapters/router.rs` | Database layouts, routing boards to databases, creating tenant databases |
 | `packages/electoral-log/src/adapters/console.rs` | Console pages, records and read-only queries |
 | `packages/electoral-log/src/proofs.rs` | Record commitments, checkpoint signing and verification, `RecordProof` |
 | `packages/electoral-log/src/messages/` | Signed message and statement types |
