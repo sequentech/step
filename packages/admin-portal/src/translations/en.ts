@@ -625,6 +625,22 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Voter accessibility settings",
+                    options: {
+                        disabled: "Hide the accessibility settings",
+                        enabled: "Offer text size, contrast, spacing and motion settings",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Audio instructions",
+                    options: {
+                        "disabled": "No audio instructions",
+                        "recorded": "Uploaded recordings only",
+                        "recorded-or-synthesized":
+                            "Uploaded recordings, or the browser's voice where there is none",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Show Cast Vote Logs Tab",
                     options: {
@@ -2802,6 +2818,23 @@ const englishTranslation = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Audio instructions for screen",
+                languageLabel: "Language of the recording",
+                none: "Not audio instructions",
+                helperText:
+                    "Voters hear this file when they ask for the instructions on that screen.",
+                screens: {
+                    "election-chooser": "Election list",
+                    "start": "Start",
+                    "ballot": "Ballot",
+                    "review": "Review",
+                    "confirmation": "Confirmation",
+                    "audit": "Audit",
+                    "ballot-locator": "Ballot locator",
+                    "support-materials": "Support materials",
+                },
+            },
             createMaterialSuccess: "Support material created",
             createMaterialError: "Error creating support material",
             updateMaterialSuccess: "Support material updated",

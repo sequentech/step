@@ -22,6 +22,26 @@ import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFi
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
 import {SigningProvider} from "@/components/signing/SigningProvider"
 import {idleSigningApi} from "./Signatures/__stories__/SignaturesFixture"
+// The tabs load their widgets lazily, and a cold dev server can take longer to
+// serve one than a story may wait: load them with the stories instead.
+import "@/components/dashboard/election-event/Dashboard"
+import "@/components/monitoring/MonitoringDashboardTab"
+import "./EditElectionEventData"
+import "./EditElectionEventTextData"
+import "./EditElectionEventUsers"
+import "./EditElectionEventAreas"
+import "./EditElectionEventKeys"
+import "./Signatures/EditElectionEventSignatures"
+import "./EditElectionEventCAs"
+import "./EditElectionEventIvr"
+import "./EditElectionEventTally"
+import "../TallySheetImport/TallySheetImports"
+import "@/resources/Publish/Publish"
+import "./ElectoralLog"
+import "./EditElectionEventTasks"
+import "./EditElectionEventScheduledEvents"
+import "./EditElectionEventApprovals"
+import "../Reports/EditReportsTab"
 
 interface Scenario {
     /** Whether the event is locked down, which hides its editing tabs. */
