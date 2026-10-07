@@ -193,11 +193,6 @@ type DataListElectoralLog {
   total: TotalAggregate!
 }
 
-type DataListPgAudit {
-  items: [PgAuditRow]!
-  total: TotalAggregate!
-}
-
 type DeleteCertificateAuthorityOutput {
   deleted_count: Int!
 }
@@ -714,10 +709,6 @@ type ListKeysCeremonyOutput {
   total: TotalAggregate!
 }
 
-type LogEventOutput {
-  electionEventId: String
-}
-
 type ManageElectionDatesOutput {
   error_msg: String
 }
@@ -736,46 +727,6 @@ type OptionalImportEvent {
 enum OrderDirection {
   asc
   desc
-}
-
-input PgAuditFilter {
-  audit_type: String
-  class: String
-  command: String
-  dbname: String
-  id: String
-  session_id: String
-  statement: String
-  user: String
-}
-
-input PgAuditOrderBy {
-  audit_type: OrderDirection
-  class: OrderDirection
-  command: OrderDirection
-  dbname: OrderDirection
-  id: OrderDirection
-  server_timestamp: OrderDirection
-  session_id: OrderDirection
-  statement: OrderDirection
-  user: OrderDirection
-}
-
-type PgAuditRow {
-  audit_type: String!
-  class: String!
-  command: String!
-  dbname: String!
-  id: Int!
-  server_timestamp: Int!
-  session_id: String!
-  statement: String!
-  user: String!
-}
-
-enum PgAuditTable {
-  pgaudit_hasura
-  pgaudit_keycloak
 }
 
 type PhoneBlacklistEntry {
@@ -1239,6 +1190,7 @@ type mutation_root {
   applies the Sequent-side reconciliation diff for an already-computed import
   """
   apply_external_reconciliation_changes(diff_document_id: String!, election_event_id: String!): taskOutput
+  audit_electoral_log(election_event_id: String!): taskOutput!
   call_plugin_route(data: jsonb!, path: String!): PluginsRouteOutput!
   """check private key"""
   check_private_key(object: CheckPrivateKeyInput!): CheckPrivateKeyOutput
@@ -1339,17 +1291,6 @@ type mutation_root {
   """
   delete_sequent_backend_candidate_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): candidate
   """
-  delete data from the table: "sequent_backend.cast_vote"
-  """
-  delete_sequent_backend_cast_vote(
-    """filter the rows which have to be deleted"""
-    where: cast_vote_bool_exp!
-  ): cast_vote_mutation_response
-  """
-  delete single row from the table: "sequent_backend.cast_vote"
-  """
-  delete_sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
-  """
   delete data from the table: "sequent_backend.certificate_authority"
   """
   delete_sequent_backend_certificate_authority(
@@ -1426,6 +1367,17 @@ type mutation_root {
   delete single row from the table: "sequent_backend.election_type"
   """
   delete_sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
+  """
+  delete data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  delete_sequent_backend_electoral_log_checkpoint(
+    """filter the rows which have to be deleted"""
+    where: electoral_log_checkpoint_bool_exp!
+  ): electoral_log_checkpoint_mutation_response
+  """
+  delete single row from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  delete_sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
   """
   delete data from the table: "sequent_backend.event_execution"
   """
@@ -1906,24 +1858,6 @@ type mutation_root {
     on_conflict: candidate_on_conflict
   ): candidate
   """
-  insert data into the table: "sequent_backend.cast_vote"
-  """
-  insert_sequent_backend_cast_vote(
-    """the rows to be inserted"""
-    objects: [cast_vote_insert_input!]!
-    """upsert condition"""
-    on_conflict: cast_vote_on_conflict
-  ): cast_vote_mutation_response
-  """
-  insert a single row into the table: "sequent_backend.cast_vote"
-  """
-  insert_sequent_backend_cast_vote_one(
-    """the row to be inserted"""
-    object: cast_vote_insert_input!
-    """upsert condition"""
-    on_conflict: cast_vote_on_conflict
-  ): cast_vote
-  """
   insert data into the table: "sequent_backend.certificate_authority"
   """
   insert_sequent_backend_certificate_authority(
@@ -2049,6 +1983,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: election_type_on_conflict
   ): election_type
+  """
+  insert data into the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  insert_sequent_backend_electoral_log_checkpoint(
+    """the rows to be inserted"""
+    objects: [electoral_log_checkpoint_insert_input!]!
+    """upsert condition"""
+    on_conflict: electoral_log_checkpoint_on_conflict
+  ): electoral_log_checkpoint_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  insert_sequent_backend_electoral_log_checkpoint_one(
+    """the row to be inserted"""
+    object: electoral_log_checkpoint_insert_input!
+    """upsert condition"""
+    on_conflict: electoral_log_checkpoint_on_conflict
+  ): electoral_log_checkpoint
   """
   insert data into the table: "sequent_backend.event_execution"
   """
@@ -2941,62 +2893,6 @@ type mutation_root {
     updates: [candidate_updates!]!
   ): [candidate_mutation_response]
   """
-  update data of the table: "sequent_backend.cast_vote"
-  """
-  update_sequent_backend_cast_vote(
-    """append existing jsonb value of filtered columns with new jsonb value"""
-    _append: cast_vote_append_input
-    """
-    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-    """
-    _delete_at_path: cast_vote_delete_at_path_input
-    """
-    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-    """
-    _delete_elem: cast_vote_delete_elem_input
-    """
-    delete key/value pair or string element. key/value pairs are matched based on their key value
-    """
-    _delete_key: cast_vote_delete_key_input
-    """prepend existing jsonb value of filtered columns with new jsonb value"""
-    _prepend: cast_vote_prepend_input
-    """sets the columns of the filtered rows to the given values"""
-    _set: cast_vote_set_input
-    """filter the rows which have to be updated"""
-    where: cast_vote_bool_exp!
-  ): cast_vote_mutation_response
-  """
-  update single row of the table: "sequent_backend.cast_vote"
-  """
-  update_sequent_backend_cast_vote_by_pk(
-    """append existing jsonb value of filtered columns with new jsonb value"""
-    _append: cast_vote_append_input
-    """
-    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-    """
-    _delete_at_path: cast_vote_delete_at_path_input
-    """
-    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-    """
-    _delete_elem: cast_vote_delete_elem_input
-    """
-    delete key/value pair or string element. key/value pairs are matched based on their key value
-    """
-    _delete_key: cast_vote_delete_key_input
-    """prepend existing jsonb value of filtered columns with new jsonb value"""
-    _prepend: cast_vote_prepend_input
-    """sets the columns of the filtered rows to the given values"""
-    _set: cast_vote_set_input
-    pk_columns: cast_vote_pk_columns_input!
-  ): cast_vote
-  """
-  update multiples rows of table: "sequent_backend.cast_vote"
-  """
-  update_sequent_backend_cast_vote_many(
-    """updates to execute, in order"""
-    updates: [cast_vote_updates!]!
-  ): [cast_vote_mutation_response]
-  """
   update data of the table: "sequent_backend.certificate_authority"
   """
   update_sequent_backend_certificate_authority(
@@ -3368,6 +3264,34 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [election_type_updates!]!
   ): [election_type_mutation_response]
+  """
+  update data of the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: electoral_log_checkpoint_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_checkpoint_set_input
+    """filter the rows which have to be updated"""
+    where: electoral_log_checkpoint_bool_exp!
+  ): electoral_log_checkpoint_mutation_response
+  """
+  update single row of the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint_by_pk(
+    """increments the numeric columns with given value of the filtered values"""
+    _inc: electoral_log_checkpoint_inc_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_checkpoint_set_input
+    pk_columns: electoral_log_checkpoint_pk_columns_input!
+  ): electoral_log_checkpoint
+  """
+  update multiples rows of table: "sequent_backend.electoral_log_checkpoint"
+  """
+  update_sequent_backend_electoral_log_checkpoint_many(
+    """updates to execute, in order"""
+    updates: [electoral_log_checkpoint_updates!]!
+  ): [electoral_log_checkpoint_mutation_response]
   """
   update data of the table: "sequent_backend.event_execution"
   """
@@ -5048,14 +4972,10 @@ type query_root {
   get_users(body: GetUsersInput!): GetUsersOutput!
   """List Electoral Log"""
   listElectoralLog(election_event_id: String, filter: ElectoralLogFilter, limit: Int, offset: Int, order_by: ElectoralLogOrderBy): DataListElectoralLog
-  """List PostgreSQL audit logs"""
-  listPgaudit(audit_table: PgAuditTable, filter: PgAuditFilter, limit: Int, offset: Int, order_by: PgAuditOrderBy): DataListPgAudit
   """List electoral log entries of statement_kind CastVote"""
   list_cast_vote_messages(ballot_id: String!, election_event_id: String!, election_id: String, limit: Int, offset: Int, order_by: ElectoralLogOrderBy, tenant_id: String!): ListCastVoteMessagesOutput
   list_keys_ceremony(election_event_id: String!): ListKeysCeremonyOutput
   list_user_roles(election_event_id: String, tenant_id: String!, user_id: String!): [KeycloakRole!]!
-  """log an event in immudb"""
-  logEvent(body: String!, election_event_id: String!, message_type: String!, user_id: String): LogEventOutput
   """
   Resolve the active results website publication for authenticated viewers
   """
@@ -5265,40 +5185,6 @@ type query_root {
   fetch data from the table: "sequent_backend.candidate" using primary key columns
   """
   sequent_backend_candidate_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): candidate
-  """
-  fetch data from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): [cast_vote!]!
-  """
-  fetch aggregated fields from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote_aggregate(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): cast_vote_aggregate!
-  """
-  fetch data from the table: "sequent_backend.cast_vote" using primary key columns
-  """
-  sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
   """
   fetch data from the table: "sequent_backend.certificate_authority"
   """
@@ -5537,6 +5423,40 @@ type query_root {
   fetch data from the table: "sequent_backend.election_type" using primary key columns
   """
   sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): electoral_log_checkpoint_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns
+  """
+  sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
   """
   fetch data from the table: "sequent_backend.event_execution"
   """
@@ -8617,351 +8537,6 @@ input candidate_updates {
   _set: candidate_set_input
   """filter the rows which have to be updated"""
   where: candidate_bool_exp!
-}
-
-"""
-columns and relationships of "sequent_backend.cast_vote"
-"""
-type cast_vote {
-  annotations(
-    """JSON select path"""
-    path: String
-  ): jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid!
-  election_id: uuid
-  id: uuid!
-  labels(
-    """JSON select path"""
-    path: String
-  ): jsonb
-  last_updated_at: timestamptz
-  status: String!
-  tenant_id: uuid!
-  voter_id_string: String
-}
-
-"""
-aggregated selection of "sequent_backend.cast_vote"
-"""
-type cast_vote_aggregate {
-  aggregate: cast_vote_aggregate_fields
-  nodes: [cast_vote!]!
-}
-
-"""
-aggregate fields of "sequent_backend.cast_vote"
-"""
-type cast_vote_aggregate_fields {
-  count(columns: [cast_vote_select_column!], distinct: Boolean): Int!
-  max: cast_vote_max_fields
-  min: cast_vote_min_fields
-}
-
-"""append existing jsonb value of filtered columns with new jsonb value"""
-input cast_vote_append_input {
-  annotations: jsonb
-  labels: jsonb
-}
-
-"""
-Boolean expression to filter rows from the table "sequent_backend.cast_vote". All fields are combined with a logical 'AND'.
-"""
-input cast_vote_bool_exp {
-  _and: [cast_vote_bool_exp!]
-  _not: cast_vote_bool_exp
-  _or: [cast_vote_bool_exp!]
-  annotations: jsonb_comparison_exp
-  area_id: uuid_comparison_exp
-  ballot_id: String_comparison_exp
-  cast_ballot_signature: bytea_comparison_exp
-  content: String_comparison_exp
-  created_at: timestamptz_comparison_exp
-  election_event_id: uuid_comparison_exp
-  election_id: uuid_comparison_exp
-  id: uuid_comparison_exp
-  labels: jsonb_comparison_exp
-  last_updated_at: timestamptz_comparison_exp
-  status: String_comparison_exp
-  tenant_id: uuid_comparison_exp
-  voter_id_string: String_comparison_exp
-}
-
-"""
-unique or primary key constraints on table "sequent_backend.cast_vote"
-"""
-enum cast_vote_constraint {
-  """
-  unique or primary key constraint on columns "id", "tenant_id", "election_event_id"
-  """
-  cast_vote_pkey
-}
-
-"""
-delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-"""
-input cast_vote_delete_at_path_input {
-  annotations: [String!]
-  labels: [String!]
-}
-
-"""
-delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-"""
-input cast_vote_delete_elem_input {
-  annotations: Int
-  labels: Int
-}
-
-"""
-delete key/value pair or string element. key/value pairs are matched based on their key value
-"""
-input cast_vote_delete_key_input {
-  annotations: String
-  labels: String
-}
-
-"""
-input type for inserting data into table "sequent_backend.cast_vote"
-"""
-input cast_vote_insert_input {
-  annotations: jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  labels: jsonb
-  last_updated_at: timestamptz
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""aggregate max on columns"""
-type cast_vote_max_fields {
-  area_id: uuid
-  ballot_id: String
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  last_updated_at: timestamptz
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""aggregate min on columns"""
-type cast_vote_min_fields {
-  area_id: uuid
-  ballot_id: String
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  last_updated_at: timestamptz
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""
-response of any mutation on the table "sequent_backend.cast_vote"
-"""
-type cast_vote_mutation_response {
-  """number of rows affected by the mutation"""
-  affected_rows: Int!
-  """data from the rows affected by the mutation"""
-  returning: [cast_vote!]!
-}
-
-"""
-on_conflict condition type for table "sequent_backend.cast_vote"
-"""
-input cast_vote_on_conflict {
-  constraint: cast_vote_constraint!
-  update_columns: [cast_vote_update_column!]! = []
-  where: cast_vote_bool_exp
-}
-
-"""Ordering options when selecting data from "sequent_backend.cast_vote"."""
-input cast_vote_order_by {
-  annotations: order_by
-  area_id: order_by
-  ballot_id: order_by
-  cast_ballot_signature: order_by
-  content: order_by
-  created_at: order_by
-  election_event_id: order_by
-  election_id: order_by
-  id: order_by
-  labels: order_by
-  last_updated_at: order_by
-  status: order_by
-  tenant_id: order_by
-  voter_id_string: order_by
-}
-
-"""primary key columns input for table: sequent_backend.cast_vote"""
-input cast_vote_pk_columns_input {
-  election_event_id: uuid!
-  id: uuid!
-  tenant_id: uuid!
-}
-
-"""prepend existing jsonb value of filtered columns with new jsonb value"""
-input cast_vote_prepend_input {
-  annotations: jsonb
-  labels: jsonb
-}
-
-"""
-select columns of table "sequent_backend.cast_vote"
-"""
-enum cast_vote_select_column {
-  """column name"""
-  annotations
-  """column name"""
-  area_id
-  """column name"""
-  ballot_id
-  """column name"""
-  cast_ballot_signature
-  """column name"""
-  content
-  """column name"""
-  created_at
-  """column name"""
-  election_event_id
-  """column name"""
-  election_id
-  """column name"""
-  id
-  """column name"""
-  labels
-  """column name"""
-  last_updated_at
-  """column name"""
-  status
-  """column name"""
-  tenant_id
-  """column name"""
-  voter_id_string
-}
-
-"""
-input type for updating data in table "sequent_backend.cast_vote"
-"""
-input cast_vote_set_input {
-  annotations: jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  labels: jsonb
-  last_updated_at: timestamptz
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""
-Streaming cursor of the table "sequent_backend_cast_vote"
-"""
-input cast_vote_stream_cursor_input {
-  """Stream column input with initial value"""
-  initial_value: cast_vote_stream_cursor_value_input!
-  """cursor ordering"""
-  ordering: cursor_ordering
-}
-
-"""Initial value of the column from where the streaming should start"""
-input cast_vote_stream_cursor_value_input {
-  annotations: jsonb
-  area_id: uuid
-  ballot_id: String
-  cast_ballot_signature: bytea
-  content: String
-  created_at: timestamptz
-  election_event_id: uuid
-  election_id: uuid
-  id: uuid
-  labels: jsonb
-  last_updated_at: timestamptz
-  status: String
-  tenant_id: uuid
-  voter_id_string: String
-}
-
-"""
-update columns of table "sequent_backend.cast_vote"
-"""
-enum cast_vote_update_column {
-  """column name"""
-  annotations
-  """column name"""
-  area_id
-  """column name"""
-  ballot_id
-  """column name"""
-  cast_ballot_signature
-  """column name"""
-  content
-  """column name"""
-  created_at
-  """column name"""
-  election_event_id
-  """column name"""
-  election_id
-  """column name"""
-  id
-  """column name"""
-  labels
-  """column name"""
-  last_updated_at
-  """column name"""
-  status
-  """column name"""
-  tenant_id
-  """column name"""
-  voter_id_string
-}
-
-input cast_vote_updates {
-  """append existing jsonb value of filtered columns with new jsonb value"""
-  _append: cast_vote_append_input
-  """
-  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
-  """
-  _delete_at_path: cast_vote_delete_at_path_input
-  """
-  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
-  """
-  _delete_elem: cast_vote_delete_elem_input
-  """
-  delete key/value pair or string element. key/value pairs are matched based on their key value
-  """
-  _delete_key: cast_vote_delete_key_input
-  """prepend existing jsonb value of filtered columns with new jsonb value"""
-  _prepend: cast_vote_prepend_input
-  """sets the columns of the filtered rows to the given values"""
-  _set: cast_vote_set_input
-  """filter the rows which have to be updated"""
-  where: cast_vote_bool_exp!
 }
 
 """
@@ -12175,6 +11750,335 @@ order by variance() on columns of table "sequent_backend.election"
 """
 input election_variance_order_by {
   num_allowed_revotes: order_by
+}
+
+"""
+Signed checkpoints of election event electoral logs, kept outside the electoral-log database. The application only inserts rows.
+"""
+type electoral_log_checkpoint {
+  board_name: String!
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  log_id: bigint!
+  reason: String!
+  root: String!
+  signature: String!
+  signer_pk: String!
+  tenant_id: uuid!
+  tree_size: bigint!
+}
+
+"""
+aggregated selection of "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_aggregate {
+  aggregate: electoral_log_checkpoint_aggregate_fields
+  nodes: [electoral_log_checkpoint!]!
+}
+
+"""
+aggregate fields of "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_aggregate_fields {
+  avg: electoral_log_checkpoint_avg_fields
+  count(columns: [electoral_log_checkpoint_select_column!], distinct: Boolean): Int!
+  max: electoral_log_checkpoint_max_fields
+  min: electoral_log_checkpoint_min_fields
+  stddev: electoral_log_checkpoint_stddev_fields
+  stddev_pop: electoral_log_checkpoint_stddev_pop_fields
+  stddev_samp: electoral_log_checkpoint_stddev_samp_fields
+  sum: electoral_log_checkpoint_sum_fields
+  var_pop: electoral_log_checkpoint_var_pop_fields
+  var_samp: electoral_log_checkpoint_var_samp_fields
+  variance: electoral_log_checkpoint_variance_fields
+}
+
+"""aggregate avg on columns"""
+type electoral_log_checkpoint_avg_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.electoral_log_checkpoint". All fields are combined with a logical 'AND'.
+"""
+input electoral_log_checkpoint_bool_exp {
+  _and: [electoral_log_checkpoint_bool_exp!]
+  _not: electoral_log_checkpoint_bool_exp
+  _or: [electoral_log_checkpoint_bool_exp!]
+  board_name: String_comparison_exp
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  log_id: bigint_comparison_exp
+  reason: String_comparison_exp
+  root: String_comparison_exp
+  signature: String_comparison_exp
+  signer_pk: String_comparison_exp
+  tenant_id: uuid_comparison_exp
+  tree_size: bigint_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  electoral_log_checkpoint_pkey
+  """
+  unique or primary key constraint on columns "tree_size", "log_id", "tenant_id", "election_event_id"
+  """
+  electoral_log_checkpoint_tenant_id_election_event_id_log_id_key
+}
+
+"""
+input type for incrementing numeric columns in table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_inc_input {
+  log_id: bigint
+  tree_size: bigint
+}
+
+"""
+input type for inserting data into table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_insert_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate max on columns"""
+type electoral_log_checkpoint_max_fields {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate min on columns"""
+type electoral_log_checkpoint_min_fields {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""
+response of any mutation on the table "sequent_backend.electoral_log_checkpoint"
+"""
+type electoral_log_checkpoint_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [electoral_log_checkpoint!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_on_conflict {
+  constraint: electoral_log_checkpoint_constraint!
+  update_columns: [electoral_log_checkpoint_update_column!]! = []
+  where: electoral_log_checkpoint_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.electoral_log_checkpoint".
+"""
+input electoral_log_checkpoint_order_by {
+  board_name: order_by
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  log_id: order_by
+  reason: order_by
+  root: order_by
+  signature: order_by
+  signer_pk: order_by
+  tenant_id: order_by
+  tree_size: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.electoral_log_checkpoint
+"""
+input electoral_log_checkpoint_pk_columns_input {
+  id: uuid!
+}
+
+"""
+select columns of table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_select_column {
+  """column name"""
+  board_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  log_id
+  """column name"""
+  reason
+  """column name"""
+  root
+  """column name"""
+  signature
+  """column name"""
+  signer_pk
+  """column name"""
+  tenant_id
+  """column name"""
+  tree_size
+}
+
+"""
+input type for updating data in table "sequent_backend.electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_set_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate stddev on columns"""
+type electoral_log_checkpoint_stddev_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type electoral_log_checkpoint_stddev_pop_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type electoral_log_checkpoint_stddev_samp_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""
+Streaming cursor of the table "sequent_backend_electoral_log_checkpoint"
+"""
+input electoral_log_checkpoint_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: electoral_log_checkpoint_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input electoral_log_checkpoint_stream_cursor_value_input {
+  board_name: String
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  log_id: bigint
+  reason: String
+  root: String
+  signature: String
+  signer_pk: String
+  tenant_id: uuid
+  tree_size: bigint
+}
+
+"""aggregate sum on columns"""
+type electoral_log_checkpoint_sum_fields {
+  log_id: bigint
+  tree_size: bigint
+}
+
+"""
+update columns of table "sequent_backend.electoral_log_checkpoint"
+"""
+enum electoral_log_checkpoint_update_column {
+  """column name"""
+  board_name
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  log_id
+  """column name"""
+  reason
+  """column name"""
+  root
+  """column name"""
+  signature
+  """column name"""
+  signer_pk
+  """column name"""
+  tenant_id
+  """column name"""
+  tree_size
+}
+
+input electoral_log_checkpoint_updates {
+  """increments the numeric columns with given value of the filtered values"""
+  _inc: electoral_log_checkpoint_inc_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: electoral_log_checkpoint_set_input
+  """filter the rows which have to be updated"""
+  where: electoral_log_checkpoint_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type electoral_log_checkpoint_var_pop_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate var_samp on columns"""
+type electoral_log_checkpoint_var_samp_fields {
+  log_id: Float
+  tree_size: Float
+}
+
+"""aggregate variance on columns"""
+type electoral_log_checkpoint_variance_fields {
+  log_id: Float
+  tree_size: Float
 }
 
 """
@@ -24386,51 +24290,6 @@ type subscription_root {
     where: candidate_bool_exp
   ): [candidate!]!
   """
-  fetch data from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): [cast_vote!]!
-  """
-  fetch aggregated fields from the table: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote_aggregate(
-    """distinct select on columns"""
-    distinct_on: [cast_vote_select_column!]
-    """limit the number of rows returned"""
-    limit: Int
-    """skip the first n rows. Use only with order_by"""
-    offset: Int
-    """sort the rows by one or more columns"""
-    order_by: [cast_vote_order_by!]
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): cast_vote_aggregate!
-  """
-  fetch data from the table: "sequent_backend.cast_vote" using primary key columns
-  """
-  sequent_backend_cast_vote_by_pk(election_event_id: uuid!, id: uuid!, tenant_id: uuid!): cast_vote
-  """
-  fetch data from the table in a streaming manner: "sequent_backend.cast_vote"
-  """
-  sequent_backend_cast_vote_stream(
-    """maximum number of rows returned in a single batch"""
-    batch_size: Int!
-    """cursor to stream the results returned by the query"""
-    cursor: [cast_vote_stream_cursor_input]!
-    """filter the rows returned"""
-    where: cast_vote_bool_exp
-  ): [cast_vote!]!
-  """
   fetch data from the table: "sequent_backend.certificate_authority"
   """
   sequent_backend_certificate_authority(
@@ -24745,6 +24604,51 @@ type subscription_root {
     """filter the rows returned"""
     where: election_type_bool_exp
   ): [election_type!]!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_checkpoint_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_checkpoint_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): electoral_log_checkpoint_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_checkpoint" using primary key columns
+  """
+  sequent_backend_electoral_log_checkpoint_by_pk(id: uuid!): electoral_log_checkpoint
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.electoral_log_checkpoint"
+  """
+  sequent_backend_electoral_log_checkpoint_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [electoral_log_checkpoint_stream_cursor_input]!
+    """filter the rows returned"""
+    where: electoral_log_checkpoint_bool_exp
+  ): [electoral_log_checkpoint!]!
   """
   fetch data from the table: "sequent_backend.event_execution"
   """
