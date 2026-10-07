@@ -20,7 +20,7 @@ const tagalogTranslation: TranslationType = {
             detailTitle: "Import ng tally sheet",
             empty: "Wala pang mga import ng tally sheet.",
             emptyBody:
-                "Magsimula sa pag-import ng ES&S Enhanced XML o canonical CSV file para sa election event na ito.",
+                "Magsimula sa pag-import ng ES&S Enhanced XML o canonical CSV file para sa kaganapan ng halalan na ito.",
             sourceFormat: {
                 ESS_ENHANCED_XML: "ES&S Enhanced XML",
                 CANONICAL_CSV: "Canonical CSV",
@@ -212,7 +212,7 @@ const tagalogTranslation: TranslationType = {
                 audit: "I-audit",
             },
             auditDialog: {
-                title: "I-audit ang electoral log",
+                title: "I-audit ang log ng halalan",
                 confirm: "I-audit",
                 description:
                     "Sinusuri ng audit ang bawat entry ng log laban sa Merkle log nito at bine-verify ang mga na-publish na checkpoint. Itinatala ang resulta bilang isang task.",
@@ -265,7 +265,7 @@ const tagalogTranslation: TranslationType = {
                 DELETE_TENANT: "Tanggalin ang tenant",
                 PUBLISH_BALLOT: "I-publish ang balota",
                 VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
-                AUDIT_ELECTORAL_LOG: "I-audit ang Electoral Log",
+                AUDIT_ELECTORAL_LOG: "I-audit ang Log ng Halalan",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
@@ -779,7 +779,7 @@ const tagalogTranslation: TranslationType = {
                         publishRequired:
                             "Ang anumang pagbabagong ginawa sa mga halalan, mga paligsahan, o mga kandidato ay dapat munang i-publish para maging available. Tanging ang pinakabagong na-publish na mga ballot style para sa tumutugmang lugar ang gagamitin sa emulator.",
                         eventChangesImmediate:
-                            "Ang mga pagbabagong ginawa sa election event, gaya ng IVR configuration o mga pagbabago sa prompt, ay available kaagad kapag ni-restart ang emulator session.",
+                            "Ang mga pagbabagong ginawa sa kaganapan ng halalan, gaya ng IVR configuration o mga pagbabago sa prompt, ay available kaagad kapag ni-restart ang emulator session.",
                         credentials: 'Ang valid na voter ID at PIN ay "123" at "123".',
                     },
                     sendDtmf: "Magpadala ng DTMF input",
@@ -1378,11 +1378,11 @@ const tagalogTranslation: TranslationType = {
                 "publish-results-read": "Basahin ang Results Publication",
                 "publish-results-write": "I-edit ang Results Publication",
                 "logs-read": "Basahin ang Logs",
-                "electoral-log-audit": "I-audit ang Electoral Log",
-                "electoral-log-console-read": "I-browse ang Electoral Log",
-                "electoral-log-console-query": "I-query ang Electoral Log",
+                "electoral-log-audit": "I-audit ang Log ng Halalan",
+                "electoral-log-console-read": "I-browse ang Log ng Halalan",
+                "electoral-log-console-query": "I-query ang Log ng Halalan",
                 "electoral-log-personal-data-read":
-                    "Basahin ang Personal na Datos ng Electoral Log",
+                    "Basahin ang Personal na Datos ng Log ng Halalan",
                 "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
@@ -1547,8 +1547,8 @@ const tagalogTranslation: TranslationType = {
                 "datafix-account": "Account ng Datafix",
                 "gold": "Ginto",
                 "silver": "Pilak",
-                "election-event-ivr-tab": "Tingnan ang IVR ng election event",
-                "election-event-cas-tab": "Tingnan ang CAS ng election event",
+                "election-event-ivr-tab": "Tingnan ang IVR ng kaganapan ng halalan",
+                "election-event-cas-tab": "Tingnan ang CAS ng kaganapan ng halalan",
                 "ca-read": "Basahin ang mga certificate authority",
                 "ca-write": "I-edit ang mga certificate authority",
                 "generate-preview": "Bumuo ng preview",
@@ -1559,7 +1559,7 @@ const tagalogTranslation: TranslationType = {
                 "phone-blacklist-update": "I-edit ang mga entry sa blacklist ng telepono",
                 "phone-blacklist-delete": "Tanggalin ang mga entry sa blacklist ng telepono",
                 "election-event-voter-list-reconciliation":
-                    "I-reconcile ang listahan ng mga botante ng election event",
+                    "I-reconcile ang listahan ng mga botante ng kaganapan ng halalan",
             },
         },
         generalSettingsScreen: {
@@ -1793,7 +1793,7 @@ const tagalogTranslation: TranslationType = {
             electionEvents: "Mga Kaganapan ng Halalan",
             search: "Maghanap",
             usersAndRoles: "Mga Tagagamit at Tungkulin",
-            electoralLogConsole: "Electoral Log",
+            electoralLogConsole: "Log ng Halalan",
             logs: "Mga Log",
             settings: "Mga Setting",
             help: "Tulong",
@@ -2959,16 +2959,16 @@ const tagalogTranslation: TranslationType = {
                 'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
         },
         electoralLogConsole: {
-            title: "Electoral Log",
+            title: "Log ng Halalan",
             subtitle:
-                "I-browse ang electoral log at ballot box ng isang election event, o i-query ang database ng electoral log. Walang binabagong datos ang pahinang ito.",
+                "I-browse ang log ng halalan at ballot box ng isang kaganapan ng halalan, o i-query ang database ng log ng halalan. Walang binabagong datos ang pahinang ito.",
             notAllowed:
-                "Kailangan mo ang pahintulot na electoral-log-console-read para buksan ang electoral log.",
+                "Kailangan mo ang pahintulot na electoral-log-console-read para buksan ang log ng halalan.",
             tabs: {
                 tables: "Mga Talahanayan",
                 query: "Query",
             },
-            electionEvent: "Election Event",
+            electionEvent: "Kaganapan ng Halalan",
             table: "Talahanayan",
             tables: {
                 records: "Mga Record",
@@ -3004,7 +3004,7 @@ const tagalogTranslation: TranslationType = {
             estimatedRows: "Mga {{rows}} hilera sa talahanayang ito bago i-filter.",
             personalDataHidden:
                 "Nakatago ang mga username, IP address at bansa: kailangan ang pahintulot na electoral-log-personal-data-read para makita ang mga ito.",
-            loadError: "Hindi mabasa ang electoral log.",
+            loadError: "Hindi mabasa ang log ng halalan.",
             record: {
                 title: "Record {{position}}",
                 view: "Tingnan ang record",
@@ -3014,7 +3014,7 @@ const tagalogTranslation: TranslationType = {
                 loadError: "Hindi mabasa ang record.",
             },
             query: {
-                help: "Tumatakbo ang mga query sa database ng electoral log sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer.",
+                help: "Tumatakbo ang mga query sa database ng log ng halalan sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer.",
                 placeholder: "SELECT …",
                 limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
                 run: "Patakbuhin ang Query",
