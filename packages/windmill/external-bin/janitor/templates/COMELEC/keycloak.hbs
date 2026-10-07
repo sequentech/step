@@ -467,11 +467,19 @@
             "alias": "comelec-registration registration form",
             "authenticationExecutions": [
                 {
+                    "authenticator": "enrollment-window-check",
+                    "authenticatorFlow": false,
+                    "autheticatorFlow": false,
+                    "priority": 0,
+                    "requirement": "REQUIRED",
+                    "userSetupAllowed": false
+                },
+                {
                     "authenticator": "deferred-registration-user-creation",
                     "authenticatorConfig": "drupc",
                     "authenticatorFlow": false,
                     "autheticatorFlow": false,
-                    "priority": 0,
+                    "priority": 10,
                     "requirement": "REQUIRED",
                     "userSetupAllowed": false
                 }
@@ -1203,7 +1211,8 @@
                 "search-attributes": "firstName,middleName,lastName,embassy,dateOfBirth",
                 "auto-2fa": "true",
                 "unset-attributes": "email,sequent.read-only.mobile-number,sequent.read-only.id-card-number-validated",
-                "no-matching-voter-policy": "PENDING_APPROVAL"
+                "no-matching-voter-policy": "PENDING_APPROVAL",
+                "reply-by-hours": "72"
             },
             "id": "d51051b5-d9b5-414b-9fee-259a4de08ba3"
         },

@@ -33,7 +33,7 @@ export const Viewer: Story = {
             "Monitoring overview"
         )
         // The snapshot's time in the event's zone, not the viewer's.
-        await expect(canvas.getByText(/^Updated 8:00 PM\b.* · every 30 s$/)).toBeVisible()
+        await expect(canvas.getByText(/^Updated 8:00 PM \(PhST\) · every 30 s$/)).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Check for new figures"}))
         await expect(args.onRefresh).toHaveBeenCalled()
         expect(canvas.queryByRole("button", {name: "Edit dashboard"})).toBeNull()

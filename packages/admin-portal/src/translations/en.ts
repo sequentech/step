@@ -210,6 +210,51 @@ const englishTranslation = {
             exportdialog: {
                 description:
                     "Please confirm you want to execute this action, it might take a while to execute.",
+                title: "Export logs",
+                from: "From",
+                to: "To",
+                timeZone: "Timezone",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Each row keeps its time in UTC (ISO 8601) and in {{abbr}}, with the timezone name. The date range includes both ends, in {{abbr}}.",
+                zoneNotePdf:
+                    "The PDF prints each time in {{abbr}}. The date range includes both ends, in {{abbr}}.",
+                rowZones: "Each row's election timezone",
+                zoneNoteRows:
+                    "Each row keeps its time in UTC (ISO 8601) and in its election's timezone, with the timezone name. The date range includes both ends, in {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "The PDF prints each time in its election's timezone. The date range includes both ends, in {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Created from",
+                createdTo: "to",
+                statementTimestampFrom: "Statement Timestamp from",
+                statementTimestampTo: "Statement Timestamp to",
+                timeZone: "Timezone",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Waiting for initialization",
+                    "runs": "runs",
+                    "runs-unsigned": "runs without signatures",
+                    "refused": "refused",
+                },
+                check: {
+                    "initialization": "Required initialization is incomplete",
+                    "voting-close": "Voting cannot open at or after its close deadline",
+                    "needs-signatures": "signatures needed",
+                    "covered": "in the signed configuration",
+                    "unsigned-close": "close without signatures",
+                    "stricter-copy": "current or published settings",
+                    "defaults": "nothing published yet",
+                },
+                changed: "Now {{after}} (was: {{before}}).",
+                result: "Outcome: {{outcome}}.",
+                deciding: "Deciding check: {{check}}. {{value}}",
+                authorizedBy: "Authorized by configuration {{code}}.",
+                nextStep: "Next step: {{step}}",
             },
             column: {
                 id: "Id",
@@ -502,6 +547,7 @@ const englishTranslation = {
                     duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "This text must keep {{placeholders}}.",
                 },
                 common: {
                     title: "Localization",
@@ -519,6 +565,7 @@ const englishTranslation = {
                     ballotVerifier: "Ballot verifier",
                     resultsPortal: "Results portal",
                     adminPortal: "Admin portal",
+                    templates: "Reports and messages",
                 },
             },
             field: {
@@ -587,6 +634,8 @@ const englishTranslation = {
                 },
                 lockdownState: {
                     policyLabel: "Lockdown Status",
+                    helperText:
+                        "Schedule a start or end of the lockdown period to change this state.",
                     options: {
                         "locked-down": "Locked Down",
                         "not-locked-down": "Not Locked Down",
@@ -1579,6 +1628,22 @@ const englishTranslation = {
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
                 ALLOW_TALLY: "Allow Tally",
+                START_READINESS_TEST: "Start Election Readiness Test",
+                END_READINESS_TEST: "End Election Readiness Test",
+                START_FINAL_TESTING: "Start Final Testing and Lockdown",
+                END_FINAL_TESTING: "End Final Testing and Lockdown",
+                START_TEST_VOTING: "Start Test Voting",
+                END_TEST_VOTING: "End Test Voting",
+            },
+            warning: {
+                votingWindowDays:
+                    "The voting window of {{election}} covers {{days}} local days ({{start_local}} to {{end_local}}, {{time_zone}}); the rule asks for {{expected}}.",
+                finalTestingLeadTime:
+                    "Final testing of {{election}} starts {{final_testing_local}}, less than {{minimum_days}} days before voting opens at {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "Voting at {{election}} closes at or before it opens ({{start_local}} to {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "The last voting day at {{election}} has {{hours}} hours, less than {{minimum_hours}}: voting closes {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Election",
@@ -2411,6 +2476,15 @@ const englishTranslation = {
             exportAllAreas: "Export All Areas Results in {{format}} format for '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Generate the report for the entire Post or one country. Voting remains blocked until all required country and event-wide initialization is complete.",
+                countriesError: "Could not load eligible countries. Close and try again.",
+                noCountries:
+                    "This Post has no eligible countries with active ballot styles. Check its areas and publication before initializing.",
+                country: "Country",
+                entirePost: "Entire Post",
+            },
             preview: {
                 publicationAreas: "Select Area for Preview",
                 action: "Preview",
@@ -4044,6 +4118,377 @@ const englishTranslation = {
                 redo: "Your key share was contributed without your signature, which this election now needs. Contribute it again and sign it.",
                 notTaken:
                     "The ceremony no longer takes this key share. Drop your key share file again.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Signed close deadline",
+                deadline: "{{election}}: {{time}} · authorized by configuration {{code}}.",
+                explanation:
+                    "This signed deadline remains authoritative after the editable schedule is changed or removed. The scheduler closes its authorized channels that are still open.",
+                reached:
+                    "This signed deadline has passed. Check the current voting state and audit log; processing has not been recorded yet.",
+                processed: "Signed close deadline processed at {{time}}.",
+                signedAt: "Signed deadline: {{time}}.",
+                channels: "Channels still covered by this deadline: {{channels}}.",
+                result: "Consult the voting state and audit log for the actual changes and complete result.",
+                unavailable:
+                    "Unable to load signed close deadlines. Check the published schedule and audit log.",
+            },
+            picker: {
+                noMatch: "No timezone matches. Type a city, country, zone, abbreviation or offset.",
+            },
+            input: {
+                timezone: "Timezone",
+                scheduledAt: "Scheduled at",
+                meetingStart: "Meeting start",
+                cronZone: "The schedule runs in the event's primary timezone, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} isn't one of the event's configured timezones. Choose one of them.",
+            },
+            schedule: {
+                allElections: "All elections",
+                outcome: "Outcome",
+                noOffset: "No timezone offset: never runs",
+                unpublished: "Not published yet",
+                notPublished:
+                    "Nothing is published yet: voters see the schedule after the first publication.",
+                unpublishedChanges_one:
+                    "{{count}} scheduled event changed since the last publication. Voters see it after you publish.",
+                unpublishedChanges_other:
+                    "{{count}} scheduled events changed since the last publication. Voters see them after you publish.",
+                offsetless_one:
+                    "{{count}} scheduled time has no timezone offset, so it never runs. Edit it to set its timezone.",
+                offsetless_other:
+                    "{{count}} scheduled times have no timezone offset, so they never run. Edit them to set their timezone.",
+                outcomeChange:
+                    "Saving changes what this scheduled transition does: {{before}} → {{after}}.",
+                outcomeNew: "Once saved, this scheduled transition: {{after}}.",
+                outcomeElections: "{{count}} of {{total}} elections",
+                exportError: "The schedule could not be exported.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} scheduled row will be refused ({{transitions}} election transitions).",
+                    refused_other:
+                        "{{count}} scheduled rows will be refused ({{transitions}} election transitions).",
+                    runsUnsigned_one:
+                        "{{count}} scheduled close will run without signatures ({{transitions}} election transitions).",
+                    runsUnsigned_other:
+                        "{{count}} scheduled closes will run without signatures ({{transitions}} election transitions).",
+                    review: "Review",
+                    showAll: "Show all",
+                    showing: {
+                        refused:
+                            "Showing the {{count}} scheduled rows that will be refused ({{transitions}} election transitions).",
+                        runsUnsigned:
+                            "Showing the {{count}} scheduled closes that will run without signatures ({{transitions}} election transitions).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "A timezone database update moves {{count}} future scheduled time. Nothing changes until you apply it.",
+                    title_other:
+                        "A timezone database update moves {{count}} future scheduled times. Nothing changes until you apply them.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Apply",
+                    applied_one: "{{count}} scheduled time updated.",
+                    applied_other: "{{count}} scheduled times updated.",
+                    error: "The scheduled times could not be updated.",
+                },
+                outcomeChangeElections_one: "Saving changes the outcome at {{count}} election:",
+                outcomeChangeElections_other: "Saving changes the outcome at {{count}} elections:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "A required report in this signed configuration remains required if the current Post setting is changed to not required.",
+                title: "What this approval authorizes",
+                schedule: "Scheduled openings and closings",
+                noSchedule: "No scheduled openings or closings: the signers open and close voting.",
+                opens: "Opens {{time}}",
+                closes: "Closes {{time}}",
+                settings: "Settings",
+                unsignedClose: "Scheduled close without signatures: {{value}}",
+                initialization: "Initialization: {{value}}",
+                firstConfiguration:
+                    "This is the first approved configuration: nothing to compare with.",
+                sameAsPrevious:
+                    "The settings are the same as in the previous approved configuration.",
+                rule: {
+                    openNeeds_one: "Opening needs {{count}} signature",
+                    openNeeds_other: "Opening needs {{count}} signatures",
+                    openNoSignatures: "Opening needs no signatures",
+                    closeNeeds_one: "Closing needs {{count}} signature",
+                    closeNeeds_other: "Closing needs {{count}} signatures",
+                    closeNoSignatures: "Closing needs no signatures",
+                    openSetting: "Opening voting",
+                    closeSetting: "Closing voting",
+                    signatures_one: "{{count}} signature",
+                    signatures_other: "{{count}} signatures",
+                    none: "no signatures",
+                },
+                diff: {
+                    tightens: "Tightens: {{setting}} {{before}} → {{after}}",
+                    loosens: "Loosens: {{setting}} {{before}} → {{after}}",
+                    mixed: "Changes: {{setting}} {{before}} → {{after}} (stricter in one way, looser in another)",
+                },
+                comparedWith:
+                    "Compared with the previous approved configuration, approval {{code}}:",
+                channels: "Voting channels per election",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "none",
+            },
+            publish: {
+                openedAuthorized:
+                    "Voting opened on schedule at {{time}}, authorized by configuration approval {{code}} (signed by {{names}}).",
+                closedAuthorized:
+                    "Voting closed on schedule at {{time}}, authorized by configuration approval {{code}} (signed by {{names}}).",
+                closedUnsigned:
+                    "Voting closed on schedule at {{time}}. No closing signatures: the schedule closed voting at its deadline.",
+                authorizedBy: "Authorized by",
+                cancelledRequest:
+                    "Request {{code}} had {{n}} of {{k}} signatures and was cancelled.",
+                openedRefused: "The scheduled opening at {{time}} was refused.",
+                closedRefused: "The scheduled close at {{time}} was refused.",
+                openedNoSignaturesNeeded:
+                    "Voting opened on schedule at {{time}}; no signatures were needed.",
+                closedNoSignaturesNeeded:
+                    "Voting closed on schedule at {{time}}; no signatures were needed.",
+                openedNothingToChange:
+                    "At {{time}} the scheduled opening had nothing to open: its channels were already open.",
+                closedNothingToChange:
+                    "At {{time}} the scheduled close had nothing to close: its channels were already closed.",
+            },
+            import: {
+                title: "Import schedule",
+                subtitle:
+                    "One row per event and election, in local time. Leave timezone empty to use the election's timezone.",
+                chooseFile: "Choose a CSV file",
+                template: "Download template",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} events ready for {{posts}} elections.",
+                needsAttention_one:
+                    "{{ok}} events ready for {{posts}} elections. {{count}} row needs attention; fix the file and upload it again.",
+                needsAttention_other:
+                    "{{ok}} events ready for {{posts}} elections. {{count}} rows need attention; fix the file and upload it again.",
+                preview: "Rows to import",
+                row: "Row",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…and {{count}} more rows",
+                imported: "Schedule imported: {{created}} created, {{updated}} updated.",
+                uploadError: "The file could not be checked. Upload it again.",
+                importError: "The schedule could not be imported.",
+                error: {
+                    unknownElection: "No election has the alias {{election}}.",
+                    unknownEventType: "{{type}} is not a scheduled event type.",
+                    invalidTimeZone: "{{zone}} is not a timezone.",
+                    invalidDateTime: "The date and time must read YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "The voting channels are unknown, or open Online and Early voting together.",
+                    dstGap: "{{dateTime}} does not exist in {{city}} because clocks go forward. Write a time that exists.",
+                    duplicate: "Another row schedules the same event for this election.",
+                    other: "This row can't be imported ({{code}}).",
+                    ambiguousElection: "More than one election has the alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Language, Date and Time",
+                dateAndTime: "Date and time",
+                configured: "Configured timezones",
+                configuredHelp:
+                    "{{count}} timezones. Elections choose theirs from this list; type a city or country to add one.",
+                moreZones: "+{{count}}",
+                primary: "Primary timezone",
+                primaryHelp:
+                    "Used for event-wide schedules, reports and elections without their own timezone.",
+                primaryInUse:
+                    "{{zone}} is the primary timezone. Choose another primary timezone first.",
+                inUse: "{{zone}} is in use by {{names}}. Change those elections first.",
+                logs: "Times in Logs and log exports",
+                logsPrimary: "Primary timezone ({{abbr}})",
+                logsElection: "Each row's election timezone",
+                logsHelp: "Rows without an election use the primary timezone.",
+                electionZone: "Timezone",
+                electionPrimary: "Event primary: {{zone}}",
+                electionZoneHelp:
+                    "Schedules, voter screens and reports for this election use this timezone, including every area under it. Empty uses the event's primary timezone.",
+                electionUnconfigured:
+                    "The event no longer configures this timezone, so the election uses the primary timezone, {{zone}}. Choose one of the configured timezones.",
+                electionUnconfiguredSave: "Choose one of the event's configured timezones.",
+            },
+            policies: {
+                accordion: "Voting lifecycle",
+                intro: "These settings are part of the election event's configuration: the configuration approval signs them, and scheduled openings and closings follow the stricter of the current and the published settings.",
+                nothingPublished:
+                    "Nothing published yet: until the first publication, scheduled openings and closings use the defaults (per election, refuse).",
+                publishedValue: "Published configuration: {{value}}",
+                changedSincePublished:
+                    "Changed since the published configuration: scheduled openings and closings follow the stricter of the two until the next approved publication.",
+                scope: {
+                    title: "Initialization before voting opens",
+                    post: {
+                        label: "Per election",
+                        help: "An election opens once it is initialized.",
+                    },
+                    event: {
+                        label: "Whole event",
+                        help: "No election opens until every election is initialized.",
+                        warning:
+                            "One election that isn't initialized keeps every election closed, including at their scheduled openings.",
+                    },
+                    postAndCountry: {
+                        label: "Per election and country",
+                        help: "An election opens once every country (area) under it is initialized.",
+                        warning:
+                            "An election stays closed, also at its scheduled opening, until every country under it is initialized; each country is initialized with its own report.",
+                    },
+                },
+                close: {
+                    title: "Scheduled close without signatures",
+                    help: "When closing voting needs signatures and a scheduled close isn't in the signed configuration.",
+                    refuse: {
+                        label: "Refuse",
+                        help: "The close doesn't run; the election's signers close voting with their signatures.",
+                    },
+                    runAsSystem: {
+                        label: "Run as system",
+                        help: "Voting closes at the deadline, recorded as closed by the schedule without signatures.",
+                        warning:
+                            "Scheduled closes outside the signed configuration close voting without anyone's signature. The log and the documents say so.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "No scheduled transition changes its outcome.",
+                    outcomes_one:
+                        "{{count}} scheduled transition changes its outcome. Review it in Scheduled Events.",
+                    outcomes_other:
+                        "{{count}} scheduled transitions change their outcome. Review them in Scheduled Events.",
+                },
+                saveError: "The voting lifecycle settings could not be saved.",
+                publishedPerTarget: "Published configuration, per target: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} target)",
+                publishedCount_other: "{{value}} ({{count}} targets)",
+                savedWithoutPolicies:
+                    "The election event was saved, but the voting lifecycle settings were not: {{reason}}. Save them again.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Waiting for initialization",
+                runs: "Will run",
+                runsUnsigned: "Will run without signatures",
+                refused: "Will be refused",
+            },
+            note: {
+                waitingForInitialization: "Waiting for initialization",
+                authorized: "Authorized by configuration {{code}}",
+                noSignaturesNeeded: "No signatures needed",
+                closesUnsigned: "Closes without signatures",
+                refused: {
+                    initialization: "Required initialization is incomplete",
+                    votingClose: "Voting cannot open at or after its close deadline",
+                    needsSignatures: "Needs the signers' signatures",
+                    covered: "Not in the signed configuration",
+                    unsignedClose: "A close without signatures is refused",
+                    stricterCopy: "Changed since the published configuration, which still decides",
+                    defaults: "Nothing published yet: the defaults apply",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Why?",
+                title: {
+                    waitingForInitialization: "Why it is waiting for initialization",
+                    runs: "Why it will run",
+                    runsUnsigned: "Why it will run without signatures",
+                    refused: "Why it will be refused",
+                },
+                checks: "Checks",
+                check: "Check",
+                current: "Current settings",
+                published: "Published configuration",
+                verdict: "Verdict",
+                allows: "Allows",
+                blocks: "Blocks",
+                deciding: "Deciding check",
+                nextStep: "Next step:",
+                signedBy: "Signed by {{names}}",
+            },
+            question: {
+                initialization: "Is the required initialization complete?",
+                votingClose: "Does this opening respect the voting close deadline?",
+                needsSignatures: "Does this action need signatures?",
+                covered: "Is this exact schedule in the signed configuration?",
+                unsignedClose: "What happens to a close without signatures?",
+                stricterCopy:
+                    "Do the current and the published settings differ? Which one decides?",
+                defaults: "Is anything published yet?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Initialization requirements in both the current and published settings must be satisfied.",
+                },
+                votingClose: {
+                    passed: "Voting closes at {{closes_at}}; this opening cannot run at or after that deadline.",
+                },
+                needsSignatures: {
+                    yes: "Yes, {{signatures}} signatures",
+                    yes_one: "Yes, {{count}} signature",
+                    yes_other: "Yes, {{count}} signatures",
+                    no: "No",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "The signed configuration {{code}} uses this Post's own opening {{scheduled_event_id}}. The event-wide opening does not apply.",
+                    yes: "Yes: approval {{code}}, unchanged",
+                    changed: "No: changed since approval {{code}}",
+                    changedBy:
+                        "No: edited on {{edited_at}} by {{edited_by}}, after approval {{code}}",
+                    notInApproval: "No: approval {{code}} doesn't include it",
+                    noApproval: "No approved configuration yet",
+                    channelsChanged:
+                        "No: the election's voting channels changed since approval {{code}}",
+                    alreadyFired:
+                        "No: this transition of approval {{code}} already ran at {{fired_at}}; running it again needs signatures",
+                    late: "No: it is more than 15 minutes past {{scheduled_date}} (approval {{code}}); running it now needs signatures",
+                },
+                unsignedClose: {
+                    refuse: "Refuse",
+                    runAsSystem: "Run as system",
+                },
+                stricterCopy: {
+                    same: "Both are the same",
+                    currentStricter: "Current settings are stricter: applied now",
+                    currentLooser:
+                        "Current settings are looser: they apply after the next approved publication",
+                    combined: "Each is stricter in one value: both apply",
+                },
+                defaults: {
+                    published: "Published on {{published_at}}",
+                    nothingPublished: "Nothing published: defaults apply",
+                    noSnapshot:
+                        "Published on {{published_at}}, before publications kept these settings: defaults apply",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Complete the required initialization. The scheduler will retry before voting closes.",
+                closed: "This opening will not run after voting closes.",
+                none: "No action needed.",
+                publishAndApprove: "Publish and approve the configuration.",
+                requireConfigurationApproval:
+                    "Make Approve configuration need signatures, then publish and approve the configuration.",
+                askSignersToOpen: "Ask the election's signers to open voting.",
+                askSignersToClose: "Ask the election's signers to close voting.",
+            },
+            applies: {
+                tightens: "Applies now to manual and scheduled actions.",
+                loosens:
+                    "Applies now to manual actions; to scheduled openings and closings after the next approved publication.",
+                tightensAndLoosens:
+                    "Its stricter part applies now to manual and scheduled actions; its looser part applies now to manual actions and to scheduled openings and closings after the next approved publication.",
             },
         },
     },

@@ -14,6 +14,7 @@ pub mod contest;
 pub mod document;
 pub mod election;
 pub mod election_event;
+pub mod election_initialization;
 pub mod keycloak_realm;
 pub mod keys_ceremony;
 pub mod lock;
@@ -48,4 +49,7 @@ pub mod tally_sheet_import;
 pub mod tasks_execution;
 pub mod template;
 pub mod tenant;
+pub mod trusted_write;
 pub mod trustee;
+
+pub use trusted_write::trusted_write;

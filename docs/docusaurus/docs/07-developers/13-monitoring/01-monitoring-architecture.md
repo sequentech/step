@@ -177,7 +177,8 @@ that did not complete (running, failed or superseded). Pruning deletes a
 run's row, so any other revision below the live run with no row is taken
 as pruned. `render-widget` pinned to a revision answers the same.
 
-**Buckets.** Series are hourly buckets in the settings' time zone, each
+**Buckets.** Series are hourly buckets in the event's primary timezone
+(`presentation.timezones`, read through windmill `services::time_zones`), each
 `[start, end)`; a day is the sum of its hours. Each voter has one first-vote
 time, so buckets sum to the totals, including across DST changes.
 

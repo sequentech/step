@@ -14,6 +14,8 @@ pub mod permissions;
 pub mod results;
 #[cfg(feature = "default_features")]
 pub mod scheduled_event;
+#[cfg(feature = "default_features")]
+pub mod scheduled_outcome;
 pub mod tally_sheet_import;
 pub mod tally_sheets;
 #[cfg(feature = "reports")]

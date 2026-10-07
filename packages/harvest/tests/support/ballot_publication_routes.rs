@@ -15,6 +15,59 @@ use rocket::local::asynchronous::{Client, LocalResponse};
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 
+/// Seed one already-authorized server result, then restore the marker before
+/// any route or ordinary fixture write can use this pooled connection.
+async fn trusted_seed(
+    pool: &deadpool_postgres::Pool,
+    sql: &str,
+    params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
+) {
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let previous: Option<String> = tx
+        .query_one("SELECT current_setting('sequent.trusted_write', true)", &[])
+        .await
+        .unwrap()
+        .get(0);
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    tx.execute(sql, params).await.unwrap();
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', $1, true)",
+        &[&previous.unwrap_or_default()],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// Generated event-level publication with the same target membership and
+/// immutable root that the normal server completion workflow records.
+async fn generated_publication(
+    pool: &deadpool_postgres::Pool,
+    event: &Event,
+    published: bool,
+) -> String {
+    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    let election_event =
+        uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let id = uuid::Uuid::new_v4();
+    let elections: Vec<uuid::Uuid> = rows::query(pool,
+        "SELECT id FROM sequent_backend.election WHERE tenant_id=$1 AND election_event_id=$2 ORDER BY id",
+        &[&tenant, &election_event],
+    ).await.into_iter().map(|row| row.get(0)).collect();
+    let annotations = published.then(|| serde_json::json!({
+        windmill::domain::publication_files::FILES_ANNOTATION:
+            windmill::domain::publication_files::publication_root(tenant, election_event, id, uuid::Uuid::new_v4())
+    }));
+    trusted_seed(pool,
+        "INSERT INTO sequent_backend.ballot_publication
+        (id,tenant_id,election_event_id,is_generated,election_ids,published_at,annotations)
+        VALUES ($1,$2,$3,true,$4,CASE WHEN $5 THEN now() END,$6)",
+        &[&id,&tenant,&election_event,&elections,&published,&annotations],
+    ).await;
+    id.to_string()
+}
+
 const USER_ID: &str = "publisher";
 
 fn publisher(event: &Event) -> Claims {
@@ -264,7 +317,7 @@ async fn publishing_an_already_published_ballot_completes_its_task() {
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let publication =
-        event.ballot_publication(&services.hasura, true, true).await;
+        generated_publication(&services.hasura, &event, true).await;
 
     assert_eq!(
         json(publish(&client, &event, &publication).await).await,
@@ -331,7 +384,7 @@ async fn a_publish_whose_task_cannot_be_completed_is_reported_as_published() {
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let publication =
-        event.ballot_publication(&services.hasura, true, true).await;
+        generated_publication(&services.hasura, &event, true).await;
 
     assert_eq!(
         json(publish(&client, &event, &publication).await).await,
@@ -346,9 +399,8 @@ async fn a_publish_without_a_task_row_is_not_attempted() {
         .with_ledger(MemoryTaskLedger::refusing());
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let publication = event
-        .ballot_publication(&services.hasura, true, false)
-        .await;
+    let publication =
+        generated_publication(&services.hasura, &event, false).await;
 
     let (status, body) =
         json(publish(&client, &event, &publication).await).await;
@@ -375,9 +427,8 @@ async fn the_changes_of_a_first_publication_have_nothing_to_compare_with() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let publication = event
-        .ballot_publication(&services.hasura, true, false)
-        .await;
+    let publication =
+        generated_publication(&services.hasura, &event, false).await;
 
     let (status, body) = json(
         post(

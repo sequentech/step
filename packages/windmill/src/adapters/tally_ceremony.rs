@@ -199,6 +199,16 @@ impl TallySessions for PgTallySessions<'_> {
             tally_session.permission_labels,
         )
         .await?;
+        if let Some(coverage) = tally_session.initialization_country_coverage {
+            crate::postgres::election_initialization::insert_initialization_report_coverage(
+                self.transaction,
+                uuid::Uuid::parse_str(tenant_id)?,
+                uuid::Uuid::parse_str(election_event_id)?,
+                uuid::Uuid::parse_str(&tally_session.id)?,
+                &coverage,
+            )
+            .await?;
+        }
         Ok(())
     }
 
@@ -240,6 +250,41 @@ impl<'a> PgTallyCreationReader<'a> {
 }
 
 impl TallyCreationReader for PgTallyCreationReader<'_> {
+    async fn initialization_countries(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        post: uuid::Uuid,
+    ) -> Result<Option<std::collections::BTreeSet<String>>> {
+        let state = crate::services::scheduled_outcome::EventState::read(
+            self.transaction,
+            uuid::Uuid::parse_str(tenant_id)?,
+            uuid::Uuid::parse_str(election_event_id)?,
+        )
+        .await?;
+        Ok(Some(
+            crate::services::initialization_scope::effective_initialization_countries(
+                &state,
+                &post.to_string(),
+            )?,
+        ))
+    }
+
+    async fn initialization_scopes(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        post: uuid::Uuid,
+    ) -> Result<crate::services::initialization_scope::ScopeCopies> {
+        crate::services::initialization_scope::initialization_scope_for_post(
+            self.transaction,
+            tenant_id,
+            election_event_id,
+            post,
+        )
+        .await
+    }
+
     async fn event_snapshot(
         &self,
         tenant_id: &str,
@@ -267,13 +312,32 @@ impl TallyCreationReader for PgTallyCreationReader<'_> {
         election_event_id: &str,
         election_ids: &[String],
     ) -> Result<Vec<BallotStyle>> {
-        get_ballot_styles_by_elections(
+        let styles = get_ballot_styles_by_elections(
             self.transaction,
             tenant_id,
             election_event_id,
             &election_ids.to_vec(),
         )
-        .await
+        .await?;
+        let generated: std::collections::HashSet<String> = self
+            .transaction
+            .query(
+                "SELECT id::text FROM sequent_backend.ballot_publication
+             WHERE tenant_id = $1 AND election_event_id = $2
+             AND (COALESCE(is_generated, false) OR published_at IS NOT NULL)",
+                &[
+                    &uuid::Uuid::parse_str(tenant_id)?,
+                    &uuid::Uuid::parse_str(election_event_id)?,
+                ],
+            )
+            .await?
+            .into_iter()
+            .map(|row| row.get(0))
+            .collect();
+        Ok(styles
+            .into_iter()
+            .filter(|style| generated.contains(&style.ballot_publication_id))
+            .collect())
     }
 
     async fn approved_tally_sheets(

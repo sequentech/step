@@ -248,6 +248,14 @@ fn build_application_with(
                 routes::signing_certificates::revoke_staff_certificate_route,
                 routes::signing_certificates::check_signing_certificate,
                 routes::signing::prepare_signing_pdf,
+                routes::election_dates::apply_schedule_recompute,
+                routes::schedule_import::preview_schedule_import,
+                routes::schedule_import::import_schedule,
+                routes::schedule_import::export_schedule,
+                routes::scheduled_outcomes::get_scheduled_outcomes,
+                routes::scheduled_outcomes::preview_scheduled_outcome_change,
+                routes::scheduled_outcomes::save_lifecycle_policies_route,
+                routes::scheduled_outcomes::get_lifecycle_snapshots,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

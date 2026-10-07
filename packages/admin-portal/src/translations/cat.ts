@@ -287,6 +287,51 @@ const catalanTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Si us plau, confirmeu que voleu executar aquesta acció; pot trigar una estona a completar-se.",
+                title: "Exporta els registres",
+                from: "Des de",
+                to: "Fins a",
+                timeZone: "Fus horari",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Cada fila conserva la seva hora en UTC (ISO 8601) i en {{abbr}}, amb el nom del fus horari. L'interval de dates inclou els dos extrems, en {{abbr}}.",
+                zoneNotePdf:
+                    "El PDF mostra cada hora en {{abbr}}. L'interval de dates inclou els dos extrems, en {{abbr}}.",
+                rowZones: "El fus horari de l'elecció de cada fila",
+                zoneNoteRows:
+                    "Cada fila conserva la seva hora en UTC (ISO 8601) i en el fus horari de la seva elecció, amb el nom del fus horari. L'interval de dates inclou els dos extrems, en {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "El PDF mostra cada hora en el fus horari de la seva elecció. L'interval de dates inclou els dos extrems, en {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Creat des de",
+                createdTo: "fins a",
+                statementTimestampFrom: "Marca de temps de la declaració des de",
+                statementTimestampTo: "Marca de temps de la declaració fins a",
+                timeZone: "Fus horari",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Esperant la inicialització",
+                    "runs": "s'executa",
+                    "runs-unsigned": "s'executa sense signatures",
+                    "refused": "es rebutja",
+                },
+                check: {
+                    "initialization": "La inicialització requerida és incompleta",
+                    "voting-close": "La votació no es pot obrir després del termini de tancament",
+                    "needs-signatures": "signatures necessàries",
+                    "covered": "a la configuració signada",
+                    "unsigned-close": "tancament sense signatures",
+                    "stricter-copy": "configuració actual o publicada",
+                    "defaults": "encara no s'ha publicat res",
+                },
+                changed: "Ara {{after}} (abans: {{before}}).",
+                result: "Resultat: {{outcome}}.",
+                deciding: "Comprovació decisiva: {{check}}. {{value}}",
+                authorizedBy: "Autoritzat per la configuració {{code}}.",
+                nextStep: "Pas següent: {{step}}",
             },
             column: {
                 id: "ID",
@@ -506,6 +551,7 @@ const catalanTranslation: TranslationType = {
                         "Ja existeix una substitució amb aquesta clau i àmbit del portal.",
                     invalidDateTimeFormat:
                         "Format de data/hora no vàlid. Utilitza els tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Aquest text ha de conservar {{placeholders}}.",
                 },
                 common: {
                     title: "Localització",
@@ -523,6 +569,7 @@ const catalanTranslation: TranslationType = {
                     ballotVerifier: "Verificador de paperetes",
                     resultsPortal: "Portal de resultats",
                     adminPortal: "Portal d'administració",
+                    templates: "Informes i missatges",
                 },
             },
             field: {
@@ -594,6 +641,8 @@ const catalanTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "Estat de Confinament",
+                    helperText:
+                        "Programeu l’inici o el final del període de bloqueig per canviar aquest estat.",
                     options: {
                         "locked-down": "Confinat",
                         "not-locked-down": "No Confinat",
@@ -1612,6 +1661,22 @@ const catalanTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Inici del Período de Bloc de Dades Censals",
                 END_LOCKDOWN_PERIOD: "Final del Período de Bloc de Dades Censals",
                 ALLOW_TALLY: "Permetre el recompte",
+                START_READINESS_TEST: "Iniciar la prova de preparació electoral",
+                END_READINESS_TEST: "Finalitzar la prova de preparació electoral",
+                START_FINAL_TESTING: "Iniciar les proves finals i el bloqueig",
+                END_FINAL_TESTING: "Finalitzar les proves finals i el bloqueig",
+                START_TEST_VOTING: "Iniciar la votació de prova",
+                END_TEST_VOTING: "Finalitzar la votació de prova",
+            },
+            warning: {
+                votingWindowDays:
+                    "El període de votació de {{election}} abasta {{days}} dies locals (del {{start_local}} al {{end_local}}, {{time_zone}}); la regla demana {{expected}}.",
+                finalTestingLeadTime:
+                    "Les proves finals de {{election}} comencen el {{final_testing_local}}, menys de {{minimum_days}} dies abans que s'obri la votació el {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "La votació de {{election}} es tanca abans o en el moment d'obrir-se ({{start_local}} a {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "L'últim dia de votació de {{election}} té {{hours}} hores, menys de {{minimum_hours}}: la votació es tanca el {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Elecció",
@@ -2448,6 +2513,16 @@ const catalanTranslation: TranslationType = {
                 "Exporta els resultats de totes les àrees en format {{format}} per a '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Genereu l’informe per a tot el lloc de votació o per a un país. La votació continua bloquejada fins que es completi tota la inicialització requerida per país i per a l’esdeveniment.",
+                countriesError:
+                    "No s’han pogut carregar els països elegibles. Tanqueu i torneu-ho a intentar.",
+                noCountries:
+                    "Aquest lloc de votació no té països elegibles amb estils de papereta actius. Comproveu-ne les àrees i la publicació abans d’inicialitzar.",
+                country: "País",
+                entirePost: "Tot el lloc de votació",
+            },
             preview: {
                 publicationAreas: "Selecciona l'àrea per a la vista prèvia",
                 action: "Vista prèvia",
@@ -4103,6 +4178,381 @@ const catalanTranslation: TranslationType = {
                 redo: "El vostre fragment de clau es va aportar sense la vostra signatura, que ara aquesta elecció requereix. Torneu-lo a aportar i signeu-lo.",
                 notTaken:
                     "La cerimònia ja no accepta aquest fragment de clau. Torneu a deixar anar el vostre fitxer de fragment de clau.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Termini de tancament signat",
+                deadline: "{{election}}: {{time}} · autoritzat per la configuració {{code}}.",
+                explanation:
+                    "Aquest termini signat continua sent vinculant encara que es canviï o s’elimini el calendari editable. El planificador tanca els canals autoritzats que encara estiguin oberts.",
+                reached:
+                    "Aquest termini signat ja ha vençut. Comproveu l’estat actual de la votació i el registre d’auditoria; encara no se n’ha registrat el processament.",
+                processed: "Termini de tancament signat processat a les {{time}}.",
+                signedAt: "Termini signat: {{time}}.",
+                channels: "Canals que continuen coberts per aquest termini: {{channels}}.",
+                result: "Consulteu l’estat de la votació i el registre d’auditoria per conèixer els canvis reals i el resultat complet.",
+                unavailable:
+                    "No s’han pogut carregar els terminis de tancament signats. Comproveu el calendari publicat i el registre d’auditoria.",
+            },
+            picker: {
+                noMatch:
+                    "Cap fus horari coincideix. Escriu una ciutat, un país, una zona, una abreviatura o un desplaçament.",
+            },
+            input: {
+                timezone: "Fus horari",
+                scheduledAt: "Programat per a",
+                meetingStart: "Inici de la reunió",
+                cronZone:
+                    "La programació s'executa en el fus horari principal de l'esdeveniment, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} no és un dels fusos horaris configurats de l'esdeveniment. Trieu-ne un.",
+            },
+            schedule: {
+                allElections: "Totes les eleccions",
+                outcome: "Resultat",
+                noOffset: "Sense desplaçament horari: no s'executa mai",
+                unpublished: "Encara no publicat",
+                notPublished:
+                    "Encara no hi ha res publicat: els votants veuen la programació després de la primera publicació.",
+                unpublishedChanges_one:
+                    "{{count}} esdeveniment programat ha canviat des de l'última publicació. Els votants el veuran quan publiquis.",
+                unpublishedChanges_other:
+                    "{{count}} esdeveniments programats han canviat des de l'última publicació. Els votants els veuran quan publiquis.",
+                offsetless_one:
+                    "{{count}} hora programada no té desplaçament horari, així que no s'executa mai. Edita-la per fixar-ne el fus horari.",
+                offsetless_other:
+                    "{{count}} hores programades no tenen desplaçament horari, així que no s'executen mai. Edita-les per fixar-ne el fus horari.",
+                outcomeChange:
+                    "En desar canvia el que fa aquesta transició programada: {{before}} → {{after}}.",
+                outcomeNew: "Un cop desada, aquesta transició programada: {{after}}.",
+                outcomeElections: "{{count}} de {{total}} eleccions",
+                exportError: "No s'ha pogut exportar la programació.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} fila programada es rebutjarà ({{transitions}} transicions d'eleccions).",
+                    refused_other:
+                        "{{count}} files programades es rebutjaran ({{transitions}} transicions d'eleccions).",
+                    runsUnsigned_one:
+                        "{{count}} tancament programat s'executarà sense signatures ({{transitions}} transicions d'eleccions).",
+                    runsUnsigned_other:
+                        "{{count}} tancaments programats s'executaran sense signatures ({{transitions}} transicions d'eleccions).",
+                    review: "Revisar",
+                    showAll: "Mostrar-ho tot",
+                    showing: {
+                        refused:
+                            "Es mostren les {{count}} files programades que es rebutjaran ({{transitions}} transicions d'eleccions).",
+                        runsUnsigned:
+                            "Es mostren els {{count}} tancaments programats que s'executaran sense signatures ({{transitions}} transicions d'eleccions).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Una actualització de la base de dades de fusos horaris mou {{count}} hora programada futura. No canvia res fins que l'apliquis.",
+                    title_other:
+                        "Una actualització de la base de dades de fusos horaris mou {{count}} hores programades futures. No canvia res fins que les apliquis.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Aplicar",
+                    applied_one: "{{count}} hora programada actualitzada.",
+                    applied_other: "{{count}} hores programades actualitzades.",
+                    error: "No s'han pogut actualitzar les hores programades.",
+                },
+                outcomeChangeElections_one: "Desar canvia el resultat a {{count}} elecció:",
+                outcomeChangeElections_other: "Desar canvia el resultat a {{count}} eleccions:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "Un informe obligatori en aquesta configuració signada continua sent obligatori si la configuració actual del lloc canvia a no obligatori.",
+                title: "Què autoritza aquesta aprovació",
+                schedule: "Obertures i tancaments programats",
+                noSchedule:
+                    "No hi ha obertures ni tancaments programats: els signants obren i tanquen la votació.",
+                opens: "S'obre {{time}}",
+                closes: "Es tanca {{time}}",
+                settings: "Configuració",
+                unsignedClose: "Tancament programat sense signatures: {{value}}",
+                initialization: "Inicialització: {{value}}",
+                firstConfiguration:
+                    "És la primera configuració aprovada: no hi ha res amb què comparar.",
+                sameAsPrevious:
+                    "La configuració és la mateixa que en la configuració aprovada anterior.",
+                rule: {
+                    openNeeds_one: "Obrir requereix {{count}} signatura",
+                    openNeeds_other: "Obrir requereix {{count}} signatures",
+                    openNoSignatures: "Obrir no requereix signatures",
+                    closeNeeds_one: "Tancar requereix {{count}} signatura",
+                    closeNeeds_other: "Tancar requereix {{count}} signatures",
+                    closeNoSignatures: "Tancar no requereix signatures",
+                    openSetting: "Obertura de la votació",
+                    closeSetting: "Tancament de la votació",
+                    signatures_one: "{{count}} signatura",
+                    signatures_other: "{{count}} signatures",
+                    none: "sense signatures",
+                },
+                diff: {
+                    tightens: "Endureix: {{setting}} {{before}} → {{after}}",
+                    loosens: "Relaxa: {{setting}} {{before}} → {{after}}",
+                    mixed: "Canvia: {{setting}} {{before}} → {{after}} (més estricte en un aspecte i menys en un altre)",
+                },
+                comparedWith: "Comparat amb la configuració aprovada anterior, aprovació {{code}}:",
+                channels: "Canals de votació per elecció",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "cap",
+            },
+            publish: {
+                openedAuthorized:
+                    "La votació es va obrir segons la programació ({{time}}), autoritzada per l'aprovació de configuració {{code}} (signada per {{names}}).",
+                closedAuthorized:
+                    "La votació es va tancar segons la programació ({{time}}), autoritzada per l'aprovació de configuració {{code}} (signada per {{names}}).",
+                closedUnsigned:
+                    "La votació es va tancar segons la programació ({{time}}). Sense signatures de tancament: la programació va tancar la votació a l'hora límit.",
+                authorizedBy: "Autoritzat per",
+                cancelledRequest:
+                    "La sol·licitud {{code}} tenia {{n}} de {{k}} signatures i es va cancel·lar.",
+                openedRefused: "L'obertura programada de {{time}} s'ha rebutjat.",
+                closedRefused: "El tancament programat de {{time}} s'ha rebutjat.",
+                openedNoSignaturesNeeded:
+                    "La votació s'ha obert segons la programació ({{time}}); no calien signatures.",
+                closedNoSignaturesNeeded:
+                    "La votació s'ha tancat segons la programació ({{time}}); no calien signatures.",
+                openedNothingToChange:
+                    "A les {{time}} l'obertura programada no tenia res a obrir: els seus canals ja eren oberts.",
+                closedNothingToChange:
+                    "A les {{time}} el tancament programat no tenia res a tancar: els seus canals ja eren tancats.",
+            },
+            import: {
+                title: "Importar la programació",
+                subtitle:
+                    "Una fila per esdeveniment i elecció, en hora local. Deixa el fus horari buit per utilitzar el fus horari de l'elecció.",
+                chooseFile: "Tria un fitxer CSV",
+                template: "Baixar la plantilla",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} esdeveniments a punt per a {{posts}} eleccions.",
+                needsAttention_one:
+                    "{{ok}} esdeveniments a punt per a {{posts}} eleccions. {{count}} fila requereix atenció; corregeix el fitxer i torna'l a pujar.",
+                needsAttention_other:
+                    "{{ok}} esdeveniments a punt per a {{posts}} eleccions. {{count}} files requereixen atenció; corregeix el fitxer i torna'l a pujar.",
+                preview: "Files que s'importaran",
+                row: "Fila",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…i {{count}} files més",
+                imported: "Programació importada: {{created}} creats, {{updated}} actualitzats.",
+                uploadError: "No s'ha pogut comprovar el fitxer. Torna'l a pujar.",
+                importError: "No s'ha pogut importar la programació.",
+                error: {
+                    unknownElection: "Cap elecció no té l'àlies {{election}}.",
+                    unknownEventType: "{{type}} no és un tipus d'esdeveniment programat.",
+                    invalidTimeZone: "{{zone}} no és un fus horari.",
+                    invalidDateTime: "La data i l'hora han de tenir el format YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "Els canals de votació són desconeguts o obren alhora la votació en línia i l'anticipada.",
+                    dstGap: "{{dateTime}} no existeix a {{city}} perquè s'avancen els rellotges. Escriu una hora que existeixi.",
+                    duplicate:
+                        "Una altra fila programa el mateix esdeveniment per a aquesta elecció.",
+                    other: "Aquesta fila no es pot importar ({{code}}).",
+                    ambiguousElection: "Més d'una elecció té l'àlies {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Idioma, data i hora",
+                dateAndTime: "Data i hora",
+                configured: "Fusos horaris configurats",
+                configuredHelp:
+                    "{{count}} fusos horaris. Les eleccions trien el seu d'aquesta llista; escriu una ciutat o un país per afegir-ne un.",
+                moreZones: "+{{count}}",
+                primary: "Fus horari principal",
+                primaryHelp:
+                    "S'utilitza per a les programacions de tot l'esdeveniment, els informes i les eleccions sense fus horari propi.",
+                primaryInUse:
+                    "{{zone}} és el fus horari principal. Tria abans un altre fus horari principal.",
+                inUse: "{{zone}} l'utilitzen {{names}}. Canvia abans aquestes eleccions.",
+                logs: "Hores als registres i a les seves exportacions",
+                logsPrimary: "Fus horari principal ({{abbr}})",
+                logsElection: "El fus horari de l'elecció de cada fila",
+                logsHelp: "Les files sense elecció utilitzen el fus horari principal.",
+                electionZone: "Fus horari",
+                electionPrimary: "Principal de l'esdeveniment: {{zone}}",
+                electionZoneHelp:
+                    "Les programacions, les pantalles dels votants i els informes d'aquesta elecció utilitzen aquest fus horari, també en totes les seves àrees. Buit utilitza el fus horari principal de l'esdeveniment.",
+                electionUnconfigured:
+                    "L'esdeveniment ja no configura aquest fus horari, així que l'elecció utilitza el fus horari principal, {{zone}}. Tria un dels fusos horaris configurats.",
+                electionUnconfiguredSave:
+                    "Trieu un dels fusos horaris configurats de l'esdeveniment.",
+            },
+            policies: {
+                accordion: "Cicle de la votació",
+                intro: "Aquesta configuració forma part de la configuració de l'esdeveniment electoral: l'aprovació de la configuració la signa, i les obertures i els tancaments programats segueixen la més estricta entre la configuració actual i la publicada.",
+                nothingPublished:
+                    "Encara no hi ha res publicat: fins a la primera publicació, les obertures i els tancaments programats utilitzen els valors per defecte (per elecció, rebutjar).",
+                publishedValue: "Configuració publicada: {{value}}",
+                changedSincePublished:
+                    "Ha canviat des de la configuració publicada: les obertures i els tancaments programats segueixen la més estricta de les dues fins a la propera publicació aprovada.",
+                scope: {
+                    title: "Inicialització abans d'obrir la votació",
+                    post: {
+                        label: "Per elecció",
+                        help: "Una elecció s'obre quan està inicialitzada.",
+                    },
+                    event: {
+                        label: "Tot l'esdeveniment",
+                        help: "Cap elecció no s'obre fins que totes estiguin inicialitzades.",
+                        warning:
+                            "Una elecció sense inicialitzar manté tancades totes les eleccions, també a les seves obertures programades.",
+                    },
+                    postAndCountry: {
+                        label: "Per elecció i país",
+                        help: "Una elecció s'obre quan tots els seus països (àrees) estan inicialitzats.",
+                        warning:
+                            "Una elecció continua tancada, també a la seva obertura programada, fins que tots els seus països estan inicialitzats; cada país s'inicialitza amb el seu propi informe.",
+                    },
+                },
+                close: {
+                    title: "Tancament programat sense signatures",
+                    help: "Quan tancar la votació requereix signatures i un tancament programat no és a la configuració signada.",
+                    refuse: {
+                        label: "Rebutjar",
+                        help: "El tancament no s'executa; els signants de l'elecció tanquen la votació amb les seves signatures.",
+                    },
+                    runAsSystem: {
+                        label: "Executar com a sistema",
+                        help: "La votació es tanca a l'hora límit i queda registrada com a tancada per la programació sense signatures.",
+                        warning:
+                            "Els tancaments programats fora de la configuració signada tanquen la votació sense la signatura de ningú. El registre i els documents ho indiquen.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "Cap transició programada no canvia de resultat.",
+                    outcomes_one:
+                        "{{count}} transició programada canvia de resultat. Revisa-la a Esdeveniments Programats.",
+                    outcomes_other:
+                        "{{count}} transicions programades canvien de resultat. Revisa-les a Esdeveniments Programats.",
+                },
+                saveError: "No s'ha pogut desar la configuració del cicle de la votació.",
+                publishedPerTarget: "Configuració publicada, per destinació: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} destinació)",
+                publishedCount_other: "{{value}} ({{count}} destinacions)",
+                savedWithoutPolicies:
+                    "L'esdeveniment electoral s'ha desat, però la configuració del cicle de la votació no: {{reason}}. Torneu-la a desar.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Esperant la inicialització",
+                runs: "S'executarà",
+                runsUnsigned: "S'executarà sense signatures",
+                refused: "Es rebutjarà",
+            },
+            note: {
+                waitingForInitialization: "Esperant la inicialització",
+                authorized: "Autoritzat per la configuració {{code}}",
+                noSignaturesNeeded: "No necessita signatures",
+                closesUnsigned: "Es tanca sense signatures",
+                refused: {
+                    initialization: "La inicialització requerida és incompleta",
+                    votingClose: "La votació no es pot obrir després del termini de tancament",
+                    needsSignatures: "Necessita les signatures dels signants",
+                    covered: "No és a la configuració signada",
+                    unsignedClose: "Un tancament sense signatures es rebutja",
+                    stricterCopy:
+                        "Ha canviat des de la configuració publicada, que encara decideix",
+                    defaults: "Encara no s'ha publicat res: s'apliquen els valors per defecte",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Per què?",
+                title: {
+                    waitingForInitialization: "Per què espera la inicialització",
+                    runs: "Per què s'executarà",
+                    runsUnsigned: "Per què s'executarà sense signatures",
+                    refused: "Per què es rebutjarà",
+                },
+                checks: "Comprovacions",
+                check: "Comprovació",
+                current: "Configuració actual",
+                published: "Configuració publicada",
+                verdict: "Resultat",
+                allows: "Permet",
+                blocks: "Bloqueja",
+                deciding: "Comprovació decisiva",
+                nextStep: "Següent pas:",
+                signedBy: "Signat per {{names}}",
+            },
+            question: {
+                initialization: "S’ha completat la inicialització requerida?",
+                votingClose: "Aquesta obertura respecta el termini de tancament de la votació?",
+                needsSignatures: "Aquesta acció necessita signatures?",
+                covered: "Aquesta programació exacta és a la configuració signada?",
+                unsignedClose: "Què passa amb un tancament sense signatures?",
+                stricterCopy: "Difereixen la configuració actual i la publicada? Quina decideix?",
+                defaults: "Ja hi ha alguna cosa publicada?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Cal completar les inicialitzacions exigides per la configuració actual i la publicada.",
+                },
+                votingClose: {
+                    passed: "La votació es tanca a les {{closes_at}}; aquesta obertura no es pot executar en aquell moment ni després.",
+                },
+                needsSignatures: {
+                    yes: "Sí, {{signatures}} signatures",
+                    yes_one: "Sí, {{count}} signatura",
+                    yes_other: "Sí, {{count}} signatures",
+                    no: "No",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "La configuració signada {{code}} utilitza l’obertura pròpia d’aquest lloc de votació, {{scheduled_event_id}}. L’obertura per a tot l’esdeveniment no s’aplica.",
+                    yes: "Sí: aprovació {{code}}, sense canvis",
+                    changed: "No: ha canviat des de l'aprovació {{code}}",
+                    changedBy:
+                        "No: editat el {{edited_at}} per {{edited_by}}, després de l'aprovació {{code}}",
+                    notInApproval: "No: l'aprovació {{code}} no ho inclou",
+                    noApproval: "Encara no hi ha cap configuració aprovada",
+                    channelsChanged:
+                        "No: els canals de votació de l'elecció han canviat des de l'aprovació {{code}}",
+                    alreadyFired:
+                        "No: aquesta transició de l'aprovació {{code}} ja s'ha executat el {{fired_at}}; tornar-la a executar necessita signatures",
+                    late: "No: han passat més de 15 minuts des de {{scheduled_date}} (aprovació {{code}}); executar-la ara necessita signatures",
+                },
+                unsignedClose: {
+                    refuse: "Rebutjar",
+                    runAsSystem: "Executar com a sistema",
+                },
+                stricterCopy: {
+                    same: "Totes dues són iguals",
+                    currentStricter: "La configuració actual és més estricta: s'aplica ja",
+                    currentLooser:
+                        "La configuració actual és menys estricta: s'aplica després de la propera publicació aprovada",
+                    combined: "Cadascuna és més estricta en un valor: s'apliquen totes dues",
+                },
+                defaults: {
+                    published: "Publicat el {{published_at}}",
+                    nothingPublished: "Res publicat: s'apliquen els valors per defecte",
+                    noSnapshot:
+                        "Publicat el {{published_at}}, abans que les publicacions desessin aquesta configuració: s'apliquen els valors per defecte",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Completeu la inicialització requerida. El planificador ho tornarà a intentar abans del tancament de la votació.",
+                closed: "Aquesta obertura no s’executarà després del tancament de la votació.",
+                none: "No cal fer res.",
+                publishAndApprove: "Publica i aprova la configuració.",
+                requireConfigurationApproval:
+                    "Fes que Aprovar la configuració requereixi signatures i, després, publica i aprova la configuració.",
+                askSignersToOpen: "Demana als signants de l'elecció que obrin la votació.",
+                askSignersToClose: "Demana als signants de l'elecció que tanquin la votació.",
+            },
+            applies: {
+                tightens: "S'aplica ja a les accions manuals i programades.",
+                loosens:
+                    "S'aplica ja a les accions manuals; a les obertures i els tancaments programats, després de la propera publicació aprovada.",
+                tightensAndLoosens:
+                    "La seva part més estricta s'aplica ja a les accions manuals i programades; la seva part menys estricta s'aplica ja a les accions manuals i, a les obertures i els tancaments programats, després de la propera publicació aprovada.",
             },
         },
     },

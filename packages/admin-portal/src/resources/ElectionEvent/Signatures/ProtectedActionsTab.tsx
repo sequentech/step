@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
 import {useTranslation} from "react-i18next"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {useNotify} from "react-admin"
 import {
     Alert,
@@ -52,6 +53,7 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
 }) => {
     const access = afterLockdown(permitted, lockedDown)
     const {t, i18n} = useTranslation()
+    const zoned = useEventZonedFormat(electionEventId)
     const {rules, loading, error, refetch} = useSigningRules(electionEventId)
     const {
         capacityOf,
@@ -82,7 +84,7 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
     }
 
     const changed = lastChange(rules)
-    const changedOn = changed && new Date(changed.updated_at).toLocaleDateString(i18n.language)
+    const changedOn = changed && zoned.format(changed.updated_at)
     const footer = [
         configVersion === null
             ? null

@@ -790,6 +790,24 @@ const frenchTranslation: TranslationType = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "UTC{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · principal",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · mon heure",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "Sur cet appareil : {{dateTime}}",
+            gap: "{{dateTime}} n'existe pas à {{city}}, car on avance l'heure. L'action aura lieu à l'heure affichée.",
+            overlap: "{{dateTime}} a lieu deux fois à {{city}}. La première est utilisée.",
+        },
     },
 }
 

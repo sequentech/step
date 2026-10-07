@@ -15,6 +15,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {IKeysCeremonyLog} from "@/services/KeyCeremony"
 import {styled} from "@mui/material/styles"
+import {useEventZonedFormat, type ZonedEventRef} from "@/hooks/useZonedFormat"
 
 export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
     max-height: 400px;
@@ -23,6 +24,8 @@ export const AccordionDetails = styled(WizardStyles.AccordionDetails)`
 
 interface LogsProps {
     logs?: Array<IKeysCeremonyLog>
+    /** The election event of the logs (record or id): their times show in its primary zone. */
+    event?: ZonedEventRef
 }
 function usePreviousValue<T>(value: T): T {
     const ref = useRef<T>(value)
@@ -32,9 +35,10 @@ function usePreviousValue<T>(value: T): T {
     return ref.current
 }
 
-export const Logs: React.FC<LogsProps> = ({logs}) => {
+export const Logs: React.FC<LogsProps> = ({logs, event}) => {
     const [logsExpanded, setLogsExpanded] = useState(true)
     const {t} = useTranslation()
+    const format = useEventZonedFormat(event, {seconds: true})
     const myDivRef = useRef<HTMLDivElement>(null)
     const prevLogs = usePreviousValue(logs)
     useEffect(() => {
@@ -103,8 +107,7 @@ export const Logs: React.FC<LogsProps> = ({logs}) => {
                                             }}
                                         >
                                             <TableCell component="th" scope="row">
-                                                {log?.created_date &&
-                                                    new Date(log.created_date).toLocaleString()}
+                                                {format.format(log?.created_date)}
                                             </TableCell>
                                             <TableCell align="left">{log?.log_text}</TableCell>
                                         </TableRow>

@@ -31,7 +31,7 @@ import {
 
 export const MONITORING_SNAPSHOT = {revision: 41, as_of: FIXED_TIME, checked_at: FIXED_TIME}
 
-/** Days with activity, in the settings' time zone. */
+/** Days with activity, in the event's primary zone. */
 export const EVENT_DAYS = ["2026-01-14", "2026-01-15"]
 
 export const POSTS = {
@@ -224,8 +224,9 @@ export function getDashboardResponse({
             Object.entries(definitions).map(([id, definition]) => [id, {definition, revision: 2}])
         ),
         theme: {id: "comelec", revision: 1},
-        settings: {time_zone: "Asia/Manila", unknown_label: "Unknown", selectors: {}},
+        settings: {unknown_label: "Unknown", selectors: {}},
         settings_revision: 1,
+        time_zone: "Asia/Manila",
         scope_options: {
             regions: [
                 {key: "north", label: "North"},

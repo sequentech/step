@@ -208,7 +208,7 @@ export function MonitoringDashboard({
         scopeLabel: label,
         snapshot,
         sources: response.sources ?? {},
-        timeZone: response.settings?.time_zone ?? "UTC",
+        timeZone: response.time_zone ?? "UTC",
         eventDays,
         configVersion: `${response.dashboard_revision}/${response.theme?.revision ?? ""}/${response.settings_revision}`,
         pollCount,

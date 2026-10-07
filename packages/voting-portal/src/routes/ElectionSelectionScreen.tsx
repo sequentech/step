@@ -79,6 +79,11 @@ import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
 import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
+import {
+    ballotTimeZones,
+    currentElectionDates,
+    votingClosedMessage,
+} from "../services/ElectionTimeZones"
 
 // `StyledTitle`, `TitleSection`, `PageActions` and `ElectionContainer` were here.
 // They are `ElectionListLayout` in `ui-essentials` now, with the class names they
@@ -136,6 +141,24 @@ const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean =>
     )
 }
 
+/** Match the channels this voter can actually use, including their area's early-voting policy. */
+const isElectionOpenForVoter = (
+    event: IElectionEvent | undefined,
+    status: IElectionStatus | null | undefined,
+    isKiosk: boolean,
+    area: IAreaPresentation | undefined
+): boolean => {
+    if (isKiosk) {
+        return status?.kiosk_voting_status === EVotingStatus.OPEN && isElectionEventKioskOpen(event)
+    }
+    return (
+        (status?.voting_status === EVotingStatus.OPEN && isElectionEventOnlineVotingOpen(event)) ||
+        (area?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING &&
+            status?.early_voting_status === EVotingStatus.OPEN &&
+            isElectionEventEarlyVotingOpen(event))
+    )
+}
+
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     summary,
@@ -152,6 +175,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
+    // Nothing for an event without timezones: the card then renders as before.
+    const zones = ballotTimeZones(
+        electionEvent?.presentation,
+        election?.presentation,
+        ballotStyle?.ballot_eml
+    )
     const isAcclaimedCompleted = useAppSelector(isAcclaimedElectionCompleted(electionId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
@@ -169,34 +198,16 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     let electionClassName = getElectionClassName(election)
 
     const electionStatus = election?.status as IElectionStatus | null
-    const isVotingOpen = () => {
-        let isOnlineVotingOpen: boolean =
-            (electionStatus?.voting_status as EVotingStatus) === EVotingStatus.OPEN
-
-        if (isKiosk) {
-            return isKioskOpen() && isElectionEventKioskOpen(electionEvent)
-        } else {
-            return (
-                (isOnlineVotingOpen && isElectionEventOnlineVotingOpen(electionEvent)) ||
-                (isEarlyVotingOpen() && isElectionEventEarlyVotingOpen(electionEvent))
-            )
-        }
-    }
-
-    const isKioskOpen = () => {
-        return (electionStatus?.kiosk_voting_status as EVotingStatus) === EVotingStatus.OPEN
-    }
+    const areaPresentation = (summary?.area_presentation ??
+        ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
+    const isVotingOpen = () =>
+        isElectionOpenForVoter(electionEvent, electionStatus, isKiosk, areaPresentation)
 
     const isEarlyVotingPolicyEnabled = () => {
         let area_presentation = (summary?.area_presentation ??
             ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
         return area_presentation?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
     }
-    const isEarlyVotingOpen = () => {
-        let isOpen = electionStatus?.early_voting_status === EVotingStatus.OPEN
-        return isEarlyVotingPolicyEnabled() && isOpen
-    }
-
     const isVotingStarted = () => {
         if (isKiosk) {
             return electionStatus?.kiosk_voting_status !== EVotingStatus.NOT_STARTED
@@ -279,14 +290,21 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             resultsUrl={resultsUrl}
-            electionDates={summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates}
+            electionDates={currentElectionDates(
+                summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates,
+                electionStatus,
+                isKiosk
+            )}
             isStarted={isVotingStarted()}
             className={electionClassName}
-            formatDateTime={(input) =>
+            timeZone={zones?.timeZone}
+            closeTimeZone={zones?.closeTimeZone}
+            formatDateTime={(input, zone) =>
                 formatVotingPortalDateTime(
                     input,
                     electionEvent,
-                    i18n.resolvedLanguage || i18n.language
+                    i18n.resolvedLanguage || i18n.language,
+                    zone
                 )
             }
         />
@@ -330,12 +348,15 @@ const ElectionSelectionScreen: React.FC = () => {
     const location = useLocation()
 
     const {globalSettings} = useContext(SettingsContext)
+    const isKioskVoter = useContext(AuthContext).isKiosk()
     const {eventId, tenantId} = useParams<{eventId?: string; tenantId?: string}>()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
     const eventDefaultLanguageCode =
         electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const electionIds = useAppSelector(selectElectionIds)
+    const electionsById = useAppSelector((state) => state.elections)
+    const ballotStylesById = useAppSelector((state) => state.ballotStyles)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
     const [testElectionId, setTestElectionId] = useState<string | null>(null)
@@ -379,6 +400,22 @@ const ElectionSelectionScreen: React.FC = () => {
     const loadingBallotStyles = voterContext.loading
     const loadingElectionEvent = voterContext.loading
     const loadingElections = voterContext.loading
+
+    const refreshVoterStatus = voterContext.refetch
+    useEffect(() => {
+        if (
+            globalSettings.DISABLE_AUTH ||
+            !tenantId ||
+            !eventId ||
+            typeof refreshVoterStatus !== "function"
+        )
+            return
+        const refresh = () => {
+            void refreshVoterStatus().catch(() => undefined)
+        }
+        window.addEventListener("focus", refresh)
+        return () => window.removeEventListener("focus", refresh)
+    }, [globalSettings.DISABLE_AUTH, tenantId, eventId, refreshVoterStatus])
 
     // Materials
     const {
@@ -680,6 +717,52 @@ const ElectionSelectionScreen: React.FC = () => {
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
             : undefined
 
+    // Another channel being open must not hide this voter's closing message.
+    const allBallotsClosed =
+        electionIds.length > 0 &&
+        electionIds.every(
+            (id) =>
+                !isElectionOpenForVoter(
+                    electionEvent,
+                    electionsById[id]?.status as IElectionStatus | null,
+                    isKioskVoter,
+                    (voterContext.summaries?.[id]?.area_presentation ??
+                        ballotStylesById[id]?.ballot_eml?.area_presentation) as
+                        | IAreaPresentation
+                        | undefined
+                )
+        )
+    const closedMsg = allBallotsClosed
+        ? votingClosedMessage({
+              ballots: electionIds.map((electionId) => {
+                  const ballotStyle = ballotStylesById[electionId]
+                  return {
+                      electionDates: currentElectionDates(
+                          voterContext.summaries?.[electionId]?.election_dates ??
+                              ballotStyle?.ballot_eml?.election_dates,
+                          electionsById[electionId]?.status as IElectionStatus | null,
+                          isKioskVoter
+                      ),
+                      zones: ballotTimeZones(
+                          electionEvent?.presentation,
+                          electionsById[electionId]?.presentation,
+                          ballotStyle?.ballot_eml
+                      ),
+                  }
+              }),
+              now: new Date(),
+              t,
+              lang: i18n.resolvedLanguage || i18n.language,
+              formatDateTime: (input, zone) =>
+                  formatVotingPortalDateTime(
+                      input,
+                      electionEvent,
+                      i18n.resolvedLanguage || i18n.language,
+                      zone
+                  ),
+          })
+        : undefined
+
     // Block voting until we positively know the voter has acknowledged.
     const materialsGate =
         isMaterialsMandatory && !(hasAcknowledgmentLoaded && hasAcknowledgedSupportMaterials)
@@ -727,10 +810,19 @@ const ElectionSelectionScreen: React.FC = () => {
                 </>
             }
             alert={
-                warningMsg ? (
-                    <Alert className="election-selection-warning" severity="warning">
-                        {stringToHtml(warningMsg)}
-                    </Alert>
+                warningMsg || closedMsg ? (
+                    <>
+                        {warningMsg ? (
+                            <Alert className="election-selection-warning" severity="warning">
+                                {stringToHtml(warningMsg)}
+                            </Alert>
+                        ) : null}
+                        {closedMsg ? (
+                            <Alert className="election-selection-closed" severity="warning">
+                                {closedMsg}
+                            </Alert>
+                        ) : null}
+                    </>
                 ) : undefined
             }
             actions={

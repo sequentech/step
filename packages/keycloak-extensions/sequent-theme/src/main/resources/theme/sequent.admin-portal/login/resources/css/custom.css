@@ -802,3 +802,30 @@ button#resend-otp-btn:hover {
 #kc-form-login .form-group {
     display: flow-root;
 }
+
+/* Per-Post enrollment windows (register.ftl, enrollment-window.js). Before a Post opens its notice
+   is an information box and Continue is held back; while it is open the closing time is a quiet
+   line under the field. */
+.enrollment-window-notice {
+    margin: 0 0 16px;
+    font-size: 14px;
+    line-height: 150%;
+}
+
+.enrollment-window-notice--before,
+.enrollment-window-notice--closed {
+    padding: 12px 16px;
+    background: #E5F6FD;
+    border-radius: 4px;
+    color: #014361;
+}
+
+.enrollment-window-notice--open {
+    color: #4B5563;
+}
+
+.enrollment-window-blocked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}

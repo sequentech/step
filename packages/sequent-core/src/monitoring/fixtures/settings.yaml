@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-time_zone: Asia/Manila
 scope:
   region: {election_annotation: "miru:geographical-region"}
   country: {voter_attribute: country, split: {separator: "/", part: 0}}

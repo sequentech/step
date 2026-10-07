@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {eventRecord} from "@/__stories__/fixtures"
 import React, {useContext} from "react"
 import type {StoryObj} from "@storybook/react"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -192,108 +193,134 @@ const meta = {
             published_at: published ? FIXED_TIME : null,
             created_at: "2026-01-15T11:00:00Z",
         })
-        boundary = graphqlBoundary({
-            GenerateBallotPublication: () => {
-                if (generationFails) throw new Error("Synthetic publication generation unavailable")
-                return {
-                    data: {
-                        generate_ballot_publication: {
-                            ballot_publication_id: PUBLICATION_ID,
-                            task_execution: {id: TASK_ID, execution_status: "STARTED", logs: []},
-                        },
-                    },
-                }
-            },
-            GetTaskById: () => {
-                if (taskReady && !args.taskFails) generated = true
-                return {
-                    data: {
-                        sequent_backend_tasks_execution: [
-                            {
-                                id: TASK_ID,
-                                tenant_id: TENANT_ID,
-                                election_event_id: EVENT_ID,
-                                execution_status: taskReady
-                                    ? args.taskFails
-                                        ? "FAILED"
-                                        : "SUCCESS"
-                                    : "STARTED",
-                                type: "GENERATE_BALLOT_PUBLICATION",
-                                start_at: FIXED_TIME,
-                                end_at: taskReady ? FIXED_TIME : null,
-                                logs: args.taskFails
-                                    ? [{log_text: "Synthetic ballot exceeded maximum size"}]
-                                    : [],
-                                annotations: {},
-                                executed_by_user: null,
+        boundary = graphqlBoundary(
+            {
+                GetScheduledOutcomes: () => ({
+                    data: {get_scheduled_outcomes: {outcomes: [], retained_closes: []}},
+                }),
+                GetLifecycleSnapshots: () => ({data: {get_lifecycle_snapshots: {snapshots: []}}}),
+                // A configuration approval's panel compares with the previous approval: none yet.
+                GetConfigurationApprovals: () => ({data: {current: null, approvals: []}}),
+                GenerateBallotPublication: () => {
+                    if (generationFails)
+                        throw new Error("Synthetic publication generation unavailable")
+                    return {
+                        data: {
+                            generate_ballot_publication: {
+                                ballot_publication_id: PUBLICATION_ID,
+                                task_execution: {
+                                    id: TASK_ID,
+                                    execution_status: "STARTED",
+                                    logs: [],
+                                },
                             },
-                        ],
-                    },
-                }
-            },
-            GetBallotPublicationChange: ({variables}) => ({
-                data: {
-                    get_ballot_publication_changes: {
-                        previous: {
-                            ballot_publication_id: "previous-publication",
-                            ballot_styles: [{id: "previous-style", ballot_eml: "Previous council"}],
                         },
-                        current: {
-                            ballot_publication_id: PUBLICATION_ID,
-                            ballot_styles: args.large
-                                ? Array.from(
-                                      {
-                                          length:
-                                              typeof variables.limit === "number"
-                                                  ? variables.limit
-                                                  : 60,
-                                      },
-                                      (_, index) => ({
-                                          id: `style-${String(index).padStart(3, "0")}`,
-                                          tenant_id: TENANT_ID,
-                                          election_event_id: EVENT_ID,
-                                          election_id: ELECTION_ID,
-                                          ballot_eml: `Publication marker ${String(index).padStart(3, "0")}`,
-                                          ballot_signature: null,
-                                          annotations: {},
-                                          labels: {},
-                                          created_at: FIXED_TIME,
-                                          last_updated_at: FIXED_TIME,
-                                      })
-                                  )
-                                : [{id: "revised-style", ballot_eml: "Revised council"}],
+                    }
+                },
+                GetTaskById: () => {
+                    if (taskReady && !args.taskFails) generated = true
+                    return {
+                        data: {
+                            sequent_backend_tasks_execution: [
+                                {
+                                    id: TASK_ID,
+                                    tenant_id: TENANT_ID,
+                                    election_event_id: EVENT_ID,
+                                    execution_status: taskReady
+                                        ? args.taskFails
+                                            ? "FAILED"
+                                            : "SUCCESS"
+                                        : "STARTED",
+                                    type: "GENERATE_BALLOT_PUBLICATION",
+                                    start_at: FIXED_TIME,
+                                    end_at: taskReady ? FIXED_TIME : null,
+                                    logs: args.taskFails
+                                        ? [{log_text: "Synthetic ballot exceeded maximum size"}]
+                                        : [],
+                                    annotations: {},
+                                    executed_by_user: "admin",
+                                },
+                            ],
                         },
-                    },
+                    }
                 },
-            }),
-            PublishBallot: () => {
-                if (publicationFails) throw new Error("Synthetic publication write failed")
-                const answer = waiting(args.signing, SigningAction.ApproveConfiguration)
-                published = !answer.signing_request
-                return {data: {publish_ballot: {ballot_publication_id: PUBLICATION_ID, ...answer}}}
-            },
-            UpdateElectionVotingStatus: () => ({
-                data: {
-                    update_election_voting_status: {
-                        election_id: ELECTION_ID,
-                        ...waiting(args.signing, SigningAction.CloseVoting),
-                    },
-                },
-            }),
-            CreateTallyCeremony: () => {
-                const answer = waiting(args.signing, SigningAction.InitializeVoting)
-                return {
+                GetBallotPublicationChange: ({variables}) => ({
                     data: {
-                        create_tally_ceremony: {
-                            tally_session_id: answer.signing_request ? null : TASK_ID,
-                            ...answer,
+                        get_ballot_publication_changes: {
+                            previous: {
+                                ballot_publication_id: "previous-publication",
+                                ballot_styles: [
+                                    {id: "previous-style", ballot_eml: "Previous council"},
+                                ],
+                            },
+                            current: {
+                                ballot_publication_id: PUBLICATION_ID,
+                                ballot_styles: args.large
+                                    ? Array.from(
+                                          {
+                                              length:
+                                                  typeof variables.limit === "number"
+                                                      ? variables.limit
+                                                      : 60,
+                                          },
+                                          (_, index) => ({
+                                              id: `style-${String(index).padStart(3, "0")}`,
+                                              tenant_id: TENANT_ID,
+                                              election_event_id: EVENT_ID,
+                                              election_id: ELECTION_ID,
+                                              ballot_eml: `Publication marker ${String(index).padStart(3, "0")}`,
+                                              ballot_signature: null,
+                                              annotations: {},
+                                              labels: {},
+                                              created_at: FIXED_TIME,
+                                              last_updated_at: FIXED_TIME,
+                                          })
+                                      )
+                                    : [{id: "revised-style", ballot_eml: "Revised council"}],
+                            },
                         },
                     },
-                }
+                }),
+                PublishBallot: () => {
+                    if (publicationFails) throw new Error("Synthetic publication write failed")
+                    const answer = waiting(args.signing, SigningAction.ApproveConfiguration)
+                    published = !answer.signing_request
+                    return {
+                        data: {publish_ballot: {ballot_publication_id: PUBLICATION_ID, ...answer}},
+                    }
+                },
+                UpdateElectionVotingStatus: () => ({
+                    data: {
+                        update_election_voting_status: {
+                            election_id: ELECTION_ID,
+                            ...waiting(args.signing, SigningAction.CloseVoting),
+                        },
+                    },
+                }),
+                CreateTallyCeremony: () => {
+                    const answer = waiting(args.signing, SigningAction.InitializeVoting)
+                    return {
+                        data: {
+                            create_tally_ceremony: {
+                                tally_session_id: answer.signing_request ? null : TASK_ID,
+                                ...answer,
+                            },
+                        },
+                    }
+                },
             },
-        })
+            {schema: true}
+        )
         data = dataBoundary({
             getList: async <RecordType extends RaRecord>(resource: string) => {
+                // The election's fired scheduled transitions and the event's zones: none here.
+                if (
+                    resource === "sequent_backend_area" ||
+                    resource === "sequent_backend_scheduled_event" ||
+                    resource === "sequent_backend_election"
+                ) {
+                    return {data: [] as RecordType[], total: 0}
+                }
                 if (resource !== "sequent_backend_ballot_publication") {
                     data.unexpected.push(resource)
                     throw new Error(`Unexpected list ${resource}`)
@@ -307,6 +334,12 @@ const meta = {
                 resource: string,
                 {id}: {id: string | number}
             ) => {
+                if (resource === "sequent_backend_election_event" && id === EVENT_ID) {
+                    return {data: eventRecord() as unknown as RecordType}
+                }
+                if (resource === "sequent_backend_election" && id === ELECTION_ID) {
+                    return {data: electionRecord(args.votingStatus) as unknown as RecordType}
+                }
                 if (resource !== "sequent_backend_ballot_publication" || id !== PUBLICATION_ID) {
                     data.unexpected.push(`${resource}/${id}`)
                     throw new Error("Unexpected publication record")
@@ -361,7 +394,9 @@ export const EventGenerationAndPublication: Story = {
             ballotPublicationId: PUBLICATION_ID,
         })
         await expect(await canvas.findByText(PUBLICATION_ID)).toBeVisible()
-        await expect(await canvas.findByText(FIXED_TIME, {exact: false})).toBeVisible()
+        await expect(
+            await canvas.findByText("Jan 15, 2026, 12:00:00 PM UTC", {exact: false})
+        ).toBeVisible()
     },
 }
 
@@ -392,7 +427,12 @@ export const ElectionGenerationKeepsBothScopeIds: Story = {
         expect(
             boundary.calls.find(({name}) => name === "GenerateBallotPublication")!.variables
         ).toEqual({electionEventId: EVENT_ID, electionId: ELECTION_ID})
-        expect(data.calls.filter(({method}) => method === "getList")[0].args[1]).toMatchObject({
+        expect(
+            data.calls.filter(
+                ({method, args}) =>
+                    method === "getList" && args[0] === "sequent_backend_ballot_publication"
+            )[0].args[1]
+        ).toMatchObject({
             filter: {election_event_id: EVENT_ID, election_id: ELECTION_ID},
         })
         expect(boundary.calls.filter(({name}) => name === "PublishBallot")).toEqual([])
