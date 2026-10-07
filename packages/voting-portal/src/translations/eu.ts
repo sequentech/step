@@ -20,8 +20,10 @@ const basqueTranslation: TranslationType = {
             votingProgress: "Bozketaren aurrerapena",
             stepOf: "{{total}} urratsetik {{current}}. urratsa",
             selectUpTo_one: "Hautatu gehienez aukera {{count}}",
+            selectUpTo_many: "Hautatu gehienez {{count}} aukera",
             selectUpTo_other: "Hautatu gehienez {{count}} aukera",
             selectExactly_one: "Hautatu aukera {{count}}",
+            selectExactly_many: "Hautatu {{count}} aukera",
             selectExactly_other: "Hautatu {{count}} aukera",
             selectBetween: "Hautatu {{min}} eta {{max}} aukera artean",
         },
@@ -29,8 +31,9 @@ const basqueTranslation: TranslationType = {
             collapseToggle: "{{listTitle}} zerrenda txandakatu",
             showCandidates: "Hautagaiak erakutsi",
             hideCandidates: "Hautagaiak ezkutatu",
-            selectedCandidate: "{{count}} hautagai hautatuta",
-            selectedCandidates: "{{count}} hautagai hautatuta",
+            selectedCandidates_one: "{{count}} hautagai hautatuta",
+            selectedCandidates_many: "{{count}} hautagai hautatuta",
+            selectedCandidates_other: "{{count}} hautagai hautatuta",
             expandAll: "Dena zabaldu",
             collapseAll: "Dena tolestu",
         },
@@ -47,7 +50,7 @@ const basqueTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Lehiaketa hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
+                    "Galdera hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
             },
         },
         votingScreen: {
@@ -57,7 +60,7 @@ const basqueTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Bozketa pantailari buruz",
                 content:
-                    'Pantaila honek bozkatzeko eskubidea duzun lehiaketa erakusten du. Hautaketa egiteko, aktibatu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia. Berrezartzeko sakatu "<b>Hautaketa garbitu</b>", aurrera joateko sakatu "<b>Hurrengoa</b>".',
+                    'Pantaila honek bozkatzeko eskubidea duzun galdera erakusten du. Hautaketa egiteko, aktibatu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia. Berrezartzeko sakatu "<b>Hautaketa garbitu</b>", aurrera joateko sakatu "<b>Hurrengoa</b>".',
                 ok: "Ados",
             },
             nonVotedDialog: {
@@ -98,7 +101,7 @@ const basqueTranslation: TranslationType = {
             instructionsDescription: "Jarraitu urrats hauek bozkatzeko:",
             step1Title: "1. Hautatu zure aukerak",
             step1Description:
-                "Aukeratu zure hautagaiak eta erantzun galderak. Editatu bozketa prest egon arte.",
+                "Aukeratu zure hautagaiak eta erantzun galdera bakoitza. Editatu bozketa prest egon arte.",
             step2Title: "2. Berrikusi zure bozketa",
             step2Description:
                 "Zure bozketa zifratu eta berrikuspena erakutsiko dizugu. Bozketa ID jarraitzaile bakarra jasoko duzu.",
@@ -260,11 +263,11 @@ const basqueTranslation: TranslationType = {
             acclamation: {
                 title: "Aklamazioz erabakia",
                 description:
-                    "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
+                    "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
                 helpDialog: {
                     title: "Informazioa: Aklamazioa",
                     content:
-                        "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
+                        "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
                     ok: "Ados",
                 },
             },
@@ -364,7 +367,8 @@ const basqueTranslation: TranslationType = {
                 ok: "Ulertzen dut nire botoa ez dela emango",
             },
             errors: {
-                noVotingArea: "Hauteskunde eremua ez da esleitu. Saiatu berriro geroago.",
+                noVotingArea:
+                    "Ez zaude bozkatzaile gisa erregistratuta hauteskunde honetan. Mesedez, jarri harremanetan laguntzarekin.",
                 networkError:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 unableToFetchData:
@@ -378,7 +382,7 @@ const basqueTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako lehiaketa asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
+                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako galdera asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 electionEventNotPublished:
                     "Hauteskunde gertaera ez da argitaratu oraindik. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
             },
@@ -392,24 +396,9 @@ const basqueTranslation: TranslationType = {
                 notEnoughChoices: "Ez dago nahikoa aukera deskodetzeko",
                 writeInChoiceOutOfRange: "Eskuz idatzitako aukera barrutitik kanpo dago: {{index}}",
                 writeInNotEndInZero: "Eskuz idatzitakoa ez da 0-rekin amaitzen",
-                writeInCharsExceeded:
-                    "Eskuz idatzitakoak gehieneko luzera gainditzen du {{numCharsExceeded}} karakteretan. Mesedez, laburtu ezazu.",
                 bytesToUtf8Conversion:
                     "Errorea eskuz idatzitakoa byte-etatik UTF-8 kate bihurtzerakoan: {{errorMessage}}",
                 ballotTooLarge: "Bozketa espero baino handiagoa da",
-            },
-            implicit: {
-                selectedMax:
-                    "Gehiegizko botoa: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino handiagoa da",
-                selectedMin:
-                    "Hautatutako aukeren kopurua {{numSelected}} gutxieneko {{min}} baino txikiagoa da",
-                maxSelectionsPerType:
-                    "Hautatutako aukeren kopurua {{numSelected}} {{type}} zerrendarako gehieneko {{max}} baino handiagoa da",
-                underVote:
-                    "Boto gutxiegiko: hautatutako aukeren kopurua {{numSelected}} gehieneko {{max}} baino txikiagoa da",
-                overVoteDisabled:
-                    "Gehienekoa lortu da: {{numSelected}} aukera hautatu dituzu, gehieneko kopurua. Hautaketa aldatzeko, lehenik beste aukera bat kendu ezazu.",
-                blankVote: "Boto zuria: 0 aukera hautatuta",
             },
             explicit: {
                 notAllowed:
@@ -425,7 +414,7 @@ const basqueTranslation: TranslationType = {
                     "Bozkatzeko esteka honek saioa hasteko informazio baliogabea dauka. Eskatu beste esteka bat eta saiatu berriro.",
                 certAuthFailedTitle: "Ziurtagiriaren Autentifikazio Errorea",
                 certAuthFailedMessage:
-                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
+                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu bozkatzaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
             },
         },
         materials: {
@@ -454,7 +443,8 @@ const basqueTranslation: TranslationType = {
                 "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
-            ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",
+            ballotIdNotFoundAtFilter:
+                "Ez da aurkitu. Egiaztatu zure bozketa IDa zuzena dela eta erabiltzaile honi dagokiola.",
             filterByBallotId: "Filtratu Bozketa IDa",
             totalBallots: "Bozketa kopurua: {{total}}",
             steps: {

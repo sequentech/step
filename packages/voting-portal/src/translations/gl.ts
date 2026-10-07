@@ -21,8 +21,10 @@ const galegoTranslation: TranslationType = {
             votingProgress: "Progreso da votación",
             stepOf: "Paso {{current}} de {{total}}",
             selectUpTo_one: "Seleccione ata {{count}} opción",
+            selectUpTo_many: "Seleccione ata {{count}} opcións",
             selectUpTo_other: "Seleccione ata {{count}} opcións",
             selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_many: "Seleccione {{count}} opcións",
             selectExactly_other: "Seleccione {{count}} opcións",
             selectBetween: "Seleccione entre {{min}} e {{max}} opcións",
         },
@@ -30,8 +32,9 @@ const galegoTranslation: TranslationType = {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
-            selectedCandidate: "{{count}} candidato seleccionado",
-            selectedCandidates: "{{count}} candidatos seleccionados",
+            selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
+            selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",
         },
@@ -48,7 +51,7 @@ const galegoTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Este concurso resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
+                    "Esta pregunta resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
             },
         },
         votingScreen: {
@@ -58,7 +61,7 @@ const galegoTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Sobre a pantalla da papeleta",
                 content:
-                    "Esta pantalla mostra o concurso no que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
+                    "Esta pantalla mostra a pregunta na que es elixible para votar. Activa a caixa á dereita para seleccionar un Candidato/Resposta. Para restablecer, fai clic en “<b>Limpar selección</b>”; para continuar, fai clic en “<b>Seguinte</b>”.",
                 ok: "Aceptar",
             },
             nonVotedDialog: {
@@ -99,7 +102,7 @@ const galegoTranslation: TranslationType = {
             instructionsDescription: "Siga estes pasos para votar:",
             step1Title: "1. Selecciona as túas opcións",
             step1Description:
-                "Elixe os teus candidatos e responde ás preguntas. Podes editar a túa papeleta ata estar listo.",
+                "Elixe os teus candidatos e responde a cada pregunta. Podes editar a túa papeleta ata estar listo.",
             step2Title: "2. Revisa a túa papeleta",
             step2Description:
                 "Encriptaremos a túa papeleta e mostrarémosche unha revisión final. Recibirás un ID de seguimento único.",
@@ -260,11 +263,11 @@ const galegoTranslation: TranslationType = {
             acclamation: {
                 title: "Resolto por aclamación",
                 description:
-                    "Todos os concursos desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
+                    "Todas as preguntas desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
                 helpDialog: {
                     title: "Información: Aclamación",
                     content:
-                        "Todos os concursos desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
+                        "Todas as preguntas desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
                     ok: "Aceptar",
                 },
             },
@@ -336,7 +339,7 @@ const galegoTranslation: TranslationType = {
             downloadButton: "Descargar",
             step2Title: "2. Verifica a túa papeleta",
             step2Description:
-                '<a class="link" href="{{linkToBallotVerifier}}" target="_blank">Accede ao verificador de papeletas</a>, abrirase unha nova pestana no teu navegador.',
+                "<VerifierLink>Accede ao verificador de papeletas</VerifierLink>, abrirase unha nova pestana no teu navegador.",
             step2HelpDialog: {
                 title: "Tutorial de auditoría da papeleta",
                 content:
@@ -364,7 +367,8 @@ const galegoTranslation: TranslationType = {
                 ok: "Entendo que o meu voto non será emitido",
             },
             errors: {
-                noVotingArea: "Área de votación non asignada. Inténteo de novo máis tarde.",
+                noVotingArea:
+                    "Non estás rexistrado como votante nesta elección. Por favor, contacta co soporte.",
                 networkError:
                     "Houbo un problema de rede. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 unableToFetchData:
@@ -378,7 +382,7 @@ const galegoTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningún concurso asociado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
+                    "Non hai eleccións nas que poidas votar. Isto pode deberse a que a área non ten ningunha pregunta asociada. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
@@ -392,24 +396,9 @@ const galegoTranslation: TranslationType = {
                 notEnoughChoices: "Non hai suficientes opcións para decodificar",
                 writeInChoiceOutOfRange: "Opción de escritura libre fóra de rango: {{index}}",
                 writeInNotEndInZero: "A escritura libre non remata en 0",
-                writeInCharsExceeded:
-                    "A escritura libre supera a lonxitude máxima en {{numCharsExceeded}} caracteres. Por favor, acórtea.",
                 bytesToUtf8Conversion:
                     "Erro ao converter a escritura libre de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Voto en exceso: o número de opcións seleccionadas {{numSelected}} é maior que o máximo {{max}}",
-                selectedMin:
-                    "O número de opcións seleccionadas {{numSelected}} é inferior ao mínimo {{min}}",
-                maxSelectionsPerType:
-                    "O número de opcións seleccionadas {{numSelected}} para a lista {{type}} é maior que o máximo {{max}}",
-                underVote:
-                    "Voto incompleto: o número de opcións seleccionadas {{numSelected}} é inferior ao máximo {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: seleccionaches o máximo de {{numSelected}} opcións. Para cambiar a túa selección, anula primeiro a selección doutra opción.",
-                blankVote: "Voto en branco: 0 opcións seleccionadas",
             },
             explicit: {
                 notAllowed:
@@ -417,7 +406,7 @@ const galegoTranslation: TranslationType = {
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {
-                oopsWithStatus: "Oops! {{status}}",
+                oopsWithStatus: "¡Vaia! {{status}}",
                 oopsWithoutStatus: "Oops! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 invalidLoginHintParametersTitle: "Ligazón de votación non válida",

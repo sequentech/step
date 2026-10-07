@@ -20,8 +20,10 @@ const dutchTranslation: TranslationType = {
             votingProgress: "Voortgang van het stemmen",
             stepOf: "Stap {{current}} van {{total}}",
             selectUpTo_one: "Kies maximaal {{count}} optie",
+            selectUpTo_many: "Kies maximaal {{count}} opties",
             selectUpTo_other: "Kies maximaal {{count}} opties",
             selectExactly_one: "Kies {{count}} optie",
+            selectExactly_many: "Kies {{count}} opties",
             selectExactly_other: "Kies {{count}} opties",
             selectBetween: "Kies tussen {{min}} en {{max}} opties",
         },
@@ -29,8 +31,9 @@ const dutchTranslation: TranslationType = {
             collapseToggle: "Lijst {{listTitle}} in-/uitvouwen",
             showCandidates: "Kandidaten tonen",
             hideCandidates: "Kandidaten verbergen",
-            selectedCandidate: "{{count}} kandidaat geselecteerd",
-            selectedCandidates: "{{count}} kandidaten geselecteerd",
+            selectedCandidates_one: "{{count}} kandidaat geselecteerd",
+            selectedCandidates_many: "{{count}} kandidaten geselecteerd",
+            selectedCandidates_other: "{{count}} kandidaten geselecteerd",
             expandAll: "Alles uitvouwen",
             collapseAll: "Alles inklappen",
         },
@@ -63,7 +66,7 @@ const dutchTranslation: TranslationType = {
             nonVotedDialog: {
                 title: "Ongeldige of blanco stem",
                 content:
-                    "Sommige van uw antwoorden maken het stembiljet voor een of meer vragen ongeldig of blanco.",
+                    "Sommige van uw antwoorden maken het stembiljet voor een of meer stemmingen ongeldig of blanco.",
                 ok: "Terug en controleren",
                 continue: "Doorgaan",
                 cancel: "Annuleren",
@@ -98,7 +101,7 @@ const dutchTranslation: TranslationType = {
             instructionsDescription: "Volg deze stappen om te stemmen:",
             step1Title: "1. Selecteer uw opties",
             step1Description:
-                "Kies uw kandidaten en beantwoord de vragen. Bewerk uw stembiljet totdat u klaar bent.",
+                "Kies uw kandidaten en maak uw keuzes in elke stemming. Bewerk uw stembiljet totdat u klaar bent.",
             step2Title: "2. Controleer uw stembiljet",
             step2Description:
                 "We versleutelen uw stembiljet en tonen een laatste overzicht. U ontvangt een unieke tracker-ID.",
@@ -364,7 +367,8 @@ const dutchTranslation: TranslationType = {
                 ok: "Ik begrijp dat mijn stem niet wordt uitgebracht",
             },
             errors: {
-                noVotingArea: "Kiesgebied niet toegewezen. Probeer het later opnieuw.",
+                noVotingArea:
+                    "U staat niet geregistreerd als kiezer voor deze verkiezing. Neem contact op met de ondersteuning.",
                 networkError:
                     "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
                 unableToFetchData:
@@ -392,28 +396,13 @@ const dutchTranslation: TranslationType = {
                 notEnoughChoices: "Niet genoeg keuzes om te decoderen",
                 writeInChoiceOutOfRange: "Ingevulde keuze buiten bereik: {{index}}",
                 writeInNotEndInZero: "De ingevulde tekst eindigt niet op 0",
-                writeInCharsExceeded:
-                    "De ingevulde tekst overschrijdt de maximale lengte met {{numCharsExceeded}} tekens. Verkorting alstublieft.",
                 bytesToUtf8Conversion:
                     "Fout bij het converteren van de ingevulde tekst van bytes naar UTF-8-tekenreeks: {{errorMessage}}",
                 ballotTooLarge: "Stembiljet groter dan verwacht",
             },
-            implicit: {
-                selectedMax:
-                    "Overstemming: het aantal geselecteerde keuzes {{numSelected}} is groter dan het maximum {{max}}",
-                selectedMin:
-                    "Het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het minimum {{min}}",
-                maxSelectionsPerType:
-                    "Het aantal geselecteerde keuzes {{numSelected}} voor lijst {{type}} is groter dan het maximum {{max}}",
-                underVote:
-                    "Onderstemming: het aantal geselecteerde keuzes {{numSelected}} is kleiner dan het maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum bereikt: u heeft het maximum van {{numSelected}} keuzes geselecteerd. Om uw selectie te wijzigen, deselecteert u eerst een andere optie.",
-                blankVote: "Blanco stem: 0 keuzes geselecteerd",
-            },
             explicit: {
                 notAllowed:
-                    "Stembiljet expliciet als ongeldig gemarkeerd, maar de vraag staat dit niet toe",
+                    "Stembiljet expliciet als ongeldig gemarkeerd, maar de stemming staat dit niet toe",
                 alert: "Deze selectie wordt geteld als een ongeldige stem",
             },
             page: {
