@@ -1517,16 +1517,23 @@ pub async fn manage_dates(
         )?;
         if scheduled_event.tenant_id.as_deref() != Some(data.tenant_id.to_string().as_str())
             || scheduled_event.election_event_id.as_deref() != Some(data.election_event.id.as_str())
-            || scheduled_event.task_id.as_deref()
-                != Some(
-                    generate_manage_date_task_name(
-                        &data.tenant_id.to_string(),
-                        &data.election_event.id,
-                        payload.election_id.as_deref(),
-                        &processor,
-                    )
-                    .as_str(),
-                )
+            || ![
+                generate_manage_date_task_name(
+                    &data.tenant_id.to_string(),
+                    &data.election_event.id,
+                    payload.election_id.as_deref(),
+                    &processor,
+                ),
+                generate_channel_date_task_name(
+                    &data.tenant_id.to_string(),
+                    &data.election_event.id,
+                    payload.election_id.as_deref(),
+                    &processor,
+                    payload.voting_channels.as_deref(),
+                ),
+            ]
+            .iter()
+            .any(|name| scheduled_event.task_id.as_deref() == Some(name.as_str()))
         {
             continue;
         }
@@ -1568,8 +1575,13 @@ pub async fn maybe_create_scheduled_event(
     election_id: Option<&str>,
     voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
-    let start_task_id =
-        generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
+    let start_task_id = generate_channel_date_task_name(
+        tenant_id,
+        election_event_id,
+        election_id,
+        &event_processor,
+        voting_channels.as_deref(),
+    );
     let payload = ManageElectionDatePayload {
         election_id: election_id.map(str::to_string),
         voting_channels,
