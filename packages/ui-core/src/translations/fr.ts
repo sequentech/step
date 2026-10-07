@@ -173,6 +173,8 @@ const frenchTranslation: TranslationType = {
                     "Configuration du bulletin invalide : le scrutin définit {{count}} candidats explicitement invalides, mais un seul est autorisé.",
                 multipleExplicitBlankCandidates:
                     "Configuration du bulletin invalide : le scrutin définit {{count}} candidats de vote blanc explicite, mais un seul est autorisé.",
+                invalidSlateConfiguration:
+                    "Configuration du bulletin invalide : les listes ne sont pas valides ({{reason}}).",
             },
         },
         ballotHash: "Votre Localisateur de Vote : {{ballotId}}",

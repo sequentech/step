@@ -188,6 +188,15 @@ const catalanTranslation: TranslationType = {
                 ok: "Sí, vull emetre la meva papereta en blanc",
                 cancel: "Cancel·lar",
             },
+            unfilledContestsDialog: {
+                title: "Hi ha seleccions sense completar",
+                content:
+                    "Podeu deixar seleccions en blanc o triar menys opcions de les permeses. Reviseu el següent abans de continuar.",
+                selected: "{{selected}} de {{max}} seleccionades",
+                nothingSelected: "Sense selecció",
+                ok: "Continuar amb aquestes seleccions",
+                cancel: "Revisar seleccions",
+            },
             error: {
                 NETWORK_ERROR:
                     "Hi ha hagut un problema de xarxa. Si us plau, torna-ho a intentar més tard o contacta amb el servei d'assistència.",
@@ -467,6 +476,67 @@ const catalanTranslation: TranslationType = {
                 checkboxLabel: "He llegit els Materials de Suport",
                 continueButton: "Continua",
                 error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
+            },
+        },
+        slates: {
+            title: "Candidatures conjuntes",
+            description:
+                "Una candidatura conjunta és un grup de candidats que es presenten junts. Cada candidat mostra la candidatura a la qual pertany.",
+            independent: "Independent",
+            contestMembers: "Candidats de {{slate}} per a {{contest}}",
+            noCandidate: "Sense candidat",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Només {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidat",
+                candidates_other: "{{count}} candidats",
+                offices_one: "{{count}} càrrec",
+                offices_other: "{{count}} càrrecs",
+            },
+            candidateList: {
+                show: "Mostra les candidatures",
+                hide: "Amaga les candidatures",
+            },
+            tabs: {
+                label: "Maneres d'omplir la papereta",
+                slates: "Triar una llista",
+                candidates: "Candidatures individuals",
+            },
+            review: {
+                title: "Les teves seleccions",
+                total: "Candidatures seleccionades: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidatures independents seleccionades: {{count}}",
+                note: "El teu vot es registra per a cada candidatura seleccionada. Una llista no és un vot per si mateixa.",
+                contestCount: "{{selected}} de {{max}} seleccionades",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "Les {{total}} seleccionades",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionades",
+                partly: "Seleccionada en part · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar la selecció",
+            },
+            apply: {
+                button: "Tria aquesta candidatura",
+                buttonLabel: "Tria la candidatura {{slate}}",
+                chosen: "{{slate}} triada. Candidats seleccionats: {{candidates}}. Conteses: {{contests}}.",
+                overMaximum:
+                    "{{slate}} no es pot triar: té {{candidates}} candidatures per a {{contest}}, que en permet {{max}}. Podeu continuar triant candidatures individualment.",
+                unavailable:
+                    "{{slate}} no es pot triar en aquesta papereta. Podeu continuar triant candidatures individualment.",
+                replaceDialog: {
+                    title: "Vols substituir les teves opcions actuals?",
+                    content:
+                        "Triar {{slate}} substitueix les teves opcions a les conteses següents. La resta de les teves opcions no canvia.",
+                    removed: "Es treu:",
+                    added: "Se selecciona en el seu lloc:",
+                    ok: "Substitueix les opcions",
+                    cancel: "Mantén les meves opcions",
+                },
             },
         },
         ballotLocator: {

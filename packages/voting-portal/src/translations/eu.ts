@@ -188,6 +188,15 @@ const basqueTranslation: TranslationType = {
                 ok: "Bai, nire boto-txartel zuria aurkeztu nahi dut",
                 cancel: "Ezeztatu",
             },
+            unfilledContestsDialog: {
+                title: "Hautaketa batzuk osatu gabe daude",
+                content:
+                    "Hautaketak hutsik utz ditzakezu edo baimendutakoak baino aukera gutxiago hauta ditzakezu. Berrikusi honako hau jarraitu aurretik.",
+                selected: "{{max}}tik {{selected}} hautatuta",
+                nothingSelected: "Hautaketarik ez",
+                ok: "Jarraitu hautaketa hauekin",
+                cancel: "Berrikusi hautaketak",
+            },
             error: {
                 NETWORK_ERROR:
                     "Sare arazoa izan da. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
@@ -464,6 +473,67 @@ const basqueTranslation: TranslationType = {
                 checkboxLabel: "Laguntza Materialak irakurri ditut",
                 continueButton: "Jarraitu",
                 error: "Arazoa izan da zure berrespena erregistratzean. Mesedez, saiatu berriro.",
+            },
+        },
+        slates: {
+            title: "Hautagai-zerrendak",
+            description:
+                "Hautagai-zerrenda elkarrekin aurkezten diren hautagaien taldea da. Hautagai bakoitzak zein zerrendatakoa den erakusten du.",
+            independent: "Independentea",
+            contestMembers: "{{slate}} zerrendako hautagaiak: {{contest}}",
+            noCandidate: "Hautagairik ez",
+            coverage: {
+                full: "Hautagaitza osoa",
+                singleContest: "{{contest}} bakarrik",
+                partial: "Hautagaitza partziala",
+                candidates_one: "Hautagai {{count}}",
+                candidates_other: "{{count}} hautagai",
+                offices_one: "Kargu {{count}}",
+                offices_other: "{{count}} kargu",
+            },
+            candidateList: {
+                show: "Erakutsi hautagaiak",
+                hide: "Ezkutatu hautagaiak",
+            },
+            tabs: {
+                label: "Boto-papera betetzeko moduak",
+                slates: "Aukeratu zerrenda bat",
+                candidates: "Hautagaiak banaka",
+            },
+            review: {
+                title: "Zure hautaketak",
+                total: "Hautatutako hautagaiak: {{seats}}tik {{selected}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Hautatutako hautagai independenteak: {{count}}",
+                note: "Zure botoa hautatutako hautagai bakoitzarentzat erregistratzen da. Zerrenda bat ez da berez boto bat.",
+                contestCount: "{{max}}tik {{selected}} hautatuta",
+                edit: "Editatu",
+                editLabel: "Editatu {{contest}}",
+            },
+            selection: {
+                all: "{{total}}ak hautatuta",
+                mixed: "Mistoa · {{total}}tik {{selected}} hautatuta",
+                partly: "Zati bat hautatuta · {{total}}tik {{selected}}",
+                selected: "Hautatuta",
+                edit: "Editatu hautaketa",
+            },
+            apply: {
+                button: "Aukeratu hautagai-zerrenda hau",
+                buttonLabel: "Aukeratu {{slate}} hautagai-zerrenda",
+                chosen: "{{slate}} aukeratuta. Hautatutako hautagaiak: {{candidates}}. Lehiak: {{contests}}.",
+                overMaximum:
+                    "{{slate}} ezin da aukeratu: {{candidates}} hautagai ditu {{contest}} lehiarako, eta {{max}} onartzen dira. Hautagaiak banaka aukeratzen jarrai dezakezu.",
+                unavailable:
+                    "{{slate}} ezin da aukeratu boto-paper honetan. Hautagaiak banaka aukeratzen jarrai dezakezu.",
+                replaceDialog: {
+                    title: "Zure uneko aukerak ordeztu nahi dituzu?",
+                    content:
+                        "{{slate}} aukeratzeak beheko lehietako zure aukerak ordezten ditu. Gainerako aukerak ez dira aldatzen.",
+                    removed: "Kenduko da:",
+                    added: "Horren ordez hautatuko da:",
+                    ok: "Ordeztu aukerak",
+                    cancel: "Mantendu nire aukerak",
+                },
             },
         },
         ballotLocator: {

@@ -189,6 +189,15 @@ const galegoTranslation: TranslationType = {
                 ok: "Si, quero emitir a miña papeleta en branco",
                 cancel: "Cancelar",
             },
+            unfilledContestsDialog: {
+                title: "Hai seleccións sen completar",
+                content:
+                    "Pode deixar seleccións en branco ou escoller menos opcións das permitidas. Revise o seguinte antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sen selección",
+                ok: "Continuar con estas seleccións",
+                cancel: "Revisar seleccións",
+            },
             error: {
                 NETWORK_ERROR:
                     "Houbo un problema de rede. Inténtao de novo máis tarde ou contacta co soporte para obter axuda.",
@@ -464,6 +473,67 @@ const galegoTranslation: TranslationType = {
                 checkboxLabel: "Lin os Materiais de apoio",
                 continueButton: "Continuar",
                 error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
+            },
+        },
+        slates: {
+            title: "Candidaturas conxuntas",
+            description:
+                "Unha candidatura conxunta é un grupo de candidatos que se presentan xuntos. Cada candidato mostra a candidatura á que pertence.",
+            independent: "Independente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sen candidato",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Só {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
+            candidateList: {
+                show: "Amosar candidaturas",
+                hide: "Agochar candidaturas",
+            },
+            tabs: {
+                label: "Formas de cubrir a súa papeleta",
+                slates: "Elixir unha lista",
+                candidates: "Candidaturas individuais",
+            },
+            review: {
+                title: "As túas seleccións",
+                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidaturas independentes seleccionadas: {{count}}",
+                note: "O teu voto rexístrase para cada candidatura seleccionada. Unha lista non é un voto por si mesma.",
+                contestCount: "{{selected}} de {{max}} seleccionadas",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "As {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar a selección",
+            },
+            apply: {
+                button: "Elixir esta candidatura",
+                buttonLabel: "Elixir a candidatura {{slate}}",
+                chosen: "{{slate}} elixida. Candidatos seleccionados: {{candidates}}. Contendas: {{contests}}.",
+                overMaximum:
+                    "{{slate}} non se pode elixir: ten {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Pode seguir elixindo candidaturas individualmente.",
+                unavailable:
+                    "{{slate}} non se pode elixir nesta papeleta. Pode seguir elixindo candidaturas individualmente.",
+                replaceDialog: {
+                    title: "Substituír as túas opcións actuais?",
+                    content:
+                        "Elixir {{slate}} substitúe as túas opcións nas contendas seguintes. O resto das túas opcións non cambia.",
+                    removed: "Quítase:",
+                    added: "Selecciónase no seu lugar:",
+                    ok: "Substituír opcións",
+                    cancel: "Manter as miñas opcións",
+                },
             },
         },
         ballotLocator: {

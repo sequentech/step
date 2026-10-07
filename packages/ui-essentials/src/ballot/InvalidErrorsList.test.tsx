@@ -56,6 +56,7 @@ describe("before a voter has touched the contest", () => {
 describe("warnings a policy defers to the review screen", () => {
     it.each([
         [{under_vote_policy: "warn-only-in-review"}, UNDER_VOTE],
+        [{under_vote_policy: "warn-and-confirm-in-review"}, UNDER_VOTE],
         [{blank_vote_policy: "warn-only-in-review"}, BLANK_VOTE],
     ])("holds %o back while voting", (presentation, message) => {
         mountErrors(contest(presentation), {alerts: [anError(message)], isTouched: true})
@@ -64,6 +65,7 @@ describe("warnings a policy defers to the review screen", () => {
 
     it.each([
         [{under_vote_policy: "warn-only-in-review"}, UNDER_VOTE],
+        [{under_vote_policy: "warn-and-confirm-in-review"}, UNDER_VOTE],
         [{blank_vote_policy: "warn-only-in-review"}, BLANK_VOTE],
     ])("shows %o on review", (presentation, message) => {
         mountErrors(contest(presentation), {alerts: [anError(message)], isReview: true})

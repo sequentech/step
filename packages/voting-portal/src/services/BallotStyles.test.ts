@@ -35,6 +35,35 @@ describe("ballot style validation", () => {
         expect(error?.translationParams).toEqual({count: "2"})
     })
 
+    it("accepts a sound slate configuration", () => {
+        const ballot = structuredClone(ELECTION_WITH_INVALID)
+        const [contest] = ballot.contests
+        ballot.election_annotations = {
+            "sequent.slates": JSON.stringify({
+                version: 1,
+                slates: [
+                    {
+                        id: "forward",
+                        name: {en: "Forward Together"},
+                        members: {[contest.id]: [contest.candidates[0].id]},
+                    },
+                ],
+            }),
+        }
+        expect(getBallotStyleConfigurationError(ballot)).toBeUndefined()
+    })
+
+    it("rejects an invalid slate configuration with the reason", () => {
+        const ballot = structuredClone(ELECTION_WITH_INVALID)
+        ballot.election_annotations = {"sequent.slates": "{"}
+        const error = getBallotStyleConfigurationError(ballot)
+        expect(error).toBeInstanceOf(BallotStyleConfigurationError)
+        expect(error?.translationKey).toBe("errors.configuration.invalidSlateConfiguration")
+        expect(error?.translationParams.reason).toContain(
+            "the slate configuration is not valid JSON"
+        )
+    })
+
     it("checks later contests instead of stopping after the first valid contest", () => {
         const ballot = structuredClone(ELECTION_WITH_INVALID)
         const second = structuredClone(ballot.contests[0])

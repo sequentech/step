@@ -7,11 +7,15 @@ import {RootState} from "../store"
 export interface ElectionVoteStepState {
     [electionId: string]: boolean
 }
+export interface SlateListsExpandedState {
+    [electionId: string]: {[slateId: string]: boolean} | undefined
+}
 export interface ExtraState {
     bypassChooser: boolean
     isVoted: ElectionVoteStepState
     declinedToVote: ElectionVoteStepState
     completedAcclaimedElections: ElectionVoteStepState
+    slateListsExpanded: SlateListsExpandedState
 }
 
 const initialState: ExtraState = {
@@ -19,6 +23,7 @@ const initialState: ExtraState = {
     isVoted: {},
     declinedToVote: {},
     completedAcclaimedElections: {},
+    slateListsExpanded: {},
 }
 
 export const extraSlice = createSlice({
@@ -51,6 +56,17 @@ export const extraSlice = createSlice({
             state.completedAcclaimedElections[action.payload] = true
             return state
         },
+        setSlateListExpanded: (
+            state: ExtraState,
+            action: PayloadAction<{electionId: string; slateId: string; expanded: boolean}>
+        ): ExtraState => {
+            const {electionId, slateId, expanded} = action.payload
+            state.slateListsExpanded[electionId] = {
+                ...state.slateListsExpanded[electionId],
+                [slateId]: expanded,
+            }
+            return state
+        },
         clearIsVoted: (state: ExtraState): ExtraState => {
             state.isVoted = {}
             state.declinedToVote = {}
@@ -65,6 +81,7 @@ export const {
     setDeclinedToVote,
     clearDeclinedToVoteForElection,
     completeAcclaimedElection,
+    setSlateListExpanded,
     clearIsVoted,
 } = extraSlice.actions
 
@@ -82,5 +99,10 @@ export const isDeclineToVoteByElectionId =
 export const isAcclaimedElectionCompleted =
     (electionId: string | undefined) => (state: RootState) =>
         electionId ? Boolean(state.extra.completedAcclaimedElections?.[electionId]) : false
+
+export const selectSlateListExpanded =
+    (electionId: string, slateId: string) =>
+    (state: RootState): boolean | undefined =>
+        state.extra.slateListsExpanded?.[electionId]?.[slateId]
 
 export default extraSlice.reducer
