@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voters | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voters | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3505/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voters","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3505/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3505/assets/js/runtime~main.72775d6c.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3505/assets/js/runtime~main.c056b851.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3505/assets/js/main.ce336c30.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -46,7 +46,9 @@ the election event, or more than one, is rejected, with its row and the value, a
 imported.</p>
 <p>Export writes <code>authorized-election-ids</code> the same way, and adds one column per election, named
 <code>election__</code> followed by the value that names the election, holding when the voter last voted in
-it. Import ignores these columns.</p>
+it. Import ignores these columns. A stored value that names no election, or more than one, is
+exported unchanged, so that importing it fails instead of giving the voter other elections. It is
+put in double quotes if it is blank, starts or ends with a space, or contains <code>|</code>.</p>
 <p>When an election event export is imported, its elections get new IDs. Voters whose
 <code>authorized-election-ids</code> name elections by the IDs they had in the exported event keep those
 elections.</p>
