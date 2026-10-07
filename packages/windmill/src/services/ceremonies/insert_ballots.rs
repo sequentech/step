@@ -6,6 +6,7 @@ use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
+use crate::services::authorized_elections::census_values_by_election;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::ceremonies::auditable_ballots::{
@@ -129,12 +130,9 @@ pub async fn insert_ballots_messages(
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
-    let election_ids_alias: HashMap<String, String> =
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .into_iter()
-            .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
-            .collect();
+    let census_values = census_values_by_election(
+        &get_election_event_elections(hasura_transaction, tenant_id, election_event_id).await?,
+    );
 
     // Collect all futures for parallel execution
     let mut tally_session_contests_updated = Vec::with_capacity(tally_session_contests.len());
@@ -152,7 +150,7 @@ pub async fn insert_ballots_messages(
             let configuration_clone = configuration.clone(); // Assuming Configuration can be cloned
             let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
             let selected_trustees_clone = selected_trustees.clone();
-            let election_ids_alias_clone = election_ids_alias.clone();
+            let census_values_clone = census_values.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
@@ -255,10 +253,10 @@ pub async fn insert_ballots_messages(
                         &keycloak_transaction_clone,
                         &realm_clone,
                         &tally_session_contest.area_id,
-                        &tally_session_contest.election_id,
-                        election_ids_alias_clone
+                        census_values_clone
                             .get(&tally_session_contest.election_id)
-                            .map(String::as_str),
+                            .map(Vec::as_slice)
+                            .unwrap_or(std::slice::from_ref(&tally_session_contest.election_id)),
                         &users_temp_file.path().to_path_buf(),
                         multiplicity_column,
                     )

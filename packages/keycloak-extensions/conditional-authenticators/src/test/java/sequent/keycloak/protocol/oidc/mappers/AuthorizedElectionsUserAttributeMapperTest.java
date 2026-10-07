@@ -6,6 +6,7 @@ package sequent.keycloak.protocol.oidc.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,30 +45,63 @@ class AuthorizedElectionsUserAttributeMapperTest {
     assertEquals("150017", hasuraClaims.get("x-hasura-election-event-id"));
   }
 
-  // Keys are external IDs, or the election ID for an election without one.
-  private static final Map<String, String> ELECTIONS =
-      Map.of("GIAMBI30-3-31", "election-1", "election-2", "election-2");
+  private static Map<String, String> electionIdsByKey(String elections) throws Exception {
+    return AuthorizedElectionsUserAttributeMapper.electionIdsByKey(
+        new ObjectMapper().readTree(elections));
+  }
 
   @Test
-  void toElectionIds_resolvesExternalIdsAndIdsOfElectionsWithoutOne() {
+  void electionIdsByKey_keysElectionsByExternalIdOrIdWithoutOne_andById() throws Exception {
+    assertEquals(
+        Map.of(
+            "GIAMBI30-3-31", "election-1",
+            "election-1", "election-1",
+            "election-2", "election-2",
+            "election-3", "election-3"),
+        electionIdsByKey(
+            """
+            [{"id": "election-1", "external_id": "GIAMBI30-3-31"},
+             {"id": "election-2", "external_id": null},
+             {"id": "election-3", "external_id": ""}]
+            """));
+  }
+
+  @Test
+  void electionIdsByKey_keepsTheIdOfAnElectionWhoseExternalIdIsRepeated() throws Exception {
+    Map<String, String> electionIds =
+        electionIdsByKey(
+            """
+            [{"id": "election-1", "external_id": "GIAMBI30-3-31"},
+             {"id": "election-2", "external_id": "GIAMBI30-3-31"}]
+            """);
+
+    assertEquals("election-1", electionIds.get("election-1"));
+    assertEquals("election-2", electionIds.get("election-2"));
+  }
+
+  @Test
+  void electionIdsByKey_givesAnExternalIdPrecedenceOverAnEqualId() throws Exception {
+    assertEquals(
+        Map.of(
+            "election-2", "election-1",
+            "election-1", "election-1",
+            "GIAMBI30-3-31", "election-2"),
+        electionIdsByKey(
+            """
+            [{"id": "election-1", "external_id": "election-2"},
+             {"id": "election-2", "external_id": "GIAMBI30-3-31"}]
+            """));
+  }
+
+  @Test
+  void toElectionIds_dropsValuesThatNameNoElectionAndRepeats() {
     assertEquals(
         List.of("election-1", "election-2"),
         AuthorizedElectionsUserAttributeMapper.toElectionIds(
-            List.of("GIAMBI30-3-31", "election-2"), ELECTIONS));
-  }
-
-  @Test
-  void toElectionIds_acceptsTheIdOfAnElectionThatHasAnExternalId() {
-    assertEquals(
-        List.of("election-1"),
-        AuthorizedElectionsUserAttributeMapper.toElectionIds(List.of("election-1"), ELECTIONS));
-  }
-
-  @Test
-  void toElectionIds_dropsValuesThatMatchNoElectionAndRepeats() {
-    assertEquals(
-        List.of("election-1"),
-        AuthorizedElectionsUserAttributeMapper.toElectionIds(
-            List.of("unknown", "GIAMBI30-3-31", "election-1", ""), ELECTIONS));
+            List.of("unknown", "GIAMBI30-3-31", "election-1", "", "election-2"),
+            Map.of(
+                "GIAMBI30-3-31", "election-1",
+                "election-1", "election-1",
+                "election-2", "election-2")));
   }
 }
