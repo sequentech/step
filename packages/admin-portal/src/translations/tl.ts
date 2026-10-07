@@ -634,6 +634,22 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Mga setting ng accessibility ng botante",
+                    options: {
+                        disabled: "Itago ang mga setting ng accessibility",
+                        enabled: "Ialok ang laki ng teksto, contrast, agwat at galaw",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Mga tagubiling audio",
+                    options: {
+                        "disabled": "Walang tagubiling audio",
+                        "recorded": "Mga in-upload na recording lamang",
+                        "recorded-or-synthesized":
+                            "Mga in-upload na recording, o ang boses ng browser kung wala",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Patakaran sa Ipakita ng mga Log ng Pagboto",
                     options: {
@@ -2840,6 +2856,23 @@ const tagalogTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Mga tagubiling audio para sa screen",
+                languageLabel: "Wika ng recording",
+                none: "Hindi tagubiling audio",
+                helperText:
+                    "Maririnig ng mga botante ang file na ito kapag hiniling nila ang mga tagubilin sa screen na iyon.",
+                screens: {
+                    "election-chooser": "Listahan ng mga halalan",
+                    "start": "Simula",
+                    "ballot": "Balota",
+                    "review": "Pagsusuri",
+                    "confirmation": "Kumpirmasyon",
+                    "audit": "Audit",
+                    "ballot-locator": "Ballot locator",
+                    "support-materials": "Mga materyal na pansuporta",
+                },
+            },
             createMaterialSuccess: "Nalikha ang suportang materyal",
             createMaterialError: "Error sa paglikha ng suportang materyal",
             updateMaterialSuccess: "Na-update ang suportang materyal",
