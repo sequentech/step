@@ -16,12 +16,14 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserModel;
@@ -217,30 +219,42 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       }
     }
 
-    Stream<String> mappedAuthorizedElectionIds =
-        authorizedElectionIds.stream()
-            // The key is either the external ID or the id when external_id is null. The value is
-            // always the id.
-            // Then when key and value are equal (Ids) is because the external_id was found to be
-            // null.
-            .filter(electionExternalId -> (electionsExternalIds.get(electionExternalId) != null))
-            // Map external_id to election_id
-            .map(electionExternalId -> electionsExternalIds.get(electionExternalId));
+    List<String> mappedAuthorizedElectionIds =
+        toElectionIds(authorizedElectionIds, electionsExternalIds);
 
     String useArray = mappingModel.getConfig().get(ARRAY_ATTRS);
     if (Boolean.parseBoolean(useArray)) {
-      OIDCAttributeMapperHelper.mapClaim(
-          token, mappingModel, mappedAuthorizedElectionIds.collect(Collectors.toList()));
+      OIDCAttributeMapperHelper.mapClaim(token, mappingModel, mappedAuthorizedElectionIds);
     } else {
       // Format the collection as a string
       String result =
-          mappedAuthorizedElectionIds
+          mappedAuthorizedElectionIds.stream()
               .map(s -> "\"" + s + "\"")
               .collect(Collectors.joining(", ", "{", "}"));
       log.infov("Result: {0}", result);
       OIDCAttributeMapperHelper.mapClaim(token, mappingModel, result);
     }
     putElectionEventIdClaim(token, electionEventId);
+  }
+
+  /**
+   * Maps authorized elections to election IDs. The keys of {@code electionIdsByKey} are external
+   * IDs, or the election ID for an election without one, and its values are election IDs. A value
+   * may also be the ID of an election that has an external ID, as voter imports used to store them.
+   * Values that match no election are dropped.
+   */
+  static List<String> toElectionIds(
+      Collection<String> authorizedElections, Map<String, String> electionIdsByKey) {
+    Set<String> electionIds = new HashSet<>(electionIdsByKey.values());
+    return authorizedElections.stream()
+        .map(
+            value ->
+                electionIdsByKey.containsKey(value)
+                    ? electionIdsByKey.get(value)
+                    : (electionIds.contains(value) ? value : null))
+        .filter(Objects::nonNull)
+        .distinct()
+        .collect(Collectors.toList());
   }
 
   static void putElectionEventIdClaim(IDToken token, String electionEventId) {

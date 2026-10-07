@@ -27,6 +27,44 @@ This tab displays and manages voters. The table lists all currently configured v
 
 ---
 
+### Voters CSV
+
+**Import** reads a CSV file, or a tab-separated one if its name ends in `.tsv`. The first row names
+the columns. **Export** writes the same format, and an election event export that includes voters
+carries the same file, so either can be edited and imported again into this or another election
+event.
+
+| Column | Meaning |
+| --- | --- |
+| `id` | Written by export. Import ignores it and gives each voter a new ID. |
+| `username`, `email`, `first_name`, `last_name` | The voter's account. Without a `username` column each voter gets a random one. |
+| `enabled`, `email_verified` | `true` or `false`; `true` if blank or missing. |
+| `area_name` | The voter's area, spelled exactly as in the **Areas** tab. A name that matches no area leaves the voter without one. |
+| `authorized-election-ids` | The elections the voter may vote in, separated by `\|`. See below. |
+| `password` | A password for the voter. |
+| `hashed_password`, `password_salt`, `num_of_iterations` | Instead of `password`, a base64 PBKDF2-SHA256 hash and its salt. `num_of_iterations` is 27500 if missing. |
+| `group_name` | The voter's group; `voter` if missing. |
+| `vote-weight`, `delegate-vote-to` | See the weighted and delegated voting policies under **Data > Advanced Configuration**. |
+| Any other column | Stored as the voter attribute of the same name. |
+
+Column names may only contain letters, digits, `.`, `_` and `-`, and two names that differ only in
+case or in those three characters are rejected as duplicates.
+
+In `authorized-election-ids`, name each election by its external ID, or by its ID if it has no
+external ID. An election's ID is also accepted when it has an external ID, and the external ID is
+stored instead. A blank cell leaves the voter unrestricted: they can vote in the elections of their
+area. A value that names no election in the election event is rejected, with its row and the value,
+and nothing is imported.
+
+Export adds one column per election, named `election__` followed by its external ID, or its ID,
+holding when the voter last voted in it. Import ignores these columns.
+
+When an election event export is imported, its elections get new IDs. Voters whose
+`authorized-election-ids` name elections by the IDs they had in the exported event keep those
+elections.
+
+---
+
 ### Actions
 
 The **Actions** column provides options to interact with voter records:

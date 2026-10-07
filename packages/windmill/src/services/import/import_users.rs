@@ -4,7 +4,9 @@
 
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
+use crate::services::authorized_elections::AuthorizedElectionIds;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::election::get_election_event_elections;
 use crate::services::electoral_log::{
     post_voter_secret_attribute_audit_with_transaction, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
@@ -28,9 +30,10 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
-    AREA_ID_ATTR_NAME, DEFAULT_VOTE_WEIGHT, MAX_TOTAL_VOTE_WEIGHT, MAX_VOTE_WEIGHT,
-    MIN_VOTE_WEIGHT, TENANT_ID_ATTR_NAME, VOTE_WEIGHT_ATTR_NAME,
+    AREA_ID_ATTR_NAME, AUTHORIZED_ELECTION_IDS_NAME, DEFAULT_VOTE_WEIGHT, MAX_TOTAL_VOTE_WEIGHT,
+    MAX_VOTE_WEIGHT, MIN_VOTE_WEIGHT, TENANT_ID_ATTR_NAME, VOTE_WEIGHT_ATTR_NAME,
 };
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
@@ -52,7 +55,7 @@ const EMAIL_COL_NAME: &str = "email";
 const EMAIL_VERIFIED_COL_NAME: &str = "email_verified";
 const GROUP_COL_NAME: &str = "group_name";
 const AREA_NAME_COL_NAME: &str = "area_name";
-const ELECTION_COL_PREFIX: &str = "election__";
+pub const ELECTION_COL_PREFIX: &str = "election__";
 const INTERNAL_USER_ID_COL_NAME: &str = "sequent_internal_user_id";
 const RESERVED_COL_NAMES: [&str; 7] = [
     HASHED_PASSWORD_COL_NAME,
@@ -85,6 +88,53 @@ fn validate_vote_weight(value: &str, row: usize) -> Result<u64> {
         .into());
     }
     Ok(weight)
+}
+
+/// Rewrites an `authorized-election-ids` cell to store, for each election it
+/// names by external ID or ID, the value that authorizes a voter for it. The
+/// bulk import writes straight into Keycloak's tables, and the token mapper
+/// silently drops a value it cannot resolve, so this is the only place a bad
+/// one is caught before it locks the voter out of the election. A blank cell
+/// stays blank, leaving the voter unrestricted.
+pub(crate) fn resolve_authorized_election_ids(
+    cell: &str,
+    row: usize,
+    elections: &AuthorizedElectionIds,
+) -> Result<String> {
+    if cell.trim().is_empty() {
+        return Ok(String::new());
+    }
+    let mut values: Vec<&str> = Vec::new();
+    for reference in cell.split(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR) {
+        let reference = reference.trim();
+        let value = elections.resolve(reference).ok_or_else(|| {
+            anyhow!(
+                "Invalid `{AUTHORIZED_ELECTION_IDS_NAME}` value {reference:?} on row {row}: \
+                 no election in this election event has that external ID or ID"
+            )
+        })?;
+        if !values.contains(&value) {
+            values.push(value);
+        }
+    }
+    Ok(values.join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR))
+}
+
+/// Exports add a column per election saying when each voter last voted in it.
+/// Nothing is imported from them, so they are dropped before the headers are
+/// checked: they are named after the elections' external IDs, which may hold
+/// characters a header may not, and repeat when two elections share one.
+pub(crate) fn is_election_column(header: &str) -> bool {
+    header.starts_with(ELECTION_COL_PREFIX)
+}
+
+/// The fields of `record` in the columns that are imported.
+pub(crate) fn imported_fields(record: &StringRecord, imported_columns: &[bool]) -> StringRecord {
+    record
+        .iter()
+        .zip(imported_columns)
+        .filter_map(|(field, imported)| imported.then_some(field))
+        .collect()
 }
 
 fn sanitize_db_key(key: &String) -> String {
@@ -368,7 +418,6 @@ fn get_insert_user_query(
         .filter(|col| {
             !user_entity_columns.contains(&col.as_str())
                 && !RESERVED_COL_NAMES.iter().any(|&s| s == col)
-                && !col.starts_with(ELECTION_COL_PREFIX)
         })
         .collect::<Vec<String>>();
 
@@ -534,7 +583,9 @@ fn get_insert_user_query(
     Ok(ret)
 }
 
-#[instrument(err, skip(hasura_transaction))]
+/// `replaced_ids` maps the IDs in an exported election event to those its
+/// import gave them, so that voters keep elections the file names by ID.
+#[instrument(err, skip(hasura_transaction, replaced_ids))]
 pub async fn import_users_file(
     hasura_transaction: &Transaction<'_>,
     voters_file: &NamedTempFile,
@@ -544,6 +595,7 @@ pub async fn import_users_file(
     is_admin: bool,
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
+    replaced_ids: Option<&HashMap<String, String>>,
 ) -> Result<()> {
     let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
@@ -595,7 +647,7 @@ pub async fn import_users_file(
         .delimiter(separator)
         .from_reader(voters_file);
 
-    let headers = match rdr.headers() {
+    let all_headers = match rdr.headers() {
         Ok(headers) => headers.clone(),
         Err(err) => {
             return Err(Error::String(format!(
@@ -603,6 +655,11 @@ pub async fn import_users_file(
             )));
         }
     };
+    let imported_columns = all_headers
+        .iter()
+        .map(|header| !is_election_column(header))
+        .collect::<Vec<bool>>();
+    let headers = imported_fields(&all_headers, &imported_columns);
 
     info!("headers: {headers:?}");
     for header in headers.iter() {
@@ -617,6 +674,24 @@ pub async fn import_users_file(
             )));
         }
     }
+
+    let authorized_elections = match election_event_id.as_deref() {
+        Some(event_id)
+            if headers
+                .iter()
+                .any(|header| header == AUTHORIZED_ELECTION_IDS_NAME) =>
+        {
+            let elections = get_election_event_elections(hasura_transaction, &tenant_id, event_id)
+                .await
+                .map_err(|err| Error::String(format!("Error retrieving elections: {err:#}")))?;
+            let authorized_elections = AuthorizedElectionIds::new(&elections);
+            Some(match replaced_ids {
+                Some(replaced_ids) => authorized_elections.with_replaced_ids(replaced_ids),
+                None => authorized_elections,
+            })
+        }
+        _ => None,
+    };
 
     let secret_names = if let Some(event_id) = election_event_id.as_deref() {
         get_secret_attribute_config(&tenant_id, event_id)
@@ -749,7 +824,7 @@ pub async fn import_users_file(
     for result in rdr.records() {
         row_number += 1;
         let record = match result {
-            Ok(record) => record,
+            Ok(record) => imported_fields(&record, &imported_columns),
             Err(err) => {
                 return Err(Error::String(format!("Error reading CSV record: {err}")));
             }
@@ -796,6 +871,16 @@ pub async fn import_users_file(
                             // here but would be rejected by the realm's integer
                             // validator on any later edit.
                             validate_vote_weight(trimmed, row_number)?.to_string()
+                        }
+                    }
+                    column_name if column_name == AUTHORIZED_ELECTION_IDS_NAME => {
+                        match &authorized_elections {
+                            Some(authorized_elections) => resolve_authorized_election_ids(
+                                data,
+                                row_number,
+                                authorized_elections,
+                            )?,
+                            None => data.to_string(),
                         }
                     }
                     column_name if column_name == USERNAME_COL_NAME => data.to_lowercase(),
@@ -912,6 +997,7 @@ pub async fn import_users_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::election::ElectionHead;
     use csv::StringRecord;
 
     /// The import writes `user_attribute.name` straight from these lists and the
@@ -951,6 +1037,137 @@ mod tests {
             assert!(
                 error.to_string().contains("Duplicate column"),
                 "unexpected error for {headers:?}: {error}"
+            );
+        }
+    }
+
+    const ELECTION_A: &str = "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
+    const ELECTION_B: &str = "7a2b3c4d-5e6f-4a7b-9c8d-1e2f3a4b5c6d";
+    const ELECTION_C: &str = "8b3c4d5e-6f7a-4b8c-ad9e-2f3a4b5c6d7e";
+
+    fn authorized_elections() -> AuthorizedElectionIds {
+        AuthorizedElectionIds::new(&[
+            ElectionHead {
+                id: ELECTION_A.to_string(),
+                name: "-".to_string(),
+                alias: None,
+                external_id: Some("GTELEC31+GCIBER30-1-01".to_string()),
+            },
+            ElectionHead {
+                id: ELECTION_B.to_string(),
+                name: "-".to_string(),
+                alias: None,
+                external_id: Some("GIAMBI30-3-31".to_string()),
+            },
+            ElectionHead {
+                id: ELECTION_C.to_string(),
+                name: "-".to_string(),
+                alias: None,
+                external_id: None,
+            },
+        ])
+    }
+
+    /// The headers of a file exported before election columns were named
+    /// after external IDs, and after: neither is a valid or unique header.
+    #[test]
+    fn election_columns_are_not_imported() {
+        let headers = StringRecord::from(vec![
+            "username",
+            "election__-",
+            AUTHORIZED_ELECTION_IDS_NAME,
+            "election__-",
+            "election__GTELEC31+GCIBER30-1-01",
+        ]);
+        let record = StringRecord::from(vec![
+            "voter",
+            "2025-01-01T00:00:00Z",
+            "GIAMBI30-3-31",
+            "",
+            "",
+        ]);
+        let imported_columns = headers
+            .iter()
+            .map(|header| !is_election_column(header))
+            .collect::<Vec<bool>>();
+
+        let headers = imported_fields(&headers, &imported_columns);
+        assert_eq!(
+            headers,
+            StringRecord::from(vec!["username", AUTHORIZED_ELECTION_IDS_NAME])
+        );
+        assert!(headers.iter().all(|header| HEADER_RE.is_match(header)));
+        get_copy_from_query(&headers).expect("the remaining headers import");
+        assert_eq!(
+            imported_fields(&record, &imported_columns),
+            StringRecord::from(vec!["voter", "GIAMBI30-3-31"])
+        );
+    }
+
+    #[test]
+    fn authorized_elections_are_stored_by_external_id_or_id_without_one() {
+        let stored = resolve_authorized_election_ids(
+            &format!(" GIAMBI30-3-31 |{ELECTION_A}|{ELECTION_C}"),
+            2,
+            &authorized_elections(),
+        )
+        .expect("every value names an election");
+
+        assert_eq!(
+            stored,
+            format!("GIAMBI30-3-31|GTELEC31+GCIBER30-1-01|{ELECTION_C}")
+        );
+    }
+
+    #[test]
+    fn an_election_named_twice_is_stored_once() {
+        let stored = resolve_authorized_election_ids(
+            &format!("GIAMBI30-3-31|{ELECTION_B}"),
+            2,
+            &authorized_elections(),
+        )
+        .expect("every value names an election");
+
+        assert_eq!(stored, "GIAMBI30-3-31");
+    }
+
+    /// A blank cell leaves the voter unrestricted, so it must not turn into a
+    /// value that restricts them, nor fail.
+    #[test]
+    fn blank_authorized_elections_stay_blank() {
+        for cell in ["", "  "] {
+            assert_eq!(
+                resolve_authorized_election_ids(cell, 2, &authorized_elections())
+                    .expect("a blank cell imports"),
+                ""
+            );
+        }
+    }
+
+    #[test]
+    fn authorized_elections_matching_no_election_are_rejected_naming_row_and_value() {
+        for (cell, value) in [
+            ("GIAMBI30-3-31|giambi30-3-31", "\"giambi30-3-31\""),
+            ("GIAMBI30-3-31|", "\"\""),
+            (
+                "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a",
+                "\"1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a\"",
+            ),
+        ] {
+            let message = resolve_authorized_election_ids(cell, 4, &authorized_elections())
+                .expect_err(&format!("{cell:?} must be rejected"))
+                .to_string();
+            assert!(
+                message.contains(AUTHORIZED_ELECTION_IDS_NAME),
+                "error must name the column, got: {message}"
+            );
+            assert!(
+                message.contains("row 4"),
+                "error must name the row, got: {message}"
+            );
+            assert!(
+                message.contains(value),
+                "error must name the value {value}, got: {message}"
             );
         }
     }
