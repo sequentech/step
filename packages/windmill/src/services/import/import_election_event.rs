@@ -797,7 +797,7 @@ pub async fn process_election_event_file(
     Ok((data, replacement_map))
 }
 
-#[instrument(err, skip(hasura_transaction, temp_file))]
+#[instrument(err, skip(hasura_transaction, temp_file, replacement_map))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -807,6 +807,7 @@ async fn process_voters_file(
     is_admin: bool,
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
+    replacement_map: &HashMap<String, String>,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -823,6 +824,7 @@ async fn process_voters_file(
         is_admin,
         may_write_secret_attributes,
         secret_write_initiator,
+        Some(replacement_map),
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1247,6 +1249,7 @@ pub async fn process_document(
                     false,
                     may_write_secret_attributes,
                     secret_write_initiator.as_ref(),
+                    &replacement_map,
                 )
                 .await
                 .context("Failed to import voters")?;

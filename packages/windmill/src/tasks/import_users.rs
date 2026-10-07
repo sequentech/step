@@ -152,6 +152,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         body.is_admin,
         body.may_write_secret_attributes,
         body.secret_write_initiator.as_ref(),
+        None,
     )
     .await
     {
