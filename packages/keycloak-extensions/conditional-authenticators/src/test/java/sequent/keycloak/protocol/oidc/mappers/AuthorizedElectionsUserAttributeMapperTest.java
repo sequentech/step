@@ -45,9 +45,13 @@ class AuthorizedElectionsUserAttributeMapperTest {
     assertEquals("150017", hasuraClaims.get("x-hasura-election-event-id"));
   }
 
+  private static AuthorizedElectionsUserAttributeMapper.Elections elections(String elections)
+      throws Exception {
+    return AuthorizedElectionsUserAttributeMapper.elections(new ObjectMapper().readTree(elections));
+  }
+
   private static Map<String, String> electionIdsByKey(String elections) throws Exception {
-    return AuthorizedElectionsUserAttributeMapper.electionIdsByKey(
-        new ObjectMapper().readTree(elections));
+    return elections(elections).idsByKey();
   }
 
   @Test
@@ -115,6 +119,32 @@ class AuthorizedElectionsUserAttributeMapperTest {
             [{"id": "election-2", "external_id": null},
              {"id": "election-1", "external_id": "election-2"}]
             """));
+  }
+
+  @Test
+  void elections_keepsEveryElectionId() throws Exception {
+    assertEquals(
+        List.of("election-1", "election-2"),
+        elections(
+                """
+                [{"id": "election-1", "external_id": "election-2"},
+                 {"id": "election-2", "external_id": null}]
+                """)
+            .ids());
+  }
+
+  @Test
+  void idsAmong_keepsTheElectionsOfTheEventWithoutRepeats() throws Exception {
+    AuthorizedElectionsUserAttributeMapper.Elections elections =
+        elections(
+            """
+            [{"id": "election-1", "external_id": "election-2"},
+             {"id": "election-2", "external_id": null}]
+            """);
+
+    assertEquals(
+        List.of("election-2", "election-1"),
+        elections.idsAmong(List.of("election-2", "election-3", "election-2", "election-1")));
   }
 
   @Test

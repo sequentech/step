@@ -142,7 +142,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     Collection<String> attributeValue =
         KeycloakModelUtils.resolveAttribute(user, attributeName, aggregateAttrs);
 
-    Map<String, String> electionsExternalIds;
+    Elections elections;
     String tenantId = null;
     String electionEventId = null;
 
@@ -154,23 +154,21 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       electionEventId = eventRealm.electionEventId();
       log.infov("Election Event id: {0}", electionEventId);
       log.infov("Tenant Id: {0}", tenantId);
-      electionsExternalIds = getAllElectionsFromElectionEvent(electionEventId, tenantId);
+      elections = getAllElectionsFromElectionEvent(electionEventId, tenantId);
     } catch (Exception e) {
       log.error("Error getting elections from election event", e);
       e.printStackTrace();
       return;
     }
 
-    List<String> authorizedElectionIds = new ArrayList<>();
+    List<String> authorizedElectionIds;
 
     // Priority 1: If user has explicit election assignments (as external IDs), use them
     if (attributeValue != null && !attributeValue.isEmpty()) {
       log.infov(
           "User has explicitly authorized elections: {0}",
           attributeValue.stream().collect(Collectors.joining("|")));
-      // The attributeValue contains external IDs, we'll use them as-is
-      // They will be mapped to IDs later in the stream processing
-      authorizedElectionIds.addAll(attributeValue);
+      authorizedElectionIds = toElectionIds(attributeValue, elections.idsByKey());
     } else {
       // Priority 2: Check if user has area_id attribute
       Collection<String> areaIdAttribute =
@@ -189,44 +187,31 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
             log.infov(
                 "Found elections for area {0}: {1}",
                 areaId, areaElections.stream().collect(Collectors.joining("|")));
-            // Add election external ID for the elections in this area
-            for (String electionId : areaElections) {
-              // Find the external ID for this election ID
-              String external_id =
-                  electionsExternalIds.entrySet().stream()
-                      .filter(entry -> entry.getValue().equals(electionId))
-                      .map(Map.Entry::getKey)
-                      .findFirst()
-                      .orElse(electionId); // If no external ID found, use the ID itself
-              authorizedElectionIds.add(external_id);
-            }
+            authorizedElectionIds = elections.idsAmong(areaElections);
           } else {
             log.warnv("No elections found for area_id: {0}, falling back to all elections", areaId);
-            authorizedElectionIds.addAll(electionsExternalIds.keySet());
+            authorizedElectionIds = elections.ids();
           }
         } catch (Exception e) {
           log.error("Error fetching area-based elections, falling back to all elections", e);
-          authorizedElectionIds.addAll(electionsExternalIds.keySet());
+          authorizedElectionIds = elections.ids();
         }
       } else {
         // Priority 3: No explicit elections and no area_id - authorize all elections
         log.infov(
             "No authorized elections or area_id found, authorizing all elections: {0}",
-            electionsExternalIds.keySet().stream().collect(Collectors.joining("|")));
-        authorizedElectionIds.addAll(electionsExternalIds.keySet());
+            String.join("|", elections.ids()));
+        authorizedElectionIds = elections.ids();
       }
     }
 
-    List<String> mappedAuthorizedElectionIds =
-        toElectionIds(authorizedElectionIds, electionsExternalIds);
-
     String useArray = mappingModel.getConfig().get(ARRAY_ATTRS);
     if (Boolean.parseBoolean(useArray)) {
-      OIDCAttributeMapperHelper.mapClaim(token, mappingModel, mappedAuthorizedElectionIds);
+      OIDCAttributeMapperHelper.mapClaim(token, mappingModel, authorizedElectionIds);
     } else {
       // Format the collection as a string
       String result =
-          mappedAuthorizedElectionIds.stream()
+          authorizedElectionIds.stream()
               .map(s -> "\"" + s + "\"")
               .collect(Collectors.joining(", ", "{", "}"));
       log.infov("Result: {0}", result);
@@ -381,7 +366,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   }
 
   // Cache results for each electionEventId with expiration after 5 minutes
-  private final Cache<String, Map<String, String>> electionsCache =
+  private final Cache<String, Elections> electionsCache =
       CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
 
   // Cache for area-based elections mapping: key = "tenantId:electionEventId", value = Map<areaId,
@@ -389,11 +374,11 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   private final Cache<String, Map<String, List<String>>> areaElectionsCache =
       CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
 
-  public Map<String, String> getAllElectionsFromElectionEvent(
-      String electionEventId, String tenantId) throws IOException, InterruptedException {
+  public Elections getAllElectionsFromElectionEvent(String electionEventId, String tenantId)
+      throws IOException, InterruptedException {
 
     // Check cache first
-    Map<String, String> cachedResult = electionsCache.getIfPresent(electionEventId);
+    Elections cachedResult = electionsCache.getIfPresent(electionEventId);
     if (cachedResult != null) {
       return cachedResult;
     }
@@ -442,19 +427,30 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       throw new RuntimeException("Unexpected JSON structure: " + response.body());
     }
 
-    Map<String, String> electionIds = electionIdsByKey(electionsNode);
+    Elections elections = elections(electionsNode);
 
     // Cache the result for future calls
-    electionsCache.put(electionEventId, electionIds);
-    return electionIds;
+    electionsCache.put(electionEventId, elections);
+    return elections;
   }
 
   /**
-   * Maps each election's external ID to its ID, and then each ID that is not already a key to
+   * An election event's election IDs, and the election ID that each value of a voter's authorized
+   * elections names.
+   */
+  record Elections(List<String> ids, Map<String, String> idsByKey) {
+    /** The given election IDs that are in the election event, without repeats. */
+    List<String> idsAmong(Collection<String> electionIds) {
+      return electionIds.stream().filter(ids::contains).distinct().collect(Collectors.toList());
+    }
+  }
+
+  /**
+   * Keys each election's ID by its external ID, and then each ID that is not already a key by
    * itself: voter imports used to store election IDs, and an election that has no external ID, or
    * whose external ID another one repeats, can only be named by its ID.
    */
-  static Map<String, String> electionIdsByKey(JsonNode electionsNode) {
+  static Elections elections(JsonNode electionsNode) {
     StringBuilder keyAreaLog = new StringBuilder();
     Map<String, String> electionIds = new HashMap<>();
     List<String> ids = new ArrayList<>();
@@ -483,7 +479,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     for (String id : ids) {
       electionIds.putIfAbsent(id, id);
     }
-    return electionIds;
+    return new Elections(ids, electionIds);
   }
 
   /**
