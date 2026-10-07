@@ -174,6 +174,44 @@ pub fn generate_manage_date_task_name(
     format!("{}{}", base_with_election, event_processor,)
 }
 
+/// Online deadlines retain their historical task name. Other channel groups
+/// get a stable suffix so they can be scheduled independently.
+pub fn generate_channel_date_task_name(
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: Option<&str>,
+    event_processor: &EventProcessors,
+    voting_channels: Option<&[VotingStatusChannel]>,
+) -> String {
+    let base = generate_manage_date_task_name(
+        tenant_id,
+        election_event_id,
+        election_id,
+        event_processor,
+    );
+    if !matches!(
+        event_processor,
+        EventProcessors::START_VOTING_PERIOD
+            | EventProcessors::END_VOTING_PERIOD
+    ) {
+        return base;
+    }
+    let channels = ManageElectionDatePayload {
+        election_id: None,
+        voting_channels: voting_channels.map(<[_]>::to_vec),
+    }
+    .channels();
+    if channels.contains(&VotingStatusChannel::ONLINE) {
+        return base;
+    }
+    let suffix = channels
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("_");
+    format!("{base}_channels_{suffix}")
+}
+
 pub fn generate_voting_period_dates(
     scheduled_events: Vec<ScheduledEvent>,
     tenant_id: &str,
