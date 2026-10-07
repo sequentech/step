@@ -116,9 +116,7 @@ export const EditRule: Story = {
             )
         ).toBeVisible()
         await addCondition(editor, "ID type")
-        await expect(editor.getByRole("combobox", {name: "ID type"})).toHaveTextContent(
-            "Passport"
-        )
+        await expect(editor.getByRole("combobox", {name: "ID type"})).toHaveTextContent("Passport")
         await expect(editor.getByTestId("rule-summary")).toHaveTextContent(
             "When iD: Passport and exactly 1 detail differs and embassy differs, send the enrollment to a person."
         )
