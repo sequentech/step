@@ -296,6 +296,72 @@ async fn a_version_whose_electoral_log_entry_fails_is_not_saved() {
 }
 
 #[rocket::async_test]
+async fn a_matrix_is_not_saved_for_an_unknown_event() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let known = rows::event(&services.hasura).await;
+    let event = Event {
+        tenant_id: known.tenant_id.clone(),
+        election_event_id: uuid::Uuid::new_v4().to_string(),
+    };
+
+    let (status, error) =
+        json(save(&client, &event, &writer(&event), association()).await).await;
+
+    assert_eq!(status, Status::NotFound, "{error}");
+    assert_eq!(error["extensions"]["code"], "ElectionEventNotFound");
+    assert!(stored_versions(&services, &event).await.is_empty());
+    assert!(stored_versions(&services, &known).await.is_empty());
+    assert!(services.electoral_log.entries().is_empty());
+}
+
+#[rocket::async_test]
+async fn an_event_identifier_that_is_not_a_uuid_is_an_error() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let mut event = rows::event(&services.hasura).await;
+    event.election_event_id = "not-a-uuid".into();
+
+    let (status, error) =
+        json(get(&client, &event, &reader(&event)).await).await;
+
+    assert_eq!(status, Status::InternalServerError, "{error}");
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("Failed to read the approval matrix"),
+        "{error}"
+    );
+}
+
+#[rocket::async_test]
+async fn an_unreachable_database_is_an_error() {
+    let services = Services::without_database();
+    let client = services.client().await;
+    let event = Event {
+        tenant_id: uuid::Uuid::new_v4().to_string(),
+        election_event_id: uuid::Uuid::new_v4().to_string(),
+    };
+
+    let (status, error) =
+        json(get(&client, &event, &reader(&event)).await).await;
+    assert_eq!(status, Status::InternalServerError, "{error}");
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("Failed to get client from the db pool"),
+        "{error}"
+    );
+
+    let (status, _) =
+        json(save(&client, &event, &writer(&event), association()).await).await;
+    assert_eq!(status, Status::InternalServerError);
+    assert!(services.electoral_log.entries().is_empty());
+}
+
+#[rocket::async_test]
 async fn the_test_panel_decides_with_unsaved_rules() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
