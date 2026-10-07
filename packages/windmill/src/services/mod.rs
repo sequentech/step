@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod application;
+pub mod ballot_box;
+pub mod ballot_box_reads;
 pub mod ballot_styles;
 pub mod cast_votes;
 pub mod celery_app;
@@ -25,6 +27,9 @@ pub mod election_event_statistics;
 pub mod election_event_status;
 pub mod election_statistics;
 pub mod electoral_log;
+pub mod electoral_log_audit;
+pub mod electoral_log_checkpoint_copies;
+pub mod electoral_log_dead_letter;
 pub mod ess_xml_converter;
 pub mod event_list;
 pub mod export;
@@ -39,6 +44,7 @@ pub mod jwks;
 pub mod keycloak;
 pub mod keycloak_events;
 pub mod limit_access_by_countries;
+pub mod partial_file;
 pub mod password;
 pub mod pdf_encryption;
 pub mod pg_lock;

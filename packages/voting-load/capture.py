@@ -104,20 +104,19 @@ def preflight(target: dict) -> dict:
 
 
 def verify_casts(target: dict, casts: list[dict]) -> bool:
-    """Reconcile each accepted API response with its persisted ballot and scope."""
+    """Reconcile each accepted API response with its ballot in the event's ballot box."""
     if not casts:
         return False
-    with connect(target["databases"]["backend"]) as connection:
+    with connect(target["ballot_box"]) as connection:
         for cast in casts:
             row = connection.execute(
-                "SELECT ballot_id, tenant_id::text, election_event_id::text, election_id::text FROM sequent_backend.cast_vote WHERE id = %s",
-                (cast["id"],),
+                "SELECT ballot_id, election_event_id::text, election_id::text FROM ballot_box_ballot WHERE election_event_id = %s::uuid AND id = %s::uuid",
+                (cast["election_event_id"], cast["id"]),
             ).fetchone()
             expected = tuple(
                 cast[key]
                 for key in (
                     "ballot_id",
-                    "tenant_id",
                     "election_event_id",
                     "election_id",
                 )

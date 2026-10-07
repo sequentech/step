@@ -219,6 +219,12 @@ const spanishTranslation: TranslationType = {
                 description: "Descripción",
                 version: "Versión",
             },
+            auditDialog: {
+                title: "Auditar el registro electoral",
+                confirm: "Auditar",
+                description:
+                    "La auditoría comprueba cada entrada del registro con su registro Merkle y verifica los puntos de control publicados. El resultado se guarda como una tarea.",
+            },
             exportdialog: {
                 description:
                     "Por favor, confirma que deseas ejecutar esta acción; puede tardar un tiempo en completarse.",
@@ -226,6 +232,7 @@ const spanishTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
             },
             main: {
                 title: "Bitácora de Base de Datos Principal",
@@ -257,6 +264,7 @@ const spanishTranslation: TranslationType = {
                 DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
+                AUDIT_ELECTORAL_LOG: "Auditar registro electoral",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -1368,6 +1376,10 @@ const spanishTranslation: TranslationType = {
                 "publish-results-read": "Leer Publicación de Resultados",
                 "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
+                "electoral-log-audit": "Auditar Registro Electoral",
+                "electoral-log-console-read": "Explorar Registro Electoral",
+                "electoral-log-console-query": "Consultar Registro Electoral",
+                "electoral-log-personal-data-read": "Leer Datos Personales del Registro Electoral",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
@@ -1383,7 +1395,6 @@ const spanishTranslation: TranslationType = {
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
-                "cast-vote-read": "Leer Votos Emitidos",
                 "document-read": "Leer Documentos",
                 "document-write": "Editar Documentos",
                 "support-material-read": "Leer Materiales de Soporte",
@@ -1779,6 +1790,7 @@ const spanishTranslation: TranslationType = {
             electionEvents: "Procesos Electorales",
             search: "Buscar",
             usersAndRoles: "Usuarios y Roles",
+            electoralLogConsole: "Registro Electoral",
             logs: "Bitácora",
             settings: "Configuracion",
             help: "Ayuda",
@@ -2936,6 +2948,71 @@ const spanishTranslation: TranslationType = {
             confirmDelete: "Eliminar autoridad de certificación",
             confirmDeleteDescription:
                 '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Registro Electoral",
+            subtitle:
+                "Explore el registro electoral y la urna de un evento electoral, o consulte la base de datos del registro electoral. Nada en esta página modifica datos.",
+            notAllowed:
+                "Necesita el permiso electoral-log-console-read para abrir el registro electoral.",
+            tabs: {
+                tables: "Tablas",
+                query: "Consulta",
+            },
+            electionEvent: "Evento Electoral",
+            table: "Tabla",
+            tables: {
+                records: "Entradas",
+                ballots: "Papeletas",
+                voters: "Votantes",
+                queue: "Cola del Secuenciador",
+            },
+            order: {
+                "label": "Orden",
+                "newest-first": "Más recientes primero",
+                "oldest-first": "Más antiguos primero",
+            },
+            filters: {
+                statement_kind: "Tipo",
+                election_id: "Elección",
+                area_id: "ID de Área",
+                user_id: "ID de Usuario o Votante",
+                ballot_id: "ID de Papeleta",
+                status: "Estado",
+                created_after: "Desde",
+                created_before: "Hasta",
+                any: "Cualquiera",
+                apply: "Aplicar Filtros",
+                clear: "Limpiar",
+                invalid:
+                    "Revise los filtros marcados: las fechas deben ser válidas y los ID de área de la urna deben ser UUID.",
+            },
+            statuses: {
+                valid: "Válida",
+                pending: "Pendiente",
+                rejected: "Rechazada",
+            },
+            estimatedRows: "Unas {{rows}} filas en esta tabla antes de filtrar.",
+            personalDataHidden:
+                "Los nombres de usuario, direcciones IP y países aparecen ocultos: verlos requiere el permiso electoral-log-personal-data-read.",
+            loadError: "No se pudo leer el registro electoral.",
+            record: {
+                title: "Entrada {{position}}",
+                view: "Ver entrada",
+                message: "Mensaje (decodificado)",
+                copy: "Copiar JSON",
+                close: "Cerrar",
+                loadError: "No se pudo leer la entrada.",
+            },
+            query: {
+                help: "Las consultas se ejecutan sobre la base de datos del registro electoral en una transacción de solo lectura. Sus tablas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending y ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Solo lectura · hasta 1.000 filas · límite de 30 s · cada consulta queda anotada en los registros del servidor con su usuario",
+                run: "Ejecutar Consulta",
+                summary: "Filas: {{rows}} · {{ms}} ms",
+                truncated: "Solo se muestran las primeras {{rows}} filas.",
+                error: "No se pudo ejecutar la consulta.",
+            },
         },
     },
 }

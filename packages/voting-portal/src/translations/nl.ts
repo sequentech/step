@@ -13,7 +13,6 @@ const dutchTranslation: TranslationType = {
         a11y: {
             skipToContent: "Ga naar hoofdinhoud",
             helpAbout: "Hulp over {{topic}}",
-            copyToClipboard: "{{label}} naar klembord kopiëren",
             previewMaterial: "Voorbeeld van {{title}}",
             ballotsTable: "Stembiljetten",
             ballotLocatorTabs: "Onderdelen van de stembiljetzoeker",
@@ -465,9 +464,7 @@ const dutchTranslation: TranslationType = {
             column: {
                 statement_kind: "Type",
                 statement_timestamp: "Tijdstip",
-                username: "Gebruikersnaam",
                 ballot_id: "Stembiljet ID",
-                message: "Bericht",
             },
         },
     },

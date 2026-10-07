@@ -211,15 +211,6 @@
         "attributes": {}
       },
       {
-        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-        "name": "cast-vote-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
         "name": "cloudflare-write",
         "description": "",
@@ -953,6 +944,42 @@
       {
         "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
         "name": "logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8b6b57c5-8bc2-426b-94c4-52d00d41bb7c",
+        "name": "electoral-log-audit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "099d422b-8ee0-4792-991a-41c13643b380",
+        "name": "electoral-log-console-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "dc90b19b-6119-482b-bc16-0ad279465e5e",
+        "name": "electoral-log-console-query",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c162751b-950c-4664-9dc5-91f564a4d310",
+        "name": "electoral-log-personal-data-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2471,6 +2498,10 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "electoral-log-audit",
+        "electoral-log-console-read",
+        "electoral-log-console-query",
+        "electoral-log-personal-data-read",
         "election-state-write",
         "candidate-write",
         "role-create",
@@ -2505,7 +2536,6 @@
         "election-write",
         "report-write",
         "communication-template-write",
-        "cast-vote-read",
         "google-meet-link",
         "tally-results-read",
         "settings-voting-channels-tab",
@@ -2689,7 +2719,6 @@
         "offline_access",
         "user-permission-create",
         "communication-template-write",
-        "cast-vote-read",
         "tally-results-read",
         "tally-sheet-view",
         "voting-channel-write",

@@ -225,6 +225,7 @@ const catalanTranslation: TranslationType = {
                 DELETE_TENANT: "Suprimir organització",
                 PUBLISH_BALLOT: "Publicar papereta",
                 VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
+                AUDIT_ELECTORAL_LOG: "Auditar registre electoral",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -282,6 +283,13 @@ const catalanTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
+            },
+            auditDialog: {
+                title: "Auditar el registre electoral",
+                confirm: "Auditar",
+                description:
+                    "L'auditoria comprova cada entrada del registre amb el seu registre Merkle i verifica els punts de control publicats. El resultat es desa com una tasca.",
             },
             exportdialog: {
                 description:
@@ -1371,6 +1379,10 @@ const catalanTranslation: TranslationType = {
                 "publish-results-read": "Llegir Publicació de Resultats",
                 "publish-results-write": "Editar Publicació de Resultats",
                 "logs-read": "Llegir Registres",
+                "electoral-log-audit": "Auditar Registre Electoral",
+                "electoral-log-console-read": "Explorar Registre Electoral",
+                "electoral-log-console-query": "Consultar Registre Electoral",
+                "electoral-log-personal-data-read": "Llegir Dades Personals del Registre Electoral",
                 "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
@@ -1386,7 +1398,6 @@ const catalanTranslation: TranslationType = {
                 "tally-sheet-view": "Veure Acta de Recompte",
                 "admin-ceremony": "Administrar Cerimònia de Claus",
                 "tally-sheet-delete": "Esborrar Acta de Recompte",
-                "cast-vote-read": "Llegir Vots Emissos",
                 "document-read": "Llegir Documents",
                 "document-write": "Editar Documents",
                 "support-material-read": "Llegir Materials de Suport",
@@ -1791,6 +1802,7 @@ const catalanTranslation: TranslationType = {
             electionEvents: "Processos Electorals",
             search: "Cercar",
             usersAndRoles: "Usuaris i Rols",
+            electoralLogConsole: "Registre Electoral",
             logs: "Bitàcora",
             settings: "Configuració",
             help: "Ajuda",
@@ -2945,6 +2957,71 @@ const catalanTranslation: TranslationType = {
             confirmDelete: "Eliminar autoritat de certificació",
             confirmDeleteDescription:
                 'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Registre Electoral",
+            subtitle:
+                "Exploreu el registre electoral i l'urna d'un esdeveniment electoral, o consulteu la base de dades del registre electoral. Res d'aquesta pàgina modifica dades.",
+            notAllowed:
+                "Necessiteu el permís electoral-log-console-read per obrir el registre electoral.",
+            tabs: {
+                tables: "Taules",
+                query: "Consulta",
+            },
+            electionEvent: "Esdeveniment Electoral",
+            table: "Taula",
+            tables: {
+                records: "Entrades",
+                ballots: "Paperetes",
+                voters: "Votants",
+                queue: "Cua del Seqüenciador",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Més recents primer",
+                "oldest-first": "Més antics primer",
+            },
+            filters: {
+                statement_kind: "Tipus",
+                election_id: "Elecció",
+                area_id: "ID d'Àrea",
+                user_id: "ID d'Usuari o Votant",
+                ballot_id: "ID de Papereta",
+                status: "Estat",
+                created_after: "Des de",
+                created_before: "Fins a",
+                any: "Qualsevol",
+                apply: "Aplicar Filtres",
+                clear: "Netejar",
+                invalid:
+                    "Reviseu els filtres marcats: les dates han de ser vàlides i els ID d'àrea de l'urna han de ser UUID.",
+            },
+            statuses: {
+                valid: "Vàlida",
+                pending: "Pendent",
+                rejected: "Rebutjada",
+            },
+            estimatedRows: "Unes {{rows}} files en aquesta taula abans de filtrar.",
+            personalDataHidden:
+                "Els noms d'usuari, les adreces IP i els països apareixen ocults: veure'ls requereix el permís electoral-log-personal-data-read.",
+            loadError: "No s'ha pogut llegir el registre electoral.",
+            record: {
+                title: "Entrada {{position}}",
+                view: "Veure entrada",
+                message: "Missatge (descodificat)",
+                copy: "Copiar JSON",
+                close: "Tancar",
+                loadError: "No s'ha pogut llegir l'entrada.",
+            },
+            query: {
+                help: "Les consultes s'executen sobre la base de dades del registre electoral en una transacció de només lectura. Les seves taules són electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending i ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
+                run: "Executar Consulta",
+                summary: "Files: {{rows}} · {{ms}} ms",
+                truncated: "Només es mostren les primeres {{rows}} files.",
+                error: "No s'ha pogut executar la consulta.",
+            },
         },
     },
 }

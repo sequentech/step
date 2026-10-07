@@ -362,12 +362,6 @@ pub async fn post_tally_task_impl(
         xlsx: previous_tally_session_documents.xlsx.clone(),
     };
 
-    let updated_status = serde_json::from_value(
-        tally_session_execution
-            .status
-            .ok_or(anyhow!("No documents in tally session execution"))?,
-    )?;
-
     // Recount creation takes the same row lock before appending its marker.
     // Re-read the head only after acquiring it: if this long-running task
     // started from an execution that is no longer current, committing its
@@ -402,6 +396,13 @@ pub async fn post_tally_task_impl(
             .with_context(|| "error rolling back stale post-tally transaction")?;
         return Ok(());
     }
+    // Copy the status read under the lock: it includes lines appended to this
+    // execution's logs while post-tally was running.
+    let updated_status = serde_json::from_value(
+        latest_execution
+            .status
+            .ok_or(anyhow!("No status in tally session execution"))?,
+    )?;
 
     // Add a new tally session execution
     insert_tally_session_execution(

@@ -3,12 +3,14 @@ use crate::postgres::election_event::update_election_event_status;
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status;
 use crate::services::electoral_log::*;
+use crate::tasks::publish_electoral_log_checkpoint::publish_electoral_log_checkpoint;
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
-use electoral_log::messages::newtypes::VotingChannelString;
+use electoral_log::messages::newtypes::{ElectoralLogCheckpointReason, VotingChannelString};
 use sequent_core::ballot::ElectionEventStatus;
 use sequent_core::ballot::ElectionStatus;
 use sequent_core::ballot::VotingStatus;
@@ -104,8 +106,9 @@ pub async fn update_election_status(
         ]
     };
 
+    let mut changed_channels = 0_usize;
     for voting_channel in voting_channels {
-        election_event_status::update_election_voting_status_impl(
+        let change = election_event_status::update_election_voting_status_impl(
             tenant_id.clone(),
             user_id,
             username,
@@ -117,6 +120,9 @@ pub async fn update_election_status(
             &hasura_transaction,
         )
         .await?;
+        if change == election_event_status::StatusChange::Changed {
+            changed_channels += 1;
+        }
         let current_event_status = event_status.status_by_channel(voting_channel);
 
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
@@ -152,6 +158,10 @@ pub async fn update_election_status(
     )
     .await
     .with_context(|| "Error updating election event status")?;
+
+    if let Some(reason) = voting_checkpoint_reason(voting_status).filter(|_| changed_channels > 0) {
+        queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
+    }
 
     Ok(())
 }
@@ -248,6 +258,52 @@ pub async fn update_board_on_status_change(
     Ok(())
 }
 
+/// Longest wait for queueing a checkpoint publication when voting opens or closes.
+const CHECKPOINT_QUEUE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// The checkpoint published when voting changes to `status`, if any.
+pub fn voting_checkpoint_reason(status: &VotingStatus) -> Option<ElectoralLogCheckpointReason> {
+    match status {
+        VotingStatus::OPEN => Some(ElectoralLogCheckpointReason::VotingOpened),
+        VotingStatus::CLOSED => Some(ElectoralLogCheckpointReason::VotingClosed),
+        VotingStatus::NOT_STARTED | VotingStatus::PAUSED => None,
+    }
+}
+
+/// Queue the publication of a checkpoint of the event's electoral log after voting
+/// opened or closed and the change was logged.
+///
+/// Best effort, and the change never waits for it: periodic checkpoints cover the
+/// log while voting is open, and every completed tally publishes another checkpoint
+/// and audits all of them. Like the change's log entries, the publication happens
+/// even if the caller's transaction later rolls back.
+pub async fn queue_voting_checkpoint(
+    tenant_id: &str,
+    election_event_id: &str,
+    reason: ElectoralLogCheckpointReason,
+) {
+    let queued = tokio::time::timeout(CHECKPOINT_QUEUE_TIMEOUT, async {
+        get_celery_app()
+            .await
+            .send_task(publish_electoral_log_checkpoint::new(
+                tenant_id.to_string(),
+                election_event_id.to_string(),
+                reason,
+            ))
+            .await
+    })
+    .await;
+    match queued {
+        Ok(Ok(_)) => {}
+        Ok(Err(error)) => tracing::error!(
+            "Could not queue the {reason} electoral-log checkpoint for event {election_event_id}: {error:?}"
+        ),
+        Err(_) => tracing::error!(
+            "Timed out queueing the {reason} electoral-log checkpoint for event {election_event_id}"
+        ),
+    }
+}
+
 #[derive(Debug)]
 pub struct ElectionStatusInfo {
     pub total_not_started_votes: i64,
@@ -320,5 +376,24 @@ pub fn get_election_status_info(election: &Election) -> ElectionStatusInfo {
         total_open_votes,
         total_closed_votes,
         total_started_votes,
+    }
+}
+
+#[cfg(test)]
+mod voting_checkpoint_tests {
+    use super::*;
+
+    #[test]
+    fn opening_and_closing_voting_publish_checkpoints() {
+        assert_eq!(
+            voting_checkpoint_reason(&VotingStatus::OPEN),
+            Some(ElectoralLogCheckpointReason::VotingOpened)
+        );
+        assert_eq!(
+            voting_checkpoint_reason(&VotingStatus::CLOSED),
+            Some(ElectoralLogCheckpointReason::VotingClosed)
+        );
+        assert_eq!(voting_checkpoint_reason(&VotingStatus::PAUSED), None);
+        assert_eq!(voting_checkpoint_reason(&VotingStatus::NOT_STARTED), None);
     }
 }

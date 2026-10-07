@@ -47,7 +47,6 @@ path = [
 	"packages/results-portal/graphql.schema.json",
 	"packages/results-portal/src/gql/**",
 	"packages/windmill/src/graphql/**",
-	"packages/immudb-rs/proto/immudb/**",
 	"packages/keycloak-extensions/message-otp-authenticator/src/main/resources/theme-resources/templates/**",
 	"packages/keycloak-extensions/inetum-authenticator/src/main/resources/theme-resources/resources/inetum-sdk-4.0.3/**",
 	"packages/keycloak-extensions/conditional-authenticators/src/main/resources/META-INF/services/org.keycloak.protocol.ProtocolMapper",
@@ -133,3 +132,35 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2025 Free & Fair"]
 SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+    "packages/trellis/.gitignore",
+    "packages/trellis/Cargo.toml",
+    "packages/trellis/README.md",
+    "packages/trellis/TODO.md",
+    "packages/trellis/examples/monitor.rs",
+    "packages/trellis/examples/post.rs",
+    "packages/trellis/reset.ps1",
+    "packages/trellis/src/bin/dashboard.rs",
+    "packages/trellis/src/bin/load.rs",
+    "packages/trellis/src/bin/main.rs",
+    "packages/trellis/src/bin/setup.rs",
+    "packages/trellis/src/lib.rs",
+    "packages/trellis/src/scripts/database.sql",
+    "packages/trellis/src/service/client.rs",
+    "packages/trellis/src/service/metrics.rs",
+    "packages/trellis/src/service/mod.rs",
+    "packages/trellis/src/service/processor.rs",
+    "packages/trellis/src/service/responses.rs",
+    "packages/trellis/src/service/routes.rs",
+    "packages/trellis/src/service/server.rs",
+    "packages/trellis/src/service/state.rs",
+    "packages/trellis/src/service/validation.rs",
+    "packages/trellis/src/tree.rs",
+    "packages/trellis/tests/basic.rs",
+    "packages/trellis/tests/test_client.rs",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "ruescasd <david@sequentech.io>"
+SPDX-License-Identifier = "LicenseRef-Trellis-Upstream"
