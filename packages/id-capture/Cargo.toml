@@ -15,6 +15,7 @@ description = "In-browser frame analysis for the guided identity document and fa
 # browser, and tract's dependency tree must not move the versions the platform
 # crates in packages/Cargo.lock resolve (borsh, among others).
 [workspace]
+members = ["."]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -29,6 +29,12 @@ manifest = "packages/wbraid/Cargo.toml"
 prefix = "wbraid/"
 target_dir = "packages/wbraid/rust-local-target"
 
+# In-browser capture analysis; its own workspace so tract cannot move the platform lockfile.
+[[workspaces]]
+kind = "cargo"
+manifest = "packages/id-capture/Cargo.toml"
+target_dir = "packages/id-capture/rust-local-target"
+
 # Units ------------------------------------------------------------------------
 # Areas are units that are not workspace packages. Tables named after a package
 # add edges and inputs that its manifest does not declare. `inputs` affect the
