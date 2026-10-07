@@ -16,9 +16,11 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -448,11 +450,13 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   /**
    * Keys each election's ID by its external ID, and then each ID that is not already a key by
    * itself: voter imports used to store election IDs, and an election that has no external ID, or
-   * whose external ID another one repeats, can only be named by its ID.
+   * whose external ID another one repeats, can only be named by its ID. An external ID that several
+   * elections share names none of them.
    */
   static Elections elections(JsonNode electionsNode) {
     StringBuilder keyAreaLog = new StringBuilder();
     Map<String, String> electionIds = new HashMap<>();
+    Set<String> repeatedExternalIds = new HashSet<>();
     List<String> ids = new ArrayList<>();
     for (JsonNode election : electionsNode) {
       String id = election.path("id").asText();
@@ -468,6 +472,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
         log.infov(
             "Warning: Two elections found with the same external_id: {0} id_1: {1} id_2: {2}",
             external_id, electionIds.get(key), id);
+        repeatedExternalIds.add(key);
       }
       log.info(keyAreaLog.toString());
       if (hasExternalId) {
@@ -479,6 +484,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     for (String id : ids) {
       electionIds.putIfAbsent(id, id);
     }
+    electionIds.keySet().removeAll(repeatedExternalIds);
     return new Elections(ids, electionIds);
   }
 
