@@ -34,6 +34,7 @@ import {
 import {useInterval} from "react-use"
 
 import {loadBraid} from "@/services/Braid"
+import {useZonedFormat} from "@/hooks/useZonedFormat"
 
 let trustee: any = null
 
@@ -88,11 +89,16 @@ export const TrusteeDashboard = () => {
     const [storageInfo, setStorageInfo] = useState<any>(null)
 
     const consoleEndRef = useRef<HTMLDivElement>(null)
+    // The trustee's own clock, with its zone label.
+    const zoned = useZonedFormat(null, {seconds: true})
 
-    const log = useCallback((msg: string, type: "info" | "warn" | "error" = "info") => {
-        const timestamp = new Date().toLocaleTimeString()
-        setConsoleLog((prev) => [...prev.slice(-500), `[${timestamp}] ${msg}`])
-    }, [])
+    const log = useCallback(
+        (msg: string, type: "info" | "warn" | "error" = "info") => {
+            const timestamp = zoned.format(new Date())
+            setConsoleLog((prev) => [...prev.slice(-500), `[${timestamp}] ${msg}`])
+        },
+        [zoned]
+    )
 
     useEffect(() => {
         consoleEndRef.current?.scrollIntoView({behavior: "smooth"})
@@ -237,7 +243,7 @@ export const TrusteeDashboard = () => {
             if (action !== "Idle" && action !== "0 added, 0 posted") {
                 setActionHistory((prev) => [
                     {
-                        ts: new Date().toLocaleTimeString(),
+                        ts: zoned.format(new Date()),
                         msg: action,
                         added: res.added || 0,
                         posted: res.posted || 0,

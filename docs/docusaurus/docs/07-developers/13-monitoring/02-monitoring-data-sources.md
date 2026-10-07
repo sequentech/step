@@ -129,7 +129,7 @@ A preset is data, never code. To add one, create
 
 - `preset.yaml`: `id`, `version` (start at 1), `title`, `description`, and
   optionally `export_requirements` and `owned_elsewhere`;
-- `settings.yaml`: the time zone, where region and country are read, who is
+- `settings.yaml`: where region and country are read, who is
   pre-enrolled, the voter dimensions and, if wanted, the selector words;
 - `themes/default.yaml` and any other themes;
 - one file per widget under `widgets/` and per dashboard under

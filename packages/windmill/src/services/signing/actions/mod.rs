@@ -635,6 +635,16 @@ pub async fn run_claimed(
     ) {
         voting::cancel_opposite(&transaction, &request).await?;
     }
+    // An executed approval can cover scheduled openings and closings.
+    if request.action == SigningAction::ApproveConfiguration {
+        crate::services::scheduled_outcome::recompute_predictions(
+            &transaction,
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
+            &super::requests::requester(&request),
+        )
+        .await?;
+    }
     set_signed_action_task_status(
         &transaction,
         tenant_id,

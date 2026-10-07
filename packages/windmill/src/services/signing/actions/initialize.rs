@@ -12,6 +12,7 @@ use crate::domain::tally_ceremony::TallyValidationError;
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_actions::published_publication_of_post;
 use crate::services::ceremonies::tally_ceremony::create_tally_ceremony;
+use crate::services::initialization_scope::check_area_filter_for;
 use crate::services::signing::guard::{GuardOutcome, GuardRequest, RequestScope};
 use crate::services::signing::{InvalidReason, SigningCaller, SigningError, SigningResult};
 use anyhow::{anyhow, Result};
@@ -31,7 +32,10 @@ pub fn is_initialization(tally_type: &str) -> bool {
 
 /// Whether creating a tally session runs now; see [`super::gate`]. Only
 /// initialization report tallies are protected, one Post at a time, with
-/// the event's tally configuration, once the Post is published.
+/// the event's tally configuration, once the Post is published. A
+/// country-by-country initialization (`area_ids`) is protected one country
+/// at a time: the request carries the country (scope Post and country).
+#[allow(clippy::too_many_arguments)]
 pub async fn gate_tally_creation(
     hasura_transaction: &Transaction<'_>,
     caller: &SigningCaller,
@@ -40,6 +44,7 @@ pub async fn gate_tally_creation(
     election_ids: &[String],
     tally_type: &str,
     has_configuration: bool,
+    area_ids: Option<&[String]>,
 ) -> SigningResult<GuardOutcome> {
     if !is_initialization(tally_type) {
         return Ok(GuardOutcome::Proceed);
@@ -66,6 +71,31 @@ pub async fn gate_tally_creation(
             }
             let election_id = Uuid::parse_str(election_id)
                 .map_err(|_| SigningError::bad_input("The Post id is not a UUID."))?;
+            if let Some(filter) = area_ids {
+                if let Err(invalid) = check_area_filter_for(
+                    hasura_transaction,
+                    &tenant_id.to_string(),
+                    &election_event_id.to_string(),
+                    &election_id.to_string(),
+                    filter,
+                )
+                .await?
+                {
+                    return Err(SigningError::bad_input(invalid.to_string()));
+                }
+            }
+            let area_id = match area_ids {
+                None => None,
+                Some([area_id]) => Some(
+                    Uuid::parse_str(area_id)
+                        .map_err(|_| SigningError::bad_input("The country id is not a UUID."))?,
+                ),
+                Some(_) => {
+                    return Err(SigningError::bad_input(
+                        "Initialize one country at a time while initializing needs signatures.",
+                    ))
+                }
+            };
             let publication_id = published_publication_of_post(
                 hasura_transaction,
                 tenant_id,
@@ -85,7 +115,7 @@ pub async fn gate_tally_creation(
                     tenant_id,
                     election_event_id,
                     election_id: Some(election_id),
-                    area_id: None,
+                    area_id,
                     trustee_id: None,
                     subject_key: None,
                 },
@@ -106,7 +136,8 @@ pub async fn gate_tally_creation(
 /// is still the one signed.
 ///
 /// The tally's labels are its Post's, as when the route creates it: the
-/// Post's label is the only filter passed, and it passes.
+/// Post's label is the only filter passed, and it passes. A request with a
+/// country initializes that country only.
 pub async fn create_report_tally(
     hasura_transaction: &Transaction<'_>,
     request: &SigningRequestRow,
@@ -146,6 +177,7 @@ pub async fn create_report_tally(
         TallyType::INITIALIZATION_REPORT.to_string(),
         &labels,
         request.requested_by_username.clone(),
+        request.area_id.map(|area_id| vec![area_id.to_string()]),
     )
     .await
     .map_err(|error| match error.downcast_ref::<TallyValidationError>() {

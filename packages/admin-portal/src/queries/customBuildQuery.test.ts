@@ -7,6 +7,12 @@ import {introspectSchema} from "ra-data-graphql/dist/cjs/introspection"
 import {customBuildQuery} from "./customBuildQuery"
 import {electionSearchFilter} from "../services/ElectionSearch"
 
+// The log range filter reads its wall times with the timezone service.
+jest.mock("@sequentech/ui-core", () => ({
+    ...jest.requireActual("@sequentech/ui-core"),
+    ...jest.requireActual("../../../ui-core/src/services/timeZones"),
+}))
+
 const EVENT = "20000000-0000-4000-8000-000000000001"
 const ELECTION = "30000000-0000-4000-8000-000000000001"
 const OTHER_ELECTION = "30000000-0000-4000-8000-000000000002"
@@ -305,6 +311,21 @@ describe("action-backed lists", () => {
         const sent = JSON.stringify(built.variables)
         expect(sent).toContain("maria")
         expect(sent).not.toContain("statement_head")
+    })
+
+    it("sends the Created range as instants of the wall times in the chosen zone", () => {
+        const built = list("electoral_log", {
+            filter: {
+                election_event_id: EVENT,
+                created_from: "2028-04-08T00:00",
+                created_to: "2028-04-09T23:59",
+                time_zone: "Asia/Manila",
+            },
+        })
+        const filter = built.variables.filter as Record<string, string>
+        expect(new Date(filter.created_from).getTime()).toBe(Date.parse("2028-04-07T16:00:00Z"))
+        expect(new Date(filter.created_to).getTime()).toBe(Date.parse("2028-04-09T15:59:00Z"))
+        expect(JSON.stringify(built.variables)).not.toContain("time_zone")
     })
 })
 

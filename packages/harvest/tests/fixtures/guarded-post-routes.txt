@@ -150,3 +150,11 @@
 /signing-event-info
 /signing-requests/pdf-prepare
 /signing-reports/requests
+/apply-schedule-recompute
+/export-schedule
+/get-lifecycle-snapshots
+/get-scheduled-outcomes
+/import-schedule
+/preview-schedule-import
+/preview-scheduled-outcome-change
+/save-lifecycle-policies

@@ -4,10 +4,15 @@
 import React from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
-import {ETaskExecutionStatus} from "@sequentech/ui-core"
+import {ETaskExecutionStatus, i18n, browserTimeZone} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {taskLogs} from "./__stories__/WidgetFixture"
 import {LogTable} from "./Widget"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
+
+/** A time as the screen shows it outside an event's screens: labelled, in the viewer's zone. */
+const shownTime = (value: string, seconds = true) =>
+    formatZoned(value, browserTimeZone(), {t: i18n.t.bind(i18n), lang: i18n.language, seconds})
 
 let boundary: ReturnType<typeof graphqlBoundary>
 
@@ -36,8 +41,8 @@ export const Populated: Story = {
         expect(rows).toHaveLength(3)
         taskLogs.forEach(({created_date, log_text}, index) => {
             const [date, text] = within(rows[index]).getAllByRole("cell")
-            // The date follows the browser's locale, which the runner fixes to en-US.
-            expect(date).toHaveTextContent(new Date(created_date).toLocaleString())
+            // The time with its zone label, in the viewer's zone.
+            expect(date).toHaveTextContent(shownTime(created_date))
             expect(text).toHaveTextContent(log_text)
             expect(getComputedStyle(text).color).not.toBe(DARK_RED)
         })

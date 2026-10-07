@@ -19,15 +19,35 @@ jest.mock("react-apexcharts", () => {
         }: {
             className?: string
             height?: number | string
-            options?: {labels?: string[]}
+            options?: {
+                labels?: string[]
+                chart?: {
+                    events?: {
+                        mounted?: (chart: {el: HTMLElement}) => void
+                        updated?: (chart: {el: HTMLElement}) => void
+                    }
+                }
+            }
             series?: number[]
-        }) =>
-            react.createElement("div", {
+        }) => {
+            const legend = {tabIndex: -1}
+            const chart = {el: {querySelector: () => legend} as unknown as HTMLElement}
+            options?.chart?.events?.mounted?.(chart)
+            const mountedTabIndex = legend.tabIndex
+            legend.tabIndex = -1
+            options?.chart?.events?.updated?.(chart)
+            options?.chart?.events?.mounted?.({
+                el: {querySelector: () => null} as unknown as HTMLElement,
+            })
+            return react.createElement("div", {
+                "data-legend-mounted-tabindex": mountedTabIndex,
+                "data-legend-updated-tabindex": legend.tabIndex,
                 className,
                 "data-height": height,
                 "data-labels": JSON.stringify(options?.labels ?? []),
                 "data-series": JSON.stringify(series ?? []),
-            }),
+            })
+        },
     }
 })
 
@@ -85,6 +105,8 @@ describe("ResultsSummary", () => {
         expect(markup).toContain("seq-results-summary__chart")
         expect(markup).toContain("seq-results-summary__pie")
         expect(markup).toContain('data-height="170"')
+        expect(markup).toContain('data-legend-mounted-tabindex="0"')
+        expect(markup).toContain('data-legend-updated-tabindex="0"')
         expect(markup).toContain("Non voters")
         expect(markup).toContain('data-series="[100]"')
     })

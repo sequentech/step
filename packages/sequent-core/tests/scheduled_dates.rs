@@ -184,3 +184,141 @@ fn omitted_allow_init_defaults_to_true_but_explicit_false_is_preserved() {
     assert_eq!(default.allow_init, Some(true));
     assert_eq!(disabled.allow_init, Some(false));
 }
+
+fn voting(
+    processor: EventProcessors,
+    election: Option<&str>,
+    channels: Value,
+    date: &str,
+) -> ScheduledEvent {
+    serde_json::from_value(json!({
+        "id": format!("{processor}-{election:?}"),
+        "tenant_id": "north", "election_event_id": "mayor",
+        "event_processor": processor,
+        "event_payload": {"election_id": election, "voting_channels": channels},
+        "cron_config": {"scheduled_date": date},
+        "task_id": generate_manage_date_task_name("north", "mayor", election, &processor),
+    }))
+    .unwrap()
+}
+
+#[test]
+fn the_event_wide_close_applies_to_every_election_without_its_own() {
+    let start = voting(
+        EventProcessors::START_VOTING_PERIOD,
+        Some("city"),
+        Value::Null,
+        "2028-04-08T20:00:00Z",
+    );
+    let common = voting(
+        EventProcessors::END_VOTING_PERIOD,
+        None,
+        Value::Null,
+        "2028-05-08T11:00:00Z",
+    );
+    let dates = |events: Vec<ScheduledEvent>, election: Option<&str>| {
+        generate_voting_period_dates(events, "north", "mayor", election)
+            .unwrap()
+    };
+
+    let city = dates(vec![common.clone(), start.clone()], Some("city"));
+    assert_eq!(city.start_date.as_deref(), Some("2028-04-08T20:00:00Z"));
+    assert_eq!(city.end_date.as_deref(), Some("2028-05-08T11:00:00Z"));
+    // An election without any row of its own gets the common close only.
+    let district = dates(vec![common.clone(), start.clone()], Some("district"));
+    assert_eq!(district.start_date, None);
+    assert_eq!(district.end_date.as_deref(), Some("2028-05-08T11:00:00Z"));
+    // The event itself: its own rows only.
+    let event = dates(vec![common.clone(), start.clone()], None);
+    assert_eq!(event.start_date, None);
+    assert_eq!(event.end_date.as_deref(), Some("2028-05-08T11:00:00Z"));
+
+    // The election's own close wins, in either order.
+    let own = voting(
+        EventProcessors::END_VOTING_PERIOD,
+        Some("city"),
+        json!(["ONLINE"]),
+        "2028-04-20T00:00:00Z",
+    );
+    for events in [
+        vec![common.clone(), own.clone()],
+        vec![own.clone(), common.clone()],
+    ] {
+        assert_eq!(
+            dates(events, Some("city")).end_date.as_deref(),
+            Some("2028-04-20T00:00:00Z")
+        );
+    }
+
+    // A kiosk-only common close doesn't end online voting.
+    let kiosk = voting(
+        EventProcessors::END_VOTING_PERIOD,
+        None,
+        json!(["KIOSK"]),
+        "2028-05-08T11:00:00Z",
+    );
+    assert_eq!(dates(vec![kiosk, start], Some("city")).end_date, None);
+}
+
+#[test]
+fn election_dates_prefer_the_elections_own_row_over_the_event_wide_one() {
+    let common = voting(
+        EventProcessors::END_VOTING_PERIOD,
+        None,
+        Value::Null,
+        "common close",
+    );
+    let own = voting(
+        EventProcessors::END_VOTING_PERIOD,
+        Some("city"),
+        Value::Null,
+        "city close",
+    );
+    for events in [
+        vec![common.clone(), own.clone()],
+        vec![own.clone(), common.clone()],
+    ] {
+        let dates = prepare_scheduled_dates(events, Some("city")).unwrap();
+        assert_eq!(
+            dates["END_VOTING_PERIOD"].scheduled_at.as_deref(),
+            Some("city close")
+        );
+    }
+    let dates =
+        prepare_scheduled_dates(vec![own, common], Some("district")).unwrap();
+    assert_eq!(
+        dates["END_VOTING_PERIOD"].scheduled_at.as_deref(),
+        Some("common close")
+    );
+}
+
+#[test]
+fn election_dates_carry_the_zone_each_date_was_set_in() {
+    let mut own = voting(
+        EventProcessors::END_TEST_VOTING,
+        Some("city"),
+        Value::Null,
+        "2028-04-01T16:00:00Z",
+    );
+    own.event_processor = Some(EventProcessors::END_VOTING_PERIOD);
+    own.cron_config.as_mut().unwrap().local = Some("2028-04-02T00:00".into());
+    own.cron_config.as_mut().unwrap().timezone = Some("Asia/Manila".into());
+    let legacy = voting(
+        EventProcessors::START_VOTING_PERIOD,
+        None,
+        Value::Null,
+        "2028-03-01T00:00:00Z",
+    );
+    let dates =
+        prepare_scheduled_dates(vec![own, legacy], Some("city")).unwrap();
+    assert_eq!(
+        dates["END_VOTING_PERIOD"].timezone.as_deref(),
+        Some("Asia/Manila")
+    );
+    assert_eq!(dates["START_VOTING_PERIOD"].timezone, None);
+    // A date without a zone keeps its earlier JSON shape.
+    assert_eq!(
+        serde_json::to_value(&dates["START_VOTING_PERIOD"]).unwrap(),
+        json!({"scheduled_at": "2028-03-01T00:00:00Z", "stopped_at": "-"})
+    );
+}

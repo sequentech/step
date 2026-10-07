@@ -36,6 +36,7 @@ use signing_actions::*;
 use std::sync::Mutex;
 use uuid::Uuid;
 use windmill::postgres::signing::{get_signing_rule, upsert_signing_rule};
+use windmill::services::scheduled_outcome::rule_snapshot;
 use windmill::services::signing::actions::configuration::{
     cancel_for_new_publication, gate_publication, publication_digest, publish, NO_CHANGES,
 };
@@ -102,6 +103,7 @@ async fn tally_gate(
         &elections,
         tally_type,
         configuration,
+        None,
     )
     .await;
     tx.commit().await.unwrap();
@@ -329,7 +331,8 @@ async fn while_closing_needs_signatures_voting_closed_under_signatures_is_not_re
 /// Inserts a ballot publication of the world's event with one style.
 async fn publication(w: &World, published: bool, generated: bool, election: Option<Uuid>) -> Uuid {
     let id = Uuid::new_v4();
-    w.execute(
+    publication_fixture_write(
+        w,
         "INSERT INTO sequent_backend.ballot_publication
              (id, tenant_id, election_event_id, is_generated, election_ids, election_id,
               published_at, created_at)
@@ -341,7 +344,8 @@ async fn publication(w: &World, published: bool, generated: bool, election: Opti
         ],
     )
     .await;
-    w.execute(
+    publication_fixture_write(
+        w,
         "INSERT INTO sequent_backend.ballot_style
              (id, tenant_id, election_event_id, election_id, area_id, ballot_publication_id, status)
          VALUES ($1, $2, $3, $4, $5, $6, 'generated')",
@@ -422,7 +426,7 @@ async fn a_configuration_version_signs_what_publishing_writes() {
         // The event is locked down: that doesn't change what publishing needs.
         w.execute(
             "UPDATE sequent_backend.election_event
-             SET presentation = '{\"locked_down\": \"LOCKED_DOWN\"}' WHERE id = $1",
+             SET presentation = '{\"locked_down\": \"LOCKED_DOWN\"}' WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
             &[&w.event],
         )
         .await;
@@ -447,6 +451,16 @@ async fn a_configuration_version_signs_what_publishing_writes() {
                 "signing_rules": [format!("approve-configuration={required}")],
                 "scheduled_events": 0,
                 "ballots_and_contests": NO_CHANGES,
+                // Nothing configured: the default policies and rules, no schedule.
+                "policies": {"initialization_scope": "post", "unsigned_scheduled_close": "refuse"},
+                "open_voting": rule_snapshot(&SigningRule::default_for(SigningAction::OpenVoting)),
+                "close_voting": rule_snapshot(&SigningRule::default_for(SigningAction::CloseVoting)),
+                "schedule": [],
+                // The Post enables the default channel.
+                "post_channels": { w.post.to_string(): ["ONLINE"] },
+                "initialization_report_policies": { w.post.to_string(): "not-required" },
+                // The fixture publication contains one country for this Post.
+                "initialization_countries": { w.post.to_string(): [w.area.to_string()] },
             })
         );
 
@@ -727,7 +741,8 @@ async fn initializing_refuses_once_the_posts_publication_changed() {
     )
     .await;
     let signed = publication(&w, true, true, None).await;
-    w.execute(
+    publication_fixture_write(
+        &w,
         "UPDATE sequent_backend.ballot_publication
          SET published_at = now() - interval '3 hours' WHERE id = $1",
         &[&signed],

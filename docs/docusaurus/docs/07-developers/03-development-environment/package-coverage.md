@@ -87,6 +87,14 @@ python3 scripts/coverage/ci.py rust sequent-core \
   --base ../step-base --head . --output ../coverage-comparison
 ```
 
+Native commands default to a 1,200-second timeout. Set
+`NATIVE_COVERAGE_TIMEOUT_SECONDS` to an integer from 1 through 3,600 to change
+that bound for both the paired runner and its native measurement commands.
+The hosted Windmill and Wrap Map Err comparisons use 3,600 seconds per command
+and a 150-minute job limit for both revisions, setup and artifact publication.
+Other profiles retain their existing limits. Cancellation stops the owned
+measurement and its Cargo process group before reporting incomplete evidence.
+
 Exit `0` means no decrease, `1` means a regression, and `2` means invalid or
 incomplete evidence. Failed tests, empty reports, changed source, incompatible
 instruments and new source-inventory gaps cannot pass. Existing inventory gaps

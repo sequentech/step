@@ -12,5 +12,7 @@ test("the wording keys are the portal's and ui-core's, dotted, sorted and once e
     // Keycloak's, not the portal's.
     expect(keys).not.toContain("doLogIn")
     expect(keys).toEqual([...new Set(keys)].sort())
-    expect(keys.every((key) => /^[\w-]+(\.[\w-]+)*$/.test(key))).toBe(true)
+    // IANA identifiers are literal segments in the timezone wording catalogue.
+    expect(keys).toContain("timezones.abbr.Asia/Manila")
+    expect(keys.every((key) => /^[\w/-]+(\.[\w/-]+)*$/.test(key))).toBe(true)
 })

@@ -5,7 +5,6 @@
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {
     List,
-    DateField,
     FunctionField,
     TextField,
     DatagridConfigurable,
@@ -21,6 +20,7 @@ import {
     useSidebarState,
     useGetOne,
 } from "react-admin"
+import {AdminDateField} from "@/components/AdminDateTime"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
 import {FactCheck, Rule as RuleIcon, Visibility} from "@mui/icons-material"
@@ -362,9 +362,9 @@ const ApprovalsList = ({
                 emptyText="-"
                 sortable={false}
             />
-            <DateField
-                showTime
+            <AdminDateField
                 source="created_at"
+                seconds
                 label={String(t("approvalsScreen.column.createdAt"))}
             />
             <TextField source="id" label={String(t("approvalsScreen.column.id"))} />

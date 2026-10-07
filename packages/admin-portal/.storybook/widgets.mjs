@@ -80,5 +80,7 @@ export default {
         "src/components/monitoring/editor/useMonitoringEditor.tsx#EditorElement":
             "The element useMonitoringEditor returns: the editor's dialogs, which have their " +
             "own sections, and its notices; the MonitoringDashboardTab Editor* stories render it.",
+        "src/providers/EventTimeZoneProvider.tsx#EventTimeZoneProvider": PROVIDER,
+        "src/providers/EventTimeZoneProvider.tsx#MyTimeZoneProvider": PROVIDER,
     },
 }

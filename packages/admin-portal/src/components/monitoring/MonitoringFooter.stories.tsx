@@ -25,7 +25,7 @@ export const Counted: Story = {
         const canvas = within(canvasElement)
         await expect(
             canvas.getByText(
-                /^All regions · Dubai PCG · All countries · Data through Jan 15, 2026, 8:00 PM/
+                /^All regions · Dubai PCG · All countries · Data through Jan 15, 2026, 8:00 PM \(PhST\)$/
             )
         ).toBeVisible()
         await expect(canvas.getByText("SW-F-0259, SW-F-0371")).toBeVisible()

@@ -473,6 +473,28 @@ pub enum SigningStatementKind {
     SigningChecksChanged,
     SigningCertificateRevoked,
     SigningRequestsExported,
+    /// A scheduled lifecycle window (readiness test, final testing, test
+    /// voting) opened or closed for a Post (VOTE-LIFECYCLE). Not a signing
+    /// step: it uses the same transactional outbox.
+    LifecycleWindowChanged,
+    /// Scheduled instants recomputed after a tz database update were
+    /// applied (VOTE-LIFECYCLE).
+    ScheduleRecomputeApplied,
+    /// An admin imported the schedule from a CSV file (VOTE-LIFECYCLE).
+    /// Not a signing step, but staged through the same outbox so the entry
+    /// commits with the import.
+    ScheduleImported,
+    /// A write changed what a scheduled opening or closing of voting will do
+    /// (VOTE-LIFECYCLE): before and after, each with its explanation.
+    ScheduledOutcomeChanged,
+    /// A country of a Post (or a Post without countries) was initialized
+    /// (VOTE-LIFECYCLE). Staged through the same outbox as the signing
+    /// steps, so it is posted once, in order.
+    ElectionInitialized,
+    /// An election event was locked down, or its lockdown lifted
+    /// (VOTE-LIFECYCLE). Staged through the same outbox as the signing
+    /// steps, so it is posted once, in order.
+    LockdownChanged,
 }
 
 impl SigningStatementKind {
@@ -494,6 +516,12 @@ impl SigningStatementKind {
             Self::SigningChecksChanged => StatementType::SigningChecksChanged,
             Self::SigningCertificateRevoked => StatementType::SigningCertificateRevoked,
             Self::SigningRequestsExported => StatementType::SigningRequestsExported,
+            Self::LifecycleWindowChanged => StatementType::LifecycleWindowChanged,
+            Self::ScheduleRecomputeApplied => StatementType::ScheduleRecomputeApplied,
+            Self::ScheduleImported => StatementType::ScheduleImported,
+            Self::ScheduledOutcomeChanged => StatementType::ScheduledOutcomeChanged,
+            Self::ElectionInitialized => StatementType::ElectionInitialized,
+            Self::LockdownChanged => StatementType::LockdownChanged,
         }
     }
 }

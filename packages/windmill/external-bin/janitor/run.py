@@ -14,6 +14,7 @@ from pybars import Compiler
 
 import approval_matrix_preset
 import signing_preset
+import lifecycle_preset
 import openpyxl
 import copy
 import csv
@@ -23,7 +24,7 @@ import shutil
 import hashlib
 import pyzipper
 from pathlib import Path
-from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel, apply_schedule_time_zones, canonical_zone
 import re
 
 IS_DEBUG = False
@@ -1068,6 +1069,15 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
 
     return elections_object, areas
 
+def schedule_date_cell(value):
+    """
+    The ScheduledEvents `date` cell as text: a date cell (a datetime) is a
+    wall time; `apply_schedule_time_zones` turns it into the instant.
+    """
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
 def replace_placeholder_database(excel_data, election_event_id, miru_data, results, multiply_factor):
     election_tree, areas_dict = gen_tree(excel_data, miru_data, results, multiply_factor)
     keycloak_context = gen_keycloak_context(excel_data, areas_dict)
@@ -1108,7 +1118,12 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
         }
 
         print(f"rendering election {election['election_name']}")
-        elections.append(json.loads(election_compiled(election_context)))
+        election_json = json.loads(election_compiled(election_context))
+        # The Posts sheet's `timezone`: the Post's zone, one of the event's
+        # configured zones.
+        if election.get("timezone"):
+            election_json["presentation"]["timezone"] = canonical_zone(election["timezone"])
+        elections.append(election_json)
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -1119,7 +1134,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
                 "election_id": election_context["UUID"],
                 "election_alias": scheduled_event["election_alias"],
                 "event_processor": scheduled_event["type"],
-                "scheduled_date": scheduled_event["date"],
+                "scheduled_date": schedule_date_cell(scheduled_event["date"]),
+                "timezone": scheduled_event.get("timezone"),
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
@@ -1248,7 +1264,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
             "election_id": None,
             "election_alias": scheduled_event["election_alias"],
             "event_processor": scheduled_event["type"],
-            "scheduled_date": scheduled_event["date"],
+            "scheduled_date": schedule_date_cell(scheduled_event["date"]),
+            "timezone": scheduled_event.get("timezone"),
             "current_timestamp": current_timestamp
         }
         print(f"rendering scheduled event {scheduled_event_context['event_processor']}")
@@ -1303,6 +1320,7 @@ def parse_posts(sheet):
             "^description$",
             "^permission_label$",
             "^trustees$",
+            "^timezone$",
         ]
     )
     return data
@@ -1353,7 +1371,8 @@ def parse_scheduled_events(sheet):
         allowed_keys=[
             "^election_alias$",
             "^type$",
-            "^date$"
+            "^date$",
+            "^timezone$"
         ]
     )
     return data
@@ -1670,6 +1689,8 @@ try:
     preset = signing_preset.load('templates/COMELEC/signing.json')
     client_tenant = signing_preset.load('templates/COMELEC/tenant.json')
     approval_matrix = approval_matrix_preset.load(args.approval_matrix)
+    # The client's timezones, lifecycle policies and each Post's timezone.
+    lifecycle = lifecycle_preset.load('templates/COMELEC/lifecycle.json')
     
 
     logging.info("Loaded all templates successfully.")
@@ -1705,8 +1726,12 @@ final_json = {
 }
 signing_preset.add_to_bundle(final_json, preset)
 approval_matrix_preset.add_to_bundle(final_json, approval_matrix)
+lifecycle_preset.apply_event(final_json["election_event"], lifecycle)
+lifecycle_preset.apply_posts(final_json["elections"], lifecycle)
 
 patch_json_with_excel(excel_data, final_json, "event")
+# Dates in local time become instants once the event's timezones are final.
+apply_schedule_time_zones(final_json)
 
 scheduled_events = final_json["scheduled_events"]
 reports = final_json["reports"]

@@ -93,6 +93,8 @@ import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
+import {ElectionTimeZoneInput} from "@/components/timezones/ElectionTimeZoneInput"
+import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 
 const formResetOptions = {keepDirtyValues: true}
 
@@ -662,19 +664,35 @@ export const ElectionDataForm: React.FC = () => {
                             >
                                 <ElectionStyles.Wrapper>
                                     <ElectionStyles.Title>
-                                        {t("electionScreen.edit.language")}
+                                        {t("lifecycle.settings.accordion")}
                                     </ElectionStyles.Title>
                                 </ElectionStyles.Wrapper>
                             </AccordionSummary>
                             <AccordionDetails>
-                                <ElectionStyles.AccordionContainer>
-                                    <ElectionStyles.AccordionWrapper>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 3,
+                                        width: "100%",
+                                        minWidth: 0,
+                                    }}
+                                >
+                                    <Box sx={{width: "100%", maxWidth: 372}}>
                                         <SettingsLanguageSelector
                                             languageSettings={languageSettings}
                                             canEdit={canEdit}
                                         />
-                                    </ElectionStyles.AccordionWrapper>
-                                </ElectionStyles.AccordionContainer>
+                                    </Box>
+                                    <ElectionTimeZoneInput
+                                        context={timeZoneContextOf(
+                                            data?.presentation as
+                                                | IElectionEventPresentation
+                                                | undefined
+                                        )}
+                                        disabled={!canEdit}
+                                    />
+                                </Box>
                             </AccordionDetails>
                         </Accordion>
 

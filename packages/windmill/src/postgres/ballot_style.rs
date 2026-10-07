@@ -52,6 +52,7 @@ pub async fn insert_ballot_style(
     status: Option<String>,
     ballot_publication_id: &str,
 ) -> Result<BallotStyle> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     let statement = hasura_transaction
         .prepare(
             r#"

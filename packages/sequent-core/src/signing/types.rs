@@ -117,12 +117,15 @@ impl SigningAction {
 
     pub fn scope(&self) -> SigningScope {
         match self {
-            SigningAction::InitializeVoting
-            | SigningAction::OpenVoting
+            SigningAction::OpenVoting
             | SigningAction::CloseVoting
             | SigningAction::GenerateReports
             | SigningAction::ApproveVoter => SigningScope::Post,
-            SigningAction::GenerateElectionReturns
+            // A Post's initialization may go country by country
+            // (initialization scope POST_AND_COUNTRY): such a request
+            // carries the country, a whole-Post one doesn't.
+            SigningAction::InitializeVoting
+            | SigningAction::GenerateElectionReturns
             | SigningAction::TransmitResults => SigningScope::PostAndCountry,
             SigningAction::ApproveConfiguration => SigningScope::Event,
             SigningAction::ConfirmKeyShare
@@ -208,6 +211,8 @@ signing_enum! {
         Superseded,
         /// A Security Officer revoked the key of one of its signatures.
         CertificateRevoked,
+        /// The schedule closed voting at its deadline (VOTE-LIFECYCLE §5a).
+        ClosedOnSchedule,
     }
 }
 

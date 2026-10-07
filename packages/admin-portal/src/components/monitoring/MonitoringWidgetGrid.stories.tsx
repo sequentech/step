@@ -39,7 +39,7 @@ function Fixture({dashboard}: Scenario) {
                         scopeLabel: "All regions · All Posts · All countries",
                         snapshot: MONITORING_SNAPSHOT,
                         sources: response.sources,
-                        timeZone: response.settings.time_zone,
+                        timeZone: response.time_zone,
                         eventDays: response.event_days,
                         configVersion: "3/1/1",
                         pollCount: 0,

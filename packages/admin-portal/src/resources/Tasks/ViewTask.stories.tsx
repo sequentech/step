@@ -5,7 +5,7 @@ import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
 import {GraphQLError} from "graphql"
-import {ETaskExecutionStatus, i18n} from "@sequentech/ui-core"
+import {ETaskExecutionStatus, i18n, browserTimeZone} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ETasksExecution} from "@/types/tasksExecution"
@@ -19,6 +19,11 @@ import {
 import {ViewTask} from "./ViewTask"
 import {TASK_DOCUMENT_ID, TASK_ID, taskRecord} from "./__stories__/TasksFixture"
 import {pending} from "../../../../ui-essentials/.storybook/screens"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
+
+/** A time as the screen shows it outside an event's screens: labelled, in the viewer's zone. */
+const shownTime = (value: string, seconds = true) =>
+    formatZoned(value, browserTimeZone(), {t: i18n.t.bind(i18n), lang: i18n.language, seconds})
 
 interface Scenario {
     type: ETasksExecution
@@ -112,7 +117,7 @@ export const Populated: Story = {
             details.getByText(i18n.t(`tasksScreen.tasksExecution.${ETasksExecution.EXPORT_VOTERS}`))
         ).toBeVisible()
         expect(details.getByText("admin")).toBeVisible()
-        expect(details.getByText("1/15/2026, 12:02:00 PM")).toBeVisible()
+        expect(details.getByText(shownTime("2026-01-15T12:02:00Z"))).toBeVisible()
         expect(canvas.getByText(i18n.t("tasksScreen.status", {status: "SUCCESS"}))).toBeVisible()
         expect(canvas.getByText("Exported 12 voters")).toBeVisible()
         expect(boundary.calls[0]).toEqual({

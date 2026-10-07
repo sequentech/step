@@ -6,7 +6,7 @@ import {readFileSync} from "fs"
 import {join} from "path"
 import {parse} from "yaml"
 import {IPermissions} from "@/types/keycloak"
-import {SigningOperation, signingOperationRole} from "./roles"
+import {SigningOperation, signingOperationRole, configurationApprovalRole} from "./roles"
 import {DocumentKind, SIGNING_ACTIONS, SigningAction} from "./types"
 
 const holding =
@@ -210,4 +210,41 @@ describe("the roles the widget sends", () => {
             }
         }
     )
+})
+
+describe("configuration approval comparisons", () => {
+    it.each([
+        [IPermissions.SIGN_APPROVE_CONFIGURATION],
+        [IPermissions.SIGNING_REQUESTS_READ],
+        [IPermissions.ADMIN_USER],
+    ])("uses a held read role: %s", (role) => {
+        expect(configurationApprovalRole(holding(role))).toBe(role)
+    })
+    it("cannot borrow the permission of an unrelated signer", () => {
+        expect(configurationApprovalRole(holding(IPermissions.SIGN_CLOSE_VOTING))).toBeNull()
+    })
+    it("allows the configuration signer to read the signed comparison fields, within its existing scope", () => {
+        const metadata = parse(
+            readFileSync(
+                join(
+                    __dirname,
+                    "../../../../../hasura/metadata/databases/backend-db/tables/sequent_backend_signing_request.yaml"
+                ),
+                "utf8"
+            )
+        )
+        const permission = metadata.select_permissions.find(
+            (entry: {role: string}) => entry.role === IPermissions.SIGN_APPROVE_CONFIGURATION
+        ).permission
+        expect(permission.columns).toEqual(expect.arrayContaining(["scope_key", "subject"]))
+        expect(permission.filter._and).toEqual(
+            expect.arrayContaining([
+                {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
+                {action: {_eq: "approve-configuration"}},
+            ])
+        )
+        expect(permission.filter._and[2]._or).toContainEqual({
+            permission_label: {_in: "X-Hasura-Permission-Labels"},
+        })
+    })
 })

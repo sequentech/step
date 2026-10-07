@@ -53,9 +53,9 @@ jobs:
             context: packages
             file: packages/harvest/Dockerfile.prod
 
-          - service: b3
+          - service: b4
             context: packages
-            file: packages/b3/Dockerfile.prod
+            file: packages/b4/Dockerfile.prod
 
           - service: braid
             context: packages

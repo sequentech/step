@@ -299,7 +299,19 @@ export const PublishLinkedById: Story = {
     },
 }
 
+/**
+ * The generated schema has no signing tables or actions yet: stories that open
+ * the Signatures tab answer without validating its operations against it.
+ */
+const withoutSchema: Pick<Story, "beforeEach"> = {
+    beforeEach: () => {
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()))
+    },
+}
+
 export const Data: Story = {
+    // The Voting lifecycle section's snapshot query isn't in the generated schema yet.
+    ...withoutSchema,
     parameters: {widgets: ["DataTab"]},
     play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
 }
@@ -355,16 +367,6 @@ export const Keys: Story = {
         reads: ["getList sequent_backend_keys_ceremony"],
         operations: ["TrusteeNames"],
     }),
-}
-
-/**
- * The generated schema has no signing tables or actions yet: stories that open
- * the Signatures tab answer without validating its operations against it.
- */
-const withoutSchema: Pick<Story, "beforeEach"> = {
-    beforeEach: () => {
-        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()))
-    },
 }
 
 export const Signatures: Story = {

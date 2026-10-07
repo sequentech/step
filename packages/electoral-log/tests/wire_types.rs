@@ -123,7 +123,13 @@ action_wire_cases! {
         SigningIssuerChanged = 12,
         SigningChecksChanged = 13,
         SigningCertificateRevoked = 14,
-        SigningRequestsExported = 15
+        SigningRequestsExported = 15,
+        LifecycleWindowChanged = 16,
+        ScheduleRecomputeApplied = 17,
+        ScheduleImported = 18,
+        ScheduledOutcomeChanged = 19,
+        ElectionInitialized = 20,
+        LockdownChanged = 21
     },
 }
 

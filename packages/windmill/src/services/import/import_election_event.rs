@@ -6,6 +6,7 @@ use crate::postgres::application::insert_applications;
 use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::approval_matrix::store::import_approval_matrix;
 use crate::services::electoral_log::ElectoralLogAdminContext;
@@ -14,7 +15,7 @@ use crate::services::import::import_publications::{
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
-use crate::services::keycloak::read_realm_config_from_s3;
+use crate::services::keycloak::{read_realm_config_from_s3, require_enrollment_window_checks};
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -374,10 +375,32 @@ pub async fn upsert_keycloak_realm(
         realm.attributes = Some(attrs);
     }
 
+    require_enrollment_window_checks(&mut realm)?;
     realm = remove_keycloak_realm_secrets(&realm)?;
-    let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
+    let registration_allowed = match realm.registration_allowed {
+        Some(allowed) => allowed,
+        None => match client.client.realm_get(&realm_name).await {
+            Ok(existing) => {
+                crate::tasks::migrate_registration_flows::registration_desire(&existing)?
+            }
+            Err(::keycloak::KeycloakError::HttpFailure { status: 404, .. }) => false,
+            Err(error) => return Err(error.into()),
+        },
+    };
+    // Imported partial/builtin flows remain closed until the installed
+    // registration forms have been verified. Failed verification stays closed.
+    realm.registration_allowed = Some(false);
+    // A source realm's unfinished workflow state is not an imported policy.
+    if let Some(attributes) = realm.attributes.as_mut() {
+        attributes.remove(crate::tasks::migrate_registration_flows::REGISTRATION_RESTORE_ATTRIBUTE);
+    }
+    crate::tasks::migrate_registration_flows::mark_import_registration_pending(
+        &mut realm,
+        registration_allowed,
+    );
+    let realm_config = serde_json::to_string(&realm)?;
     client
         .upsert_realm(
             realm_name.as_str(),
@@ -388,7 +411,23 @@ pub async fn upsert_keycloak_realm(
             Some(election_event_id.to_string()),
         )
         .await?;
+    // upsert_realm consumes its administrator client.
+    let client = KeycloakAdminClient::new().await?;
+    let public_client = KeycloakAdminClient::pub_new().await?;
+    let outcome = crate::tasks::migrate_registration_flows::migrate_realm_for_import(
+        &client,
+        &public_client,
+        &realm_name,
+    )
+    .await?;
+    if outcome == crate::tasks::migrate_registration_flows::FlowOutcome::NoRealm {
+        return Err(anyhow!(
+            "Imported event realm is missing before enrollment verification"
+        ));
+    }
     upsert_realm_jwks(realm_name.as_str()).await?;
+    crate::tasks::migrate_registration_flows::finish_registration_setup(&client, &realm_name)
+        .await?;
     Ok(())
 }
 
@@ -698,11 +737,15 @@ pub async fn process_election_event_file(
                 .unwrap_or_default()
                 .unwrap_or_default();
 
+            // An imported election starts with voting not started on every
+            // channel (the database refuses anything else).
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.early_voting_status = VotingStatus::default();
             status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.early_voting_period_dates = PeriodDates::default();
             status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
@@ -730,6 +773,12 @@ pub async fn process_election_event_file(
         .transpose()
         .with_context(|| "Error deserializing keycloak_event_realm")?;
 
+    crate::postgres::scheduled_event::lock_scheduling_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
@@ -739,6 +788,8 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
+    // The import keeps an exported lockdown, which only the server may set.
+    trusted_write(hasura_transaction).await?;
     insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
@@ -1651,18 +1702,22 @@ pub async fn manage_dates(
         {
             continue;
         }
-        let Some(date) = scheduled_event
+        // The wall time and its zone come along with the instant. A date
+        // without an offset is recomputed from them, or refused.
+        let Some(cron_config) = scheduled_event
             .cron_config
-            .and_then(|config| config.scheduled_date)
+            .filter(|config| config.scheduled_date.is_some())
         else {
             continue;
         };
+        let cron_config = crate::services::schedule_csv::checked_import_cron_config(cron_config)
+            .with_context(|| format!("Scheduled event {}", scheduled_event.id))?;
         maybe_create_scheduled_event(
             hasura_transaction,
             &data.tenant_id.to_string(),
             &data.election_event.id,
             processor,
-            date,
+            cron_config,
             payload.election_id.as_deref(),
             payload.voting_channels,
         )
@@ -1678,7 +1733,7 @@ pub async fn maybe_create_scheduled_event(
     tenant_id: &str,
     election_event_id: &str,
     event_processor: EventProcessors,
-    start_date: String,
+    cron_config: CronConfig,
     election_id: Option<&str>,
     voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
@@ -1690,7 +1745,7 @@ pub async fn maybe_create_scheduled_event(
     };
     let cron_config = CronConfig {
         cron: None,
-        scheduled_date: Some(start_date.to_string()),
+        ..cron_config
     };
     insert_scheduled_event(
         hasura_transaction,

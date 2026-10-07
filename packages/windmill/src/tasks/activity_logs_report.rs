@@ -8,7 +8,7 @@ use crate::{
     services::{
         database::{get_hasura_pool, get_keycloak_pool},
         reports::{
-            activity_log::{ActivityLogsTemplate, ReportFormat},
+            activity_log::{ActivityLogExportOptions, ActivityLogsTemplate, ReportFormat},
             template_renderer::{
                 GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
             },
@@ -29,6 +29,7 @@ async fn generate_activity_logs_report_impl(
     document_id: String,
     format: ReportFormat,
     report_clone: Option<Report>,
+    options: ActivityLogExportOptions,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     let mut db_client: DbClient = get_hasura_pool()
@@ -65,7 +66,8 @@ async fn generate_activity_logs_report_impl(
             tally_session_id: None,
         },
         format,
-    );
+    )
+    .with_options(options);
 
     report
         .execute_report(
@@ -102,6 +104,8 @@ pub async fn generate_activity_logs_report(
     format: ReportFormat,
     report_clone: Option<Report>,
     task_execution: TasksExecution,
+    // The Logs tab's range and zone; absent in tasks queued before it existed.
+    options: Option<ActivityLogExportOptions>,
 ) -> Result<()> {
     match generate_activity_logs_report_impl(
         tenant_id,
@@ -109,6 +113,7 @@ pub async fn generate_activity_logs_report(
         document_id.clone(),
         format,
         report_clone,
+        options.unwrap_or_default(),
     )
     .await
     {
