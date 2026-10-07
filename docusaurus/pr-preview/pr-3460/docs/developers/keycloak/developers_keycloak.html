@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Keycloak development | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3460/docs/developers/keycloak/developers_keycloak"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Keycloak development | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3460/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3460/docs/developers/keycloak/developers_keycloak"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3460/docs/developers/keycloak/developers_keycloak" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3460/docs/developers/keycloak/developers_keycloak" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Keycloak development","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3460/docs/developers/keycloak/developers_keycloak"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3460/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3460/assets/js/runtime~main.d999224f.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3460/assets/js/main.0bd1e246.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3460/assets/js/runtime~main.8fa0f39f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3460/assets/js/main.5b78c3e3.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -48,6 +48,10 @@ protocol mappers and REST extensions in <code>packages/keycloak-extensions/*</co
 <code>voter-enrollment</code>, and <code>message-otp-authenticator/src/main/resources/theme/base/login/</code>.</li>
 <li class="">Theme registration (<code>META-INF/keycloak-themes.json</code>), <code>quarkus.properties</code> and
 <code>packages/Dockerfile.keycloak</code>.</li>
+<li class="">Not Java, but also only through an image rebuild: the React themes
+(<code>packages/keycloak-ui</code>). To iterate on them without rebuilding, mount them as
+described in
+<a href="#hot-updates-on-a-real-authentication-session" class="">Hot updates on a real authentication session</a>.</li>
 </ul>
 <p>To try a module change without rebuilding the image, package the module with the
 devcontainer&#x27;s Maven, copy its jar into the running container and restart it;
@@ -60,11 +64,24 @@ keep the change, rebuild the image and recreate the container (the
 by the <code>up</code> command above), and run the module&#x27;s tests with
 <code>mvn -f packages/keycloak-extensions/pom.xml -pl &lt;module&gt; -am verify</code>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="react-login-and-otp-development">React login and OTP development<a href="#react-login-and-otp-development" class="hash-link" aria-label="Direct link to React login and OTP development" title="Direct link to React login and OTP development" translate="no">​</a></h2>
-<p><code>packages/keycloak-ui</code> is an opt-in Keycloakify workspace with a scoped Sequent
+<p><code>packages/keycloak-ui</code> is a Keycloakify workspace with a scoped Sequent
 authentication theme, local font assets and Material UI controls. Its Vite server
 provides synthetic previews, Storybook and hot
-updates on real Keycloak login and message OTP pages. Production images and
-existing realm themes continue to use the Sequent FreeMarker themes.</p>
+updates on real Keycloak login and message OTP pages.</p>
+<p>The Keycloak image ships its themes (<code>sequent-ui-admin</code>, <code>sequent-ui-voting</code> and
+<code>sequent-ui-architect</code>, from <code>themes.json</code>): a <code>themes-build</code> stage of
+<code>packages/Dockerfile.keycloak</code> builds the workspace and lays the themes out with
+<code>python3 -m scripts.dev.keycloak prepare --runtime built</code>, the same layout as the
+development themes below. Each theme inherits its FreeMarker theme
+(<code>sequent-ui-voting</code> inherits <code>sequent.voting-portal</code>), so the pages not ported to
+React keep rendering the FreeMarker ones. A realm or client uses them only when it
+selects them as its login theme; the COMELEC janitor template selects
+<code>sequent-ui-voting</code>, other realms keep the FreeMarker themes. Building the image
+needs two extra build contexts, which Compose and the CI workflows pass:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">docker</span><span class="token plain"> build </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-f</span><span class="token plain"> packages/Dockerfile.keycloak </span><span class="token punctuation" style="color:rgb(199, 146, 234)">\</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    --build-context </span><span class="token assign-left variable" style="color:rgb(191, 199, 213)">beyond</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain">./beyond --build-context </span><span class="token assign-left variable" style="color:rgb(191, 199, 213)">scripts</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain">./scripts packages</span><br></span></code></pre></div></div>
+<p><code>python3 -m unittest scripts.dev.test_keycloak_image</code> checks that the image
+installs the themes, that every build passes the <code>scripts</code> context and that the
+COMELEC template selects the React theme.</p>
 <p>Install the workspace dependencies from <code>packages</code> with <code>yarn install --frozen-lockfile</code>. Run these commands in the development shell from the repository
 root:</p>
 <div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># No Keycloak or database is needed for synthetic previews.</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev keycloak dev</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># http://127.0.0.1:5174/?scenario=email-otp&amp;locale=es</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># Or interactive stories, with the shared synthetic user and OTP fixtures.</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev keycloak storybook</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># http://127.0.0.1:6011</span><br></span></code></pre></div></div>
@@ -121,7 +138,22 @@ labels. The build information wraps on narrow screens. A Keycloak without
 <code>APP_VERSION</code> or <code>APP_HASH</code> in its environment resolves the property to an empty
 value (<code>${env.APP_VERSION:}</code>) and the header leaves that line out; it never shows
 an unresolved <code>${...}</code> reference.
-Registration, profile updates and other pages inherit the original FreeMarker
+The registration form (<code>register.ftl</code>) and the pages that end an enrollment
+(<code>registration-finish.ftl</code>, <code>registration-manual-finish.ftl</code>,
+<code>registration-rejected-finish.ftl</code> and <code>message-finish.ftl</code>) render in React
+too. The form keeps what sequent-theme&#x27;s template does with the realm&#x27;s User
+Profile: groups, helper texts, option labels, <code>html-attribute:</code> annotations,
+<code>default</code>, <code>hidden</code>, <code>confirm</code>, <code>filterSelectAttribute</code>, <code>disableAttribute</code> and
+<code>disableElement</code>, the password placement (<code>showPasswordAfterThis</code>,
+<code>credential-field-position</code>), the attributes the authenticator hides and the
+ones a read-only login hint locks. The telephone widget and the password
+strength bar load sequent-theme&#x27;s own scripts (<code>intl-tel-input</code>, <code>zxcvbn</code>) from
+the inherited theme resources; without them the fields stay plain inputs. In
+the voting theme the deferred registration form is step 1 of the enrollment.
+It falls back to the original template when it signs voters in (<code>formMode</code>
+<code>LOGIN</code>, with its structured credentials and identity providers), and for
+CAPTCHA and terms acceptance.
+Profile updates and other pages inherit the original FreeMarker
 implementation, including User Profile annotations and telephone widgets. Login
 also falls back to the original template for multi-attribute matching, structured
 credentials, CAPTCHA, identity-provider buttons, hidden usernames and alternative
@@ -160,7 +192,7 @@ denies users without the role. A <code>google</code> identity provider is includ
 disabled; it only links to existing users. The <code>sequent-ui-architect</code> theme
 (<code>themes.json</code>) is the admin theme with the Election Architect header and title.
 The realm file keeps <code>sequent.admin-portal</code> as its login theme so it imports on
-any Keycloak, including production images without the opt-in themes; the
+any Keycloak, including images built before the React themes shipped; the
 Architect&#x27;s <code>npm run dev</code> and both test suites switch it to <code>sequent-ui-architect</code>
 when the server has that theme (<code>keycloak prepare</code> + <code>keycloak mount</code>).
 The gate, the Delivery contract and the one-command local loop are documented in
