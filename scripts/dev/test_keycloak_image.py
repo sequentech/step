@@ -43,6 +43,17 @@ class KeycloakImageTests(unittest.TestCase):
             r"/opt/keycloak/themes/",
         )
 
+    def test_the_theme_build_provides_the_sequent_core_peer_dependency(self):
+        # The login themes compile ui-core sources that import sequent-core,
+        # which the portals provide and this image does not install.
+        dockerfile = DOCKERFILE.read_text()
+        package = json.loads((ROOT / "packages/ui-core/package.json").read_text())
+        tarball = package["peerDependencies"]["sequent-core"].removeprefix("file:./")
+        self.assertRegex(
+            dockerfile,
+            rf"tar -xzf ui-core/{re.escape(tarball)} -C node_modules/sequent-core\b",
+        )
+
     def test_every_image_build_passes_the_scripts_context(self):
         for path, context in IMAGE_BUILDS.items():
             with self.subTest(path=path):

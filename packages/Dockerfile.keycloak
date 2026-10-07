@@ -106,6 +106,10 @@ COPY ./test-support ./test-support
 COPY ./keycloak-ui ./keycloak-ui
 COPY ./keycloak-extensions/sequent-theme ./keycloak-extensions/sequent-theme
 RUN yarn install --frozen-lockfile --non-interactive
+# The themes compile ui-core sources that import sequent-core, a peer
+# dependency the portals provide. No portal is installed here.
+RUN mkdir -p node_modules/sequent-core \
+ && tar -xzf ui-core/rust/sequent-core-0.1.0.tgz -C node_modules/sequent-core --strip-components=1
 COPY --from=scripts ./dev /build/repo/scripts/dev
 WORKDIR /build/repo
 RUN python3 -m scripts.dev.keycloak prepare --runtime built
