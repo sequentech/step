@@ -4,7 +4,8 @@
 
 //! The `authorized-election-ids` voter attribute restricts a voter to some of
 //! the election event's elections. The Keycloak token mapper looks each value
-//! up among the elections' external IDs, and then among their IDs.
+//! up among the elections' external IDs, and then among their IDs. A value that
+//! several elections have as external ID names none of them.
 
 use crate::services::election::ElectionHead;
 use sequent_core::services::keycloak::MULTIVALUE_USER_ATTRIBUTE_SEPARATOR;
@@ -130,8 +131,9 @@ impl AuthorizedElectionIds {
             .and_then(Option::as_deref)
     }
 
-    /// The values the token mapper resolves to `election`, or may when
-    /// elections share an external ID.
+    /// The values the token mapper resolves to `election`, and an external ID
+    /// it shares with other elections, which earlier token mappers resolved to
+    /// one of them.
     fn census_values(&self, election: &ElectionHead) -> Vec<String> {
         let mut values: Vec<String> = external_id(election)
             .into_iter()
@@ -227,7 +229,7 @@ mod tests {
         assert_eq!(elections.stored_value(ELECTION_C), Some(ELECTION_C));
     }
 
-    /// The token mapper resolves a shared external ID to only one of them.
+    /// The token mapper resolves a shared external ID to none of them.
     #[test]
     fn elections_sharing_an_external_id_are_stored_by_id() {
         let elections = AuthorizedElectionIds::new(&[
@@ -347,8 +349,8 @@ mod tests {
         assert!(census[ELECTION_B].is_empty());
     }
 
-    /// The token mapper resolves a shared external ID to one of them, so both
-    /// censuses match it rather than risk leaving out cast ballots.
+    /// Earlier token mappers resolved a shared external ID to one of them, so
+    /// both censuses match it rather than leave out the ballots cast then.
     #[test]
     fn the_census_of_elections_sharing_an_external_id_matches_it() {
         let census = census_values_by_election(&[
