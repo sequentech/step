@@ -60,21 +60,6 @@ use deadpool_postgres::Client as DbClient;
 
 use std::sync::Arc; // Add this import
 
-fn election_voter_authorization_aliases(
-    elections: impl IntoIterator<Item = (String, Option<String>)>,
-) -> HashMap<String, String> {
-    elections
-        .into_iter()
-        .map(|(id, external_id)| {
-            // Match Keycloak's authorization mapper for missing external IDs.
-            let alias = external_id
-                .filter(|value| !value.is_empty())
-                .unwrap_or_else(|| id.clone());
-            (id, alias)
-        })
-        .collect()
-}
-
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -140,12 +125,12 @@ pub async fn insert_ballots_messages(
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
-    let election_ids_alias = election_voter_authorization_aliases(
+    let election_ids_alias: HashMap<String, String> =
         get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
-            .map(|election| (election.id, election.external_id)),
-    );
+            .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
+            .collect();
 
     // Collect all futures for parallel execution
     let mut tally_session_contests_updated = Vec::with_capacity(tally_session_contests.len());
@@ -262,18 +247,14 @@ pub async fn insert_ballots_messages(
                         users_temp_file.path()
                     );
 
-                    let election_alias =
-                        match election_ids_alias_clone.get(&tally_session_contest.election_id) {
-                            Some(alias) => alias,
-                            None => "",
-                        }
-                        .to_string();
-
                     list_keycloak_enabled_users_by_area_id_and_authorized_elections(
                         &keycloak_transaction_clone,
                         &realm_clone,
                         &tally_session_contest.area_id,
-                        &election_alias,
+                        &tally_session_contest.election_id,
+                        election_ids_alias_clone
+                            .get(&tally_session_contest.election_id)
+                            .map(String::as_str),
                         &users_temp_file.path().to_path_buf(),
                         multiplicity_column,
                     )
@@ -662,46 +643,4 @@ pub async fn get_elections_end_dates(
         .collect::<Result<HashMap<_, _>>>()
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
     Ok(elections_dates)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::election_voter_authorization_aliases;
-    use std::collections::HashMap;
-
-    #[test]
-    fn election_authorization_alias_uses_the_election_id_without_an_external_id() {
-        let aliases = election_voter_authorization_aliases([("election-uuid".to_string(), None)]);
-        assert_eq!(
-            aliases,
-            HashMap::from([("election-uuid".to_string(), "election-uuid".to_string()),])
-        );
-    }
-
-    #[test]
-    fn election_authorization_alias_preserves_explicit_external_ids() {
-        let aliases = election_voter_authorization_aliases([
-            ("first-uuid".to_string(), Some("external-alias".to_string())),
-            ("second-uuid".to_string(), Some(" ".to_string())),
-        ]);
-        assert_eq!(
-            aliases,
-            HashMap::from([
-                ("first-uuid".to_string(), "external-alias".to_string()),
-                ("second-uuid".to_string(), " ".to_string()),
-            ])
-        );
-    }
-
-    #[test]
-    fn election_authorization_alias_uses_the_election_id_for_an_empty_external_id() {
-        let aliases = election_voter_authorization_aliases([(
-            "election-uuid".to_string(),
-            Some(String::new()),
-        )]);
-        assert_eq!(
-            aliases,
-            HashMap::from([("election-uuid".to_string(), "election-uuid".to_string()),])
-        );
-    }
 }

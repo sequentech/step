@@ -43,4 +43,31 @@ class AuthorizedElectionsUserAttributeMapperTest {
     assertEquals(List.of("election-1"), hasuraClaims.get("authorized-election-ids"));
     assertEquals("150017", hasuraClaims.get("x-hasura-election-event-id"));
   }
+
+  // Keys are external IDs, or the election ID for an election without one.
+  private static final Map<String, String> ELECTIONS =
+      Map.of("GIAMBI30-3-31", "election-1", "election-2", "election-2");
+
+  @Test
+  void toElectionIds_resolvesExternalIdsAndIdsOfElectionsWithoutOne() {
+    assertEquals(
+        List.of("election-1", "election-2"),
+        AuthorizedElectionsUserAttributeMapper.toElectionIds(
+            List.of("GIAMBI30-3-31", "election-2"), ELECTIONS));
+  }
+
+  @Test
+  void toElectionIds_acceptsTheIdOfAnElectionThatHasAnExternalId() {
+    assertEquals(
+        List.of("election-1"),
+        AuthorizedElectionsUserAttributeMapper.toElectionIds(List.of("election-1"), ELECTIONS));
+  }
+
+  @Test
+  void toElectionIds_dropsValuesThatMatchNoElectionAndRepeats() {
+    assertEquals(
+        List.of("election-1"),
+        AuthorizedElectionsUserAttributeMapper.toElectionIds(
+            List.of("unknown", "GIAMBI30-3-31", "election-1", ""), ELECTIONS));
+  }
 }
