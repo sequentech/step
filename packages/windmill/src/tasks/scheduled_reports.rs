@@ -294,6 +294,8 @@ mod tests {
             }),
             created_at: Utc::now(),
             permission_label: None,
+            copies: None,
+            output_formats: None,
         }
     }
 

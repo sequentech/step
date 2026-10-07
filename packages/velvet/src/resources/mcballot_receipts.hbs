@@ -281,6 +281,12 @@ SPDX-License-Identifier: AGPL-3.0-only
             <div class="footer">
                 FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
                 Para sa mga kandidato ng Party List, tingnan ang likod ng balotang ito
+                {{#if @root.execution_annotations.configuration_revision}}
+                <br />Configuration revision {{sanitize_html @root.execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html @root.execution_annotations.configuration_manifest_sha256}}
+                {{/if}}
+                {{#if @root.execution_annotations.copy_total}}
+                <br />Copy {{sanitize_html @root.execution_annotations.copy_number}} of {{sanitize_html @root.execution_annotations.copy_total}}
+                {{/if}}
             </div>
         </div>
       {{/each}}

@@ -348,6 +348,7 @@ const dutchTranslation: TranslationType = {
                 taskTitle: "Taak: {{title}}",
                 viewTask: "Taak Bekijken",
                 downloadDocument: "Bestand Downloaden",
+                downloadHashManifest: "Hashmanifest",
             },
             exportTasksExecution: {
                 success: "Export succesvol voltooid",

@@ -347,6 +347,7 @@ const galegoTranslation: TranslationType = {
                 taskTitle: "Tarefa: {{title}}",
                 viewTask: "Ver Tarefa",
                 downloadDocument: "Descargar Archivo",
+                downloadHashManifest: "Manifesto de hashes",
             },
             exportTasksExecution: {
                 success: "Exportación finalizada con éxito",

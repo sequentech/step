@@ -410,6 +410,66 @@ pub struct MonitoringConfigRevisionRef {
     pub digest: Option<MonitoringConfigDigestString>,
 }
 
+/// What happened to a signed configuration package.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub enum ConfigurationPackageAction {
+    /// Verified and imported into the election event.
+    Imported,
+}
+
+/// One ballot design a configuration package approved.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationDesignDigest {
+    pub area: String,
+    pub election: String,
+    pub sha256: String,
+}
+
+/// A signed configuration package's revision and manifest digest, and the
+/// digest of each design it approved.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationPackageDetails {
+    pub action: ConfigurationPackageAction,
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    pub design_digests: Vec<ConfigurationDesignDigest>,
+}
+
+/// The hash manifest a report's generation wrote, and the signed
+/// configuration it names.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ReportGeneratedDetails {
+    pub report_type: String,
+    /// The stored `report-manifest.json`. A tally keeps the manifests of
+    /// its folders beside their files instead, and names none.
+    pub document_id: Option<String>,
+    pub report_manifest_sha256: String,
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+}
+
+/// The signed configuration whose ballots a publication published: its
+/// revision and manifest digest, and the digest of each design published.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct PublishedConfiguration {
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    pub design_digests: Vec<ConfigurationDesignDigest>,
+}
+
 /// One change to an election event's monitoring configuration: a save, a
 /// reset to a preset, or a switch of the Dashboard tab's mode.
 #[derive(

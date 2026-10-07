@@ -509,6 +509,16 @@ const spanishTranslation: TranslationType = {
                         text: "Sin archivo importable — este zip tiene un plan pero no el archivo que importa el Portal de Administración, así que no contiene el censo ni los archivos que nombra.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Diseño de papeleta sin clave",
+                        text: "Diseño de papeleta sin clave — {{kind}} {{id}} no tiene nombre ni id externo, así que sus diseños de papeleta no se pueden reconocer tras una importación.",
+                    },
+                    "unreadable-style": {
+                        lead: "Estilo de papeleta ilegible",
+                        text: "Estilo de papeleta ilegible — no se ha podido leer el estilo de papeleta de la plataforma para calcular la huella de su diseño: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Elección y evento no coinciden",
@@ -704,6 +714,152 @@ const spanishTranslation: TranslationType = {
                         text: "Contraseñas sin semilla — la semilla es lo que hace que reconstruir produzca las mismas contraseñas y no otras nuevas.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Ya importada",
+                        text: "Ya importada — la revisión {{revision}} de esta configuración ya se importó; importa una revisión más reciente.",
+                    },
+                    "approval-invalid": {
+                        lead: "La aprobación no cuenta",
+                        text: "La aprobación no cuenta — no se ha podido verificar la aprobación de {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "La misma persona aprobó dos veces",
+                        text: "La misma persona aprobó dos veces — {{name}} aprobó más de una vez, y cuenta una sola vez.",
+                    },
+                    "approver-key-usage": {
+                        lead: "El aprobador no puede firmar",
+                        text: "El aprobador no puede firmar — el certificado de un aprobador no está hecho para firmar.",
+                    },
+                    "bad-signature": {
+                        lead: "La firma no coincide",
+                        text: "La firma no coincide — la firma del paquete no se verifica, así que se modificó después de firmarlo o lo firmó otra clave: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "La huella del contenido no coincide",
+                        text: "La huella del contenido no coincide — el manifiesto dice {{expected}} y su contenido da {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nombre de archivo repetido",
+                        text: "Nombre de archivo repetido — «{{file}}» aparece dos veces en {{archive}}, así que dos lectores podrían tomar archivos distintos.",
+                    },
+                    "file-changed": {
+                        lead: "Modificado tras la firma",
+                        text: "Modificado tras la firma — {{file}} tiene SHA-256 {{actual}}, y el manifiesto dice {{expected}}. No se ha leído nada del paquete.",
+                    },
+                    "file-extra": {
+                        lead: "Archivo fuera del manifiesto",
+                        text: "Archivo fuera del manifiesto — {{file}} está en el paquete pero no se firmó. No se ha leído nada del paquete.",
+                    },
+                    "file-missing": {
+                        lead: "Falta un archivo firmado",
+                        text: "Falta un archivo firmado — {{file}} está en el manifiesto y no en el paquete. No se ha leído nada del paquete.",
+                    },
+                    "invalid-time": {
+                        lead: "No es una fecha y hora",
+                        text: "No es una fecha y hora — «{{value}}» en el manifiesto no es una fecha y hora.",
+                    },
+                    "member-too-large": {
+                        lead: "Archivo demasiado grande",
+                        text: "Archivo demasiado grande — «{{file}}» en {{archive}} ocupa, descomprimido, más de los {{limit}} bytes que puede ocupar un archivo.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Demasiados zips anidados",
+                        text: "Demasiados zips anidados — «{{file}}» está dentro de más zips de los {{limit}} en que puede estar anidado un archivo.",
+                    },
+                    "no-importable": {
+                        lead: "Nada que importar",
+                        text: "Nada que importar — el paquete no tiene official_election_setup.zip, el archivo comprimido que lee el importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "La plantilla del informe ha cambiado",
+                        text: "La plantilla del informe ha cambiado — la plantilla del informe {{report}} no es la aprobada: su huella es {{actual}}, y la configuración firmada dice {{expected}}.",
+                    },
+                    "report-template-missing": {
+                        lead: "Falta la plantilla del informe",
+                        text: "Falta la plantilla del informe — el informe {{report}} se genera con la plantilla «{{template}}», que no está en la configuración, así que su diseño no se puede firmar.",
+                    },
+                    "report-unreadable": {
+                        lead: "El informe no se puede firmar",
+                        text: "El informe no se puede firmar — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificado de aprobador revocado",
+                        text: "Certificado de aprobador revocado — el certificado de un aprobador ha sido revocado, así que la aprobación no cuenta.",
+                    },
+                    "revoked-signer": {
+                        lead: "Clave de firma revocada",
+                        text: "Clave de firma revocada — la clave que firmó este paquete ha sido revocada, y sus paquetes se rechazan.",
+                    },
+                    "rollback": {
+                        lead: "No es una revisión más reciente",
+                        text: "No es una revisión más reciente — la revisión {{revision}} no es más reciente que la revisión {{last}}, la última importada.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "Firmado en el futuro",
+                        text: "Firmado en el futuro — el paquete indica {{at}} como momento de la firma, y ahora es {{now}}.",
+                    },
+                    "signer-key-usage": {
+                        lead: "La clave de firma no puede firmar",
+                        text: "La clave de firma no puede firmar — el certificado de la clave que firmó este paquete no está hecho para firmar.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Muy pocas aprobaciones",
+                        text: "Muy pocas aprobaciones — {{count}} aprobaciones válidas de personas distintas, y se necesitan {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquete demasiado grande",
+                        text: "Paquete demasiado grande — descomprimido ocupa más de los {{limit}} bytes que puede ocupar un paquete: «{{file}}» en {{archive}} los sobrepasa.",
+                    },
+                    "too-many-members": {
+                        lead: "Demasiados archivos",
+                        text: "Demasiados archivos — {{archive}} contiene más archivos que los {{limit}} que puede contener un paquete.",
+                    },
+                    "unhashable-content": {
+                        lead: "No se puede calcular la huella",
+                        text: "No se puede calcular la huella — no se ha podido escribir el contenido de la configuración para calcular su huella: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Formato de manifiesto desconocido",
+                        text: "Formato de manifiesto desconocido — el manifiesto está en el formato «{{format}}», que esta versión no puede leer.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificados del firmante ilegibles",
+                        text: "Certificados del firmante ilegibles — no se ha podido leer la cadena de certificados del paquete: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifiesto ilegible",
+                        text: "Manifiesto ilegible — no se ha podido leer el manifiesto del paquete: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Lista de revocación ilegible",
+                        text: "Lista de revocación ilegible — no se ha podido leer una lista de revocación, así que no se puede aplicar: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificados de confianza ilegibles",
+                        text: "Certificados de confianza ilegibles — no se ha podido leer el ajuste {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Archivo comprimido ilegible",
+                        text: "Archivo comprimido ilegible — no se ha podido leer {{archive}} como zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquete sin firmar",
+                        text: "Paquete sin firmar — no tiene {{missing}}, y esta instalación solo importa paquetes firmados.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Aprobador no confiable",
+                        text: "Aprobador no confiable — el certificado de un aprobador no es de confianza: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Firmante no confiable",
+                        text: "Firmante no confiable — la clave que firmó este paquete no es una en la que confíe esta instalación: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "No se puede escribir el manifiesto",
+                        text: "No se puede escribir el manifiesto — no se ha podido escribir el manifiesto: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "Plan no válido",
@@ -716,6 +872,24 @@ const spanishTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan ilegible",
                         text: "Plan ilegible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurado dos veces",
+                        text: "Informe configurado dos veces — el informe {{report}} está configurado más de una vez para la misma elección.",
+                    },
+                    "no-copies": {
+                        lead: "Sin copias",
+                        text: "Sin copias — el informe {{report}} está configurado para no imprimir ninguna copia. Indique al menos una.",
+                    },
+                    "unknown-election": {
+                        lead: "Elección desconocida",
+                        text: "Elección desconocida — el informe {{report}} trata de la elección «{{election}}», que este plan no tiene.",
+                    },
+                    "unsupported-format": {
+                        lead: "Formato no disponible",
+                        text: "Formato no disponible — el informe {{report}} no se puede generar en {{format}}.",
                     },
                 },
                 schedule: {

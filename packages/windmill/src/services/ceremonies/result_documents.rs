@@ -19,8 +19,12 @@ use crate::{
         results_event::update_results_event_documents,
     },
     services::{
-        compress::create_archive_from_folder, documents::upload_and_return_document,
+        compress::create_archive_from_folder,
+        documents::{upload_and_return_document, upload_and_return_document_with_annotations},
         folders::copy_to_temp_dir,
+        reports::generation::{
+            folder_annotations, log_sealed_manifests, seal_tally_outputs, ReportRequester,
+        },
     },
 };
 use anyhow::{anyhow, Context, Result};
@@ -50,6 +54,7 @@ use velvet::pipes::generate_reports::{
     OUTPUT_ALL_AREAS_JSON, OUTPUT_HTML, OUTPUT_JSON, OUTPUT_PDF,
 };
 use velvet::pipes::pipe_inputs::{PREFIX_ALL_AREAS, PREFIX_CONTEST, PREFIX_ELECTION};
+use velvet::pipes::report_manifest::read_folder_manifest;
 
 use crate::domain::tally_ceremony::{EXECUTER_USERNAME_ANNOTATION, EXECUTER_USER_ID_ANNOTATION};
 use crate::postgres::tally_session::get_tally_session_by_id;
@@ -168,6 +173,9 @@ async fn process_and_upload_document(
     election_event_id: &str,
 ) -> Result<Option<String>> {
     if let Some(mut path) = path_option {
+        // A file stored as the tally wrote it says which hash manifest
+        // lists it: a PDF rendered from it later is stamped with the same.
+        let written = path.clone();
         // Encrypt the file if necessary before uploading
         if let Some(report_type) = report_type {
             path = encrypt_directory_contents_sql(
@@ -184,8 +192,13 @@ async fn process_and_upload_document(
         }
 
         let file_size = get_file_size(&path)?;
+        let annotations = if path == written {
+            folder_annotations(Path::new(&written))?
+        } else {
+            Default::default()
+        };
 
-        let document = upload_and_return_document(
+        let document = upload_and_return_document_with_annotations(
             hasura_transaction,
             &path,
             file_size,
@@ -195,6 +208,7 @@ async fn process_and_upload_document(
             output_type,
             None,
             false,
+            &annotations,
         )
         .await?;
 
@@ -274,11 +288,22 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let tar_gz_path_clone = tar_gz_path.clone();
             let original_handle = tokio::task::spawn_blocking(move || {
                 let path = Path::new(&tar_gz_path_clone);
-                create_archive_from_folder(&path, false)
+                // The hash manifests list what is archived: a report held
+                // for its signatures is not.
+                let sealed = seal_tally_outputs(path)?;
+                create_archive_from_folder(&path, false).map(|archive| (archive, sealed))
             });
 
             // Await the result
-            let original_result = original_handle.await??;
+            let (original_result, sealed) = original_handle.await??;
+            log_sealed_manifests(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &sealed,
+                &ReportRequester::default(),
+            )
+            .await?;
 
             let (_original_tarfile_temp_path, original_tarfile_path, original_tarfile_size) =
                 original_result;
@@ -348,11 +373,22 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                     Ok::<_, anyhow::Error>(())
                 })?;
 
-                create_archive_from_folder(&temp_dir_path, false)
+                // The renamed folders and the encrypted files are another
+                // delivery, with hash manifests of its own.
+                let sealed = seal_tally_outputs(&temp_dir_path)?;
+                create_archive_from_folder(&temp_dir_path, false).map(|archive| (archive, sealed))
             });
 
             // Await the result
-            let result = handle.await??;
+            let (result, sealed) = handle.await??;
+            log_sealed_manifests(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                &sealed,
+                &ReportRequester::default(),
+            )
+            .await?;
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
@@ -975,6 +1011,8 @@ pub async fn hold_tally_reports(
         for (area_id, target_folder) in targets {
             let html = target_folder.join(OUTPUT_HTML);
             let outcome = async {
+                let configuration =
+                    read_folder_manifest(&target_folder).map_err(|error| anyhow!("{error}"))?;
                 let rendering = fs::read_to_string(&html).with_context(|| {
                     format!("The held report {} has no rendering", html.display())
                 })?;
@@ -993,6 +1031,7 @@ pub async fn hold_tally_reports(
                         file_name: OUTPUT_PDF,
                         pdf: &pdf,
                         requester,
+                        configuration: configuration.as_ref(),
                     },
                 )
                 .await
