@@ -4,21 +4,19 @@
 
 //! The `authorized-election-ids` voter attribute restricts a voter to some of
 //! the election event's elections. The Keycloak token mapper looks each value
-//! up among the elections' external IDs, taking an election's ID when it has
-//! none, and then among their IDs.
+//! up among the elections' external IDs, and then among their IDs.
 
 use crate::services::election::ElectionHead;
 use sequent_core::services::keycloak::MULTIVALUE_USER_ATTRIBUTE_SEPARATOR;
 use std::collections::HashMap;
 use std::fmt;
 
-/// What the token mapper first looks `election` up by.
-fn token_key(election: &ElectionHead) -> &str {
+/// The external ID the token mapper looks `election` up by, if it has one.
+fn external_id(election: &ElectionHead) -> Option<&str> {
     election
         .external_id
         .as_deref()
         .filter(|external_id| !external_id.is_empty())
-        .unwrap_or(&election.id)
 }
 
 /// Whether `value` reads back unchanged from a voters CSV cell, whose values
@@ -64,10 +62,12 @@ impl AuthorizedElectionIds {
     pub fn new(elections: &[ElectionHead]) -> Self {
         let mut elections_named: HashMap<String, Vec<String>> = HashMap::new();
         for election in elections {
-            elections_named
-                .entry(token_key(election).to_string())
-                .or_default()
-                .push(election.id.clone());
+            if let Some(external_id) = external_id(election) {
+                elections_named
+                    .entry(external_id.to_string())
+                    .or_default()
+                    .push(election.id.clone());
+            }
         }
         // After the external IDs, which take precedence over an equal ID.
         for election in elections {
@@ -133,15 +133,17 @@ impl AuthorizedElectionIds {
     /// The values the token mapper resolves to `election`, or may when
     /// elections share an external ID.
     fn census_values(&self, election: &ElectionHead) -> Vec<String> {
-        let key = token_key(election);
-        let id_names_it = self
-            .elections_named
-            .get(&election.id)
-            .is_some_and(|ids| ids.contains(&election.id));
-        let mut values = vec![key.to_string()];
-        if key != election.id && id_names_it {
-            values.push(election.id.clone());
-        }
+        let mut values: Vec<String> = external_id(election)
+            .into_iter()
+            .chain([election.id.as_str()])
+            .filter(|value| {
+                self.elections_named
+                    .get(*value)
+                    .is_some_and(|ids| ids.contains(&election.id))
+            })
+            .map(str::to_string)
+            .collect();
+        values.dedup();
         values
     }
 }
@@ -254,6 +256,20 @@ mod tests {
         assert_eq!(elections.resolve("GIAMBI30-3-31"), Ok("GIAMBI30-3-31"));
     }
 
+    /// As in the token mapper, no value is left to name the other election.
+    #[test]
+    fn an_external_id_equal_to_the_id_of_an_election_without_one_names_its_own_election() {
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some(ELECTION_B)),
+            election(ELECTION_B, None),
+        ]);
+
+        assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_B));
+        assert_eq!(elections.resolve(ELECTION_A), Ok(ELECTION_B));
+        assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
+        assert_eq!(elections.stored_value(ELECTION_B), None);
+    }
+
     #[test]
     fn ids_replaced_by_an_event_import_resolve_to_the_imported_elections() {
         let exported_a = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a";
@@ -313,6 +329,22 @@ mod tests {
             vec![ELECTION_B.to_string(), ELECTION_A.to_string()]
         );
         assert_eq!(census[ELECTION_B], vec!["GIAMBI30-3-31".to_string()]);
+    }
+
+    /// No value restricts a voter to the other election, so its census matches
+    /// only unrestricted voters.
+    #[test]
+    fn the_census_of_an_election_no_value_names_matches_none() {
+        let census = census_values_by_election(&[
+            election(ELECTION_A, Some(ELECTION_B)),
+            election(ELECTION_B, None),
+        ]);
+
+        assert_eq!(
+            census[ELECTION_A],
+            vec![ELECTION_B.to_string(), ELECTION_A.to_string()]
+        );
+        assert!(census[ELECTION_B].is_empty());
     }
 
     /// The token mapper resolves a shared external ID to one of them, so both
