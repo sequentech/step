@@ -394,8 +394,8 @@ const galegoTranslation: TranslationType = {
         },
         errors: {
             page: {
-                oopsWithStatus: "¡Vaia! {{status}}",
-                oopsWithoutStatus: "Oops! Erro inesperado",
+                oopsWithStatus: "Vaia! {{status}}",
+                oopsWithoutStatus: "Vaia! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 invalidLoginHintParametersTitle: "Ligazón de votación non válida",
                 invalidLoginHintParametersMessage:
