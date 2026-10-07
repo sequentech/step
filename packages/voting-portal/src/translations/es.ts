@@ -399,6 +399,8 @@ const spanishTranslation: TranslationType = {
                 instructions:
                     "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
+            votingClosedAt: "La votación se cerró el {{close}} ({{localClose}}).",
+            votingClosedOn: "La votación se cerró el {{close}}.",
         },
         errors: {
             encoding: {

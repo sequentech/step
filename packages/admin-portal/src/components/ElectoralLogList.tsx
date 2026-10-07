@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useEffect, useState} from "react"
+import React, {ReactElement, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -9,105 +9,76 @@ import {
     FunctionField,
     NumberField,
     useRecordContext,
-    useNotify,
-    useListController,
     TextInput,
-    DateInput,
-    DateField,
-    DateTimeInput,
+    useInput,
 } from "react-admin"
+import {LogRangeDateTimeInput} from "./logs/LogRangeDateTimeInput"
 import {ListActions} from "@/components/ListActions"
 import {useTranslation} from "react-i18next"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
-import {Dialog} from "@sequentech/ui-essentials"
-import {FormStyles} from "./styles/FormStyles"
-import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
-import {useMutation} from "@apollo/client"
-import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "./ResetFilters"
-import {MenuItem, Menu} from "@mui/material"
-import {useWidgetStore} from "@/providers/WidgetsContextProvider"
-import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
 import {ThreeStateDatagridHeader} from "./ThreeStateDatagridHeader"
-
-enum ExportFormat {
-    CSV = "CSV",
-
-    // turns out that the pdf is zipped
-    PDF = "PDF",
-}
+import {useZonedFormat, type IZonedFormat} from "@/hooks/useZonedFormat"
+import {
+    ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
+    ELECTORAL_LOG_ZONE_FILTER,
+} from "@/queries/ListElectoralLog"
+import {logMessage} from "./logs/logMessage"
+import {LogTime} from "./logs/LogTime"
+import {StatementExplanation} from "./logs/StatementExplanation"
+import {ExportLogsDialog} from "./logs/ExportLogsDialog"
+import {useLogRowZone, useLogZones, type ILogZones} from "./logs/useLogZones"
+import {TimeZonePicker} from "./timezones/TimeZonePicker"
 
 const OMIT_FIELDS = ["user_id"]
 
-interface ExportWrapperProps {
-    electionEventId: string
-    openExport: boolean
-    setOpenExport: (val: boolean) => void
-    exportFormat: string
-}
-const ExportDialog: React.FC<ExportWrapperProps> = ({
-    electionEventId,
-    openExport,
-    setOpenExport,
-    exportFormat,
-}) => {
-    const {t} = useTranslation()
-    const [exportElectionEventActivityLogs] = useMutation(EXPORT_ELECTION_EVENT_LOGS, {
-        context: {
-            headers: {
-                "x-hasura-role": IPermissions.LOGS_EXPORT,
-            },
-        },
-    })
-    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
-    const download = async () => {
-        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT, true)
-        try {
-            const {data: exportElectionEventData, errors} = await exportElectionEventActivityLogs({
-                variables: {
-                    electionEventId,
-                    format: exportFormat,
-                },
-            })
-            if (errors) {
-                updateWidgetFail(currWidget.identifier)
-                return
-            }
-            const task_id = exportElectionEventData?.export_election_event_logs?.task_execution.id
-            setWidgetTaskId(currWidget.identifier, task_id)
-        } catch (error) {
-            updateWidgetFail(currWidget.identifier)
-        }
-    }
-    const confirmExportAction = () => {
-        setOpenExport(false)
-        download()
-    }
-
+/** The shared range zone stays a react-admin filter, with the primary after reset. */
+const LogTimeZoneFilter: React.FC<{
+    source: string
+    label: string
+    zones: string[]
+    primary: string
+    alwaysOn?: boolean
+}> = ({source, label, zones, primary}) => {
+    const {field} = useInput<string | null>({source})
     return (
-        <Dialog
-            variant="info"
-            open={openExport}
-            ok={String(t("common.label.export"))}
-            cancel={String(t("common.label.cancel"))}
-            title={String(
-                t("common.label.exportFormat", {
-                    item: t("logsScreen.title"),
-                    format: exportFormat,
-                })
-            )}
-            handleClose={(result: boolean) => {
-                if (result) {
-                    confirmExportAction()
-                } else {
-                    setOpenExport(false)
-                }
+        <TimeZonePicker
+            label={label}
+            size="small"
+            sx={{
+                width: {xs: "calc(100vw - 32px)", sm: 280},
+                maxWidth: "100%",
+                minWidth: {xs: 0, sm: 260},
+                flexShrink: 0,
             }}
-        >
-            <span>{t("logsScreen.exportdialog.description")}</span>
-        </Dialog>
+            value={field.value || primary}
+            zones={zones}
+            primary={primary}
+            onChange={(zone) => field.onChange(zone)}
+        />
+    )
+}
+
+/** A row's Created or Statement Timestamp, in the row's log zone with my time below. */
+const LogRowTime: React.FC<{
+    source: "created" | "statement_timestamp"
+    zones: ILogZones
+    format: IZonedFormat
+}> = ({source, zones, format}) => {
+    const record = useRecordContext<{
+        created?: number
+        statement_timestamp?: number
+        message?: string
+    }>()
+    const zoneOf = useLogRowZone(zones)
+    return (
+        <LogTime
+            seconds={record?.[source]}
+            zone={zoneOf(logMessage(record)?.election_id)}
+            format={format}
+        />
     )
 }
 
@@ -135,42 +106,57 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
     const {t} = useTranslation()
+    const eventId = electionEventId || record?.id || undefined
 
     const {canExportLogs, showLogsColumns} = useLogsPermissions()
+    // In the event's Logs tab the record is the event; elsewhere, the screen's event.
+    const zones = useLogZones(record?.id && record.id === eventId ? record : eventId)
+    const format = useZonedFormat(zones.primary, {seconds: true})
 
     const getHeadField = (record: any, field: string) => {
-        const message = JSON.parse(record?.message)
-        if (
-            !message ||
-            !message.statement ||
-            !message.statement.head ||
-            !message.statement.head[field]
-        ) {
-            return <span>-</span>
-        }
-        return message.statement.head[field]
+        const value = (
+            logMessage(record)?.statement?.head as Record<string, unknown> | undefined
+        )?.[field]
+        return value ? String(value) : <span>-</span>
     }
 
-    const [openExport, setOpenExport] = React.useState(false)
-    const [exportFormat, setExportFormat] = React.useState(ExportFormat.CSV)
+    const [openExport, setOpenExport] = useState(false)
 
-    const handleExportWithOptions = (format: ExportFormat) => {
-        setExportFormat(format)
-        setOpenExport(true)
-        setAnchorEl(null)
-    }
-
+    // Without a chosen zone, the range is read in the primary (also after a filter reset).
     const filterObject: {[key: string]: any} = {
-        election_event_id: electionEventId || record?.id || undefined,
+        election_event_id: eventId,
+        [ELECTORAL_LOG_DEFAULT_ZONE_FILTER]: zones.primary,
     }
 
     if (filterToShow) {
         filterObject[filterToShow] = filterValue || undefined
     }
 
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-
+    // Range filters hold wall times in the chosen zone; the data provider
+    // turns them into instants.
     const filters: Array<ReactElement> = [
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
+            key="created_from"
+            source="created_from"
+            label={String(t("logsScreen.filter.createdFrom"))}
+            alwaysOn
+        />,
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
+            key="created_to"
+            source="created_to"
+            label={String(t("logsScreen.filter.createdTo"))}
+            alwaysOn
+        />,
+        <LogTimeZoneFilter
+            key={ELECTORAL_LOG_ZONE_FILTER}
+            source={ELECTORAL_LOG_ZONE_FILTER}
+            label={String(t("logsScreen.filter.timeZone"))}
+            zones={zones.choices}
+            primary={zones.primary}
+            alwaysOn
+        />,
         <TextInput
             key={"user_id"}
             source={"user_id"}
@@ -181,19 +167,17 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             source={"username"}
             label={String(t("logsScreen.column.username"))}
         />,
-        <DateTimeInput
-            key={"created"}
-            source={"created"}
-            label={String(t("logsScreen.column.created"))}
-            inputProps={{step: 1}}
-            parse={(value) => (value ? new Date(value).toISOString() : value)}
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
+            key="statement_timestamp_from"
+            source="statement_timestamp_from"
+            label={String(t("logsScreen.filter.statementTimestampFrom"))}
         />,
-        <DateTimeInput
-            key={"statement_timestamp"}
-            source={"statement_timestamp"}
-            label={String(t("logsScreen.column.statement_timestamp"))}
-            inputProps={{step: 1}}
-            parse={(value) => (value ? new Date(value).toISOString() : value)}
+        <LogRangeDateTimeInput
+            defaultZone={zones.primary}
+            key="statement_timestamp_to"
+            source="statement_timestamp_to"
+            label={String(t("logsScreen.filter.statementTimestampTo"))}
         />,
         <TextInput
             key={"statement_kind"}
@@ -211,7 +195,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         <ListActions
                             withColumns={showLogsColumns}
                             withImport={false}
-                            openExportMenu={(e) => setAnchorEl(e.currentTarget)}
+                            doExport={() => setOpenExport(true)}
                             withExport={canExportLogs}
                             withFilter={true}
                         />
@@ -237,7 +221,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         source="user_id"
                         label={String(t("logsScreen.column.user_id"))}
                         render={(record: any) => {
-                            const userId = JSON.parse(record.message).user_id
+                            const userId = logMessage(record)?.user_id
                             return (
                                 <span style={{display: "block", textAlign: "center"}}>
                                     {!userId || userId === "null" ? <span>-</span> : userId}
@@ -249,7 +233,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         source="username"
                         label={String(t("logsScreen.column.username"))}
                         render={(record: any) => {
-                            const username = JSON.parse(record.message).username
+                            const username = logMessage(record)?.username
                             return (
                                 <span style={{display: "block", textAlign: "center"}}>
                                     {!username || username === "null" ? <span>-</span> : username}
@@ -260,14 +244,18 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <FunctionField
                         source="created"
                         label={String(t("logsScreen.column.created"))}
-                        render={(record: any) => new Date(record.created * 1000).toLocaleString()}
+                        render={() => <LogRowTime source="created" zones={zones} format={format} />}
                     />
                     <FunctionField
                         source="statement_timestamp"
                         label={String(t("logsScreen.column.statement_timestamp"))}
-                        render={(record: any) =>
-                            new Date(record.statement_timestamp * 1000).toLocaleString()
-                        }
+                        render={() => (
+                            <LogRowTime
+                                source="statement_timestamp"
+                                zones={zones}
+                                format={format}
+                            />
+                        )}
                     />
                     <TextField
                         source="statement_kind"
@@ -287,49 +275,30 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                         source="description"
                         label={String(t("logsScreen.column.description"))}
                         render={(record: any) => (
-                            <MessageField
-                                content={getHeadField(record, "description")}
-                                initialLength={50}
-                            />
+                            <>
+                                <MessageField
+                                    content={
+                                        logMessage(record)?.statement?.head?.description || "-"
+                                    }
+                                    initialLength={50}
+                                />
+                                <StatementExplanation
+                                    kind={record.statement_kind}
+                                    message={logMessage(record)}
+                                />
+                            </>
                         )}
                     />
                     <MessageField source="message" />
                 </DatagridConfigurable>
             </List>
-            <ExportDialog
-                electionEventId={electionEventId || record?.id || ""}
-                openExport={openExport}
-                setOpenExport={setOpenExport}
-                exportFormat={exportFormat}
+            <ExportLogsDialog
+                electionEventId={eventId ?? ""}
+                open={openExport}
+                onClose={() => setOpenExport(false)}
+                zones={zones.choices}
+                byElection={zones.byElection}
             />
-            <Menu
-                id="menu-export-logs"
-                anchorEl={anchorEl}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "right",
-                }}
-                keepMounted
-                transformOrigin={{
-                    vertical: "top",
-                    horizontal: "right",
-                }}
-                open={Boolean(anchorEl)}
-                onClose={() => setAnchorEl(null)}
-            >
-                <MenuItem
-                    className="menu-export-csv"
-                    onClick={() => handleExportWithOptions(ExportFormat.CSV)}
-                >
-                    <span className="help-menu-item-CSV">{t(`logsScreen.actions.csv`)}</span>
-                </MenuItem>
-                <MenuItem
-                    className="menu-export-pdf"
-                    onClick={() => handleExportWithOptions(ExportFormat.PDF)}
-                >
-                    <span className="help-menu-item-PDF">{t(`logsScreen.actions.pdf`)}</span>
-                </MenuItem>
-            </Menu>
         </>
     )
 }

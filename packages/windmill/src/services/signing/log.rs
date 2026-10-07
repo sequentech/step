@@ -104,13 +104,24 @@ pub struct LogStep {
 /// so that a step staged without it still queues in commit order.
 #[instrument(skip(hasura_transaction, step), fields(kind = %step.kind), err)]
 pub async fn stage(hasura_transaction: &Transaction<'_>, step: &LogStep) -> Result<Uuid> {
+    stage_step(hasura_transaction, step, Uuid::new_v4()).await
+}
+
+/// [`stage`] under a step id the caller chooses: a step with a key of its
+/// own (an initialization's row id) is staged once, since a step id can't
+/// be queued twice.
+#[instrument(skip(hasura_transaction, step), fields(kind = %step.kind), err)]
+pub async fn stage_step(
+    hasura_transaction: &Transaction<'_>,
+    step: &LogStep,
+    step_id: Uuid,
+) -> Result<Uuid> {
     lock_signing_event(
         hasura_transaction,
         step.scope.tenant_id,
         step.scope.election_event_id,
     )
     .await?;
-    let step_id = Uuid::new_v4();
     // One time for both entries of the step.
     let occurred_at: DateTime<Utc> = hasura_transaction
         .query_one("SELECT clock_timestamp()", &[])

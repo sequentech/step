@@ -9,7 +9,6 @@ import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
 import {Button, styled, Typography} from "@mui/material"
 import React, {ReactElement, useContext, useEffect, useMemo, useRef, useState} from "react"
-import moment from "moment-timezone"
 import {
     DatagridConfigurable,
     FunctionField,
@@ -35,7 +34,8 @@ import {
 } from "@/gql/graphql"
 import CreateEvent, {EventProcessors} from "./CreateScheduledEvent"
 import {Dialog} from "@sequentech/ui-essentials"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import AddIcon from "@mui/icons-material/Add"
+import UploadIcon from "@mui/icons-material/Upload"
 import {IPermissions} from "@/types/keycloak"
 import {useMutation} from "@apollo/client"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
@@ -43,7 +43,33 @@ import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useScheduledEventPermissions} from "../ElectionEvent/useScheduledEventPermissions"
+import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
+import {useQuery} from "@apollo/client"
+import {Chip, Stack} from "@mui/material"
+import {ZonedDateTime, hasOffset} from "@/components/timezones/ZonedDateTime"
+import {useTimeZoneContext} from "@/components/timezones/useTimeZoneContext"
+import {
+    EXPORT_SCHEDULE,
+    GET_LIFECYCLE_SNAPSHOTS,
+    GET_SCHEDULED_OUTCOMES,
+    type ExportScheduleData,
+    type GetLifecycleSnapshotsData,
+    type GetScheduledOutcomesData,
+} from "@/queries/Lifecycle"
+import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {isVotingTransition} from "./CreateScheduledEvent"
+import {
+    ScheduleBanners,
+    outcomeFilterIds,
+    outcomesByRow,
+    outcomesForElection,
+    type EOutcomeFilter,
+} from "./ScheduleBanners"
+import {RowOutcome} from "./RowOutcome"
+import {WARNING_TEXT} from "@/components/timezones/ScheduledOutcome"
+import {ImportScheduleDrawer} from "./ImportScheduleDrawer"
+import {unpublishedEventIds} from "./unpublishedChanges"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -161,11 +187,92 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         return electionsList
     }, [elections, eventScreeElectionId])
 
+    const electionIdOf = (scheduledEvent: Sequent_Backend_Scheduled_Event): string | null =>
+        (scheduledEvent?.event_payload as IManageElectionDatePayload | undefined)?.election_id ??
+        null
+
+    // Event-wide rows have no election: they read "All elections".
     const getElectionName = (scheduledEvent: Sequent_Backend_Scheduled_Event): string => {
-        let electionId = (scheduledEvent?.event_payload as IManageElectionDatePayload | undefined)
-            ?.election_id
+        const electionId = electionIdOf(scheduledEvent)
+        if (!electionId) return t("lifecycle.schedule.allElections")
         const foundElection = elections?.find((item) => electionId === item.id)
         return (foundElection && aliasRenderer(foundElection)) || "-"
+    }
+
+    const zones = useTimeZoneContext(electionEventId)
+    // The entered wall time and zone remain in cron_config for editing; the
+    // list displays that same instant in its Post's zone (or the event primary).
+    const zoneOfRow = (scheduledEvent: Sequent_Backend_Scheduled_Event) =>
+        zones.zoneOf(electionIdOf(scheduledEvent))
+
+    // What each future opening and closing will do (design §5c), and the published configuration.
+    const {data: outcomesData, error: outcomesError} = useQuery<GetScheduledOutcomesData>(
+        GET_SCHEDULED_OUTCOMES,
+        {
+            context: {headers: {"x-hasura-role": IPermissions.ELECTION_EVENT_READ}},
+            variables: {electionEventId},
+            skip: !electionEventId,
+            pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
+        }
+    )
+    const outcomes = useMemo(
+        () => outcomesByRow(outcomesData?.get_scheduled_outcomes?.outcomes ?? []),
+        [outcomesData]
+    )
+    // Filtered to one election, the banners count only that election's transitions.
+    const shownOutcomes = useMemo(
+        () => outcomesForElection(outcomes, eventScreeElectionId),
+        [outcomes, eventScreeElectionId]
+    )
+    const {data: snapshotData} = useQuery<GetLifecycleSnapshotsData>(GET_LIFECYCLE_SNAPSHOTS, {
+        variables: {electionEventId},
+        skip: !electionEventId,
+    })
+    const publications = useMemo(
+        () => snapshotData?.get_lifecycle_snapshots?.snapshots ?? [],
+        [snapshotData]
+    )
+    // Every active row of the event, for the banners' totals.
+    const {data: allScheduledEvents} = useGetList<Sequent_Backend_Scheduled_Event>(
+        "sequent_backend_scheduled_event",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                archived_at: {format: "hasura-raw-query", value: {_is_null: true}},
+            },
+        },
+        {enabled: !!electionEventId, refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS}
+    )
+    const unpublished = useMemo(
+        () =>
+            unpublishedEventIds(
+                allScheduledEvents ?? [],
+                publications,
+                (elections ?? []).map(({id}) => String(id))
+            ),
+        [allScheduledEvents, publications, elections]
+    )
+    const [outcomeFilter, setOutcomeFilter] = useState<EOutcomeFilter | null>(null)
+    const filteredIds = outcomeFilter ? outcomeFilterIds(shownOutcomes, outcomeFilter) : null
+    const [openImport, setOpenImport] = useState(false)
+    const [exportDocumentId, setExportDocumentId] = useState<string | null>(null)
+    const [exportSchedule, {loading: exporting}] = useMutation<ExportScheduleData>(
+        EXPORT_SCHEDULE,
+        {context: {headers: {"x-hasura-role": IPermissions.SCHEDULED_EVENT_WRITE}}}
+    )
+    const doExport = async () => {
+        try {
+            const {data} = await exportSchedule({variables: {electionEventId}})
+            const documentId = data?.export_schedule?.document_id
+            if (!documentId) throw new Error("No document")
+            setExportDocumentId(documentId)
+        } catch (error) {
+            notify(getGraphQLActionErrorReason(error) ?? t("lifecycle.schedule.exportError"), {
+                type: "error",
+            })
+        }
     }
 
     const OMIT_FIELDS: Array<string> = ["id"]
@@ -239,24 +346,38 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
         setOpenCreateEvent(!openCreateEvent)
     }
 
-    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-
     const Empty = () => (
         <ResourceListStyles.EmptyBox>
             <Typography variant="h4" paragraph>
                 {t(`eventsScreen.empty.header`)}
             </Typography>
-            {canCreateScheduledEvent ? (
+            {canCreateScheduledEvent || canWriteScheduledEvent ? (
                 <>
                     <Typography variant="body1" paragraph>
                         {t(`eventsScreen.empty.body`)}
                     </Typography>
-                    <ResourceListStyles.EmptyButtonList className="voter-add-button">
-                        <Button onClick={() => setOpenCreateEvent(true)}>
-                            <ResourceListStyles.CreateIcon icon={faPlus as any} />
-                            {t(`eventsScreen.empty.button`)}
-                        </Button>
-                    </ResourceListStyles.EmptyButtonList>
+                    <Stack
+                        direction="row"
+                        sx={{gap: 1, flexWrap: "wrap", justifyContent: "center"}}
+                    >
+                        {canCreateScheduledEvent ? (
+                            <Button
+                                startIcon={<AddIcon />}
+                                onClick={() => setOpenCreateEvent(true)}
+                            >
+                                {t(`eventsScreen.empty.button`)}
+                            </Button>
+                        ) : null}
+                        {canWriteScheduledEvent ? (
+                            <Button
+                                variant="secondary"
+                                startIcon={<UploadIcon />}
+                                onClick={() => setOpenImport(true)}
+                            >
+                                {t("common.label.import")}
+                            </Button>
+                        ) : null}
+                    </Stack>
                 </>
             ) : null}
         </ResourceListStyles.EmptyBox>
@@ -294,6 +415,33 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 title={String(t("eventsScreen.title"))}
                 subtitle="eventsScreen.subtitle"
             />
+            <ScheduleBanners
+                electionEventId={electionEventId}
+                outcomes={shownOutcomes}
+                retainedCloses={(
+                    outcomesData?.get_scheduled_outcomes?.retained_closes ?? []
+                ).filter(
+                    (close) => !eventScreeElectionId || close.election_id === eventScreeElectionId
+                )}
+                retainedUnavailable={!!outcomesError}
+                electionNameOf={(electionId) => {
+                    const election = elections?.find((item) => item.id === electionId)
+                    return election ? aliasRenderer(election) : t("eventsScreen.fields.electionId")
+                }}
+                filter={outcomeFilter}
+                onFilter={setOutcomeFilter}
+                unpublishedCount={unpublished.size}
+                published={publications.length > 0}
+                offsetless={
+                    (allScheduledEvents ?? []).filter((event) => {
+                        const date = (event.cron_config as ICronConfig | undefined)?.scheduled_date
+                        return !event.stopped_at && !!date && !hasOffset(date)
+                    }).length
+                }
+                canApply={canWriteScheduledEvent}
+                zoneOf={zones.zoneOf}
+                scheduledEvents={allScheduledEvents ?? []}
+            />
             <List
                 resource="sequent_backend_scheduled_event"
                 filter={{
@@ -309,6 +457,9 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                             _contains: {election_id: electionIds},
                         },
                     },
+                    ...(filteredIds
+                        ? {id: {format: "hasura-raw-query", value: {_in: filteredIds}}}
+                        : {}),
                 }}
                 filters={Filters}
                 queryOptions={{
@@ -318,8 +469,11 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 actions={
                     <ListActions
                         withColumns={showScheduledEventColumns}
-                        withImport={false}
-                        withExport={false}
+                        withImport={canWriteScheduledEvent}
+                        doImport={() => setOpenImport(true)}
+                        withExport={canWriteScheduledEvent}
+                        doExport={doExport}
+                        isExportDisabled={exporting}
                         open={openCreateEvent}
                         setOpen={onOpenDrawer}
                         withAction={canCreateScheduledEvent}
@@ -353,34 +507,71 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         }
                     />
                     <FunctionField
-                        label={String(t("eventsScreen.fields.stoppedAt"))}
-                        source="stopped_at"
-                        render={(record: Sequent_Backend_Scheduled_Event) =>
-                            (record.stopped_at &&
-                                moment
-                                    .tz(new Date(record.stopped_at), userTimeZone)
-                                    .toLocaleString()) ||
-                            "-"
-                        }
-                    />
-                    <FunctionField
                         label={String(t("eventsScreen.fields.scheduledDate"))}
                         source="cron_config.scheduled_date"
                         sortable={false}
-                        render={(record: Sequent_Backend_Scheduled_Event) =>
-                            ((record.cron_config as ICronConfig | undefined)?.scheduled_date &&
-                                moment
-                                    .tz(new Date(record.cron_config.scheduled_date), userTimeZone)
-                                    .toLocaleString()) ||
-                            "-"
-                        }
+                        render={(record: Sequent_Backend_Scheduled_Event) => {
+                            const date = (record.cron_config as ICronConfig | undefined)
+                                ?.scheduled_date
+                            if (!date) return "-"
+                            return (
+                                <Stack spacing={0.5} sx={{alignItems: "flex-start"}}>
+                                    {hasOffset(date) ? (
+                                        <ZonedDateTime instant={date} zone={zoneOfRow(record)} />
+                                    ) : (
+                                        <>
+                                            <span>{date}</span>
+                                            <Chip
+                                                size="small"
+                                                color="warning"
+                                                sx={WARNING_TEXT.warning}
+                                                label={t("lifecycle.schedule.noOffset")}
+                                            />
+                                        </>
+                                    )}
+                                    {unpublished.has(String(record.id)) ? (
+                                        <Chip
+                                            size="small"
+                                            variant="outlined"
+                                            label={t("lifecycle.schedule.unpublished")}
+                                        />
+                                    ) : null}
+                                </Stack>
+                            )
+                        }}
+                    />
+                    <FunctionField
+                        label={String(t("eventsScreen.fields.stoppedAt"))}
+                        source="stopped_at"
+                        render={(record: Sequent_Backend_Scheduled_Event) => (
+                            <ZonedDateTime instant={record.stopped_at} zone={zoneOfRow(record)} />
+                        )}
+                    />
+                    <FunctionField
+                        label={String(t("lifecycle.schedule.outcome"))}
+                        sortable={false}
+                        render={(record: Sequent_Backend_Scheduled_Event) => {
+                            const rowOutcomes = outcomes.get(String(record.id))
+                            return isVotingTransition(record.event_processor) &&
+                                !record.stopped_at &&
+                                rowOutcomes?.length ? (
+                                <RowOutcome outcomes={rowOutcomes} zone={zoneOfRow(record)} />
+                            ) : (
+                                "-"
+                            )
+                        }}
                     />
                     <WrapperField label={String(t("common.label.actions"))}>
                         <ActionsColumn actions={actions} />
                     </WrapperField>
                 </DatagridConfigurable>
             </List>
-            <ResourceListStyles.Drawer anchor="right" open={openCreateEvent} onClose={handleClose}>
+            <ResourceListStyles.Drawer
+                anchor="right"
+                open={openCreateEvent}
+                onClose={handleClose}
+                sx={{"& .MuiDrawer-paper": {width: {xs: "100%", md: "50%"}}}}
+            >
                 <CreateEvent
                     electionEventId={electionEventId}
                     setIsOpenDrawer={setOpenCreateEvent}
@@ -389,6 +580,25 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     getElectionName={getElectionName}
                 />
             </ResourceListStyles.Drawer>
+            {openImport ? (
+                <ImportScheduleDrawer
+                    electionEventId={electionEventId}
+                    primary={zones.primary}
+                    onClose={() => setOpenImport(false)}
+                    onImported={() => {
+                        setOpenImport(false)
+                        refresh()
+                    }}
+                />
+            ) : null}
+            {exportDocumentId ? (
+                <DownloadDocument
+                    documentId={exportDocumentId}
+                    electionEventId={electionEventId}
+                    fileName={t("lifecycle.schedule.exportFileName")}
+                    onDownload={() => setExportDocumentId(null)}
+                />
+            ) : null}
             <Dialog
                 variant="warning"
                 open={isDeleteModalOpen}

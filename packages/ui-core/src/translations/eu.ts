@@ -788,6 +788,25 @@ const basqueTranslation: TranslationType = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · nagusia",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · nire ordua",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "Gailu honetan: {{dateTime}}",
+            gap: "{{dateTime}} ez da existitzen {{city}} hirian, erlojuak aurreratzen direlako. Erakutsitako orduan exekutatuko da.",
+            overlap:
+                "{{dateTime}} bi aldiz gertatzen da {{city}} hirian. Lehenengoa erabiltzen da.",
+        },
     },
 }
 

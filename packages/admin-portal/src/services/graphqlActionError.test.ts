@@ -6,6 +6,7 @@ import {
     getGraphQLActionErrorMessage,
     getGraphQLActionErrorReason,
     hasGraphQLActionErrorCode,
+    getTimeZoneValidationMessage,
 } from "./graphqlActionError"
 
 describe("hasGraphQLActionErrorCode", () => {
@@ -210,5 +211,41 @@ describe("getGraphQLActionErrorMessage", () => {
 
         expect(message).toHaveLength(4003)
         expect(message?.endsWith("...")).toBe(true)
+    })
+})
+
+describe("getTimeZoneValidationMessage", () => {
+    const postgresError = (status_code: string, message: string) => ({
+        message: "database query error",
+        extensions: {internal: {error: {status_code, message}}},
+    })
+
+    it("shows timezone validation and concurrent-save retry reasons", () => {
+        expect(
+            getTimeZoneValidationMessage(
+                postgresError(
+                    "23514",
+                    "Post timezone Asia/Manila is not configured on its election event"
+                )
+            )
+        ).toBe("Post timezone Asia/Manila is not configured on its election event")
+        expect(
+            getTimeZoneValidationMessage(
+                postgresError("55P03", "Election event settings are busy; retry the timezone save")
+            )
+        ).toBe("Election event settings are busy; retry the timezone save")
+    })
+
+    it("keeps other database errors private and tolerates missing details", () => {
+        expect(
+            getTimeZoneValidationMessage(postgresError("23514", "private table details"))
+        ).toBeUndefined()
+        expect(
+            getTimeZoneValidationMessage(postgresError("55P03", "private lock details"))
+        ).toBeUndefined()
+        expect(
+            getTimeZoneValidationMessage(postgresError("XX000", "Invalid IANA timezone: UTC"))
+        ).toBeUndefined()
+        expect(getTimeZoneValidationMessage({extensions: {internal: null}})).toBeUndefined()
     })
 })

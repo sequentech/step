@@ -389,6 +389,8 @@ const englishTranslation = {
                 instructions:
                     "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
             },
+            votingClosedAt: "Voting closed on {{close}} ({{localClose}}).",
+            votingClosedOn: "Voting closed on {{close}}.",
         },
         errors: {
             encoding: {

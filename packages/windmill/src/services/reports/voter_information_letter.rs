@@ -5,18 +5,20 @@
 use super::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use super::template_time::{event_presentation, zone_or_utc};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::services::temp_path::PUBLIC_ASSETS_LOGO_IMG;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::{DateTime, Datelike, Local, TimeZone};
+use chrono::{DateTime, Datelike, TimeZone, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_attributes, KeycloakAdminClient,
 };
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
+use sequent_core::time_zones::primary_time_zone;
 use sequent_core::types::keycloak::{
     CredentialInputPolicy, REALM_ATTR_CREDENTIAL_INPUT_PATTERN, REALM_ATTR_CREDENTIAL_INPUT_POLICY,
 };
@@ -397,6 +399,10 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
         )
         .await?;
         let language = default_language_code(event.presentation.as_ref()).to_string();
+        // The letter is dated in the event's primary zone, never the server's.
+        let issue_zone = zone_or_utc(&primary_time_zone(Some(&event_presentation(
+            event.presentation.as_ref(),
+        ))));
         let realm = get_event_realm(&self.ids.tenant_id, &self.ids.election_event_id);
         let voter = KeycloakAdminClient::new()
             .await?
@@ -428,7 +434,7 @@ impl TemplateRenderer for VoterInformationLetterTemplate {
             election_event_name: translated_event_name(event.presentation.as_ref())
                 .or(event.description)
                 .unwrap_or_else(|| "Election".to_string()),
-            issue_date: localized_issue_date(Local::now(), &language),
+            issue_date: localized_issue_date(Utc::now().with_timezone(&issue_zone), &language),
             voter_full_name: format!("{} {}", first_name, last_name).trim().to_string(),
             voter_first_name: first_name,
             voter_last_name: last_name,

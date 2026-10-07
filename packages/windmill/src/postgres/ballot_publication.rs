@@ -120,6 +120,7 @@ pub async fn update_ballot_publication_status(
     is_generated: bool,
     published_at: Option<DateTime<Local>>,
 ) -> Result<Option<BallotPublication>> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     let query = hasura_transaction
         .prepare(
             r#"
@@ -173,6 +174,7 @@ pub async fn update_ballot_publication(
     is_generated: bool,
     published_at: Option<DateTime<Local>>,
 ) -> Result<Option<BallotPublication>> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     let query = hasura_transaction
         .prepare(
             r#"
@@ -498,6 +500,11 @@ pub async fn soft_delete_other_ballot_publications(
         Some(_) => "AND election_id = $4".to_string(),
         None => "".to_string(),
     };
+
+    // Retiring old generated styles changes protected publication topology.
+    // This server publication workflow owns the update; raw style tombstones
+    // remain subject to the publication material guard.
+    super::trusted_write::trusted_write(hasura_transaction).await?;
 
     // Publication update query
     let pub_query_str = format!(

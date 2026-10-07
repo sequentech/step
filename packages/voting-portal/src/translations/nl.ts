@@ -397,6 +397,8 @@ const dutchTranslation: TranslationType = {
                 instructions:
                     "U moet <MaterialsLink>{{materialsTitle}}</MaterialsLink> lezen voordat u kunt stemmen.",
             },
+            votingClosedAt: "De stemming is gesloten op {{close}} ({{localClose}}).",
+            votingClosedOn: "De stemming is gesloten op {{close}}.",
         },
         errors: {
             encoding: {

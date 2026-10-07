@@ -17,10 +17,10 @@ use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
-    draft_theme, draft_widget, draw_widget, election_region, hasura_client,
-    live_config, pinned_snapshot, request_body, revision_of, viewed_config,
-    viewer, Draft, DrawPlan, MonitoringBody, MonitoringError, MonitoringResult,
-    RenderResponse, SnapshotConfig, SnapshotView, Viewer,
+    draft_theme, draft_widget, draw_widget, election_region, event_zone,
+    hasura_client, live_config, pinned_snapshot, request_body, revision_of,
+    viewed_config, viewer, Draft, DrawPlan, MonitoringBody, MonitoringError,
+    MonitoringResult, RenderResponse, SnapshotConfig, SnapshotView, Viewer,
 };
 use indexmap::IndexMap;
 use rocket::http::Status;
@@ -227,7 +227,6 @@ pub struct DocumentRef {
 
 #[derive(Debug, Serialize)]
 pub struct SettingsView {
-    time_zone: String,
     unknown_label: String,
     selectors: IndexMap<ScopeSelector, SelectorWords>,
 }
@@ -278,12 +277,15 @@ pub struct GetDashboardOutput {
     theme: Option<DocumentRef>,
     settings: SettingsView,
     settings_revision: i32,
+    /// The event's primary timezone (`presentation.timezones`): buckets,
+    /// days and export ranges are in it.
+    time_zone: String,
     scope_options: ScopeOptions,
     restricted: bool,
     pinned_post: Option<String>,
     sources: IndexMap<DataSourceId, SourceView>,
     snapshot: Option<SnapshotView>,
-    /// The days with activity, `YYYY-MM-DD` in the settings' time zone,
+    /// The days with activity, `YYYY-MM-DD` in the event's primary zone,
     /// oldest first: the options of a widget's Day selector.
     event_days: Vec<String>,
     /// Seconds between two snapshot passes: how often the dashboard asks
@@ -391,9 +393,6 @@ pub async fn get_dashboard(
     });
     let settings = set.settings.as_ref();
     let settings_view = SettingsView {
-        time_zone: settings
-            .map(|settings| settings.time_zone.clone())
-            .unwrap_or_else(|| "UTC".to_string()),
         unknown_label: settings
             .map(|settings| settings.unknown_label().to_string())
             .unwrap_or_else(|| "Unknown".to_string()),
@@ -484,6 +483,7 @@ pub async fn get_dashboard(
         theme,
         settings: settings_view,
         settings_revision: revision(ConfigKind::Settings, SETTINGS_KEY),
+        time_zone: event_zone(services, viewer.event).await?,
         scope_options,
         restricted: viewer.restricted,
         pinned_post: viewer.pinned.map(|pinned| pinned.to_string()),

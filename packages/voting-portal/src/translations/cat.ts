@@ -400,6 +400,8 @@ const catalanTranslation: TranslationType = {
                 instructions:
                     "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
             },
+            votingClosedAt: "La votació es va tancar el {{close}} ({{localClose}}).",
+            votingClosedOn: "La votació es va tancar el {{close}}.",
         },
         errors: {
             encoding: {

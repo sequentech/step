@@ -791,6 +791,24 @@ const spanishTranslation: TranslationType = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · principal",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · mi hora",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "En este dispositivo: {{dateTime}}",
+            gap: "{{dateTime}} no existe en {{city}} porque los relojes se adelantan. Se ejecutará a la hora indicada.",
+            overlap: "{{dateTime}} ocurre dos veces en {{city}}. Se usa la primera.",
+        },
     },
 }
 

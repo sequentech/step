@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::add_ballot_image_time_variables;
 use crate::config::ballot_images_config::{PipeConfigBallotImages, DEFAULT_MCBALLOT_TITLE};
 use crate::pipes::decode_ballots::decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::error::{Error, Result};
@@ -327,6 +328,12 @@ impl MCBallotImages {
             "extra_data".to_string(),
             serde_json::to_value(&pipe_config.extra_data)?,
         );
+        // The event's zone and timezone texts for the date helpers.
+        add_ballot_image_time_variables(
+            &pipe_config.extra_data,
+            &election_input.id.to_string(),
+            &mut map,
+        );
 
         let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
             .map_err(|e| {
@@ -347,6 +354,12 @@ impl MCBallotImages {
                 system_map.insert(key.clone(), value.clone());
             }
         }
+
+        add_ballot_image_time_variables(
+            &pipe_config.extra_data,
+            &election_input.id.to_string(),
+            &mut system_map,
+        );
 
         let bytes_html = reports::render_template_text(&pipe_config.system_template, system_map)
             .map_err(|e| {

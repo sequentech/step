@@ -9,6 +9,7 @@ import RefreshIcon from "@mui/icons-material/Refresh"
 import {Button} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {type MonitoringDashboardSummary, type MonitoringSnapshot} from "./types"
+import {useTimeZoneService} from "@/components/timezones/timeZoneService"
 import {formatDateTime} from "./lib/format"
 import {MonitoringSwitcher} from "./MonitoringSwitcher"
 
@@ -50,6 +51,7 @@ export function MonitoringHeader({
     children,
 }: MonitoringHeaderProps) {
     const {t, i18n} = useTranslation()
+    const service = useTimeZoneService()
     const status = [
         snapshot
             ? t("monitoring.header.updated", {
@@ -57,7 +59,7 @@ export function MonitoringHeader({
                       timeStyle: "short",
                   }),
                   // The event's zone, which is not necessarily the viewer's.
-                  timeZone,
+                  timeZone: service.zoneLabel(timeZone, service.text, new Date(snapshot.as_of)),
               })
             : t("monitoring.header.notUpdated"),
         t("monitoring.header.refresh", {seconds: Math.round(refreshMs / 1000)}),

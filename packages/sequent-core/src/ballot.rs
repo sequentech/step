@@ -27,7 +27,10 @@ use serde::{Deserialize, Serialize};
 use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::ops::Deref;
-use std::{collections::HashMap, default::Default};
+use std::{
+    collections::{BTreeMap, HashMap},
+    default::Default,
+};
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
@@ -1195,6 +1198,150 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    /// The event's configured timezones and its primary one (VOTE-LIFECYCLE).
+    /// Display and configuration data only: skipped in Borsh so ballot-style
+    /// hashes (and the auditable ballots that carry them) don't change.
+    #[borsh(skip)]
+    pub timezones: Option<ElectionEventTimeZones>,
+    /// Lifecycle decisions that are part of the (signed) configuration. The
+    /// configuration approval signs them through the publication digest
+    /// (JSON), not through Borsh.
+    #[borsh(skip)]
+    pub lifecycle_policies: Option<LifecyclePolicies>,
+}
+
+/// Which timezone the Logs tab and log exports show.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LogTimeZonePolicy {
+    /// The event's primary timezone for every row.
+    #[strum(serialize = "primary")]
+    #[serde(rename = "primary")]
+    PRIMARY,
+    /// Each row's election timezone (the primary for event-wide rows).
+    #[default]
+    #[strum(serialize = "election")]
+    #[serde(rename = "election")]
+    ELECTION,
+}
+
+/// The timezones an election event works with. Zones are IANA names in
+/// their tzdata canonical form (`Asia/Kolkata`, not `Asia/Calcutta`).
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
+pub struct ElectionEventTimeZones {
+    /// At least one; elections choose theirs from this list.
+    pub configured: Vec<String>,
+    /// One of `configured`: event-wide schedules, reports and elections
+    /// without their own timezone use it.
+    pub primary: String,
+    #[serde(default)]
+    pub logs: LogTimeZonePolicy,
+}
+
+/// When voting can open with respect to initialization.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum InitializationScope {
+    /// A Post opens once it is initialized.
+    #[default]
+    #[strum(serialize = "post")]
+    #[serde(rename = "post")]
+    POST,
+    /// No Post opens until every Post is initialized.
+    #[strum(serialize = "event")]
+    #[serde(rename = "event")]
+    EVENT,
+    /// A Post opens once every country under it is initialized.
+    #[strum(serialize = "post-and-country")]
+    #[serde(rename = "post-and-country")]
+    POST_AND_COUNTRY,
+}
+
+/// What a scheduled close does when Close voting needs signatures and the
+/// close isn't covered by a signed configuration.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum UnsignedScheduledClosePolicy {
+    /// The close doesn't run; the election's signers close it with signatures.
+    #[default]
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
+    /// The close runs at its deadline, recorded as closed by the schedule
+    /// without signatures.
+    #[strum(serialize = "run-as-system")]
+    #[serde(rename = "run-as-system")]
+    RUN_AS_SYSTEM,
+}
+
+/// Lifecycle decisions kept in the event presentation, so the configuration
+/// approval signs them.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct LifecyclePolicies {
+    #[serde(default)]
+    pub initialization_scope: InitializationScope,
+    #[serde(default)]
+    pub unsigned_scheduled_close: UnsignedScheduledClosePolicy,
 }
 
 impl ElectionEvent {
@@ -1516,6 +1663,10 @@ pub struct ElectionPresentation {
     /// decline_to_vote_policy) to preserve the Borsh binary layout of
     /// already-serialized ElectionPresentation/BallotStyle payloads.
     pub blank_ballots_policy: Option<BlankBallotsPolicy>,
+    /// One of the event's configured timezones; `None` uses the primary.
+    /// Every area under the election uses it (VOTE-LIFECYCLE).
+    #[borsh(skip)]
+    pub timezone: Option<String>,
 }
 
 impl hasura_core::Election {
@@ -1558,6 +1709,7 @@ impl Default for ElectionPresentation {
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
             css: None,
             blank_ballots_policy: Some(BlankBallotsPolicy::default()),
+            timezone: None,
         }
     }
 }
@@ -2532,6 +2684,12 @@ pub struct ReportDates {
 pub struct ScheduledEventDates {
     pub scheduled_at: Option<String>,
     pub stopped_at: Option<String>,
+    /// The IANA zone the date was set in (`cron_config.timezone`), so
+    /// screens can show it in that zone (VOTE-LIFECYCLE). Display only:
+    /// skipped in Borsh so ballot-style hashes don't change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[borsh(skip)]
+    pub timezone: Option<String>,
 }
 
 impl PeriodDates {
@@ -2593,6 +2751,54 @@ pub struct ElectionStatus {
     pub early_voting_period_dates: PeriodDates,
     pub telephone_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
+    /// The scheduled lifecycle windows of the election (VOTE-LIFECYCLE).
+    /// What each window enables belongs to readiness and test voting.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lifecycle_windows:
+        Option<BTreeMap<LifecycleWindow, LifecycleWindowState>>,
+}
+
+/// A window the schedule opens and closes for an election.
+#[allow(non_camel_case_types)]
+#[derive(
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Display,
+    EnumString,
+)]
+pub enum LifecycleWindow {
+    /// Election Readiness Test.
+    READINESS_TEST,
+    /// Final Testing and Lockdown.
+    FINAL_TESTING,
+    TEST_VOTING,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Display,
+    EnumString,
+)]
+pub enum LifecycleWindowState {
+    OPEN,
+    CLOSED,
 }
 
 impl Default for ElectionStatus {
@@ -2609,6 +2815,7 @@ impl Default for ElectionStatus {
             early_voting_period_dates: Default::default(),
             telephone_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
+            lifecycle_windows: None,
         }
     }
 }

@@ -1343,22 +1343,6 @@ fn is_calendar_date(text: &str) -> bool {
     shaped && chrono::NaiveDate::parse_from_str(text, "%Y-%m-%d").is_ok()
 }
 
-/// `UTC`, or an IANA `Area/Location` name. Whether the zone exists is checked
-/// where a zone database is at hand; the browser build carries none.
-fn is_time_zone_name(text: &str) -> bool {
-    if text == "UTC" {
-        return true;
-    }
-    let parts: Vec<&str> = text.split('/').collect();
-    parts.len() >= 2
-        && parts.iter().all(|part| {
-            !part.is_empty()
-                && part.chars().all(|c| {
-                    c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '+')
-                })
-        })
-}
-
 fn require_id(id: &str, path: &str, report: &mut Report) {
     if !is_id(id) {
         report.push(Problem::error(
@@ -2199,16 +2183,6 @@ fn check_theme(theme: &Theme, report: &mut Report) {
 }
 
 fn check_settings(settings: &Settings, report: &mut Report) {
-    if !is_time_zone_name(&settings.time_zone) {
-        report.push(Problem::error(
-            Code::InvalidValue,
-            "time_zone",
-            format!(
-                "'{}' is not a time zone name such as UTC or Asia/Manila.",
-                settings.time_zone
-            ),
-        ));
-    }
     check_mapping(&settings.scope.region, "scope.region", report);
     check_mapping(&settings.scope.country, "scope.country", report);
     require_text(

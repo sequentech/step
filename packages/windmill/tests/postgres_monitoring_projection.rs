@@ -9,6 +9,7 @@
 mod schema;
 
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
+use chrono_tz::Tz;
 use deadpool_postgres::Transaction;
 use sequent_core::monitoring::config::Settings;
 use sequent_core::monitoring::presets;
@@ -20,6 +21,7 @@ use windmill::services::monitoring::projection::{
     event_first_day, full_pass_due, load_event_places, project_accounts, refresh_voter_activity,
     LastPass, ProjectionContext, VoterAccount,
 };
+use windmill::services::time_zones::event_time_zone;
 
 fn comelec_settings() -> Settings {
     presets::load("comelec")
@@ -461,16 +463,8 @@ async fn ages_are_counted_as_of_the_event_first_day_in_its_time_zone() {
     let mut client = pool.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let seed = Seed::new(&tx).await;
-    let mut settings = comelec_settings();
-    settings.time_zone = "Asia/Manila".into();
     let now = at(20, 0);
-    assert_eq!(
-        event_first_day(&tx, seed.event, &settings, now)
-            .await
-            .unwrap(),
-        NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
-        "no start scheduled: today, in Manila"
-    );
+    let first_start = Utc.with_ymd_and_hms(2026, 5, 11, 16, 30, 0).unwrap();
     for (processor, date, archived) in [
         ("START_VOTING_PERIOD", "2026-05-11T16:30:00Z", false),
         ("START_VOTING_PERIOD", "2026-05-12T16:30:00Z", false),
@@ -492,36 +486,76 @@ async fn ages_are_counted_as_of_the_event_first_day_in_its_time_zone() {
         .await
         .unwrap();
     }
-    assert_eq!(
-        event_first_day(&tx, seed.event, &settings, now)
+    // The two configurations, and an event that names no zone (UTC).
+    for primary in [Some("Asia/Manila"), Some("Europe/Madrid"), None] {
+        let timezones = primary.map(
+            |primary| json!({"configured": [primary], "primary": primary, "logs": "election"}),
+        );
+        tx.execute(
+            "UPDATE sequent_backend.election_event
+             SET presentation = jsonb_set(COALESCE(presentation, '{}'::jsonb),
+                                          '{timezones}', COALESCE($3::jsonb, 'null'))
+             WHERE tenant_id = $1 AND id = $2",
+            &[
+                &seed.event.tenant_id,
+                &seed.event.election_event_id,
+                &timezones,
+            ],
+        )
+        .await
+        .unwrap();
+        let zone = event_time_zone(&tx, seed.event.tenant_id, seed.event.election_event_id)
             .await
-            .unwrap(),
-        NaiveDate::from_ymd_opt(2026, 5, 12).unwrap(),
-        "the first voting start, 16:30 UTC being past midnight in Manila"
-    );
-    settings.time_zone = "UTC".into();
+            .unwrap();
+        let expected: Tz = primary.unwrap_or("UTC").parse().unwrap();
+        assert_eq!(zone, expected);
+        assert_eq!(
+            event_first_day(&tx, seed.event, zone, now).await.unwrap(),
+            first_start.with_timezone(&zone).date_naive(),
+            "the first unarchived voting start, as a day in {zone}"
+        );
+    }
+    tx.execute(
+        "DELETE FROM sequent_backend.scheduled_event
+         WHERE tenant_id = $1 AND election_event_id = $2",
+        &[&seed.event.tenant_id, &seed.event.election_event_id],
+    )
+    .await
+    .unwrap();
+    let manila = chrono_tz::Asia::Manila;
     assert_eq!(
-        event_first_day(&tx, seed.event, &settings, now)
-            .await
-            .unwrap(),
-        NaiveDate::from_ymd_opt(2026, 5, 11).unwrap()
+        event_first_day(&tx, seed.event, manila, now).await.unwrap(),
+        now.with_timezone(&manila).date_naive(),
+        "no start scheduled: today, in the event's zone"
     );
 }
 
 #[test]
-fn a_full_pass_is_due_first_on_new_settings_and_then_every_interval() {
+fn a_full_pass_is_due_first_on_new_settings_or_zone_and_then_every_interval() {
     let every = Duration::minutes(5);
     let now = at(11, 12);
-    assert!(full_pass_due(None, 1, now, every));
+    let (manila, madrid) = (chrono_tz::Asia::Manila, chrono_tz::Europe::Madrid);
+    assert!(full_pass_due(None, 1, manila, now, every));
     let last = LastPass {
         at: now - Duration::minutes(4),
         settings_revision: 1,
+        time_zone: Some(manila),
     };
-    assert!(!full_pass_due(Some(last), 1, now, every));
-    assert!(full_pass_due(Some(last), 2, now, every));
+    assert!(!full_pass_due(Some(last), 1, manila, now, every));
+    assert!(full_pass_due(Some(last), 2, manila, now, every));
+    assert!(
+        full_pass_due(Some(last), 1, madrid, now, every),
+        "the event's zone changed"
+    );
+    let unrecorded = LastPass {
+        time_zone: None,
+        ..last
+    };
+    assert!(full_pass_due(Some(unrecorded), 1, manila, now, every));
     assert!(full_pass_due(
         Some(last),
         1,
+        manila,
         now + Duration::minutes(1),
         every
     ));
