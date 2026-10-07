@@ -29,11 +29,7 @@ async fn main() -> Result<(), rocket::Error> {
     let _rocket = rocket::custom(figment)
         .mount(
             "/",
-            routes![
-                index,
-                routes::user::users_list,
-                routes::user::upload_csv,
-            ],
+            routes![index, routes::user::users_list, routes::user::upload_csv,],
         )
         .launch()
         .await?;
