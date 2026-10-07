@@ -345,12 +345,14 @@ pub enum VoterMultiplicityColumn {
     VoteWeight,
 }
 
-/// Matches the voters an election's census includes: those without
-/// `authorized-election-ids`, and those whose values name the election by its
-/// external ID or, as the Keycloak token mapper also accepts, by its ID.
-fn authorized_election_condition(election_id: &str, election_external_id: Option<&str>) -> String {
-    let values = std::iter::once(election_id)
-        .chain(election_external_id.filter(|external_id| !external_id.is_empty()))
+/// Matches the voters without `authorized-election-ids`, and those with one of
+/// `values`.
+fn authorized_election_condition(values: &[String]) -> String {
+    if values.is_empty() {
+        return "ua_elections.value IS NULL".to_string();
+    }
+    let values = values
+        .iter()
         .map(|value| format!("'{}'", escape_sql_literal(value)))
         .collect::<Vec<String>>()
         .join(", ");
@@ -362,8 +364,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     area_id: &str,
-    election_id: &str,
-    election_external_id: Option<&str>,
+    authorized_election_values: &[String],
     output_file: &PathBuf,
     multiplicity_column: VoterMultiplicityColumn,
 ) -> Result<()> {
@@ -420,7 +421,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     parse_uuid_v4(area_id)?;
     let realm_escaped = escape_sql_literal(realm);
     let area_id_escaped = escape_sql_literal(area_id);
-    let authorized_election = authorized_election_condition(election_id, election_external_id);
+    let authorized_election = authorized_election_condition(authorized_election_values);
 
     let no_service_accounts = service_account_exclusion("u");
 
@@ -1921,36 +1922,32 @@ mod tests {
         assert_eq!(clause, "(col = $1)");
     }
 
-    const ELECTION_ID: &str = "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
-
     #[test]
-    fn test_census_includes_voters_naming_the_election_by_external_id_or_id() {
+    fn test_census_includes_voters_with_any_of_the_values() {
+        let values = [
+            "GIAMBI30-3-31".to_string(),
+            "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f".to_string(),
+        ];
         assert_eq!(
-            authorized_election_condition(ELECTION_ID, Some("GIAMBI30-3-31")),
-            format!(
-                "(ua_elections.value IN ('{ELECTION_ID}', 'GIAMBI30-3-31') \
-                 OR ua_elections.value IS NULL)"
-            )
+            authorized_election_condition(&values),
+            "(ua_elections.value IN ('GIAMBI30-3-31', '6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f') \
+             OR ua_elections.value IS NULL)"
         );
     }
 
-    /// Such voters used to be left out of the census of an election without
-    /// an external ID, although the token mapper let them vote in it.
     #[test]
-    fn test_census_of_an_election_without_external_id_matches_its_id() {
-        for external_id in [None, Some("")] {
-            assert_eq!(
-                authorized_election_condition(ELECTION_ID, external_id),
-                format!("(ua_elections.value IN ('{ELECTION_ID}') OR ua_elections.value IS NULL)")
-            );
-        }
+    fn test_census_without_values_includes_only_unrestricted_voters() {
+        assert_eq!(
+            authorized_election_condition(&[]),
+            "ua_elections.value IS NULL"
+        );
     }
 
     #[test]
     fn test_census_condition_escapes_its_values() {
-        let condition = authorized_election_condition("x' OR '1'='1", Some("O'Neill"));
+        let values = ["x' OR '1'='1".to_string(), "O'Neill".to_string()];
         assert_eq!(
-            condition,
+            authorized_election_condition(&values),
             "(ua_elections.value IN ('x'' OR ''1''=''1', 'O''Neill') OR ua_elections.value IS NULL)"
         );
     }
