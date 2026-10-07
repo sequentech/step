@@ -14,13 +14,16 @@ use sequent_core::util::init_log::init_log;
 use std::sync::Arc;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
-use windmill::services::database::get_keycloak_pool;
+use windmill::services::database::get_queue_pool;
 use windmill::services::electoral_log_audit::{
     checkpoint_interval_secs, DEFAULT_CHECKPOINT_INTERVAL_SECS,
 };
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::publish_electoral_log_checkpoint::publish_periodic_electoral_log_checkpoints;
+use windmill::tasks::purge_queue_archives::{
+    purge_interval_secs, purge_queue_archives, DEFAULT_PURGE_INTERVAL_SECS,
+};
 use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
@@ -54,9 +57,10 @@ async fn main() -> Result<()> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     // Refuse to start on an invalid interval; the schedule below cannot return errors.
     checkpoint_interval_secs()?;
+    purge_interval_secs()?;
 
     // A dedicated pooled session holds leadership for this environment's scheduler.
-    let pool = get_keycloak_pool().await;
+    let pool = get_queue_pool().await;
     let leader = Arc::new(
         pool.get()
             .await
@@ -75,7 +79,11 @@ async fn main() -> Result<()> {
     }
 
     let mut beat = celery::beat!(
-        broker_builder = Box::new(PgmqBrokerBuilder::from_pool(pool.clone()).publisher_connection(leader.clone())),
+        broker_builder = Box::new(
+            PgmqBrokerBuilder::from_pool(pool.clone())
+                .environment(&slug)
+                .publisher_connection(leader.clone())
+        ),
         tasks = [
             review_boards::NAME => {
                 review_boards,
@@ -114,17 +122,25 @@ async fn main() -> Result<()> {
                 )),
                 args = (),
             },
+            purge_queue_archives::NAME => {
+                purge_queue_archives,
+                schedule = DeltaSchedule::new(Duration::from_secs(
+                    purge_interval_secs().unwrap_or(DEFAULT_PURGE_INTERVAL_SECS),
+                )),
+                args = (),
+            },
         ],
         task_routes = [
-            review_boards::NAME => &Queue::Beat.queue_name(&slug),
-            scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
-            scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
-            review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
-            electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
-            publish_periodic_electoral_log_checkpoints::NAME => &Queue::Beat.queue_name(&slug),
-            schedule_ballot_box_sequencers::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            review_boards::NAME => Queue::Beat.queue_name(),
+            scheduled_events::NAME => Queue::Beat.queue_name(),
+            scheduled_reports::NAME => Queue::Beat.queue_name(),
+            review_cast_votes::NAME => Queue::Beat.queue_name(),
+            electoral_log_batch_dispatcher::NAME => Queue::ElectoralLogBeat.queue_name(),
+            publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
+            schedule_ballot_box_sequencers::NAME => Queue::ElectoralLogBeat.queue_name(),
+            purge_queue_archives::NAME => Queue::Beat.queue_name(),
         ],
-        default_queue = &Queue::Beat.queue_name(&slug),
+        default_queue = Queue::Beat.queue_name(),
     ).await?;
 
     set_is_app_active(true);

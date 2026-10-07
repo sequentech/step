@@ -51,6 +51,7 @@ pub mod process_board;
 pub mod process_cast_vote;
 pub mod publish_electoral_log_checkpoint;
 pub mod publish_results_website;
+pub mod purge_queue_archives;
 pub mod render_document_pdf;
 pub mod render_report;
 pub mod review_boards;

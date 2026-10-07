@@ -155,7 +155,62 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
     }
 }
 
+/// The environment's task-queue database (`QUEUE_DB__*`), where PGMQ keeps the queues.
+#[instrument(err)]
+pub async fn generate_queue_pool() -> Result<Arc<Pool>> {
+    let config: deadpool_postgres::Config = Config::builder()
+        .add_source(Environment::default().separator("__"))
+        .build()?
+        .get("queue_db")?;
+
+    cfg_if::cfg_if! {
+        if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
+            if  config.ssl_mode == Some(SslMode::Prefer) ||
+                config.ssl_mode == Some(SslMode::Require)
+            {
+                let mut builder = SslConnector::builder(SslMethod::tls())
+                    .map_err(|err|
+                        anyhow!("error building SslConnector: {}", err)
+                    )?;
+                builder.set_ca_file(
+                    env::var("QUEUE_DB_CA_PATH")
+                    .map_err(|err|
+                        anyhow!("error loading QUEUE_DB_CA_PATH var: {}", err)
+                    )?
+                )
+                .map_err(|err|
+                    anyhow!("error in builder.set_ca_file(): {}", err)
+                )?;
+                let connector_tls = MakeTlsConnector::new(builder.build());
+
+                let pool = config
+                    .create_pool(Some(Runtime::Tokio1), connector_tls)
+                    .map_err(|err|
+                        anyhow!("error creating pool: {}", err)
+                    )?;
+                Ok(Arc::new(pool))
+            } else {
+                let pool = config
+                    .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+                    .map_err(|err|
+                        anyhow!("error creating pool: {}", err)
+                    )?;
+                Ok(Arc::new(pool))
+            }
+        } else {
+            let pool = config
+                .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+                .map_err(|err|
+                    anyhow!("error creating pool: {}", err)
+                )?;
+            Ok(Arc::new(pool))
+        }
+    }
+}
+
 static KEYCLOAK_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
+
+static QUEUE_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
 static HASURA_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
@@ -166,6 +221,19 @@ pub async fn get_keycloak_pool() -> Arc<Pool> {
             assert_standard_conforming_strings(&pool)
                 .await
                 .expect("Keycloak DB: standard_conforming_strings check failed");
+            pool
+        })
+        .await
+        .clone()
+}
+
+pub async fn get_queue_pool() -> Arc<Pool> {
+    QUEUE_POOL
+        .get_or_init(|| async {
+            let pool = generate_queue_pool().await.unwrap();
+            assert_standard_conforming_strings(&pool)
+                .await
+                .expect("Task-queue DB: standard_conforming_strings check failed");
             pool
         })
         .await

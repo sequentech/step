@@ -33,7 +33,7 @@ anyhow = "1.0"
 
 
 [patch.crates-io]
-celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "c76b500a0fa444cd7e81d77de80ed21d1d929718" }
+celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "7dfe34739d21a95754e34dedb5f10aa0a4f356ce" }
 
 [source.crates-io]
 replace-with = "vendored-sources"

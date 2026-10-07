@@ -7,27 +7,27 @@ sidebar_label: Task queues (PGMQ)
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Windmill, Harvest, Beat and Keycloak use **PGMQ 1.13.0** for durable task delivery.
-This is a clean-environment change on `main`: RabbitMQ messages are not imported,
-and there is no legacy transport switch. The existing Celery task API, 58 task
-registrations, routes, retry policies, time limits and task-execution records remain.
+Windmill, Harvest, Beat and Keycloak use **PGMQ 1.13.0** for durable task delivery,
+in a PostgreSQL database of the environment's own: its **task-queue database**. No
+separate broker service is needed. The Celery task API, task registrations, routes,
+retry policies, time limits and task-execution records are the same as with RabbitMQ.
 
-## Storage and configuration
+## The task-queue database
 
-Queues live in the **Keycloak PostgreSQL database**, in the `pgmq` schema. Rust
-reuses `KEYCLOAK_DB__*` and the existing TLS/CA configuration. Keycloak uses its
-existing JPA connection and transaction, with no additional JDBC pool or password.
-`KC_DB_*` and `KEYCLOAK_DB__*` must identify the same database.
+Each environment has one task-queue database, separate from Keycloak's and Hasura's
+databases. In a deployment it is a database of the cluster's PostgreSQL server, like
+the environment's other databases; in development it is `dev_queues` on the
+`postgres` service. It holds the `pgmq` schema, with two tables per queue
+(`pgmq.q_<queue>` for waiting messages and `pgmq.a_<queue>` for processed ones), and
+the `step_queue.installation` table, which records the environment the database
+belongs to.
 
-Every producer and worker, including Beat, needs the same `ENV_SLUG`. Logical names
-remain `<ENV_SLUG>_<queue>`. The physical PGMQ name is `step_` followed by the first
-40 lowercase hexadecimal characters of SHA-256 of that logical name in UTF-8.
-This preserves case and punctuation without collisions caused by normalization,
-and stays within PGMQ's identifier-length limit. Rust and Java use the same mapping.
+Because the database belongs to one environment, queues have the same plain names in
+every environment:
 
-| Logical suffix | Consumer |
+| Queue | Consumer |
 | --- | --- |
-| `beat` | Scheduled election and board work |
+| `beat` | Scheduled election and board work, and the archive purge |
 | `short_queue` | Short background tasks |
 | `communication_queue` | Communication and cast-vote tasks |
 | `tally_queue` | Tally execution |
@@ -38,127 +38,168 @@ and stays within PGMQ's identifier-length limit. Rust and Java use the same mapp
 | `electoral_log_event_queue` | Raw events; **batch dispatcher only** |
 | `electoral_log_dead_letter_queue` | None; electoral-log events set aside for inspection and replay |
 
-Normal Windmill consumers reject the raw-event queue: its Celery task is an enqueue
-marker, not an event processor. They also reject the dead-letter queue, which Windmill
-creates the first time it sets an event aside. Keep the normal eight queue subscriptions in the
-Compose examples. Prefetch is bounded **per queue** and remains bounded across
-broker reconnects. Existing task semaphores still apply.
+Windmill refuses to consume the raw-event and dead-letter queues: a worker consuming
+them would discard their events. Queue names given to `windmill consume -q` may still
+carry the `<ENV_SLUG>_` prefix they had with RabbitMQ; it is removed.
 
-## Fresh installation
+Each component connects with a role of its own:
 
-The unchanged upstream SQL distribution and license are packaged at
-`.devcontainer/postgresql/pgmq-1.13.0.sql` and `PGMQ-LICENSE`, from
-[PGMQ v1.13.0](https://github.com/pgmq/pgmq/tree/v1.13.0).
-No PostgreSQL host extension or separate broker container is required.
+| Role | Used by | Privileges |
+| --- | --- | --- |
+| Owner | The setup job | Owns the database; installs PGMQ and creates the queues |
+| Worker | Windmill and Beat | Reads, sends, archives and deletes messages; purges archives |
+| Producer | Harvest and Keycloak | Only sends messages |
+| Reader | Read-only inspection | Reads queues, archives and their metrics |
 
-Development, remote and airgap Compose mount this SQL as a fresh-database init
-script in `postgres-keycloak`. The airgap builder includes the SQL and license in
-the delivered archive. PostgreSQL init scripts run only for an empty data volume.
+The connection is configured with `QUEUE_DB__HOST`, `QUEUE_DB__PORT`,
+`QUEUE_DB__DBNAME`, `QUEUE_DB__USER`, `QUEUE_DB__PASSWORD` and, optionally,
+`QUEUE_DB__SSL_MODE` (`Disable`, `Prefer` or `Require`) and `QUEUE_DB_CA_PATH`. The
+user is the component's role. Keycloak also reads `QUEUE_DB__POOL__MAX_SIZE` (10 by
+default) for its connection pool. Every service needs `ENV_SLUG`: a service refuses a
+task-queue database that is not set up, or that belongs to another environment, and
+does not create queues.
 
-For a clean managed PostgreSQL database, install as its application owner before
-starting Keycloak, Harvest, Windmill or Beat. Use a configured libpq service (or
-normal secure connection configuration):
+## Setting up a task-queue database
 
-```sh
-psql service=keycloak -v ON_ERROR_STOP=1 --single-transaction \
-  -f .devcontainer/postgresql/pgmq-1.13.0.sql
-```
+1. **Provision** the database and the four roles, with the owner role owning the
+   database. In a deployment the infrastructure code does this, per environment; in
+   development `.devcontainer/postgresql/init-task-queues.sh` does it when the
+   `postgres` volume is created.
+2. **Set up** the database as its owner:
 
-The installer creates the schema/functions; startup declares the application's
-logged queues. The application role needs access to the schema, its functions,
-queue tables and sequences, including permission to declare queues. Installing as
-the application owner satisfies these requirements. Keep `synchronous_commit`
-enabled and include this schema in Keycloak database backups and HA configuration.
-Do not rerun the base SQL over an existing PGMQ installation; use upstream versioned
-upgrade scripts when upgrading PGMQ in future releases.
+   ```sh
+   ENV_SLUG=<environment> \
+   QUEUE_DB__HOST=... QUEUE_DB__DBNAME=... \
+   QUEUE_DB__USER=<owner> QUEUE_DB__PASSWORD=... \
+   QUEUE_DB_WORKER_ROLE=<worker> QUEUE_DB_PRODUCER_ROLE=<producer> \
+   QUEUE_DB_READER_ROLE=<reader> \
+   main setup-queue-database
+   ```
+
+   `setup-queue-database` is a command of Windmill's `main` binary, so the setup job
+   uses the Windmill image of the release being deployed. It installs PGMQ if
+   the database does not have it, records the environment, creates every queue,
+   grants each role its privileges, and revokes access to the database from other
+   roles of the server. It runs in one transaction and can run again: run it on every
+   upgrade, so that queues added by a release exist before its services start. In
+   development the `task-queues-setup` Compose service runs it before Windmill, Beat
+   and Harvest start; run `docker compose up task-queues-setup` after adding a queue.
+
+The PGMQ SQL distribution and its license are unchanged from
+[PGMQ v1.13.0](https://github.com/pgmq/pgmq/tree/v1.13.0), in
+`packages/pgmq-broker/sql/`, and are compiled into Windmill. The setup refuses a
+database whose recorded PGMQ version differs from the release's: upgrading PGMQ needs
+upstream's versioned upgrade scripts. Keep `synchronous_commit` enabled, and back up
+the task-queue database like the environment's other databases. Backups contain task
+payloads and need the same protection as the source data.
 
 ## Delivery and scheduling guarantees
 
 * Claims have a 60-second visibility lease, renewed every 10 seconds throughout
-  local waits and execution. Long tally/report tasks retain their existing time limits.
+  local waits and execution. Long tally and report tasks keep their time limits.
 * Workers acknowledge **after execution**. Acknowledgement, renewal and retry are
-  fenced by the PGMQ message ID, read count and unexpired lease, so an old worker
-  cannot acknowledge a newer claim. Database terminal operations have a five-second
-  timeout. A worker exits if ownership is lost or renewal remains unavailable for
-  40 seconds; its supervisor must restart it. Unfinished messages become visible
-  when their leases expire.
-* A Celery retry atomically updates the same queue row and preserves the task ID.
-  Its subsequent acknowledgement is a no-op. Retry delays and ETA timestamps are
-  persisted in PostgreSQL; delayed jobs do not hold worker capacity before their ETA.
-* Completion, expiry, malformed envelopes and terminal task failures are archived.
-  Existing task-specific retry limits remain authoritative, including tasks with
-  zero retries. Archival is not evidence of business success; consult task-execution
-  records and worker logs for the outcome.
-* Raw audit events are promoted into one batch job and removed from the source queue
+  fenced by the message ID, read count and unexpired lease, so an old worker cannot
+  acknowledge a newer claim. Database terminal operations have a five-second timeout.
+  A worker exits if it loses a lease or cannot renew it for 40 seconds; its
+  supervisor must restart it. Unfinished messages become visible when their leases
+  expire.
+* A Celery retry updates the same queue row and keeps the task ID. Retry delays and
+  ETAs are stored in PostgreSQL; delayed tasks do not hold worker capacity.
+* Acknowledged messages move to the queue's archive with their outcome in the
+  `x-step-outcome` header: `succeeded`, `failed` (failed and not retried), `expired`
+  or `rejected` (the message could not be decoded or names an unknown task). The
+  outcome is the task's, as Celery saw it; consult task-execution records and worker
+  logs for business results.
+* Raw audit events are promoted into one batch task and removed from the event queue
   in **one database transaction**. Failure or cancellation rolls back the whole
   handoff. Raw events that cannot be parsed move to `electoral_log_dead_letter_queue`
-  in the same transaction, without blocking later valid events. A batch closes at
+  in the same transaction, without blocking later events. A batch closes at
   `ELECTORAL_LOG_BATCH_SIZE` events or `ELECTORAL_LOG_BATCH_MAX_BYTES` bytes; messages
   read beyond the byte limit become visible again for the next batch.
-* Keycloak success events enqueue in their request transaction. Publication failure
-  marks that transaction for rollback. Keycloak 26.6.1 normally emits error events
-  in a separate transaction, so ordinary `LOGIN_ERROR` records survive rollback of
-  the original request. Other caller-controlled rollback behavior follows Keycloak's
-  event transaction; there is no independent cross-database publish.
-* Beat keeps its existing schedules. A PostgreSQL advisory lock admits one Beat
-  per environment. Publication uses that same pinned connection, so loss of its
-  database session prevents further publication and stops the scheduler. The report
-  poller receives the configured report interval. Periodic timer state remains in
-  Celery; already-enqueued jobs and their ETAs are durable across scheduler restarts.
+* Keycloak's events are enqueued when Keycloak commits the request that produced
+  them, as `ELECTORAL_LOG_PUBLISH_FAILURE_POLICY` says:
+  * `fail-request` (the default) enqueues the event just before Keycloak commits. If
+    that fails, the request fails and Keycloak rolls it back, so no committed request
+    lacks its event. If Keycloak's own commit fails after the event was enqueued, the
+    log holds the event of a request that did not complete.
+  * `log-and-continue` enqueues the event after Keycloak commits. If that fails, the
+    request still succeeds and the event is only in Keycloak's log.
+
+  A request that Keycloak rolls back enqueues nothing. Keycloak 26.6.1 normally emits
+  error events in a separate transaction, so ordinary `LOGIN_ERROR` events survive
+  the rollback of the original request.
+* Beat keeps its schedules. A PostgreSQL advisory lock in the task-queue database
+  admits one Beat per environment, and Beat publishes on that same connection, so
+  losing it stops the scheduler. Enqueued tasks and their ETAs survive scheduler
+  restarts.
 
 Delivery is **at least once**. A crash after an external effect but before the
-acknowledgement can repeat the effect. Task handlers must retain their existing
-idempotency protections; a queue cannot make email, SMS or S3 effects exactly once.
-Hasura writes and queue writes are in different databases, so they are not one
-atomic transaction. The adapter exposes transactional enqueue for callers operating
-inside the queue database; a future cross-database atomic workflow needs an outbox.
+acknowledgement can repeat the effect, so task handlers keep their idempotency
+protections; a queue cannot make email, SMS or S3 effects exactly once. Hasura,
+Keycloak and the task queues are different databases, so a write to one and an
+enqueue are not one transaction.
 
-Polling every 200 ms supplies wakeups without depending on `LISTEN/NOTIFY` delivery.
-The workload is intentionally small; no partitioning or additional scheduler service
-is introduced. Archive retention is an operational responsibility: inspect failures
-before purging old archive rows under the environment's retention policy. Backups
-contain task payloads and must receive the same protection as the source data.
+Workers poll each consumed queue every 200 ms when it is empty.
+
+## Archive retention
+
+Beat schedules `purge_queue_archives` every `QUEUE_ARCHIVE_PURGE_INTERVAL_SECS`
+seconds (3600 by default). It deletes archived messages older than
+`QUEUE_ARCHIVE_RETENTION_HOURS` hours (168, seven days, by default), a few thousand
+rows per statement. It never deletes waiting messages, and never purges the archive
+of the dead-letter queue. Beat refuses to start with an invalid interval, and a worker
+consuming `beat` refuses to start with an invalid retention.
+
+## Migrating an environment from RabbitMQ
+
+Environments move to the task queues one at a time, with the release that contains
+them:
+
+1. Provision the environment's task-queue database and roles, and their secrets.
+2. Deploy the release with the task-queue settings, running the setup job before the
+   services start.
+3. Messages still in the environment's RabbitMQ queues are **not** migrated: they are
+   discarded. To keep work in progress, let the queues drain before upgrading.
+4. Remove RabbitMQ from a cluster once none of its environments uses it.
 
 ## Operations and verification
 
-`pgmq.metrics(queue_name)` reports queue depth and message age. To derive a physical
-queue name in SQL, for example:
-
 ```sql
-SELECT 'step_' || left(encode(sha256(convert_to(
-  'dev_reports_queue', 'UTF8')), 'hex'), 40) AS queue_name;
-SELECT * FROM pgmq.list_queues();
+-- Depth and age of every queue.
+SELECT * FROM pgmq.metrics_all();
+-- Outcomes of the last hour's processed messages of a queue.
+SELECT headers->>'x-step-outcome' AS outcome, count(*)
+FROM pgmq.a_reports_queue
+WHERE archived_at > now() - interval '1 hour'
+GROUP BY 1;
 ```
 
-Archive tables are `pgmq.a_<physical_queue_name>`. Inspect message headers for the
-Celery task ID and correlate with task-execution records. Replay only deliberately
-selected failed work, accounting for its original expiry, retry count and possible
-completed side effects. Do not replay all archived rows: successful jobs are also
-archived.
+Message headers carry the Celery task ID, to correlate with task-execution records.
+Replay only deliberately selected failed work, accounting for its original expiry,
+retry count and possible completed side effects; successful tasks are archived too.
 
-Production workers and Beat require restart supervision. Development Compose wraps
+Production workers and Beat need restart supervision. Development Compose wraps
 Windmill and Beat in a five-second restart loop under cargo-watch, so an exhausted
 reconnect budget or lost lease starts a fresh process even without a source change.
-The watcher retains process-group termination so old leased tasks stop before replacement.
-Broker errors expose SQLSTATE or timeout/connection categories without database payloads.
-For SQLSTATE 53100, restore database disk headroom before expecting recovery.
-Keep compiler caches from exhausting the development database filesystem. Readiness checks verify PostgreSQL and the active subscribed consumers,
-not merely the container state.
+Broker errors expose SQLSTATE or timeout and connection categories, without database
+payloads. For SQLSTATE 53100, restore database disk headroom before expecting
+recovery.
 
-The focused suite runs against a disposable database initialized from the same SQL:
+The focused suites run against a disposable database, which they set up themselves:
 
 ```sh
-cargo test -p pgmq-broker -- --include-ignored --test-threads=1
-cargo test -p windmill --lib tasks::electoral_log::pgmq_tests -- --ignored --test-threads=1
+PGMQ_TEST_DATABASE_URL=postgres://... cargo test -p pgmq-broker -- --include-ignored
+PGMQ_TEST_DATABASE_URL=postgres://... cargo test -p windmill --lib \
+  tasks::electoral_log::pgmq_tests -- --ignored --test-threads=1
 ```
 
-Set `PGMQ_TEST_DATABASE_URL` through the test environment, not committed configuration.
-CI creates a separate `pgmq_test` database and runs these checks explicitly. They
-cover real worker/Beat delivery, retry, expiry, transaction rollback, lease renewal,
-claim fencing, abandoned-claim recovery, malformed messages, atomic batch handoff,
-dead letters and batch limits.
-The Java publisher has two focused transaction/envelope tests.
-From the repository root, run the development supervision regression with
-`python3 .devcontainer/test-restart-worker.py`. It checks restart after failure
-and termination of the complete worker process group. These contracts do
-not execute every election business operation or certify external-effect idempotency.
+Set `PGMQ_TEST_DATABASE_URL` through the test environment, not committed
+configuration; the role test needs a user that may create roles. CI creates a separate
+`pgmq_test` database and runs these checks. They cover setup, the environment guard,
+role privileges, worker and Beat delivery, retry, expiry, outcomes, archive purge,
+transaction rollback, lease renewal, claim fencing, abandoned-claim recovery,
+malformed messages, atomic batch handoff, dead letters and batch limits. Keycloak's
+publisher tests cover both failure policies, and a shared fixture,
+`electoral-log-event-envelope.json`, checks that the envelope Keycloak writes is the
+one Windmill reads. From the repository root,
+`python3 .devcontainer/test-restart-worker.py` checks the development restart loop.

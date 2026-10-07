@@ -159,7 +159,29 @@ public class CustomEventListenerProvider implements EventListenerProvider {
       String tenantId,
       String username) {
     log.info("logEvent: start");
+    List<Object> message =
+        taskMessage(electionEventId, messageType, body, userId, tenantId, username);
 
+    // Generate a correlation ID.
+    String correlationId = UUID.randomUUID().toString();
+
+    try {
+      pgmqEventPublisher.publish(session, correlationId, TASK_NAME, om.writeValueAsBytes(message));
+      log.infov("Audit event handed to PGMQ: correlationId={0}", correlationId);
+    } catch (Exception e) {
+      session.getTransactionManager().setRollbackOnly();
+      throw new IllegalStateException("Unable to enqueue electoral audit event", e);
+    }
+  }
+
+  /** The Celery arguments of the {@code enqueue_electoral_log_event} task. */
+  static List<Object> taskMessage(
+      String electionEventId,
+      String messageType,
+      String body,
+      String userId,
+      String tenantId,
+      String username) {
     // We make sure variables are not null otherwise log reporting will give an
     // error when
     // deserializing
@@ -194,17 +216,7 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     message.add(Collections.emptyList());
     message.add(inputObject);
     message.add(annotations);
-
-    // Generate a correlation ID.
-    String correlationId = UUID.randomUUID().toString();
-
-    try {
-      pgmqEventPublisher.publish(session, correlationId, TASK_NAME, om.writeValueAsBytes(message));
-      log.infov("Audit event published to PGMQ: correlationId={0}", correlationId);
-    } catch (Exception e) {
-      session.getTransactionManager().setRollbackOnly();
-      throw new IllegalStateException("Unable to enqueue electoral audit event", e);
-    }
+    return message;
   }
 
   @Override

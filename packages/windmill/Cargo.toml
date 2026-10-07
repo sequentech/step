@@ -37,7 +37,7 @@ rust-s3 = "0.35"
 strum = "0.27"
 strum_macros = "0.27"
 base64 = "0.22"
-celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "c76b500a0fa444cd7e81d77de80ed21d1d929718" }
+celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "7dfe34739d21a95754e34dedb5f10aa0a4f356ce" }
 pgmq-broker = { path = "../pgmq-broker" }
 rayon = "1.5"
 tokio = { version = "1.32", features = ["full"] }

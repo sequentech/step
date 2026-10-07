@@ -108,7 +108,7 @@ reuse lint                           # Every file must have SPDX headers
 ### Infrastructure
 - **Hasura** — GraphQL API layer over PostgreSQL
 - **Keycloak** — Identity management (one realm per tenant + one per election event)
-- **PGMQ** — PostgreSQL task queues for Celery workers in the Keycloak database
+- **PGMQ** — PostgreSQL task queues for Celery workers, in each environment's own task-queue database
 - **PostgreSQL electoral-log database** — Electoral event logs
 - **MinIO** — S3-compatible object storage
 

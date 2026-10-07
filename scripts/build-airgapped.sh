@@ -88,12 +88,12 @@ add-database-init-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/initdb
     cp "$PROJECT_ROOT/.devcontainer/postgresql/init-electoral-log.sh" "$tmpdir/initdb/20-electoral-log.sh"
+    cp "$PROJECT_ROOT/.devcontainer/postgresql/init-task-queues.sh" "$tmpdir/initdb/30-task-queues.sh"
     cp "$PROJECT_ROOT/packages/electoral-log/schema.sql" "$tmpdir/electoral-log-schema.sql"
     tar --append -C "$tmpdir" --file="$DELIVERABLE_TARBALL" electoral-log-schema.sql
     cat $PROJECT_ROOT/scripts/airgap-files/b3.sql > $tmpdir/initdb/b3.sql
 
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb
-    tar --append -C "$PROJECT_ROOT/.devcontainer/postgresql" --file="$DELIVERABLE_TARBALL" pgmq-1.13.0.sql PGMQ-LICENSE
 }
 
 add-readme-to-tarball() {

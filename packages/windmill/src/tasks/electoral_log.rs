@@ -5,11 +5,11 @@ use crate::postgres::election_event::get_election_event_by_id_if_exist;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
+use crate::services::database::get_queue_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_dead_letter::{
-    dead_letter_events, dead_letter_message, dead_letter_queue, ensure_dead_letter_queue,
-    DeadLetterStage,
+    dead_letter_events, dead_letter_message, DeadLetterStage,
 };
 use crate::services::protocol_manager::{
     deserialize_protocol_manager, get_board_client, get_protocol_manager_secret_path,
@@ -113,7 +113,7 @@ impl<'de> Deserialize<'de> for LogEventBody {
 }
 
 /// Represents an incoming log event.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct LogEventInput {
     #[serde(default)]
     pub delivery_id: Option<String>,
@@ -559,28 +559,42 @@ fn parse_limit(name: &str, value: Option<&str>, default: usize) -> anyhow::Resul
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let limits = BatchLimits::from_env()?;
-    dispatch_electoral_log_batches(get_keycloak_pool().await.as_ref(), &slug, limits).await
+    dispatch_electoral_log_batches(
+        get_queue_pool().await.as_ref(),
+        &DispatchQueues::default(),
+        limits,
+    )
+    .await
+}
+
+/// The queues a dispatcher run reads from and writes to.
+struct DispatchQueues {
+    events: String,
+    batches: String,
+    dead_letters: String,
+}
+
+impl Default for DispatchQueues {
+    fn default() -> Self {
+        DispatchQueues {
+            events: Queue::ElectoralLogEvent.queue_name().into(),
+            batches: Queue::ElectoralLogBatch.queue_name().into(),
+            dead_letters: Queue::ElectoralLogDeadLetter.queue_name().into(),
+        }
+    }
 }
 
 async fn dispatch_electoral_log_batches(
     pool: &deadpool_postgres::Pool,
-    slug: &str,
+    queues: &DispatchQueues,
     limits: BatchLimits,
 ) -> Result<()> {
-    let source = pgmq_broker::queue_name(&Queue::ElectoralLogEvent.queue_name(slug));
-    let target = Queue::ElectoralLogBatch.queue_name(slug);
-    let dead_letters = dead_letter_queue(slug);
+    let source = queues.events.as_str();
+    let target = queues.batches.as_str();
+    let dead_letters = queues.dead_letters.as_str();
     let max_events = i32::try_from(limits.max_events)
         .with_context(|| format!("{BATCH_SIZE_ENV} is too large for a PGMQ read"))?;
-    {
-        let client = pool
-            .get()
-            .await
-            .context("Error obtaining PGMQ dead-letter connection")?;
-        ensure_dead_letter_queue(&client, &dead_letters).await?;
-    }
     loop {
         let mut client = pool
             .get()
@@ -628,7 +642,7 @@ async fn dispatch_electoral_log_batches(
                     );
                     dead_letter_message(
                         &*tx,
-                        &dead_letters,
+                        dead_letters,
                         &message,
                         DeadLetterStage::Dispatcher,
                         &format!("{error:#}"),
@@ -649,7 +663,7 @@ async fn dispatch_electoral_log_batches(
                 process_electoral_log_events_batch::new(events),
             )
             .context("Error encoding electoral-log batch")?;
-            pgmq_broker::send(&*tx, &target, &message)
+            pgmq_broker::send(&*tx, target, &message)
                 .await
                 .context("Error enqueueing electoral-log batch")?;
         }
@@ -1086,6 +1100,28 @@ mod batch_build_tests {
         );
     }
 
+    /// Keycloak's publisher produces this envelope; its tests check the same fixture.
+    #[test]
+    fn keycloak_envelopes_parse_into_events() {
+        let envelope: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../keycloak-extensions/custom-event-listener/src/test/resources/electoral-log-event-envelope.json"
+        ))
+        .unwrap();
+        let event = parse_queued_event(envelope).unwrap();
+        assert_eq!(
+            event,
+            LogEventInput {
+                delivery_id: Some("9d5e2c1b-contract-delivery".into()),
+                election_event_id: "6f1c3a6e-2a61-4d6b-9a52-3f0f8a3c2b10".into(),
+                message_type: LogMessageType::KeycloakEvent("LOGIN".into()),
+                user_id: Some("0b9f6c5e-7d3a-4a1e-8c2f-5e4d3c2b1a09".into()),
+                username: Some("voter@example.com".into()),
+                tenant_id: TENANT.into(),
+                body: LogEventBody::Plain("null".into()),
+            }
+        );
+    }
+
     #[test]
     fn malformed_messages_are_rejected() {
         for body in [
@@ -1121,8 +1157,12 @@ mod pgmq_tests {
     use super::*;
     use crate::services::electoral_log_dead_letter::{ERROR_HEADER, STAGE_HEADER};
     use celery::broker::{Broker, BrokerBuilder};
+    use pgmq_broker::setup::{setup, Installation};
     use pgmq_broker::PgmqBrokerBuilder;
     use std::sync::Arc;
+
+    /// The environment of the disposable test database, shared with pgmq-broker's tests.
+    const TEST_ENVIRONMENT: &str = "pgmq-test";
 
     fn test_pool() -> Arc<deadpool_postgres::Pool> {
         let config = deadpool_postgres::Config {
@@ -1137,6 +1177,30 @@ mod pgmq_tests {
                 )
                 .unwrap(),
         )
+    }
+
+    /// Queues of their own for one test, created as the database setup creates them.
+    async fn test_queues(pool: &deadpool_postgres::Pool, prefix: &str) -> DispatchQueues {
+        let id = &uuid::Uuid::new_v4().simple().to_string()[..12];
+        let queues = DispatchQueues {
+            events: format!("{prefix}_events_{id}"),
+            batches: format!("{prefix}_batches_{id}"),
+            dead_letters: format!("{prefix}_dead_letters_{id}"),
+        };
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        setup(
+            &tx,
+            &Installation {
+                environment: TEST_ENVIRONMENT,
+                queues: &[&queues.events, &queues.batches, &queues.dead_letters],
+                roles: None,
+            },
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        queues
     }
 
     fn event(election_event_id: &str) -> LogEventInput {
@@ -1158,15 +1222,18 @@ mod pgmq_tests {
         }
     }
 
-    /// Declare the environment's raw-event and batch queues and enqueue one raw event per ID.
-    async fn enqueue_events(pool: &Arc<deadpool_postgres::Pool>, slug: &str, ids: &[&str]) {
-        let source = Queue::ElectoralLogEvent.queue_name(slug);
-        let broker = Box::new(PgmqBrokerBuilder::from_pool(pool.clone()))
-            .declare_queue(&source)
-            .declare_queue(&Queue::ElectoralLogBatch.queue_name(slug))
-            .build(5)
-            .await
-            .unwrap();
+    /// Enqueue one raw event per ID, as producers do.
+    async fn enqueue_events(
+        pool: &Arc<deadpool_postgres::Pool>,
+        queues: &DispatchQueues,
+        ids: &[&str],
+    ) {
+        let broker =
+            Box::new(PgmqBrokerBuilder::from_pool(pool.clone()).environment(TEST_ENVIRONMENT))
+                .declare_queue(&queues.events)
+                .build(5)
+                .await
+                .unwrap();
         for id in ids {
             broker
                 .send(
@@ -1174,7 +1241,7 @@ mod pgmq_tests {
                         id,
                     )))
                     .unwrap(),
-                    &source,
+                    &queues.events,
                 )
                 .await
                 .unwrap();
@@ -1211,67 +1278,65 @@ mod pgmq_tests {
             .collect()
     }
 
-    async fn drop_queues(client: &tokio_postgres::Client, slug: &str) {
-        for queue in [
-            pgmq_broker::queue_name(&Queue::ElectoralLogEvent.queue_name(slug)),
-            pgmq_broker::queue_name(&Queue::ElectoralLogBatch.queue_name(slug)),
-            dead_letter_queue(slug),
-        ] {
+    async fn drop_queues(client: &tokio_postgres::Client, queues: &DispatchQueues) {
+        for queue in [&queues.events, &queues.batches, &queues.dead_letters] {
             client
-                .query_one("SELECT pgmq.drop_queue($1)", &[&queue])
+                .query_one("SELECT pgmq.drop_queue($1)", &[queue])
                 .await
                 .unwrap();
         }
     }
 
     #[tokio::test]
-    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable PGMQ database"]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
     async fn batch_handoff_is_atomic_and_quarantines_invalid_events() {
         let pool = test_pool();
-        let slug = format!("batch_{}", uuid::Uuid::new_v4());
-        enqueue_events(&pool, &slug, &["event-a", "event-b"]).await;
+        let queues = test_queues(&pool, "handoff").await;
+        enqueue_events(&pool, &queues, &["event-a", "event-b"]).await;
         let client = pool.get().await.unwrap();
-        let source = pgmq_broker::queue_name(&Queue::ElectoralLogEvent.queue_name(&slug));
-        let target = pgmq_broker::queue_name(&Queue::ElectoralLogBatch.queue_name(&slug));
-        let dead_letters = dead_letter_queue(&slug);
         let invalid = serde_json::json!({"invalid": true});
         client
-            .query_one("SELECT pgmq.send($1, $2)", &[&source, &invalid])
+            .query_one("SELECT pgmq.send($1, $2)", &[&queues.events, &invalid])
             .await
             .unwrap();
 
         client
-            .query_one("SELECT pgmq.drop_queue($1)", &[&target])
+            .query_one("SELECT pgmq.drop_queue($1)", &[&queues.batches])
             .await
             .unwrap();
-        assert!(
-            dispatch_electoral_log_batches(&pool, &slug, limits(10, DEFAULT_BATCH_MAX_BYTES))
-                .await
-                .is_err()
-        );
+        assert!(dispatch_electoral_log_batches(
+            &pool,
+            &queues,
+            limits(10, DEFAULT_BATCH_MAX_BYTES)
+        )
+        .await
+        .is_err());
         assert_eq!(
-            queue_length(&client, &source).await,
+            queue_length(&client, &queues.events).await,
             3,
             "failed promotion must retain every source event"
         );
         assert_eq!(
-            queue_length(&client, &dead_letters).await,
+            queue_length(&client, &queues.dead_letters).await,
             0,
             "failed promotion must not dead-letter"
         );
 
         client
-            .query_one("SELECT pgmq.create($1)", &[&target])
+            .query_one("SELECT pgmq.create($1)", &[&queues.batches])
             .await
             .unwrap();
-        dispatch_electoral_log_batches(&pool, &slug, limits(10, DEFAULT_BATCH_MAX_BYTES))
+        dispatch_electoral_log_batches(&pool, &queues, limits(10, DEFAULT_BATCH_MAX_BYTES))
             .await
             .unwrap();
-        assert_eq!(queue_length(&client, &source).await, 0);
-        assert_eq!(batch_sizes(&client, &target).await, vec![2]);
+        assert_eq!(queue_length(&client, &queues.events).await, 0);
+        assert_eq!(batch_sizes(&client, &queues.batches).await, vec![2]);
         let dead_letter = client
             .query_one(
-                &format!("SELECT message, headers FROM pgmq.q_{dead_letters}"),
+                &format!(
+                    "SELECT message, headers FROM pgmq.q_{}",
+                    queues.dead_letters
+                ),
                 &[],
             )
             .await
@@ -1283,30 +1348,32 @@ mod pgmq_tests {
             .as_str()
             .unwrap()
             .contains("Celery envelope"));
-        drop_queues(&client, &slug).await;
+        drop_queues(&client, &queues).await;
     }
 
     #[tokio::test]
-    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable PGMQ database"]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
     async fn batches_close_at_their_limits_and_leave_the_rest_queued() {
         let pool = test_pool();
-        let slug = format!("limits_{}", uuid::Uuid::new_v4());
-        enqueue_events(&pool, &slug, &["e1", "e2", "e3", "e4", "e5"]).await;
+        let queues = test_queues(&pool, "limits").await;
+        enqueue_events(&pool, &queues, &["e1", "e2", "e3", "e4", "e5"]).await;
         let client = pool.get().await.unwrap();
-        let target = pgmq_broker::queue_name(&Queue::ElectoralLogBatch.queue_name(&slug));
 
-        dispatch_electoral_log_batches(&pool, &slug, limits(2, DEFAULT_BATCH_MAX_BYTES))
+        dispatch_electoral_log_batches(&pool, &queues, limits(2, DEFAULT_BATCH_MAX_BYTES))
             .await
             .unwrap();
-        assert_eq!(batch_sizes(&client, &target).await, vec![2, 2, 1]);
+        assert_eq!(batch_sizes(&client, &queues.batches).await, vec![2, 2, 1]);
 
         // A message larger than the byte limit still forms a batch on its own, and the
         // messages read beyond the limit wait for the next batch.
-        enqueue_events(&pool, &slug, &["e6", "e7"]).await;
-        dispatch_electoral_log_batches(&pool, &slug, limits(10, 1))
+        enqueue_events(&pool, &queues, &["e6", "e7"]).await;
+        dispatch_electoral_log_batches(&pool, &queues, limits(10, 1))
             .await
             .unwrap();
-        assert_eq!(batch_sizes(&client, &target).await, vec![2, 2, 1, 1, 1]);
-        drop_queues(&client, &slug).await;
+        assert_eq!(
+            batch_sizes(&client, &queues.batches).await,
+            vec![2, 2, 1, 1, 1]
+        );
+        drop_queues(&client, &queues).await;
     }
 }

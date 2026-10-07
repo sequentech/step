@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::celery_app::{get_celery_app, get_queues};
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool, get_queue_pool};
 use crate::services::jwks::get_jwks_secret_path;
 use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
@@ -37,7 +37,7 @@ const DB_TIMEOUTS: Timeouts = Timeouts {
 async fn check_celery(app_name: &AppName) -> Option<bool> {
     if *app_name == AppName::BEAT {
         let healthy = tokio::time::timeout(Duration::from_secs(5), async {
-            let pool = get_keycloak_pool().await;
+            let pool = get_queue_pool().await;
             let client = pool.get().await?;
             client
                 .simple_query("SELECT 1 FROM pgmq.meta LIMIT 1")

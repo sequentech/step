@@ -9,7 +9,6 @@ import org.keycloak.events.EventListenerProvider;
 import org.keycloak.events.EventListenerProviderFactory;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
-import org.keycloak.models.utils.KeycloakModelUtils;
 
 @AutoService(EventListenerProviderFactory.class)
 public class CustomEventListenerProviderFactory implements EventListenerProviderFactory {
@@ -36,11 +35,15 @@ public class CustomEventListenerProviderFactory implements EventListenerProvider
     if (pgmqEventPublisher == null) {
       pgmqEventPublisher = PgmqEventPublisher.fromEnvironment();
     }
-    KeycloakModelUtils.runJobInTransaction(factory, pgmqEventPublisher::initialize);
+    pgmqEventPublisher.checkQueueDatabase();
   }
 
   @Override
-  public void close() {}
+  public void close() {
+    if (pgmqEventPublisher != null) {
+      pgmqEventPublisher.close();
+    }
+  }
 
   @Override
   public String getId() {

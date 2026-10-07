@@ -1828,7 +1828,7 @@ dependencies = [
 [[package]]
 name = "celery"
 version = "0.5.5"
-source = "git+https://github.com/Findeton/rusty-celery.git?rev=c76b500a0fa444cd7e81d77de80ed21d1d929718#c76b500a0fa444cd7e81d77de80ed21d1d929718"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=7dfe34739d21a95754e34dedb5f10aa0a4f356ce#7dfe34739d21a95754e34dedb5f10aa0a4f356ce"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
@@ -1857,7 +1857,7 @@ dependencies = [
 [[package]]
 name = "celery-codegen"
 version = "0.5.5"
-source = "git+https://github.com/Findeton/rusty-celery.git?rev=c76b500a0fa444cd7e81d77de80ed21d1d929718#c76b500a0fa444cd7e81d77de80ed21d1d929718"
+source = "git+https://github.com/Findeton/rusty-celery.git?rev=7dfe34739d21a95754e34dedb5f10aa0a4f356ce#7dfe34739d21a95754e34dedb5f10aa0a4f356ce"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6909,7 +6909,6 @@ dependencies = [
  "futures",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "tokio",
  "tokio-postgres",
  "tokio-stream",
