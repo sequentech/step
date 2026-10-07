@@ -37,14 +37,16 @@ import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     CreateUserMutation,
     DeleteUserRoleMutation,
+    GetUsersQuery,
+    GetUsersQueryVariables,
     ListUserRolesQuery,
-    Sequent_Backend_Cast_Vote,
     Sequent_Backend_Election,
     SetUserRoleMutation,
     UserProfileAttribute,
     UserProfileAttributeGroup,
 } from "@/gql/graphql"
 import {EDIT_USER} from "@/queries/EditUser"
+import {LIST_USERS} from "@/queries/GetUsers"
 import {LIST_USER_ROLES} from "@/queries/ListUserRoles"
 import {DataGrid, GridColDef, GridRenderCellParams} from "@mui/x-data-grid"
 import {isUndefined} from "@sequentech/ui-core"
@@ -513,21 +515,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         rolesInitializedRef.current = true
     }, [createMode, userRoles])
 
-    const {data: voterCastVotes} = useGetList<Sequent_Backend_Cast_Vote>(
-        "sequent_backend_cast_vote",
-        {
-            pagination: {page: 1, perPage: 10},
-            sort: {field: "last_updated_at", order: "DESC"},
-            filter: {
-                tenant_id: tenantId,
-                election_event_id: electionEventId,
-                voter_id_string: id,
-            },
+    // Harvest reads the voter's votes from the event's ballot box.
+    const {data: voterVotes} = useQuery<GetUsersQuery, GetUsersQueryVariables>(LIST_USERS, {
+        variables: {
+            tenant_id: tenantId,
+            election_event_id: electionEventId,
+            userIds: id ? [id] : [],
+            showVotesInfo: true,
+            limit: 1,
         },
-        {
-            enabled: !!electionEventId,
-        }
-    )
+        skip: !id || !tenantId || !electionEventId,
+    })
 
     const {data: electionsList} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
@@ -549,8 +547,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     // or if current admin user has the permission canEditVotersWhoVoted
 
     const hasVoted = useMemo(() => {
-        return voterCastVotes ? voterCastVotes?.length > 0 : false
-    }, [voterCastVotes])
+        return (voterVotes?.get_users.items[0]?.votes_info?.length ?? 0) > 0
+    }, [voterVotes])
 
     const enabledByVoteNum = useMemo(() => {
         return canEditVotersWhoVoted || (canEditVoters && !hasVoted)

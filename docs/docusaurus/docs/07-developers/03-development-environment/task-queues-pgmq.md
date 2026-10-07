@@ -36,9 +36,11 @@ and stays within PGMQ's identifier-length limit. Rust and Java use the same mapp
 | `electoral_log_beat_queue` | Electoral-log batch dispatcher |
 | `electoral_log_batch_queue` | Electoral-log batch processing |
 | `electoral_log_event_queue` | Raw events; **batch dispatcher only** |
+| `electoral_log_dead_letter_queue` | None; electoral-log events set aside for inspection and replay |
 
 Normal Windmill consumers reject the raw-event queue: its Celery task is an enqueue
-marker, not an event processor. Keep the normal eight queue subscriptions in the
+marker, not an event processor. They also reject the dead-letter queue, which Windmill
+creates the first time it sets an event aside. Keep the normal eight queue subscriptions in the
 Compose examples. Prefetch is bounded **per queue** and remains bounded across
 broker reconnects. Existing task semaphores still apply.
 
@@ -89,13 +91,16 @@ upgrade scripts when upgrading PGMQ in future releases.
   records and worker logs for the outcome.
 * Raw audit events are promoted into one batch job and removed from the source queue
   in **one database transaction**. Failure or cancellation rolls back the whole
-  handoff. Malformed raw events are archived without blocking later valid events.
+  handoff. Raw events that cannot be parsed move to `electoral_log_dead_letter_queue`
+  in the same transaction, without blocking later valid events. A batch closes at
+  `ELECTORAL_LOG_BATCH_SIZE` events or `ELECTORAL_LOG_BATCH_MAX_BYTES` bytes; messages
+  read beyond the byte limit become visible again for the next batch.
 * Keycloak success events enqueue in their request transaction. Publication failure
   marks that transaction for rollback. Keycloak 26.6.1 normally emits error events
   in a separate transaction, so ordinary `LOGIN_ERROR` records survive rollback of
   the original request. Other caller-controlled rollback behavior follows Keycloak's
   event transaction; there is no independent cross-database publish.
-* Beat keeps its five existing schedules. A PostgreSQL advisory lock admits one Beat
+* Beat keeps its existing schedules. A PostgreSQL advisory lock admits one Beat
   per environment. Publication uses that same pinned connection, so loss of its
   database session prevents further publication and stops the scheduler. The report
   poller receives the configured report interval. Periodic timer state remains in
@@ -144,15 +149,14 @@ The focused suite runs against a disposable database initialized from the same S
 
 ```sh
 cargo test -p pgmq-broker -- --include-ignored --test-threads=1
-cargo test -p windmill --lib \
-  tasks::electoral_log::pgmq_tests::batch_handoff_is_atomic_and_quarantines_invalid_events \
-  -- --ignored --exact
+cargo test -p windmill --lib tasks::electoral_log::pgmq_tests -- --ignored --test-threads=1
 ```
 
 Set `PGMQ_TEST_DATABASE_URL` through the test environment, not committed configuration.
 CI creates a separate `pgmq_test` database and runs these checks explicitly. They
 cover real worker/Beat delivery, retry, expiry, transaction rollback, lease renewal,
-claim fencing, abandoned-claim recovery, malformed messages and atomic batch handoff.
+claim fencing, abandoned-claim recovery, malformed messages, atomic batch handoff,
+dead letters and batch limits.
 The Java publisher has two focused transaction/envelope tests.
 From the repository root, run the development supervision regression with
 `python3 .devcontainer/test-restart-worker.py`. It checks restart after failure

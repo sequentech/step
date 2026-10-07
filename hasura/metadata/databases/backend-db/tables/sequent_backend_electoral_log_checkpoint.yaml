@@ -1,0 +1,59 @@
+table:
+    name: electoral_log_checkpoint
+    schema: sequent_backend
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - board_name
+              - log_id
+              - tree_size
+              - root
+              - reason
+              - signer_pk
+              - signature
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - board_name
+              - log_id
+              - tree_size
+              - root
+              - reason
+              - signer_pk
+              - signature
+              - created_at
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: logs-read
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - board_name
+              - log_id
+              - tree_size
+              - root
+              - reason
+              - signer_pk
+              - signature
+              - created_at
+          filter: {}
+      role: service-account

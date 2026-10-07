@@ -12,15 +12,15 @@ use electoral_log::messages::newtypes::EventIdString;
 use electoral_log::messages::statement::{
     Statement, StatementBody, StatementEventType, StatementHead, StatementLogType, StatementType,
 };
-use electoral_log::ElectoralLogMessage;
+use electoral_log::{ElectoralLogMessage, LogEntry};
 use fake::faker::internet::raw::Username;
 use fake::locales::EN;
 use fake::Fake;
-use immudb_rs::{sql_value::Value as ImmudbValue, Client as ImmudbClient, NamedParam, SqlValue};
 use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
+use uuid::Uuid;
+use windmill::services::protocol_manager::get_board_client;
 use windmill::services::protocol_manager::get_event_board;
-use windmill::services::providers::transactions_provider::provide_immudb_transaction;
 
 #[derive(Args)]
 #[command(about)]
@@ -112,11 +112,11 @@ impl CreateElectoralLogs {
         let election_event_id = config.election_event_id;
         let election_id = config.election_id;
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-        let immudb_db = get_event_board(&tenant_id, &election_event_id, &slug);
+        let board = get_event_board(&tenant_id, &election_event_id, &slug);
         let area_id = config.area_id;
         let realm_name = config.realm_name;
 
-        println!("immudb_db: {}", &immudb_db);
+        println!("board: {}", &board);
 
         let kc_client = get_keyckloak_pool()
             .await?
@@ -151,7 +151,9 @@ impl CreateElectoralLogs {
             })
             .collect();
 
-        let mut logs_params: Vec<Vec<NamedParam>> = Vec::new();
+        let client = get_board_client().await?;
+        client.create_board(&board).await?;
+        let mut entries = Vec::with_capacity(1000);
         for i in 0..num_logs {
             let user = if existing_users.is_empty() {
                 Voter {
@@ -174,121 +176,19 @@ impl CreateElectoralLogs {
                 )
                 .with_context(|| "Error generating log message")?;
 
-            let params = vec![
-                NamedParam {
-                    name: "created".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::Ts(message.created)),
-                    }),
-                },
-                NamedParam {
-                    name: "sender_pk".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::S(message.sender_pk)),
-                    }),
-                },
-                NamedParam {
-                    name: "statement_kind".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::S(message.statement_kind)),
-                    }),
-                },
-                NamedParam {
-                    name: "statement_timestamp".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::Ts(message.statement_timestamp)),
-                    }),
-                },
-                NamedParam {
-                    name: "message".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::Bs(message.message)),
-                    }),
-                },
-                NamedParam {
-                    name: "version".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::S(message.version)),
-                    }),
-                },
-                NamedParam {
-                    name: "user_id".to_string(),
-                    value: Some(SqlValue {
-                        value: user_id_cloned.map(ImmudbValue::S),
-                    }),
-                },
-                NamedParam {
-                    name: "username".to_string(),
-                    value: Some(SqlValue {
-                        value: username.map(ImmudbValue::S),
-                    }),
-                },
-                NamedParam {
-                    name: "election_id".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::S(election_id.to_string())),
-                    }),
-                },
-                NamedParam {
-                    name: "area_id".to_string(),
-                    value: Some(SqlValue {
-                        value: Some(ImmudbValue::S(area_id.to_string())),
-                    }),
-                },
-            ];
-            logs_params.push(params);
+            entries.push(LogEntry {
+                delivery_id: Uuid::new_v4().to_string(),
+                message,
+            });
+            if entries.len() == 1000 {
+                client.append(&board, &entries).await?;
+                entries.clear();
+            }
         }
-
-        println!("Concatenated {} logs.", logs_params.len());
-
-        let batch_size = 1000;
-        for chunk in logs_params.chunks(batch_size) {
-            let chunk = chunk.to_vec();
-            provide_immudb_transaction(
-                |client, tx_id| {
-                    let chunk = chunk.clone();
-                    Box::pin(async move { insert_logs(client, &tx_id, chunk).await })
-                },
-                immudb_db.as_str(),
-            )
-            .await?;
+        if !entries.is_empty() {
+            client.append(&board, &entries).await?;
         }
-
-        println!("Inserted {} logs.", logs_params.len());
-
+        println!("Inserted {num_logs} logs.");
         Ok(())
     }
-}
-
-async fn insert_logs(
-    client: &mut ImmudbClient,
-    tx_id: &str,
-    logs_params: Vec<Vec<NamedParam>>,
-) -> Result<()> {
-    let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
-    let mut values_clauses = Vec::new();
-    let mut all_params: Vec<NamedParam> = Vec::new();
-    let mut row_index = 1;
-
-    for row in &logs_params {
-        let mut clause_parts = Vec::new();
-        for param in row {
-            let new_name = format!("{}{}", param.name, row_index);
-            clause_parts.push(format!("@{}", new_name));
-            all_params.push(NamedParam {
-                name: new_name,
-                value: param.value.clone(),
-            });
-        }
-        row_index += 1;
-        values_clauses.push(format!("({})", clause_parts.join(", ")));
-    }
-
-    query.push_str(&values_clauses.join(", "));
-    client
-        .tx_sql_exec(&query, &(tx_id.to_string()), all_params)
-        .await
-        .map_err(|e| anyhow!("Failed to execute query: {:?}", e))?;
-
-    Ok(())
 }

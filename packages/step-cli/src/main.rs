@@ -33,6 +33,7 @@ enum MainCommand {
 #[derive(Subcommand)]
 enum StepCommands {
     Config(commands::configure::Config),
+    AuditElectoralLog(commands::audit_electoral_log::AuditElectoralLogCLI),
     CreateTenant(commands::create_tenant::CreateTenant),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
@@ -93,6 +94,7 @@ fn main() {
         }
         MainCommand::Step(step_cmd) => match step_cmd {
             StepCommands::Config(cmd) => cmd.run(),
+            StepCommands::AuditElectoralLog(audit) => exit_on_error(audit.run()),
             StepCommands::CreateTenant(create_tenant) => exit_on_error(create_tenant.run()),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),
@@ -100,7 +102,9 @@ fn main() {
             StepCommands::CreateCandidate(create_candidate) => create_candidate.run(),
             StepCommands::CreateArea(create_area) => create_area.run(),
             StepCommands::CreateAreaContest(create_area_contest) => create_area_contest.run(),
-            StepCommands::ExportCastVotes(export_cast_votes) => export_cast_votes.run(),
+            StepCommands::ExportCastVotes(export_cast_votes) => {
+                exit_on_error(export_cast_votes.run())
+            }
             StepCommands::ExportElectionEvent(export_election_event) => export_election_event.run(),
             StepCommands::ImportElection(import) => import.run(),
             StepCommands::ImportVoters(import_voters) => exit_on_error(import_voters.run()),
@@ -152,7 +156,7 @@ fn main() {
 /// Give scripts a nonzero status while leaving the detailed error on stderr.
 fn exit_on_error(result: Result<(), impl std::fmt::Display>) {
     if let Err(error) = result {
-        eprintln!("Error! {error}");
+        eprintln!("Error! {error:#}");
         std::process::exit(1);
     }
 }

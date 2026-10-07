@@ -11,7 +11,6 @@ const englishTranslation = {
         a11y: {
             skipToContent: "Skip to main content",
             helpAbout: "Help about {{topic}}",
-            copyToClipboard: "Copy {{label}} to clipboard",
             previewMaterial: "Preview {{title}}",
             ballotsTable: "Ballots",
             ballotLocatorTabs: "Ballot locator sections",
@@ -19,8 +18,10 @@ const englishTranslation = {
             votingProgress: "Voting progress",
             stepOf: "Step {{current}} of {{total}}",
             selectUpTo_one: "Select up to {{count}} option",
+            selectUpTo_many: "Select up to {{count}} options",
             selectUpTo_other: "Select up to {{count}} options",
             selectExactly_one: "Select {{count}} option",
+            selectExactly_many: "Select {{count}} options",
             selectExactly_other: "Select {{count}} options",
             selectBetween: "Select between {{min}} and {{max}} options",
         },
@@ -28,8 +29,12 @@ const englishTranslation = {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
             hideCandidates: "Hide candidates",
-            selectedCandidate: "{{count}} candidate selected",
-            selectedCandidates: "{{count}} candidates selected",
+            selectedCandidates_one: "{{count}} candidate selected",
+            // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+            // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+            // so the key has to be declared here before they can carry it.
+            selectedCandidates_many: "{{count}} candidates selected",
+            selectedCandidates_other: "{{count}} candidates selected",
             expandAll: "Expand all",
             collapseAll: "Collapse all",
         },
@@ -52,18 +57,17 @@ const englishTranslation = {
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
-            clearButton: "Clear choices",
+            clearButton: "Clear selections",
             ballotHelpDialog: {
                 title: "About this screen",
                 content:
-                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selections</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
                 title: "Your vote is invalid or blank",
-                content:
-                    "Some of your answers will make one or more ballot questions invalid or blank",
-                ok: "Review selection",
+                content: "Some of your answers will make one or more contests invalid or blank",
+                ok: "Review selections",
                 continue: "Continue",
                 cancel: "Cancel",
             },
@@ -95,10 +99,10 @@ const englishTranslation = {
             },
             instructionsTitle: "How to vote",
             instructionsDescription: "Follow these steps to cast your ballot",
-            step1Title: "1. Choose your options",
+            step1Title: "1. Make your selections",
             step1Description:
-                "Pick your preferred candidates and answer each ballot question as it appears. You can change your ballot anytime before casting your vote",
-            step2Title: "2. Review your choices",
+                "Pick your preferred candidates and make your selections in each contest as it appears. You can change your ballot anytime before casting your vote",
+            step2Title: "2. Review your selections",
             step2Description:
                 "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",
             step3Title: "3. Cast your ballot",
@@ -212,7 +216,7 @@ const englishTranslation = {
                 CAST_VOTE_UnknownError:
                     "An unknown error occurred while casting your vote. Please try again later or contact support",
                 NO_BALLOT_SELECTION:
-                    "The selection state for this election is missing. Please check your choices or contact support",
+                    "The selection state for this election is missing. Please check your selections or contact support",
                 NO_BALLOT_STYLE: "This ballot is not available. Please contact support",
                 NO_AUDITABLE_BALLOT:
                     "There is no ballot available for audit. Please contact support",
@@ -295,13 +299,13 @@ const englishTranslation = {
             ballotIdHelpDialog: {
                 title: "About the Ballot ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your choices.",
+                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             ballotIdDemoHelpDialog: {
                 title: "About the Ballot ID",
                 content:
-                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your choices.",
+                    "The Ballot ID is a unique code that lets you find your ballot in the ballot box. It does not contain any information about your selections.",
                 ok: "OK",
             },
             errorDialogPrintBallotReceipt: {
@@ -385,27 +389,12 @@ const englishTranslation = {
                 notEnoughChoices: "Not enough choices to decode",
                 writeInChoiceOutOfRange: "Write-in choice out of range: {{index}}",
                 writeInNotEndInZero: "Write-in doesn't end on 0",
-                writeInCharsExceeded:
-                    "The write-in exceeds the maximum length by {{numCharsExceeded}} characters. Please shorten it.",
                 bytesToUtf8Conversion:
                     "Error converting write-in from bytes to UTF-8 string: {{errorMessage}}",
                 ballotTooLarge: "Ballot larger than expected",
             },
-            implicit: {
-                selectedMax:
-                    "Overvote: Number of selected choices {{numSelected}} is more than the maximum {{max}}",
-                selectedMin:
-                    "Number of selected choices {{numSelected}} is less than the minimum {{min}}",
-                maxSelectionsPerType:
-                    "Number of selected choices {{numSelected}} for list {{type}} is more than the maximum {{max}}",
-                underVote:
-                    "Undervote: Number of selected choices {{numSelected}} is less than the maximum {{max}}",
-                overVoteDisabled:
-                    "Maximum reached: You have selected the maximum {{numSelected}} choices. To change your selection, please deselect another option first.",
-                blankVote: "Blank Vote: 0 choices selected",
-            },
             explicit: {
-                notAllowed: "Ballot marked explicitly invalid but question doesn't allow it",
+                notAllowed: "Ballot marked explicitly invalid but the contest doesn't allow it",
                 alert: "This selection will be counted as an invalid vote",
             },
             page: {
@@ -467,9 +456,7 @@ const englishTranslation = {
             column: {
                 statement_kind: "Statement kind",
                 statement_timestamp: "Statement Timestamp",
-                username: "Username",
                 ballot_id: "Ballot ID",
-                message: "Message",
             },
         },
     },

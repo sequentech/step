@@ -32,7 +32,6 @@ pub mod fetch_document;
 pub mod generate_preview_url;
 pub mod get_certificate_authorities_pem;
 pub mod google_meet;
-pub mod immudb_log_audit;
 pub mod import_application;
 pub mod import_areas;
 pub mod import_candidates;
@@ -62,8 +61,13 @@ pub mod templates;
 pub mod trustees;
 pub mod upload_document;
 pub mod users;
+pub mod voter_cast_votes;
 pub mod voter_electoral_log;
 pub mod voter_information_letter;
 pub mod voting_status;
 
 pub mod ballot_files;
+
+pub mod electoral_log_audit;
+pub mod electoral_log_console;
+pub mod electoral_log_proofs;

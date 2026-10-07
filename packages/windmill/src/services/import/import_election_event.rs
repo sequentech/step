@@ -100,7 +100,7 @@ use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_election_board;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
-    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
+    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client, get_electoral_log_store,
 };
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
@@ -137,9 +137,12 @@ pub async fn upsert_b3_and_elog(
 ) -> Result<Value> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    // FIXME must also create the electoral log board here
-    let mut immudb_client = get_board_client().await?;
-    immudb_client.upsert_electoral_log_db(&board_name).await?;
+    let electoral_log = get_board_client().await?;
+    electoral_log.create_board(&board_name).await?;
+    get_electoral_log_store(&board_name)
+        .await?
+        .create_ballot_box(election_event_id)
+        .await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
 

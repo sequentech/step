@@ -93,7 +93,7 @@ reuse lint                           # Every file must have SPDX headers
 - **sequent-core** — Shared core: ballot structures, crypto ops, PDF reports, Keycloak integration. Compiles to WASM for frontend. Features: `wasm`, `reports`, `keycloak`, `s3`, `sqlite`
 - **windmill** — Celery-based task execution engine (PGMQ/PostgreSQL, GraphQL client, WASM plugin mgmt)
 - **harvest** — Election management REST API (Rocket framework)
-- **immu-board** — Tamper-evident bulletin board
+- **electoral-log** — PostgreSQL electoral event logs
 - **velvet** — PDF/report generation CLI
 - **step-cli** — CLI for election administration
 - **e2e** — End-to-end testing framework
@@ -109,7 +109,7 @@ reuse lint                           # Every file must have SPDX headers
 - **Hasura** — GraphQL API layer over PostgreSQL
 - **Keycloak** — Identity management (one realm per tenant + one per election event)
 - **PGMQ** — PostgreSQL task queues for Celery workers in the Keycloak database
-- **ImmuDB** — Tamper-evident audit logging
+- **PostgreSQL electoral-log database** — Electoral event logs
 - **MinIO** — S3-compatible object storage
 
 ### Key Patterns
@@ -197,7 +197,6 @@ Dev service URLs (inside dev container):
 - Hasura: http://127.0.0.1:8080 (admin secret: "admin")
 - Voting Portal: http://127.0.0.1:3000
 - Admin Portal: http://127.0.0.1:3002
-- ImmuDB: http://127.0.0.1:3325 (immudb/immudb)
 - MinIO: http://127.0.0.1:9001
 
 **Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, don't run `cargo build` to verify it — check the container logs (`docker logs windmill` / `docker logs harvest`) instead, since those services auto-rebuild on changes inside the dev container. See the note under Build Commands → Rust.

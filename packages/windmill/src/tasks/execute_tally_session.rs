@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
-use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::keys_ceremony::{get_keys_ceremonies, get_keys_ceremony_by_id};
@@ -18,7 +17,8 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
-use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::ballot_box_reads::count_unresolved_votes;
+use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
@@ -44,6 +44,7 @@ use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_audit::checkpoint_and_audit_electoral_log;
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
@@ -797,7 +798,7 @@ async fn map_plaintext_data(
         let election_uuid =
             parse_uuid_v4(&contest.election_id).with_context(|| "Error parsing election_id")?;
         let area_uuid = parse_uuid_v4(&contest.area_id).with_context(|| "Error parsing area_id")?;
-        let unresolved_count = count_unresolved_cast_votes(
+        let unresolved_count = count_unresolved_votes(
             hasura_transaction,
             &tenant_uuid,
             &election_event_uuid,
@@ -1266,7 +1267,7 @@ pub async fn execute_tally_session_wrapped(
     tally_type: Option<String>,
     election_ids: Option<Vec<String>>,
     force_new_results_id: bool,
-) -> Result<()> {
+) -> Result<TallyProgress> {
     let Some((tally_session_execution, tally_session, tally_session_contests, ballot_styles)) =
         find_last_tally_session_execution_and_all_related_data(
             hasura_transaction,
@@ -1278,7 +1279,7 @@ pub async fn execute_tally_session_wrapped(
         .await?
     else {
         event!(Level::INFO, "Can't find last execution status, skipping");
-        return Ok(());
+        return Ok(TallyProgress::Pending);
     };
 
     let keys_ceremony = get_keys_ceremony_by_id(
@@ -1354,7 +1355,7 @@ pub async fn execute_tally_session_wrapped(
     )) = plaintexts_data_opt
     else {
         event!(Level::INFO, "map_plaintext_data is None, skipping");
-        return Ok(());
+        return Ok(TallyProgress::Pending);
     };
 
     event!(Level::INFO, "Num plaintexts_data {}", plaintexts_data.len());
@@ -1471,7 +1472,7 @@ pub async fn execute_tally_session_wrapped(
             )
             .await?;
 
-            return Ok(());
+            return Ok(TallyProgress::Pending);
         }
     }
 
@@ -1540,7 +1541,28 @@ pub async fn execute_tally_session_wrapped(
         }
     }
 
-    Ok(())
+    Ok(if is_execution_completed {
+        TallyProgress::Completed(tally_type_enum)
+    } else {
+        TallyProgress::Pending
+    })
+}
+
+/// What one run of a tally session achieved.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TallyProgress {
+    /// The session needs further runs, or this run had nothing to do.
+    Pending,
+    /// The session completed.
+    Completed(TallyType),
+}
+
+impl TallyProgress {
+    /// Whether this run completed a results tally. Only those publish a checkpoint of
+    /// the electoral log and audit it; initialization reports do not.
+    pub fn completed_results(&self) -> bool {
+        *self == TallyProgress::Completed(TallyType::ELECTORAL_RESULTS)
+    }
 }
 
 #[instrument(err)]
@@ -1584,12 +1606,24 @@ pub async fn transactions_wrapper(
     .await;
 
     match res {
-        Ok(res) => {
+        Ok(progress) => {
             hasura_transaction
                 .commit()
                 .await
                 .with_context(|| "error comitting transaction")?;
-            Ok(res)
+            drop(keycloak_transaction);
+            drop(keycloak_db_client);
+            drop(hasura_db_client);
+            if progress.completed_results() {
+                // Runs after the commit; failures are reported, never fail the tally.
+                checkpoint_and_audit_electoral_log(
+                    &tenant_id,
+                    &election_event_id,
+                    &tally_session_id,
+                )
+                .await;
+            }
+            Ok(())
         }
         Err(err) => {
             tracing::error!("Error in transactions_wrapper: {:?}", err);
@@ -1890,5 +1924,14 @@ mod tests {
         assert_eq!(election_ee1e2.cast_votes, 3);
 
         Ok(())
+    }
+
+    #[test]
+    fn only_completed_results_tallies_audit_the_electoral_log() {
+        use crate::tasks::execute_tally_session::TallyProgress;
+        use sequent_core::types::ceremonies::TallyType;
+        assert!(TallyProgress::Completed(TallyType::ELECTORAL_RESULTS).completed_results());
+        assert!(!TallyProgress::Completed(TallyType::INITIALIZATION_REPORT).completed_results());
+        assert!(!TallyProgress::Pending.completed_results());
     }
 }

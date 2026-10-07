@@ -723,7 +723,7 @@ describe("published summaries before ballot downloads", () => {
 
     it("counts earlier bootstrap votes together with the just-completed cast", async () => {
         setRemainingElection("online")
-        mockVoterContext.data.sequent_backend_cast_vote = [
+        mockVoterContext.data.cast_votes = [
             {id: "earlier-B", election_id: "election-2", status: "valid"},
         ]
         renderRoute(<ConfirmationScreen />, "confirmation")
@@ -736,7 +736,7 @@ describe("published summaries before ballot downloads", () => {
     it("does not double-count the same vote in bootstrap and local state", async () => {
         setRemainingElection("online", false)
         mockVoterContext.data.sequent_backend_election[0].num_allowed_revotes = 2
-        mockVoterContext.data.sequent_backend_cast_vote = mockState.castVotes["election-1"]
+        mockVoterContext.data.cast_votes = mockState.castVotes["election-1"]
         const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
         await userEvent
             .setup()

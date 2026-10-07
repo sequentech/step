@@ -13,7 +13,6 @@ const spanishTranslation: TranslationType = {
         a11y: {
             skipToContent: "Saltar al contenido principal",
             helpAbout: "Ayuda sobre {{topic}}",
-            copyToClipboard: "Copiar {{label}} al portapapeles",
             previewMaterial: "Vista previa de {{title}}",
             ballotsTable: "Papeletas",
             ballotLocatorTabs: "Secciones del localizador de papeletas",
@@ -21,8 +20,10 @@ const spanishTranslation: TranslationType = {
             votingProgress: "Progreso de la votación",
             stepOf: "Paso {{current}} de {{total}}",
             selectUpTo_one: "Seleccione hasta {{count}} opción",
+            selectUpTo_many: "Seleccione hasta {{count}} opciones",
             selectUpTo_other: "Seleccione hasta {{count}} opciones",
             selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_many: "Seleccione {{count}} opciones",
             selectExactly_other: "Seleccione {{count}} opciones",
             selectBetween: "Seleccione entre {{min}} y {{max}} opciones",
         },
@@ -30,8 +31,9 @@ const spanishTranslation: TranslationType = {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
-            selectedCandidate: "{{count}} candidato seleccionado",
-            selectedCandidates: "{{count}} candidatos seleccionados",
+            selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
+            selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",
         },
@@ -54,11 +56,11 @@ const spanishTranslation: TranslationType = {
         votingScreen: {
             backButton: "Atrás",
             reviewButton: "Siguiente",
-            clearButton: "Limpiar opciones",
+            clearButton: "Limpiar selecciones",
             ballotHelpDialog: {
                 title: "Sobre esta pantalla",
                 content:
-                    "Esta pantalla muestra la votación en la que usted es elegible para votar. Puede seleccionar su sección activando la casilla de la derecha Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Borrar selección</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
+                    "Esta pantalla muestra las preguntas en las que usted es elegible para votar. Puede hacer su selección activando la casilla a la derecha del Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Limpiar selecciones</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -298,7 +300,7 @@ const spanishTranslation: TranslationType = {
                 ok: "Aceptar",
             },
             demoBallotUrlDialog: {
-                title: "Rastreador de Boletas",
+                title: "Rastreador de Papeletas",
                 content: "No se puede usar el código, deshabilitado en modo de demostración.",
                 ok: "OK",
             },
@@ -319,7 +321,7 @@ const spanishTranslation: TranslationType = {
                 content: "Ha ocurrido un error, por favor intenta de nuevo",
                 ok: "Aceptar",
             },
-            demoQRText: "El rastreador de boletas está deshabilitado en modo de demostración",
+            demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
             printButton: "Imprimir",
@@ -381,7 +383,7 @@ const spanishTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ningún concurso asociado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ninguna pregunta asociada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 electionEventNotPublished:
                     "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
@@ -395,24 +397,9 @@ const spanishTranslation: TranslationType = {
                 notEnoughChoices: "No hay suficientes opciones para decodificar",
                 writeInChoiceOutOfRange: "Opción de escritura libre fuera de rango: {{index}}",
                 writeInNotEndInZero: "La escritura libre no termina en 0",
-                writeInCharsExceeded:
-                    "La escritura libre supera la longitud máxima en {{numCharsExceeded}} caracteres. Por favor, acórtela.",
                 bytesToUtf8Conversion:
                     "Error al convertir la escritura libre de bytes a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "La papeleta es más grande de lo esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Voto en exceso: el número de opciones seleccionadas {{numSelected}} supera el máximo {{max}}",
-                selectedMin:
-                    "El número de opciones seleccionadas {{numSelected}} es inferior al mínimo {{min}}",
-                maxSelectionsPerType:
-                    "El número de opciones seleccionadas {{numSelected}} para la lista {{type}} supera el máximo {{max}}",
-                underVote:
-                    "Voto incompleto: el número de opciones seleccionadas {{numSelected}} es inferior al máximo {{max}}",
-                overVoteDisabled:
-                    "Máximo alcanzado: ha seleccionado el máximo de {{numSelected}} opciones. Para cambiar su selección, anule primero la selección de otra opción.",
-                blankVote: "Voto en blanco: 0 opciones seleccionadas",
             },
             explicit: {
                 notAllowed:
@@ -478,9 +465,7 @@ const spanishTranslation: TranslationType = {
             column: {
                 statement_kind: "Tipo",
                 statement_timestamp: "Marca de tiempo",
-                username: "Usuario",
                 ballot_id: "ID de Papeleta",
-                message: "Mensaje",
             },
         },
     },

@@ -209,6 +209,13 @@ const frenchTranslation: TranslationType = {
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
+                audit: "Auditer",
+            },
+            auditDialog: {
+                title: "Auditer le journal électoral",
+                confirm: "Auditer",
+                description:
+                    "L'audit vérifie chaque entrée du journal par rapport à son journal Merkle et contrôle les points de contrôle publiés. Le résultat est enregistré en tant que tâche.",
             },
             exportdialog: {
                 description:
@@ -258,6 +265,7 @@ const frenchTranslation: TranslationType = {
                 DELETE_TENANT: "Supprimer l’organisation",
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
+                AUDIT_ELECTORAL_LOG: "Auditer le journal électoral",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -317,7 +325,7 @@ const frenchTranslation: TranslationType = {
             createAreaSuccess: "Zone créée",
             updateAreaSuccess: "Zone mise à jour",
             createAreaError: "Erreur lors de la création de la zone",
-            sequent_backend_area_contest: "Questions de la Zone",
+            sequent_backend_area_contest: "Scrutins de la Zone",
             empty: {
                 header: "Aucune Zone pour l'instant.",
                 action: "Créer une Zone",
@@ -601,10 +609,10 @@ const frenchTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concours unique",
-                        "multiple-contests": "Plusieurs concours",
+                        "single-contest": "Scrutin unique",
+                        "multiple-contests": "Plusieurs scrutins",
                     },
-                    policyLabel: "Politique de chiffrement de concours",
+                    policyLabel: "Politique de chiffrement de scrutin",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de date et d'heure du portail de vote",
@@ -789,7 +797,7 @@ const frenchTranslation: TranslationType = {
                 elegibleVoters: "Électeurs",
                 voters: "Votants",
                 elections: "Élections",
-                contests: "Questions",
+                contests: "Scrutins",
                 areas: "Zones",
                 sentEmails: "Emails Envoyés",
                 sentSMS: "SMS Envoyés",
@@ -974,7 +982,7 @@ const frenchTranslation: TranslationType = {
                 image: "Image",
                 advanced: "Configuration Avancée",
                 numAllowedVotes: "Nombre de votes permis",
-                reorder: "Réorganiser les concours",
+                reorder: "Réorganiser les scrutins",
                 castVoteConfirm: "Modal de Confirmation de Vote",
                 gracePeriodPolicy: "Politique de période de grâce",
                 allowTallyPolicy: "Autoriser le décompte",
@@ -1368,6 +1376,11 @@ const frenchTranslation: TranslationType = {
                 "publish-results-read": "Lire Publication des Résultats",
                 "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
+                "electoral-log-audit": "Auditer le Journal Électoral",
+                "electoral-log-console-read": "Parcourir le Journal Électoral",
+                "electoral-log-console-query": "Interroger le Journal Électoral",
+                "electoral-log-personal-data-read":
+                    "Lire les Données Personnelles du Journal Électoral",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
@@ -1383,7 +1396,6 @@ const frenchTranslation: TranslationType = {
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
-                "cast-vote-read": "Lire Votes Émis",
                 "document-read": "Lire Documents",
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
@@ -1392,14 +1404,14 @@ const frenchTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Éditer Concours",
-                "contest-read": "Lire le Concours",
+                "contest-write": "Éditer le Scrutin",
+                "contest-read": "Lire le Scrutin",
                 "candidate-write": "Éditer le candidats",
                 "candidate-read": "Lire le candidats",
                 "permission-label-write": "Modifier l'étiquette de permission",
                 "scheduled-event-write": "Modifier des Événements Planifiés",
-                "contest-create": "Create Contest",
-                "contest-delete": "Delete Contest",
+                "contest-create": "Créer un Scrutin",
+                "contest-delete": "Supprimer le Scrutin",
                 "candidate-create": "Create Candidate",
                 "candidate-delete": "Delete Candidate",
                 "election-create": "Create Election",
@@ -1703,7 +1715,7 @@ const frenchTranslation: TranslationType = {
             resources: {
                 electionEvent: "Événement Électoral",
                 election: "Élection",
-                contest: "Concours",
+                contest: "Scrutin",
                 candidate: "Candidat",
                 noResult: {
                     askCreate: "Voulez-vous en créer un ?",
@@ -1769,13 +1781,13 @@ const frenchTranslation: TranslationType = {
         createResource: {
             electionEvent: "Créer un Événement Électoral",
             election: "Créer une Élection",
-            contest: "Créer un Concours",
+            contest: "Créer un Scrutin",
             candidate: "Créer un Candidat",
         },
         importResource: {
             electionEvent: "Importer un Événement Électoral",
             election: "Importer une Élection",
-            contest: "Importer un Concours",
+            contest: "Importer un Scrutin",
             candidate: "Importer un Candidat",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1783,6 +1795,7 @@ const frenchTranslation: TranslationType = {
             electionEvents: "Processus Électoraux",
             search: "Chercher",
             usersAndRoles: "Utilisateurs et Rôles",
+            electoralLogConsole: "Journal Électoral",
             logs: "Journaux",
             settings: "Configuration",
             help: "Aide",
@@ -1792,7 +1805,7 @@ const frenchTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Créer un Événement Électoral",
                 election: "Créer une Élection",
-                contest: "Créer un Concours",
+                contest: "Créer un Scrutin",
                 candidate: "Créer un Candidat",
             },
             menuActions: {
@@ -1802,13 +1815,13 @@ const frenchTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Désarchiver cet Événement Électoral",
                     election: "Désarchiver cette Élection",
-                    contest: "Désarchiver ce Concours",
+                    contest: "Désarchiver ce Scrutin",
                     candidate: "Désarchiver ce Candidat",
                 },
                 remove: {
                     electionEvent: "Supprimer cet Événement Électoral",
                     election: "Supprimer cette Élection",
-                    contest: "Supprimer ce Concours",
+                    contest: "Supprimer ce Scrutin",
                     candidate: "Supprimer ce Candidat",
                 },
                 messages: {
@@ -1876,7 +1889,7 @@ const frenchTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuration des questions.",
+                subtitle: "Configuration du scrutin.",
             },
             edit: {
                 externalId: "ID externe",
@@ -1981,7 +1994,7 @@ const frenchTranslation: TranslationType = {
             isAcclaimed: {
                 label: "Acquis par acclamation",
                 helperText:
-                    "Les électeurs voient ce vote mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
+                    "Les électeurs voient ce scrutin mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
             },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
@@ -1993,7 +2006,7 @@ const frenchTranslation: TranslationType = {
                     "Position de classement la plus haute disponible (ex. '5' signifie positions 1 à 5). Doit être au moins égal au nombre de candidats à classer (vote préférentiel).",
             },
             error: {},
-            createContestSuccess: "Question créée",
+            createContestSuccess: "Scrutin créé",
             createContestError: "Erreur lors de la création de la question",
         },
         keysGeneration: {
@@ -2008,6 +2021,8 @@ const frenchTranslation: TranslationType = {
                 threshold: "Seuil",
                 errorMinTrustees_one:
                     "Vous avez sélectionné seulement {{selected}} autorité, mais vous devez en sélectionner au moins {{threshold}}.",
+                errorMinTrustees_many:
+                    "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorMinTrustees_other:
                     "Vous avez sélectionné seulement {{selected}} autorités, mais vous devez en sélectionner au moins {{threshold}}.",
                 errorThreshold:
@@ -2145,11 +2160,12 @@ const frenchTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                contests: "Scrutins",
+                noTalliedContests: "Aucun scrutin dépouillé disponible.",
+                publishSelectedContests: "Publier les scrutins sélectionnés",
+                selectedContestCount_one: "{{count}} scrutin sélectionné",
+                selectedContestCount_many: "{{count}} scrutins sélectionnés",
+                selectedContestCount_other: "{{count}} scrutins sélectionnés",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2234,7 +2250,7 @@ const frenchTranslation: TranslationType = {
                         trusteeName: "Nom du Fiduciaire",
                         signed: "A Signé",
                     },
-                    status: "{{signed}} sur {{total}} Ont Signé",
+                    status: "{{signed}} sur {{total}} Ont Signé, minimum {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2377,7 +2393,7 @@ const frenchTranslation: TranslationType = {
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
                 acclamation_note:
-                    "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
+                    "Élu par acclamation. Ce scrutin a été tranché sans vote : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -2398,7 +2414,7 @@ const frenchTranslation: TranslationType = {
                 save: "Enregistrer",
                 pendingApplyStatus: "Calcul en attente",
                 filterElection: "Élection",
-                filterContest: "Concours",
+                filterContest: "Scrutin",
                 filterArea: "Zone",
                 filterStatusLabel: "Statut",
                 clearFilters: "Effacer les filtres",
@@ -2528,7 +2544,7 @@ const frenchTranslation: TranslationType = {
                 ALL_USERS: "Tous",
                 NOT_VOTED: "Ceux qui n'ont pas voté",
                 VOTED: "Ceux qui ont déjà voté",
-                SELECTED: "À {{total}} Électeurs sélectionnés",
+                SELECTED: "À {{total}} {{voters}} sélectionnés",
             },
             path: {
                 users: "utilisateurs",
@@ -2582,7 +2598,7 @@ const frenchTranslation: TranslationType = {
                 blankBallotsInconsistent:
                     "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
                 blankBallotsOutOfBounds:
-                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par candidature de cette urne",
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par scrutin de cette urne",
             },
             label: {
                 area: "Zone",
@@ -2635,7 +2651,7 @@ const frenchTranslation: TranslationType = {
             },
             table: {
                 area: "Zone",
-                contest: "Cotienda",
+                contest: "Scrutin",
                 approvedVersion: "Version approuvée",
                 latestVersion: "Dernière version",
                 labels: "Étiquettes",
@@ -2942,6 +2958,71 @@ const frenchTranslation: TranslationType = {
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+        },
+        electoralLogConsole: {
+            title: "Journal Électoral",
+            subtitle:
+                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données du journal électoral. Rien sur cette page ne modifie les données.",
+            notAllowed:
+                "Vous avez besoin de la permission electoral-log-console-read pour ouvrir le journal électoral.",
+            tabs: {
+                tables: "Tables",
+                query: "Requête",
+            },
+            electionEvent: "Événement Électoral",
+            table: "Table",
+            tables: {
+                records: "Entrées",
+                ballots: "Bulletins",
+                voters: "Électeurs",
+                queue: "File du Séquenceur",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Plus récents d'abord",
+                "oldest-first": "Plus anciens d'abord",
+            },
+            filters: {
+                statement_kind: "Type",
+                election_id: "Élection",
+                area_id: "ID de Zone",
+                user_id: "ID d'Utilisateur ou d'Électeur",
+                ballot_id: "ID de Bulletin",
+                status: "Statut",
+                created_after: "Du",
+                created_before: "Au",
+                any: "Tous",
+                apply: "Appliquer les Filtres",
+                clear: "Effacer",
+                invalid:
+                    "Vérifiez les filtres signalés : les dates doivent être valides et les ID de zone de l'urne doivent être des UUID.",
+            },
+            statuses: {
+                valid: "Valide",
+                pending: "En attente",
+                rejected: "Rejeté",
+            },
+            estimatedRows: "Environ {{rows}} lignes dans cette table avant filtrage.",
+            personalDataHidden:
+                "Les noms d'utilisateur, adresses IP et pays sont masqués : les voir nécessite la permission electoral-log-personal-data-read.",
+            loadError: "Le journal électoral n'a pas pu être lu.",
+            record: {
+                title: "Entrée {{position}}",
+                view: "Voir l'entrée",
+                message: "Message (décodé)",
+                copy: "Copier le JSON",
+                close: "Fermer",
+                loadError: "L'entrée n'a pas pu être lue.",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données du journal électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
+            },
         },
     },
 }

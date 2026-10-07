@@ -4,8 +4,9 @@
 use super::jwks::remove_realm_jwks;
 use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use crate::postgres::election::get_elections;
+use crate::services::protocol_manager::get_board_client;
+use crate::services::protocol_manager::get_electoral_log_store;
 use crate::services::protocol_manager::get_event_board;
-use crate::services::protocol_manager::get_immudb_client;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -83,25 +84,18 @@ pub async fn delete_election_event_b3(
 }
 
 #[instrument(err)]
-pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let mut client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(tenant_id, election_event_id, &slug);
-
-    event!(Level::INFO, "database name = {board_name}");
-
-    let has_database = client
-        .has_database(&board_name)
-        .await
-        .map_err(|err| anyhow!("error reading immudb database: {err:?}"))?;
-
-    if has_database {
-        client
-            .delete_database(&board_name)
-            .await
-            .map_err(|err| anyhow!("error delete immudb database: {err:?}"))?;
-    }
-    Ok(())
+pub async fn delete_election_event_electoral_log(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(tenant_id, election_event_id, &slug);
+    // The ballot box lives in the board's database, which is found by the board.
+    get_electoral_log_store(&board)
+        .await?
+        .drop_ballot_box(election_event_id)
+        .await?;
+    get_board_client().await?.delete_board(&board).await
 }
 
 #[instrument(err)]

@@ -13,7 +13,6 @@ const catalanTranslation: TranslationType = {
         a11y: {
             skipToContent: "Vés al contingut principal",
             helpAbout: "Ajuda sobre {{topic}}",
-            copyToClipboard: "Copia {{label}} al porta-retalls",
             previewMaterial: "Vista prèvia de {{title}}",
             ballotsTable: "Paperetes",
             ballotLocatorTabs: "Seccions del localitzador de paperetes",
@@ -21,8 +20,10 @@ const catalanTranslation: TranslationType = {
             votingProgress: "Progrés de la votació",
             stepOf: "Pas {{current}} de {{total}}",
             selectUpTo_one: "Seleccioneu fins a {{count}} opció",
+            selectUpTo_many: "Seleccioneu fins a {{count}} opcions",
             selectUpTo_other: "Seleccioneu fins a {{count}} opcions",
             selectExactly_one: "Seleccioneu {{count}} opció",
+            selectExactly_many: "Seleccioneu {{count}} opcions",
             selectExactly_other: "Seleccioneu {{count}} opcions",
             selectBetween: "Seleccioneu entre {{min}} i {{max}} opcions",
         },
@@ -30,8 +31,9 @@ const catalanTranslation: TranslationType = {
             collapseToggle: "Alternar llista {{listTitle}}",
             showCandidates: "Mostra els candidats",
             hideCandidates: "Amaga els candidats",
-            selectedCandidate: "{{count}} candidat seleccionat",
-            selectedCandidates: "{{count}} candidats seleccionats",
+            selectedCandidates_one: "{{count}} candidat seleccionat",
+            selectedCandidates_many: "{{count}} candidats seleccionats",
+            selectedCandidates_other: "{{count}} candidats seleccionats",
             expandAll: "Expandir tot",
             collapseAll: "Reduir tot",
         },
@@ -54,11 +56,11 @@ const catalanTranslation: TranslationType = {
         votingScreen: {
             backButton: "Enrere",
             reviewButton: "Següent",
-            clearButton: "Netejar opcions",
+            clearButton: "Netejar seleccions",
             ballotHelpDialog: {
                 title: "Sobre aquesta pantalla",
                 content:
-                    "Aquesta pantalla mostra la votació en la qual vostè és elegible per votar. Pot seleccionar la seva secció activant la casella de la dreta Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó “<b>Netejar selecció</b>”, per passar al següent pas, faci clic al botó “<b>Següent</b>”.",
+                    "Aquesta pantalla mostra les preguntes en les quals vostè és elegible per votar. Pot fer la seva selecció activant la casella a la dreta del Candidat/Resposta. Per restablir les seves seleccions, faci clic al botó “<b>Netejar seleccions</b>”, per passar al següent pas, faci clic al botó “<b>Següent</b>”.",
                 ok: "D'acord",
             },
             nonVotedDialog: {
@@ -382,7 +384,7 @@ const catalanTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "No hi ha eleccions en les quals pugueu votar. Això podria ser perquè l'àrea no té cap concurs associat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
+                    "No hi ha eleccions en les quals pugueu votar. Això podria ser perquè l'àrea no té cap pregunta associada. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
                 electionEventNotPublished:
                     "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
             },
@@ -396,24 +398,9 @@ const catalanTranslation: TranslationType = {
                 notEnoughChoices: "No hi ha prou opcions per descodificar",
                 writeInChoiceOutOfRange: "Opció d'escriptura lliure fora de rang: {{index}}",
                 writeInNotEndInZero: "L'escriptura lliure no acaba en 0",
-                writeInCharsExceeded:
-                    "L'escriptura lliure supera la longitud màxima en {{numCharsExceeded}} caràcters. Si us plau, escurceu-la.",
                 bytesToUtf8Conversion:
                     "Error en convertir l'escriptura lliure de bytes a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "La papereta és més gran de l'esperada",
-            },
-            implicit: {
-                selectedMax:
-                    "Vot en excés: el nombre d'opcions seleccionades {{numSelected}} supera el màxim {{max}}",
-                selectedMin:
-                    "El nombre d'opcions seleccionades {{numSelected}} és inferior al mínim {{min}}",
-                maxSelectionsPerType:
-                    "El nombre d'opcions seleccionades {{numSelected}} per a la llista {{type}} supera el màxim {{max}}",
-                underVote:
-                    "Vot incomplet: el nombre d'opcions seleccionades {{numSelected}} és inferior al màxim {{max}}",
-                overVoteDisabled:
-                    "Màxim assolit: heu seleccionat el màxim de {{numSelected}} opcions. Per canviar la vostra selecció, desseleccioneu primer una altra opció.",
-                blankVote: "Vot en blanc: 0 opcions seleccionades",
             },
             explicit: {
                 notAllowed:
@@ -479,9 +466,7 @@ const catalanTranslation: TranslationType = {
             column: {
                 statement_kind: "Tipus",
                 statement_timestamp: "Marca de temps",
-                username: "Usuari",
                 ballot_id: "ID de la Papereta",
-                message: "Missatge",
             },
         },
     },

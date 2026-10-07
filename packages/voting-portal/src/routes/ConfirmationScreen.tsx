@@ -182,7 +182,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         // just completed. Merge by ID so cached metadata neither loses nor
         // double-counts that vote after normal or golden authentication.
         const votes = new Map<string, {status?: string | null}>()
-        for (const vote of voterContext.data?.sequent_backend_cast_vote ?? []) {
+        for (const vote of voterContext.data?.cast_votes ?? []) {
             if (vote.election_id === election.id) votes.set(vote.id, vote)
         }
         for (const vote of storedCastVotes[election.id] || []) votes.set(vote.id, vote)

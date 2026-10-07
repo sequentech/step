@@ -206,6 +206,13 @@ const englishTranslation = {
             actions: {
                 csv: "Export in CSV",
                 pdf: "Export in PDF",
+                audit: "Audit",
+            },
+            auditDialog: {
+                title: "Audit electoral log",
+                confirm: "Audit",
+                description:
+                    "The audit checks every log entry against its Merkle log and verifies the published checkpoints. The result is recorded as a task.",
             },
             exportdialog: {
                 description:
@@ -281,6 +288,7 @@ const englishTranslation = {
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
                 VOTER_INFORMATION_LETTER: "Voter Information Letter",
+                AUDIT_ELECTORAL_LOG: "Audit Electoral Log",
             },
             documentAccess: {
                 title: "Document access",
@@ -1350,6 +1358,10 @@ const englishTranslation = {
                 "publish-results-read": "Read Results Publication",
                 "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
+                "electoral-log-audit": "Audit Electoral Log",
+                "electoral-log-console-read": "Browse Electoral Log",
+                "electoral-log-console-query": "Query Electoral Log",
+                "electoral-log-personal-data-read": "Read Electoral Log Personal Data",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
@@ -1365,7 +1377,6 @@ const englishTranslation = {
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
-                "cast-vote-read": "Read Cast Votes",
                 "document-read": "Read Documents",
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
@@ -1752,6 +1763,7 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            electoralLogConsole: "Electoral Log",
             logs: "Logs",
             settings: "Settings",
             help: "Help",
@@ -1972,6 +1984,11 @@ const englishTranslation = {
                 trusteeList: "Trustees",
                 errorMinTrustees_one:
                     "You selected only {{selected}} trustee, but you must select at least {{threshold}}.",
+                // `_many` is selected only in es/cat/fr, for exact multiples of a million. English never
+                // selects it, but the other bundles are typed `TranslationType = typeof englishTranslation`,
+                // so the key has to be declared here before they can carry it.
+                errorMinTrustees_many:
+                    "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorMinTrustees_other:
                     "You selected only {{selected}} trustees, but you must select at least {{threshold}}.",
                 errorThreshold:
@@ -2109,8 +2126,9 @@ const englishTranslation = {
                 contests: "Contests",
                 noTalliedContests: "No tallied contests available.",
                 publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                selectedContestCount_one: "{{count}} contest selected",
+                selectedContestCount_many: "{{count}} contests selected",
+                selectedContestCount_other: "{{count}} contests selected",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2896,6 +2914,71 @@ const englishTranslation = {
             confirmDelete: "Delete Certificate Authority",
             confirmDeleteDescription:
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Electoral Log",
+            subtitle:
+                "Browse an election event's electoral log and ballot box, or query the electoral-log database. Nothing on this page changes any data.",
+            notAllowed:
+                "You need the electoral-log-console-read permission to open the electoral log.",
+            tabs: {
+                tables: "Tables",
+                query: "Query",
+            },
+            electionEvent: "Election Event",
+            table: "Table",
+            tables: {
+                records: "Records",
+                ballots: "Ballots",
+                voters: "Voters",
+                queue: "Sequencer Queue",
+            },
+            order: {
+                "label": "Order",
+                "newest-first": "Newest first",
+                "oldest-first": "Oldest first",
+            },
+            filters: {
+                statement_kind: "Kind",
+                election_id: "Election",
+                area_id: "Area ID",
+                user_id: "User or Voter ID",
+                ballot_id: "Ballot ID",
+                status: "Status",
+                created_after: "From",
+                created_before: "Until",
+                any: "Any",
+                apply: "Apply Filters",
+                clear: "Clear",
+                invalid:
+                    "Check the highlighted filters: dates must be valid, and the ballot box's area IDs must be UUIDs.",
+            },
+            statuses: {
+                valid: "Valid",
+                pending: "Pending",
+                rejected: "Rejected",
+            },
+            estimatedRows: "About {{rows}} rows in this table before filters.",
+            personalDataHidden:
+                "Usernames, IP addresses and countries show as hidden: seeing them needs the electoral-log-personal-data-read permission.",
+            loadError: "The electoral log could not be read.",
+            record: {
+                title: "Record {{position}}",
+                view: "View record",
+                message: "Message (decoded)",
+                copy: "Copy JSON",
+                close: "Close",
+                loadError: "The record could not be read.",
+            },
+            query: {
+                help: "Queries run on the electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
+                run: "Run Query",
+                summary: "Rows: {{rows}} · {{ms}} ms",
+                truncated: "Only the first {{rows}} rows are shown.",
+                error: "The query could not run.",
+            },
         },
     },
 }

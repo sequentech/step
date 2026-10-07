@@ -6,20 +6,16 @@ import {gql} from "@apollo/client"
 
 export const GET_CAST_VOTE = gql`
     query GetCastVote(
-        $tenantId: uuid
-        $electionEventId: uuid
-        $electionId: uuid
-        $ballotIdPattern: String!
+        $electionEventId: String!
+        $electionId: String!
+        $ballotId: String
+        $ballotIdPrefix: String
     ) {
-        sequent_backend_cast_vote(
-            where: {
-                _and: {
-                    tenant_id: {_eq: $tenantId}
-                    election_event_id: {_eq: $electionEventId}
-                    election_id: {_eq: $electionId}
-                    ballot_id: {_like: $ballotIdPattern}
-                }
-            }
+        cast_votes: get_voter_cast_votes(
+            election_event_id: $electionEventId
+            election_id: $electionId
+            ballot_id: $ballotId
+            ballot_id_prefix: $ballotIdPrefix
         ) {
             ballot_id
             content

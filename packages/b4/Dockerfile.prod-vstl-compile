@@ -2,18 +2,17 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM b3-dependencies
+FROM b4-dependencies
 
 WORKDIR /app
 
 #TODO: Copy only necessary files
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
+COPY ./trellis ./trellis
 COPY ./harvest ./harvest
 COPY ./strand ./strand
-COPY ./immu-board ./immu-board
-COPY ./immudb-rs ./immudb-rs
 COPY ./sequent-core ./sequent-core
 COPY ./velvet ./velvet
 COPY ./windmill ./windmill
@@ -26,6 +25,6 @@ COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
-WORKDIR /app/b3
+WORKDIR /app/b4
 #RUN cargo vendor
-RUN cargo build --features=server --release --locked --frozen --offline
+RUN cargo build --features=native --bin=b4 --release --locked --frozen --offline

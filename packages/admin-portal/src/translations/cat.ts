@@ -225,6 +225,7 @@ const catalanTranslation: TranslationType = {
                 DELETE_TENANT: "Suprimir organització",
                 PUBLISH_BALLOT: "Publicar papereta",
                 VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
+                AUDIT_ELECTORAL_LOG: "Auditar registre electoral",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
                 CREATE_ELECTION_EVENT: "Crear Esdeveniment Electoral",
                 IMPORT_ELECTION_EVENT: "Importar esdeveniment electoral",
@@ -282,6 +283,13 @@ const catalanTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
+            },
+            auditDialog: {
+                title: "Auditar el registre electoral",
+                confirm: "Auditar",
+                description:
+                    "L'auditoria comprova cada entrada del registre amb el seu registre Merkle i verifica els punts de control publicats. El resultat es desa com una tasca.",
             },
             exportdialog: {
                 description:
@@ -602,10 +610,10 @@ const catalanTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concurs únic",
-                        "multiple-contests": "Diversos concursos",
+                        "single-contest": "Pregunta única",
+                        "multiple-contests": "Diverses preguntes",
                     },
-                    policyLabel: "Política de xifrat de concurs",
+                    policyLabel: "Política de xifrat de pregunta",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Format de data i hora del portal de votació",
@@ -766,7 +774,7 @@ const catalanTranslation: TranslationType = {
                     hints: {
                         title: "Consells",
                         publishRequired:
-                            "Qualsevol canvi fet a les eleccions, les conteses o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
+                            "Qualsevol canvi fet a les eleccions, les preguntes o els candidats s'ha de publicar primer perquè estigui disponible. A l'emulador només s'utilitzaran els estils de papereta publicats més recentment per a l'àrea corresponent.",
                         eventChangesImmediate:
                             "Els canvis fets a l'esdeveniment electoral, com ara la configuració IVR o les substitucions dels missatges, estan disponibles immediatament en reiniciar la sessió de l'emulador.",
                         credentials:
@@ -787,7 +795,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             stats: {
-                elegibleVoters: "Electors",
+                elegibleVoters: "Votants",
                 voters: "Votants",
                 elections: "Eleccions",
                 contests: "Preguntes",
@@ -974,7 +982,7 @@ const catalanTranslation: TranslationType = {
                 image: "Imatge",
                 advanced: "Configuració Avançada",
                 numAllowedVotes: "Número de vots permesos",
-                reorder: "Reordenar concursos",
+                reorder: "Reordenar preguntes",
                 castVoteConfirm: "Modal de Confirmació de Vot",
                 gracePeriodPolicy: "Política de període de gràcia",
                 allowTallyPolicy: "Permetre recompte",
@@ -1366,6 +1374,10 @@ const catalanTranslation: TranslationType = {
                 "publish-results-read": "Llegir Publicació de Resultats",
                 "publish-results-write": "Editar Publicació de Resultats",
                 "logs-read": "Llegir Registres",
+                "electoral-log-audit": "Auditar Registre Electoral",
+                "electoral-log-console-read": "Explorar Registre Electoral",
+                "electoral-log-console-query": "Consultar Registre Electoral",
+                "electoral-log-personal-data-read": "Llegir Dades Personals del Registre Electoral",
                 "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
@@ -1381,7 +1393,6 @@ const catalanTranslation: TranslationType = {
                 "tally-sheet-view": "Veure Acta de Recompte",
                 "admin-ceremony": "Administrar Cerimònia de Claus",
                 "tally-sheet-delete": "Esborrar Acta de Recompte",
-                "cast-vote-read": "Llegir Vots Emissos",
                 "document-read": "Llegir Documents",
                 "document-write": "Editar Documents",
                 "support-material-read": "Llegir Materials de Suport",
@@ -1390,14 +1401,14 @@ const catalanTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Editar Concurs",
-                "contest-read": "Llegir Concurs",
+                "contest-write": "Editar Pregunta",
+                "contest-read": "Llegir Pregunta",
                 "candidate-write": "Editar Candidats",
                 "candidate-read": "Llegir Candidats",
                 "permission-label-write": "Edita l'etiqueta de permís",
                 "scheduled-event-write": "Editar Esdeveniments Programats",
-                "contest-create": "Crear Concurs",
-                "contest-delete": "Esborrar Concurs",
+                "contest-create": "Crear Pregunta",
+                "contest-delete": "Esborrar Pregunta",
                 "candidate-create": "Crear Candidat",
                 "candidate-delete": "Esborrar Candidat",
                 "election-create": "Crear Election",
@@ -1706,7 +1717,7 @@ const catalanTranslation: TranslationType = {
             resources: {
                 electionEvent: "Esdeveniment Electoral",
                 election: "Elecció",
-                contest: "Concurs",
+                contest: "Pregunta",
                 candidate: "Candidat",
                 noResult: {
                     askCreate: "Vols crear-ne una?",
@@ -1772,13 +1783,13 @@ const catalanTranslation: TranslationType = {
         createResource: {
             electionEvent: "Crear un Esdeveniment Electoral",
             election: "Crear una Elecció",
-            contest: "Crear un Concurs",
+            contest: "Crear una Pregunta",
             candidate: "Crear un Candidat",
         },
         importResource: {
             electionEvent: "Importar un Esdeveniment Electoral",
             election: "Importar una Elecció",
-            contest: "Importar un Concurs",
+            contest: "Importar una Pregunta",
             candidate: "Importar un Candidat",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1786,6 +1797,7 @@ const catalanTranslation: TranslationType = {
             electionEvents: "Processos Electorals",
             search: "Cercar",
             usersAndRoles: "Usuaris i Rols",
+            electoralLogConsole: "Registre Electoral",
             logs: "Bitàcora",
             settings: "Configuració",
             help: "Ajuda",
@@ -1795,7 +1807,7 @@ const catalanTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Crear un Esdeveniment Electoral",
                 election: "Crear una Elecció",
-                contest: "Crear un Concurs",
+                contest: "Crear una Pregunta",
                 candidate: "Crear un Candidat",
             },
             menuActions: {
@@ -1805,13 +1817,13 @@ const catalanTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desarxivar aquest Esdeveniment Electoral",
                     election: "Desarxivar aquesta Elecció",
-                    contest: "Desarxivar aquest Concurs",
+                    contest: "Desarxivar aquesta Pregunta",
                     candidate: "Desarxivar aquest Candidat",
                 },
                 remove: {
                     electionEvent: "Eliminar aquest Esdeveniment Electoral",
                     election: "Eliminar aquesta Elecció",
-                    contest: "Eliminar aquest Concurs",
+                    contest: "Eliminar aquesta Pregunta",
                     candidate: "Eliminar aquest Candidat",
                 },
                 messages: {
@@ -2006,6 +2018,8 @@ const catalanTranslation: TranslationType = {
                 threshold: "Llindar",
                 errorMinTrustees_one:
                     "Has seleccionat només {{selected}} autoritat, però has de seleccionar almenys {{threshold}}.",
+                errorMinTrustees_many:
+                    "Has seleccionat només {{selected}} autoritats, però has de seleccionar almenys {{threshold}}.",
                 errorMinTrustees_other:
                     "Has seleccionat només {{selected}} autoritats, però has de seleccionar almenys {{threshold}}.",
                 errorThreshold:
@@ -2141,11 +2155,12 @@ const catalanTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                contests: "Preguntes",
+                noTalliedContests: "No hi ha preguntes escrutades disponibles.",
+                publishSelectedContests: "Publicar les preguntes seleccionades",
+                selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_many: "{{count}} preguntes seleccionades",
+                selectedContestCount_other: "{{count}} preguntes seleccionades",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2230,7 +2245,7 @@ const catalanTranslation: TranslationType = {
                         trusteeName: "Nom del Fiduciari",
                         signed: "Ha Signat",
                     },
-                    status: "{{signed}} de {{total}} Han Signat",
+                    status: "{{signed}} de {{total}} Han Signat, mínim {{minimum}}",
                 },
             },
             sendToTransmissionPackageServers:
@@ -2393,7 +2408,7 @@ const catalanTranslation: TranslationType = {
                 save: "Desa",
                 pendingApplyStatus: "Càlcul pendent",
                 filterElection: "Elecció",
-                filterContest: "Concurs",
+                filterContest: "Pregunta",
                 filterArea: "Àrea",
                 filterStatusLabel: "Estat",
                 clearFilters: "Esborrar filtres",
@@ -2523,7 +2538,7 @@ const catalanTranslation: TranslationType = {
                 ALL_USERS: "Tots",
                 NOT_VOTED: "Els que no han votat",
                 VOTED: "Els que ja han votat",
-                SELECTED: "A {{total}} Votants seleccionats",
+                SELECTED: "A {{total}} {{voters}} seleccionats",
             },
             path: {
                 users: "usuaris",
@@ -2548,7 +2563,7 @@ const catalanTranslation: TranslationType = {
             createTallySuccess: "Acta de Recompte creada",
             createTallyError: "Error creant Acta de Recompte",
             createTallyErrorSameKindExists:
-                "El full de recompte ja existeix per a aquest concurs amb el mateix canal i àrea",
+                "El full de recompte ja existeix per a aquesta pregunta amb el mateix canal i àrea",
             allFieldsRequired: "Tots els camps són obligatoris",
             header: {
                 change: "Canvis a Publicar",
@@ -2565,7 +2580,7 @@ const catalanTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta contesa ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
+                    "Els vots de candidats ({{candidateVotesSum}}) han d'estar entre {{lowerBound}} i {{upperBound}} segons les regles de votació d'aquesta pregunta ({{nonBlankValidVotes}} vots vàlids no en blanc × fins a {{maxMarks}} marques per papereta)",
                 censusTooSmall:
                     "El total de vots ({{totalVotes}}) no pot ser major que el cens ({{census}})",
                 totalInvalidDoesNotMatch:
@@ -2573,11 +2588,11 @@ const catalanTranslation: TranslationType = {
                 totalVotesDoesNotMatch:
                     "El total de vots ({{totalVotes}}) ha de ser igual al total de vots vàlids ({{totalValidVotes}}) més el total de vots invàlids ({{totalInvalid}})",
                 unknownCountingAlgorithm:
-                    "L'algorisme de recompte d'aquesta contesa ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la contesa.",
+                    "L'algorisme de recompte d'aquesta pregunta ({{countingAlgorithm}}) no es reconeix, de manera que no es pot determinar el nombre permès de vots de candidats. Reviseu la configuració de la pregunta.",
                 blankBallotsInconsistent:
-                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de contesa d'aquesta urna",
+                    "Les Paperetes en Blanc han de tenir el mateix valor a tots els fulls de recompte d'aquesta urna",
                 blankBallotsOutOfBounds:
-                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per contesa d'aquesta urna",
+                    "El valor de Paperetes en Blanc està fora del rang que impliquen els recomptes de vots en blanc per pregunta d'aquesta urna",
             },
             label: {
                 area: "Àrea",
@@ -2629,7 +2644,7 @@ const catalanTranslation: TranslationType = {
             },
             table: {
                 area: "Àrea",
-                contest: "Contesa",
+                contest: "Pregunta",
                 approvedVersion: "Versió aprovada",
                 latestVersion: "Última versió",
                 labels: "Etiquetes",
@@ -2936,6 +2951,71 @@ const catalanTranslation: TranslationType = {
             confirmDelete: "Eliminar autoritat de certificació",
             confirmDeleteDescription:
                 'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Registre Electoral",
+            subtitle:
+                "Exploreu el registre electoral i l'urna d'un esdeveniment electoral, o consulteu la base de dades del registre electoral. Res d'aquesta pàgina modifica dades.",
+            notAllowed:
+                "Necessiteu el permís electoral-log-console-read per obrir el registre electoral.",
+            tabs: {
+                tables: "Taules",
+                query: "Consulta",
+            },
+            electionEvent: "Esdeveniment Electoral",
+            table: "Taula",
+            tables: {
+                records: "Entrades",
+                ballots: "Paperetes",
+                voters: "Votants",
+                queue: "Cua del Seqüenciador",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Més recents primer",
+                "oldest-first": "Més antics primer",
+            },
+            filters: {
+                statement_kind: "Tipus",
+                election_id: "Elecció",
+                area_id: "ID d'Àrea",
+                user_id: "ID d'Usuari o Votant",
+                ballot_id: "ID de Papereta",
+                status: "Estat",
+                created_after: "Des de",
+                created_before: "Fins a",
+                any: "Qualsevol",
+                apply: "Aplicar Filtres",
+                clear: "Netejar",
+                invalid:
+                    "Reviseu els filtres marcats: les dates han de ser vàlides i els ID d'àrea de l'urna han de ser UUID.",
+            },
+            statuses: {
+                valid: "Vàlida",
+                pending: "Pendent",
+                rejected: "Rebutjada",
+            },
+            estimatedRows: "Unes {{rows}} files en aquesta taula abans de filtrar.",
+            personalDataHidden:
+                "Els noms d'usuari, les adreces IP i els països apareixen ocults: veure'ls requereix el permís electoral-log-personal-data-read.",
+            loadError: "No s'ha pogut llegir el registre electoral.",
+            record: {
+                title: "Entrada {{position}}",
+                view: "Veure entrada",
+                message: "Missatge (descodificat)",
+                copy: "Copiar JSON",
+                close: "Tancar",
+                loadError: "No s'ha pogut llegir l'entrada.",
+            },
+            query: {
+                help: "Les consultes s'executen sobre la base de dades del registre electoral en una transacció de només lectura. Les seves taules són electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending i ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
+                run: "Executar Consulta",
+                summary: "Files: {{rows}} · {{ms}} ms",
+                truncated: "Només es mostren les primeres {{rows}} files.",
+                error: "No s'ha pogut executar la consulta.",
+            },
         },
     },
 }

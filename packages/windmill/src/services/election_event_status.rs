@@ -13,7 +13,9 @@ use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use serde_json::value::Value;
 use tracing::{event, info, instrument, warn, Level};
 
-use super::voting_status::update_board_on_status_change;
+use super::voting_status::{
+    queue_voting_checkpoint, update_board_on_status_change, voting_checkpoint_reason,
+};
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
@@ -176,6 +178,7 @@ async fn update_event_voting_status_impl(
         })
         .collect::<Result<_>>()?;
 
+    let mut logged_changes = 0_usize;
     for channel in channels {
         if source == VotingStatusUpdateSource::Scheduled {
             let elections_ids = apply_scheduled_event_channel(
@@ -203,6 +206,7 @@ async fn update_event_voting_status_impl(
             )
             .await
             .with_context(|| "Error updating electoral board on status change")?;
+            logged_changes += 1;
             continue;
         }
 
@@ -270,6 +274,11 @@ async fn update_event_voting_status_impl(
         )
         .await
         .with_context(|| "Error updating electoral board on status change")?;
+        logged_changes += 1;
+    }
+
+    if let Some(reason) = voting_checkpoint_reason(new_status).filter(|_| logged_changes > 0) {
+        queue_voting_checkpoint(&tenant_id, election_event_id, reason).await;
     }
 
     for election in &elections {
@@ -309,7 +318,7 @@ pub async fn update_election_voting_status_impl(
     channel: VotingStatusChannel,
     bulletin_board_reference: Option<Value>,
     hasura_transaction: &Transaction<'_>,
-) -> Result<()> {
+) -> Result<StatusChange> {
     let election_event =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
             .await
@@ -317,7 +326,7 @@ pub async fn update_election_voting_status_impl(
 
     if election_event.is_archived {
         info!("Election event is archived, skipping");
-        return Ok(());
+        return Ok(StatusChange::Unchanged);
     }
 
     let Some(election) = get_election_by_id(
@@ -330,7 +339,7 @@ pub async fn update_election_voting_status_impl(
     .with_context(|| "Error getting election by id")?
     else {
         event!(Level::WARN, "Election not found");
-        return Ok(());
+        return Ok(StatusChange::Unchanged);
     };
 
     let mut status = get_election_status(election.status.clone()).unwrap_or_default();
@@ -339,7 +348,7 @@ pub async fn update_election_voting_status_impl(
 
     if new_status == current_voting_status {
         info!("New status is the same as the current voting status, skipping");
-        return Ok(());
+        return Ok(StatusChange::Unchanged);
     }
 
     let election_presentation = election.get_presentation().unwrap_or_default();
@@ -429,7 +438,14 @@ pub async fn update_election_voting_status_impl(
     .await
     .with_context(|| "Error updating electoral board on status change")?;
 
-    Ok(())
+    Ok(StatusChange::Changed)
+}
+
+/// Whether a voting status update changed anything.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusChange {
+    Unchanged,
+    Changed,
 }
 
 /// Scheduled changes never reopen closed voting: a start opens channels that

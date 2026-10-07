@@ -53,9 +53,9 @@ jobs:
             context: packages
             file: packages/harvest/Dockerfile.prod
 
-          - service: b3
+          - service: b4
             context: packages
-            file: packages/b3/Dockerfile.prod
+            file: packages/b4/Dockerfile.prod
 
           - service: braid
             context: packages
@@ -70,14 +70,6 @@ jobs:
             # not repo root — Dockerfile COPYs are relative to this path.
             context: hasura
             file: packages/Dockerfile.hasura
-
-          - service: immudb-init
-            context: packages
-            file: packages/Dockerfile.immudb-init.prod
-
-          - service: immudb
-            context: packages
-            file: packages/Dockerfile.immudb
 
           - service: loadtesting
             context: .

@@ -471,6 +471,23 @@ impl Message {
         )
     }
 
+    pub fn electoral_log_checkpoint_message(
+        event: EventIdString,
+        details: ElectoralLogCheckpoint,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::ElectoralLogCheckpoint(details),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
     pub fn send_template(
         event: EventIdString,
         _election: ElectionIdString,
@@ -708,6 +725,16 @@ pub struct SigningData {
     system_sk: StrandSignatureSk,
 }
 impl SigningData {
+    /// Public key of the system signer (the event's protocol manager key).
+    pub fn system_pk(&self) -> Result<StrandSignaturePk> {
+        Ok(StrandSignaturePk::from_sk(&self.system_sk)?)
+    }
+
+    /// Sign arbitrary bytes with the system key.
+    pub fn system_sign(&self, msg: &[u8]) -> Result<StrandSignature> {
+        Ok(self.system_sk.sign(msg)?)
+    }
+
     pub fn new(
         sender_sk: StrandSignatureSk,
         sender_name: &str,

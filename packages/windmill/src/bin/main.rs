@@ -132,11 +132,43 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
                 })
                 .collect();
 
-            if queues.contains(&Queue::ElectoralLogEvent.queue_name(&slug)) {
-                return Err(anyhow!(
-                    "The raw electoral-log queue is consumed only by the batch dispatcher"
-                ));
+            for (queue, purpose) in [
+                (
+                    Queue::ElectoralLogEvent,
+                    "is read only by the electoral-log dispatcher",
+                ),
+                (
+                    Queue::ElectoralLogDeadLetter,
+                    "holds electoral-log events for inspection and replay",
+                ),
+            ] {
+                let name = queue.queue_name(&slug);
+                if queues.contains(&name) {
+                    return Err(anyhow!(
+                        "{name} {purpose}; a worker consuming it would discard its events"
+                    ));
+                }
             }
+            let copies =
+                windmill::services::electoral_log_checkpoint_copies::CheckpointCopyConfig::from_env()?;
+            event!(
+                Level::INFO,
+                "Electoral-log checkpoint copies: {}, bucket {}, {} lock for {} days",
+                copies.policy,
+                copies.bucket,
+                copies.lock_mode,
+                copies.retention_days
+            );
+            if queues.contains(&Queue::ElectoralLogBeat.queue_name(&slug)) {
+                let limits = windmill::tasks::electoral_log::BatchLimits::from_env()?;
+                event!(
+                    Level::INFO,
+                    "Electoral-log dispatcher batch limits: {} events, {} bytes",
+                    limits.max_events,
+                    limits.max_bytes
+                );
+            }
+
             let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             let duplicates = find_duplicates(vec_str.clone());
             if !duplicates.is_empty() {

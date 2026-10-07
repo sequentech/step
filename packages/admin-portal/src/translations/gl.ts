@@ -208,6 +208,13 @@ const galegoTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
+            },
+            auditDialog: {
+                title: "Auditar o rexistro electoral",
+                confirm: "Auditar",
+                description:
+                    "A auditoría comproba cada entrada do rexistro co seu rexistro Merkle e verifica os puntos de control publicados. O resultado gárdase como unha tarefa.",
             },
             exportdialog: {
                 description:
@@ -257,6 +264,7 @@ const galegoTranslation: TranslationType = {
                 DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para o votante",
+                AUDIT_ELECTORAL_LOG: "Auditar rexistro electoral",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -316,7 +324,7 @@ const galegoTranslation: TranslationType = {
             createAreaSuccess: "Área creada",
             updateAreaSuccess: "Área actualizada",
             createAreaError: "Non se puido crear a área",
-            sequent_backend_area_contest: "Concursos",
+            sequent_backend_area_contest: "Preguntas",
             empty: {
                 header: "Aínda non hai áreas.",
                 action: "Crear Área",
@@ -600,10 +608,10 @@ const galegoTranslation: TranslationType = {
                 },
                 contestEncryptionPolicy: {
                     options: {
-                        "single-contest": "Concurso único",
-                        "multiple-contests": "Varios concursos",
+                        "single-contest": "Pregunta única",
+                        "multiple-contests": "Varias preguntas",
                     },
-                    policyLabel: "Política de cifrado de concurso",
+                    policyLabel: "Política de cifrado de pregunta",
                 },
                 votingPortalDateTimeFormat: {
                     policyLabel: "Formato de data e hora do portal de votación",
@@ -764,7 +772,7 @@ const galegoTranslation: TranslationType = {
                     hints: {
                         title: "Suxestións",
                         publishRequired:
-                            "Calquera cambio realizado nas eleccións, nas contendas ou nos candidatos debe publicarse primeiro para que estea dispoñible. No emulador só se utilizarán os estilos de papeleta publicados máis recentemente para a área correspondente.",
+                            "Calquera cambio realizado nas eleccións, nas preguntas ou nos candidatos debe publicarse primeiro para que estea dispoñible. No emulador só se utilizarán os estilos de papeleta publicados máis recentemente para a área correspondente.",
                         eventChangesImmediate:
                             "Os cambios realizados no evento electoral, como a configuración IVR ou as modificacións das mensaxes, están dispoñibles inmediatamente ao reiniciar a sesión do emulador.",
                         credentials:
@@ -788,7 +796,7 @@ const galegoTranslation: TranslationType = {
                 elegibleVoters: "Votantes Elixibles",
                 voters: "Votantes Actuais",
                 elections: "Eleccións",
-                contests: "Concursos",
+                contests: "Preguntas",
                 areas: "Áreas",
                 sentEmails: "Correos enviados",
                 sentSMS: "SMS enviados",
@@ -971,7 +979,7 @@ const galegoTranslation: TranslationType = {
                 image: "Imaxe",
                 advanced: "Configuración Avanzada",
                 numAllowedVotes: "Número de votos permitidos",
-                reorder: "Reordenar concursos",
+                reorder: "Reordenar preguntas",
                 castVoteConfirm: "Modal de Confirmación de Voto Emitido",
                 gracePeriodPolicy: "Período de Gracia",
                 allowTallyPolicy: "Permitir Recuento",
@@ -1363,6 +1371,10 @@ const galegoTranslation: TranslationType = {
                 "publish-results-read": "Leer Publicación de Resultados",
                 "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
+                "electoral-log-audit": "Auditar Rexistro Electoral",
+                "electoral-log-console-read": "Explorar Rexistro Electoral",
+                "electoral-log-console-query": "Consultar Rexistro Electoral",
+                "electoral-log-personal-data-read": "Ler Datos Persoais do Rexistro Electoral",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
@@ -1378,7 +1390,6 @@ const galegoTranslation: TranslationType = {
                 "tally-sheet-view": "Ver Acta de Recuento",
                 "admin-ceremony": "Administrar Ceremonia de Claves",
                 "tally-sheet-delete": "Borrar Acta de Recuento",
-                "cast-vote-read": "Leer Votos Emitidos",
                 "document-read": "Leer Documentos",
                 "document-write": "Editar Documentos",
                 "support-material-read": "Leer Materiales de Soporte",
@@ -1387,14 +1398,14 @@ const galegoTranslation: TranslationType = {
                 "miru-download": "Miru Download",
                 "miru-send": "Miru Send",
                 "miru-sign": "Miru Sign",
-                "contest-write": "Editar Concurso",
-                "contest-read": "Leer Concurso",
+                "contest-write": "Editar Pregunta",
+                "contest-read": "Ler Pregunta",
                 "candidate-write": "Editar Candidatos",
                 "candidate-read": "Leer Candidatos",
                 "permission-label-write": "Editar la etiqueta de permiso",
                 "scheduled-event-write": "Editar Eventos Programados",
-                "contest-create": "Create Contest",
-                "contest-delete": "Delete Contest",
+                "contest-create": "Crear Pregunta",
+                "contest-delete": "Eliminar Pregunta",
                 "candidate-create": "Create Candidate",
                 "candidate-delete": "Delete Candidate",
                 "election-create": "Create Election",
@@ -1695,7 +1706,7 @@ const galegoTranslation: TranslationType = {
             resources: {
                 electionEvent: "Evento Electoral",
                 election: "Elección",
-                contest: "Concurso",
+                contest: "Pregunta",
                 candidate: "Candidato",
                 noResult: {
                     askCreate: "¿Queres crear un?",
@@ -1761,13 +1772,13 @@ const galegoTranslation: TranslationType = {
         createResource: {
             electionEvent: "Crear un Evento Electoral",
             election: "Crear unha Elección",
-            contest: "Crear un Concurso",
+            contest: "Crear unha Pregunta",
             candidate: "Crear un Candidato",
         },
         importResource: {
             electionEvent: "Importar un Evento Electoral",
             election: "Importar una Elección",
-            contest: "Importar un Concurso",
+            contest: "Importar unha Pregunta",
             candidate: "Importar un Candidato",
             ImportHashMismatch: "Hashes don't match. Integrity check failure.",
         },
@@ -1775,6 +1786,7 @@ const galegoTranslation: TranslationType = {
             electionEvents: "Eventos Electorais",
             search: "Buscar",
             usersAndRoles: "Usuarios e Roles",
+            electoralLogConsole: "Rexistro Electoral",
             logs: "Rexistros",
             settings: "Configuracións",
             help: "Axuda",
@@ -1784,7 +1796,7 @@ const galegoTranslation: TranslationType = {
             addResource: {
                 electionEvent: "Crear un Evento Electoral",
                 election: "Crear unha Elección",
-                contest: "Crear un Concurso",
+                contest: "Crear unha Pregunta",
                 candidate: "Crear un Candidato",
             },
             menuActions: {
@@ -1794,13 +1806,13 @@ const galegoTranslation: TranslationType = {
                 unarchive: {
                     electionEvent: "Desarquivar este Evento Electoral",
                     election: "Desarquivar esta Elección",
-                    contest: "Desarquivar este Concurso",
+                    contest: "Desarquivar esta Pregunta",
                     candidate: "Desarquivar este Candidato",
                 },
                 remove: {
                     electionEvent: "Eliminar este Evento Electoral",
                     election: "Eliminar esta Elección",
-                    contest: "Eliminar este Concurso",
+                    contest: "Eliminar esta Pregunta",
                     candidate: "Eliminar este Candidato",
                 },
                 messages: {
@@ -1867,7 +1879,7 @@ const galegoTranslation: TranslationType = {
         },
         contestScreen: {
             common: {
-                subtitle: "Configuración do concurso.",
+                subtitle: "Configuración da pregunta.",
             },
             edit: {
                 externalId: "ID externo",
@@ -1968,7 +1980,7 @@ const galegoTranslation: TranslationType = {
             isAcclaimed: {
                 label: "Resolto por aclamación",
                 helperText:
-                    "Os votantes ven este concurso pero non poden seleccionar nada, non se rexistra nada e todas as candidaturas se declaran gañadoras con cero votos. Configúreo antes de publicar as papeletas: cambialo despois invalida as papeletas xa emitidas.",
+                    "Os votantes ven esta pregunta pero non poden seleccionar nada, non se rexistra nada e todas as candidaturas se declaran gañadoras con cero votos. Configúreo antes de publicar as papeletas: cambialo despois invalida as papeletas xa emitidas.",
             },
             allowWriteins: {
                 label: "Permitir candidaturas manuais",
@@ -1980,7 +1992,7 @@ const galegoTranslation: TranslationType = {
                     "Posición de rango máis alta dispoñible para os votantes (ex. '5' significa posicións 1–5). Debe ser polo menos igual ao número de candidatos a ordenar (votación preferencial).",
             },
             error: {},
-            createContestSuccess: "Concurso creado",
+            createContestSuccess: "Pregunta creada",
             createContestError: "Erro ao crear o concurso",
         },
         keysGeneration: {
@@ -1995,6 +2007,8 @@ const galegoTranslation: TranslationType = {
                 threshold: "Limiar",
                 errorMinTrustees_one:
                     "Seleccionaches só {{selected}} fiduciario, pero debes seleccionar polo menos {{threshold}}.",
+                errorMinTrustees_many:
+                    "Seleccionaches só {{selected}} fiduciarios, pero debes seleccionar polo menos {{threshold}}.",
                 errorMinTrustees_other:
                     "Seleccionaches só {{selected}} fiduciarios, pero debes seleccionar polo menos {{threshold}}.",
                 errorThreshold:
@@ -2130,11 +2144,12 @@ const galegoTranslation: TranslationType = {
                 visibility: "Visibility",
                 fullPublishedScope: "Full published scope",
                 personalVisibility: "Personal visibility",
-                contests: "Contests",
-                noTalliedContests: "No tallied contests available.",
-                publishSelectedContests: "Publish selected contests",
-                selectedContestCount: "{{count}} contest selected",
-                selectedContestCount_plural: "{{count}} contests selected",
+                contests: "Preguntas",
+                noTalliedContests: "Non hai preguntas escrutadas dispoñibles.",
+                publishSelectedContests: "Publicar as preguntas seleccionadas",
+                selectedContestCount_one: "{{count}} pregunta seleccionada",
+                selectedContestCount_many: "{{count}} preguntas seleccionadas",
+                selectedContestCount_other: "{{count}} preguntas seleccionadas",
                 history: "Publication history",
                 version: "Version",
                 status: "Status",
@@ -2189,8 +2204,8 @@ const galegoTranslation: TranslationType = {
                     },
                     download: {
                         title: "Descargar",
-                        emlTitle: "Descargar EML",
-                        transmissionPackageTitle: "Descargar Paquete de Transmisión",
+                        emlTitle: "Descargar EML {{date}}",
+                        transmissionPackageTitle: "Descargar Paquete de Transmisión {{date}}",
                         transmissionReportTitle: "Descargar informe de transmisión",
                         dialog: {
                             title: "¿Queres Descargar o Paquete de Transmisión?",
@@ -2362,7 +2377,7 @@ const galegoTranslation: TranslationType = {
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
                 acclamation_note:
-                    "Elixido por aclamación. Este concurso resolveuse sen votación, polo que non se rexistrou ningún voto.",
+                    "Elixido por aclamación. Esta pregunta resolveuse sen votación, polo que non se rexistrou ningún voto.",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",
@@ -2383,7 +2398,7 @@ const galegoTranslation: TranslationType = {
                 save: "Gardar",
                 pendingApplyStatus: "Cálculo pendente",
                 filterElection: "Elección",
-                filterContest: "Concurso",
+                filterContest: "Pregunta",
                 filterArea: "Área",
                 filterStatusLabel: "Estado",
                 clearFilters: "Borrar filtros",
@@ -2538,7 +2553,7 @@ const galegoTranslation: TranslationType = {
             createTallySuccess: "Acta de Escrutinio gardada",
             createTallyError: "Erro ao gardar a Acta de Escrutinio",
             createTallyErrorSameKindExists:
-                "A folla de reconto xa existe para este concurso co mesmo canal e área",
+                "A folla de reconto xa existe para esta pregunta co mesmo canal e área",
             allFieldsRequired: "Todos os campos son obrigatorios",
             header: {
                 change: "Cambios a Publicar",
@@ -2555,7 +2570,7 @@ const galegoTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Os votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} e {{upperBound}} segundo as regras de votación desta contenda ({{nonBlankValidVotes}} votos válidos non en branco × ata {{maxMarks}} marcas por papeleta)",
+                    "Os votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} e {{upperBound}} segundo as regras de votación desta pregunta ({{nonBlankValidVotes}} votos válidos non en branco × ata {{maxMarks}} marcas por papeleta)",
                 censusTooSmall:
                     "O total de votos ({{totalVotes}}) non pode ser maior que o censo ({{census}})",
                 totalInvalidDoesNotMatch:
@@ -2563,11 +2578,11 @@ const galegoTranslation: TranslationType = {
                 totalVotesDoesNotMatch:
                     "O total de votos ({{totalVotes}}) debe ser igual ao total de votos válidos ({{totalValidVotes}}) máis o total de votos non válidos ({{totalInvalid}})",
                 unknownCountingAlgorithm:
-                    "O algoritmo de reconto desta contenda ({{countingAlgorithm}}) non se recoñece, polo que non se pode determinar o número permitido de votos de candidatos. Revise a configuración da contenda.",
+                    "O algoritmo de reconto desta pregunta ({{countingAlgorithm}}) non se recoñece, polo que non se pode determinar o número permitido de votos de candidatos. Revise a configuración da pregunta.",
                 blankBallotsInconsistent:
                     "As Papeletas en Branco deben ter o mesmo valor en todas as follas de escrutinio desta urna",
                 blankBallotsOutOfBounds:
-                    "O valor de Papeletas en Branco está fóra do rango que implican os reconto de votos en branco por candidatura desta urna",
+                    "O valor de Papeletas en Branco está fóra do rango que implican os recontos de votos en branco por pregunta desta urna",
             },
             label: {
                 area: "Área",
@@ -2619,7 +2634,7 @@ const galegoTranslation: TranslationType = {
             },
             table: {
                 area: "Área",
-                contest: "Concurso",
+                contest: "Pregunta",
                 approvedVersion: "Versión aprobada",
                 latestVersion: "Última versión",
                 labels: "Etiquetas",
@@ -2924,6 +2939,71 @@ const galegoTranslation: TranslationType = {
             confirmDelete: "Eliminar autoridade de certificación",
             confirmDeleteDescription:
                 '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Rexistro Electoral",
+            subtitle:
+                "Explore o rexistro electoral e a urna dun evento electoral, ou consulte a base de datos do rexistro electoral. Nada nesta páxina modifica datos.",
+            notAllowed:
+                "Precisa o permiso electoral-log-console-read para abrir o rexistro electoral.",
+            tabs: {
+                tables: "Táboas",
+                query: "Consulta",
+            },
+            electionEvent: "Evento Electoral",
+            table: "Táboa",
+            tables: {
+                records: "Entradas",
+                ballots: "Papeletas",
+                voters: "Votantes",
+                queue: "Cola do Secuenciador",
+            },
+            order: {
+                "label": "Orde",
+                "newest-first": "Máis recentes primeiro",
+                "oldest-first": "Máis antigos primeiro",
+            },
+            filters: {
+                statement_kind: "Tipo",
+                election_id: "Elección",
+                area_id: "ID de Área",
+                user_id: "ID de Usuario ou Votante",
+                ballot_id: "ID de Papeleta",
+                status: "Estado",
+                created_after: "Desde",
+                created_before: "Ata",
+                any: "Calquera",
+                apply: "Aplicar Filtros",
+                clear: "Limpar",
+                invalid:
+                    "Revise os filtros marcados: as datas deben ser válidas e os ID de área da urna deben ser UUID.",
+            },
+            statuses: {
+                valid: "Válida",
+                pending: "Pendente",
+                rejected: "Rexeitada",
+            },
+            estimatedRows: "Unhas {{rows}} filas nesta táboa antes de filtrar.",
+            personalDataHidden:
+                "Os nomes de usuario, os enderezos IP e os países aparecen ocultos: velos require o permiso electoral-log-personal-data-read.",
+            loadError: "Non se puido ler o rexistro electoral.",
+            record: {
+                title: "Entrada {{position}}",
+                view: "Ver entrada",
+                message: "Mensaxe (descodificada)",
+                copy: "Copiar JSON",
+                close: "Pechar",
+                loadError: "Non se puido ler a entrada.",
+            },
+            query: {
+                help: "As consultas execútanse sobre a base de datos do rexistro electoral nunha transacción de só lectura. As súas táboas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending e ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Só lectura · ata 1.000 filas · límite de 30 s · cada consulta queda anotada nos rexistros do servidor co seu usuario",
+                run: "Executar Consulta",
+                summary: "Filas: {{rows}} · {{ms}} ms",
+                truncated: "Só se amosan as primeiras {{rows}} filas.",
+                error: "Non se puido executar a consulta.",
+            },
         },
     },
 }

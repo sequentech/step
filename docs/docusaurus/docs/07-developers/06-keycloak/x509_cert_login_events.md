@@ -15,7 +15,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 When a voter authenticates using an X.509 certificate, Keycloak fires a `LOGIN`
 or `LOGIN_ERROR` event that `CustomEventListenerProvider` publishes to PGMQ
-and ultimately stores in immudb via `enqueue_electoral_log_event`. This document
+and ultimately stores in the electoral log via `enqueue_electoral_log_event`. This document
 describes what information is captured in those events and why.
 
 **See also:** [X.509 Client Certificate Authentication — Architecture](x509_client_cert_architecture)
@@ -38,7 +38,7 @@ The relevant steps in the mTLS login flow are:
 4. **`CustomEventListenerProvider`** — receives the resulting `LOGIN` or
    `LOGIN_ERROR` event and publishes it to PGMQ.
 5. **`enqueue_electoral_log_event`** (Windmill) — consumes the queue and stores
-   the event in immudb.
+   the event in the PostgreSQL electoral log.
 
 ---
 
@@ -159,7 +159,7 @@ enqueue_electoral_log_event(LogEventInput { body: Plain(body), ... })
 build_keycloak_event_message(..., error_message = body, ...)
         │
         ▼
-stored in immudb (ElectoralLogMessage)
+stored in the electoral log (ElectoralLogMessage)
 ```
 
 ---

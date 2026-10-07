@@ -49,6 +49,9 @@ pub enum ErrorCode {
     BallotPublicationValidation,
     TallyValidation,
     InvalidVotingChannels,
+    InvalidCastVoteOrder,
+    InvalidElectoralLogConsoleRequest,
+    ElectoralLogRecordNotFound,
     // Add any other needed error codes
 }
 

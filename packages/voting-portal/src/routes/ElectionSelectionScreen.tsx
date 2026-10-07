@@ -419,15 +419,15 @@ const ElectionSelectionScreen: React.FC = () => {
         startPolling: startCastVotePolling,
         stopPolling: stopCastVotePolling,
     } = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
+        variables: {electionEventId: eventId ?? ""},
         // The bootstrap supplies the initial cast metadata. Only unresolved
         // casts need the existing narrow polling query.
         fetchPolicy: "network-only",
         skip:
             globalSettings.DISABLE_AUTH ||
+            !eventId ||
             (!hasPendingCastVotes &&
-                !data?.sequent_backend_cast_vote.some(
-                    (vote) => vote.status === CastVoteStatus.IN_PROGRESS
-                )),
+                !data?.cast_votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)),
     })
     const castVotes = polledCastVotes ?? data
 
@@ -515,8 +515,8 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [data, dispatch])
 
     useEffect(() => {
-        if (castVotes?.sequent_backend_cast_vote) {
-            const castVoteList = castVotes.sequent_backend_cast_vote
+        if (castVotes?.cast_votes) {
+            const castVoteList = castVotes.cast_votes
             dispatch(
                 addCastVotes(
                     castVoteList.map((vote) => ({
