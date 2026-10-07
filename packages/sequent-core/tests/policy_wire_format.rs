@@ -154,6 +154,7 @@ policy_contract!(under_votes, EUnderVotePolicy,
     WARN => ("warn", 1),
     WARN_ONLY_IN_REVIEW => ("warn-only-in-review", 2),
     WARN_AND_ALERT => ("warn-and-alert", 3),
+    WARN_AND_CONFIRM_IN_REVIEW => ("warn-and-confirm-in-review", 4),
 );
 policy_contract!(blank_votes, EBlankVotePolicy,
     ALLOWED => ("allowed", 0),

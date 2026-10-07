@@ -188,6 +188,15 @@ const dutchTranslation: TranslationType = {
                 ok: "Ja, ik wil mijn blanco stembiljet uitbrengen",
                 cancel: "Annuleren",
             },
+            unfilledContestsDialog: {
+                title: "Sommige keuzes zijn niet ingevuld",
+                content:
+                    "U mag een keuze leeg laten of minder opties kiezen dan toegestaan. Controleer het volgende voordat u doorgaat.",
+                selected: "{{selected}} van {{max}} geselecteerd",
+                nothingSelected: "Niets geselecteerd",
+                ok: "Doorgaan met deze keuzes",
+                cancel: "Keuzes controleren",
+            },
             error: {
                 NETWORK_ERROR:
                     "Er was een netwerkprobleem. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
@@ -464,6 +473,67 @@ const dutchTranslation: TranslationType = {
                 checkboxLabel: "Ik heb het Ondersteunend Materiaal gelezen",
                 continueButton: "Doorgaan",
                 error: "Er was een probleem bij het registreren van uw bevestiging. Probeer het opnieuw.",
+            },
+        },
+        slates: {
+            title: "Lijsten",
+            description:
+                "Een lijst is een groep kandidaten die zich samen verkiesbaar stellen. Bij elke kandidaat staat de lijst waartoe die behoort.",
+            independent: "Onafhankelijk",
+            contestMembers: "Kandidaten van {{slate}} voor {{contest}}",
+            noCandidate: "Geen kandidaat",
+            coverage: {
+                full: "Volledige lijst",
+                singleContest: "Alleen {{contest}}",
+                partial: "Gedeeltelijke lijst",
+                candidates_one: "{{count}} kandidaat",
+                candidates_other: "{{count}} kandidaten",
+                offices_one: "{{count}} functie",
+                offices_other: "{{count}} functies",
+            },
+            candidateList: {
+                show: "Kandidaten tonen",
+                hide: "Kandidaten verbergen",
+            },
+            tabs: {
+                label: "Manieren om uw stembiljet in te vullen",
+                slates: "Kies een lijst",
+                candidates: "Individuele kandidaten",
+            },
+            review: {
+                title: "Uw selecties",
+                total: "Geselecteerde kandidaten: {{selected}} van {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Geselecteerde onafhankelijke kandidaten: {{count}}",
+                note: "Uw stem wordt geregistreerd voor elke geselecteerde kandidaat. Een lijst is op zichzelf geen stem.",
+                contestCount: "{{selected}} van {{max}} geselecteerd",
+                edit: "Bewerken",
+                editLabel: "{{contest}} bewerken",
+            },
+            selection: {
+                all: "Alle {{total}} geselecteerd",
+                mixed: "Gemengd · {{selected}} van {{total}} geselecteerd",
+                partly: "Gedeeltelijk geselecteerd · {{selected}} van {{total}}",
+                selected: "Geselecteerd",
+                edit: "Selectie bewerken",
+            },
+            apply: {
+                button: "Deze lijst kiezen",
+                buttonLabel: "Lijst {{slate}} kiezen",
+                chosen: "{{slate}} gekozen. Geselecteerde kandidaten: {{candidates}}. Verkiezingen: {{contests}}.",
+                overMaximum:
+                    "{{slate}} kan niet worden gekozen: de lijst heeft {{candidates}} kandidaten voor {{contest}}, waar {{max}} is toegestaan. U kunt nog steeds afzonderlijke kandidaten kiezen.",
+                unavailable:
+                    "{{slate}} kan op dit stembiljet niet worden gekozen. U kunt nog steeds afzonderlijke kandidaten kiezen.",
+                replaceDialog: {
+                    title: "Uw huidige keuzes vervangen?",
+                    content:
+                        "Als u {{slate}} kiest, worden uw keuzes in de onderstaande verkiezingen vervangen. Uw andere keuzes blijven ongewijzigd.",
+                    removed: "Verwijderd:",
+                    added: "In plaats daarvan geselecteerd:",
+                    ok: "Keuzes vervangen",
+                    cancel: "Mijn keuzes behouden",
+                },
             },
         },
         ballotLocator: {

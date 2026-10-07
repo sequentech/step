@@ -1500,6 +1500,9 @@ pub enum EUnderVotePolicy {
     #[strum(serialize = "warn-and-alert")]
     #[serde(rename = "warn-and-alert")]
     WARN_AND_ALERT,
+    #[strum(serialize = "warn-and-confirm-in-review")]
+    #[serde(rename = "warn-and-confirm-in-review")]
+    WARN_AND_CONFIRM_IN_REVIEW,
 }
 
 #[allow(non_camel_case_types)]

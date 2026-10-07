@@ -16,6 +16,7 @@ ballots. They require no election credentials or external services.
 | File | Contract exercised |
 | --- | --- |
 | `plurality_boundaries.rs` | Area weights apply to candidate marks; participation remains a count of ballots. Blank, invalid and declined ballots stay distinct. Candidate suppression preserves participation, and unknown candidate IDs fail. |
+| `slate_boundaries.rs` | Ballots filled by choosing a slate and by marking the same candidates tally identically. Full, partial and mixed ballots count per candidate, and results list only the contest's candidates. |
 | `runoff_boundaries.rs` | Signed vote transfers, most-recent decisive lookback, and external tie resolutions that must contain every tied candidate exactly once and choose a winner from that tie. |
 | `results_boundaries.rs` | Area aggregation preserves totals and percentages. Winner selection uses counts, tie ordering and eligible candidates. File input and output preserve area separation and report failures. |
 | `database_boundaries.rs` | Real SQLite writes preserve identities and percentage denominators. A failed result generation rolls back the new event and schema changes. Decoded ballot files retain their exact bytes and area keys. |
@@ -36,7 +37,7 @@ For a fast edit/check cycle, from `packages` run:
 
 ```sh
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline \
-  --test plurality_boundaries --test results_boundaries \
+  --test plurality_boundaries --test slate_boundaries --test results_boundaries \
   --test database_boundaries --test pipeline_boundaries --test runoff_boundaries
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --test paper_pipeline
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --lib -- boundary_tests

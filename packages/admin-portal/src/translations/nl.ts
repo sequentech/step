@@ -1112,6 +1112,21 @@ const dutchTranslation: TranslationType = {
                     "no-gold-level": "Geen 'Gold level' Authenticatie",
                 },
             },
+            slates: {
+                title: "Lijsten",
+                configuration: "Lijstconfiguratie (JSON)",
+                helper: "Benoemde lijsten en de kandidaten die elke lijst per verkiezingsonderdeel voordraagt. Laat leeg voor een verkiezing zonder lijsten.",
+                loading:
+                    "De verkiezingsonderdelen en kandidaten van de verkiezing worden nog geladen. Probeer het zo opnieuw.",
+                mobileCandidateLists: {
+                    label: "Kandidatenlijsten op mobiel",
+                    helper: "Hoe de kandidatenlijst van elke lijst op een telefoon begint. De kiezer kan deze altijd openen of sluiten.",
+                    options: {
+                        collapsed: "Ingeklapt",
+                        expanded: "Uitgeklapt",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Titelbeleid startscherm",
                 options: {
@@ -2018,6 +2033,7 @@ const dutchTranslation: TranslationType = {
                 "warn-only-in-review": "Waarschuwen bij Controle",
                 "warn": "Waarschuwen",
                 "warn-and-alert": "Waarschuwen en Melden",
+                "warn-and-confirm-in-review": "Waarschuwen en Bevestigen bij Controle",
             },
             invalidVotePolicy: {
                 "label": "Beleid Ongeldige Stem",
