@@ -558,7 +558,78 @@ services:
     entrypoint: ["/bin/bash"]
     environment:
       - PYTHONUNBUFFERED=1
-  
+
+  # Scanovate on-premise services (opt-in `scanovate` profile): Liveness Plus
+  # with its presentation attack detection server, the Face Match service, used
+  # for 1:1 comparisons, and the OCR service, which reads the identity documents. The images come from our private ECR mirror of
+  # Scanovate's images: pulling them needs an ECR login. See
+  # docs/docusaurus/docs/integrations/scanovate_on_premise_guide.md.
+  # Service names use hyphens: Java HTTP clients (Keycloak) reject host names
+  # with underscores.
+  scanovate-presentation-detection:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-presentation-detection
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-presentation-detection-service:release_1.52.0
+    restart: unless-stopped
+    environment:
+      SERVER_ALLOW_CORS: "true"
+      # Must match the pipelines of the Liveness Plus service_config.json.
+      IDFACE_SERVER_AVAILABLE_PIPELINES: pad-r-2,dfd-3
+
+  # Serves the Liveness Plus API to Keycloak's capture page, so it's the only
+  # liveness service published on the host.
+  scanovate-liveness:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-liveness
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/liveness-plus-service:version_3.9.0_e0dc72e_115
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+      # Our capture page sends plain JPEG frames: injection attack detection
+      # needs frames encrypted by Scanovate's own client, which we don't use.
+      LIVENESS_MODE: PRESENTATION
+      JWT_SECRET_KEY: ${SCANOVATE_LIVENESS_JWT_SECRET_KEY}
+      PRESENTATION_DETECTION_SERVER_URL: http://scanovate-presentation-detection:8080
+      # The capture page calls the API on Keycloak's origin, under
+      # /biometric/liveness/, through keycloak-nginx. The service serves it
+      # under that prefix, so the proxy passes the path unchanged. The host port
+      # is only for direct checks such as /alive.
+      CLIENT_BASE_URL_PREFIX: biometric/
+    ports:
+      - ${SCANOVATE_LIVENESS_PORT}:5050
+    # Keycloak's token verification and result callback, which carry a secret
+    # the voter's browser never sees. The other configuration files are the
+    # image's own.
+    volumes:
+      - ${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scanovate/liveness/service_config.json:/app/config/service_config.json:ro,z
+    depends_on:
+      - scanovate-presentation-detection
+
+  # Keycloak calls its 1:1 API (/facematch11/) on the compose network. The host
+  # port is only for direct checks.
+  scanovate-face-match:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-face-match
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ngfacematch:version_3.9.0_ba58397_79
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+    ports:
+      - ${SCANOVATE_FACE_MATCH_PORT}:3000
+
+  # Keycloak calls its single image API (/single_image_ocr) on the compose
+  # network. The host port is only for direct checks.
+  scanovate-ocr:
+    profiles: ["scanovate"]
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}scanovate-ocr
+    image: 133529410358.dkr.ecr.eu-west-1.amazonaws.com/scanovate/ocr:version_3.9.0_aefa131_285
+    restart: unless-stopped
+    environment:
+      MODE: onprem
+      JWT_SECRET_KEY: ${SCANOVATE_OCR_JWT_SECRET_KEY}
+    ports:
+      - ${SCANOVATE_OCR_PORT}:5040
+
   harvest:
     profiles: ["full", "base"]
     stdin_open: true

@@ -194,6 +194,7 @@ public class MessageOTPAuthenticator
         if (resendTimer == null) {
           resendTimer = System.getenv("KC_OTP_RESEND_INTERVAL");
         }
+        Optional<CodeProgress> codeProgress = CodeProgress.of(context);
         if (execution.isRequired()) {
           context.failureChallenge(
               AuthenticationFlowError.INVALID_CREDENTIALS,
@@ -213,6 +214,9 @@ public class MessageOTPAuthenticator
                   .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
                   .setAttribute("ttl", configMap.get(Utils.CODE_TTL))
                   .setAttribute("codeLength", codeLength)
+                  .setAttribute("codeRequest", codeProgress.map(CodeProgress::request).orElse(null))
+                  .setAttribute(
+                      "codeRequests", codeProgress.map(CodeProgress::requests).orElse(null))
                   .createForm(TPL_CODE));
 
           Utils.sendFeedback(
@@ -277,6 +281,7 @@ public class MessageOTPAuthenticator
       return;
     }
 
+    Optional<CodeProgress> codeProgress = CodeProgress.of(context);
     LoginFormsProvider form =
         context
             .form()
@@ -348,6 +353,8 @@ public class MessageOTPAuthenticator
               .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
               .setAttribute("codeJustSent", codeJustSent)
               .setAttribute("codeLength", codeLength)
+              .setAttribute("codeRequest", codeProgress.map(CodeProgress::request).orElse(null))
+              .setAttribute("codeRequests", codeProgress.map(CodeProgress::requests).orElse(null))
               .createForm(TPL_CODE));
     } catch (Exception error) {
       log.error("Error resending OTP");

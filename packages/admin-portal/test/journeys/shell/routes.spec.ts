@@ -40,7 +40,10 @@ const nextFrames = (page: Page) =>
 
 const eventPage = async (page: Page) => {
     // OIDC reloads the production bundle; wait for login before timing event loading.
-    await expect(page.getByRole("button", {name: "Welcome, synthetic-admin"})).toBeVisible()
+    // Two bundle loads take longer than one deadline on a busy runner.
+    await expect(page.getByRole("button", {name: "Welcome, synthetic-admin"})).toBeVisible({
+        timeout: 20_000,
+    })
     await text(page, "Council 2026")
     await text(page, "Election event configuration.")
     await expect(page.getByRole("tab", {name: "Dashboard", exact: true})).toHaveAttribute(

@@ -6,11 +6,14 @@ import {createGetKcContextMock} from "keycloakify/login/KcContext"
 import {kcEnvDefaults, themeNames} from "../kc.gen"
 import {KEYCLOAK_MESSAGE_OTP} from "@sequentech/ui-test-kit/fixtures/keycloak"
 import {
+    CredentialFieldPosition,
     EAudioInstructionsPolicy,
     EVoterAccessibilitySettingsPolicy,
     LoginHintUsernamePolicy,
     LoginValidationPolicy,
     MessageCourier,
+    RegistrationFormMode,
+    ScanovateSide,
     type KcContext,
     type KcContextExtension,
     type KcContextExtensionPerPage,
@@ -33,6 +36,61 @@ const kcContextExtensionPerPage: KcContextExtensionPerPage = {
         ...KEYCLOAK_MESSAGE_OTP,
         courier: MessageCourier.Email,
     },
+    "scanovate-capture.ftl": {
+        scanovate: {
+            documentType: "driversLicense",
+            sides: [ScanovateSide.Front, ScanovateSide.Back],
+            videoSeconds: 5,
+            attemptsLeft: 3,
+            maxAttempts: 3,
+            upload: {
+                url: "/realms/storybook/identity-verification/capture",
+                token: "capture-token",
+            },
+            liveness: {
+                url: "/biometric/liveness",
+                token: "liveness-token",
+                caseId: "storybook-case",
+            },
+        },
+    },
+    "scanovate-error.ftl": {
+        error: "scanovateDocumentAuthenticationError",
+        canRetry: true,
+        code_id: "Q5KWeXSFuWKwRTRuA3R1FkF7",
+        attemptsLeft: 2,
+    },
+    "scanovate-confirmation.ftl": {
+        documentType: "driversLicense",
+        storedAttributes: [
+            {key: "firstName", value: "JUAN SANTOS", type: "text"},
+            {key: "lastName", value: "DELA CRUZ", type: "text"},
+            {key: "dateOfBirth", value: "1990-01-01", type: "date"},
+            {key: "sequent.read-only.id-card-number", value: "N01-23-456789", type: "text"},
+        ],
+    },
+    "register.ftl": {
+        sequentRegistration: {
+            formMode: RegistrationFormMode.Registration,
+            credentialFieldPosition: CredentialFieldPosition.Last,
+            hiddenAttributes: [],
+            lockedAttributes: [],
+        },
+    },
+    "registration-finish.ftl": {},
+    "registration-manual-finish.ftl": {
+        enrollmentOutcome: {
+            reason: "INSUFFICIENT_INFORMATION",
+            mismatchedFields: [
+                {name: "Middle name", value: "SANTOS"},
+                {name: "Date of birth", value: null},
+            ],
+        },
+    },
+    "registration-rejected-finish.ftl": {
+        enrollmentOutcome: {reason: "ALREADY_APPROVED", mismatchedFields: []},
+    },
+    "message-finish.ftl": {},
 }
 
 export const {getKcContextMock} = createGetKcContextMock({

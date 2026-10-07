@@ -47,6 +47,29 @@ pub enum ApplicationRejectReason {
     OTHER, //mandatory comment
 }
 
+/// What an enrollment whose identity matches no voter of the census becomes.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Default,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    EnumVariantNames,
+    Serialize,
+    Deserialize,
+)]
+pub enum NoMatchingVoterPolicy {
+    /// Rejected automatically.
+    #[default]
+    REJECT,
+    /// Pending, for an election manager to review in the election event's
+    /// Approvals.
+    PENDING_APPROVAL,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,

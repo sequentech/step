@@ -11,7 +11,8 @@
             <#if rejectReason??>
                 <p>${msg(rejectReason)}</p>
             </#if>
-            <#if mismatchedFields??>
+            <#-- Without a voter in the registry, no field was compared: there's nothing to list. -->
+            <#if mismatchedFields?? && (rejectReason!"") != "NO_VOTER">
                 <p>${msg("rejectReasonListItems")?no_esc}</p>
                 <ul>
                 <#list mismatchedFields?keys as key>

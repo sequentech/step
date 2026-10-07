@@ -60,6 +60,10 @@ Everything else reaches Keycloak inside a provider jar:
   `voter-enrollment`, and `message-otp-authenticator/src/main/resources/theme/base/login/`.
 - Theme registration (`META-INF/keycloak-themes.json`), `quarkus.properties` and
   `packages/Dockerfile.keycloak`.
+- Not Java, but also only through an image rebuild: the React themes
+  (`packages/keycloak-ui`). To iterate on them without rebuilding, mount them as
+  described in
+  [Hot updates on a real authentication session](#hot-updates-on-a-real-authentication-session).
 
 To try a module change without rebuilding the image, package the module with the
 devcontainer's Maven, copy its jar into the running container and restart it;
@@ -81,11 +85,30 @@ by the `up` command above), and run the module's tests with
 
 ## React login and OTP development
 
-`packages/keycloak-ui` is an opt-in Keycloakify workspace with a scoped Sequent
+`packages/keycloak-ui` is a Keycloakify workspace with a scoped Sequent
 authentication theme, local font assets and Material UI controls. Its Vite server
 provides synthetic previews, Storybook and hot
-updates on real Keycloak login and message OTP pages. Production images and
-existing realm themes continue to use the Sequent FreeMarker themes.
+updates on real Keycloak login and message OTP pages.
+
+The Keycloak image ships its themes (`sequent-ui-admin`, `sequent-ui-voting` and
+`sequent-ui-architect`, from `themes.json`): a `themes-build` stage of
+`packages/Dockerfile.keycloak` builds the workspace and lays the themes out with
+`python3 -m scripts.dev.keycloak prepare --runtime built`, the same layout as the
+development themes below. Each theme inherits its FreeMarker theme
+(`sequent-ui-voting` inherits `sequent.voting-portal`), so the pages not ported to
+React keep rendering the FreeMarker ones. A realm or client uses them only when it
+selects them as its login theme; the COMELEC janitor template selects
+`sequent-ui-voting`, other realms keep the FreeMarker themes. Building the image
+needs two extra build contexts, which Compose and the CI workflows pass:
+
+```sh
+docker build -f packages/Dockerfile.keycloak \
+    --build-context beyond=./beyond --build-context scripts=./scripts packages
+```
+
+`python3 -m unittest scripts.dev.test_keycloak_image` checks that the image
+installs the themes, that every build passes the `scripts` context and that the
+COMELEC template selects the React theme.
 
 Install the workspace dependencies from `packages` with `yarn install
 --frozen-lockfile`. Run these commands in the development shell from the repository
@@ -178,7 +201,22 @@ labels. The build information wraps on narrow screens. A Keycloak without
 `APP_VERSION` or `APP_HASH` in its environment resolves the property to an empty
 value (`${env.APP_VERSION:}`) and the header leaves that line out; it never shows
 an unresolved `${...}` reference.
-Registration, profile updates and other pages inherit the original FreeMarker
+The registration form (`register.ftl`) and the pages that end an enrollment
+(`registration-finish.ftl`, `registration-manual-finish.ftl`,
+`registration-rejected-finish.ftl` and `message-finish.ftl`) render in React
+too. The form keeps what sequent-theme's template does with the realm's User
+Profile: groups, helper texts, option labels, `html-attribute:` annotations,
+`default`, `hidden`, `confirm`, `filterSelectAttribute`, `disableAttribute` and
+`disableElement`, the password placement (`showPasswordAfterThis`,
+`credential-field-position`), the attributes the authenticator hides and the
+ones a read-only login hint locks. The telephone widget and the password
+strength bar load sequent-theme's own scripts (`intl-tel-input`, `zxcvbn`) from
+the inherited theme resources; without them the fields stay plain inputs. In
+the voting theme the deferred registration form is step 1 of the enrollment.
+It falls back to the original template when it signs voters in (`formMode`
+`LOGIN`, with its structured credentials and identity providers), and for
+CAPTCHA and terms acceptance.
+Profile updates and other pages inherit the original FreeMarker
 implementation, including User Profile annotations and telephone widgets. Login
 also falls back to the original template for multi-attribute matching, structured
 credentials, CAPTCHA, identity-provider buttons, hidden usernames and alternative
@@ -233,7 +271,7 @@ denies users without the role. A `google` identity provider is included but
 disabled; it only links to existing users. The `sequent-ui-architect` theme
 (`themes.json`) is the admin theme with the Election Architect header and title.
 The realm file keeps `sequent.admin-portal` as its login theme so it imports on
-any Keycloak, including production images without the opt-in themes; the
+any Keycloak, including images built before the React themes shipped; the
 Architect's `npm run dev` and both test suites switch it to `sequent-ui-architect`
 when the server has that theme (`keycloak prepare` + `keycloak mount`).
 The gate, the Delivery contract and the one-command local loop are documented in
