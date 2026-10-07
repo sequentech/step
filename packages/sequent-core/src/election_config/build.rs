@@ -124,6 +124,8 @@ pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
             "encryption_policy",
             "password",
             "permission_label",
+            "copies",
+            "output_formats",
         ],
         _ => &[],
     }

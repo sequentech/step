@@ -8,6 +8,7 @@ use crate::pipes::do_tally::tally::Tally;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
+use crate::pipes::report_manifest::write_folder_manifest;
 use crate::pipes::Pipe;
 use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates, Weight};
 use sequent_core::ballot_codec::BigUIntCodec;
@@ -26,6 +27,9 @@ use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
 
+/// The platform's report type the ballot images are: what their hash
+/// manifest names.
+pub const BALLOT_IMAGES_REPORT_TYPE: &str = "BALLOT_IMAGES";
 pub const BALLOT_IMAGES_OUTPUT_FILE_PDF: &str = "ballot_images.pdf";
 pub const BALLOT_IMAGES_OUTPUT_FILE_HTML: &str = "ballot_images.html";
 
@@ -107,7 +111,10 @@ impl BallotImages {
         };
 
         info!("election_input: {}", election_input.name);
-        let data = compute_data(data);
+        let mut data = compute_data(data);
+        if let Some(annotations) = &pipe_config.execution_annotations {
+            data.execution_annotations.extend(annotations.clone());
+        }
 
         let mut map = Map::new();
         map.insert("data".to_string(), serde_json::to_value(&data)?);
@@ -265,6 +272,10 @@ impl Pipe for BallotImages {
                             .create(true)
                             .open(file)?;
                         file.write_all(&bytes_html)?;
+
+                        if let Some(stamp) = &pipe_config.configuration {
+                            write_folder_manifest(&path, BALLOT_IMAGES_REPORT_TYPE, stamp)?;
+                        }
                     } else {
                         println!(
                             "[{}] File not found: {} -- Not processed",

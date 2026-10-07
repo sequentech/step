@@ -348,6 +348,7 @@ const basqueTranslation: TranslationType = {
                 taskTitle: "Ataza: {{title}}",
                 viewTask: "Ikusi Ataza",
                 downloadDocument: "Deskargatu Fitxategia",
+                downloadHashManifest: "Hash manifestua",
             },
             exportTasksExecution: {
                 success: "Esportazioa arrakastaz amaitu da",

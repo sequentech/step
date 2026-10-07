@@ -456,6 +456,22 @@ pub async fn update_publish_ballot(
     )
     .await?;
 
+    let design_check = super::design_check::check_publication_designs(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication_id,
+    )
+    .await?;
+    if let Some(check) = &design_check {
+        if !check.mismatches.is_empty() {
+            return Err(BallotPublicationValidationError::new(
+                check.mismatches.iter().map(ToString::to_string).collect(),
+            )
+            .into());
+        }
+    }
+
     let _result = soft_delete_other_ballot_publications(
         &hasura_transaction,
         &ballot_publication_id,
@@ -541,6 +557,7 @@ pub async fn update_publish_ballot(
             election_event_id.clone(),
             Some(election_ids.clone()),
             ballot_publication_id.clone(),
+            design_check.map(super::design_check::DesignCheck::published),
             Some(user_id),
             Some(username),
         )

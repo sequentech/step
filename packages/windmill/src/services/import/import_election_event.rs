@@ -128,8 +128,11 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
 //                        comes from the keycloak crate, which pulls reqwest.
 //                        Deserialized into the typed form where it is used.
+use super::configuration_package;
 use super::rejection::reject;
 use sequent_core::election_config;
+use sequent_core::election_config::package_verify::VerifiedPackage;
+use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::election_config::{import_problems, Rejected};
 
@@ -546,7 +549,12 @@ pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: Option<String>,
-) -> Result<(NamedTempFile, Document, String)> {
+) -> Result<(
+    NamedTempFile,
+    Document,
+    String,
+    Option<Box<VerifiedPackage>>,
+)> {
     let document = postgres::document::get_document(
         hasura_transaction,
         &object.tenant_id,
@@ -574,7 +582,13 @@ pub async fn get_document(
         .await
         .with_context(|| format!("error decrypting document {:?}", document.id))?;
 
-    Ok((temp_file, document, document_type))
+    // Before anything in the file is read: a signed configuration package is
+    // verified and replaced by its importable archive.
+    let (temp_file, package) =
+        configuration_package::admit_document(hasura_transaction, &object.tenant_id, temp_file)
+            .await?;
+
+    Ok((temp_file, document, document_type, package))
 }
 
 #[instrument(err, skip_all)]
@@ -1023,6 +1037,9 @@ pub async fn process_reports_file(
                     )
                 }
             }),
+            // Absent from a file written before these columns existed.
+            copies: parse_copies(record.get(8)).map_err(|err| anyhow!(err))?,
+            output_formats: parse_output_formats(record.get(9)).map_err(|err| anyhow!(err))?,
         };
 
         if let Some(password) = record
@@ -1285,7 +1302,7 @@ pub async fn process_document(
     tenant_id: String,
 ) -> Result<()> {
     let importer = object.importer.clone();
-    let (temp_file_path, document, document_type) = get_document(
+    let (temp_file_path, document, document_type, package) = get_document(
         hasura_transaction,
         object.clone(),
         Some(election_event_id.clone()),
@@ -1655,6 +1672,19 @@ pub async fn process_document(
             }
         }
     };
+
+    if let Some(package) = package {
+        configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
+            .await?;
+        configuration_package::log_import(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &package,
+            importer.as_ref(),
+        )
+        .await?;
+    }
 
     Ok(())
 }

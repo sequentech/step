@@ -793,6 +793,8 @@ fn labelled_report(
         cron_config: None,
         created_at: chrono::DateTime::UNIX_EPOCH,
         permission_label: Some(vec![label.into()]),
+        copies: None,
+        output_formats: None,
     }
 }
 

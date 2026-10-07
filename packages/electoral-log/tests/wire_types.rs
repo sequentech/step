@@ -246,6 +246,135 @@ fn a_signing_entry_is_encoded_field_by_field() {
     assert!(borsh::from_slice::<SigningLogEntry>(&expected[..expected.len() - 1]).is_err());
 }
 
+/// Field order is signed: every field of a configuration package entry, in
+/// order, as independently assembled bytes.
+#[test]
+fn a_configuration_package_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let details = ConfigurationPackageDetails {
+        action: ConfigurationPackageAction::Imported,
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+        design_digests: vec![ConfigurationDesignDigest {
+            area: "Post 1".into(),
+            election: "national".into(),
+            sha256: "cd".repeat(32),
+        }],
+    };
+    let mut expected = vec![0];
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.extend(1_u32.to_le_bytes());
+    expected.extend(text("Post 1"));
+    expected.extend(text("national"));
+    expected.extend(text(&"cd".repeat(32)));
+    assert_eq!(borsh::to_vec(&details).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<ConfigurationPackageDetails>(&expected).unwrap(),
+        details
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<ConfigurationPackageDetails>(&trailing).is_err());
+    assert!(
+        borsh::from_slice::<ConfigurationPackageDetails>(&expected[..expected.len() - 1]).is_err()
+    );
+
+    // An action this version doesn't know is not read as one it does.
+    expected[0] = 1;
+    assert!(borsh::from_slice::<ConfigurationPackageDetails>(&expected).is_err());
+}
+
+/// Field order is signed: what a generated report's entry says of its hash
+/// manifest and of the configuration, as independently assembled bytes.
+#[test]
+fn a_generated_report_entry_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let details = ReportGeneratedDetails {
+        report_type: "ELECTORAL_RESULTS".into(),
+        document_id: None,
+        report_manifest_sha256: "12".repeat(32),
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+    };
+    let mut expected = text("ELECTORAL_RESULTS");
+    expected.push(0);
+    expected.extend(text(&"12".repeat(32)));
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    assert_eq!(borsh::to_vec(&details).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<ReportGeneratedDetails>(&expected).unwrap(),
+        details
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<ReportGeneratedDetails>(&trailing).is_err());
+    assert!(borsh::from_slice::<ReportGeneratedDetails>(&expected[..expected.len() - 1]).is_err());
+
+    let stored = ReportGeneratedDetails {
+        document_id: Some("document".into()),
+        ..details
+    };
+    let mut expected = text("ELECTORAL_RESULTS");
+    expected.push(1);
+    expected.extend(text("document"));
+    expected.extend(text(&"12".repeat(32)));
+    expected.extend(text("ov-2028"));
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    assert_eq!(borsh::to_vec(&stored).unwrap(), expected);
+}
+
+/// What a publication says of its configuration, in signed order: the
+/// external id, the revision, the manifest digest and each design.
+#[test]
+fn a_published_configuration_is_encoded_field_by_field() {
+    let text = |value: &str| {
+        let mut bytes = (value.len() as u32).to_le_bytes().to_vec();
+        bytes.extend_from_slice(value.as_bytes());
+        bytes
+    };
+    let configuration = PublishedConfiguration {
+        external_id: "ov-2028".into(),
+        revision: 8,
+        manifest_sha256: "ab".repeat(32),
+        design_digests: vec![ConfigurationDesignDigest {
+            area: "Post 1".into(),
+            election: "national".into(),
+            sha256: "cd".repeat(32),
+        }],
+    };
+    let mut expected = text("ov-2028");
+    expected.extend(8_u64.to_le_bytes());
+    expected.extend(text(&"ab".repeat(32)));
+    expected.extend(1_u32.to_le_bytes());
+    expected.extend(text("Post 1"));
+    expected.extend(text("national"));
+    expected.extend(text(&"cd".repeat(32)));
+    assert_eq!(borsh::to_vec(&configuration).unwrap(), expected);
+    assert_eq!(
+        borsh::from_slice::<PublishedConfiguration>(&expected).unwrap(),
+        configuration
+    );
+    let mut trailing = expected.clone();
+    trailing.push(0);
+    assert!(borsh::from_slice::<PublishedConfiguration>(&trailing).is_err());
+    assert!(borsh::from_slice::<PublishedConfiguration>(&expected[..expected.len() - 1]).is_err());
+}
+
 #[test]
 fn empty_lists_and_absent_lists_remain_distinct() {
     assert_eq!(borsh::to_vec(&ElectionsIdsString(None)).unwrap(), vec![0]);

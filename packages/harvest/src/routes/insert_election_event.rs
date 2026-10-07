@@ -21,6 +21,7 @@ use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::ElectoralLogAdminContext;
+use windmill::services::import::configuration_package::typed_checksum;
 use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
@@ -289,11 +290,9 @@ pub async fn import_election_event_f(
         )
     })?;
 
-    let (temp_file_path, _document, document_type) =
+    let (temp_file_path, _document, document_type, package) =
         match get_document(&hasura_transaction, input.clone(), None).await {
-            Ok((temp_file_path, document, document_type)) => {
-                (temp_file_path, document, document_type)
-            }
+            Ok(opened) => opened,
             Err(err) => {
                 return Ok(
                     refuse(task_execution, Refusal::of_document(&err)).await
@@ -301,7 +300,9 @@ pub async fn import_election_event_f(
             }
         };
 
-    match input.sha256.clone() {
+    // A verified package was checked file by file against its signed
+    // manifest, so a hand-typed checksum of the upload has nothing to add.
+    match typed_checksum(input.sha256.clone(), package.as_ref()) {
         Some(hash) if !hash.is_empty() => {
             match integrity_check(&temp_file_path, hash) {
                 Ok(_) => {

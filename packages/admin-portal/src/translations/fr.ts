@@ -348,6 +348,7 @@ const frenchTranslation: TranslationType = {
                 taskTitle: "Tâche: {{title}}",
                 viewTask: "Voir Tâche",
                 downloadDocument: "Télécharger le Fichier",
+                downloadHashManifest: "Manifeste des empreintes",
             },
             exportTasksExecution: {
                 success: "L'exportation s'est terminée avec succès",

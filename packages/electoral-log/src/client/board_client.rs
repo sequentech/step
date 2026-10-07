@@ -1041,18 +1041,27 @@ impl BoardClient {
             sql_results.push(result);
         }
 
-        let commit = self
-            .client
-            .commit(&transaction_id)
-            .await
-            .with_context(|| "error commiting to electoral log");
+        // Every message or none: entries that belong together must not be
+        // left half written when one of them cannot be inserted.
+        let end = if sql_results.iter().all(|result| result.is_ok()) {
+            self.client
+                .commit(&transaction_id)
+                .await
+                .map(|_| ())
+                .with_context(|| "error commiting to electoral log")
+        } else {
+            self.client
+                .rollback(&transaction_id)
+                .await
+                .with_context(|| "error rolling back the electoral log insert")
+        };
         self.client.close_session().await?;
 
         // We defer checking on these results until after closing the session
         for result in sql_results {
             result?;
         }
-        commit?;
+        end?;
 
         Ok(())
     }
