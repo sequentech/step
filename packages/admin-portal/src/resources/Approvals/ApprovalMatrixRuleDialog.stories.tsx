@@ -117,10 +117,10 @@ export const EditRule: Story = {
         ).toBeVisible()
         await addCondition(editor, "ID type")
         await expect(editor.getByRole("combobox", {name: "ID type"})).toHaveTextContent(
-            "Philippine Passport"
+            "Passport"
         )
         await expect(editor.getByTestId("rule-summary")).toHaveTextContent(
-            "When iD: Philippine Passport and exactly 1 detail differs and embassy differs, send the enrollment to a person."
+            "When iD: Passport and exactly 1 detail differs and embassy differs, send the enrollment to a person."
         )
         await userEvent.click(editor.getByRole("button", {name: "Apply"}))
         expect(args.onClose).toHaveBeenLastCalledWith({

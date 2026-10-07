@@ -308,7 +308,7 @@ describe("labels", () => {
             "Identity verified by ID scan",
             "No voter found in the registry",
             "Not enrolled yet",
-            "ID: Philippine Passport",
+            "ID: Passport",
             "3 or more details differ",
         ])
         expect(conditionLabels({voter_found: true}, t)).toEqual(["Voter found in the registry"])

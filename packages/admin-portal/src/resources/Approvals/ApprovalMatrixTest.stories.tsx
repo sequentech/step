@@ -146,7 +146,7 @@ export const AlreadyEnrolledWithAnIdType: Story = {
         )
         await userEvent.click(canvas.getByRole("combobox", {name: "ID type"}))
         await userEvent.click(
-            await within(document.body).findByRole("option", {name: "Philippine Passport"})
+            await within(document.body).findByRole("option", {name: "Passport"})
         )
         await waitFor(() =>
             expect(lastEnrollment()).toMatchObject({
