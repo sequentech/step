@@ -63,6 +63,31 @@ string_wire_cases! {
     approval_matrix_digest => ApprovalMatrixDigestString,
 }
 
+/// The version is signed as a fixed-width little-endian number.
+#[test]
+fn an_approval_matrix_version_is_four_little_endian_bytes() {
+    for number in [0, 2, u32::MAX] {
+        let value = ApprovalMatrixVersion(number);
+        let expected = number.to_le_bytes().to_vec();
+        assert_eq!(borsh::to_vec(&value).unwrap(), expected);
+        let decoded: ApprovalMatrixVersion = borsh::from_slice(&expected).unwrap();
+        assert_eq!(decoded, value);
+
+        let mut trailing = expected.clone();
+        trailing.push(0);
+        assert!(borsh::from_slice::<ApprovalMatrixVersion>(&trailing).is_err());
+        assert!(borsh::from_slice::<ApprovalMatrixVersion>(&expected[..3]).is_err());
+        assert_eq!(
+            serde_json::to_value(&value).unwrap(),
+            serde_json::json!(number)
+        );
+        assert_eq!(
+            serde_json::from_value::<ApprovalMatrixVersion>(serde_json::json!(number)).unwrap(),
+            value
+        );
+    }
+}
+
 #[test]
 fn absent_election_and_present_empty_identifier_have_different_wire_encodings() {
     assert_eq!(borsh::to_vec(&ElectionIdString(None)).unwrap(), vec![0]);
