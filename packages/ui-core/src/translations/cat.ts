@@ -830,6 +830,24 @@ const catalanTranslation: TranslationType = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · principal",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · la meva hora",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "En aquest dispositiu: {{dateTime}}",
+            gap: "{{dateTime}} no existeix a {{city}} perquè els rellotges s'avancen. S'executarà a l'hora indicada.",
+            overlap: "{{dateTime}} passa dues vegades a {{city}}. S'utilitza la primera.",
+        },
     },
 }
 

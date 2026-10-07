@@ -336,15 +336,54 @@ pub async fn publish_ballot(
             )
         })?;
 
-    let publish_result = update_publish_ballot(
-        &hasura_transaction,
-        user_id,
-        username,
-        tenant_id,
-        input.election_event_id.clone(),
-        input.ballot_publication_id.clone(),
-    )
-    .await;
+    // Publishing can change what scheduled openings and closings will do.
+    let publisher = windmill::services::signing::log::Actor {
+        user_id: user_id.clone(),
+        username: username.clone(),
+    };
+    let recompute_tenant_id = tenant_id.clone();
+    // The recompute's log steps take the event's signing lock, which comes
+    // before the publication's lock.
+    let signing_lock = match (
+        uuid::Uuid::parse_str(&tenant_id),
+        uuid::Uuid::parse_str(&input.election_event_id),
+    ) {
+        (Ok(tenant), Ok(event)) => {
+            windmill::postgres::signing::lock_signing_event(
+                &hasura_transaction,
+                tenant,
+                event,
+            )
+            .await
+        }
+        _ => Ok(()),
+    };
+    let publish_result = match signing_lock {
+        Err(error) => Err(error),
+        Ok(()) => match update_publish_ballot(
+            &hasura_transaction,
+            user_id,
+            username,
+            tenant_id,
+            input.election_event_id.clone(),
+            input.ballot_publication_id.clone(),
+            // No approval: the current values.
+            &windmill::services::scheduled_outcome::PublicationLifecycle::Current,
+        )
+        .await
+        {
+            Ok(()) => {
+                windmill::services::scheduled_outcome::recompute_predictions(
+                    &hasura_transaction,
+                    &recompute_tenant_id,
+                    &input.election_event_id,
+                    &publisher,
+                )
+                .await
+            }
+            Err(error) => Err(error),
+        },
+    };
 
     if let Err(error) = publish_result {
         let is_validation_error = error

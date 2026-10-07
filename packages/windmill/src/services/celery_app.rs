@@ -22,6 +22,7 @@ use crate::tasks::edit_user::edit_user;
 use crate::tasks::electoral_log::{
     electoral_log_batch_dispatcher, enqueue_electoral_log_event, process_electoral_log_events_batch,
 };
+use crate::tasks::enforce_signed_closes::enforce_signed_closes_task;
 use crate::tasks::execute_tally_session::execute_tally_session;
 use crate::tasks::export_application::export_application;
 use crate::tasks::export_ballot_publication::export_ballot_publication;
@@ -50,9 +51,11 @@ use crate::tasks::manage_election_event_date::manage_election_event_date;
 use crate::tasks::manage_election_event_enrollment::manage_election_event_enrollment;
 use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown;
 use crate::tasks::manage_election_init_report::manage_election_init_report;
+use crate::tasks::manage_election_lifecycle_window::manage_election_lifecycle_window;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
+use crate::tasks::migrate_registration_flows::migrate_registration_flows;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
@@ -61,6 +64,7 @@ use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::publish_results_website::publish_results_website_task;
+use crate::tasks::recompute_schedule_instants::recompute_schedule_instants;
 use crate::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_event_snapshot, refresh_monitoring_snapshots,
 };
@@ -360,7 +364,11 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             expire_signing_requests,
             sweep_signing_executions,
             refresh_staff_crls,
+            migrate_registration_flows,
             run_signed_action,
+            manage_election_lifecycle_window,
+            enforce_signed_closes_task,
+            recompute_schedule_instants,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -429,11 +437,15 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             apply_reconciliation_patch::NAME => &Queue::ImportExport.queue_name(&slug),
             generate_voter_information_letter::NAME => &Queue::Reports.queue_name(&slug),
             migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
+            migrate_registration_flows::NAME => &Queue::Short.queue_name(&slug),
             post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
             refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
             run_signed_action::NAME => &Queue::Short.queue_name(&slug),
+            manage_election_lifecycle_window::NAME => &Queue::Beat.queue_name(&slug),
+            enforce_signed_closes_task::NAME => &Queue::Beat.queue_name(&slug),
+            recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

@@ -42,6 +42,19 @@ export {default as BallotHash, BallotHashCopyButton} from "./components/BallotHa
 export {default as QRCode} from "./components/QRCode/QRCode"
 export {default as CandidatesList} from "./components/CandidatesList/CandidatesList"
 export {default as SelectElection} from "./components/SelectElection/SelectElection"
+export {
+    getElectionTimes,
+    getEndDate,
+    getEndDateEntry,
+    getStartDate,
+    hasDate,
+    sameWallClock,
+} from "./components/SelectElection/electionTimes"
+export type {
+    IElectionTimes,
+    IElectionTimesInput,
+    ZonedDateTimeFormatter,
+} from "./components/SelectElection/electionTimes"
 export {default as Tree} from "./components/Tree/Tree"
 export {NotFoundScreen} from "./components/NotFoundScreen"
 export {default as BlankAnswer} from "./components/BlankAnswer/BlankAnswer"

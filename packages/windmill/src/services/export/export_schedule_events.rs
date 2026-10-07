@@ -146,3 +146,44 @@ pub async fn process_export(
     })
     .await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::serialization::deserialize_with_path::deserialize_str;
+    use sequent_core::types::scheduled_event::{CronConfig, EventProcessors};
+
+    /// The wall time and zone of a scheduled event survive an export and
+    /// the importer's read of the `cron_config` column.
+    #[test]
+    fn the_wall_time_and_zone_round_trip_through_the_export() {
+        let cron_config = CronConfig {
+            cron: None,
+            scheduled_date: Some("2028-04-09T00:00:00+05:45".to_string()),
+            local: Some("2028-04-09T00:00".to_string()),
+            timezone: Some("Asia/Kathmandu".to_string()),
+        };
+        let event = ScheduledEvent {
+            id: "se-1".to_string(),
+            tenant_id: Some("tenant".to_string()),
+            election_event_id: Some("event".to_string()),
+            created_at: None,
+            stopped_at: None,
+            archived_at: None,
+            labels: None,
+            annotations: None,
+            event_processor: Some(EventProcessors::START_VOTING_PERIOD),
+            cron_config: Some(cron_config.clone()),
+            event_payload: Some(serde_json::json!({"election_id": "el-1"})),
+            task_id: Some("task".to_string()),
+        };
+        let csv_text = json_csv(
+            SCHEDULED_EVENT_COLUMNS,
+            &[scheduled_event_row(&event).unwrap()],
+        );
+        let mut reader = csv::Reader::from_reader(csv_text.as_bytes());
+        let record = reader.records().next().unwrap().unwrap();
+        let read: CronConfig = deserialize_str(record.get(9).unwrap()).unwrap();
+        assert_eq!(read, cron_config);
+    }
+}

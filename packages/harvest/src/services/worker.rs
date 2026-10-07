@@ -61,6 +61,12 @@ pub async fn process_scheduled_event(
         EventProcessors::START_LOCKDOWN_PERIOD => {}
         EventProcessors::END_LOCKDOWN_PERIOD => {}
         EventProcessors::ALLOW_TALLY => {}
+        EventProcessors::START_READINESS_TEST => {}
+        EventProcessors::END_READINESS_TEST => {}
+        EventProcessors::START_FINAL_TESTING => {}
+        EventProcessors::END_FINAL_TESTING => {}
+        EventProcessors::START_TEST_VOTING => {}
+        EventProcessors::END_TEST_VOTING => {}
     }
     Ok(element_id)
 }

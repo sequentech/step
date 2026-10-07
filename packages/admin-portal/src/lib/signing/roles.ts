@@ -80,3 +80,13 @@ export const signingOperationRole = (
             return held(ownSign, IPermissions.ADMIN_USER, ...SIGN_PERMISSIONS)
     }
 }
+
+/** The comparison query reads subjects only for configuration signers or request readers. */
+export const configurationApprovalRole = (
+    holds: (permission: IPermissions) => boolean
+): IPermissions | null =>
+    [
+        IPermissions.SIGN_APPROVE_CONFIGURATION,
+        IPermissions.SIGNING_REQUESTS_READ,
+        IPermissions.ADMIN_USER,
+    ].find(holds) ?? null

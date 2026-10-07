@@ -8,6 +8,12 @@ export enum ETranslationScope {
     BALLOT_VERIFIER = "ballotVerifier",
     RESULTS_PORTAL = "resultsPortal",
     ADMIN_PORTAL = "adminPortal",
+    /**
+     * Reports and notifications (templates rendered by the server). They read
+     * `templates:` > unprefixed > `global:` overrides of the event; no portal
+     * shows them.
+     */
+    TEMPLATES = "templates",
 }
 
 let activeTranslationScope: ETranslationScope | undefined

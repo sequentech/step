@@ -407,6 +407,8 @@ const tagalogTranslation: TranslationType = {
                 instructions:
                     "Kailangan mong basahin ang <MaterialsLink>{{materialsTitle}}</MaterialsLink> bago ka makaboto.",
             },
+            votingClosedAt: "Nagsara ang botohan noong {{close}} ({{localClose}}).",
+            votingClosedOn: "Nagsara ang botohan noong {{close}}.",
         },
         errors: {
             encoding: {

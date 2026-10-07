@@ -68,6 +68,14 @@ async fn seed(client: &mut Client) -> Event {
     )
     .await
     .unwrap();
+    // Seed the already opened and closed Posts in the setup transaction.
+    // Counting and refreshes use their ordinary, separate transactions.
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', 'on', true)",
+        &[],
+    )
+    .await
+    .unwrap();
     let mut ids = Vec::new();
     for (name, region, status) in [("Madrid", "Europe", "OPEN"), ("Tokyo", "Asia", "CLOSED")] {
         let id = Uuid::new_v4();
@@ -1078,7 +1086,7 @@ async fn a_pass_counts_again_whenever_what_it_counts_from_moved() {
         &event,
         &format!(
             "UPDATE sequent_backend.election SET status = '{{\"voting_status\": \"CLOSED\"}}'
-             WHERE tenant_id = $1 AND election_event_id = $2 AND id = '{}'",
+             WHERE tenant_id = $1 AND election_event_id = $2 AND id = '{}' AND set_config('sequent.trusted_write', 'on', true) = 'on'",
             event.madrid
         ),
     )
@@ -1320,6 +1328,91 @@ async fn a_voter_who_votes_without_pre_enrolling_counts_as_voted_only() {
             turnout.totals[&Measure::VotedPreEnrolled],
             1,
             "{scope}: ana only"
+        );
+    }
+}
+
+/// The event's primary zone, as its presentation names it.
+async fn set_primary_zone(client: &Client, event: &Event, zone: &str) {
+    client
+        .execute(
+            "UPDATE sequent_backend.election_event
+             SET presentation = jsonb_build_object('timezones', $3::jsonb)
+             WHERE tenant_id = $1 AND id = $2",
+            &[
+                &event.event.tenant_id,
+                &event.event.election_event_id,
+                &json!({"configured": [zone], "primary": zone, "logs": "election"}),
+            ],
+        )
+        .await
+        .unwrap();
+}
+
+/// Hours are bucketed in the event's primary zone, and changing that zone in
+/// the presentation counts again.
+#[tokio::test]
+async fn hours_are_in_the_presentation_zone_and_a_new_zone_counts_again() {
+    use chrono::{DateTime, Offset, Utc};
+    let pool = schema::pool().await;
+    let mut client = client(&pool).await;
+    let settings = settings();
+    let event = seed(&mut client).await;
+    voter(&client, &event, "ana", event.madrid, "Europe", true).await;
+    let voted: DateTime<Utc> = client
+        .query_one(
+            "SELECT first_voted_at FROM sequent_backend.monitoring_voter
+             WHERE tenant_id = $1 AND election_event_id = $2 AND voter_id = 'ana'",
+            &[&event.event.tenant_id, &event.event.election_event_id],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    let set = full_set(&mut client, &event).await;
+    let mut shown = 0;
+    for zone in ["Asia/Manila", "Europe/Madrid"] {
+        set_primary_zone(&client, &event, zone).await;
+        let PassOutcome::Completed { revision, .. } = pass(&mut client, &event, &settings).await
+        else {
+            panic!("{zone}: a new zone counts again");
+        };
+        assert!(revision > shown);
+        shown = revision;
+        let turnout = payload(
+            read(
+                &mut client,
+                &event,
+                revision,
+                DataSourceId::VoterTurnout,
+                &set,
+                "event",
+            )
+            .await,
+        );
+        let tz: chrono_tz::Tz = zone.parse().unwrap();
+        let local = voted.with_timezone(&tz);
+        let offset = local.offset().fix().local_minus_utc();
+        let bucket = turnout.series.first().expect("ana's vote is in a bucket");
+        assert_eq!(
+            bucket.start,
+            local.format("%Y-%m-%dT%H:00:00").to_string(),
+            "{zone}"
+        );
+        assert_eq!(bucket.day, local.format("%Y-%m-%d").to_string(), "{zone}");
+        assert_eq!(
+            bucket.utc_offset,
+            format!(
+                "{}{:02}:{:02}",
+                if offset < 0 { '-' } else { '+' },
+                offset.abs() / 3600,
+                offset.abs() % 3600 / 60
+            ),
+            "{zone}"
+        );
+        assert_eq!(
+            pass(&mut client, &event, &settings).await,
+            unchanged(revision, Recount::Skipped),
+            "{zone}: then nothing moved"
         );
     }
 }

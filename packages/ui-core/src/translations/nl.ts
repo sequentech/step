@@ -830,6 +830,24 @@ const dutchTranslation: TranslationType = {
                 },
             },
         },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · primair",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · mijn tijd",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "Op dit apparaat: {{dateTime}}",
+            gap: "{{dateTime}} bestaat niet in {{city}} omdat de klok vooruit gaat. Het wordt uitgevoerd op de getoonde tijd.",
+            overlap: "{{dateTime}} komt twee keer voor in {{city}}. De eerste wordt gebruikt.",
+        },
     },
 }
 

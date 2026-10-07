@@ -283,7 +283,6 @@ export interface MonitoringScopeOptions {
 }
 
 export interface MonitoringSettingsView {
-    time_zone: string
     unknown_label?: string | null
     selectors?: Partial<Record<EScopeSelector, MonitoringSelectorWords>>
 }
@@ -310,13 +309,15 @@ export interface MonitoringGetDashboardResponse {
     theme?: {id: string; revision: number} | null
     settings: MonitoringSettingsView
     settings_revision: number
+    /** The election event's primary timezone (IANA): figures, days and export ranges are in it. */
+    time_zone: string
     scope_options: MonitoringScopeOptions
     restricted: boolean
     pinned_post?: string | null
     sources: Record<string, MonitoringSourceInfo>
     snapshot?: MonitoringSnapshot | null
     /**
-     * Days with activity (`YYYY-MM-DD` in the settings' time zone) for the
+     * Days with activity (`YYYY-MM-DD` in the event's primary zone) for the
      * widgets that pick a day: the options of `options_from: event_days`.
      */
     event_days: string[]

@@ -71,6 +71,10 @@ pub struct CreateTallyCeremonyInput {
     election_ids: Vec<String>,
     configuration: Option<TallySessionConfiguration>,
     tally_type: String,
+    /// The countries an initialization report covers when a Post is
+    /// initialized country by country; absent for the whole Posts.
+    #[serde(default)]
+    area_ids: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -150,6 +154,7 @@ async fn create_tally_ceremony_response(
         &input.election_ids,
         &input.tally_type,
         input.configuration.is_some(),
+        input.area_ids.as_deref(),
     )
     .await?;
     if let Some(signing_request) = waiting(outcome) {
@@ -173,6 +178,7 @@ async fn create_tally_ceremony_response(
         input.tally_type.clone(),
         &permission_labels,
         username,
+        input.area_ids,
     )
     .await
     .map_err(tally_service_error)?;

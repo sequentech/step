@@ -44,14 +44,18 @@ import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
 import {GetTaskByIdQuery} from "@/gql/graphql"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 
 interface LogTableProps {
     logs: ITaskLog[]
     status: ETaskExecutionStatus
+    /** The task's election event: times show in its primary zone. */
+    electionEventId?: string | null
 }
 
-export const LogTable: React.FC<LogTableProps> = ({logs, status}) => {
+export const LogTable: React.FC<LogTableProps> = ({logs, status, electionEventId}) => {
     const isFailed = status === ETaskExecutionStatus.FAILED
+    const format = useEventZonedFormat(electionEventId, {seconds: true})
 
     return (
         <TransparentTable className="logs-table">
@@ -62,7 +66,7 @@ export const LogTable: React.FC<LogTableProps> = ({logs, status}) => {
                             className="date-col"
                             sx={{paddingLeft: "0", width: "40%"}}
                         >
-                            {new Date(log.created_date).toLocaleString()}
+                            {format.format(log.created_date)}
                         </TransparentTableCell>
                         <TransparentTableCell
                             className="log-text"
@@ -112,7 +116,7 @@ export const Widget: React.FC<WidgetProps> = ({
     const [touchedDownload, setTouchedDownload] = useState(false)
 
     const initialLog: ITaskLog[] = [
-        {created_date: new Date().toLocaleString(), log_text: "Task started"},
+        {created_date: new Date().toISOString(), log_text: "Task started"},
     ]
 
     const {data: taskData} = useQuery<GetTaskByIdQuery>(GET_TASK_BY_ID, {
@@ -237,6 +241,7 @@ export const Widget: React.FC<WidgetProps> = ({
                             <LogTable
                                 logs={taskDataLogs.length > 0 ? taskDataLogs : initialLog}
                                 status={taskDataStatus || status}
+                                electionEventId={lastTask?.election_event_id}
                             />
                         </LogsBox>
                         <Box sx={{display: "flex", flexDirection: "row-reverse"}}>

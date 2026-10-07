@@ -25,6 +25,7 @@ use crate::{
         database::get_hasura_pool,
         documents::{get_document_as_temp_file, upload_and_return_document},
         signing::actions::transmission::{transmission_send_check, TransmissionRefusal},
+        time_zones::event_time_zone,
     },
     types::miru_plugin::{
         MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
@@ -32,7 +33,7 @@ use crate::{
     },
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{Local, Utc};
+use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
 use sequent_core::services::translations::Name;
@@ -40,7 +41,6 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
-    services::date::ISO8601,
     types::{
         ceremonies::Log,
         hasura::core::{ElectionEvent, TallySession},
@@ -497,6 +497,14 @@ pub async fn send_transmission_package_service(
     )
     .await?
     .map_err(anyhow::Error::new)?;
+    // The log lines and send times are in the event's primary zone.
+    let zone = event_time_zone(
+        &hasura_transaction,
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event.id)
+            .with_context(|| "Error parsing the election event id")?,
+    )
+    .await?;
 
     for ccs_server in &transmission_area_election.servers {
         if servers_sent_to.contains(&ccs_server.name) {
@@ -512,7 +520,7 @@ pub async fn send_transmission_package_service(
         let election_name = election.get_name(&election.get_default_language());
         match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
             Ok(_) => {
-                let time_now = Local::now();
+                let time_now = Utc::now().with_timezone(&zone);
                 let new_log = send_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
@@ -530,7 +538,7 @@ pub async fn send_transmission_package_service(
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
-                    sent_at: ISO8601::to_string(&time_now),
+                    sent_at: time_now.to_rfc3339(),
                     status: MiruServerDocumentStatus::SUCCESS,
                 });
                 record_new_log(
@@ -546,7 +554,7 @@ pub async fn send_transmission_package_service(
             }
             Err(err) => {
                 let error_str = format!("{}", err);
-                let time_now = Local::now();
+                let time_now = Utc::now().with_timezone(&zone);
                 let new_log = error_sending_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
@@ -565,7 +573,7 @@ pub async fn send_transmission_package_service(
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
-                    sent_at: ISO8601::to_string(&time_now),
+                    sent_at: time_now.to_rfc3339(),
                     status: MiruServerDocumentStatus::ERROR,
                 });
                 record_new_log(
@@ -587,7 +595,7 @@ pub async fn send_transmission_package_service(
             match send_package_to_ccs_server(&logs_zip_path, ccs_server, true).await {
                 Ok(_) => {
                     let new_log = send_logs_to_ccs_log(
-                        &Local::now(),
+                        &Utc::now().with_timezone(&zone),
                         election_id,
                         &election_name,
                         area_id,
@@ -609,7 +617,7 @@ pub async fn send_transmission_package_service(
                 Err(err) => {
                     let error_str = format!("{}", err);
                     let new_log = error_sending_logs_to_ccs_log(
-                        &Local::now(),
+                        &Utc::now().with_timezone(&zone),
                         election_id,
                         &election_name,
                         area_id,

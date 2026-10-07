@@ -62,6 +62,16 @@ pub async fn set_voter_authentication(
             (Status::InternalServerError, format!("{:?}", e))
         })?;
 
+    // Serialize the full realm update with guard repair and enrollment window
+    // refresh; the identity helper is also used by already-locked cron tasks.
+    windmill::postgres::scheduled_event::lock_scheduling_event(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|error| (Status::InternalServerError, error.to_string()))?;
+
     let election_event = get_election_event_by_id(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,

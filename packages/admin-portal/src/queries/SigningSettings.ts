@@ -311,6 +311,8 @@ export const SIGNING_PUT_RULE = gql`
             rule
             short_posts
             warnings
+            applies
+            outcome_changes
         }
     }
 `

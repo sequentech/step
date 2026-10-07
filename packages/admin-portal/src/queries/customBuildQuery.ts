@@ -5,7 +5,14 @@ import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 
 import {buildQuery, buildVariables} from "ra-data-hasura"
 import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
-import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
+import {
+    getElectoralLogVariables,
+    getElectoralLog,
+    electoralLogInstantFilters,
+    ELECTORAL_LOG_RANGE_FILTERS,
+    ELECTORAL_LOG_ZONE_FILTER,
+    ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
+} from "./ListElectoralLog"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
 import {getRoles} from "./GetRoles"
@@ -120,12 +127,16 @@ export const customBuildQuery =
                 "created",
                 "statement_timestamp",
                 "statement_kind",
+                ...ELECTORAL_LOG_RANGE_FILTERS,
+                ELECTORAL_LOG_ZONE_FILTER,
+                ELECTORAL_LOG_DEFAULT_ZONE_FILTER,
             ]
             Object.keys(params.filter).forEach((f) => {
                 if (!validFilters.includes(f)) {
                     delete params.filter[f]
                 }
             })
+            params = {...params, filter: electoralLogInstantFilters(params.filter)}
             const resource: any = {
                 type: {
                     fields: [],

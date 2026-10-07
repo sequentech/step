@@ -5,7 +5,7 @@ import {gql} from "@apollo/client"
 
 export const APPLY_EXTERNAL_RECONCILIATION_CHANGES = gql`
     mutation ApplyExternalReconciliationChanges(
-        $election_event_id: String!
+        $election_event_id: uuid!
         $diff_document_id: String!
     ) {
         apply_external_reconciliation_changes(
