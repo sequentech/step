@@ -210,6 +210,13 @@ const dutchTranslation: TranslationType = {
             actions: {
                 csv: "Exporteren als CSV",
                 pdf: "Exporteren als PDF",
+                audit: "Controleren",
+            },
+            auditDialog: {
+                title: "Verkiezingslog controleren",
+                confirm: "Controleren",
+                description:
+                    "De controle vergelijkt elke logregel met het Merkle-log en verifieert de gepubliceerde controlepunten. Het resultaat wordt als taak vastgelegd.",
             },
             exportdialog: {
                 description: "Bevestig dat u deze actie wilt uitvoeren. Dit kan even duren.",
@@ -255,7 +262,10 @@ const dutchTranslation: TranslationType = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Tenant verwijderen",
+                PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
+                AUDIT_ELECTORAL_LOG: "Verkiezingslog controleren",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
                 IMPORT_ELECTION_EVENT: "Verkiezingsevenement Importeren",
@@ -277,6 +287,7 @@ const dutchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Sjablonen Exporteren",
                 IMPORT_TEMPLATES: "Sjablonen Importeren",
                 DELETE_ELECTION_EVENT: "Verkiezingsevenement Verwijderen",
+                DELETE_VOTERS: "Kiezers verwijderen",
                 PREPARE_PUBLICATION_PREVIEW: "De publicatievoorbeeldweergave voorbereiden",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporteer de telresultaten in XLSX-indeling",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Certificaatautoriteiten exporteren",
@@ -498,6 +509,8 @@ const dutchTranslation: TranslationType = {
                 notify: {
                     success: "Localisatie succesvol bijgewerkt",
                     error: "Bijwerken lokalisatie mislukt",
+                    duplicateKey:
+                        "Er bestaat al een overschrijving met deze sleutel en dit bereik.",
                     invalidDateTimeFormat:
                         "Ongeldige datum-/tijdnotatie. Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm).",
                 },
@@ -507,7 +520,16 @@ const dutchTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Sleutel",
+                    scope: "Portalbereik",
                     value: "Waarde",
+                },
+                scopes: {
+                    legacy: "Verouderd ({{portal}})",
+                    global: "Globaal",
+                    votingPortal: "Stemportaal",
+                    ballotVerifier: "Stembiljetverificatie",
+                    resultsPortal: "Resultatenportaal",
+                    adminPortal: "Beheerportaal",
                 },
             },
             field: {
@@ -550,12 +572,23 @@ const dutchTranslation: TranslationType = {
                 language: "Taal",
                 votingChannels: "Stemkanalen",
                 materialActivated: "Ondersteunend materiaal geactiveerd",
+                supportMaterialsPolicy: {
+                    label: "Beleid voor Ondersteunend Materiaal",
+                    helperText:
+                        "Verplicht voor Stemmen vereist dat kiezers elk Ondersteunend Materiaal openen en bevestigen dat ze het hebben gelezen voordat ze kunnen stemmen.",
+                    options: {
+                        off: "Uit",
+                        optional: "Optioneel",
+                        mandatory_for_voting: "Verplicht voor Stemmen",
+                    },
+                },
                 materialTitle: "Titel",
                 materialSubTitle: "Ondertitel",
                 logoUrl: "Logo-URL",
                 userVerification:
                     "U kunt een aangepast sjabloon invoeren dat zal worden gebruikt om kiezers handmatig te verifiëren",
                 redirectFinishUrl: "Doorschakel-URL na voltooiing",
+                kioskRedirectFinishUrl: "Doorstuur-URL na afronding van kioskstemmen",
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
@@ -656,8 +689,13 @@ const dutchTranslation: TranslationType = {
                     policyLabel: "Beleid voor Gewogen Stemmen",
                     options: {
                         "areas-weighted-voting": "Gewogen Stemmen per Gebied",
+                        "voters-weighted-voting": "Gewogen Stemmen per Kiezer",
                         "disabled-weighted-voting": "Gewogen Stemmen Uitgeschakeld",
                     },
+                    noDelegated:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met Gedelegeerd Stemmen",
+                    noDecodedBallots:
+                        "Gewogen Stemmen per Kiezer kan niet worden gecombineerd met het opnemen van ontsleutelde stembiljetten in de resultaten",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Gedelegeerd stembeleid",
@@ -775,6 +813,10 @@ const dutchTranslation: TranslationType = {
                 statusLabel: "Status",
                 waitingKeys: "Wachten op sleutelgeneratie...",
                 started: "Gestart op",
+                actions: {
+                    participate: "Deelnemen aan sleutelceremonie",
+                    view: "Sleutelceremonie bekijken",
+                },
                 breadCrumbs: {
                     configure: "Configureren",
                     ceremony: "Ceremonie",
@@ -897,6 +939,8 @@ const dutchTranslation: TranslationType = {
                 title: "Verkiezingsevenement Exporteren",
                 subtitle: "Exporteren kan lang duren. Weet u zeker dat u records wilt exporteren?",
                 encryptWithPassword: "Versleutelen met wachtwoord",
+                passwordForcedNote:
+                    "Het archief wordt hoe dan ook met een wachtwoord beveiligd: rapporten, aanvragen en bulletinboardgegevens worden altijd versleuteld. Vink het vakje aan om ook ontsleutelde geheime kiezersvelden op te nemen.",
                 includeVoters: "Kiezers Opnemen",
                 activityLogs: "Activiteitenlogs",
                 bulletinBoard: "Prikbord",
@@ -1027,6 +1071,13 @@ const dutchTranslation: TranslationType = {
                     disabled: "Uitgeschakeld",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Beleid voor blanco stembiljetten",
+                options: {
+                    enabled: "Ingeschakeld",
+                    disabled: "Uitgeschakeld",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Beleid voor de terugknop van het stemscherm",
                 options: {
@@ -1091,6 +1142,8 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
+                    "support_materials_viewed": "Ondersteunend materiaal bekeken",
+                    "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
                     "username": "Gebruikersnaam",
@@ -1121,6 +1174,12 @@ const dutchTranslation: TranslationType = {
                 delete: {
                     body: "Weet u zeker dat u deze gebruiker wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde gebruikers wilt verwijderen?",
+                    bulkBodySelected:
+                        "De {{count}} geselecteerde gebruikers verwijderen? Dit kan niet ongedaan worden gemaakt.",
+                    bulkBodyChoose:
+                        "Er zijn {{count}} gebruikers geselecteerd. U kunt in plaats daarvan alle gebruikers verwijderen die aan de huidige filters voldoen; dat kunnen er meer zijn. Dit kan niet ongedaan worden gemaakt.",
+                    okSelected: "{{count}} geselecteerde verwijderen",
+                    okAllMatching: "Alle overeenkomende verwijderen",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren gebruikers",
@@ -1146,6 +1205,18 @@ const dutchTranslation: TranslationType = {
                 },
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
+                secretAttribute: {
+                    storedPlaceholder: "Opgeslagen versleutelde waarde",
+                    reveal: "Tonen",
+                    hide: "Verbergen",
+                    revealError: "Het versleutelde kiezersveld kon niet worden getoond",
+                    includeInExport: "Ontsleutelde geheime kiezersvelden opnemen",
+                    exportWarning:
+                        "Gevoelige export: de gedownloade CSV bevat deze velden als platte tekst.",
+                    clear: "Wissen",
+                    add: "Waarde toevoegen",
+                    remove: "Waarde verwijderen",
+                },
                 review: {
                     title: "Wijzigingen controleren",
                     subtitle: "Bevestig deze updates voordat u ze indient.",
@@ -1173,13 +1244,41 @@ const dutchTranslation: TranslationType = {
                 askCreate: "Wilt u er een aanmaken?",
                 errors: {
                     editError: "Fout bij bewerken kiezer",
+                    editErrorReason: "Fout bij bewerken kiezer: {{reason}}",
                     editSuccess: "Kiezer bewerkt",
                     createError: "Fout bij aanmaken kiezer",
+                    createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
+                    attribute: {
+                        invalidNamed: '"{{field}}" is geweigerd: {{constraint}}',
+                        fieldsToCorrect:
+                            "Sommige velden moeten worden gecorrigeerd voordat u opslaat",
+                        hintBetween: "Tussen {{min}} en {{max}} tekens",
+                        hintMin: "Minimaal {{min}} tekens",
+                        hintMax: "Maximaal {{max}} tekens",
+                        andMore: "en nog {{count}}",
+                        invalidLength: '"{{field}}" moet tussen {{min}} en {{max}} tekens bevatten',
+                        tooShort: '"{{field}}" moet minimaal {{min}} tekens bevatten',
+                        tooLong: '"{{field}}" mag maximaal {{max}} tekens bevatten',
+                        required: '"{{field}}" is verplicht',
+                        invalidEmail: '"{{field}}" moet een geldig e-mailadres zijn',
+                        invalidFormat: '"{{field}}" heeft niet de verwachte indeling',
+                        invalid: '"{{field}}" heeft een ongeldige waarde',
+                    },
+                    createPasswordError:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld",
+                    createPasswordErrorReason:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld: {{reason}}",
                 },
                 delete: {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
                     bulkBody: "Weet u zeker dat u de geselecteerde kiezers wilt verwijderen?",
+                    bulkBodySelected:
+                        "De {{count}} geselecteerde kiezers verwijderen? Dit kan niet ongedaan worden gemaakt.",
+                    bulkBodyChoose:
+                        "Er zijn {{count}} kiezers geselecteerd. U kunt in plaats daarvan alle kiezers verwijderen die aan de huidige filters voldoen; dat kunnen er meer zijn. Dit kan niet ongedaan worden gemaakt.",
+                    okSelected: "{{count}} geselecteerde verwijderen",
+                    okAllMatching: "Alle overeenkomende verwijderen",
                 },
                 notifications: {
                     exportError: "Fout bij exporteren kiezers",
@@ -1228,6 +1327,7 @@ const dutchTranslation: TranslationType = {
                 "tenant-create": "Tenant Aanmaken",
                 "tenant-read": "Tenant Lezen",
                 "tenant-write": "Tenant Bewerken",
+                "tenant-delete": "Tenant Verwijderen",
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",
@@ -1237,6 +1337,8 @@ const dutchTranslation: TranslationType = {
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",
                 "voter-write": "Kiezer Bewerken",
+                "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
+                "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",
@@ -1273,6 +1375,10 @@ const dutchTranslation: TranslationType = {
                 "publish-results-read": "Resultatenpublicatie Lezen",
                 "publish-results-write": "Resultatenpublicatie Bewerken",
                 "logs-read": "Logs Lezen",
+                "electoral-log-audit": "Verkiezingslog Controleren",
+                "electoral-log-console-read": "Verkiezingslog Bekijken",
+                "electoral-log-console-query": "Verkiezingslog Bevragen",
+                "electoral-log-personal-data-read": "Persoonsgegevens van Verkiezingslog Lezen",
                 "tasks-read": "Taakuitvoering Lezen",
                 "keys-read": "Sleutels Lezen",
                 "document-upload": "Documenten Uploaden",
@@ -1288,7 +1394,6 @@ const dutchTranslation: TranslationType = {
                 "tally-sheet-view": "Telblad Bekijken",
                 "admin-ceremony": "Beheerdersceremonie",
                 "tally-sheet-delete": "Telblad Verwijderen",
-                "cast-vote-read": "Uitgebrachte Stemmen Lezen",
                 "document-read": "Documenten Lezen",
                 "document-write": "Documenten Bewerken",
                 "support-material-read": "Ondersteunend Materiaal Lezen",
@@ -1432,6 +1537,23 @@ const dutchTranslation: TranslationType = {
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
                 "google-meet-link": "Google Meet Link Genereren",
+                "service-account": "Serviceaccount",
+                "datafix-account": "Datafix-account",
+                "gold": "Goud",
+                "silver": "Zilver",
+                "election-event-ivr-tab": "IVR van verkiezingsevenement bekijken",
+                "election-event-cas-tab": "CAS van verkiezingsevenement bekijken",
+                "ca-read": "Certificeringsinstanties lezen",
+                "ca-write": "Certificeringsinstanties bewerken",
+                "generate-preview": "Voorbeeld genereren",
+                "preview-read": "Voorbeeld lezen",
+                "tally-resolution-submit": "Tellingbesluit indienen",
+                "phone-blacklist-read": "Telefoonblokkadelijst lezen",
+                "phone-blacklist-create": "Vermeldingen aan de telefoonblokkadelijst toevoegen",
+                "phone-blacklist-update": "Vermeldingen in de telefoonblokkadelijst bewerken",
+                "phone-blacklist-delete": "Vermeldingen uit de telefoonblokkadelijst verwijderen",
+                "election-event-voter-list-reconciliation":
+                    "Kiezerslijst van verkiezingsevenement afstemmen",
             },
         },
         generalSettingsScreen: {
@@ -1446,6 +1568,8 @@ const dutchTranslation: TranslationType = {
                 createError: "Fout bij aanmaken geplande gebeurtenis",
                 editSuccess: "Geplande gebeurtenis succesvol bewerkt",
                 editError: "Fout bij bewerken geplande gebeurtenis",
+                onlineWithEarlyVoting:
+                    "Een startplanning kan online stemmen en vervroegd stemmen niet tegelijk openen: vervroegd stemmen moet vóór online stemmen beginnen.",
             },
             eventType: {
                 label: "Type",
@@ -1662,6 +1786,7 @@ const dutchTranslation: TranslationType = {
             electionEvents: "Verkiezingsevenementen",
             search: "Zoeken",
             usersAndRoles: "Gebruikers en Rollen",
+            electoralLogConsole: "Verkiezingslog",
             logs: "Logs",
             settings: "Instellingen",
             help: "Help",
@@ -1804,6 +1929,7 @@ const dutchTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Waarschuwen bij Impliciet en Expliciet Ongeldig",
                 "not-allowed": "Niet Toegestaan",
+                "allowed-with-exclusive-explicit": "Toegestaan met Exclusief Expliciet Ongeldig",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Vorm icoon selectievakje kandidaten",
@@ -1852,6 +1978,11 @@ const dutchTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Paginanaam",
+            },
+            isAcclaimed: {
+                label: "Bij acclamatie beslist",
+                helperText:
+                    "Kiezers zien deze stemming maar kunnen niets selecteren, er wordt niets geregistreerd en alle kandidaten worden als winnaar met nul stemmen gerapporteerd. Stel dit in voordat stembiljetten worden gepubliceerd: het later wijzigen maakt reeds uitgebrachte stemmen ongeldig.",
             },
             allowWriteins: {
                 label: "Handgeschreven kandidaten toestaan",
@@ -1941,8 +2072,12 @@ const dutchTranslation: TranslationType = {
                 subtitle:
                     "Om door te gaan, download en bewaar uw Versleutelde Privésleutel op minstens twee verschillende apparaten:",
                 downloadButton: "Download uw Versleutelde Privésleutel",
-                errorDownloading: "Downloadfout: {{error}}",
+                downloaded: "Versleutelde privésleutel succesvol gedownload.",
                 errorEmptyKey: "Downloadfout, leeg bestand",
+                unexpectedError: "De privésleutel kon niet worden gedownload. Probeer het opnieuw.",
+                alreadyVerified: "Uw privésleutel was al gedownload en geverifieerd.",
+                unavailable:
+                    "De privésleutel kan niet meer worden gedownload omdat de ceremonie is gevorderd.",
                 confirmdDialog: {
                     ok: "Back-ups Bevestigen en Doorgaan",
                     cancel: "Terug",
@@ -1957,12 +2092,13 @@ const dutchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Controleer uw Back-ups van de Versleutelde Privésleutel",
+                verifyButton: "Sleutel verifiëren",
                 subtitle:
                     "Upload een Back-up van de Versleutelde Privésleutel om te controleren of deze correct is. U kunt het zo vaak als nodig proberen, vanaf uw verschillende back-ups:",
                 errorUploading: "Ongeldige Back-up van Versleutelde Privésleutel, probeer opnieuw",
                 errorEmptyFile: "Bestand leeg of niet gevonden",
                 verified: "Back-up succesvol geverifieerd.",
-                downloaded: "Versleutelde Privésleutel succesvol gegenereerd.",
+                alreadyRestored: "Uw sleutel was al hersteld.",
             },
         },
         miruExport: {
@@ -1986,7 +2122,7 @@ const dutchTranslation: TranslationType = {
                 enabled: "Ingeschakeld",
                 disabled: "Uitgeschakeld",
                 fullEvent: "Volledig evenement",
-                areaBased: "Op gebied",
+                areaBased: "Per gebied",
                 publishStarted: "Publicatie van resultaten gestart",
                 publishError: "Kon de publicatie van resultaten niet starten",
                 revoked: "Publicatie van resultaten ingetrokken",
@@ -2122,6 +2258,14 @@ const dutchTranslation: TranslationType = {
             generalInfoTitle: "Algemene Informatie",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Status import sleutelfragment",
+            eligibility: {
+                selectElection: "Selecteer ten minste één verkiezing.",
+                publishElection:
+                    "Publiceer elke geselecteerde verkiezing voordat u de telling aanmaakt.",
+                tallyDisallowed: "Tellen is uitgeschakeld voor een geselecteerde verkiezing.",
+                endVoting:
+                    "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
+            },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
             startTallySuccess: "Telling gestart",
@@ -2223,6 +2367,7 @@ const dutchTranslation: TranslationType = {
                     round: "Ronde",
                 },
                 total_declined_to_vote: "Totaal aantal weigeringen om te stemmen",
+                total_blank_ballots: "Totaal Aantal Blanco Stembiljetten",
                 participation_by_channel: "Deelname per kanaal",
                 channel: "Kanaal",
                 channel_online: "Online",
@@ -2232,6 +2377,8 @@ const dutchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Post",
                 channel_in_person: "Persoonlijk",
+                acclamation_note:
+                    "Bij acclamatie gekozen. Deze stemming is zonder stemming beslist, dus er zijn geen stemmen geregistreerd.",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",
@@ -2424,9 +2571,19 @@ const dutchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Het totaal aantal geldige stemmen komt niet overeen met de som van de stemmen voor kandidaten plus blanco stemmen",
+                    "Kandidaatstemmen ({{candidateVotesSum}}) moeten tussen {{lowerBound}} en {{upperBound}} liggen volgens de stemregels van deze stemming ({{nonBlankValidVotes}} geldige niet-blanco stemmen × maximaal {{maxMarks}} markeringen per stembiljet)",
                 censusTooSmall:
-                    "De census moet groter dan of gelijk zijn aan het totaal aantal stemmen",
+                    "Het totaal aantal stemmen ({{totalVotes}}) mag niet groter zijn dan de census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Het totaal aantal ongeldige stemmen ({{totalInvalid}}) moet gelijk zijn aan impliciet ongeldige stemmen ({{implicitInvalid}}) plus expliciet ongeldige stemmen ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Het totaal aantal stemmen ({{totalVotes}}) moet gelijk zijn aan het totaal aantal geldige stemmen ({{totalValidVotes}}) plus het totaal aantal ongeldige stemmen ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "Het telalgoritme van deze stemming ({{countingAlgorithm}}) wordt niet herkend, waardoor het toegestane aantal kandidaatstemmen niet kan worden bepaald. Controleer de configuratie van de stemming.",
+                blankBallotsInconsistent:
+                    "Blanco Stembiljetten moeten dezelfde waarde hebben op elk telformulier van deze stembus",
+                blankBallotsOutOfBounds:
+                    "De waarde van Blanco Stembiljetten valt buiten het bereik dat wordt geïmpliceerd door de blanco-stemtellingen per stemming van deze stembus",
             },
             label: {
                 area: "Gebied",
@@ -2437,6 +2594,7 @@ const dutchTranslation: TranslationType = {
                 explicit_invalid: "Expliciet Ongeldige Stemmen",
                 implicit_invalid: "Impliciet Ongeldige Stemmen",
                 total_blank_votes: "Blanco Stemmen",
+                blank_ballots: "Blanco Stembiljetten",
                 census: "Kieserslijst",
             },
             common: {
@@ -2783,6 +2941,71 @@ const dutchTranslation: TranslationType = {
             confirmDelete: "Certificaatautoriteit verwijderen",
             confirmDeleteDescription:
                 'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
+        },
+        electoralLogConsole: {
+            title: "Verkiezingslog",
+            subtitle:
+                "Bekijk het verkiezingslog en de stembus van een verkiezingsevenement, of bevraag de database van het verkiezingslog. Niets op deze pagina wijzigt gegevens.",
+            notAllowed:
+                "U hebt de machtiging electoral-log-console-read nodig om het verkiezingslog te openen.",
+            tabs: {
+                tables: "Tabellen",
+                query: "Query",
+            },
+            electionEvent: "Verkiezingsevenement",
+            table: "Tabel",
+            tables: {
+                records: "Records",
+                ballots: "Stembiljetten",
+                voters: "Kiezers",
+                queue: "Wachtrij van de Sequencer",
+            },
+            order: {
+                "label": "Volgorde",
+                "newest-first": "Nieuwste eerst",
+                "oldest-first": "Oudste eerst",
+            },
+            filters: {
+                statement_kind: "Soort",
+                election_id: "Verkiezing",
+                area_id: "Gebieds-ID",
+                user_id: "Gebruikers- of Kiezers-ID",
+                ballot_id: "Stembiljet-ID",
+                status: "Status",
+                created_after: "Vanaf",
+                created_before: "Tot",
+                any: "Alle",
+                apply: "Filters Toepassen",
+                clear: "Wissen",
+                invalid:
+                    "Controleer de gemarkeerde filters: datums moeten geldig zijn en gebieds-ID's van de stembus moeten UUID's zijn.",
+            },
+            statuses: {
+                valid: "Geldig",
+                pending: "In behandeling",
+                rejected: "Afgewezen",
+            },
+            estimatedRows: "Ongeveer {{rows}} rijen in deze tabel vóór filtering.",
+            personalDataHidden:
+                "Gebruikersnamen, IP-adressen en landen zijn verborgen: om ze te zien is de machtiging electoral-log-personal-data-read nodig.",
+            loadError: "Het verkiezingslog kon niet worden gelezen.",
+            record: {
+                title: "Record {{position}}",
+                view: "Record bekijken",
+                message: "Bericht (gedecodeerd)",
+                copy: "JSON Kopiëren",
+                close: "Sluiten",
+                loadError: "Het record kon niet worden gelezen.",
+            },
+            query: {
+                help: "Query's worden uitgevoerd op de database van het verkiezingslog in een alleen-lezen transactie. De tabellen zijn electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending en ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Alleen-lezen · tot 1.000 rijen · limiet van 30 s · elke query wordt met uw gebruiker vastgelegd in de serverlogs",
+                run: "Query Uitvoeren",
+                summary: "Rijen: {{rows}} · {{ms}} ms",
+                truncated: "Alleen de eerste {{rows}} rijen worden getoond.",
+                error: "De query kon niet worden uitgevoerd.",
+            },
         },
     },
 }

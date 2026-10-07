@@ -1,4 +1,31 @@
 actions:
+    - name: get_ballot_files_urls
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-ballot-files-urls
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+    - name: get_voter_cast_votes
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-voter-cast-votes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: The voter's own cast votes, from the election event's ballot box
     - name: ApplicationChangeStatus
       definition:
           kind: synchronous
@@ -37,6 +64,63 @@ actions:
           - role: service-account
           - role: admin-user
       comment: Verify User Registration Application
+    - name: audit_electoral_log
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log/audit
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: electoral-log-audit
+          - role: admin-user
+    - name: electoral_log_console_page
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log-console/page
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: electoral-log-console-read
+      comment: A page of an election event's electoral-log records or ballot box
+    - name: electoral_log_console_record
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log-console/record
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: electoral-log-console-read
+      comment: An electoral-log record with its message decoded
+    - name: electoral_log_console_query
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log-console/query
+          forward_client_headers: true
+          timeout: 45
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: electoral-log-console-query
+      comment: A read-only SQL query on the tenant's electoral-log database
     - name: call_plugin_route
       definition:
           kind: synchronous
@@ -133,6 +217,34 @@ actions:
       permissions:
           - role: admin-user
       comment: create scheduled event
+    - name: acknowledge_support_materials
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/acknowledge-support-materials
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: acknowledge_support_materials
+    - name: get_support_materials_acknowledgment
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-support-materials-acknowledgment
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: get_support_materials_acknowledgment
     - name: create_ballot_receipt
       definition:
           kind: synchronous
@@ -278,6 +390,23 @@ actions:
       permissions:
           - role: election-event-delete
           - role: admin-user
+    - name: delete_tenant
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/delete-tenant
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+      comment: delete_tenant
     - name: delete_permission
       definition:
           kind: synchronous
@@ -694,6 +823,21 @@ actions:
           - role: admin-user
           - role: voter-read
           - role: user-read
+    - name: reveal_voter_secret_attribute
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/reveal-voter-secret-attribute
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-read
+          - role: voter-secret-attribute-read
+          - role: admin-user
     - name: fetchDocument
       definition:
           kind: ""
@@ -1025,6 +1169,21 @@ actions:
           - role: voter-read
           - role: user-read
           - role: admin-user
+    - name: get_user_profile_configuration
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/get-user-profile-configuration
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-read
+          - role: user-read
+          - role: admin-user
     - name: get_user_template
       definition:
           kind: synchronous
@@ -1221,7 +1380,7 @@ actions:
     - name: listElectoralLog
       definition:
           kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/electoral-log
+          handler: http://{{HARVEST_DOMAIN}}/electoral-log
           forward_client_headers: true
           request_transform:
               body:
@@ -1238,36 +1397,9 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: immudb:log:read
+          - role: logs-read
           - role: admin-user
       comment: List Electoral Log
-    - name: listPgaudit
-      definition:
-          kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/pgaudit-list
-          forward_client_headers: true
-          headers:
-              - name: X-Hasura-Admin-Secret
-                value_from_env: ACTIONS_ADMIN_SECRET
-          request_transform:
-              body:
-                  action: transform
-                  template: |-
-                      {
-                        "tenant_id": {{ head(removeNulls([$session_variables?['x-hasura-tenant-id'],""])) }},
-                        "election_event_id": {{ head(removeNulls([$session_variables?['x-hasura-election-event-id'],"defaultdb"])) }},
-                        "limit": {{$body.input?.limit}},
-                        "offset": {{$body.input?.offset}},
-                        "filter": {{$body.input?.filter}},
-                        "audit_table": {{$body.input?.audit_table}},
-                        "order_by": {{$body.input?.order_by}}
-                      }
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: immudb:log:read
-          - role: admin-user
-      comment: List PostgreSQL audit logs
     - name: list_cast_vote_messages
       definition:
           kind: ""
@@ -1309,19 +1441,6 @@ actions:
               version: 2
       permissions:
           - role: admin-user
-    - name: logEvent
-      definition:
-          kind: ""
-          handler: http://{{HARVEST_DOMAIN}}/immudb/log-event
-          request_transform:
-              body:
-                  action: transform
-                  template: "{{$body.input}}"
-              template_engine: Kriti
-              version: 2
-      permissions:
-          - role: service-account
-      comment: log an event in immudb
     - name: manage_election_dates
       definition:
           kind: synchronous
@@ -1732,14 +1851,6 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: desc
-        - name: PgAuditTable
-          values:
-              - description: null
-                is_deprecated: null
-                value: pgaudit_hasura
-              - description: null
-                is_deprecated: null
-                value: pgaudit_keycloak
         - name: VotingStatus
           values:
               - description: null
@@ -1770,8 +1881,6 @@ custom_types:
                 value: TELEPHONE
     input_objects:
         - name: TemplateInput
-        - name: PgAuditFilter
-        - name: PgAuditOrderBy
         - name: ElectoralLogFilter
         - name: ElectoralLogOrderBy
         - name: SampleInput
@@ -1816,11 +1925,10 @@ custom_types:
         - name: TemplateOutput
         - name: FetchDocumentOutput
         - name: ScheduledEventOutput
-        - name: PgAuditRow
         - name: Aggregate
-        - name: DataListPgAudit
         - name: TotalAggregate
         - name: ElectoralLogRow
+        - name: VoterCastVote
         - name: CastVoteEntry
         - name: ListCastVoteMessagesOutput
         - name: DataListElectoralLog
@@ -1846,7 +1954,10 @@ custom_types:
         - name: TallySheetOutput
         - name: PrepareBallotPublicationPreviewOutput
         - name: ExportUsersOutput
+        - name: RevealVoterSecretAttributeOutput
         - name: SetUserRoleOutput
+        - name: AcknowledgeSupportMaterialsOutput
+        - name: GetSupportMaterialsAcknowledgmentOutput
         - name: CreateTallyOutput
         - name: StartTallyOutput
         - name: PublishBallotOutput
@@ -1872,7 +1983,6 @@ custom_types:
         - name: tasks_execution_type
         - name: taskOutput
         - name: documentTaskOutput
-        - name: LogEventOutput
         - name: SetCustomUrlOutput
         - name: SetCustomUrlsOutput
         - name: DeleteElectionEvent

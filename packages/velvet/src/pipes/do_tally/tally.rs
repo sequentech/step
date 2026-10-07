@@ -4,7 +4,8 @@
 
 use super::counting_algorithm::Error as CntAlgError;
 use super::counting_algorithm::{
-    instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge, CountingAlgorithm,
+    acclaimed::Acclaimed, instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge,
+    CountingAlgorithm,
 };
 use super::error::{Error, Result};
 use super::{BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, InvalidVotes};
@@ -317,6 +318,17 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         .iter()
         .map(|candidate_result| candidate_result.total_count)
         .sum();
+    let total_valid_marks: u64 = match contest.get_counting_algorithm() {
+        CountingAlgType::PluralityAtLarge => candidate_results
+            .iter()
+            .filter(|candidate_result| {
+                !candidate_result.candidate.is_explicit_blank()
+                    && !candidate_result.candidate.is_explicit_invalid()
+            })
+            .map(|candidate_result| candidate_result.total_count)
+            .sum(),
+        _ => 0,
+    };
     let count_valid: u64 = content
         .total_valid_votes
         .unwrap_or(votes_for_candidates.saturating_add(count_blank));
@@ -349,6 +361,8 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         candidate_result: candidate_results,
         extended_metrics: Some(ExtendedMetricsContest {
             votes_by_channel,
+            total_blank_ballots: content.blank_ballots.unwrap_or(0),
+            total_weight: total_valid_marks,
             ..Default::default()
         }),
         process_results: None,
@@ -366,6 +380,13 @@ pub fn create_tally(
     tally_sheet_results: Vec<ContestResult>,
     tally_results: Vec<ContestResult>,
 ) -> Result<Box<dyn CountingAlgorithm>> {
+    // Acclamation is an outcome, not a counting algorithm. Select its
+    // synthetic result before checking or opening any ballot path, and ignore
+    // scope/aggregate inputs that cannot apply to a contest with no vote.
+    if contest.is_acclaimed() {
+        return Ok(Box::new(Acclaimed::new(contest)));
+    }
+
     let ballots_files: Vec<(PathBuf, Weight)> = ballots_files
         .iter()
         .filter(|(f, _weight)| {
@@ -409,6 +430,8 @@ mod tests {
         AreaContestResults, CandidateResults, InvalidVotes as TallySheetInvalidVotes,
     };
     use std::collections::HashMap;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
 
     fn tally_sheet(candidate_votes: u64, blank_votes: u64) -> TallySheet {
         let mut candidate_results = HashMap::new();
@@ -444,8 +467,10 @@ mod tests {
                     explicit_invalid: Some(0),
                 }),
                 total_blank_votes: Some(blank_votes),
+                blank_ballots: None,
                 census: Some(candidate_votes + blank_votes + 1),
                 candidate_results,
+                annotations: None,
             }),
             channel: None,
             deleted_at: None,
@@ -467,6 +492,133 @@ mod tests {
         }
     }
 
+    fn multi_selection_contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 2,
+            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
+            candidates: ["candidate-a", "candidate-b"]
+                .into_iter()
+                .map(|id| Candidate {
+                    id: id.to_string(),
+                    ..Candidate::default()
+                })
+                .collect(),
+            ..Contest::default()
+        }
+    }
+
+    fn acclaimed_contest() -> Contest {
+        Contest {
+            id: "acclaimed".to_string(),
+            is_acclaimed: Some(true),
+            counting_algorithm: Some(CountingAlgType::InstantRunoff),
+            candidates: vec![Candidate {
+                id: "candidate".to_string(),
+                ..Candidate::default()
+            }],
+            ..Contest::default()
+        }
+    }
+
+    fn multi_selection_tally_sheet() -> TallySheet {
+        let candidate_results = HashMap::from([
+            (
+                "candidate-a".to_string(),
+                CandidateResults {
+                    candidate_id: "candidate-a".to_string(),
+                    total_votes: Some(2),
+                },
+            ),
+            (
+                "candidate-b".to_string(),
+                CandidateResults {
+                    candidate_id: "candidate-b".to_string(),
+                    total_votes: Some(1),
+                },
+            ),
+        ]);
+
+        let mut sheet = tally_sheet(0, 0);
+        sheet.content = Some(AreaContestResults {
+            area_id: "area".to_string(),
+            contest_id: "contest".to_string(),
+            total_votes: Some(2),
+            total_valid_votes: Some(2),
+            invalid_votes: Some(TallySheetInvalidVotes {
+                total_invalid: Some(0),
+                implicit_invalid: Some(0),
+                explicit_invalid: Some(0),
+            }),
+            total_blank_votes: Some(0),
+            blank_ballots: None,
+            census: Some(2),
+            candidate_results,
+            annotations: None,
+        });
+        sheet
+    }
+
+    fn candidate_percentage(result: &ContestResult, candidate_id: &str) -> f64 {
+        result
+            .candidate_result
+            .iter()
+            .find(|candidate| candidate.candidate.id == candidate_id)
+            .expect("candidate result should exist")
+            .percentage_votes
+    }
+
+    fn assert_percentage(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < 1e-10,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn acclaimed_factory_does_not_read_or_aggregate_any_tally_input() {
+        let mut invalid_ballots = NamedTempFile::new().expect("temporary ballot file");
+        writeln!(invalid_ballots, "not valid json").expect("write invalid ballots");
+        let input_result = ContestResult {
+            census: 50,
+            total_votes: 40,
+            candidate_result: vec![CandidateResult {
+                candidate: Candidate {
+                    id: "candidate".to_string(),
+                    ..Candidate::default()
+                },
+                percentage_votes: 100.0,
+                total_count: 40,
+            }],
+            ..ContestResult::default()
+        };
+
+        for scope_operation in [
+            ScopeOperation::Area(TallyOperation::SkipCandidateResults),
+            ScopeOperation::Contest(TallyOperation::AggregateResults),
+        ] {
+            let result = create_tally(
+                &acclaimed_contest(),
+                scope_operation,
+                vec![(invalid_ballots.path().to_path_buf(), Weight::default())],
+                500,
+                100,
+                vec![input_result.clone()],
+                vec![input_result.clone()],
+            )
+            .expect("acclaimed tally factory")
+            .tally()
+            .expect("synthetic result");
+
+            assert_eq!(result.census, 0);
+            assert_eq!(result.auditable_votes, 0);
+            assert_eq!(result.total_votes, 0);
+            assert_eq!(result.candidate_result.len(), 1);
+            assert_eq!(result.candidate_result[0].total_count, 0);
+            assert_eq!(result.process_results, None);
+        }
+    }
+
     #[test]
     fn process_tally_sheet_counts_blank_votes_as_valid() {
         let result = process_tally_sheet(&tally_sheet(4, 2), &contest())
@@ -485,5 +637,104 @@ mod tests {
             }),
             Some(&7)
         );
+    }
+
+    #[test]
+    fn process_tally_sheet_reads_blank_ballots_into_extended_metrics() {
+        let mut sheet = tally_sheet(4, 2);
+        sheet.content.as_mut().unwrap().blank_ballots = Some(3);
+
+        let result = process_tally_sheet(&sheet, &contest()).expect("tally sheet should process");
+
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .map(|metrics| metrics.total_blank_ballots),
+            Some(3)
+        );
+    }
+
+    #[test]
+    fn process_tally_sheet_uses_total_marks_for_multi_selection_percentages() {
+        let result =
+            process_tally_sheet(&multi_selection_tally_sheet(), &multi_selection_contest())
+                .expect("tally sheet should process");
+
+        assert_percentage(candidate_percentage(&result, "candidate-a"), 200.0 / 3.0);
+        assert_percentage(candidate_percentage(&result, "candidate-b"), 100.0 / 3.0);
+        assert_eq!(
+            result
+                .extended_metrics
+                .expect("extended metrics should exist")
+                .total_weight,
+            3
+        );
+    }
+
+    #[test]
+    fn process_tally_sheet_defaults_blank_ballots_to_zero_when_unavailable() {
+        // blank_ballots: None means "unavailable", not "zero" -- but a
+        // single sheet's contribution to the aggregate must still be a
+        // plain count, matching every other ExtendedMetricsContest field.
+        let result = process_tally_sheet(&tally_sheet(4, 2), &contest())
+            .expect("tally sheet should process");
+
+        assert_eq!(
+            result
+                .extended_metrics
+                .as_ref()
+                .map(|metrics| metrics.total_blank_ballots),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn process_tally_sheet_does_not_set_mark_weight_for_instant_runoff() {
+        let mut contest = contest();
+        contest.counting_algorithm = Some(CountingAlgType::InstantRunoff);
+
+        let result =
+            process_tally_sheet(&tally_sheet(4, 2), &contest).expect("tally sheet should process");
+
+        assert_eq!(
+            result
+                .extended_metrics
+                .expect("extended metrics should exist")
+                .total_weight,
+            0
+        );
+    }
+
+    #[test]
+    fn aggregate_includes_tally_sheet_marks_in_multi_selection_percentages() {
+        let contest = multi_selection_contest();
+        let tally_sheet_result = process_tally_sheet(&multi_selection_tally_sheet(), &contest)
+            .expect("tally sheet should process");
+        let electronic_result = ContestResult {
+            contest: contest.clone(),
+            total_votes: 1,
+            total_valid_votes: 1,
+            candidate_result: contest
+                .candidates
+                .iter()
+                .map(|candidate| CandidateResult {
+                    candidate: candidate.clone(),
+                    percentage_votes: 50.0,
+                    total_count: 1,
+                })
+                .collect(),
+            extended_metrics: Some(ExtendedMetricsContest {
+                total_ballots: 1,
+                total_weight: 2,
+                ..ExtendedMetricsContest::default()
+            }),
+            ..ContestResult::default()
+        };
+
+        let result = electronic_result.aggregate(&tally_sheet_result, false);
+
+        assert_percentage(candidate_percentage(&result, "candidate-a"), 60.0);
+        assert_percentage(candidate_percentage(&result, "candidate-b"), 40.0);
     }
 }

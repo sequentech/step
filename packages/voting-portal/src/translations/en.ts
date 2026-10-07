@@ -8,6 +8,23 @@ const englishTranslation = {
             showMore: "Show more",
             showLess: "Show less",
         },
+        a11y: {
+            skipToContent: "Skip to main content",
+            helpAbout: "Help about {{topic}}",
+            previewMaterial: "Preview {{title}}",
+            ballotsTable: "Ballots",
+            ballotLocatorTabs: "Ballot locator sections",
+            ballotIdLabel: "Ballot ID",
+            votingProgress: "Voting progress",
+            stepOf: "Step {{current}} of {{total}}",
+            selectUpTo_one: "Select up to {{count}} option",
+            selectUpTo_many: "Select up to {{count}} options",
+            selectUpTo_other: "Select up to {{count}} options",
+            selectExactly_one: "Select {{count}} option",
+            selectExactly_many: "Select {{count}} options",
+            selectExactly_other: "Select {{count}} options",
+            selectBetween: "Select between {{min}} and {{max}} options",
+        },
         candidatesList: {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
@@ -30,6 +47,12 @@ const englishTranslation = {
         },
         footer: {
             poweredBy: "Powered by <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "This contest was decided by acclamation. Its candidates are elected without a vote, so no option can be selected and no vote is recorded for it.",
+            },
         },
         votingScreen: {
             backButton: "Back",
@@ -56,6 +79,13 @@ const englishTranslation = {
                 continue: "Continue",
                 cancel: "Cancel",
             },
+            blankBallotDialog: {
+                title: "You have not selected any candidates",
+                content:
+                    "You have not made any selections. Your ballot will be cast as a blank ballot, which is a valid, deliberate choice and will be counted as such.",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
         },
         startScreen: {
             startButton: "Start Voting",
@@ -71,7 +101,7 @@ const englishTranslation = {
             instructionsDescription: "Follow these steps to cast your ballot",
             step1Title: "1. Make your selections",
             step1Description:
-                "Pick your preferred candidates and answer each contest as it appears. You can change your ballot anytime before casting your vote",
+                "Pick your preferred candidates and make your selections in each contest as it appears. You can change your ballot anytime before casting your vote",
             step2Title: "2. Review your selections",
             step2Description:
                 "When you’re happy with your selections, we’ll securely encrypt your ballot and show you a final review. You’ll also get a unique tracker ID for reference",
@@ -80,6 +110,18 @@ const englishTranslation = {
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "This screen shows what was decided by acclamation. Because no option could be selected, no ballot is cast and there is nothing to verify afterwards.",
+                    ok: "OK",
+                },
+                description:
+                    "Review what was decided by acclamation in this election. No ballot will be cast.",
+                finishButton: "Finish",
+            },
             title: "Review your ballot",
             description:
                 "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
@@ -88,6 +130,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
+            copyBallotId: "Copy ballot ID",
+            ballotIdCopied: "Ballot ID copied",
+            ballotIdCopyError: "Could not copy ballot ID",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content: "This screen lets you review your selections before casting your ballot",
@@ -111,6 +156,13 @@ const englishTranslation = {
                 title: "Are you sure you want to cast your vote?",
                 content: "After you confirm, your vote will be cast.",
                 ok: "Yes, I want to cast my vote",
+                cancel: "Cancel",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Are you sure you want to cast a blank ballot?",
+                content:
+                    "You have not selected any candidates. After you confirm, your ballot will be cast as blank.",
+                ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
             },
             error: {
@@ -199,14 +251,32 @@ const englishTranslation = {
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
             declineToVote: "Decline to vote",
+            blankBallot: "Blank ballot",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                description:
+                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no ballot ID to track.",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no ballot ID, receipt or QR code to verify.",
+                    ok: "OK",
+                },
+            },
             title: "Your vote has been cast",
             description:
                 "Your ballot was cast successfully. Use the code below to verify that it was counted",
+            blankBallot: {
+                description: "Your ballot was cast blank, which is a valid, deliberate choice.",
+            },
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",
+            remainingElectionsError:
+                "We couldn’t check whether you have more elections to vote in. Please retry.",
+            retryButton: "Retry",
             verifyCastTitle: "Verify that your ballot was cast",
             verifyCastDescription:
                 "You can verify your ballot was cast correctly at any time using the QR code below",
@@ -309,6 +379,10 @@ const englishTranslation = {
                 electionEventNotPublished:
                     "The election event hasn’t been published yet. Please try again later or contact support for assistance.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             encoding: {
@@ -341,6 +415,12 @@ const englishTranslation = {
                 back: "Back to ballot list",
                 close: "Close",
                 preview: "Preview",
+                download: "Download",
+            },
+            mandatory: {
+                checkboxLabel: "I have read the Support Materials",
+                continueButton: "Continue",
+                error: "There was a problem recording your acknowledgment. Please try again.",
             },
         },
         ballotLocator: {
@@ -376,9 +456,7 @@ const englishTranslation = {
             column: {
                 statement_kind: "Statement kind",
                 statement_timestamp: "Statement Timestamp",
-                username: "Username",
                 ballot_id: "Ballot ID",
-                message: "Message",
             },
         },
     },

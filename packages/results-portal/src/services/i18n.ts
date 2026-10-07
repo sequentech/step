@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {initializeLanguages} from "@sequentech/ui-core"
+import {ETranslationScope, initializeLanguages} from "@sequentech/ui-core"
 import englishTranslation from "@/translations/en"
 import spanishTranslation from "@/translations/es"
 import spanishInformalTranslation from "@/translations/es-tu"
@@ -49,5 +49,6 @@ initializeLanguages(
         "es-tu": spanishInformalTranslation,
         "cat-tu": catalanInformalTranslation,
     },
-    getLanguageFromURL()
+    getLanguageFromURL(),
+    ETranslationScope.RESULTS_PORTAL
 )

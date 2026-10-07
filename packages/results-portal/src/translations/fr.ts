@@ -47,6 +47,9 @@ const frenchTranslation: TranslationType = {
             version: "Version {{version}}",
             publicAccess: "Accès public",
             signedInAccess: "Accès connecté",
+            acclaimed: "Élu par acclamation",
+            acclamationNote:
+                "Élu par acclamation. Ce scrutin a été tranché sans vote : aucune voix n'a été enregistrée.",
             published: "Publié",
             notPublishedYet: "Pas encore publié",
             position_one: "{{count}} position",
@@ -75,6 +78,7 @@ const frenchTranslation: TranslationType = {
                 totalVotesCounted: "Total des votes comptés",
                 validVotes: "Votes valides",
                 participation: "Participation",
+                totalBlankBallots: "Total des bulletins blancs",
             },
             resultsAndParticipation: {
                 participationSummary: "Résumé de participation",

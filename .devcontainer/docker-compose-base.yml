@@ -68,10 +68,11 @@ services:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
       - b4_db_logs:/b4_logs
+      - b4v6_db_logs:/b4v6_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b4_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4_logs /b4v6_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -84,10 +85,19 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     volumes:
+      - ./postgresql/init-electoral-log.sh:/docker-entrypoint-initdb.d/20-electoral-log.sh:ro
+      - ../packages/electoral-log/schema.sql:/electoral-log-schema.sql:ro
       - db_data:/var/lib/postgresql
       - db_logs:/logs
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
+      ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -101,7 +111,7 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -138,7 +148,6 @@ services:
       - "9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
-    #image: minio/mc
     depends_on:
       - minio
 
@@ -164,6 +173,140 @@ services:
       - KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
+
+  # S3 emulator for the wbraid dev loop (packages/wbraid): its b4v6 bulletin
+  # board keeps every message body in S3. Opt-in profile — not started with the
+  # base stack; packages/wbraid/localstack.sh brings it up by name, which
+  # auto-enables the profile.
+  # The image is pinned to the 4.x line: from the 2026 calendar releases on,
+  # localstack/localstack:latest exits at startup without an auth token.
+  localstack:
+    profiles: [ "wbraid" ]
+    container_name: localstack
+    image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
+    ports:
+      - "4566:4566"
+    environment:
+      - HOSTNAME_EXTERNAL=localhost
+      - S3_HOSTNAME=localhost:4566
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health" ]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
+
+  # Creates the wbraid-messages bucket and applies its CORS rules — the twin of
+  # what localstack.ps1 does inline on Windows.
+  configure-localstack:
+    profiles: [ "wbraid" ]
+    container_name: configure-localstack
+    image: amazon/aws-cli
+    volumes:
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: /bin/sh
+    command: >-
+      -c "aws --endpoint-url=http://localstack:4566 s3 mb s3://wbraid-messages 2>/dev/null;
+      aws --endpoint-url=http://localstack:4566 s3api put-bucket-cors
+      --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
+
+  postgres-b4v6:
+    profiles: [ "wbraid" ]
+    image: sequentech.local/postgresql-b4v6
+    build:
+      context: ./postgresql-b4v6
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - b4v6_db_data:/var/lib/postgresql
+      - b4v6_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+    user: "999:999"  # This ensures that the postgres user inside the container is used
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    depends_on:
+      - postgres-volume-init
+
+  # wbraid's bulletin board (packages/wbraid/crates/b4, binary b4v6), built and
+  # run from the mounted checkout like the other Rust services: cargo-watch
+  # rebuilds it when crates/b4 changes. Same opt-in `wbraid` profile as
+  # localstack; packages/wbraid/b4.sh brings it up by name. Reachable as
+  # http://b4v6:3005 on the project network (WBRAID_B4_URL for the live tests)
+  # and, forwarded by devcontainer.json, as http://127.0.0.1:3005 on the host
+  # for emulator.html.
+  # b4 only presigns S3 URLs, it never calls S3 itself, so AWS_ENDPOINT_URL is
+  # the address the *clients* fetch bodies from: the localstack service name,
+  # which the host browser resolves through a hosts-file entry (TESTING.md).
+  # The SQLite file lives in a named volume, b4.sh --reset clears it.
+  b4v6:
+    profiles: [ "wbraid" ]
+    image: sequentech.local/cargo-packages
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    working_dir: /workspaces/step/packages/wbraid
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      "--watch", "crates/b4",
+      "--watch", "Cargo.toml",
+      "--watch", "Cargo.lock",
+      "-x",
+      "run --bin b4v6 --features postgres --release"
+    ]
+    volumes:
+      - b4v6_data:/var/lib/b4v6
+      - type: bind
+        source: ../..
+        target: /workspaces
+        bind:
+          create_host_path: true
+          selinux: z
+    depends_on:
+      postgres-b4v6:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      configure-localstack:
+        condition: service_completed_successfully
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      RUST_LOG: b4=info,b4v6=info
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      AWS_ENDPOINT_URL: ${WBRAID_S3_ENDPOINT_URL}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      S3_BUCKET_NAME: wbraid-messages
+    healthcheck:
+      # The first start compiles a release build; give it time before failing.
+      test: [ "CMD-SHELL", "curl -sf http://127.0.0.1:3005/boards" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 900s
 
   # hashicorp vault to store secrets
   # vault:
@@ -342,28 +485,6 @@ services:
   #   volumes:
   #      - ${LOCAL_WORKSPACE_FOLDER}/packages:/usr/src/app
 
-  immudb:
-    profiles: ["full", "base"]
-    container_name: immudb
-    image: sequentech.local/immudb
-    build:
-      context: ../packages/
-      dockerfile: ./Dockerfile.immudb
-    restart: always
-    environment:
-      - IMMUDB_PGSQL_SERVER=true
-    #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
-    #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
-    ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
-    volumes:
-      - immudb_data:/var/lib/immudb
-      - immudb_logs:/var/log/immudb
-    depends_on:
-      - immudb-init
-
   mock_server:
     profiles: ["full"]
     stdin_open: true
@@ -434,14 +555,23 @@ services:
     environment:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS: ${WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS:-86400}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE_LAYOUT: ${ELECTORAL_LOG_PG_DATABASE_LAYOUT:-per-tenant}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
+      ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-electoral_log_reader_dev}
+      ELECTORAL_LOG_PG_TENANT_POOL_SIZE: ${ELECTORAL_LOG_PG_TENANT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -454,6 +584,7 @@ services:
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
       KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
@@ -542,7 +673,6 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
     depends_on:
-      - immudb
       - b4
 
   trustee2:
@@ -557,7 +687,6 @@ services:
     # it:
     depends_on:
       - trustee1
-      - immudb
     environment:
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
@@ -579,7 +708,6 @@ services:
   #   # it:
   #   depends_on:
   #     - trustee1
-  #     - immudb
   #   environment:
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
@@ -593,48 +721,18 @@ services:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
     container_name: rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
       - "5672:5672"
       - "15672:15672"
-
-  immudb-init:
-    profiles: ["full", "base"]
-    stdin_open: true
-    image: sequentech.local/cargo-packages
-    container_name: immudb-init
-    # make sure to depend on the `harvest` container to ensure
-    # that the `sequentech.local/cargo-packages` image is locally build, so
-    # that we can reuse it:
-    depends_on:
-      harvest:
-        condition: service_started
-    volumes:
-      - ../packages/:/app:z
-    restart: always
-    working_dir: /app/immu-board
-    entrypoint: [
-      "cargo",
-      "run",
-      "--bin",
-      "bb_helper",
-      "--",
-      "--server-url",
-      "${IMMUDB_SERVER_URL}",
-      "--username",
-      "${IMMUDB_USER}",
-      "--password",
-      "${IMMUDB_PASSWORD}",
-      "--board-dbname",
-      "${IMMUDB_BOARD_DB_NAME}",
-      "--cache-dir",
-      "/tmp/immu-board",
-      "upsert-board-db"
-    ]
-    env_file:
-      - .env
 
   registry:
     profiles: ["full", "lambdas"]
@@ -730,7 +828,7 @@ services:
       devcontainer:
         condition: service_started
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
       #- postgres
@@ -743,10 +841,19 @@ services:
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE_LAYOUT: ${ELECTORAL_LOG_PG_DATABASE_LAYOUT:-per-tenant}
+      ELECTORAL_LOG_PG_TENANT_POOL_SIZE: ${ELECTORAL_LOG_PG_TENANT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-electoral_log_provisioner}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-electoral_log_reader}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -754,6 +861,7 @@ services:
       AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
       AWS_S3_ACCESS_SECRET: ${AWS_S3_ACCESS_SECRET}
       AWS_S3_JWKS_CACHE_POLICY: ${AWS_S3_JWKS_CACHE_POLICY}
+      WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS: ${WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS:-86400}
 
       # used by AWS S3 to "load_from_env()". Don't use this in production, not
       # needed. Instead, in production we'll use Web Identity Tokens
@@ -801,6 +909,12 @@ services:
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+      ELECTORAL_LOG_BATCH_SIZE: ${ELECTORAL_LOG_BATCH_SIZE:-1000}
+      ELECTORAL_LOG_BATCH_MAX_BYTES: ${ELECTORAL_LOG_BATCH_MAX_BYTES:-16777216}
+      ELECTORAL_LOG_CHECKPOINT_COPY: ${ELECTORAL_LOG_CHECKPOINT_COPY:-best-effort}
+      ELECTORAL_LOG_CHECKPOINT_BUCKET: ${ELECTORAL_LOG_CHECKPOINT_BUCKET:-electoral-log-checkpoints}
+      ELECTORAL_LOG_CHECKPOINT_LOCK_MODE: ${ELECTORAL_LOG_CHECKPOINT_LOCK_MODE:-governance}
+      ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS: ${ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS:-1}
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
@@ -860,6 +974,7 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
+      ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}
 
   postgres-b4:
     profiles: ["full", "base"]
@@ -933,11 +1048,7 @@ volumes:
   db_data:
   db_logs:
   keycloak_db_logs:
-  immudb_log_audit_data:
-  keycloak_immudb_log_audit_data:
   keycloak_db_data:
-  immudb_data:
-  immudb_logs:
   minio_storage:
   trustee1_data:
   trustee2_data:
@@ -945,3 +1056,6 @@ volumes:
   protocol_manager_data:
   b4_db_logs:
   b4_db_data:
+  b4v6_data:
+  b4v6_db_data:
+  b4v6_db_logs:

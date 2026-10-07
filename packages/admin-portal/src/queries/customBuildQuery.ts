@@ -1,10 +1,8 @@
-import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {buildQuery, buildVariables} from "ra-data-hasura"
-import {getPgauditVariables, getPgAudit} from "./ListPgAudit"
 import {getElectoralLogVariables, getElectoralLog} from "./ListElectoralLog"
 import {LIST_USERS, customBuildGetUsersVariables} from "./GetUsers"
 import {getPermissions} from "./GetPermissions"
@@ -60,9 +58,8 @@ export const customBuildQuery =
         let sort: ParamsSort | undefined | null = params.sort
         if (isString(resourceName) && raFetchType === "GET_LIST") {
             if (
-                sort?.field &&
-                COLUMNS_MAP[resourceName] &&
-                !COLUMNS_MAP[resourceName].includes(sort.field)
+                !sort?.field ||
+                (COLUMNS_MAP[resourceName] && !COLUMNS_MAP[resourceName].includes(sort.field))
             ) {
                 params.sort = undefined
             }
@@ -78,28 +75,7 @@ export const customBuildQuery =
             }
         }
 
-        if (resourceName.startsWith("pgaudit") && raFetchType === "GET_LIST") {
-            const resource: any = {
-                type: {
-                    fields: [],
-                    name: resourceName,
-                },
-            }
-            return {
-                query: getPgAudit(params, resourceName),
-                variables: getPgauditVariables(
-                    buildVariables(introspectionResults)(resource, raFetchType, params, null)
-                ),
-                parseResponse: (res: any) => {
-                    const response = res.data.listPgaudit
-                    let output = {
-                        data: response.items,
-                        total: response.total.aggregate.count,
-                    }
-                    return output
-                },
-            }
-        } else if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
+        if (resourceName === "electoral_log" && raFetchType === "GET_LIST") {
             let validFilters = [
                 "election_event_id",
                 "user_id",
@@ -142,6 +118,7 @@ export const customBuildQuery =
                     "election_id",
                     "report_type",
                     "template_alias",
+                    "encryption_policy",
                 ]
                 ret.variables.order_by = Object.fromEntries(
                     Object.entries(ret?.variables?.order_by || {}).filter(([key]) =>
@@ -402,6 +379,24 @@ export const customBuildQuery =
                     }
                 },
             }
+        } else if (
+            resourceName === "sequent_backend_tally_session_execution" &&
+            raFetchType === "GET_LIST" &&
+            params?.meta?.latestPerTallySession
+        ) {
+            params.filter = {
+                ...params.filter,
+                distinct_on: ["tally_session_id"],
+            }
+            const ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [
+                    {tally_session_id: "asc"},
+                    {created_at: "desc_nulls_last"},
+                    {id: "desc"},
+                ]
+            }
+            return ret
         } else if (resourceName === "sequent_backend_tally_sheet" && raFetchType === "GET_LIST") {
             applyJsonbTextSearchFilter(params.filter, "labels")
             applyJsonbTextSearchFilter(params.filter, "annotations")

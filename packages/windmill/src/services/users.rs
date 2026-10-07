@@ -4,7 +4,8 @@
 
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
+use crate::services::ballot_box_reads::get_event_ballot_box;
+use crate::services::cast_votes::get_users_with_vote_info;
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -14,7 +15,7 @@ use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::cmp::min;
 use std::env;
@@ -45,8 +46,8 @@ pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
 #[derive(Debug, Clone)]
 pub struct VoterSnapshot {
     pub username: String,
-    /// Keycloak's own internal user id (`user_entity.id`) — same value
-    /// `cast_vote.voter_id_string` carries (as text there), so this is what
+    /// Keycloak's own internal user id (`user_entity.id`) — same value the
+    /// ballot box's `voter_id` carries (as text there), so this is what
     /// actually matches against the event-wide cast-vote state map;
     /// `username` is a separate, mutable-in-theory identifier not safe to key
     /// that lookup on.
@@ -57,8 +58,10 @@ pub struct VoterSnapshot {
     /// doesn't resolve to a known area (or is unset).
     pub area_name: Option<String>,
     pub dob: Option<String>,
-    /// Raw `voted-channel` attribute value; `None` means not voted. File-side
-    /// comparisons normalize this value explicitly at the boundary.
+    /// Raw `voted-channel` attribute value; `None` means no channel is
+    /// recorded, which is not proof the voter has not voted (see
+    /// `has_valid_internet_vote`). File-side comparisons normalize this value
+    /// explicitly at the boundary.
     pub voted_channel: Option<String>,
     pub has_valid_internet_vote: bool,
     pub has_unresolved_internet_vote: bool,
@@ -239,14 +242,23 @@ async fn get_area_ids(
     if election_event_uuid.is_none() {
         return Ok((None, "".to_string(), "".to_string()));
     }
+    let is_explicit_election_filter = election_id.is_some();
     let election_uuid: Option<Uuid> = election_id
         .map(|val| parse_uuid_v4(&val))
         .transpose()
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
 
+    let is_explicit_area_filter = area_id.is_some();
     let area_ids: Vec<String> = match area_id {
         Some(area_id_value) => vec![area_id_value],
         None => {
+            // LEFT JOINed (not INNER) so areas with no contest at all still come back
+            // when no specific election is requested ($3 IS NULL) — otherwise voters
+            // in such an area silently vanish from the list instead of showing up so
+            // an admin can reassign them. When $3 IS a specific election, the WHERE
+            // still requires a matching contest, so callers like get_total_voters
+            // (participation report denominator) keep excluding areas that can't
+            // vote in that election — this must stay that way, or reports miscount.
             let areas_statement = hasura_transaction
                 .prepare(
                     r#"
@@ -254,17 +266,13 @@ async fn get_area_ids(
                     a.id::VARCHAR
                 FROM
                     sequent_backend.area a
-                JOIN
-                    sequent_backend.area_contest ac ON a.id = ac.area_id
-                JOIN
-                    sequent_backend.contest c ON ac.contest_id = c.id
+                LEFT JOIN
+                    sequent_backend.area_contest ac ON a.id = ac.area_id AND ac.tenant_id = $1 AND ac.election_event_id = $2
+                LEFT JOIN
+                    sequent_backend.contest c ON ac.contest_id = c.id AND c.tenant_id = $1 AND c.election_event_id = $2
                 WHERE
                     a.tenant_id = $1 AND
-                    ac.tenant_id = $1 AND
-                    c.tenant_id = $1 AND
                     a.election_event_id = $2 AND
-                    ac.election_event_id = $2 AND
-                    c.election_event_id = $2 AND
                     ($3::uuid IS NULL OR c.election_id = $3::uuid);
             "#,
                 )
@@ -290,23 +298,51 @@ async fn get_area_ids(
     };
 
     debug!("area_ids: {area_ids:?}");
-    let area_ids_join_clause = String::from(
+    // LEFT JOIN so voters with no area-id attribute still produce a row
+    // (area_attr.user_id IS NULL) instead of being dropped by the join.
+    let area_ids_join_clause = format!(
         r#"
-    INNER JOIN 
-        user_attribute AS area_attr ON u.id = area_attr.user_id
+    LEFT JOIN
+        user_attribute AS area_attr ON u.id = area_attr.user_id AND area_attr.name = '{AREA_ID_ATTR_NAME}'
     "#,
     );
-    let area_ids_where_clause = format!(
-        r#"
+    let area_ids_where_clause = if is_explicit_area_filter || is_explicit_election_filter {
+        // A specific area, or a specific election within the event, was
+        // requested — keep strict matching. Relaxing this for the
+        // election-scoped case would let voters with no area attribute
+        // count toward that election's totals (e.g. get_total_voters,
+        // the participation report denominator) even though they have no
+        // contest to vote in for it.
+        format!(
+            r#"
+    AND area_attr.value = ANY(${})
+    "#,
+            param_number,
+        )
+    } else {
+        // Fully unscoped request (no area, no election): also surface voters
+        // with no area assigned so they show up to be reviewed/reassigned.
+        format!(
+            r#"
     AND (
-        area_attr.name = '{AREA_ID_ATTR_NAME}' AND
-        area_attr.value = ANY(${})
+        area_attr.value = ANY(${}) OR area_attr.user_id IS NULL
     )
     "#,
-        param_number,
-    );
+            param_number,
+        )
+    };
 
     Ok((Some(area_ids), area_ids_join_clause, area_ids_where_clause))
+}
+
+/// Which optional multiplicity column the voter dump emits, if any. Delegated
+/// voting and voter-weighted voting are mutually exclusive, so this is one
+/// choice rather than two independent flags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VoterMultiplicityColumn {
+    None,
+    DelegateCount,
+    VoteWeight,
 }
 
 #[instrument(skip(keycloak_transaction), err)]
@@ -316,12 +352,16 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     area_id: &str,
     election_alias: &str,
     output_file: &PathBuf,
-    delegated_voting_enabled: bool,
+    multiplicity_column: VoterMultiplicityColumn,
 ) -> Result<()> {
-    let delegated_statement = if delegated_voting_enabled {
-        let no_service_account_delegators = service_account_exclusion("delegator");
-        format!(
-            r#"
+    // At most one extra column is emitted, always at index 1. Both variants are
+    // correlated scalar subqueries rather than joins so that `GROUP BY u.id`
+    // still holds.
+    let multiplicity_statement = match multiplicity_column {
+        VoterMultiplicityColumn::DelegateCount => {
+            let no_service_account_delegators = service_account_exclusion("delegator");
+            format!(
+                r#"
             ,(
                 SELECT
                     COUNT(delegator.id)
@@ -335,9 +375,31 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
                     ua_delegate.value = u.username
             ) AS delegate_count
         "#
-        )
-    } else {
-        "".to_string()
+            )
+        }
+        VoterMultiplicityColumn::VoteWeight => {
+            // COALESCE is mandatory: a voter without the attribute yields SQL NULL,
+            // which COPY .. FORMAT CSV writes as an empty field. The cast to bigint
+            // makes the aggregate numeric rather than lexicographic, which
+            // matters because Keycloak allows several rows for one
+            // (user_id, name) pair. MIN rather than MAX so an unexpected
+            // duplicate cannot silently grant more voting power than the
+            // smallest value recorded for the voter.
+            format!(
+                r#"
+            ,(
+                SELECT
+                    COALESCE(MIN((NULLIF(ua_weight.value, ''))::bigint), {DEFAULT_VOTE_WEIGHT})
+                FROM
+                    user_attribute AS ua_weight
+                WHERE
+                    ua_weight.user_id = u.id AND
+                    ua_weight.name = '{VOTE_WEIGHT_ATTR_NAME}'
+            ) AS vote_weight
+        "#
+            )
+        }
+        VoterMultiplicityColumn::None => "".to_string(),
     };
 
     // COPY does not support parameters so we have to add them using format.
@@ -353,7 +415,7 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
         r#"
         SELECT
             u.id
-            {delegated_statement}
+            {multiplicity_statement}
         FROM
             user_entity AS u
         JOIN
@@ -412,7 +474,7 @@ pub enum SqlBooleanOperator {
     None,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumString, Display, Serialize)]
 pub enum FilterOption {
     /// Those elements that contain the string are returned.
     IsLike(String),
@@ -577,7 +639,7 @@ impl<'de> Deserialize<'de> for FilterOption {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct ListUsersFilter {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
@@ -627,16 +689,44 @@ fn service_account_exclusion(alias: &str) -> String {
     format!("{alias}.service_account_client_link IS NULL")
 }
 
+/// Base parameters shared by every voter-scoped query: realm and optional id allowlist.
+/// This is the single source of truth for where `filter.realm`/`filter.user_ids` land in the
+/// `params` slice, so `voter_scope_clause` and the query's own filter clauses can reference
+/// their positions without hardcoding or re-deriving them independently.
+struct VoterScopeParams<'a> {
+    params: Vec<&'a (dyn ToSql + Sync)>,
+    realm_param: i32,
+    user_ids_param: i32,
+    next_param_number: i32,
+}
+
+/// Takes `realm`/`user_ids` by reference (rather than `&ListUsersFilter`) so callers keep
+/// borrowing only those two fields — a whole-struct borrow here would conflict with the
+/// later partial moves out of other `filter` fields (e.g. `filter.sort`).
+fn voter_scope_params<'a>(
+    realm: &'a String,
+    user_ids: &'a Option<Vec<String>>,
+) -> VoterScopeParams<'a> {
+    VoterScopeParams {
+        params: vec![realm, user_ids],
+        realm_param: 1,
+        user_ids_param: 2,
+        next_param_number: 3,
+    }
+}
+
 /// WHERE-clause head shared by the voter count and voter listing queries: scope to the realm,
 /// drop service accounts, then apply the caller's filters. `filters_clause` is the caller's
 /// already-composed column filters, which carries its own trailing boolean operator when set.
-fn voter_scope_clause(filters_clause: &str) -> String {
+/// `realm_param`/`user_ids_param` must be the positions returned by `voter_scope_params` for
+/// the same `params` vec, so the placeholders here always match where the values were pushed.
+fn voter_scope_clause(filters_clause: &str, realm_param: i32, user_ids_param: i32) -> String {
     let no_service_accounts = service_account_exclusion("u");
     format!(
-        r#"ra.name = $1 AND
+        r#"ra.name = ${realm_param} AND
             {no_service_accounts} AND
             {filters_clause}
-            (u.id = ANY($2) OR $2 IS NULL)"#
+            (u.id = ANY(${user_ids_param}) OR ${user_ids_param} IS NULL)"#
     )
 }
 
@@ -695,8 +785,12 @@ pub async fn count_keycloak_users(
     filter: ListUsersFilter,
 ) -> Result<i32> {
     // Start by setting up the base parameters: realm and user_ids.
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
-    let mut next_param_number = 3;
+    let VoterScopeParams {
+        mut params,
+        realm_param,
+        user_ids_param,
+        mut next_param_number,
+    } = voter_scope_params(&filter.realm, &filter.user_ids);
 
     // Build filter clauses for basic fields.
     let mut filters_clause = String::new();
@@ -802,6 +896,7 @@ pub async fn count_keycloak_users(
     };
 
     // Build the count query using only the necessary filtering clauses.
+    let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let count_query = format!(
         r#"
         SELECT COUNT(*) AS total_count
@@ -810,9 +905,7 @@ pub async fn count_keycloak_users(
         {area_ids_join_clause}
         {authorized_alias_join_clause}
         WHERE
-            ra.name = $1 AND
-            {filters_clause}
-            (u.id = ANY($2) OR $2 IS NULL)
+            {scope_clause}
             {area_ids_where_clause}
             {authorized_alias_where_clause}
             {enabled_condition}
@@ -846,8 +939,12 @@ pub async fn list_users(
         std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
     let query_offset: i64 = filter.offset.unwrap_or(0).into();
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
-    let mut next_param_number = 3;
+    let VoterScopeParams {
+        mut params,
+        realm_param,
+        user_ids_param,
+        mut next_param_number,
+    } = voter_scope_params(&filter.realm, &filter.user_ids);
 
     let mut filters_clause = "".to_string();
     let mut filter_params: Vec<String> = vec![];
@@ -955,6 +1052,9 @@ pub async fn list_users(
         }
     };
 
+    // The count query below has no ORDER BY clause, so it must not receive the
+    // optional dynamic-attribute sort parameter used by the listing query.
+    let count_params_len = params.len();
     let mut sort_params: Vec<Option<String>> = vec![];
     let (sort_clause, field_param) =
         get_sort_clause_and_field_param(filter.sort, next_param_number);
@@ -969,6 +1069,7 @@ pub async fn list_users(
 
     debug!("parameters count: {}", next_param_number - 1);
     debug!("params {:?}", params);
+    let scope_clause = voter_scope_clause(&filters_clause, realm_param, user_ids_param);
     let statement_str = format!(
         r#"
         WITH limited_users AS MATERIALIZED (
@@ -989,9 +1090,7 @@ pub async fn list_users(
             {area_ids_join_clause}
             {authorized_alias_join_clause}
             WHERE
-                ra.name = $1 AND
-                {filters_clause}
-                (u.id = ANY($2) OR $2 IS NULL)
+                {scope_clause}
                 {area_ids_where_clause}
                 {authorized_alias_where_clause}
                 {enabled_condition}
@@ -1051,9 +1150,7 @@ pub async fn list_users(
     {area_ids_join_clause}
     {authorized_alias_join_clause}
     WHERE
-        ra.name = $1 AND
-        {filters_clause}
-        (u.id = ANY($2) OR $2 IS NULL)
+        {scope_clause}
         {area_ids_where_clause}
         {authorized_alias_where_clause}
         {enabled_condition}
@@ -1068,7 +1165,7 @@ pub async fn list_users(
         .prepare(count_statement_str.as_str())
         .await?;
     let count_row: Row = keycloak_transaction
-        .query_one(&count_statement, &params)
+        .query_one(&count_statement, &params[..count_params_len])
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
@@ -1119,187 +1216,6 @@ pub async fn list_users(
     } else {
         Ok((users, count))
     }
-}
-
-#[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
-pub async fn list_users_ids(
-    hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
-    filter: ListUsersFilter,
-) -> Result<Vec<String>> {
-    info!("filter: {filter:?}");
-    let low_sql_limit = PgConfig::from_env()?.low_sql_limit;
-    let default_sql_limit = PgConfig::from_env()?.default_sql_limit;
-    let query_limit: i64 =
-        std::cmp::min(low_sql_limit, filter.limit.unwrap_or(default_sql_limit)).into();
-    let query_offset: i64 = filter.offset.unwrap_or(0).into();
-
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&filter.realm, &filter.user_ids];
-    let mut next_param_number = 3;
-
-    let mut filters_clause = "".to_string();
-    let mut filter_params: Vec<String> = vec![];
-    for tuple in [
-        ("email", &filter.email),
-        ("first_name", &filter.first_name),
-        ("last_name", &filter.last_name),
-        ("username", &filter.username),
-    ] {
-        let (col_name, filter_option) = tuple;
-        match filter_option {
-            Some(filter_obj) => {
-                let (clause, param) = filter_obj.get_sql_filter_clause(
-                    col_name,
-                    next_param_number,
-                    SqlBooleanOperator::And,
-                );
-                filters_clause.push_str(&clause);
-                if let Some(param) = param {
-                    next_param_number += 1;
-                    filter_params.push(param.to_string());
-                }
-            }
-            None => {}
-        }
-    }
-    for filt_param in filter_params.iter() {
-        params.push(filt_param);
-    }
-
-    let (area_ids, area_ids_join_clause, area_ids_where_clause) = get_area_ids(
-        hasura_transaction,
-        &filter.tenant_id,
-        filter.election_event_id.clone(),
-        filter.election_id.clone(),
-        filter.area_id.clone(),
-        next_param_number,
-    )
-    .await?;
-
-    if let Some(area_ids) = &area_ids {
-        params.push(area_ids);
-        next_param_number += 1;
-    }
-
-    let (election_alias, authorized_alias_join_clause, authorized_alias_where_clause) = match filter
-        .authorized_to_election_alias
-    {
-        Some(election_alias) => (
-            Some(election_alias),
-            format!(
-                r#"
-            LEFT JOIN 
-                user_attribute AS authorization_attr ON u.id = authorization_attr.user_id AND authorization_attr.name = ${}
-            "#,
-                next_param_number
-            ),
-            format!(
-                r#"
-            AND (
-                authorization_attr.value = ${} OR authorization_attr.user_id IS NULL
-            )
-            "#,
-                next_param_number + 1
-            ),
-        ),
-        None => (None, "".to_string(), "".to_string()),
-    };
-
-    if election_alias.is_some() {
-        params.push(&AUTHORIZED_ELECTION_IDS_NAME);
-        params.push(&election_alias);
-        next_param_number += 2;
-    }
-
-    let enabled_condition = get_query_bool_condition("enabled", filter.enabled);
-    let email_verified_condition =
-        get_query_bool_condition("email_verified", filter.email_verified);
-
-    let mut dynamic_attr_conditions: Vec<String> = Vec::new();
-    let mut dynamic_attr_params: Vec<Option<String>> = vec![];
-
-    if let Some(attributes) = &filter.attributes {
-        for (key, value) in attributes {
-            dynamic_attr_conditions.push(format!(
-                 r#"EXISTS (SELECT 1 FROM user_attribute ua WHERE ua.user_id = u.id AND ua.name = ${} AND UNACCENT(ua.value) ILIKE ${})"#,
-                next_param_number,
-                next_param_number + 1
-            ));
-            let val = Some(format!("%{value}%"));
-            let formatted_keyy = key.trim_matches('\'').to_string();
-            dynamic_attr_params.push(Some(formatted_keyy.clone()));
-            dynamic_attr_params.push(val.clone());
-            next_param_number += 2;
-        }
-    }
-    for value in &dynamic_attr_params {
-        params.push(value);
-    }
-
-    let dynamic_attr_clause = match dynamic_attr_conditions.is_empty() {
-        true => "".to_string(),
-        false => {
-            format!(r#"AND({})"#, dynamic_attr_conditions.join(" OR "))
-        }
-    };
-
-    let mut sort_params: Vec<Option<String>> = vec![];
-    let (sort_clause, field_param) =
-        get_sort_clause_and_field_param(filter.sort, next_param_number);
-
-    if field_param.is_some() {
-        sort_params.push(field_param);
-        next_param_number += 1;
-    }
-    for value in &sort_params {
-        params.push(value);
-    }
-
-    debug!("parameters count: {}", next_param_number - 1);
-    debug!("params {:?}", params);
-    let statement_str = format!(
-        r#"
-            SELECT
-                u.id
-            FROM
-                user_entity AS u
-            INNER JOIN
-                realm AS ra ON ra.id = u.realm_id
-            {area_ids_join_clause}
-            {authorized_alias_join_clause}
-            WHERE
-                ra.name = $1 AND
-                {filters_clause}
-                (u.id = ANY($2) OR $2 IS NULL)
-                {area_ids_where_clause}
-                {authorized_alias_where_clause}
-                {enabled_condition}
-                {email_verified_condition}
-                {dynamic_attr_clause}
-            {sort_clause}
-            LIMIT {query_limit} OFFSET {query_offset}
-        "#
-    );
-    debug!("statement_str {statement_str:?}");
-
-    let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
-    let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
-        .await
-        .map_err(|err| anyhow!("{}", err))?;
-    let realm: &str = &filter.realm;
-    info!(
-        "Count rows {} for realm={realm}, query_limit={query_limit}",
-        rows.len()
-    );
-
-    // Process the users
-    let user_ids = rows
-        .into_iter()
-        .filter_map(|row| row.get("id"))
-        .collect::<Vec<String>>();
-
-    Ok(user_ids)
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction, filter), err)]
@@ -1479,6 +1395,7 @@ pub async fn lookup_users(
             LEFT JOIN realm ra ON ra.id = u.realm_id
             WHERE
                 ra.name = $1
+                AND {no_service_accounts}
                 {enabled_condition}
             GROUP BY mu.id
         )
@@ -1840,57 +1757,30 @@ pub async fn get_user_area_id(
     }
 }
 
+/// Voters of the filter's election event, or of one of its elections, with a valid
+/// vote.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
     tenant_id: &str,
-) -> Result<(i32)> {
-    let tenant_uuid = parse_uuid_v4(tenant_id)?;
-    let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
-        Box::new(tenant_uuid),
-        Box::new(CastVoteStatus::Valid.to_string()),
-    ];
-    let mut filter_clauses: Vec<String> = vec!["status = $2".to_string()];
-    let mut next_param_number = 3;
-
-    if let Some(election_event_id_str) = &filter.election_event_id {
-        let election_event_id_uuid = parse_uuid_v4(election_event_id_str)?;
-        let clause = format!("election_event_id = ${next_param_number}");
-        filter_clauses.push(clause);
-        params.push(Box::new(election_event_id_uuid));
-        next_param_number += 1;
-    }
-    if let Some(election_id_str) = &filter.election_id {
-        let election_id_uuid = parse_uuid_v4(election_id_str)?;
-        let clause = format!("election_id = ${next_param_number}");
-        filter_clauses.push(clause);
-        params.push(Box::new(election_id_uuid));
-        next_param_number += 1;
-    }
-    let filter_clause = filter_clauses.join(" AND\n                    ");
-
-    let statement_str = format!(
-        r#"
-                SELECT COUNT(DISTINCT voter_id_string)
-                as total_count
-                FROM sequent_backend.cast_vote
-                WHERE
-                    tenant_id = $1 AND
-                    {filter_clause}
-                "#
-    );
-
-    let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
-    let params_slice: Vec<&(dyn ToSql + Sync)> = params
-        .iter()
-        .map(|p| p.as_ref() as &(dyn ToSql + Sync))
-        .collect();
-    let count_row = hasura_transaction
-        .query_one(&statement, &params_slice)
+) -> Result<i32> {
+    let election_event_id = filter
+        .election_event_id
+        .as_deref()
+        .ok_or_else(|| anyhow!("Counting the voters who voted needs an election event"))?;
+    let election_id = filter
+        .election_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?
+        .map(|id| id.to_string());
+    let participation = get_event_ballot_box(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .store
+        .participation(election_event_id, election_id.as_deref())
         .await?;
-    let count = count_row.try_get::<&str, i64>("total_count")?.try_into()?;
-    Ok(count)
+    Ok(participation.voters.try_into()?)
 }
 
 #[instrument(skip(hasura_transaction, keycloak_transaction), err)]
@@ -2033,7 +1923,7 @@ mod tests {
 
     #[test]
     fn test_voter_scope_clause_excludes_service_accounts() {
-        let clause = voter_scope_clause("");
+        let clause = voter_scope_clause("", 1, 2);
         assert!(
             clause.contains("u.service_account_client_link IS NULL"),
             "voter queries must not report Keycloak service accounts as voters: {clause}"
@@ -2043,7 +1933,7 @@ mod tests {
     #[test]
     fn test_voter_scope_clause_keeps_realm_and_caller_filters() {
         let filters_clause = format!(r#"("email" = $3){}"#, SqlBooleanOperator::And);
-        let clause = voter_scope_clause(&filters_clause);
+        let clause = voter_scope_clause(&filters_clause, 1, 2);
 
         assert!(clause.contains("ra.name = $1"));
         assert!(clause.contains(r#"("email" = $3) AND"#));

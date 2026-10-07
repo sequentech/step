@@ -305,6 +305,37 @@ impl StatementHead {
                     ..default_head
                 }
             }
+            StatementBody::BallotPublicationFailure(details) => {
+                let stage = match details.stage {
+                    BallotPublicationStage::Generate => "generation",
+                    BallotPublicationStage::Publish => "publication",
+                };
+                StatementHead {
+                    kind: StatementType::BallotPublicationFailure,
+                    log_type: StatementLogType::ERROR,
+                    description: format!(
+                        "Ballot {stage} failed (publication {}, task {}): {}",
+                        details.publication_id.0, details.task_id, details.error.0,
+                    ),
+                    ..default_head
+                }
+            }
+            StatementBody::ElectoralLogCheckpoint(details) => {
+                let reason = match details.reason {
+                    ElectoralLogCheckpointReason::VotingClosed => "voting closed",
+                    ElectoralLogCheckpointReason::TallyCompleted => "tally completed",
+                    ElectoralLogCheckpointReason::VotingOpened => "voting opened",
+                    ElectoralLogCheckpointReason::Periodic => "periodic",
+                };
+                StatementHead {
+                    kind: StatementType::ElectoralLogCheckpoint,
+                    description: format!(
+                        "Electoral log checkpoint published ({reason}): {} entries, root {}",
+                        details.tree_size, details.root,
+                    ),
+                    ..default_head
+                }
+            }
         }
     }
 }
@@ -437,6 +468,14 @@ pub enum StatementBody {
         ExternalReconciliationInputHashString,
         ExternalReconciliationOutputHashString,
     ),
+    // Append new variants so existing signed Borsh statements remain decodable.
+    BallotPublicationFailure(BallotPublicationFailure),
+    /// Published checkpoint of this board's Merkle log.
+    ///
+    /// Rollout invariant: every electoral-log reader (including released
+    /// `step-cli` and external auditors) must be upgraded before writers emit
+    /// this variant.
+    ElectoralLogCheckpoint(ElectoralLogCheckpoint),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -471,6 +510,8 @@ pub enum StatementType {
     ResultsPublicationAction,
     ExternalApiRequest,
     ExternalReconciliation,
+    BallotPublicationFailure,
+    ElectoralLogCheckpoint,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Display, Deserialize, Serialize, Debug, Clone)]
@@ -572,6 +613,21 @@ mod statement_compatibility_tests {
         assert_eq!(borsh::to_vec(&external).unwrap()[0], 26);
         assert_eq!(borsh::to_vec(&cast_vote_with_channel).unwrap()[0], 27);
         assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 28);
+        let ballot_publication_failure =
+            StatementBody::BallotPublicationFailure(BallotPublicationFailure {
+                publication_id: BallotPublicationIdString(String::new()),
+                task_id: String::new(),
+                stage: BallotPublicationStage::Generate,
+                error: ErrorMessageString(String::new()),
+            });
+        let checkpoint = StatementBody::ElectoralLogCheckpoint(ElectoralLogCheckpoint {
+            log_id: 1,
+            tree_size: 2,
+            root: String::new(),
+            reason: ElectoralLogCheckpointReason::TallyCompleted,
+        });
+        assert_eq!(borsh::to_vec(&ballot_publication_failure).unwrap()[0], 29);
+        assert_eq!(borsh::to_vec(&checkpoint).unwrap()[0], 30);
     }
 
     #[test]
@@ -611,6 +667,14 @@ mod statement_compatibility_tests {
         assert_eq!(
             borsh::to_vec(&StatementType::ExternalApiRequest).unwrap()[0],
             27
+        );
+        assert_eq!(
+            borsh::to_vec(&StatementType::BallotPublicationFailure).unwrap()[0],
+            29
+        );
+        assert_eq!(
+            borsh::to_vec(&StatementType::ElectoralLogCheckpoint).unwrap()[0],
+            30
         );
     }
 

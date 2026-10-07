@@ -1,0 +1,76 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Captured DTMF input template for run_telephone_load_test.py (Stage 2 of
+// docs/07-developers/12-ivr/telephone-load-testing-design.md). One line per
+// DTMF input the IVR asks for; blank
+// lines and lines starting with `//` are ignored by ivr-cli, so comments
+// survive into the rendered per-voter files.
+//
+// Captured against a real Stage 1 event with
+// `ivr-cli -b dev -n <fake-number> -s +111111111111 --show-internal-state`,
+// logging in as the CSV's first voter and driving one full call by hand.
+//
+// setup_telephone_load_test.py pins every generated voter to a single area
+// (setup.voter_area_name, defaults to the election event's first area), so every
+// voter gets the same contest count and this one template is valid for every
+// call. Still, re-capture per election - both of the below are specific to
+// this election/realm and won't transfer to a different one:
+//
+// 1. Auth fields vary per realm. This election's realm resolves voters by
+//    date of birth + PIN (a `multi-attribute-password-direct` Keycloak
+//    authenticator - checked live via {realm}/ivr-config, NOT the generic
+//    voter_id+pin default flow auth.rs::default_flow describes). Confirm your
+//    realm's actual flow the same way before assuming {{VOTER_ID}} applies:
+//      curl -H "Authorization: Bearer <ivr-service token>" \
+//        "$KEYCLOAK_URL/realms/<realm>/ivr-config"
+//    This template uses {{DOB}} (raw YYYYMMDD digits - generate-voters must
+//    include "dateOfBirth" in generate_voters.fields for this to exist, and
+//    the CSV's dashed YYYY-MM-DD gets stripped to digits by
+//    run_telephone_load_test.py). Swap in {{VOTER_ID}} instead if your
+//    realm's ivr-config maps an identifier field to "username".
+//
+// 2. Ballot shape (candidate counts, confirm/submit keys) is fixed by the
+//    pinned area's contests - re-capture for any other election JSON or
+//    setup.voter_area_name.
+
+// --- Language select ---
+1
+
+// --- Authentication (this realm's actual flow: date of birth then PIN,
+// --- confirmed live via {realm}/ivr-config, both numeric) ---
+{{DOB}}
+{{PIN}}
+
+// --- Eligibility declaration ---
+2
+
+// --- Select the (only) election on offer ---
+1
+
+// --- Per-election language select (separate from the top-level IVR system
+// --- language select above - this election itself offers a language choice) ---
+1
+
+// --- Contest 1 (e.g. Mayor): pick candidate 1, confirm ---
+1
+1
+
+// --- Contest 2 (e.g. Deputy Mayor): pick candidate 1, confirm ---
+1
+1
+
+// --- Contest 3 (e.g. Councillor - Ward N): pick candidate 1, confirm ---
+1
+1
+
+// --- Contest 4 (e.g. Trustee): pick candidate 1, confirm ---
+1
+1
+
+// --- Ballot summary: 0 submits, 1..N re-opens that contest to edit ---
+0
+
+// --- Continue past the ballot receipt ("Your ballot locator is ...") ---
+1

@@ -6,10 +6,13 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_checkpoint_copies::{
+    store_checkpoint_copy, CheckpointCopyConfig,
+};
 use crate::services::insert_cast_vote::hash_voter_id;
+use crate::services::protocol_manager::get_board_client;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,
@@ -20,17 +23,20 @@ use b4::messages::message::Signer;
 use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
-use electoral_log::assign_value;
+use electoral_log::domain::{
+    Filter, LogEntry, LogQuery, LogVisibility, NumberColumn, NumberComparison,
+};
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
-use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -43,16 +49,53 @@ use strand::serialization::StrandDeserialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
-use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use uuid::Uuid;
 
-pub const IMMUDB_ROWS_LIMIT: usize = 2500;
+pub const ELECTORAL_LOG_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
 
 /// Ballot_id input is the first half of the original hash which is stored in the electoral log.
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
+
+/// Record failures after the publication transaction has ended, so rollback
+/// cannot erase the diagnostic and the external write holds no DB connection.
+#[instrument(skip_all, err)]
+pub async fn log_ballot_publication_failure(
+    task: &TasksExecution,
+    publication_id: &str,
+    stage: BallotPublicationStage,
+    error_message: &str,
+) -> Result<()> {
+    let event_id = task
+        .election_event_id
+        .as_deref()
+        .context("Publication task has no election event")?;
+    let log = {
+        let mut db = get_hasura_pool().await.get().await?;
+        let tx = db.transaction().await?;
+        let event = get_election_event_by_id(&tx, &task.tenant_id, event_id).await?;
+        let board = get_election_event_board(event.bulletin_board_reference)
+            .context("Election event is missing its electoral-log board")?;
+        let log = ElectoralLog::new(&tx, &task.tenant_id, Some(event_id), &board).await?;
+        tx.commit().await?;
+        log
+    };
+    let message = Message::ballot_publication_failure_message(
+        EventIdString(event_id.to_owned()),
+        BallotPublicationFailure {
+            publication_id: BallotPublicationIdString(publication_id.to_owned()),
+            task_id: task.id.clone(),
+            stage,
+            error: ErrorMessageString(error_message.to_owned()),
+        },
+        &log.sd,
+        Some(task.executed_by_user.clone()),
+    )?;
+    log.post(&message).await
+}
 
 /// Identifies the admin user whose request caused a voter password change.
 /// The password itself must never be added to this context or to the
@@ -63,6 +106,17 @@ pub struct ElectoralLogAdminContext {
     pub username: Option<String>,
     pub authorized_election_ids: Option<Vec<String>>,
     pub area_id: Option<String>,
+}
+
+impl ElectoralLogAdminContext {
+    pub fn from_claims(claims: &JwtClaims) -> Self {
+        Self {
+            user_id: claims.hasura_claims.user_id.clone(),
+            username: claims.preferred_username.clone(),
+            authorized_election_ids: claims.hasura_claims.authorized_election_ids.clone(),
+            area_id: claims.hasura_claims.area_id.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -124,55 +178,22 @@ fn voter_password_change_body(
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct PreparedVoterPasswordChangeLog {
     board: String,
+    delivery_id: String,
     message: ElectoralLogMessage,
 }
 
 impl PreparedVoterPasswordChangeLog {
     #[instrument(skip(self), err)]
     pub async fn post(&self) -> Result<()> {
+        let entries = [LogEntry {
+            delivery_id: self.delivery_id.clone(),
+            message: self.message.clone(),
+        }];
         retry_with_exponential_backoff(
             || async {
-                let mut client = get_board_client().await?;
-                let mut columns_matcher = WhereClauseBTreeMap::new();
-                columns_matcher.insert(
-                    ElectoralLogVarCharColumn::StatementKind,
-                    (SqlCompOperators::Equal, self.message.statement_kind.clone()),
-                );
-                columns_matcher.insert(
-                    ElectoralLogVarCharColumn::SenderPk,
-                    (SqlCompOperators::Equal, self.message.sender_pk.clone()),
-                );
-                columns_matcher.insert(
-                    ElectoralLogVarCharColumn::Version,
-                    (SqlCompOperators::Equal, self.message.version.clone()),
-                );
-                if let Some(user_id) = &self.message.user_id {
-                    columns_matcher.insert(
-                        ElectoralLogVarCharColumn::UserId,
-                        (SqlCompOperators::Equal, user_id.clone()),
-                    );
-                }
-
-                let existing = client
-                    .get_electoral_log_messages_filtered::<String, String>(
-                        &self.board,
-                        Some(columns_matcher),
-                        Some(self.message.created),
-                        Some(self.message.created),
-                        Some(100),
-                        None,
-                        None,
-                    )
-                    .await?;
-                if existing
-                    .iter()
-                    .any(|candidate| same_electoral_log_message(candidate, &self.message))
-                {
-                    return Ok(());
-                }
-
-                client
-                    .insert_electoral_log_messages(&self.board, &vec![self.message.clone()])
+                get_board_client()
+                    .await?
+                    .append(&self.board, &entries)
                     .await
             },
             5,
@@ -182,23 +203,9 @@ impl PreparedVoterPasswordChangeLog {
     }
 }
 
-fn same_electoral_log_message(left: &ElectoralLogMessage, right: &ElectoralLogMessage) -> bool {
-    left.created == right.created
-        && left.sender_pk == right.sender_pk
-        && left.statement_timestamp == right.statement_timestamp
-        && left.statement_kind == right.statement_kind
-        && left.message == right.message
-        && left.version == right.version
-        && left.user_id == right.user_id
-        && left.username == right.username
-        && left.election_id == right.election_id
-        && left.area_id == right.area_id
-        && left.ballot_id == right.ballot_id
-}
-
 /// Prepares a signed password-change audit entry using the caller's Hasura
 /// transaction. The caller can therefore commit its document and durable task
-/// state before performing the external Immudb write.
+/// state before performing the external electoral-log write.
 #[instrument(skip_all, err)]
 pub async fn prepare_voter_password_change(
     hasura_transaction: &Transaction<'_>,
@@ -238,7 +245,11 @@ pub async fn prepare_voter_password_change(
         )
         .context("Failed to build the voter password-change electoral-log entry")?;
 
-    Ok(PreparedVoterPasswordChangeLog { board, message })
+    Ok(PreparedVoterPasswordChangeLog {
+        board,
+        delivery_id: Uuid::new_v4().to_string(),
+        message,
+    })
 }
 
 /// Posts a signed electoral-log entry after an admin-triggered voter password
@@ -280,6 +291,217 @@ pub async fn post_voter_password_change(
         .post()
         .await
         .context("Failed to post the voter password-change electoral-log entry")
+}
+
+/// What an administrator did with one or more secret voter attributes.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VoterSecretAttributeAction {
+    /// A stored value was decrypted and shown in the Admin Portal.
+    Reveal,
+    /// A value was created or replaced.
+    Set,
+    /// A stored value was removed.
+    Clear,
+    /// Values were imported from a CSV file.
+    Import,
+    /// Decrypted values were written into an export document.
+    Export,
+    /// Decrypted values were injected into an email or SMS template.
+    Communication,
+    /// Decrypted values were injected into a per-voter report.
+    Report,
+}
+
+impl VoterSecretAttributeAction {
+    fn event_type(self) -> &'static str {
+        match self {
+            Self::Reveal => "VOTER_SECRET_ATTRIBUTE: REVEAL",
+            Self::Set => "VOTER_SECRET_ATTRIBUTE: SET",
+            Self::Clear => "VOTER_SECRET_ATTRIBUTE: CLEAR",
+            Self::Import => "VOTER_SECRET_ATTRIBUTE: IMPORT",
+            Self::Export => "VOTER_SECRET_ATTRIBUTE: EXPORT",
+            Self::Communication => "VOTER_SECRET_ATTRIBUTE: COMMUNICATION",
+            Self::Report => "VOTER_SECRET_ATTRIBUTE: REPORT",
+        }
+    }
+}
+
+/// The subject of a secret-attribute audit entry. Values are never part of
+/// it: only which attributes, for which voter, and which document or task
+/// consumed them.
+#[derive(Clone, Debug, Default)]
+pub struct VoterSecretAttributeAudit<'a> {
+    pub voter_id: Option<&'a str>,
+    pub voter_username: Option<&'a str>,
+    pub attribute_names: &'a [String],
+    pub document_id: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+struct VoterSecretAttributeAuditBody<'a> {
+    action: VoterSecretAttributeAction,
+    attribute_names: Vec<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    voter: Option<ElectoralLogUser<'a>>,
+    initiated_by: ElectoralLogUser<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    document_id: Option<&'a str>,
+}
+
+fn voter_secret_attribute_audit_body(
+    action: VoterSecretAttributeAction,
+    audit: &VoterSecretAttributeAudit<'_>,
+    admin: &ElectoralLogAdminContext,
+) -> Result<String> {
+    let mut attribute_names: Vec<&str> = audit.attribute_names.iter().map(String::as_str).collect();
+    attribute_names.sort_unstable();
+    attribute_names.dedup();
+    serde_json::to_string(&VoterSecretAttributeAuditBody {
+        action,
+        attribute_names,
+        voter: audit.voter_id.map(|user_id| ElectoralLogUser {
+            user_id,
+            username: audit.voter_username,
+        }),
+        initiated_by: ElectoralLogUser {
+            user_id: &admin.user_id,
+            username: admin.username.as_deref(),
+        },
+        document_id: audit.document_id,
+    })
+    .context("Failed to serialize voter secret-attribute electoral-log details")
+}
+
+/// Posts an admin-signed electoral-log entry recording who revealed, changed,
+/// cleared, imported or consumed which secret voter attributes. Callers post
+/// it before handing out or storing a value, so a failure to record the
+/// action stops the action.
+#[instrument(skip_all, err)]
+pub async fn post_voter_secret_attribute_audit(
+    tenant_id: &str,
+    election_event_id: &str,
+    admin: &ElectoralLogAdminContext,
+    action: VoterSecretAttributeAction,
+    audit: VoterSecretAttributeAudit<'_>,
+) -> Result<()> {
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get Hasura client for the secret-attribute electoral log")?;
+    let transaction = client
+        .transaction()
+        .await
+        .context("Failed to start secret-attribute electoral-log transaction")?;
+    let prepared = prepare_voter_secret_attribute_audit(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        admin,
+        action,
+        audit,
+    )
+    .await?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit the secret-attribute electoral-log transaction")?;
+    prepared
+        .post()
+        .await
+        .context("Failed to post the secret-attribute electoral-log entry")
+}
+
+/// Imports create their event and signing context in the caller's transaction.
+/// Build the audit there so those uncommitted records are visible.
+#[instrument(skip_all, err)]
+pub async fn post_voter_secret_attribute_audit_with_transaction(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    admin: &ElectoralLogAdminContext,
+    action: VoterSecretAttributeAction,
+    audit: VoterSecretAttributeAudit<'_>,
+) -> Result<()> {
+    prepare_voter_secret_attribute_audit(
+        transaction,
+        tenant_id,
+        election_event_id,
+        admin,
+        action,
+        audit,
+    )
+    .await?
+    .post()
+    .await
+    .context("Failed to post the secret-attribute electoral-log entry")
+}
+
+async fn prepare_voter_secret_attribute_audit(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    admin: &ElectoralLogAdminContext,
+    action: VoterSecretAttributeAction,
+    audit: VoterSecretAttributeAudit<'_>,
+) -> Result<PreparedVoterPasswordChangeLog> {
+    let election_event = get_election_event_by_id(&transaction, tenant_id, election_event_id)
+        .await
+        .context("Failed to get election event for the secret-attribute electoral log")?;
+    let board = get_election_event_board(election_event.bulletin_board_reference)
+        .context("Election event is missing its electoral-log board")?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        &transaction,
+        &board,
+        tenant_id,
+        election_event_id,
+        &admin.user_id,
+        admin.username.clone(),
+        admin.authorized_election_ids.clone(),
+        admin.area_id.clone(),
+    )
+    .await
+    .context("Failed to initialize the admin-signed secret-attribute electoral log")?;
+    let body = voter_secret_attribute_audit_body(action, &audit, admin)?;
+    let message = electoral_log
+        .build_keycloak_event_message(
+            election_event_id.to_string(),
+            action.event_type().to_string(),
+            body,
+            audit.voter_id.map(str::to_string),
+            audit.voter_username.map(str::to_string),
+            None,
+        )
+        .context("Failed to build the secret-attribute electoral-log entry")?;
+    Ok(PreparedVoterPasswordChangeLog {
+        board,
+        delivery_id: Uuid::new_v4().to_string(),
+        message,
+    })
+}
+
+/// Prefix of the delivery IDs of checkpoint statements, which are unique per log size.
+const CHECKPOINT_DELIVERY_PREFIX: &str = "electoral-log-checkpoint:";
+
+/// Sign a checkpoint publication with the system key of `sd`.
+pub fn sign_checkpoint(
+    sd: &SigningData,
+    checkpoint: &electoral_log::proofs::Checkpoint,
+    reason: ElectoralLogCheckpointReason,
+) -> Result<crate::postgres::electoral_log_checkpoint::PublishedCheckpoint> {
+    let bytes = electoral_log::proofs::checkpoint_signing_bytes(checkpoint, reason)?;
+    Ok(
+        crate::postgres::electoral_log_checkpoint::PublishedCheckpoint {
+            board_name: checkpoint.log_name.clone(),
+            log_id: checkpoint.log_id,
+            tree_size: i64::try_from(checkpoint.tree_size)?,
+            root: hex::encode(&checkpoint.root),
+            reason: reason.to_string(),
+            signer_pk: sd.system_pk()?.to_der_b64_string()?,
+            signature: sd.system_sign(&bytes)?.to_b64_string()?,
+        },
+    )
 }
 
 pub struct ElectoralLog {
@@ -349,6 +571,29 @@ impl ElectoralLog {
             sd: SigningData::new(sender_sk.clone(), "", system_sk),
             elog_database: elog_database.to_string(),
         })
+    }
+
+    /// Construct a system-authored audit message using an already loaded key.
+    /// The empty sender name preserves the system identity used by `new` and
+    /// `new_from_sk`; voter attribution belongs in the message's actor fields.
+    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &StrandSignatureSk) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
+    }
+
+    /// Reuses an election's already loaded system signing key. This is the
+    /// same signing identity as `for_voter`, without another database lookup.
+    pub fn for_voter_with_signing_key(
+        elog_database: &str,
+        user_id: &str,
+        system_sk: &StrandSignatureSk,
+    ) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
     }
 
     /// Returns an electoral log whose posts will have the given voter
@@ -465,6 +710,7 @@ impl ElectoralLog {
             "Error converting Message::cast_vote_message into ElectoralLogMessage"
         })?;
         let input = LogEventInput {
+            delivery_id: Some(Uuid::new_v4().to_string()),
             election_event_id: event_id.to_string(),
             message_type: LogMessageType::Internal,
             user_id: Some(user_id.to_string()),
@@ -542,59 +788,6 @@ impl ElectoralLog {
         ret
     }
 
-    #[instrument(skip(self, pseudonym_h, vote_h))]
-    pub async fn post_cast_vote(
-        &self,
-        tenant_id: String,
-        event_id: String,
-        election_id: Option<String>,
-        pseudonym_h: PseudonymHash,
-        vote_h: CastVoteHash,
-        voter_ip: String,
-        voter_country: String,
-        voter_id: String,
-        voter_username: Option<String>,
-        area_id: String,
-        voting_channel: String,
-    ) -> Result<()> {
-        let event = EventIdString(event_id.clone());
-        let election = ElectionIdString(election_id);
-        let ip = VoterIpString(voter_ip);
-        let country = VoterCountryString(voter_country);
-        let message = Message::cast_vote_with_channel_message(
-            event,
-            election,
-            pseudonym_h,
-            vote_h,
-            &self.sd,
-            ip,
-            country,
-            VotingChannelString(voting_channel),
-            Some(voter_id.clone()),
-            voter_username.clone(),
-            area_id,
-        )?;
-        let board_message: ElectoralLogMessage = (&message)
-            .try_into()
-            .with_context(|| "Error converting cast-vote Message into ElectoralLogMessage")?;
-        let input = LogEventInput {
-            election_event_id: event_id,
-            message_type: LogMessageType::Internal,
-            user_id: Some(voter_id),
-            username: voter_username,
-            tenant_id,
-            body: LogEventBody::Plain(
-                serde_json::to_string(&board_message)
-                    .with_context(|| "Error serializing ElectoralLogMessage")?,
-            ),
-        };
-        let celery_app = get_celery_app().await;
-        celery_app
-            .send_task(enqueue_electoral_log_event::new(input))
-            .await?;
-        Ok(())
-    }
-
     #[instrument(skip(self, pseudonym_h))]
     pub async fn post_cast_vote_error(
         &self,
@@ -630,6 +823,7 @@ impl ElectoralLog {
             "Error converting Message::cast_vote_error_message into ElectoralLogMessage"
         })?;
         let input = LogEventInput {
+            delivery_id: Some(Uuid::new_v4().to_string()),
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
             user_id: Some(voter_id),
@@ -717,6 +911,7 @@ impl ElectoralLog {
             "Error converting Message::external_api_request_message into ElectoralLogMessage"
         })?;
         let input = LogEventInput {
+            delivery_id: Some(Uuid::new_v4().to_string()),
             election_event_id: event_id,
             message_type: LogMessageType::Internal,
             user_id: voter_id,
@@ -1143,18 +1338,101 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Publish a signed checkpoint of this event's electoral log.
+    ///
+    /// The checkpoint is stored in the Hasura database, outside the electoral-log
+    /// database, on its own connection so a caller's transaction is never aborted by
+    /// it, and a statement recording it is appended to the log once per log size.
+    #[instrument(skip(self), err)]
+    pub async fn publish_checkpoint(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        reason: ElectoralLogCheckpointReason,
+    ) -> Result<electoral_log::proofs::Checkpoint> {
+        let checkpoint =
+            crate::services::protocol_manager::get_electoral_log_store(&self.elog_database)
+                .await?
+                .journal()
+                .checkpoint(&self.elog_database)
+                .await?;
+        let published = sign_checkpoint(&self.sd, &checkpoint, reason)?;
+        // Copy first, so that with the `required` policy nothing is published without
+        // its write-once copy.
+        store_checkpoint_copy(
+            &CheckpointCopyConfig::from_env()?,
+            tenant_id,
+            election_event_id,
+            &published,
+        )
+        .await?;
+        let mut hasura_db_client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Error acquiring hasura connection")?;
+        let hasura_transaction = hasura_db_client.transaction().await?;
+        let stored = crate::postgres::electoral_log_checkpoint::insert_electoral_log_checkpoint(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &published,
+        )
+        .await?;
+        ensure!(
+            stored.root == published.root,
+            "A different checkpoint was already published at size {}: the log may have been \
+             rolled back or forked",
+            checkpoint.tree_size
+        );
+        hasura_transaction.commit().await?;
+        // Record the stored publication in the log. The delivery ID is fixed per log size,
+        // so publishing the same size again, or retrying, records it once.
+        let message = Message::electoral_log_checkpoint_message(
+            EventIdString(election_event_id.to_string()),
+            ElectoralLogCheckpoint {
+                log_id: checkpoint.log_id,
+                tree_size: checkpoint.tree_size,
+                root: published.root.clone(),
+                reason: stored
+                    .reason
+                    .parse()
+                    .with_context(|| format!("Unknown checkpoint reason {}", stored.reason))?,
+            },
+            &self.sd,
+        )?;
+        self.post_with_delivery_id(
+            &message,
+            format!(
+                "{CHECKPOINT_DELIVERY_PREFIX}{}:{}",
+                checkpoint.log_id, checkpoint.tree_size
+            ),
+        )
+        .await
+        .context("The checkpoint was stored but could not be recorded in the log")?;
+        Ok(checkpoint)
+    }
+
     #[instrument(skip(self), err)]
     async fn post(&self, message: &Message) -> Result<()> {
+        self.post_with_delivery_id(message, Uuid::new_v4().to_string())
+            .await
+    }
+
+    /// Append a message under a delivery ID; a repeated delivery ID appends nothing.
+    #[instrument(skip(self, message), err)]
+    async fn post_with_delivery_id(&self, message: &Message, delivery_id: String) -> Result<()> {
         let board_message: ElectoralLogMessage = message.try_into()?;
-        let ms = vec![board_message];
+        let ms = vec![LogEntry {
+            delivery_id,
+            message: board_message,
+        }];
 
         retry_with_exponential_backoff(
             // The closure we want to call repeatedly
             || async {
                 let mut client = get_board_client().await?;
-                client
-                    .insert_electoral_log_messages(self.elog_database.as_str(), &ms)
-                    .await
+                client.append(self.elog_database.as_str(), &ms).await
             },
             // Maximum number of retries:
             5,
@@ -1218,48 +1496,28 @@ impl ElectoralLog {
 
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
-        let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-        let mut rdr = csv::Reader::from_reader(logs_file);
-
-        let mut client = get_board_client().await?;
-        client.open_session(self.elog_database.as_str()).await?;
-        let tx = client.new_tx(TxMode::ReadWrite).await?;
-
-        // Allocate a vector with capacity equal to the batch size.
-        let mut messages: Vec<ElectoralLogMessage> = Vec::with_capacity(batch_size);
-
-        for result in rdr.deserialize() {
-            let row: ElectoralLogRow =
-                result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
-            let message: &Message =
-                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
-            messages.push(electoral_log_message);
-
-            // Once we reach the batch size, flush the batch.
-            if messages.len() >= batch_size {
-                client
-                    .insert_electoral_log_messages_batch(&tx, &messages)
-                    .await?;
-                messages.clear();
-            }
-        }
-
-        // Flush any remaining messages that didn't complete a full batch.
-        if !messages.is_empty() {
-            client
-                .insert_electoral_log_messages_batch(&tx, &messages)
-                .await?;
-        }
-
-        client.commit(&tx).await?;
-        client.close_session().await?;
-        Ok(())
+        let mut reader = csv::Reader::from_reader(logs_file);
+        let mut entries = reader.deserialize::<ElectoralLogRow>().map(|row| {
+            let row = row.context("Failed to read electoral-log CSV row")?;
+            let bytes = general_purpose::STANDARD_NO_PAD.decode(&row.data)?;
+            let message = Message::strand_deserialize(&bytes)
+                .map_err(|err| anyhow!("Failed to deserialize message: {err:?}"))?;
+            let mut stored: ElectoralLogMessage = (&message).try_into()?;
+            stored.created = row.created;
+            stored.message = bytes;
+            Ok(LogEntry {
+                delivery_id: Uuid::new_v4().to_string(),
+                message: stored,
+            })
+        });
+        get_board_client()
+            .await?
+            .append_iter(&self.elog_database, &mut entries)
+            .await
     }
 }
 
-// Enumeration for the valid fields in the immudb table
+// Fields accepted by the electoral-log API
 #[derive(Debug, Deserialize, Hash, PartialEq, Eq, EnumString, Display, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1294,163 +1552,87 @@ pub struct GetElectoralLogBody {
 }
 
 impl GetElectoralLogBody {
-    // Returns the SQL clauses related to the request along with the parameters
-    #[instrument(ret)]
-    fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
-        let mut clauses = Vec::new();
-        let mut params = Vec::new();
-
-        // Handle filters
-        if let Some(filters_map) = &self.filter {
-            let mut where_clauses = Vec::new();
-
-            for (field, value) in filters_map {
-                info!("field = ?: {field}, value = ?: {value}");
-                let param_name = format!("param_{field}");
-                match field {
-                    OrderField::Id => { // sql INTEGER type
-                        let int_value: i64 = value.parse()?;
-                        where_clauses.push(format!("id = @{}", param_name));
-                        params.push(create_named_param(param_name, Value::N(int_value)));
-                    }
-                    OrderField::SenderPk | OrderField::UserId | OrderField::Username | OrderField::BallotId | OrderField::StatementKind | OrderField::Version => { // sql VARCHAR type
-                        where_clauses.push(format!("{field} LIKE @{}", param_name));
-                        params.push(create_named_param(param_name, Value::S(value.to_string())));
-                    }
-                    OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
-                        // these have their own column and are inside of Message´s column as well
-                        let datetime = ISO8601::to_date_utc(&value)
-                            .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
-                        let ts: i64 = datetime.timestamp();
-                        let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
-                        let param_name_end = format!("{param_name}_end");
-                        where_clauses.push(format!("{field} >= @{} AND {field} < @{}", param_name, param_name_end));
-                        params.push(create_named_param(param_name, Value::Ts(ts)));
-                        params.push(create_named_param(param_name_end, Value::Ts(ts_end)));
-                    }
-                    OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
-                    | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
-                }
-            }
-
-            if !where_clauses.is_empty() {
-                clauses.push(format!("WHERE {}", where_clauses.join(" AND ")));
-            }
+    fn as_query(&self) -> Result<LogQuery> {
+        let limits = PgConfig::from_env()?;
+        let mut query = LogQuery {
+            limit: self
+                .limit
+                .unwrap_or(limits.default_sql_limit.into())
+                .min(limits.low_sql_limit.into()),
+            offset: self.offset.unwrap_or(0).max(0),
+            only_with_user: self.only_with_user.unwrap_or(false),
+            ..LogQuery::default()
         };
-
-        // Build a single extra clause.
-        // This clause returns rows if:
-        // - @election_filter is non-empty and matches election_id, OR
-        // - @area_filter is non-empty and matches area_id, OR
-        // - Both election_id and area_id are either '' or NULL. (General to all elections log)
-        let mut extra_where_clauses = Vec::new();
-        if self.election_id.is_some() || self.area_ids.is_some() {
-            let mut conds = Vec::new();
-
-            if let Some(election) = &self.election_id {
-                if !election.is_empty() {
-                    params.push(create_named_param(
-                        "param_election".to_string(),
-                        Value::S(election.clone()),
-                    ));
-                    conds.push("election_id LIKE @param_election".to_string());
-                }
-            }
-
-            if let Some(area_ids) = &self.area_ids {
-                if !area_ids.is_empty() {
-                    let placeholders: Vec<String> = area_ids
-                        .iter()
-                        .enumerate()
-                        .map(|(i, _)| format!("@param_area{}", i))
-                        .collect();
-                    for (i, area) in area_ids.into_iter().enumerate() {
-                        let param_name = format!("param_area{}", i);
-                        params.push(create_named_param(
-                            param_name.clone(),
-                            Value::S(area.clone()),
+        if let Some(filters) = &self.filter {
+            for (field, value) in filters {
+                match field {
+                    OrderField::Id => query.filters.push(Filter::Number(
+                        NumberColumn::Id,
+                        NumberComparison::Equal,
+                        value.parse()?,
+                    )),
+                    OrderField::SenderPk
+                    | OrderField::UserId
+                    | OrderField::Username
+                    | OrderField::BallotId
+                    | OrderField::StatementKind
+                    | OrderField::Version => {
+                        query.filters.push(Filter::Text(
+                            field.to_string().parse()?,
+                            SqlCompOperators::Like,
+                            value.clone(),
                         ));
                     }
-                    conds.push(format!(
-                        "(@param_area0 <> '' AND area_id IN ({}))",
-                        placeholders.join(", ")
-                    ));
+                    OrderField::StatementTimestamp | OrderField::Created => {
+                        let timestamp = ISO8601::to_date_utc(value)?.timestamp();
+                        let column = match field {
+                            OrderField::Created => NumberColumn::Created,
+                            _ => NumberColumn::StatementTimestamp,
+                        };
+                        query.filters.push(Filter::Number(
+                            column,
+                            NumberComparison::GreaterThanOrEqual,
+                            timestamp,
+                        ));
+                        query.filters.push(Filter::Number(
+                            column,
+                            NumberComparison::LessThan,
+                            timestamp + 60,
+                        ));
+                    }
+                    OrderField::EventType
+                    | OrderField::LogType
+                    | OrderField::Description
+                    | OrderField::Message => {}
                 }
             }
-
-            // if neither filter matches, return logs where both fields are empty or NULL.
-            conds.push(
-                "((election_id = '' OR election_id IS NULL) AND (area_id = '' OR area_id IS NULL))"
-                    .to_string(),
-            );
-
-            extra_where_clauses.push(format!("({})", conds.join(" OR ")));
         }
-
-        // Handle only_with_user
-        if self.only_with_user.unwrap_or(false) {
-            extra_where_clauses.push("(user_id IS NOT NULL AND user_id <> '')".to_string());
+        if self.election_id.is_some() || self.area_ids.is_some() {
+            query.visibility = Some(LogVisibility {
+                election_id: self.election_id.clone(),
+                area_ids: self.area_ids.clone().unwrap_or_default(),
+            });
         }
-
-        // Handle
-        if let Some(statement_kind) = &self.statement_kind {
-            params.push(create_named_param(
-                "param_statement_kind".to_string(),
-                Value::S(statement_kind.to_string()),
+        if let Some(kind) = &self.statement_kind {
+            query.filters.push(Filter::Text(
+                ElectoralLogVarCharColumn::StatementKind,
+                SqlCompOperators::Equal,
+                kind.to_string(),
             ));
-            extra_where_clauses.push("(statement_kind = @param_statement_kind)".to_string());
         }
-
-        if !extra_where_clauses.is_empty() {
-            match clauses.len() {
-                0 => {
-                    clauses.push(format!("WHERE {}", extra_where_clauses.join(" AND ")));
-                }
-                _ => {
-                    let where_clause = clauses.pop().ok_or(anyhow!("Empty clause"))?;
-                    clauses.push(format!(
-                        "{} AND {}",
-                        where_clause,
-                        extra_where_clauses.join(" AND ")
-                    ));
-                }
-            }
-        }
-
-        // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .ok_or(anyhow!("Empty order clause"))?
+        if let Some(order) = &self.order_by {
+            let mut order: Vec<_> = order
                 .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
+                .map(|(field, direction)| (field.to_string(), direction.to_string()))
                 .collect();
-            if order_by_clauses.len() > 0 {
-                clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
-            }
+            order.sort();
+            query.order = order
+                .into_iter()
+                .map(|(field, direction)| Ok((field.parse()?, direction.parse()?)))
+                .collect::<Result<_>>()?;
         }
-
-        // Handle limit
-        if !to_count {
-            let limit_param_name = String::from("limit");
-            let limit_value = self
-                .limit
-                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
-            let limit = std::cmp::min(limit_value, PgConfig::from_env()?.low_sql_limit.into());
-            clauses.push(format!("LIMIT @{limit_param_name}"));
-            params.push(create_named_param(limit_param_name, Value::N(limit)));
-        }
-
-        // Handle offset
-        if !to_count && self.offset.is_some() {
-            let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap_or(0), 0);
-            clauses.push(format!("OFFSET @{}", offset_param_name));
-            params.push(create_named_param(offset_param_name, Value::N(offset)));
-        }
-
-        Ok((clauses.join(" "), params))
+        query.validate()?;
+        Ok(query)
     }
 }
 
@@ -1555,79 +1737,13 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
     }
 }
 
-impl TryFrom<&Row> for ElectoralLogRow {
-    type Error = anyhow::Error;
-
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        let mut id = 0;
-        let mut created: i64 = 0;
-        let mut sender_pk = String::from("");
-        let mut statement_timestamp: i64 = 0;
-        let mut statement_kind = String::from("");
-        let mut message = vec![];
-        let mut user_id = None;
-        let mut username = None;
-
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                c if c.ends_with(".id)") => {
-                    assign_value!(Value::N, value, id)
-                }
-                c if c.ends_with(".created)") => {
-                    assign_value!(Value::Ts, value, created)
-                }
-                c if c.ends_with(".sender_pk)") => {
-                    assign_value!(Value::S, value, sender_pk)
-                }
-                c if c.ends_with(".statement_timestamp)") => {
-                    assign_value!(Value::Ts, value, statement_timestamp)
-                }
-                c if c.ends_with(".statement_kind)") => {
-                    assign_value!(Value::S, value, statement_kind)
-                }
-                c if c.ends_with(".message)") => {
-                    assign_value!(Value::Bs, value, message)
-                }
-                c if c.ends_with(".user_id)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    Some(Value::Null(_)) => user_id = None,
-                    None => user_id = None,
-                    _ => return Err(anyhow!("invalid column value for 'user_id'")),
-                },
-                c if c.ends_with(".username)") => match value.value.as_ref() {
-                    Some(Value::S(inner)) => username = Some(inner.clone()),
-                    Some(Value::Null(_)) => username = None,
-                    None => username = None,
-                    _ => return Err(anyhow!("invalid column value for 'username'")),
-                },
-                _ => return Err(anyhow!("invalid column found '{}'", column.as_str())),
-            }
-        }
-
-        let deserialized_message =
-            Message::strand_deserialize(&message).with_context(|| "Error deserializing message")?;
-        let serialized = general_purpose::STANDARD_NO_PAD.encode(message);
-        Ok(ElectoralLogRow {
-            id,
-            created,
-            statement_timestamp,
-            statement_kind,
-            message: serde_json::to_string_pretty(&deserialized_message)
-                .with_context(|| "Error serializing message to json")?,
-            data: serialized,
-            user_id,
-            username,
-        })
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+/// A cast vote as voters see it in the ballot locator. It carries nothing that
+/// identifies the voter: no username, IP address, country or signed message.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct CastVoteEntry {
     pub statement_timestamp: i64,
     pub statement_kind: String,
     pub ballot_id: String,
-    pub username: Option<String>,
-    pub message: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -1637,95 +1753,60 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
-        let ballot_id = entry.ballot_id.clone().unwrap_or_default();
-        let username = entry.username.clone();
-        let message: &Message = &Message::strand_deserialize(&entry.message)
-            .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-        let message = Some(message.to_string());
-
-        Ok(Some(CastVoteEntry {
+    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Self {
+        CastVoteEntry {
             statement_timestamp: entry.statement_timestamp,
             statement_kind: StatementType::CastVote.to_string(),
-            ballot_id,
-            username,
-            message,
-        }))
+            ballot_id: entry.ballot_id.clone().unwrap_or_default(),
+        }
     }
+}
+
+/// Fields voters can sort the ballot locator by.
+pub const CAST_VOTE_ORDER_FIELDS: [OrderField; 4] = [
+    OrderField::Id,
+    OrderField::StatementTimestamp,
+    OrderField::StatementKind,
+    OrderField::BallotId,
+];
+
+/// Refuses a ballot-locator sort by a field voters cannot see, such as the
+/// username.
+pub fn check_cast_vote_order_by(
+    order_by: Option<&HashMap<OrderField, OrderDirection>>,
+) -> Result<()> {
+    let mut refused: Vec<String> = order_by
+        .into_iter()
+        .flat_map(HashMap::keys)
+        .filter(|field| !CAST_VOTE_ORDER_FIELDS.contains(field))
+        .map(ToString::to_string)
+        .collect();
+    refused.sort();
+    ensure!(
+        refused.is_empty(),
+        "Cast votes cannot be sorted by {}",
+        refused.join(", ")
+    );
+    Ok(())
 }
 
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
-    let mut client: Client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    event!(Level::INFO, "database name = {board_name}");
-    client.open_session(&board_name).await?;
-    let (clauses, params) = input.as_sql(false)?;
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    info!("clauses ?:= {clauses}");
-    let sql = format!(
-        r#"
-        SELECT
-            id,
-            created,
-            sender_pk,
-            statement_timestamp,
-            statement_kind,
-            message,
-            user_id,
-            username
-        FROM electoral_log_messages
-        {clauses}
-        "#,
-    );
-    info!("query: {sql}");
-    let sql_query_response = client.streaming_sql_query(&sql, params).await?;
-
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
-    info!("list_electoral_log: limit = {}", limit);
-    let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
-    let mut resp_stream = sql_query_response.into_inner();
-    while let Some(streaming_batch) = resp_stream.next().await {
-        let items = streaming_batch?
-            .rows
-            .iter()
-            .map(ElectoralLogRow::try_from)
-            .collect::<Result<Vec<ElectoralLogRow>>>()?;
-        rows.extend(items);
-    }
-
-    let sql = format!(
-        r#"
-        SELECT
-            COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-
-    let aggregate = rows_iter
-        // get the first item
-        .next()
-        // unwrap the Result and Option
-        .ok_or(anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
+    let client = get_board_client().await?;
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    let query = input.as_query()?;
+    let items = client
+        .query(&board, &query)
+        .await?
+        .into_iter()
+        .map(ElectoralLogRow::try_from)
+        .collect::<Result<Vec<_>>>()?;
+    let count = client.count(&board, &query).await?;
     Ok(DataList {
-        items: rows,
+        items,
         total: TotalAggregate {
-            aggregate: aggregate,
+            aggregate: Aggregate { count },
         },
     })
 }
@@ -1776,6 +1857,7 @@ pub async fn list_cast_vote_messages(
         ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
+    check_cast_vote_order_by(input.order_by.as_ref())?;
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
     let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
@@ -1790,7 +1872,7 @@ pub async fn list_cast_vote_messages(
     let election_id = input.election_id.clone().unwrap_or_default();
 
     let limit: i64 = match ballot_id_filter.is_empty() {
-        false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
+        false => ELECTORAL_LOG_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
         true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
     };
     let mut offset: i64 = input.offset.unwrap_or(0);
@@ -1821,18 +1903,9 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
-                Some(entry) if !ballot_id_filter.is_empty() => {
-                    // If there is filter exit at the first match
-                    filter_matched = true;
-                    list.push(entry);
-                }
-                Some(entry) => {
-                    // Add all the entries till the limit, when there is no filter
-                    list.push(entry);
-                }
-                None => {}
-            }
+            list.push(CastVoteEntry::from_elog_message(message));
+            // If there is a filter, exit at the first match
+            filter_matched = !ballot_id_filter.is_empty();
             if (list.len() as i64) >= output_limit || filter_matched {
                 break;
             }
@@ -1845,41 +1918,12 @@ pub async fn list_cast_vote_messages(
 
 #[instrument(err)]
 pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
-    let mut client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(
-        input.tenant_id.as_str(),
-        input.election_event_id.as_str(),
-        &slug,
-    );
-
-    info!("board name: {board_name}");
-    client.open_session(&board_name).await?;
-
-    let (clauses_to_count, count_params) = input.as_sql(true)?;
-    let sql = format!(
-        r#"
-        SELECT COUNT(*)
-        FROM electoral_log_messages
-        {clauses_to_count}
-        "#,
-    );
-
-    info!("query: {sql}");
-
-    let sql_query_response = client.sql_query(&sql, count_params).await?;
-
-    let mut rows_iter = sql_query_response
-        .get_ref()
-        .rows
-        .iter()
-        .map(Aggregate::try_from);
-    let aggregate = rows_iter
-        .next()
-        .ok_or_else(|| anyhow!("No aggregate found"))??;
-
-    client.close_session().await?;
-    Ok(aggregate.count as i64)
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(&input.tenant_id, &input.election_event_id, &slug);
+    get_board_client()
+        .await?
+        .count(&board, &input.as_query()?)
+        .await
 }
 
 #[cfg(test)]
@@ -1958,6 +2002,7 @@ mod password_change_tests {
     fn prepared_password_change_log_round_trips_for_durable_task_annotations() {
         let prepared = PreparedVoterPasswordChangeLog {
             board: "event-board".to_string(),
+            delivery_id: "delivery-id".to_string(),
             message: prepared_message(),
         };
 
@@ -1966,16 +2011,161 @@ mod password_change_tests {
 
         assert_eq!(restored, prepared);
     }
+}
+
+#[cfg(test)]
+mod voter_secret_attribute_audit_tests {
+    use super::*;
 
     #[test]
-    fn duplicate_detection_ignores_immudb_row_id_but_compares_signed_message() {
-        let prepared = prepared_message();
-        let mut inserted = prepared.clone();
-        inserted.id = 42;
+    fn audit_body_names_attributes_and_actors_but_never_values() {
+        let admin = ElectoralLogAdminContext {
+            user_id: "admin-id".to_string(),
+            username: Some("admin".to_string()),
+            authorized_election_ids: None,
+            area_id: None,
+        };
+        let names = vec![
+            "reference".to_string(),
+            "code".to_string(),
+            "code".to_string(),
+        ];
+        let body = voter_secret_attribute_audit_body(
+            VoterSecretAttributeAction::Reveal,
+            &VoterSecretAttributeAudit {
+                voter_id: Some("voter-id"),
+                voter_username: Some("voter"),
+                attribute_names: &names,
+                document_id: None,
+            },
+            &admin,
+        )
+        .unwrap();
+        let body: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(body["action"], "reveal");
+        assert_eq!(
+            body["attribute_names"],
+            serde_json::json!(["code", "reference"])
+        );
+        assert_eq!(body["voter"]["user_id"], "voter-id");
+        assert_eq!(body["initiated_by"]["username"], "admin");
+        assert!(body.get("document_id").is_none());
+    }
+}
 
-        assert!(same_electoral_log_message(&inserted, &prepared));
+#[cfg(test)]
+mod postgres_wiring_tests {
+    use super::*;
 
-        inserted.message.push(5);
-        assert!(!same_electoral_log_message(&inserted, &prepared));
+    #[tokio::test]
+    #[ignore = "requires a disposable ELECTORAL_LOG_PG_* database and ENV_SLUG"]
+    async fn prepared_append_list_count_and_delete_use_the_postgres_store() -> Result<()> {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let slug = std::env::var("ENV_SLUG")?;
+        let board = get_event_board(&tenant, &event, &slug);
+        let client = get_board_client().await?;
+        client.create_board(&board).await?;
+        let key = StrandSignatureSk::generate()?;
+        let log = ElectoralLog::for_system_with_signing_key(&board, &key);
+        let message = log.build_keycloak_event_message(
+            event.clone(),
+            "LOGIN".into(),
+            "ok".into(),
+            Some("user".into()),
+            Some("username".into()),
+            None,
+        )?;
+        let prepared = PreparedVoterPasswordChangeLog {
+            board: board.clone(),
+            delivery_id: Uuid::new_v4().to_string(),
+            message: message.clone(),
+        };
+        prepared.post().await?;
+        prepared.post().await?;
+        let input = GetElectoralLogBody {
+            tenant_id: tenant,
+            election_event_id: event,
+            ..Default::default()
+        };
+        assert_eq!(count_electoral_log(input.clone()).await?, 1);
+        let page = list_electoral_log(input.clone()).await?;
+        assert_eq!(page.total.aggregate.count, 1);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(
+            general_purpose::STANDARD_NO_PAD.decode(&page.items[0].data)?,
+            message.message
+        );
+        let mut other = input.clone();
+        other.tenant_id = Uuid::new_v4().to_string();
+        assert_eq!(count_electoral_log(other).await?, 0);
+        let store = crate::services::protocol_manager::get_electoral_log_store(&board).await?;
+        let checkpoint = store.journal().checkpoint(&board).await?;
+        assert_eq!(checkpoint.tree_size, 1);
+        let report = store.audit(&board, &[checkpoint]).await?;
+        assert!(report.is_clean(), "{:?}", report.findings());
+        client.delete_board(&board).await?;
+        assert_eq!(count_electoral_log(input).await?, 0);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod cast_vote_entry_tests {
+    use super::*;
+
+    fn cast_vote_record() -> ElectoralLogMessage {
+        ElectoralLogMessage {
+            id: 7,
+            created: 1_785_700_000,
+            sender_pk: "sender-public-key".to_string(),
+            statement_timestamp: 1_785_700_001,
+            statement_kind: StatementType::CastVote.to_string(),
+            message: vec![1, 2, 3, 4],
+            version: "1".to_string(),
+            user_id: Some("voter-id".to_string()),
+            username: Some("voter-user".to_string()),
+            election_id: Some("election-id".to_string()),
+            area_id: Some("area-id".to_string()),
+            ballot_id: Some("abcd".to_string()),
+        }
+    }
+
+    #[test]
+    fn voters_receive_only_the_ballot_id_timestamp_and_kind() {
+        let entry = CastVoteEntry::from_elog_message(&cast_vote_record());
+
+        assert_eq!(
+            serde_json::to_value(&entry).unwrap(),
+            serde_json::json!({
+                "statement_timestamp": 1_785_700_001,
+                "statement_kind": "CastVote",
+                "ballot_id": "abcd",
+            })
+        );
+    }
+
+    #[test]
+    fn voters_can_sort_only_by_fields_they_see() {
+        assert!(check_cast_vote_order_by(None).is_ok());
+        for field in CAST_VOTE_ORDER_FIELDS {
+            let order_by = HashMap::from([(field, OrderDirection::Desc)]);
+            assert!(check_cast_vote_order_by(Some(&order_by)).is_ok());
+        }
+
+        for field in [
+            OrderField::Username,
+            OrderField::UserId,
+            OrderField::Message,
+        ] {
+            let order_by = HashMap::from([
+                (OrderField::Id, OrderDirection::Desc),
+                (field.clone(), OrderDirection::Asc),
+            ]);
+            let error = check_cast_vote_order_by(Some(&order_by))
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(&field.to_string()), "{error}");
+        }
     }
 }

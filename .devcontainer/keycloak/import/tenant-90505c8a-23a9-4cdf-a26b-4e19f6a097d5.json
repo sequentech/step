@@ -211,15 +211,6 @@
         "attributes": {}
       },
       {
-        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-        "name": "cast-vote-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
         "name": "cloudflare-write",
         "description": "",
@@ -960,6 +951,42 @@
         "attributes": {}
       },
       {
+        "id": "8b6b57c5-8bc2-426b-94c4-52d00d41bb7c",
+        "name": "electoral-log-audit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "099d422b-8ee0-4792-991a-41c13643b380",
+        "name": "electoral-log-console-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "dc90b19b-6119-482b-bc16-0ad279465e5e",
+        "name": "electoral-log-console-query",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "c162751b-950c-4664-9dc5-91f564a4d310",
+        "name": "electoral-log-personal-data-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "81ff4801-d4bb-4c3e-8d46-f525443c21d1",
         "name": "miru-create",
         "description": "",
@@ -1662,6 +1689,15 @@
         "attributes": {}
       },
       {
+        "id": "2000b34e-1974-4c73-9bf7-99fb1a5d1480",
+        "name": "tenant-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "124788ff-8306-4e31-968c-77e49d9d24fa",
         "name": "trustee-ceremony",
         "description": "",
@@ -1862,6 +1898,24 @@
       {
         "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
         "name": "voter-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ef49e644-6ed4-4db9-9688-820993b531db",
+        "name": "voter-secret-attribute-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee774092-f4d3-4ac9-880e-9bed4ff67c08",
+        "name": "voter-secret-attribute-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2429,6 +2483,7 @@
         "resource-write",
         "election-event-areas-tab",
         "tenant-create",
+        "tenant-delete",
         "communication-template-read",
         "tenant-write",
         "election-event-logs-tab",
@@ -2443,6 +2498,10 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "electoral-log-audit",
+        "electoral-log-console-read",
+        "electoral-log-console-query",
+        "electoral-log-personal-data-read",
         "election-state-write",
         "candidate-write",
         "role-create",
@@ -2477,7 +2536,6 @@
         "election-write",
         "report-write",
         "communication-template-write",
-        "cast-vote-read",
         "google-meet-link",
         "tally-results-read",
         "settings-voting-channels-tab",
@@ -2490,6 +2548,8 @@
         "election-event-data-tab",
         "user-create",
         "voter-read",
+        "voter-secret-attribute-read",
+        "voter-secret-attribute-write",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
         "election-type-write",
@@ -2659,7 +2719,6 @@
         "offline_access",
         "user-permission-create",
         "communication-template-write",
-        "cast-vote-read",
         "tally-results-read",
         "tally-sheet-view",
         "voting-channel-write",
@@ -2771,14 +2830,10 @@
       "username": "admin",
       "firstName": "Admin",
       "lastName": "admin",
-      "email": "edu@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
         "sequent.read-only.otp-method": [
           "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
         ],
         "permission_labels": [],
         "tenant-id": [
@@ -2812,14 +2867,10 @@
     {
       "id": "c0124bdb-1deb-4517-aa69-bf73b991e0bf",
       "username": "api-user",
-      "email": "edu+api_user@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
         "sequent.read-only.otp-method": [
           "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
         ],
         "locale": [
           "en"
@@ -2896,14 +2947,10 @@
       "id": "b2cc4af1-718d-490b-af36-66c957fea791",
       "username": "trustee1",
       "firstName": "Test Trustee",
-      "email": "edu+trustee1@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
         "sequent.read-only.otp-method": [
           "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
         ],
         "trustee": [
           "trustee1"
@@ -2941,12 +2988,8 @@
       "id": "ac7080d2-3fd1-4150-983a-2761423f085d",
       "username": "trustee2",
       "firstName": "Trustee2",
-      "email": "edu+trustee2@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
-        ],
         "trustee": [
           "trustee2"
         ],
@@ -2981,7 +3024,6 @@
       "id": "4f259070-25df-4b14-a5a6-e670311331a8",
       "username": "trustee3",
       "firstName": "trustee3",
-      "email": "felix+112@sequentech.io",
       "emailVerified": false,
       "attributes": {
         "trustee": [
@@ -5120,6 +5162,34 @@
       ]
     },
     {
+      "id": "1939ec99-9a6c-4871-b576-67abb5eb5e33",
+      "alias": "Email Message OTP Subflow",
+      "description": "Flow to determine if the Message OTP is required for the authentication",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "condition-email",
+          "authenticator": "conditional-user-attr",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "email-sms",
+          "authenticator": "message-otp-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 2,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "e90dde0f-62be-438c-93de-2a7e50db332c",
       "alias": "First broker login - Conditional OTP",
       "description": "Flow to determine if the OTP is required for the authentication",
@@ -5207,70 +5277,27 @@
       ]
     },
     {
-      "id": "14312dc7-73f8-4ff3-8da4-b90d7d15f885",
-      "alias": "Message OTP Subflow",
-      "description": "Flow to determine if the Message OTP is required for the authentication",
-      "providerId": "basic-flow",
-      "topLevel": false,
-      "builtIn": false,
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-user-configured",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "voting-client",
-          "authenticator": "conditional-client",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 1,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "email-sms",
-          "authenticator": "message-otp-authenticator",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 1,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        }
-      ]
-    },
-    {
-      "id": "0b21c741-ea5f-4657-8d3a-d5e1e1961422",
-      "alias": "Normal OTP Subflow",
+      "id": "80b9b93e-d068-4386-b8de-3cea0265fdcf",
+      "alias": "Mobile Message OTP Subflow",
       "description": "",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
       "authenticationExecutions": [
         {
-          "authenticator": "conditional-user-configured",
+          "authenticatorConfig": "require-sms-cond",
+          "authenticator": "conditional-user-attr",
           "authenticatorFlow": false,
-          "requirement": "DISABLED",
+          "requirement": "REQUIRED",
           "priority": 0,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
-          "authenticator": "auth-otp-form",
+          "authenticatorConfig": "sms-otp",
+          "authenticator": "message-otp-authenticator",
           "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "otp-voting-client",
-          "authenticator": "conditional-client",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
+          "requirement": "REQUIRED",
           "priority": 1,
           "autheticatorFlow": false,
           "userSetupAllowed": false
@@ -5357,6 +5384,32 @@
       ]
     },
     {
+      "id": "40463eca-7255-49be-ba97-0bcae568a833",
+      "alias": "WebAuthn Passwordless - silver conditional",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "webauthn-authenticator-passwordless",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "9a160590-bae1-4d2e-9cab-ccdac5098451",
       "alias": "advanced / gold condition",
       "description": "",
@@ -5431,15 +5484,23 @@
           "requirement": "DISABLED",
           "priority": 4,
           "autheticatorFlow": true,
-          "flowAlias": "Message OTP Subflow",
+          "flowAlias": "WebAuthn Passwordless - silver conditional",
           "userSetupAllowed": false
         },
         {
           "authenticatorFlow": true,
-          "requirement": "DISABLED",
-          "priority": 5,
+          "requirement": "CONDITIONAL",
+          "priority": 6,
           "autheticatorFlow": true,
-          "flowAlias": "Normal OTP Subflow",
+          "flowAlias": "Email Message OTP Subflow",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 7,
+          "autheticatorFlow": true,
+          "flowAlias": "Mobile Message OTP Subflow",
           "userSetupAllowed": false
         }
       ]
@@ -6010,6 +6071,14 @@
       }
     },
     {
+      "id": "4e70e07c-f925-4a0f-8486-8c560de5103f",
+      "alias": "condition-email",
+      "config": {
+        "userAttribute": "email",
+        "negate": "false"
+      }
+    },
+    {
       "id": "fdc47b8c-5417-4570-8867-3be6dc8dd0d7",
       "alias": "conditional OTP form",
       "config": {
@@ -6032,7 +6101,15 @@
         "telUserAttribute": "sequent.read-only.mobile-number",
         "emailUserAttribute": "sequent.read-only.email-address",
         "length": "6",
-        "ttl": "300"
+        "ttl": "300",
+        "max-receiver-reuse": "1",
+        "test-mode-code": "123456",
+        "resendCoudActivationTimer": "60",
+        "messageCourierAttribute": "EMAIL",
+        "test-mode": "false",
+        "deferredUserAttribute": "false",
+        "autoCreateCredentialAttribute": "true",
+        "one-time-link": "false"
       }
     },
     {
@@ -6044,7 +6121,15 @@
         "telUserAttribute": "sequent.read-only.mobile-number",
         "emailUserAttribute": "sequent.read-only.email-address",
         "length": "6",
-        "ttl": "300"
+        "ttl": "300",
+        "max-receiver-reuse": "1",
+        "test-mode-code": "123456",
+        "resendCoudActivationTimer": "60",
+        "messageCourierAttribute": "EMAIL",
+        "test-mode": "false",
+        "deferredUserAttribute": "false",
+        "autoCreateCredentialAttribute": "true",
+        "one-time-link": "false"
       }
     },
     {
@@ -6115,6 +6200,14 @@
       }
     },
     {
+      "id": "b4260b9a-3fca-4fa8-8e39-9fd9b3f8dda4",
+      "alias": "require-sms-cond",
+      "config": {
+        "userAttribute": "sequent.read-only.mobile-number",
+        "negate": "false"
+      }
+    },
+    {
       "id": "68cd831a-6406-4ba0-a3b5-1b48a80e4ee2",
       "alias": "review profile config",
       "config": {
@@ -6143,6 +6236,24 @@
       "config": {
         "loa-condition-level": "1",
         "loa-max-age": "36000"
+      }
+    },
+    {
+      "id": "349c13f5-8407-4a01-b4d5-b21692ca07a9",
+      "alias": "sms-otp",
+      "config": {
+        "test-mode-code": "123456",
+        "senderId": "Keycloak",
+        "deferredUserAttribute": "false",
+        "autoCreateCredentialAttribute": "false",
+        "max-receiver-reuse": "1",
+        "resendCoudActivationTimer": "60",
+        "test-mode": "false",
+        "ttl": "300",
+        "messageCourierAttribute": "SMS",
+        "length": "6",
+        "one-time-link": "false",
+        "telUserAttribute": "sequent.read-only.mobile-number"
       }
     },
     {
@@ -6195,7 +6306,7 @@
       "alias": "UPDATE_PASSWORD",
       "name": "Update Password",
       "providerId": "UPDATE_PASSWORD",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 30,
       "config": {}
@@ -6258,7 +6369,7 @@
       "alias": "webauthn-register-passwordless",
       "name": "Webauthn Register Passwordless",
       "providerId": "webauthn-register-passwordless",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 80,
       "config": {}
@@ -6294,7 +6405,7 @@
       "alias": "mfa-method-selector",
       "name": "Configure MFA method to use",
       "providerId": "mfa-method-selector",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 1002,
       "config": {}
@@ -6306,6 +6417,33 @@
       "enabled": false,
       "defaultAction": false,
       "priority": 1003,
+      "config": {}
+    },
+    {
+      "alias": "idp_link",
+      "name": "Linking Identity Provider",
+      "providerId": "idp_link",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 100,
+      "config": {}
+    },
+    {
+      "alias": "email-otp-ra",
+      "name": "Reset and Configure Email OTP",
+      "providerId": "email-otp-ra",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 1004,
+      "config": {}
+    },
+    {
+      "alias": "mobile-otp-ra",
+      "name": "Reset and Configure Mobile OTP",
+      "providerId": "mobile-otp-ra",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 1005,
       "config": {}
     }
   ],

@@ -17,6 +17,8 @@ pub enum Permissions {
     TENANT_READ,
     #[strum(serialize = "tenant-write")]
     TENANT_WRITE,
+    #[strum(serialize = "tenant-delete")]
+    TENANT_DELETE,
     #[strum(serialize = "election-event-create")]
     ELECTION_EVENT_CREATE,
     #[strum(serialize = "election-event-read")]
@@ -37,6 +39,10 @@ pub enum Permissions {
     VOTER_READ,
     #[strum(serialize = "voter-write")]
     VOTER_WRITE,
+    #[strum(serialize = "voter-secret-attribute-read")]
+    VOTER_SECRET_ATTRIBUTE_READ,
+    #[strum(serialize = "voter-secret-attribute-write")]
+    VOTER_SECRET_ATTRIBUTE_WRITE,
     #[strum(serialize = "user-create")]
     USER_CREATE,
     #[strum(serialize = "user-read")]
@@ -111,6 +117,14 @@ pub enum Permissions {
     PUBLISH_RESULTS_WRITE,
     #[strum(serialize = "logs-read")]
     LOGS_READ,
+    #[strum(serialize = "electoral-log-audit")]
+    ELECTORAL_LOG_AUDIT,
+    #[strum(serialize = "electoral-log-console-read")]
+    ELECTORAL_LOG_CONSOLE_READ,
+    #[strum(serialize = "electoral-log-console-query")]
+    ELECTORAL_LOG_CONSOLE_QUERY,
+    #[strum(serialize = "electoral-log-personal-data-read")]
+    ELECTORAL_LOG_PERSONAL_DATA_READ,
     #[strum(serialize = "tasks-read")]
     TASKS_READ,
     #[strum(serialize = "keys-read")]
@@ -139,8 +153,6 @@ pub enum Permissions {
     TALLY_SHEET_IMPORT_REVIEW,
     #[strum(serialize = "tally-recount-execute")]
     TALLY_RECOUNT_EXECUTE,
-    #[strum(serialize = "cast-vote-read")]
-    CAST_VOTE_READ,
     #[strum(serialize = "document-read")]
     DOCUMENT_READ,
     #[strum(serialize = "document-write")]
@@ -416,4 +428,6 @@ pub enum Permissions {
 pub enum VoterPermissions {
     #[strum(serialize = "user")]
     CAST_VOTE,
+    #[strum(serialize = "ack-support-materials")]
+    ACK_SUPPORT_MATERIALS,
 }

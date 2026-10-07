@@ -59,9 +59,6 @@ const AdminOperationMap: Record<string, IPermissions> = {
     sequent_backend_certificate_authorities: IPermissions.CA_READ,
     delete_sequent_backend_certificate_authority_by_pk: IPermissions.CA_WRITE,
     delete_sequent_backend_certificate_authorities: IPermissions.CA_WRITE,
-    // cast_vote
-    sequent_backend_cast_vote: IPermissions.CAST_VOTE_READ,
-    sequent_backend_cast_votes: IPermissions.CAST_VOTE_READ,
     // template
     sequent_backend_template: IPermissions.template_READ,
     sequent_backend_templates: IPermissions.template_READ,
@@ -182,6 +179,8 @@ const AdminOperationMap: Record<string, IPermissions> = {
     //preview
     sequent_backend_preview: IPermissions.PREVIEW_READ,
     sequent_backend_previews: IPermissions.PREVIEW_READ,
+    // voter secret attributes
+    RevealVoterSecretAttribute: IPermissions.VOTER_READ,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {

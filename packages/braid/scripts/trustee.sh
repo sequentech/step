@@ -9,7 +9,6 @@ set -x
 
 # Set default values
 cd /opt/braid
-#bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-board-db -l debug
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
 SECRETS_BACKEND=${SECRETS_BACKEND:-"Awssecretsmanager"} # Default to Awssecretsmanager if not set
 SECRETS_BACKEND_LOWER=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')

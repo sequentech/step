@@ -98,6 +98,7 @@ export interface IElectionStatistics {
 
 export interface IContest {
     id: string
+    external_id?: string | null
     tenant_id: string
     election_event_id: string
     election_id: string
@@ -113,6 +114,12 @@ export interface IContest {
     voting_type?: string
     counting_algorithm?: ICountingAlgorithm
     is_encrypted: boolean
+    /**
+     * Whether this contest was decided by acclamation. Undefined on ballot
+     * styles published before the field existed, which is why every read goes
+     * through `isAcclaimedContest`.
+     */
+    is_acclaimed?: boolean
     candidates: Array<ICandidate>
     presentation?: IContestPresentation
     created_at?: string

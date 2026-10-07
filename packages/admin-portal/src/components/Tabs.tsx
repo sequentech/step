@@ -12,7 +12,8 @@ const TabStyles = {
     Wrapper: styled("div")`
         display: flex;
         flex-direction: column;
-        align-items: left;
+        align-items: flex-start;
+        width: 100%;
         border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 
         .MuiTabs-scroller {
@@ -61,6 +62,7 @@ export const Tabs: React.FC<{
         <TabStyles.Wrapper>
             <Box
                 sx={{
+                    width: "100%",
                     bgcolor: "background.paper",
                     borderBottom: 1,
                     borderColor: "divider",

@@ -18,8 +18,10 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: aws-selfhosted-ubuntu24
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
     strategy:
+      max-parallel: 13
       matrix:
         include:
           - service: keycloak
@@ -52,9 +54,9 @@ jobs:
             context: packages
             file: packages/harvest/Dockerfile.prod
 
-          - service: b3
+          - service: b4
             context: packages
-            file: packages/b3/Dockerfile.prod
+            file: packages/b4/Dockerfile.prod
 
           - service: braid
             context: packages
@@ -64,13 +66,11 @@ jobs:
             context: packages
             file: packages/windmill/Dockerfile.prod
 
-          - service: immudb-init
-            context: packages
-            file: packages/Dockerfile.immudb-init.prod
-
-          - service: immudb
-            context: packages
-            file: packages/Dockerfile.immudb
+          - service: hasura
+            # Build context is the hasura project dir (migrations/metadata live here),
+            # not repo root — Dockerfile COPYs are relative to this path.
+            context: hasura
+            file: packages/Dockerfile.hasura
 
           - service: loadtesting
             context: .

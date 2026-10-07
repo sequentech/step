@@ -211,15 +211,6 @@
         "attributes": {}
       },
       {
-        "id": "a6d94c05-f0e6-4ad8-b7e0-3257ea9cffc3",
-        "name": "cast-vote-read",
-        "description": "",
-        "composite": false,
-        "clientRole": false,
-        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
-        "attributes": {}
-      },
-      {
         "id": "562cc2ad-9e8e-4e82-b3ae-7e4e800b750b",
         "name": "cloudflare-write",
         "description": "",
@@ -899,6 +890,42 @@
       {
         "id": "f26aa3b9-40b6-4745-8b95-e961995ddd62",
         "name": "logs-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "14d7e770-5841-4de9-949b-54597f986c2b",
+        "name": "electoral-log-audit",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "bcd8a36e-b783-4fdc-a286-3a130636aca6",
+        "name": "electoral-log-console-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3d735445-d493-4f23-84fd-456745e3583f",
+        "name": "electoral-log-console-query",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "5c496aba-443d-4763-a01a-58d9b78d7e4b",
+        "name": "electoral-log-personal-data-read",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -1608,6 +1635,15 @@
         "attributes": {}
       },
       {
+        "id": "2000b34e-1974-4c73-9bf7-99fb1a5d1480",
+        "name": "tenant-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "124788ff-8306-4e31-968c-77e49d9d24fa",
         "name": "trustee-ceremony",
         "description": "",
@@ -1800,6 +1836,24 @@
         "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
         "name": "voter-read",
         "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "8fbfb501-167c-4d7c-9705-0c59a4e232b3",
+        "name": "voter-secret-attribute-read",
+        "description": "Read decrypted voter secret attributes",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "9c5336da-c98d-46a4-84a3-8c6655d19770",
+        "name": "voter-secret-attribute-write",
+        "description": "Create, replace, or clear voter secret attributes",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2297,6 +2351,7 @@
         "resource-write",
         "election-event-areas-tab",
         "tenant-create",
+        "tenant-delete",
         "communication-template-read",
         "tenant-write",
         "election-event-logs-tab",
@@ -2311,6 +2366,10 @@
         "election-event-approvals-tab",
         "candidate-delete",
         "logs-read",
+        "electoral-log-audit",
+        "electoral-log-console-read",
+        "electoral-log-console-query",
+        "electoral-log-personal-data-read",
         "election-state-write",
         "candidate-write",
         "role-create",
@@ -2344,7 +2403,6 @@
         "election-write",
         "report-write",
         "communication-template-write",
-        "cast-vote-read",
         "tally-results-read",
         "google-meet-link",
         "settings-voting-channels-tab",
@@ -2357,6 +2415,8 @@
         "election-event-data-tab",
         "user-create",
         "voter-read",
+        "voter-secret-attribute-read",
+        "voter-secret-attribute-write",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
         "election-type-write",
@@ -2475,7 +2535,6 @@
         "communication-template-write",
         "miru-download",
         "miru-send",
-        "cast-vote-read",
         "notification-send",
         "tally-sheet-create",
         "tally-results-read",
@@ -2578,7 +2637,6 @@
         "offline_access",
         "user-permission-create",
         "communication-template-write",
-        "cast-vote-read",
         "tally-results-read",
         "tally-sheet-view",
         "voting-channel-write",
@@ -2590,6 +2648,8 @@
         "voter-create",
         "user-create",
         "voter-read",
+        "voter-secret-attribute-read",
+        "voter-secret-attribute-write",
         "tenant-create",
         "election-type-write",
         "publish-write",

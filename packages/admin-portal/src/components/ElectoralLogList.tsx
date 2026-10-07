@@ -5,6 +5,7 @@ import React, {ReactElement, useEffect, useState} from "react"
 import {
     DatagridConfigurable,
     List,
+    Button,
     TextField,
     FunctionField,
     NumberField,
@@ -22,14 +23,17 @@ import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/gr
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "./styles/FormStyles"
 import {EXPORT_ELECTION_EVENT_LOGS} from "@/queries/ExportElectionEventLogs"
+import {AUDIT_ELECTORAL_LOG} from "@/queries/AuditElectoralLog"
 import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "./ResetFilters"
 import {MenuItem, Menu} from "@mui/material"
+import FactCheckIcon from "@mui/icons-material/FactCheck"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
+import {ThreeStateDatagridHeader} from "./ThreeStateDatagridHeader"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -62,7 +66,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     })
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const download = async () => {
-        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT, undefined)
+        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT, true)
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEventActivityLogs({
                 variables: {
@@ -110,6 +114,58 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     )
 }
 
+interface AuditDialogProps {
+    electionEventId: string
+    open: boolean
+    setOpen: (val: boolean) => void
+}
+
+const AuditDialog: React.FC<AuditDialogProps> = ({electionEventId, open, setOpen}) => {
+    const {t} = useTranslation()
+    const [auditElectoralLog] = useMutation(AUDIT_ELECTORAL_LOG, {
+        context: {
+            headers: {
+                "x-hasura-role": IPermissions.ELECTORAL_LOG_AUDIT,
+            },
+        },
+    })
+    const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
+    const audit = async () => {
+        const currWidget = addWidget(ETasksExecution.AUDIT_ELECTORAL_LOG, false)
+        try {
+            const {data, errors} = await auditElectoralLog({
+                variables: {electionEventId},
+            })
+            const taskId = data?.audit_electoral_log?.task_execution.id
+            if (errors || !taskId) {
+                updateWidgetFail(currWidget.identifier)
+                return
+            }
+            setWidgetTaskId(currWidget.identifier, taskId)
+        } catch (error) {
+            updateWidgetFail(currWidget.identifier)
+        }
+    }
+
+    return (
+        <Dialog
+            variant="info"
+            open={open}
+            ok={String(t("logsScreen.auditDialog.confirm"))}
+            cancel={String(t("common.label.cancel"))}
+            title={String(t("logsScreen.auditDialog.title"))}
+            handleClose={(result: boolean) => {
+                setOpen(false)
+                if (result) {
+                    audit()
+                }
+            }}
+        >
+            <span>{t("logsScreen.auditDialog.description")}</span>
+        </Dialog>
+    )
+}
+
 export interface ElectoralLogListProps {
     aside?: ReactElement
     filterToShow?: ElectoralLogFilters
@@ -135,7 +191,9 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
     const {t} = useTranslation()
 
-    const {canExportLogs, showLogsColumns} = useLogsPermissions()
+    const {canExportLogs, canAuditLogs, showLogsColumns} = useLogsPermissions()
+    const eventId = electionEventId ?? record?.id
+    const [openAudit, setOpenAudit] = useState(false)
 
     const getHeadField = (record: any, field: string) => {
         const message = JSON.parse(record?.message)
@@ -213,6 +271,20 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             openExportMenu={(e) => setAnchorEl(e.currentTarget)}
                             withExport={canExportLogs}
                             withFilter={true}
+                            extraActions={
+                                canAuditLogs && eventId
+                                    ? [
+                                          <Button
+                                              key="audit"
+                                              className="audit-electoral-log"
+                                              onClick={() => setOpenAudit(true)}
+                                              label={String(t("logsScreen.actions.audit"))}
+                                          >
+                                              <FactCheckIcon />
+                                          </Button>,
+                                      ]
+                                    : []
+                            }
                         />
                     )
                 }
@@ -226,7 +298,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 aside={aside}
             >
                 <ResetFilters />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                <DatagridConfigurable
+                    header={ThreeStateDatagridHeader}
+                    omit={OMIT_FIELDS}
+                    bulkActionButtons={false}
+                >
                     <NumberField source="id" label={String(t("logsScreen.column.id"))} />
                     <FunctionField
                         source="user_id"
@@ -294,6 +370,9 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 setOpenExport={setOpenExport}
                 exportFormat={exportFormat}
             />
+            {eventId ? (
+                <AuditDialog electionEventId={eventId} open={openAudit} setOpen={setOpenAudit} />
+            ) : null}
             <Menu
                 id="menu-export-logs"
                 anchorEl={anchorEl}

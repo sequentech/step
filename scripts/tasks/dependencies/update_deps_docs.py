@@ -17,8 +17,6 @@ HEADER_TO_PACKAGE = {
     'E2e': 'e2e',
     'Electoral Log': 'electoral-log',
     'Harvest': 'harvest',
-    'Immu Board': 'immu-board',
-    'ImmuDB-RS': 'immudb-rs',
     'Keycloak Extensions': 'keycloak-extensions',
     'Orare': 'orare',
     'Sequent Core': 'sequent-core',

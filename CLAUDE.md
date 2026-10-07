@@ -93,7 +93,7 @@ reuse lint                           # Every file must have SPDX headers
 - **sequent-core** — Shared core: ballot structures, crypto ops, PDF reports, Keycloak integration. Compiles to WASM for frontend. Features: `wasm`, `reports`, `keycloak`, `s3`, `sqlite`
 - **windmill** — Celery-based task execution engine (RabbitMQ, GraphQL client, WASM plugin mgmt)
 - **harvest** — Election management REST API (Rocket framework)
-- **immu-board** — Tamper-evident bulletin board
+- **electoral-log** — PostgreSQL electoral event logs
 - **velvet** — PDF/report generation CLI
 - **step-cli** — CLI for election administration
 - **e2e** — End-to-end testing framework
@@ -109,7 +109,7 @@ reuse lint                           # Every file must have SPDX headers
 - **Hasura** — GraphQL API layer over PostgreSQL
 - **Keycloak** — Identity management (one realm per tenant + one per election event)
 - **RabbitMQ** — Task queue for Celery workers
-- **ImmuDB** — Tamper-evident audit logging
+- **PostgreSQL electoral-log database** — Electoral event logs
 - **MinIO** — S3-compatible object storage
 
 ### Key Patterns
@@ -128,7 +128,7 @@ reuse lint                           # Every file must have SPDX headers
   // SPDX-License-Identifier: AGPL-3.0-only
   ```
 - **Vendored Cargo dependencies**: `packages/vendor/` — Cargo.toml uses `[source.vendored-sources]`
-- **Pinned crate**: `wasm-bindgen` 0.2.104 — do not change
+- **Pinned crate**: `wasm-bindgen` 0.2.128 (`=0.2.128` in strand, braid, sequent-core and `packages/wbraid`) — the CLI pins in `devenv.nix` and the three `flake.nix` files must move with it
 - **Forked crate**: `celery` uses a custom fork (Findeton/rusty-celery)
 - **Hasura changes must go through** `hasura console` (not the web UI directly) for migrations to be tracked
 - **Rust toolchain**: 1.96.0 stable, WASM targets: `wasm32-unknown-unknown`
@@ -197,8 +197,9 @@ Dev service URLs (inside dev container):
 - Hasura: http://127.0.0.1:8080 (admin secret: "admin")
 - Voting Portal: http://127.0.0.1:3000
 - Admin Portal: http://127.0.0.1:3002
-- ImmuDB: http://127.0.0.1:3325 (immudb/immudb)
 - MinIO: http://127.0.0.1:9001
 - RabbitMQ: http://127.0.0.1:15672
 
 **Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, don't run `cargo build` to verify it — check the container logs (`docker logs windmill` / `docker logs harvest`) instead, since those services auto-rebuild on changes inside the dev container. See the note under Build Commands → Rust.
+
+Before running `yarn start:voting-portal` or `yarn start:admin-portal`, check whether that dev server is already running (e.g. `ss -tlnp | grep -E ':3000|:3002'` or `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:<port>/`) instead of starting a new one blind — avoids stacking duplicate/conflicting processes on the same port.

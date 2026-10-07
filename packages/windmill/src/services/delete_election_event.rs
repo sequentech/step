@@ -4,12 +4,14 @@
 use super::jwks::remove_realm_jwks;
 use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use crate::postgres::election::get_elections;
+use crate::services::protocol_manager::get_board_client;
+use crate::services::protocol_manager::get_electoral_log_store;
 use crate::services::protocol_manager::get_event_board;
-use crate::services::protocol_manager::get_immudb_client;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use futures::future::try_join_all;
+use keycloak::KeycloakError;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use tracing::info;
@@ -20,22 +22,16 @@ pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
     let client = KeycloakAdminClient::new().await?;
     remove_realm_jwks(&realm).await?;
 
-    let realm_exists = client
-        .client
-        .realm_get(&realm)
-        .await
-        .map_err(|err| anyhow!("Keycloak error: {err:?}"));
+    // DELETE is idempotent only when the realm is confirmed absent. A failed
+    // existence lookup must never turn authorization or transport errors into success.
+    realm_deletion_result(client.client.realm_delete(realm).await)
+}
 
-    info!("realm_exists? {:?}", realm_exists.is_ok());
-
-    if realm_exists.is_ok() {
-        client
-            .client
-            .realm_delete(&realm)
-            .await
-            .map_err(|err| anyhow!("Keycloak error: {err:?}"))?;
+fn realm_deletion_result(result: std::result::Result<(), KeycloakError>) -> Result<()> {
+    match result {
+        Ok(()) | Err(KeycloakError::HttpFailure { status: 404, .. }) => Ok(()),
+        Err(error) => Err(anyhow::Error::new(error)).context("Failed to delete Keycloak realm"),
     }
-    Ok(())
 }
 
 #[instrument(err)]
@@ -88,25 +84,18 @@ pub async fn delete_election_event_b3(
 }
 
 #[instrument(err)]
-pub async fn delete_election_event_immudb(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let mut client = get_immudb_client().await?;
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let board_name = get_event_board(tenant_id, election_event_id, &slug);
-
-    event!(Level::INFO, "database name = {board_name}");
-
-    let has_database = client
-        .has_database(&board_name)
-        .await
-        .map_err(|err| anyhow!("error reading immudb database: {err:?}"))?;
-
-    if has_database {
-        client
-            .delete_database(&board_name)
-            .await
-            .map_err(|err| anyhow!("error delete immudb database: {err:?}"))?;
-    }
-    Ok(())
+pub async fn delete_election_event_electoral_log(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
+    let board = get_event_board(tenant_id, election_event_id, &slug);
+    // The ballot box lives in the board's database, which is found by the board.
+    get_electoral_log_store(&board)
+        .await?
+        .drop_ballot_box(election_event_id)
+        .await?;
+    get_board_client().await?.delete_board(&board).await
 }
 
 #[instrument(err)]
@@ -135,4 +124,45 @@ pub async fn delete_election_event_related_documents(
         .await
         .map_err(|err| anyhow!("Error delete public results index from s3: {err:?}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod realm_deletion_tests {
+    use super::*;
+
+    fn http_failure(status: u16) -> KeycloakError {
+        KeycloakError::HttpFailure {
+            status,
+            body: None,
+            text: String::new(),
+        }
+    }
+
+    #[test]
+    fn deleted_and_already_absent_realms_complete_cleanup() {
+        assert!(realm_deletion_result(Ok(())).is_ok());
+        assert!(realm_deletion_result(Err(http_failure(404))).is_ok());
+    }
+
+    #[test]
+    fn other_http_failures_preserve_the_error_for_the_cleanup_task() {
+        for status in [400, 401, 403, 409, 429, 500, 503] {
+            let error = realm_deletion_result(Err(http_failure(status))).unwrap_err();
+            assert!(matches!(
+                error.downcast_ref::<KeycloakError>(),
+                Some(KeycloakError::HttpFailure { status: actual, .. }) if *actual == status
+            ));
+        }
+    }
+
+    #[test]
+    fn request_failures_do_not_mean_the_realm_is_absent() {
+        let request_error = reqwest::Client::new().get("http://[").build().unwrap_err();
+        let error =
+            realm_deletion_result(Err(KeycloakError::ReqwestFailure(request_error))).unwrap_err();
+        assert!(matches!(
+            error.downcast_ref::<KeycloakError>(),
+            Some(KeycloakError::ReqwestFailure(_))
+        ));
+    }
 }

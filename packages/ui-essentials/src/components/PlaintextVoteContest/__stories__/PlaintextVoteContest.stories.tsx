@@ -98,6 +98,7 @@ const makePlaintext = (overrides: Partial<IDecodedVoteContest> = {}): IDecodedVo
     contest_id: CONTEST_ID,
     is_explicit_invalid: false,
     is_decline_to_vote: false,
+    is_blank_ballot: false,
     invalid_errors: [],
     invalid_alerts: [],
     choices: [
@@ -405,6 +406,30 @@ export const DeclineToVote: Story = {
             pointsLabel={() => ""}
             isDeclineToVotePolicyEnabled={true}
             declineToVoteLabel="Declined to vote"
+        />
+    ),
+    parameters: commonParameters,
+}
+
+export const BlankBallot: Story = {
+    render: () => (
+        <PlaintextVoteContest
+            question={makeContest()}
+            questionPlaintext={makePlaintext({
+                is_blank_ballot: true,
+                choices: [
+                    {id: "1", selected: -1},
+                    {id: "2", selected: -1},
+                    {id: "3", selected: -1},
+                ],
+            })}
+            publicBucketUrl=""
+            contestNotFoundLabel="Contest not found"
+            markedInvalidLabel="Ballot explicitly marked invalid"
+            pointsLabel={() => ""}
+            isDeclineToVotePolicyEnabled={false}
+            isBlankBallotsPolicyEnabled={true}
+            blankBallotLabel="Blank ballot"
         />
     ),
     parameters: commonParameters,

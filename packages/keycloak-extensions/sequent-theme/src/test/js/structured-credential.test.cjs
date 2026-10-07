@@ -16,7 +16,9 @@ const script = readFileSync(
   "utf8",
 );
 
-const setup = ({ pattern = "dddd-dddd", password = "" } = {}) => {
+const setup = (
+  { pattern = "dddd-dddd", password = "", placeholder = "d" } = {},
+) => {
   const dom = new JSDOM(
     `<!doctype html>
       <form id="login">
@@ -24,6 +26,7 @@ const setup = ({ pattern = "dddd-dddd", password = "" } = {}) => {
         <label id="pin-label" for="password">PIN</label>
         <div data-structured-credential
              data-credential-pattern="${pattern}"
+             data-credential-input-placeholder="${placeholder}"
              data-group-status="Group {0}/{1}: {2}/{3}"
              data-paste-error="Paste rejected"
              data-format-error="Format rejected"
@@ -99,6 +102,21 @@ test("malformed patterns preserve the native password input and visibility toggl
   assert.equal(real.type, "password");
   toggle.click();
   assert.equal(real.type, "text");
+});
+
+test("uses the configured character for unassigned digit positions", () => {
+  const { display, dom, real } = setup({ placeholder: "#" });
+
+  assert.equal(display.value, "####-####");
+  typeDigit(dom, display, "1");
+  assert.equal(display.value, "1###-####");
+  assert.equal(real.value, "1");
+});
+
+test("invalid placeholder configuration falls back to the digit token", () => {
+  for (const placeholder of ["##", "1", "-", "*", " "]) {
+    assert.equal(setup({ placeholder }).display.value, "dddd-dddd");
+  }
 });
 
 test("typing fills groups, arrow navigation replaces a selected group, and extra digits are ignored", () => {

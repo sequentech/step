@@ -206,6 +206,13 @@ const englishTranslation = {
             actions: {
                 csv: "Export in CSV",
                 pdf: "Export in PDF",
+                audit: "Audit",
+            },
+            auditDialog: {
+                title: "Audit electoral log",
+                confirm: "Audit",
+                description:
+                    "The audit checks every log entry against its Merkle log and verifies the published checkpoints. The result is recorded as a task.",
             },
             exportdialog: {
                 description:
@@ -252,6 +259,8 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Delete tenant",
+                PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",
                 IMPORT_ELECTION_EVENT: "Import Election Event",
@@ -273,11 +282,13 @@ const englishTranslation = {
                 EXPORT_TEMPLATES: "Export Templates",
                 IMPORT_TEMPLATES: "Import Templates",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
                 VOTER_INFORMATION_LETTER: "Voter Information Letter",
+                AUDIT_ELECTORAL_LOG: "Audit Electoral Log",
             },
             documentAccess: {
                 title: "Document access",
@@ -492,6 +503,7 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
@@ -501,7 +513,16 @@ const englishTranslation = {
                 },
                 labels: {
                     key: "Key",
+                    scope: "Portal scope",
                     value: "Value",
+                },
+                scopes: {
+                    legacy: "Legacy ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Voting portal",
+                    ballotVerifier: "Ballot verifier",
+                    resultsPortal: "Results portal",
+                    adminPortal: "Admin portal",
                 },
             },
             field: {
@@ -541,12 +562,23 @@ const englishTranslation = {
                 language: "Language",
                 votingChannels: "Voting Channels",
                 materialActivated: "Support Materials Activated",
+                supportMaterialsPolicy: {
+                    label: "Support Materials Policy",
+                    helperText:
+                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                    options: {
+                        off: "Off",
+                        optional: "Optional",
+                        mandatory_for_voting: "Mandatory for Voting",
+                    },
+                },
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
                 logoUrl: "Logo URL",
                 userVerification:
                     "You can introduce a custom template that will be used to manually verify the voters",
                 redirectFinishUrl: "Redirect Finish URL",
+                kioskRedirectFinishUrl: "Kiosk Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
@@ -650,7 +682,12 @@ const englishTranslation = {
                     options: {
                         "areas-weighted-voting": "Weighted Voting for Areas",
                         "disabled-weighted-voting": "Disabled Weighted Voting",
+                        "voters-weighted-voting": "Weighted Voting for Voters",
                     },
+                    noDelegated:
+                        "Weighted Voting for Voters cannot be combined with Delegated Voting",
+                    noDecodedBallots:
+                        "Weighted Voting for Voters cannot be combined with including decoded ballots in the results",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Delegated Voting Policy",
@@ -765,6 +802,10 @@ const englishTranslation = {
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
+                actions: {
+                    participate: "Participate in Keys Ceremony",
+                    view: "View Keys Ceremony",
+                },
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -888,6 +929,8 @@ const englishTranslation = {
                 subtitle:
                     "Export can be a long operation. Are you sure you want to export records?",
                 encryptWithPassword: "Encrypt with Password",
+                passwordForcedNote:
+                    "The archive will be password protected anyway: reports, applications and bulletin-board data are always encrypted. Tick the box to also include decrypted secret voter fields.",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
                 bulletinBoard: "Bulletin Board",
@@ -1018,6 +1061,13 @@ const englishTranslation = {
                     disabled: "Disabled",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Blank Ballots Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Voting Screen Back Button Policy",
                 options: {
@@ -1080,6 +1130,8 @@ const englishTranslation = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
+                    "vote-weight": "Vote Weight",
                     "voted-channel": "Voted Channel",
                     "disable-comment": "Disable Comment",
                     "username": "Username",
@@ -1110,6 +1162,11 @@ const englishTranslation = {
                 delete: {
                     body: "Are you sure you want to delete this user?",
                     bulkBody: "Are you sure you want to delete the selected users?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting users",
@@ -1121,6 +1178,18 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                secretAttribute: {
+                    storedPlaceholder: "Stored encrypted value",
+                    reveal: "Reveal",
+                    hide: "Hide",
+                    revealError: "The encrypted voter field could not be revealed",
+                    includeInExport: "Include decrypted secret voter fields",
+                    exportWarning:
+                        "Sensitive export: the downloaded CSV will contain these fields in plaintext.",
+                    clear: "Clear",
+                    add: "Add value",
+                    remove: "Remove value",
+                },
                 review: {
                     title: "Review changes",
                     subtitle: "Confirm these updates before submitting.",
@@ -1162,13 +1231,39 @@ const englishTranslation = {
                 askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
+                    editErrorReason: "Error editing voter: {{reason}}",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
+                    createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
+                    attribute: {
+                        invalidNamed: '"{{field}}" was refused: {{constraint}}',
+                        fieldsToCorrect: "Some fields need correcting before saving",
+                        hintBetween: "Between {{min}} and {{max}} characters",
+                        hintMin: "At least {{min}} characters",
+                        hintMax: "At most {{max}} characters",
+                        andMore: "and {{count}} more",
+                        invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
+                        tooShort: '"{{field}}" must be at least {{min}} characters',
+                        tooLong: '"{{field}}" must be at most {{max}} characters',
+                        required: '"{{field}}" is required',
+                        invalidEmail: '"{{field}}" must be a valid email address',
+                        invalidFormat: '"{{field}}" does not have the expected format',
+                        invalid: '"{{field}}" has an invalid value',
+                    },
+                    createPasswordError: "Voter created, but their password could not be set",
+                    createPasswordErrorReason:
+                        "Voter created, but their password could not be set: {{reason}}",
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
                     bulkBody: "Are you sure you want to delete the selected voters?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting voters",
@@ -1215,6 +1310,7 @@ const englishTranslation = {
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
+                "tenant-delete": "Delete Tenant",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
@@ -1224,6 +1320,8 @@ const englishTranslation = {
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
                 "voter-write": "Edit Voter",
+                "voter-secret-attribute-read": "Reveal Secret Voter Fields",
+                "voter-secret-attribute-write": "Edit Secret Voter Fields",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",
@@ -1260,6 +1358,10 @@ const englishTranslation = {
                 "publish-results-read": "Read Results Publication",
                 "publish-results-write": "Edit Results Publication",
                 "logs-read": "Read Logs",
+                "electoral-log-audit": "Audit Electoral Log",
+                "electoral-log-console-read": "Browse Electoral Log",
+                "electoral-log-console-query": "Query Electoral Log",
+                "electoral-log-personal-data-read": "Read Electoral Log Personal Data",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
@@ -1275,7 +1377,6 @@ const englishTranslation = {
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
-                "cast-vote-read": "Read Cast Votes",
                 "document-read": "Read Documents",
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",
@@ -1415,6 +1516,22 @@ const englishTranslation = {
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
                 "transmission-report-generate": "Generate Transmission Report",
                 "google-meet-link": "Generate google meet link",
+                "service-account": "Service account",
+                "datafix-account": "Datafix account",
+                "gold": "Gold",
+                "silver": "Silver",
+                "election-event-ivr-tab": "View election event IVR",
+                "election-event-cas-tab": "View election event CAS",
+                "ca-read": "Read certificate authorities",
+                "ca-write": "Edit certificate authorities",
+                "generate-preview": "Generate preview",
+                "preview-read": "Read preview",
+                "tally-resolution-submit": "Submit tally resolution",
+                "phone-blacklist-read": "Read phone blacklist",
+                "phone-blacklist-create": "Create phone blacklist entries",
+                "phone-blacklist-update": "Edit phone blacklist entries",
+                "phone-blacklist-delete": "Delete phone blacklist entries",
+                "election-event-voter-list-reconciliation": "Reconcile election event voter list",
             },
         },
         generalSettingsScreen: {
@@ -1429,6 +1546,8 @@ const englishTranslation = {
                 createError: "Error creating Scheduled Event",
                 editSuccess: "Scheduled Event edited successfully",
                 editError: "Error editing Scheduled Event",
+                onlineWithEarlyVoting:
+                    "A start schedule cannot open Online and Early voting together: early voting has to start before online voting.",
             },
             eventType: {
                 label: "Type",
@@ -1644,6 +1763,7 @@ const englishTranslation = {
             electionEvents: "Election Events",
             search: "Search",
             usersAndRoles: "Users and Roles",
+            electoralLogConsole: "Electoral Log",
             logs: "Logs",
             settings: "Settings",
             help: "Help",
@@ -1784,6 +1904,7 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+                "allowed-with-exclusive-explicit": "Allowed With Exclusive Explicit",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Candidates checkbox icon shape",
@@ -1832,6 +1953,11 @@ const englishTranslation = {
             },
             paginationPolicy: {
                 label: "Page Name",
+            },
+            isAcclaimed: {
+                label: "Decided by acclamation",
+                helperText:
+                    "Voters see this contest but cannot select anything, nothing is recorded for it, and every candidate is reported as a winner with zero votes. Set this before publishing ballots: changing it afterwards invalidates ballots already cast.",
             },
             allowWriteins: {
                 label: "Allow Write-Ins",
@@ -1924,8 +2050,12 @@ const englishTranslation = {
                 subtitle:
                     "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
-                errorDownloading: "Download error: {{error}}",
+                downloaded: "Encrypted Private Key downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
+                unexpectedError: "The private key could not be downloaded. Please try again.",
+                alreadyVerified: "Your private key was already downloaded and verified.",
+                unavailable:
+                    "Private key download is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
@@ -1940,12 +2070,13 @@ const englishTranslation = {
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
+                verifyButton: "Verify key",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
-                downloaded: "Encrypted Private Key generated successfully.",
+                alreadyRestored: "Your key was already restored.",
             },
         },
         miruExport: {
@@ -2104,6 +2235,13 @@ const englishTranslation = {
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Key fragment import status",
+            eligibility: {
+                selectElection: "Select at least one election.",
+                publishElection: "Publish each selected election before creating its tally.",
+                tallyDisallowed: "Tallying is disabled for a selected election.",
+                endVoting:
+                    "End voting in each selected election and stop its active voting channels before creating the tally.",
+            },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",
@@ -2205,6 +2343,7 @@ const englishTranslation = {
                     round: "Round",
                 },
                 total_declined_to_vote: "Total Declined to Vote",
+                total_blank_ballots: "Total Blank Ballots",
                 participation_by_channel: "Participation by channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2214,6 +2353,8 @@ const englishTranslation = {
                 channel_paper: "Paper",
                 channel_postal: "Postal",
                 channel_in_person: "In person",
+                acclamation_note:
+                    "Won by acclamation. This contest was decided without a vote, so no votes were recorded for it.",
             },
             pendingResolutions: {
                 round: "Round {{round}}",
@@ -2404,8 +2545,19 @@ const englishTranslation = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
-                censusTooSmall: "Census must be greater or equal than the total votes",
+                    "Candidate votes ({{candidateVotesSum}}) must be between {{lowerBound}} and {{upperBound}} for this contest's voting rules ({{nonBlankValidVotes}} valid non-blank votes × up to {{maxMarks}} marks per ballot)",
+                censusTooSmall:
+                    "Total votes ({{totalVotes}}) must not be greater than census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Total invalid votes ({{totalInvalid}}) must equal implicit invalid votes ({{implicitInvalid}}) plus explicit invalid votes ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Total votes ({{totalVotes}}) must equal total valid votes ({{totalValidVotes}}) plus total invalid votes ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "This contest's counting algorithm ({{countingAlgorithm}}) is not recognised, so the allowed number of candidate votes cannot be determined. Check the contest configuration.",
+                blankBallotsInconsistent:
+                    "Blank Ballots must have the same value on every contest sheet of this ballot box",
+                blankBallotsOutOfBounds:
+                    "Blank Ballots value is outside the range implied by this box's per-contest blank vote counts",
             },
             label: {
                 area: "Area",
@@ -2416,6 +2568,7 @@ const englishTranslation = {
                 explicit_invalid: "Explicitly Invalid Votes",
                 implicit_invalid: "Implicitly Invalid Votes",
                 total_blank_votes: "Blank Votes",
+                blank_ballots: "Blank Ballots",
                 census: "Census",
             },
             common: {
@@ -2566,7 +2719,7 @@ const englishTranslation = {
             updateMaterialError: "Error updating support material",
             common: {
                 title: "Support Material",
-                subtitle: "Enter suppot material data.",
+                subtitle: "Enter support material data.",
             },
             error: {
                 title: "Title is required",
@@ -2761,6 +2914,71 @@ const englishTranslation = {
             confirmDelete: "Delete Certificate Authority",
             confirmDeleteDescription:
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Electoral Log",
+            subtitle:
+                "Browse an election event's electoral log and ballot box, or query the electoral-log database. Nothing on this page changes any data.",
+            notAllowed:
+                "You need the electoral-log-console-read permission to open the electoral log.",
+            tabs: {
+                tables: "Tables",
+                query: "Query",
+            },
+            electionEvent: "Election Event",
+            table: "Table",
+            tables: {
+                records: "Records",
+                ballots: "Ballots",
+                voters: "Voters",
+                queue: "Sequencer Queue",
+            },
+            order: {
+                "label": "Order",
+                "newest-first": "Newest first",
+                "oldest-first": "Oldest first",
+            },
+            filters: {
+                statement_kind: "Kind",
+                election_id: "Election",
+                area_id: "Area ID",
+                user_id: "User or Voter ID",
+                ballot_id: "Ballot ID",
+                status: "Status",
+                created_after: "From",
+                created_before: "Until",
+                any: "Any",
+                apply: "Apply Filters",
+                clear: "Clear",
+                invalid:
+                    "Check the highlighted filters: dates must be valid, and the ballot box's area IDs must be UUIDs.",
+            },
+            statuses: {
+                valid: "Valid",
+                pending: "Pending",
+                rejected: "Rejected",
+            },
+            estimatedRows: "About {{rows}} rows in this table before filters.",
+            personalDataHidden:
+                "Usernames, IP addresses and countries show as hidden: seeing them needs the electoral-log-personal-data-read permission.",
+            loadError: "The electoral log could not be read.",
+            record: {
+                title: "Record {{position}}",
+                view: "View record",
+                message: "Message (decoded)",
+                copy: "Copy JSON",
+                close: "Close",
+                loadError: "The record could not be read.",
+            },
+            query: {
+                help: "Queries run on the electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
+                run: "Run Query",
+                summary: "Rows: {{rows}} · {{ms}} ms",
+                truncated: "Only the first {{rows}} rows are shown.",
+                error: "The query could not run.",
+            },
         },
     },
 }

@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import * as React from "react"
-import Button from "@mui/material/Button"
 import {useTranslation} from "react-i18next"
-import {Box} from "@mui/material"
+import {Box, Typography} from "@mui/material"
 import {styled} from "@mui/material/styles"
 
 interface VersionProps {
@@ -12,32 +11,43 @@ interface VersionProps {
     version: {[key: string]: string}
 }
 
-const StyledButton = styled(Button)(`
-    &.Mui-disabled {
-        border-color: transparent;
-        opacity: 1 !important;
-        color: ${({theme}) => theme.black} !important;
-    }
-`)
+const StyledVersion = styled(Typography)<{component?: React.ElementType}>(({theme}) => ({
+    boxSizing: "border-box",
+    minWidth: "64px",
+    minHeight: "44px",
+    padding: "6px 12px",
+    alignItems: "center",
+    borderRadius: "4px",
+    color: theme.palette.brandColor,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+}))
 
 const Version: React.FC<VersionProps> = ({version, header}) => {
     const {t} = useTranslation()
-    const translation = useTranslation()
 
     return (
-        <StyledButton
-            variant="actionbar"
-            disabled={true}
-            sx={{display: {xs: "none", sm: "block"}}}
+        <StyledVersion
+            component="div"
+            variant="button"
+            sx={{display: {xs: "none", sm: "flex"}}}
             className="app-version"
         >
-            <Box sx={{width: "100%", display: "flex", flexDirection: "row", alignItems: "center"}}>
-                <Box component="span" sx={{display: {xs: "none", md: "block"}}}>
+            <Box
+                className="app-version-content"
+                sx={{width: "100%", display: "flex", flexDirection: "row", alignItems: "center"}}
+            >
+                <Box
+                    className="app-version-label"
+                    component="span"
+                    sx={{display: {xs: "none", md: "block"}}}
+                >
                     {t(header ?? "version.header")}
                 </Box>
-                <Box component="span">{version["main"]}</Box>
+                <Box className="app-version-value" component="span">
+                    {version["main"]}
+                </Box>
             </Box>
-        </StyledButton>
+        </StyledVersion>
     )
 }
 

@@ -302,3 +302,55 @@ pub struct ResultsPublicationDetails {
     pub visibility_scope: ResultsPublicationVisibilityScopeString,
     pub contest_ids: Vec<ContestIdString>,
 }
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub enum BallotPublicationStage {
+    Generate,
+    Publish,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub struct BallotPublicationFailure {
+    pub publication_id: BallotPublicationIdString,
+    pub task_id: String,
+    pub stage: BallotPublicationStage,
+    pub error: ErrorMessageString,
+}
+
+/// Why an electoral-log checkpoint was published. Its name is part of the signed
+/// checkpoint and of the stored publication.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Display,
+    strum_macros::EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ElectoralLogCheckpointReason {
+    VotingClosed,
+    TallyCompleted,
+    // New reasons go last: signed checkpoint messages store the variant's index.
+    VotingOpened,
+    /// Published at a fixed interval while voting is open.
+    Periodic,
+}
+
+/// A published checkpoint of the board's Merkle log, recorded in the log itself.
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct ElectoralLogCheckpoint {
+    /// Trellis log generation.
+    pub log_id: i64,
+    /// Entries covered by the root.
+    pub tree_size: u64,
+    /// Hex-encoded SHA-256 root.
+    pub root: String,
+    pub reason: ElectoralLogCheckpointReason,
+}

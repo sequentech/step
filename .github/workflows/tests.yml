@@ -9,6 +9,10 @@ on:
   push:
     branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
 
+# Avoid intermittent HTTP/2 framing errors while fetching crates.io dependencies.
+env:
+  CARGO_HTTP_MULTIPLEXING: "false"
+
 jobs:
   run-tests:
     name: Run Rust tests
@@ -19,14 +23,16 @@ jobs:
         include:
           #- service: braid # these take too long!
           - service: electoral-log
+          - service: trellis
+            extra: --features upstream-service --lib --example monitor --example post
           - service: harvest
           - service: strand
-          - service: immu-board
-          - service: immudb-rs
           - service: sequent-core
             extra: --features keycloak,default_features
           - service: step-cli
           - service: velvet
+            # PDF tests launch Chrome; serialize them and bound report workers.
+            extra: -- --test-threads=1
           - service: wrap-map-err
 
       fail-fast: false
@@ -67,6 +73,7 @@ jobs:
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
           CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
+          RAYON_NUM_THREADS: ${{ matrix.service == 'velvet' && '2' || '0' }}
         run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
 
   # Windmill has PostgreSQL-backed tests, so it uses a dedicated job with an
@@ -94,6 +101,14 @@ jobs:
       DEFAULT_SQL_LIMIT: "20"
       DEFAULT_SQL_BATCH_SIZE: "1000"
       CARGO_BUILD_JOBS: "2"
+      ELECTORAL_LOG_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+      ELECTORAL_LOG_PG_HOST: "127.0.0.1"
+      ELECTORAL_LOG_PG_PORT: "3322"
+      ELECTORAL_LOG_PG_USER: "test"
+      ELECTORAL_LOG_PG_PASSWORD: "test"
+      ELECTORAL_LOG_PG_DATABASE: "test"
+      ELECTORAL_LOG_PG_SSLMODE: "disable"
+      ENV_SLUG: "electoral-log-tests"
     services:
       postgres:
         image: postgres:16
@@ -123,12 +138,21 @@ jobs:
         run: cargo test
         working-directory: packages/windmill
 
-      - name: Run PostgreSQL-backed voter-channel regression
-        run: >-
-          cargo test
-          services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote
-          -- --ignored --exact
-        working-directory: packages/windmill
+      - name: Test PostgreSQL electoral-log contract
+        run: cd packages && cargo test -p electoral-log --lib --test postgres --test ballot_box -- --ignored --test-threads=1
+
+      - name: Test electoral-log application wiring
+        run: cd packages && cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1
+
+      - name: Test upstream Trellis security regressions with PostgreSQL
+        env:
+          TRELLIS_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/trellis_security?sslmode=disable"
+        run: |
+          docker exec "${{ job.services.postgres.id }}" createdb -U test trellis_security
+          cd packages
+          cargo test -p trellis --features upstream-service --lib \
+            service::processor::tests::postgres_source_reconciliation_and_tree_recovery \
+            -- --ignored --exact --test-threads=1
 
   # ===========================================================================
   # JOB: run-frontend-tests
@@ -150,6 +174,9 @@ jobs:
             test_args: --runInBand
           - package: voting-portal
             test_args: --runInBand
+          - package: ballot-verifier
+            test_args: --runInBand
+            build_libs: true
           - package: keycloak-extensions/sequent-theme
             test_args: ''
       fail-fast: false
@@ -166,6 +193,15 @@ jobs:
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile --non-interactive --prefer-offline
+        working-directory: packages
+
+      # ui-core and ui-essentials are consumed through their dist/ bundles,
+      # which yarn install does not produce. Suites that resolve either package
+      # need them built first, mocked ones included: jest.mock() still resolves
+      # the module before it swaps in the factory.
+      - name: Build workspace libraries
+        if: matrix.build_libs
+        run: yarn build:ui-core && yarn build:ui-essentials
         working-directory: packages
 
       - name: Run ${{ matrix.package }} tests

@@ -28,8 +28,8 @@ Verifies the large-scale CSV export path (`generate_export_csv_data`) under a
 realistic load and measures its heap usage. The test:
 
 1. Reads `tenant_id` and `election_event_id` from the external config file.
-2. Creates a fresh ImmuDB database (using a time-stamped slug so each run gets a
-   clean database — ImmuDB's delete is unreliable).
+2. Creates a fresh electoral-log board (using a time-stamped slug so each run
+   gets a clean board).
 3. Seeds 120 000 log entries by calling the `step-cli` binary.
 4. Wraps the call to `generate_export_csv_data` with a
    [dhat](https://docs.rs/dhat) heap profiler so peak memory usage is recorded.
@@ -44,7 +44,7 @@ This test is marked `#[ignore]` (see [Running ignored tests](#running-ignored-te
 
 This test is annotated with `#[ignore]` because it:
 
-- Requires a live ImmuDB instance and Keycloak database.
+- Requires the electoral-log PostgreSQL database and Keycloak database.
 - Seeds 120 000 entries — expensive in time and resources.
 - Is therefore skipped in GitHub Actions CI.
 
@@ -112,7 +112,7 @@ directory when running tests (typically `packages/windmill/`).
 
 Running it in GitHub Actions would:
 
-- Require a live ImmuDB + Keycloak environment in the CI runner.
+- Require the electoral-log PostgreSQL + Keycloak environment in the CI runner.
 - Seed 120 000 log entries per run, making the job slow and expensive.
 - Produce a `dhat-heap.json` artefact that is only meaningful when reviewed
   manually.
@@ -125,7 +125,7 @@ development when investigating memory regressions.
 ## Seeding Electoral Logs with step-cli
 
 The test above internally calls the `step-cli` binary to seed log entries into
-ImmuDB. You can also run that command manually — for example, to load log
+the electoral log. You can also run that command manually — for example, to load log
 entries into an existing election event's electoral log for manual QA or
 performance testing.
 

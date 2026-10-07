@@ -2,12 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::cast_vote::{
-    compare_and_set_cast_vote_status, get_cast_vote_by_id, has_valid_cast_vote,
-};
 use crate::postgres::election_event::{get_election_event_by_id, ElectionEventDatafix};
-use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
+use crate::services::election_event_board::get_election_event_board;
 use crate::services::external;
 use crate::services::external::datafix_types::{SoapRequest, SoapRequestResponse};
 use crate::services::external::utils::{
@@ -16,10 +13,13 @@ use crate::services::external::utils::{
 };
 use crate::services::external::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
+use crate::services::protocol_manager::get_electoral_log_store;
 use crate::types::error::Result;
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
+use electoral_log::adapters::ballot_box::BallotStatus;
+use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::messages::newtypes::ExtApiRequestDirection;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
@@ -31,8 +31,8 @@ use std::time::Duration as StdDuration;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
-/// Processes a single Datafix vote left `in-progress` by the insert path:
-/// reloads the row, skips it unless it is still `in-progress`, then takes the
+/// Processes a single Datafix vote left pending by the insert path: reloads the
+/// vote, skips it unless it is still pending, then takes the
 /// event-wide per-voter lock and delegates the actual send to
 /// `process_locked_cast_vote`. The lock is always released, and its release
 /// error is only surfaced after the processing result so a failed send is not
@@ -45,23 +45,17 @@ pub async fn process_cast_vote(
     election_event_id: String,
     cast_vote_id: String,
 ) -> Result<()> {
-    let cast_vote_id =
-        Uuid::parse_str(&cast_vote_id).map_err(|err| format!("Invalid cast_vote_id: {err}"))?;
-    let Some(cast_vote) = load_cast_vote(&tenant_id, &election_event_id, &cast_vote_id).await?
+    let cast_vote_id = Uuid::parse_str(&cast_vote_id)
+        .map_err(|err| format!("Invalid cast_vote_id: {err}"))?
+        .to_string();
+    let Some(cast_vote) = load_pending_vote(&tenant_id, &election_event_id, &cast_vote_id).await?
     else {
-        info!("Cast vote no longer exists; skipping");
+        info!("Cast vote no longer exists or is no longer pending; skipping");
         return Ok(());
     };
-    if cast_vote.status != CastVoteStatus::InProgress {
-        info!("Cast vote is no longer in-progress; skipping");
-        return Ok(());
-    }
 
-    let voter_id = cast_vote
-        .voter_id_string
-        .as_deref()
-        .ok_or("Voter id not found")?;
-    let voter_id = Uuid::parse_str(voter_id).map_err(|err| format!("Invalid voter id: {err}"))?;
+    let voter_id =
+        Uuid::parse_str(&cast_vote.voter_id).map_err(|err| format!("Invalid voter id: {err}"))?;
     let lock = match PgLock::acquire(
         external_voter_lock_key(
             &cast_vote.tenant_id,
@@ -90,30 +84,26 @@ pub async fn process_cast_vote(
 
 /// Runs the Datafix send while the per-voter lock is held: validates the
 /// event's Datafix configuration, resolves the voter, and sends `SetVoted`,
-/// transitioning the row to its terminal status. Any error response or
-/// transport failure leaves the vote `in-progress`: it is retried on the next
-/// beat and, if the situation persists, requires manual reconciliation.
+/// transitioning the vote to its terminal status. Any definitive VoterView
+/// answer, including a rejection or a SOAP fault, makes the vote `valid`. The
+/// vote stays pending, to be retried on the next beat, when the request
+/// cannot be prepared or delivered, or when its outcome is ambiguous: it may
+/// have been delivered, but no usable answer came back.
 #[instrument(skip(lock), fields(cast_vote_id = %cast_vote_id), err)]
 async fn process_locked_cast_vote(
     tenant_id: &str,
     election_event_id: &str,
-    cast_vote_id: &Uuid,
+    cast_vote_id: &str,
     lock: &PgLock,
 ) -> Result<()> {
-    let Some(cast_vote) = load_cast_vote(tenant_id, election_event_id, cast_vote_id).await? else {
+    let Some(cast_vote) = load_pending_vote(tenant_id, election_event_id, cast_vote_id).await?
+    else {
+        info!("Cast vote is no longer pending; skipping");
         return Ok(());
     };
-    if cast_vote.status != CastVoteStatus::InProgress {
-        info!("Cast vote is no longer in-progress; skipping");
-        return Ok(());
-    }
 
-    let voter_id = cast_vote
-        .voter_id_string
-        .as_deref()
-        .ok_or("Voter id not found")?;
-    let election_event = load_election_event(&cast_vote).await?;
-    datafix_annotations(&election_event)
+    let voter_id = cast_vote.voter_id.as_str();
+    datafix_annotations(&cast_vote.election_event)
         .map_err(|err| format!("Invalid Datafix configuration: {err}"))?
         .ok_or("Cast vote is pending but the election event is not configured for Datafix")?;
 
@@ -132,12 +122,8 @@ async fn process_locked_cast_vote(
         .map_err(|err| format!("Datafix voter lock was lost after Keycloak lookup: {err}"))?;
 
     if user.enabled != Some(true) || voted_via_not_internet_channel(&attributes) {
-        let changed = transition_cast_vote(
-            &cast_vote,
-            CastVoteStatus::InProgress,
-            CastVoteStatus::Discarded,
-        )
-        .await?;
+        let changed =
+            transition_cast_vote(&cast_vote, BallotStatus::Pending, BallotStatus::Rejected).await?;
         audit_operation(
             &cast_vote,
             voter_id,
@@ -153,15 +139,11 @@ async fn process_locked_cast_vote(
     }
 
     let is_internet_voter = voted_via_internet(&attributes);
-    let prior_valid_vote = has_prior_valid_vote(&cast_vote, voter_id).await?;
+    let prior_valid_vote = has_prior_valid_vote(&cast_vote).await?;
 
     if is_internet_voter || prior_valid_vote {
-        let changed = transition_cast_vote(
-            &cast_vote,
-            CastVoteStatus::InProgress,
-            CastVoteStatus::Valid,
-        )
-        .await?;
+        let changed =
+            transition_cast_vote(&cast_vote, BallotStatus::Pending, BallotStatus::Valid).await?;
 
         if changed && !is_internet_voter {
             if let Err(err) = mark_voted_via_internet(&realm, voter_id).await {
@@ -174,7 +156,7 @@ async fn process_locked_cast_vote(
 
     let prepared = external::voterview_requests::prepare(
         SoapRequest::SetVoted,
-        ElectionEventDatafix(election_event),
+        ElectionEventDatafix(cast_vote.election_event.clone()),
         &Some(username.clone()),
     )
     .await
@@ -242,8 +224,8 @@ async fn process_locked_cast_vote(
                 | SoapRequestResponse::Rejected(_)) => {
                     let changed = transition_cast_vote(
                         &cast_vote,
-                        CastVoteStatus::InProgress,
-                        CastVoteStatus::Valid,
+                        BallotStatus::Pending,
+                        BallotStatus::Valid,
                     )
                     .await?;
                     format!(
@@ -256,15 +238,16 @@ async fn process_locked_cast_vote(
             audit_operation(&cast_vote, voter_id, &username, operation).await;
         }
         Err(SoapSendError::NotDispatched(err)) => {
-            // Everything else being equal, a transport failure is treated as a transient error and the vote is left in-progress for the next beat to retry.
-            // A persistently erroring vote is caught and fixed by the
-            // manual daily reconciliation process, not by this pipeline.
+            // Everything else being equal, a transport failure is treated as a transient error and the vote is left pending for the next beat to retry.
+            // A persistently erroring vote is not fixed by this pipeline: it
+            // blocks the tally and reconciliation reports it as a row failure
+            // until an operator resolves it.
             let operation = format!(
                 "SetVoted NotDispatched: connection-error (template_sha256={template_sha256})"
             );
             audit_operation(&cast_vote, voter_id, &username, operation).await;
             return Err(format!(
-                "VoterView SetVoted was not dispatched; the vote stays in-progress: {err}"
+                "VoterView SetVoted was not dispatched; the vote stays pending: {err}"
             )
             .into());
         }
@@ -274,7 +257,7 @@ async fn process_locked_cast_vote(
             );
             audit_operation(&cast_vote, voter_id, &username, operation).await;
             return Err(format!(
-                "VoterView SetVoted outcome is ambiguous; the vote stays in-progress: {err}"
+                "VoterView SetVoted outcome is ambiguous; the vote stays pending: {err}"
             )
             .into());
         }
@@ -283,128 +266,115 @@ async fn process_locked_cast_vote(
     Ok(())
 }
 
-/// Loads the cast vote by id in its own short transaction, or `None` if it no
-/// longer exists.
-#[instrument(fields(cast_vote_id = %cast_vote_id), err)]
-async fn load_cast_vote(
+/// A Datafix vote whose outcome is pending, with the ballot box that holds it.
+struct PendingVote {
+    id: String,
+    tenant_id: String,
+    election_event_id: String,
+    voter_id: String,
+    election_event: ElectionEvent,
+    store: PostgresStore,
+}
+
+/// Loads the vote by id, or `None` if there is no such vote or its outcome is
+/// already known.
+#[instrument(err)]
+async fn load_pending_vote(
     tenant_id: &str,
     election_event_id: &str,
-    cast_vote_id: &Uuid,
-) -> Result<Option<CastVote>> {
-    let mut client: DbClient = get_hasura_pool()
+    cast_vote_id: &str,
+) -> Result<Option<PendingVote>> {
+    let election_event = {
+        let mut client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
+        let transaction = client
+            .build_transaction()
+            .read_only(true)
+            .start()
+            .await
+            .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
+        get_election_event_by_id(&transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|err| format!("Error loading election event: {err:?}"))?
+    };
+    let board = get_election_event_board(election_event.bulletin_board_reference.clone())
+        .ok_or("Election event has no electoral-log board")?;
+    let store = get_electoral_log_store(&board)
         .await
-        .get()
+        .map_err(|err| format!("Error opening the event's ballot box: {err:?}"))?;
+    let Some(ballot) = store
+        .pending_ballot(election_event_id, cast_vote_id)
         .await
-        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
-    get_cast_vote_by_id(&transaction, tenant_id, election_event_id, cast_vote_id)
-        .await
-        .map_err(|err| format!("Error loading cast vote: {err:?}").into())
+        .map_err(|err| format!("Error loading cast vote: {err:?}"))?
+    else {
+        return Ok(None);
+    };
+    Ok(Some(PendingVote {
+        id: ballot.id,
+        tenant_id: tenant_id.to_string(),
+        election_event_id: election_event_id.to_string(),
+        voter_id: ballot.voter_id,
+        election_event,
+        store,
+    }))
 }
 
-/// Loads the election event that owns the cast vote, needed for its Datafix
-/// configuration and realm.
-#[instrument(skip(cast_vote), fields(election_event_id = %cast_vote.election_event_id), err)]
-async fn load_election_event(cast_vote: &CastVote) -> Result<ElectionEvent> {
-    let mut client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
-    get_election_event_by_id(
-        &transaction,
-        &cast_vote.tenant_id,
-        &cast_vote.election_event_id,
-    )
-    .await
-    .map_err(|err| format!("Error loading election event: {err:?}").into())
-}
-
-/// Returns whether the voter already has a `valid` vote for the event; a prior
-/// valid vote means this ballot must not be counted a second time.
+/// Returns whether the voter already has a valid vote for the event; a prior
+/// valid vote makes this a re-vote, promoted without sending `SetVoted` again.
 #[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
-async fn has_prior_valid_vote(cast_vote: &CastVote, voter_id: &str) -> Result<bool> {
-    let mut client: DbClient = get_hasura_pool()
+async fn has_prior_valid_vote(cast_vote: &PendingVote) -> Result<bool> {
+    let state = cast_vote
+        .store
+        .voter_ballot_state(&cast_vote.election_event_id, &cast_vote.voter_id)
         .await
-        .get()
-        .await
-        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
-    has_valid_cast_vote(
-        &transaction,
-        &cast_vote.tenant_id,
-        &cast_vote.election_event_id,
-        voter_id,
-    )
-    .await
-    .map_err(|err| format!("Error checking prior valid votes: {err:?}").into())
+        .map_err(|err| format!("Error checking prior valid votes: {err:?}"))?;
+    Ok(state.has_valid)
 }
 
-/// Compare-and-sets the vote from `expected` to `next` in its own transaction,
-/// returning whether the row moved. A `false` result is logged (not an error):
-/// it means another worker already advanced the row past `expected`.
+/// Compare-and-sets the vote from `expected` to `next`, returning whether it
+/// moved. A `false` result is logged (not an error): it means another worker
+/// already advanced the vote past `expected`.
 #[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id), err)]
 async fn transition_cast_vote(
-    cast_vote: &CastVote,
-    expected: CastVoteStatus,
-    next: CastVoteStatus,
+    cast_vote: &PendingVote,
+    expected: BallotStatus,
+    next: BallotStatus,
 ) -> Result<bool> {
-    let cast_vote_id = Uuid::parse_str(&cast_vote.id)
-        .map_err(|err| format!("Invalid cast_vote_id in stored row: {err}"))?;
-    let mut client: DbClient = get_hasura_pool()
+    let changed = cast_vote
+        .store
+        .set_ballot_status(
+            &cast_vote.election_event_id,
+            &cast_vote.voter_id,
+            &cast_vote.id,
+            expected,
+            next,
+        )
         .await
-        .get()
-        .await
-        .map_err(|err| format!("Error getting Hasura DB client: {err:?}"))?;
-    let transaction = client
-        .transaction()
-        .await
-        .map_err(|err| format!("Error starting Hasura transaction: {err:?}"))?;
-    let changed = compare_and_set_cast_vote_status(
-        &transaction,
-        &cast_vote.tenant_id,
-        &cast_vote.election_event_id,
-        &cast_vote_id,
-        expected,
-        next,
-    )
-    .await
-    .map_err(|err| format!("Error transitioning cast vote status: {err:?}"))?;
-    transaction
-        .commit()
-        .await
-        .map_err(|err| format!("Error committing cast vote status: {err:?}"))?;
+        .map_err(|err| format!("Error transitioning cast vote status: {err:?}"))?;
     if !changed {
         warn!("Cast vote status changed concurrently; terminal status was not overwritten");
     }
     Ok(changed)
 }
 
-/// Promotes an in-progress vote and then records the Internet channel. A
-/// Keycloak failure is traced and left for the reconciliation process; it does
-/// not roll back the terminal Hasura status.
+/// Promotes a pending vote and then records the Internet channel. A Keycloak
+/// failure is only traced: it does not roll back the vote's valid status, and nothing records the channel afterwards unless the voter votes
+/// again. Until then a disable discards the ballot without owing `SetNotVoted`.
 #[instrument(
     skip(cast_vote),
     fields(cast_vote_id = %cast_vote.id),
     err
 )]
 async fn transition_cast_vote_and_mark_internet(
-    cast_vote: &CastVote,
+    cast_vote: &PendingVote,
     realm: &str,
     voter_id: &str,
 ) -> Result<bool> {
     let changed =
-        transition_cast_vote(cast_vote, CastVoteStatus::InProgress, CastVoteStatus::Valid).await?;
+        transition_cast_vote(cast_vote, BallotStatus::Pending, BallotStatus::Valid).await?;
     if changed {
         if let Err(err) = mark_voted_via_internet(realm, voter_id).await {
             error!("Could not mark the voter Internet channel: {err}");
@@ -416,7 +386,12 @@ async fn transition_cast_vote_and_mark_internet(
 /// Records the outcome of an outbound Datafix operation in the electoral log.
 /// Failures are logged and swallowed so auditing never fails the vote itself.
 #[instrument(skip(cast_vote), fields(cast_vote_id = %cast_vote.id))]
-async fn audit_operation(cast_vote: &CastVote, voter_id: &str, username: &str, operation: String) {
+async fn audit_operation(
+    cast_vote: &PendingVote,
+    voter_id: &str,
+    username: &str,
+    operation: String,
+) {
     let operation = format!("cast_vote_id={}; {operation}", cast_vote.id);
     let Ok(mut client) = get_hasura_pool().await.get().await else {
         error!("Unable to get a DB connection for the Datafix audit entry");

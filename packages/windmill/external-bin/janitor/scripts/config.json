@@ -35,9 +35,6 @@
     "min_age": 18,
     "max_age": 90
   },
-  "duplicate_votes": {
-    "row_id_to_clone": "a2d4b909-ea96-4de8-b1c1-57a392d1d5b3"
-  },
   "generate_applications": {
     "applicant_data": {
       "email":"",

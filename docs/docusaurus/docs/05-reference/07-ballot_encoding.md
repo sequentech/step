@@ -87,7 +87,33 @@ Configurations that violate either rule are invalid and must be rejected before
 the voter is allowed to proceed. An implementation must not silently choose one
 marker and ignore the others.
 
-### 3.3 Mixed-radix representation
+### 3.3 Acclaimed contests
+
+A contest with `is_acclaimed: true` is part of the displayed ballot
+configuration but is not part of the encoded ballot. Encoders and decoders must
+exclude acclaimed contests before ordering contests, constructing mixed-radix
+bases, validating selections, or comparing decoded contests.
+
+Consequently:
+
+- an acclaimed contest contributes no choice, radix position, ciphertext, or
+  decoded contest;
+- adding or removing an acclaimed contest does not change the encoded value of
+  the remaining votable contests;
+- a selection-state entry for an acclaimed contest is ignored at the encoding
+  boundary; and
+- a missing or false `is_acclaimed` value means the contest is votable, which
+  preserves ballot styles created before this field existed.
+
+Applications may merge acclaimed contests from the embedded ballot
+configuration into review or verification screens, but these entries are
+presentation-only and must never be added to decoded ballot data.
+
+The ballot configuration is still embedded in the auditable ballot and covered
+by its hash. Changing an acclaimed contest after publication can therefore
+change or invalidate Ballot IDs even though the contest has no plaintext slot.
+
+### 3.4 Mixed-radix representation
 
 The codec produces two aligned vectors:
 
@@ -528,3 +554,23 @@ Consumers that only understand the aggregate blank count may continue to use the
 consolidated blank total. Consumers that need full semantic fidelity must retain
 the explicit-versus-implicit blank distinction exposed by decoding and tally
 results.
+
+## 14. Verifying an auditable ballot
+
+An auditable ballot carries, for every encoded contest, the ciphertext that
+was cast together with the plaintext and the randomness used to produce it.
+Decoding the plaintext shows what the ballot says; it does not show that the
+ciphertext actually encrypts it. A verifier must therefore:
+
+1. parse the public key of the ballot style included in the ballot
+2. check that the contests named by the ballot are exactly the votable
+   contests of that ballot style, each named once
+3. encrypt each plaintext again with the recorded randomness and the public
+   key, and compare the result with the ciphertext carried by the ballot
+
+Both encodings are verified this way: the single-contest codec has one
+ciphertext per contest, the multi-contest codec has a single ciphertext for
+the whole ballot. Any mismatch, and any ballot that cannot be checked (missing
+or malformed public key, contests that do not match the ballot style), must be
+reported as a verification failure rather than shown as a verified ballot. The
+Ballot Verifier performs this check before displaying the decoded ballot.

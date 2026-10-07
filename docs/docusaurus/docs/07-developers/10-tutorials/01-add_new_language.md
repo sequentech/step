@@ -107,14 +107,16 @@ adding a new warning rather than a new language.
             [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
         })
         ```
-    * **Add to `triggerOverrideTranslations` function**:
-        Similarly, add the new language to the `overwriteTranslations` call within this function.
+    * **Keep the scoped tenant override call in `triggerOverrideTranslations`**:
+        Tenant overrides are restricted to the Admin Portal, including legacy unprefixed keys.
         ```typescript
-        overwriteTranslations({
-            // ... other languages
-            [lang_code]: [lang_code]Translation, // e.g., eu: basqueTranslation,
+        overwriteTranslations(i18n ? {i18n} : undefined, {
+            scope: ETranslationScope.ADMIN_PORTAL,
+            legacyScope: ETranslationScope.ADMIN_PORTAL,
         })
         ```
+        The tenant `i18n` object already contains every configured language, so no per-language
+        entry is needed in this call.
     * **Add to `getAllLangs` function**:
         Add the new language code to the array returned by this function.
         ```typescript

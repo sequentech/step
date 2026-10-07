@@ -47,6 +47,9 @@ const tagalogTranslation: TranslationType = {
             version: "Bersyon {{version}}",
             publicAccess: "Pampublikong access",
             signedInAccess: "Access na naka-sign in",
+            acclaimed: "Nanalo sa pamamagitan ng aklamasyon",
+            acclamationNote:
+                "Nanalo sa pamamagitan ng aklamasyon. Ang paligsahang ito ay napagpasyahan nang walang botohan, kaya walang naitalang boto.",
             published: "Nailathala",
             notPublishedYet: "Hindi pa nailalathala",
             position_one: "{{count}} posisyon",
@@ -75,6 +78,7 @@ const tagalogTranslation: TranslationType = {
                 totalVotesCounted: "Kabuuang botong nabilang",
                 validVotes: "Mga wastong boto",
                 participation: "Partisipasyon",
+                totalBlankBallots: "Kabuuang blangkong balota",
             },
             resultsAndParticipation: {
                 participationSummary: "Buod ng Partisipasyon",

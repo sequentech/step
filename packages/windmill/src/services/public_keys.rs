@@ -46,7 +46,7 @@ pub async fn create_keys(
         .map(deserialize_public_key)
         .collect::<Result<Vec<_>>>()?;
 
-    // add config to board on immudb
+    // add config to the B3 bulletin board
     protocol_manager::add_config_to_board::<RistrettoCtx>(threshold, board_name, trustee_pks, pm)
         .await?;
 

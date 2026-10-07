@@ -209,6 +209,13 @@ const frenchTranslation: TranslationType = {
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
+                audit: "Auditer",
+            },
+            auditDialog: {
+                title: "Auditer le journal électoral",
+                confirm: "Auditer",
+                description:
+                    "L'audit vérifie chaque entrée du journal par rapport à son journal Merkle et contrôle les points de contrôle publiés. Le résultat est enregistré en tant que tâche.",
             },
             exportdialog: {
                 description:
@@ -255,7 +262,10 @@ const frenchTranslation: TranslationType = {
                 logs: "Journaux",
             },
             tasksExecution: {
+                DELETE_TENANT: "Supprimer l’organisation",
+                PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
+                AUDIT_ELECTORAL_LOG: "Auditer le journal électoral",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -277,6 +287,7 @@ const frenchTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exporter les Modèles",
                 IMPORT_TEMPLATES: "Importer les Modèles",
                 DELETE_ELECTION_EVENT: "Supprimer l'événement électoral",
+                DELETE_VOTERS: "Supprimer les électeurs",
                 PREPARE_PUBLICATION_PREVIEW: "Préparer l'aperçu de la publication",
                 EXPORT_TALLY_RESULTS_XLSX: "Exporter les résultats du dépouillement au format XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exporter les autorités de certification",
@@ -500,6 +511,7 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    duplicateKey: "Un remplacement avec cette clé et cette portée existe déjà.",
                     invalidDateTimeFormat:
                         "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
@@ -509,7 +521,16 @@ const frenchTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clé",
+                    scope: "Portée du portail",
                     value: "Valeur",
+                },
+                scopes: {
+                    legacy: "Hérité ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portail de vote",
+                    ballotVerifier: "Vérificateur de bulletins",
+                    resultsPortal: "Portail des résultats",
+                    adminPortal: "Portail d'administration",
                 },
             },
             field: {
@@ -552,12 +573,23 @@ const frenchTranslation: TranslationType = {
                 language: "Langue",
                 votingChannels: "Canaux de Vote",
                 materialActivated: "Matériaux de Support activés",
+                supportMaterialsPolicy: {
+                    label: "Politique des Matériaux de Support",
+                    helperText:
+                        "L'option Obligatoire pour Voter exige que les électeurs ouvrent chaque Matériau de Support et confirment qu'ils l'ont lu avant de pouvoir voter.",
+                    options: {
+                        off: "Désactivé",
+                        optional: "Facultatif",
+                        mandatory_for_voting: "Obligatoire pour Voter",
+                    },
+                },
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
                 logoUrl: "URL du Logo",
                 userVerification:
                     "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
+                kioskRedirectFinishUrl: "URL de redirection à la fin du vote en kiosque",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
@@ -660,8 +692,13 @@ const frenchTranslation: TranslationType = {
                     policyLabel: "Politique de Vote Pondéré",
                     options: {
                         "areas-weighted-voting": "Vote Pondéré par Zones",
+                        "voters-weighted-voting": "Vote Pondéré par Électeurs",
                         "disabled-weighted-voting": "Vote Pondéré Désactivé",
                     },
+                    noDelegated:
+                        "Le Vote Pondéré par Électeurs ne peut pas être combiné avec le Vote Délégué",
+                    noDecodedBallots:
+                        "Le Vote Pondéré par Électeurs ne peut pas être combiné avec l'inclusion des bulletins déchiffrés dans les résultats",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Politique de vote délégué",
@@ -780,6 +817,10 @@ const frenchTranslation: TranslationType = {
                 statusLabel: "État",
                 waitingKeys: "En attente de la Génération de Clés..",
                 started: "Commencée à",
+                actions: {
+                    participate: "Participer à la cérémonie des clés",
+                    view: "Voir la cérémonie des clés",
+                },
                 breadCrumbs: {
                     configure: "Configurer",
                     ceremony: "Cérémonie",
@@ -905,6 +946,8 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "L'exportation peut être une opération longue. Êtes-vous sûr de vouloir exporter les enregistrements ?",
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
+                passwordForcedNote:
+                    "L'archive sera protégée par mot de passe de toute façon : les rapports, les demandes et les données du tableau d'affichage sont toujours chiffrés. Cochez la case pour inclure aussi les champs secrets des électeurs déchiffrés.",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
                 bulletinBoard: "Tableau d'Affichage",
@@ -1035,6 +1078,13 @@ const frenchTranslation: TranslationType = {
                     disabled: "Désactivé",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Politique des bulletins blancs",
+                options: {
+                    enabled: "Activé",
+                    disabled: "Désactivé",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Politique du bouton Retour de l’écran de vote",
                 options: {
@@ -1098,6 +1148,8 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
+                    "support_materials_viewed": "Matériaux de Support consultés",
+                    "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",
                     "username": "Nom d'Utilisateur",
@@ -1128,6 +1180,12 @@ const frenchTranslation: TranslationType = {
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ?",
+                    bulkBodySelected:
+                        "Supprimer les {{count}} utilisateurs sélectionnés ? Cette action est irréversible.",
+                    bulkBodyChoose:
+                        "{{count}} utilisateurs sont sélectionnés. Vous pouvez plutôt supprimer tous les utilisateurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des utilisateurs",
@@ -1153,6 +1211,18 @@ const frenchTranslation: TranslationType = {
                 },
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                secretAttribute: {
+                    storedPlaceholder: "Valeur chiffrée enregistrée",
+                    reveal: "Afficher",
+                    hide: "Masquer",
+                    revealError: "Le champ chiffré de l'électeur n'a pas pu être affiché",
+                    includeInExport: "Inclure les champs secrets déchiffrés de l'électeur",
+                    exportWarning:
+                        "Exportation sensible : le CSV téléchargé contiendra ces champs en texte clair.",
+                    clear: "Effacer",
+                    add: "Ajouter une valeur",
+                    remove: "Supprimer la valeur",
+                },
                 review: {
                     title: "Vérifier les modifications",
                     subtitle: "Confirmez ces mises à jour avant de les soumettre.",
@@ -1180,13 +1250,42 @@ const frenchTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
+                    editErrorReason: "Erreur lors de l'édition de l'électeur : {{reason}}",
                     editSuccess: "Électeur édité",
                     createError: "Erreur lors de la création de l'électeur",
+                    createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
+                    attribute: {
+                        invalidNamed: '"{{field}}" a été refusé : {{constraint}}',
+                        fieldsToCorrect:
+                            "Certains champs doivent être corrigés avant d'enregistrer",
+                        hintBetween: "Entre {{min}} et {{max}} caractères",
+                        hintMin: "Au moins {{min}} caractères",
+                        hintMax: "Au maximum {{max}} caractères",
+                        andMore: "et {{count}} de plus",
+                        invalidLength:
+                            '"{{field}}" doit contenir entre {{min}} et {{max}} caractères',
+                        tooShort: '"{{field}}" doit contenir au moins {{min}} caractères',
+                        tooLong: '"{{field}}" doit contenir au maximum {{max}} caractères',
+                        required: '"{{field}}" est obligatoire',
+                        invalidEmail: '"{{field}}" doit être une adresse e-mail valide',
+                        invalidFormat: '"{{field}}" n\'a pas le format attendu',
+                        invalid: '"{{field}}" a une valeur non valide',
+                    },
+                    createPasswordError:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini",
+                    createPasswordErrorReason:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini : {{reason}}",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
                     bulkBody: "Êtes-vous sûr de vouloir supprimer les électeurs sélectionnés ?",
+                    bulkBodySelected:
+                        "Supprimer les {{count}} électeurs sélectionnés ? Cette action est irréversible.",
+                    bulkBodyChoose:
+                        "{{count}} électeurs sont sélectionnés. Vous pouvez plutôt supprimer tous les électeurs correspondant aux filtres actuels, qui peuvent être plus nombreux. Cette action est irréversible.",
+                    okSelected: "Supprimer les {{count}} sélectionnés",
+                    okAllMatching: "Supprimer tous les résultats correspondants",
                 },
                 notifications: {
                     exportError: "Erreur lors de l'exportation des électeurs",
@@ -1235,6 +1334,7 @@ const frenchTranslation: TranslationType = {
                 "tenant-create": "Créer Locataire",
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
+                "tenant-delete": "Supprimer Locataire",
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",
@@ -1244,6 +1344,8 @@ const frenchTranslation: TranslationType = {
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
                 "voter-write": "Éditer Électeur",
+                "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
+                "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",
@@ -1280,6 +1382,11 @@ const frenchTranslation: TranslationType = {
                 "publish-results-read": "Lire Publication des Résultats",
                 "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
+                "electoral-log-audit": "Auditer le Journal Électoral",
+                "electoral-log-console-read": "Parcourir le Journal Électoral",
+                "electoral-log-console-query": "Interroger le Journal Électoral",
+                "electoral-log-personal-data-read":
+                    "Lire les Données Personnelles du Journal Électoral",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
@@ -1295,7 +1402,6 @@ const frenchTranslation: TranslationType = {
                 "tally-sheet-view": "Voir Acte de Comptage",
                 "admin-ceremony": "Administrer Cérémonie de Clés",
                 "tally-sheet-delete": "Supprimer Acte de Comptage",
-                "cast-vote-read": "Lire Votes Émis",
                 "document-read": "Lire Documents",
                 "document-write": "Éditer Documents",
                 "support-material-read": "Lire Matériaux de Support",
@@ -1444,6 +1550,23 @@ const frenchTranslation: TranslationType = {
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
                 "google-meet-link": "Générer un Lien Google Meet",
+                "service-account": "Compte de service",
+                "datafix-account": "Compte de correction des données",
+                "gold": "Or",
+                "silver": "Argent",
+                "election-event-ivr-tab": "Afficher l’IVR de l’événement électoral",
+                "election-event-cas-tab": "Afficher le CAS de l’événement électoral",
+                "ca-read": "Consulter les autorités de certification",
+                "ca-write": "Modifier les autorités de certification",
+                "generate-preview": "Générer l’aperçu",
+                "preview-read": "Consulter l’aperçu",
+                "tally-resolution-submit": "Soumettre la résolution du dépouillement",
+                "phone-blacklist-read": "Consulter la liste noire téléphonique",
+                "phone-blacklist-create": "Créer des entrées dans la liste noire téléphonique",
+                "phone-blacklist-update": "Modifier des entrées de la liste noire téléphonique",
+                "phone-blacklist-delete": "Supprimer des entrées de la liste noire téléphonique",
+                "election-event-voter-list-reconciliation":
+                    "Rapprocher la liste électorale de l’événement",
             },
         },
         generalSettingsScreen: {
@@ -1458,6 +1581,8 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création de l'Événement Planifié",
                 editSuccess: "Événement Planifié modifié avec succès",
                 editError: "Erreur lors de la modification de l'Événement Planifié",
+                onlineWithEarlyVoting:
+                    "Une planification de début ne peut pas ouvrir à la fois le vote en ligne et le vote anticipé : le vote anticipé doit commencer avant le vote en ligne.",
             },
             eventType: {
                 label: "Type",
@@ -1677,6 +1802,7 @@ const frenchTranslation: TranslationType = {
             electionEvents: "Processus Électoraux",
             search: "Chercher",
             usersAndRoles: "Utilisateurs et Rôles",
+            electoralLogConsole: "Journal Électoral",
             logs: "Journaux",
             settings: "Configuration",
             help: "Aide",
@@ -1818,6 +1944,7 @@ const frenchTranslation: TranslationType = {
                 "warn": "Avertissement",
                 "warn-invalid-implicit-and-explicit": "Avertir Inválidos Implicites et Explicites",
                 "not-allowed": "Non Permis",
+                "allowed-with-exclusive-explicit": "Permis avec Vote Invalide Explicite Exclusif",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forme d’icône de case à cocher pour les candidats",
@@ -1870,6 +1997,11 @@ const frenchTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Nom de la page",
+            },
+            isAcclaimed: {
+                label: "Acquis par acclamation",
+                helperText:
+                    "Les électeurs voient ce scrutin mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
             },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
@@ -1960,8 +2092,12 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "Pour continuer, veuillez télécharger et sauvegarder votre Clé Privée Cryptée sur au moins deux appareils différents :",
                 downloadButton: "Télécharger votre Clé Privée Cryptée",
-                errorDownloading: "Erreur de téléchargement : {{error}}",
+                downloaded: "Clé Privée Cryptée téléchargée avec succès.",
                 errorEmptyKey: "Erreur de téléchargement, fichier vide",
+                unexpectedError: "La clé privée n'a pas pu être téléchargée. Veuillez réessayer.",
+                alreadyVerified: "Votre clé privée a déjà été téléchargée et vérifiée.",
+                unavailable:
+                    "Le téléchargement de la clé privée n'est plus disponible car la cérémonie a progressé.",
                 confirmdDialog: {
                     ok: "Confirmer les copies de sauvegarde et Continuer",
                     cancel: "Revenir",
@@ -1976,13 +2112,14 @@ const frenchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Vérifiez vos Copies de Sauvegarde de votre Clé Privée Cryptée",
+                verifyButton: "Vérifier la clé",
                 subtitle:
                     "Chargez la Copie de Sauvegarde de votre Clé Privée Cryptée pour vérifier qu'elle est correcte. Vous pouvez essayer autant de fois que nécessaire, depuis vos différentes copies de sauvegarde :",
                 errorUploading:
                     "Copa de Sauvegarde de la Clé Privée Cryptée invalide, veuillez réessayer",
                 errorEmptyFile: "Fichier vide ou non trouvé",
                 verified: "Copie de sauvegarde vérifiée avec succès.",
-                downloaded: "Clé Privée Cryptée générée avec succès.",
+                alreadyRestored: "Votre clé avait déjà été restaurée.",
             },
         },
         miruExport: {
@@ -2145,6 +2282,14 @@ const frenchTranslation: TranslationType = {
             generalInfoTitle: "Informations Générales",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État d'importation du fragment de clé",
+            eligibility: {
+                selectElection: "Sélectionnez au moins une élection.",
+                publishElection:
+                    "Publiez chaque élection sélectionnée avant de créer son dépouillement.",
+                tallyDisallowed: "Le dépouillement est désactivé pour une élection sélectionnée.",
+                endVoting:
+                    "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
+            },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
             startTallySuccess: "Comptage commencé",
@@ -2246,6 +2391,7 @@ const frenchTranslation: TranslationType = {
                     round: "Tour",
                 },
                 total_declined_to_vote: "Total des refus de vote",
+                total_blank_ballots: "Total des Bulletins Blancs",
                 participation_by_channel: "Participation par canal",
                 channel: "Canal",
                 channel_online: "En ligne",
@@ -2255,6 +2401,8 @@ const frenchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
+                acclamation_note:
+                    "Élu par acclamation. Ce scrutin a été tranché sans vote : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",
@@ -2447,8 +2595,19 @@ const frenchTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Le total des votes valides ne correspond pas à la somme des votes des candidats plus les votes blancs",
-                censusTooSmall: "Le recensement doit être supérieur ou égal au total des votes",
+                    "Les votes des candidats ({{candidateVotesSum}}) doivent être compris entre {{lowerBound}} et {{upperBound}} selon les règles de vote de ce scrutin ({{nonBlankValidVotes}} votes valides non blancs × jusqu'à {{maxMarks}} marques par bulletin)",
+                censusTooSmall:
+                    "Le total des votes ({{totalVotes}}) ne doit pas être supérieur au recensement ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Le total des votes invalides ({{totalInvalid}}) doit être égal aux votes invalides implicites ({{implicitInvalid}}) plus les votes invalides explicites ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Le total des votes ({{totalVotes}}) doit être égal au total des votes valides ({{totalValidVotes}}) plus le total des votes invalides ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "L'algorithme de dépouillement de ce scrutin ({{countingAlgorithm}}) n'est pas reconnu, le nombre autorisé de votes de candidats ne peut donc pas être déterminé. Vérifiez la configuration du scrutin.",
+                blankBallotsInconsistent:
+                    "Les Bulletins Blancs doivent avoir la même valeur sur toutes les feuilles de dépouillement de cette urne",
+                blankBallotsOutOfBounds:
+                    "La valeur des Bulletins Blancs est en dehors de la plage impliquée par les décomptes de votes blancs par scrutin de cette urne",
             },
             label: {
                 area: "Zone",
@@ -2459,6 +2618,7 @@ const frenchTranslation: TranslationType = {
                 explicit_invalid: "Votes Explícitement Inválidos",
                 implicit_invalid: "Votes Implicitement Inválidos",
                 total_blank_votes: "Votes en Blanc Totales",
+                blank_ballots: "Bulletins Blancs",
                 census: "Recensement",
             },
             common: {
@@ -2807,6 +2967,71 @@ const frenchTranslation: TranslationType = {
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+        },
+        electoralLogConsole: {
+            title: "Journal Électoral",
+            subtitle:
+                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données du journal électoral. Rien sur cette page ne modifie les données.",
+            notAllowed:
+                "Vous avez besoin de la permission electoral-log-console-read pour ouvrir le journal électoral.",
+            tabs: {
+                tables: "Tables",
+                query: "Requête",
+            },
+            electionEvent: "Événement Électoral",
+            table: "Table",
+            tables: {
+                records: "Entrées",
+                ballots: "Bulletins",
+                voters: "Électeurs",
+                queue: "File du Séquenceur",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Plus récents d'abord",
+                "oldest-first": "Plus anciens d'abord",
+            },
+            filters: {
+                statement_kind: "Type",
+                election_id: "Élection",
+                area_id: "ID de Zone",
+                user_id: "ID d'Utilisateur ou d'Électeur",
+                ballot_id: "ID de Bulletin",
+                status: "Statut",
+                created_after: "Du",
+                created_before: "Au",
+                any: "Tous",
+                apply: "Appliquer les Filtres",
+                clear: "Effacer",
+                invalid:
+                    "Vérifiez les filtres signalés : les dates doivent être valides et les ID de zone de l'urne doivent être des UUID.",
+            },
+            statuses: {
+                valid: "Valide",
+                pending: "En attente",
+                rejected: "Rejeté",
+            },
+            estimatedRows: "Environ {{rows}} lignes dans cette table avant filtrage.",
+            personalDataHidden:
+                "Les noms d'utilisateur, adresses IP et pays sont masqués : les voir nécessite la permission electoral-log-personal-data-read.",
+            loadError: "Le journal électoral n'a pas pu être lu.",
+            record: {
+                title: "Entrée {{position}}",
+                view: "Voir l'entrée",
+                message: "Message (décodé)",
+                copy: "Copier le JSON",
+                close: "Fermer",
+                loadError: "L'entrée n'a pas pu être lue.",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données du journal électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
+            },
         },
     },
 }
