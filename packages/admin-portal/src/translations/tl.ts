@@ -1392,7 +1392,6 @@ const tagalogTranslation: TranslationType = {
                 "tally-sheet-view": "Tingnan ang Tally Sheet",
                 "admin-ceremony": "Seremonya ng Admin",
                 "tally-sheet-delete": "Tanggalin ang Tally Sheet",
-                "cast-vote-read": "Basahin ang Na-cast na Mga Boto",
                 "document-read": "Basahin ang Mga Dokumento",
                 "document-write": "I-edit ang Mga Dokumento",
                 "support-material-read": "Basahin ang Suportang Materyal",

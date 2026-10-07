@@ -492,8 +492,8 @@ cli step generate-voters \
 ---
 
 ## Duplicate Votes
-This command duplicate ***existing*** cast_vote row.
-> Required additional confituration at `external_config.json` in the `working-directory` (realm_name, duplicate_votes  fields)
+This command casts a copy of an ***existing*** ballot of the election event's ballot box for each of the first `--num-votes` voters of the realm, through the ballot box's revote and area rules.
+> Required additional confituration at `external_config.json` in the `working-directory` (realm_name, tenant_id, election_event_id, duplicate_votes fields). `duplicate_votes.row_id_to_clone` is the ballot's ID in the ballot box, as returned when it was cast.
 
 ```bash
 cli step duplicate-votes \

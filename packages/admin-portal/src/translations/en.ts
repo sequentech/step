@@ -1377,7 +1377,6 @@ const englishTranslation = {
                 "tally-sheet-view": "View Tally Sheet",
                 "admin-ceremony": "Admin Ceremony",
                 "tally-sheet-delete": "Delete Tally Sheet",
-                "cast-vote-read": "Read Cast Votes",
                 "document-read": "Read Documents",
                 "document-write": "Edit Documents",
                 "support-material-read": "Read Support Materials",

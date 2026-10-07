@@ -10,28 +10,32 @@ use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, BallotSta
 use electoral_log::adapters::ballot_box_reads::{
     tally_ballots_query, BallotIdMatch, BucketRange, IpBallotsFilter, Participation,
 };
+use electoral_log::adapters::ballot_box_status::{BallotToReview, VoterBallotState};
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::ports::ElectoralLogStore;
 use electoral_log::{ElectoralLogMessage, LogEntry};
+use std::time::Duration;
 use uuid::Uuid;
+
+/// Applying the schema takes locks that deadlock with the appends of tests running
+/// at the same time, so each test binary applies it once.
+static SCHEMA: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
+
+async fn initialized(store: &PostgresStore) -> Result<()> {
+    SCHEMA.get_or_try_init(|| store.initialize()).await?;
+    Ok(())
+}
 
 async fn store() -> Result<PostgresStore> {
     let config = std::env::var("ELECTORAL_LOG_TEST_DATABASE_URL")?.parse()?;
     let store = PostgresStore::new(config)?;
-    store.initialize().await?;
+    initialized(&store).await?;
     Ok(store)
 }
 
 async fn drop_ballot_box(store: &PostgresStore, event: &str) -> Result<()> {
-    let suffix = event.replace('-', "");
-    store
-        .client()
-        .await?
-        .batch_execute(&format!(
-            "DELETE FROM ballot_box_pending WHERE election_event_id = '{event}';
-             DROP TABLE ballot_box_ballot_{suffix}, ballot_box_voter_{suffix};"
-        ))
-        .await?;
+    store.drop_ballot_box(event).await?;
+    assert!(!store.has_ballot_box(event).await?);
     Ok(())
 }
 
@@ -89,8 +93,12 @@ impl Vote {
     }
 
     async fn accept(&self, store: &PostgresStore) -> Result<i64> {
+        Ok(self.accept_with_id(store).await?.0)
+    }
+
+    async fn accept_with_id(&self, store: &PostgresStore) -> Result<(i64, String)> {
         match store.accept_ballot(&self.request()).await? {
-            AcceptOutcome::Accepted { seq, .. } => Ok(seq),
+            AcceptOutcome::Accepted { seq, id } => Ok((seq, id)),
             other => anyhow::bail!("unexpected {other:?}"),
         }
     }
@@ -225,6 +233,207 @@ async fn concurrent_votes_of_one_voter_respect_the_limit() -> Result<()> {
         3
     );
     assert_eq!(store.pending_count(&event).await?, 3);
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn pending_ballots_become_valid_or_rejected_and_rejections_give_votes_back() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, other_area) = ids();
+    store.create_ballot_box(&event).await?;
+
+    let pending =
+        Vote::new(&event, &election, &area, "voter-a", 1).with_status(BallotStatus::Pending);
+    let (_, pending_id) = pending.accept_with_id(&store).await?;
+    let found = store.pending_ballot(&event, &pending_id).await?.unwrap();
+    assert_eq!(found.voter_id, "voter-a");
+    assert_eq!(found.status, BallotStatus::Pending);
+    assert_eq!(
+        store.voter_ballot_state(&event, "voter-a").await?,
+        VoterBallotState {
+            has_pending: true,
+            has_valid: false
+        }
+    );
+    // A pending ballot counts toward the limit.
+    let again = Vote::new(&event, &election, &area, "voter-a", 1);
+    assert_eq!(
+        store.accept_ballot(&again.request()).await?,
+        AcceptOutcome::TooManyVotes
+    );
+
+    // Only the expected status changes, and only once.
+    assert!(
+        !store
+            .set_ballot_status(
+                &event,
+                "voter-a",
+                &pending_id,
+                BallotStatus::Valid,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    assert!(
+        store
+            .set_ballot_status(
+                &event,
+                "voter-a",
+                &pending_id,
+                BallotStatus::Pending,
+                BallotStatus::Valid
+            )
+            .await?
+    );
+    assert!(
+        !store
+            .set_ballot_status(
+                &event,
+                "voter-a",
+                &pending_id,
+                BallotStatus::Pending,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    assert!(store.pending_ballot(&event, &pending_id).await?.is_none());
+    assert_eq!(
+        store.voter_ballot_state(&event, "voter-a").await?,
+        VoterBallotState {
+            has_pending: false,
+            has_valid: true
+        }
+    );
+    assert!(store
+        .set_ballot_status(
+            &event,
+            "voter-a",
+            &pending_id,
+            BallotStatus::Rejected,
+            BallotStatus::Valid
+        )
+        .await
+        .is_err());
+
+    // A rejected ballot no longer counts: the voter votes again, even in another area.
+    let rejected =
+        Vote::new(&event, &election, &area, "voter-b", 1).with_status(BallotStatus::Pending);
+    let (_, rejected_id) = rejected.accept_with_id(&store).await?;
+    assert!(
+        store
+            .set_ballot_status(
+                &event,
+                "voter-b",
+                &rejected_id,
+                BallotStatus::Pending,
+                BallotStatus::Rejected
+            )
+            .await?
+    );
+    assert_eq!(
+        store
+            .voter_state(&event, &election, "voter-b")
+            .await?
+            .unwrap()
+            .votes,
+        0
+    );
+    assert_eq!(
+        store.voter_ballot_state(&event, "voter-b").await?,
+        VoterBallotState::default()
+    );
+    let elsewhere = Vote::new(&event, &election, &other_area, "voter-b", 1);
+    elsewhere.accept(&store).await?;
+    let state = store
+        .voter_state(&event, &election, "voter-b")
+        .await?
+        .unwrap();
+    assert_eq!((state.votes, state.area_id), (1, other_area.clone()));
+
+    // Rejecting a voter's ballots covers pending and valid ones, in every election.
+    let other_election = Uuid::new_v4().to_string();
+    Vote::new(&event, &election, &area, "voter-c", 0)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &election, &area, "voter-c", 0)
+        .with_status(BallotStatus::Pending)
+        .accept(&store)
+        .await?;
+    Vote::new(&event, &other_election, &area, "voter-c", 0)
+        .accept(&store)
+        .await?;
+    assert_eq!(store.reject_voter_ballots(&event, "voter-c").await?, 3);
+    assert_eq!(store.reject_voter_ballots(&event, "voter-c").await?, 0);
+    for election in [&election, &other_election] {
+        assert_eq!(
+            store
+                .voter_state(&event, election, "voter-c")
+                .await?
+                .unwrap()
+                .votes,
+            0
+        );
+    }
+
+    let mut states = store.voter_ballot_states(&event).await?;
+    states.sort_by(|a, b| a.0.cmp(&b.0));
+    assert_eq!(
+        states,
+        vec![
+            (
+                "voter-a".to_string(),
+                VoterBallotState {
+                    has_pending: false,
+                    has_valid: true
+                }
+            ),
+            (
+                "voter-b".to_string(),
+                VoterBallotState {
+                    has_pending: false,
+                    has_valid: true
+                }
+            ),
+        ]
+    );
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn pending_ballots_are_listed_for_review_in_pages() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    let mut ids = Vec::new();
+    for voter in ["v1", "v2", "v3"] {
+        let vote = Vote::new(&event, &election, &area, voter, 1).with_status(BallotStatus::Pending);
+        ids.push(vote.accept_with_id(&store).await?.1);
+    }
+    Vote::new(&event, &election, &area, "v4", 1)
+        .accept(&store)
+        .await?;
+    ids.sort();
+
+    let mut listed = Vec::new();
+    let mut after: Option<BallotToReview> = None;
+    loop {
+        let page = store.ballots_to_review(after.as_ref(), 0.0, 2).await?;
+        let Some(last) = page.last().cloned() else {
+            break;
+        };
+        listed.extend(
+            page.into_iter()
+                .filter(|ballot| ballot.election_event_id == event)
+                .map(|ballot| ballot.id),
+        );
+        after = Some(last);
+    }
+    assert_eq!(listed, ids);
+    // Ballots younger than the given age wait for the next review.
+    let young = store.ballots_to_review(None, 3600.0, 1000).await?;
+    assert!(young.iter().all(|ballot| ballot.election_event_id != event));
     drop_ballot_box(&store, &event).await
 }
 
@@ -619,5 +828,51 @@ async fn the_tally_reads_each_voters_latest_valid_recorded_ballot() -> Result<()
 
     store.remove_pending(&event, &[waiting]).await?;
     store.delete_board(&board).await?;
+    drop_ballot_box(&store, &event).await
+}
+
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
+async fn ballot_boxes_come_and_go_without_holding_back_other_events_votes() -> Result<()> {
+    let store = store().await?;
+    let (event, election, area, _) = ids();
+    store.create_ballot_box(&event).await?;
+    // A vote of the event in progress: its open transaction holds a lock on the
+    // partitioned tables until it ends.
+    let in_progress = store.client().await?;
+    in_progress
+        .batch_execute(&format!(
+            "BEGIN;
+             INSERT INTO ballot_box_voter (election_event_id, election_id, voter_id, area_id,
+                 votes, last_ballot_id, updated_at)
+             VALUES ('{event}', '{election}', 'in-progress', '{area}', 1, 'ballot', now());"
+        ))
+        .await?;
+
+    let other = Uuid::new_v4().to_string();
+    tokio::time::timeout(Duration::from_secs(5), store.create_ballot_box(&other)).await??;
+    assert!(store.has_ballot_box(&other).await?);
+    store.create_ballot_box(&other).await?;
+
+    // Dropping waits for the transaction in progress, and votes go on meanwhile.
+    let dropping = tokio::spawn({
+        let store = store.clone();
+        let other = other.clone();
+        async move { store.drop_ballot_box(&other).await }
+    });
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(!dropping.is_finished());
+    let vote = Vote::new(&event, &election, &area, "voter", 0);
+    let accepted =
+        tokio::time::timeout(Duration::from_secs(5), store.accept_ballot(&vote.request()))
+            .await??;
+    assert!(matches!(accepted, AcceptOutcome::Accepted { .. }));
+    in_progress.batch_execute("ROLLBACK").await?;
+    tokio::time::timeout(Duration::from_secs(10), dropping).await???;
+    assert!(!store.has_ballot_box(&other).await?);
+    store.drop_ballot_box(&other).await?;
+
+    let ballots = store.voter_ballots(&event, "voter").await?;
+    assert_eq!(ballots.len(), 1);
     drop_ballot_box(&store, &event).await
 }

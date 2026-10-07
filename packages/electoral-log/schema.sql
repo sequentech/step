@@ -88,6 +88,14 @@ CREATE TABLE IF NOT EXISTS ballot_box_ballot (
 ) PARTITION BY LIST (election_event_id);
 -- A voter's ballots, for the voter's status and lookups.
 CREATE INDEX IF NOT EXISTS ballot_box_ballot_voter ON ballot_box_ballot (election_event_id, voter_id);
+-- The tally input of an area: each voter's latest ballot, in voter order, without
+-- reading the rest of the event's ballots.
+CREATE INDEX IF NOT EXISTS ballot_box_ballot_area
+    ON ballot_box_ballot (election_event_id, election_id, area_id, voter_id, seq DESC);
+-- Ballots whose outcome is pending, as Datafix events' ballots are until Datafix
+-- answers: few at a time, looked up by ID and listed for review.
+CREATE INDEX IF NOT EXISTS ballot_box_ballot_pending
+    ON ballot_box_ballot (election_event_id, id) WHERE status = 'pending';
 CREATE TABLE IF NOT EXISTS ballot_box_voter (
     election_event_id UUID NOT NULL,
     election_id UUID NOT NULL,

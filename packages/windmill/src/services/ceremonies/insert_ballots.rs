@@ -6,7 +6,7 @@ use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::ballot_box_reads::count_unresolved_votes;
-use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
@@ -129,7 +129,10 @@ pub async fn insert_ballots_messages(
         get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
-            .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
+            .map(|election| {
+                let key = census_election_key(&election.id, election.external_id.as_deref());
+                (election.id, key)
+            })
             .collect();
 
     // Collect all futures for parallel execution
@@ -647,4 +650,26 @@ pub async fn get_elections_end_dates(
         .collect::<Result<HashMap<_, _>>>()
         .map_err(|err| anyhow!("Error parsing election dates {:?}", err))?;
     Ok(elections_dates)
+}
+
+/// The value of a voter's `authorized-election-ids` attribute that authorizes them
+/// for an election, as Keycloak's authorized-elections mapper reads it: the election's
+/// external ID, or its ID when it has none.
+fn census_election_key(id: &str, external_id: Option<&str>) -> String {
+    external_id
+        .filter(|external_id| !external_id.is_empty())
+        .unwrap_or(id)
+        .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::census_election_key;
+
+    #[test]
+    fn the_census_matches_the_external_id_or_else_the_id() {
+        assert_eq!(census_election_key("id", Some("external")), "external");
+        assert_eq!(census_election_key("id", Some("")), "id");
+        assert_eq!(census_election_key("id", None), "id");
+    }
 }

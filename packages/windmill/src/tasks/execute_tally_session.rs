@@ -18,7 +18,7 @@ use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::ballot_box_reads::count_unresolved_votes;
-use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
+use crate::services::cast_votes::ElectionCastVotes;
 use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,

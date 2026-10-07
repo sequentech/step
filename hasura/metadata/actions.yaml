@@ -25,7 +25,7 @@ actions:
               version: 2
       permissions:
           - role: user
-      comment: The voter's own cast votes, from the election event's ballot box or cast_vote table
+      comment: The voter's own cast votes, from the election event's ballot box
     - name: ApplicationChangeStatus
       definition:
           kind: synchronous

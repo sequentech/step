@@ -8,7 +8,6 @@ pub mod area_contest;
 pub mod ballot_publication;
 pub mod ballot_style;
 pub mod candidate;
-pub mod cast_vote;
 pub mod certificate_authority;
 pub mod contest;
 pub mod document;

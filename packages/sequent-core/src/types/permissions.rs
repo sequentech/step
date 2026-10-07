@@ -153,8 +153,6 @@ pub enum Permissions {
     TALLY_SHEET_IMPORT_REVIEW,
     #[strum(serialize = "tally-recount-execute")]
     TALLY_RECOUNT_EXECUTE,
-    #[strum(serialize = "cast-vote-read")]
-    CAST_VOTE_READ,
     #[strum(serialize = "document-read")]
     DOCUMENT_READ,
     #[strum(serialize = "document-write")]

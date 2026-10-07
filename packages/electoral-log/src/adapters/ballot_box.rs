@@ -9,6 +9,7 @@
 
 use super::postgres::PostgresStore;
 use anyhow::{ensure, Context, Result};
+use std::time::{Duration, Instant};
 use strum_macros::{Display, EnumString};
 use tokio_postgres::error::SqlState;
 
@@ -90,6 +91,14 @@ pub struct VoterState {
     pub last_ballot_id: String,
 }
 
+/// The partitioned tables that hold a partition per election event.
+const BALLOTS: &str = "ballot_box_ballot";
+const VOTERS: &str = "ballot_box_voter";
+/// How long dropping a ballot box waits for another event's partition of the same
+/// table to finish detaching: PostgreSQL detaches one at a time per table.
+const DETACH_WAIT: Duration = Duration::from_secs(120);
+const DETACH_RETRY: Duration = Duration::from_millis(200);
+
 const ACCEPT: &str = r#"
 WITH voter AS (
     INSERT INTO ballot_box_voter AS v
@@ -97,9 +106,10 @@ WITH voter AS (
     VALUES ($1::text::uuid, $2::text::uuid, $3, $4::text::uuid, 1, $5, now())
     ON CONFLICT (election_event_id, election_id, voter_id) DO UPDATE
         SET votes = v.votes + 1,
+            area_id = EXCLUDED.area_id,
             last_ballot_id = EXCLUDED.last_ballot_id,
             updated_at = EXCLUDED.updated_at
-        WHERE v.area_id = EXCLUDED.area_id
+        WHERE (v.votes = 0 OR v.area_id = EXCLUDED.area_id)
           AND ($6::integer = 0 OR v.votes < $6::integer)
     RETURNING election_event_id
 ), ballot AS (
@@ -158,20 +168,128 @@ fn partition_suffix(election_event_id: &str) -> Result<String> {
 
 impl PostgresStore {
     /// Create an election event's ballot box partitions. Idempotent.
+    ///
+    /// Each partition is created as a table of its own and then attached, which takes
+    /// a `SHARE UPDATE EXCLUSIVE` lock on the partitioned table, so the votes of the
+    /// tenant's other events go on meanwhile. `CREATE TABLE … PARTITION OF` would need
+    /// an `ACCESS EXCLUSIVE` lock: it would wait for the votes in progress and hold
+    /// back new ones until it got it.
     pub async fn create_ballot_box(&self, election_event_id: &str) -> Result<()> {
         let suffix = partition_suffix(election_event_id)?;
         let event = canonical_uuid(election_event_id)?;
-        self.client()
-            .await?
-            .batch_execute(&format!(
-                "CREATE TABLE IF NOT EXISTS ballot_box_ballot_{suffix} PARTITION OF ballot_box_ballot \
-                     FOR VALUES IN ('{event}');
-                 ALTER TABLE ballot_box_ballot_{suffix} ALTER COLUMN content SET STORAGE EXTERNAL;
-                 CREATE TABLE IF NOT EXISTS ballot_box_voter_{suffix} PARTITION OF ballot_box_voter \
-                     FOR VALUES IN ('{event}');"
-            ))
-            .await
-            .with_context(|| format!("Error creating the ballot box of event {event}"))
+        let mut client = self.client().await?;
+        for parent in [BALLOTS, VOTERS] {
+            let partition = format!("{parent}_{suffix}");
+            let storage = if parent == BALLOTS {
+                format!("ALTER TABLE {partition} ALTER COLUMN content SET STORAGE EXTERNAL;")
+            } else {
+                String::new()
+            };
+            let transaction = client.transaction().await?;
+            // Concurrent creations of one event's ballot box take turns.
+            transaction
+                .execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+                    &[&format!("ballot-box:{event}")],
+                )
+                .await?;
+            transaction
+                .batch_execute(&format!(
+                    "CREATE TABLE IF NOT EXISTS {partition} \
+                         (LIKE {parent} INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING STORAGE);
+                     {storage}"
+                ))
+                .await?;
+            let attached: bool = transaction
+                .query_one(
+                    "SELECT relispartition FROM pg_class WHERE oid = $1::text::regclass",
+                    &[&partition],
+                )
+                .await?
+                .get(0);
+            if !attached {
+                transaction
+                    .batch_execute(&format!(
+                        "ALTER TABLE {parent} ATTACH PARTITION {partition} FOR VALUES IN ('{event}')"
+                    ))
+                    .await?;
+            }
+            transaction
+                .commit()
+                .await
+                .with_context(|| format!("Error creating the ballot box of event {event}"))?;
+        }
+        Ok(())
+    }
+
+    /// Drop an election event's ballot box: its partitions, with every ballot and
+    /// voter count, its queue and its lease. Idempotent.
+    ///
+    /// Each partition is detached with `DETACH PARTITION … CONCURRENTLY`, which waits
+    /// for the transactions that may see it but holds back no vote of the tenant's
+    /// other events, and then dropped. A detach that was interrupted is finished first.
+    /// PostgreSQL detaches one partition of a table at a time, so drops of several
+    /// events of a database take turns, for up to two minutes.
+    pub async fn drop_ballot_box(&self, election_event_id: &str) -> Result<()> {
+        let suffix = partition_suffix(election_event_id)?;
+        let event = canonical_uuid(election_event_id)?;
+        let client = self.client().await?;
+        client
+            .execute(
+                "DELETE FROM ballot_box_pending WHERE election_event_id = $1::text::uuid",
+                &[&event],
+            )
+            .await?;
+        for parent in [BALLOTS, VOTERS] {
+            let partition = format!("{parent}_{suffix}");
+            let detach_pending: Option<bool> = client
+                .query_opt(
+                    "SELECT inhdetachpending FROM pg_inherits WHERE inhrelid = to_regclass($1)",
+                    &[&partition],
+                )
+                .await?
+                .map(|row| row.get(0));
+            let detach = match detach_pending {
+                Some(false) => Some("CONCURRENTLY"),
+                Some(true) => Some("FINALIZE"),
+                None => None,
+            };
+            if let Some(mode) = detach {
+                let started = Instant::now();
+                loop {
+                    let detached = client
+                        .batch_execute(&format!(
+                            "ALTER TABLE {parent} DETACH PARTITION {partition} {mode}"
+                        ))
+                        .await;
+                    match detached {
+                        Ok(()) => break,
+                        Err(error)
+                            if error.code()
+                                == Some(&SqlState::OBJECT_NOT_IN_PREREQUISITE_STATE)
+                                && started.elapsed() < DETACH_WAIT =>
+                        {
+                            tokio::time::sleep(DETACH_RETRY).await;
+                        }
+                        Err(error) => {
+                            return Err(error)
+                                .with_context(|| format!("Error detaching {partition}"))
+                        }
+                    }
+                }
+            }
+            client
+                .batch_execute(&format!("DROP TABLE IF EXISTS {partition}"))
+                .await
+                .with_context(|| format!("Error dropping {partition}"))?;
+        }
+        client
+            .execute(
+                "DELETE FROM ballot_box_sequencer WHERE election_event_id = $1::text::uuid",
+                &[&event],
+            )
+            .await?;
+        Ok(())
     }
 
     /// Whether an election event has a ballot box.
@@ -192,10 +310,15 @@ impl PostgresStore {
     /// queue it for the sequencer, unless the election's rules refuse it.
     pub async fn accept_ballot(&self, ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
         let client = self.client().await?;
+        // Prepared once per connection, so that each vote does not parse and plan it.
+        let statement = client
+            .prepare_cached(ACCEPT)
+            .await
+            .context("Error preparing the statement that accepts ballots")?;
         let status = ballot.status.to_string();
         let accepted = client
             .query_opt(
-                ACCEPT,
+                &statement,
                 &[
                     &ballot.election_event_id,
                     &ballot.election_id,

@@ -59,7 +59,7 @@ fn requested(
     }
 }
 
-/// The voter's own cast votes, from the event's ballot box or `cast_vote`.
+/// The voter's own cast votes, from the event's ballot box.
 #[post("/get-voter-cast-votes", format = "json", data = "<body>")]
 pub async fn get_voter_cast_votes(
     body: Json<VoterCastVotesInput>,

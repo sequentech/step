@@ -169,7 +169,7 @@ test.each(cases)("refreshes cast status: $name", async ({initialStatus, replies}
                                     },
                                 ],
                             },
-                            sequent_backend_cast_vote:
+                            cast_votes:
                                 initialStatus === CastVoteStatus.VALID
                                     ? [
                                           {
@@ -183,7 +183,7 @@ test.each(cases)("refreshes cast status: $name", async ({initialStatus, replies}
                     } else if (operation.operationName === "GetCastVotes") {
                         const status = replies[Math.min(statusRequests++, replies.length - 1)]
                         data = {
-                            sequent_backend_cast_vote: status
+                            cast_votes: status
                                 ? [{...cast, status, __typename: "VoterCastVote"}]
                                 : [],
                         }

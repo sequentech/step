@@ -38,5 +38,9 @@ tracing-tree = "0.4"
 name = "load_test"
 test = true
 
+[[example]]
+name = "ballot_box_load"
+test = true
+
 [dev-dependencies]
 uuid = { version = "1.5", features = ["v4"] }
