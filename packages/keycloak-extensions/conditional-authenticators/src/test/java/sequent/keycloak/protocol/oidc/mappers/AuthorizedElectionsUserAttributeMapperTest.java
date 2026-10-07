@@ -71,16 +71,32 @@ class AuthorizedElectionsUserAttributeMapperTest {
   }
 
   @Test
-  void electionIdsByKey_keepsTheIdOfAnElectionWhoseExternalIdIsRepeated() throws Exception {
-    Map<String, String> electionIds =
+  void electionIdsByKey_keysElectionsWhoseExternalIdIsRepeatedOnlyById() throws Exception {
+    assertEquals(
+        Map.of(
+            "election-1", "election-1",
+            "election-2", "election-2",
+            "election-3", "election-3"),
         electionIdsByKey(
             """
             [{"id": "election-1", "external_id": "GIAMBI30-3-31"},
-             {"id": "election-2", "external_id": "GIAMBI30-3-31"}]
-            """);
+             {"id": "election-2", "external_id": "GIAMBI30-3-31"},
+             {"id": "election-3", "external_id": "GIAMBI30-3-31"}]
+            """));
+  }
 
-    assertEquals("election-1", electionIds.get("election-1"));
-    assertEquals("election-2", electionIds.get("election-2"));
+  @Test
+  void electionIdsByKey_doesNotKeyAnElectionByAnIdThatOthersShareAsExternalId() throws Exception {
+    assertEquals(
+        Map.of(
+            "election-1", "election-1",
+            "election-2", "election-2"),
+        electionIdsByKey(
+            """
+            [{"id": "election-1", "external_id": "election-3"},
+             {"id": "election-2", "external_id": "election-3"},
+             {"id": "election-3", "external_id": null}]
+            """));
   }
 
   @Test
@@ -145,6 +161,19 @@ class AuthorizedElectionsUserAttributeMapperTest {
     assertEquals(
         List.of("election-2", "election-1"),
         elections.idsAmong(List.of("election-2", "election-3", "election-2", "election-1")));
+  }
+
+  @Test
+  void toElectionIds_dropsAnExternalIdThatSeveralElectionsShare() throws Exception {
+    assertEquals(
+        List.of("election-1"),
+        AuthorizedElectionsUserAttributeMapper.toElectionIds(
+            List.of("GIAMBI30-3-31", "election-1"),
+            electionIdsByKey(
+                """
+                [{"id": "election-1", "external_id": "GIAMBI30-3-31"},
+                 {"id": "election-2", "external_id": "GIAMBI30-3-31"}]
+                """)));
   }
 
   @Test
