@@ -43,6 +43,7 @@ import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_TASK_BY_ID} from "@/queries/GetTaskById"
 import {useQuery} from "@apollo/client"
 import {DownloadDocument} from "@/resources/User/DownloadDocument"
+import {ReportManifestDownload} from "./ReportManifestDownload"
 import {GetTaskByIdQuery} from "@/gql/graphql"
 import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 
@@ -271,6 +272,15 @@ export const Widget: React.FC<WidgetProps> = ({
                                 >
                                     <DownloadIcon />
                                 </DownloaButton>
+                            ) : null}
+                            {expanded && taskId && lastTask?.election_event_id ? (
+                                <ReportManifestDownload
+                                    documentId={lastTask?.annotations?.document_id}
+                                    electionEventId={lastTask.election_event_id}
+                                    disabled={
+                                        lastTask?.execution_status !== ETaskExecutionStatus.SUCCESS
+                                    }
+                                />
                             ) : null}
                         </Box>
                     </AccordionDetails>

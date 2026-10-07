@@ -87,6 +87,17 @@ impl StatementHead {
                 description: "Election published.".to_string(),
                 ..default_head
             },
+            StatementBody::ElectionPublishWithConfiguration(_, _, configuration) => StatementHead {
+                kind: StatementType::ElectionPublish,
+                description: format!(
+                    "Election published as approved: configuration {} revision {} (manifest {}, {} designs).",
+                    configuration.external_id,
+                    configuration.revision,
+                    configuration.manifest_sha256,
+                    configuration.design_digests.len()
+                ),
+                ..default_head
+            },
             StatementBody::ElectionVotingPeriodOpen(_, channel) => StatementHead {
                 kind: StatementType::ElectionVotingPeriodOpen,
                 description: format!(
@@ -291,6 +302,26 @@ impl StatementHead {
                 description: monitoring_config_description(details),
                 ..default_head
             },
+            StatementBody::ConfigurationPackage(_, details) => StatementHead {
+                kind: match details.action {
+                    ConfigurationPackageAction::Imported => {
+                        StatementType::ConfigurationPackageImported
+                    }
+                },
+                event_type: StatementEventType::USER,
+                description: match details.action {
+                    ConfigurationPackageAction::Imported => format!(
+                        "Configuration {} revision {} imported from a signed package (manifest {}).",
+                        details.external_id, details.revision, details.manifest_sha256
+                    ),
+                },
+                ..default_head
+            },
+            StatementBody::ReportGenerated(_, details) => StatementHead {
+                kind: StatementType::ReportGenerated,
+                description: report_generated_description(details),
+                ..default_head
+            },
             StatementBody::Signing(entry) => StatementHead {
                 kind: entry.kind.statement_type(),
                 event_type: entry.event_type.clone(),
@@ -320,6 +351,21 @@ impl StatementHead {
             }
         }
     }
+}
+
+fn report_generated_description(details: &ReportGeneratedDetails) -> String {
+    let stored = match &details.document_id {
+        Some(document_id) => format!(" (document {document_id})"),
+        None => String::new(),
+    };
+    format!(
+        "{} report generated with hash manifest {}{stored}, for configuration {} revision {} (manifest {}).",
+        details.report_type,
+        details.report_manifest_sha256,
+        details.external_id,
+        details.revision,
+        details.manifest_sha256
+    )
 }
 
 fn monitoring_config_description(details: &MonitoringConfigChangeDetails) -> String {
@@ -499,6 +545,27 @@ pub enum StatementBody {
     /// One entry of a step of signing a protected action. The entry sets
     /// the head's kind, event type, log type and description.
     Signing(SigningLogEntry),
+    /// A signed configuration package imported into an election event.
+    ConfigurationPackage(EventIdString, ConfigurationPackageDetails),
+    /// `ElectionPublish` for an event imported from a signed configuration
+    /// package: the same statement type, also carrying the configuration's
+    /// revision, its manifest SHA-256 and the digest of each design
+    /// published. A stored entry continues after the statement body without
+    /// delimiting it, so a field added to `ElectionPublish` would break the
+    /// entries already written; this separate, append-only variant keeps
+    /// them deserializable.
+    ///
+    /// Rollout invariant: as for `CastVoteWithChannel`, readers must be
+    /// upgraded before writers emit this variant. Publications of events
+    /// that were not imported from a package keep writing `ElectionPublish`.
+    ElectionPublishWithConfiguration(
+        ElectionIdString,
+        BallotPublicationIdString,
+        PublishedConfiguration,
+    ),
+    /// The hash manifest a report's generation wrote, for an event imported
+    /// from a signed configuration package.
+    ReportGenerated(EventIdString, ReportGeneratedDetails),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -556,6 +623,8 @@ pub enum StatementType {
     ScheduledOutcomeChanged,
     ElectionInitialized,
     LockdownChanged,
+    ConfigurationPackageImported,
+    ReportGenerated,
 }
 
 #[derive(

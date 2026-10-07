@@ -507,6 +507,16 @@ const catalanTranslation: TranslationType = {
                         text: "Sense arxiu importable — aquest zip té un pla però no l'arxiu que importa el Portal d'Administració, així que no conté el cens ni els fitxers que esmenta.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Disseny de papereta sense clau",
+                        text: "Disseny de papereta sense clau — {{kind}} {{id}} no té nom ni identificador extern, així que els seus dissenys de papereta no es poden reconèixer després d'una importació.",
+                    },
+                    "unreadable-style": {
+                        lead: "Estil de papereta il·legible",
+                        text: "Estil de papereta il·legible — no s'ha pogut llegir l'estil de papereta de la plataforma per calcular l'empremta del seu disseny: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "L'elecció i l'esdeveniment no coincideixen",
@@ -702,6 +712,152 @@ const catalanTranslation: TranslationType = {
                         text: "Contrasenyes sense llavor — la llavor és el que fa que una reconstrucció produeixi les mateixes contrasenyes en lloc de noves.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Ja importada",
+                        text: "Ja importada — la revisió {{revision}} d'aquesta configuració ja s'havia importat; importeu una revisió més recent.",
+                    },
+                    "approval-invalid": {
+                        lead: "L'aprovació no compta",
+                        text: "L'aprovació no compta — no s'ha pogut verificar l'aprovació de {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "La mateixa persona ha aprovat dues vegades",
+                        text: "La mateixa persona ha aprovat dues vegades — {{name}} ha aprovat més d'una vegada, i compta una sola vegada.",
+                    },
+                    "approver-key-usage": {
+                        lead: "L'aprovador no pot signar",
+                        text: "L'aprovador no pot signar — el certificat d'un aprovador no està fet per signar.",
+                    },
+                    "bad-signature": {
+                        lead: "La signatura no coincideix",
+                        text: "La signatura no coincideix — la signatura del paquet no es verifica, així que s'ha modificat després de signar-lo o l'ha signat una altra clau: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "L'empremta del contingut no coincideix",
+                        text: "L'empremta del contingut no coincideix — el manifest diu {{expected}} i el seu contingut dona {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nom de fitxer repetit",
+                        text: "Nom de fitxer repetit — «{{file}}» apareix dues vegades a {{archive}}, així que dos lectors podrien agafar fitxers diferents.",
+                    },
+                    "file-changed": {
+                        lead: "Modificat després de signar",
+                        text: "Modificat després de signar — {{file}} té SHA-256 {{actual}}, i el manifest diu {{expected}}. No s'ha llegit res del paquet.",
+                    },
+                    "file-extra": {
+                        lead: "Fitxer fora del manifest",
+                        text: "Fitxer fora del manifest — {{file}} és al paquet però no s'ha signat. No s'ha llegit res del paquet.",
+                    },
+                    "file-missing": {
+                        lead: "Falta un fitxer signat",
+                        text: "Falta un fitxer signat — {{file}} és al manifest i no al paquet. No s'ha llegit res del paquet.",
+                    },
+                    "invalid-time": {
+                        lead: "No és una data i hora",
+                        text: "No és una data i hora — «{{value}}» al manifest no és una data i hora.",
+                    },
+                    "member-too-large": {
+                        lead: "Fitxer massa gran",
+                        text: "Fitxer massa gran — «{{file}}» a {{archive}} ocupa, descomprimit, més dels {{limit}} bytes que pot ocupar un fitxer.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Massa zips imbricats",
+                        text: "Massa zips imbricats — «{{file}}» és dins de més zips dels {{limit}} en què pot estar imbricat un fitxer.",
+                    },
+                    "no-importable": {
+                        lead: "Res a importar",
+                        text: "Res a importar — el paquet no té official_election_setup.zip, l'arxiu que llegeix l'importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "La plantilla de l'informe ha canviat",
+                        text: "La plantilla de l'informe ha canviat — la plantilla de l'informe {{report}} no és l'aprovada: la seva empremta és {{actual}}, i la configuració signada diu {{expected}}.",
+                    },
+                    "report-template-missing": {
+                        lead: "Falta la plantilla de l'informe",
+                        text: "Falta la plantilla de l'informe — l'informe {{report}} es genera amb la plantilla «{{template}}», que no és a la configuració, així que el seu disseny no es pot signar.",
+                    },
+                    "report-unreadable": {
+                        lead: "L'informe no es pot signar",
+                        text: "L'informe no es pot signar — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificat d'aprovador revocat",
+                        text: "Certificat d'aprovador revocat — el certificat d'un aprovador s'ha revocat, així que l'aprovació no compta.",
+                    },
+                    "revoked-signer": {
+                        lead: "Clau de signatura revocada",
+                        text: "Clau de signatura revocada — la clau que ha signat aquest paquet s'ha revocat, i els seus paquets es rebutgen.",
+                    },
+                    "rollback": {
+                        lead: "No és una revisió més recent",
+                        text: "No és una revisió més recent — la revisió {{revision}} no és més recent que la revisió {{last}}, l'última importada.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "Signat en el futur",
+                        text: "Signat en el futur — el paquet indica {{at}} com a moment de la signatura, i ara és {{now}}.",
+                    },
+                    "signer-key-usage": {
+                        lead: "La clau de signatura no pot signar",
+                        text: "La clau de signatura no pot signar — el certificat de la clau que ha signat aquest paquet no està fet per signar.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Massa poques aprovacions",
+                        text: "Massa poques aprovacions — {{count}} aprovacions vàlides de persones diferents, i se'n necessiten {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquet massa gran",
+                        text: "Paquet massa gran — descomprimit ocupa més dels {{limit}} bytes que pot ocupar un paquet: «{{file}}» a {{archive}} els sobrepassa.",
+                    },
+                    "too-many-members": {
+                        lead: "Massa fitxers",
+                        text: "Massa fitxers — {{archive}} conté més fitxers que els {{limit}} que pot contenir un paquet.",
+                    },
+                    "unhashable-content": {
+                        lead: "No es pot calcular l'empremta",
+                        text: "No es pot calcular l'empremta — no s'ha pogut escriure el contingut de la configuració per calcular-ne l'empremta: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Format de manifest desconegut",
+                        text: "Format de manifest desconegut — el manifest és en el format «{{format}}», que aquesta versió no pot llegir.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificats del signant il·legibles",
+                        text: "Certificats del signant il·legibles — no s'ha pogut llegir la cadena de certificats del paquet: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifest il·legible",
+                        text: "Manifest il·legible — no s'ha pogut llegir el manifest del paquet: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Llista de revocació il·legible",
+                        text: "Llista de revocació il·legible — no s'ha pogut llegir una llista de revocació, així que no es pot aplicar: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificats de confiança il·legibles",
+                        text: "Certificats de confiança il·legibles — no s'ha pogut llegir el paràmetre {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Arxiu il·legible",
+                        text: "Arxiu il·legible — no s'ha pogut llegir {{archive}} com a zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquet sense signar",
+                        text: "Paquet sense signar — no té {{missing}}, i aquesta instal·lació només importa paquets signats.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Aprovador no fiable",
+                        text: "Aprovador no fiable — el certificat d'un aprovador no és de confiança: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Signant no fiable",
+                        text: "Signant no fiable — la clau que ha signat aquest paquet no és una de les que aquesta instal·lació considera de confiança: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "No es pot escriure el manifest",
+                        text: "No es pot escriure el manifest — no s'ha pogut escriure el manifest: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "No és un pla electoral",
@@ -714,6 +870,24 @@ const catalanTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Pla il·legible",
                         text: "Pla il·legible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurat dues vegades",
+                        text: "Informe configurat dues vegades — l'informe {{report}} està configurat més d'una vegada per a la mateixa elecció.",
+                    },
+                    "no-copies": {
+                        lead: "Sense còpies",
+                        text: "Sense còpies — l'informe {{report}} està configurat per no imprimir cap còpia. Indiqueu-ne almenys una.",
+                    },
+                    "unknown-election": {
+                        lead: "Elecció desconeguda",
+                        text: "Elecció desconeguda — l'informe {{report}} tracta de l'elecció «{{election}}», que aquest pla no té.",
+                    },
+                    "unsupported-format": {
+                        lead: "Format no disponible",
+                        text: "Format no disponible — l'informe {{report}} no es pot generar en {{format}}.",
                     },
                 },
                 schedule: {

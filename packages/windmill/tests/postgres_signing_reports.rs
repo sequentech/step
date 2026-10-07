@@ -943,6 +943,7 @@ async fn the_tally_holds_the_election_returns_of_each_post_and_country() {
             file_name: "report.pdf",
             pdf: &pdf,
             requester: &executer,
+            configuration: None,
         };
 
         // Lock order: the tally's transaction holds the tally session's row

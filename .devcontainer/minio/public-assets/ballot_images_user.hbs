@@ -75,6 +75,12 @@
             <div>
               FOR PARTY LIST CANDIDATES, CHECK THE BACK OF THIS BALLOT<br>
               <p>Page {{contest_index}} of {{contest_len}}</p>
+              {{#if @root.execution_annotations.configuration_revision}}
+              <p>Configuration revision {{sanitize_html @root.execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html @root.execution_annotations.configuration_manifest_sha256}}</p>
+              {{/if}}
+              {{#if @root.execution_annotations.copy_total}}
+              <p>Copy {{sanitize_html @root.execution_annotations.copy_number}} of {{sanitize_html @root.execution_annotations.copy_total}}</p>
+              {{/if}}
             </div>
             <div style="font-size: 2px; color:black;">THIS IS A SAMPLE MICROTEXT TO BE USED FOR LABORATORY TEST</div>
           </div>

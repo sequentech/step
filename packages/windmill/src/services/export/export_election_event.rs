@@ -580,6 +580,17 @@ pub async fn process_export_zip(
                         .permission_label
                         .unwrap_or_default()
                         .join(MULTI_VALUE_SEPARATOR),
+                    report
+                        .copies
+                        .map(|copies| copies.to_string())
+                        .unwrap_or_default(),
+                    report
+                        .output_formats
+                        .unwrap_or_default()
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(MULTI_VALUE_SEPARATOR),
                 ]);
             }
 

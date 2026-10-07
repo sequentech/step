@@ -4,6 +4,7 @@
 
 use sequent_core::{
     ballot::ConsolidatedReportPolicy,
+    election_config::manifest::ConfigurationStamp,
     types::{
         ceremonies::TallyType,
         date_time::{DateFormat, TimeZone},
@@ -35,6 +36,16 @@ pub struct PipeConfigGenerateReports {
     /// `electionTimezone`.
     #[serde(default)]
     pub election_time_zones: HashMap<String, String>,
+    /// How many copies each report is printed in. Its HTML and PDF then
+    /// hold them one after another, each named in
+    /// `execution_annotations.copy_number` and `copy_total`. Absent: one.
+    #[serde(default)]
+    pub copies: Option<u32>,
+    /// The signed configuration the event was imported from. Each report
+    /// then gets `report-manifest.json`, the hash manifest of its files,
+    /// beside them.
+    #[serde(default)]
+    pub configuration: Option<ConfigurationStamp>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, EnumString)]

@@ -347,6 +347,7 @@ const spanishTranslation: TranslationType = {
                 taskTitle: "Tarea: {{title}}",
                 viewTask: "Ver Tarea",
                 downloadDocument: "Descargar Archivo",
+                downloadHashManifest: "Manifiesto de hashes",
             },
             exportTasksExecution: {
                 success: "La exportación se completó con éxito",

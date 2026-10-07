@@ -350,6 +350,7 @@ const tagalogTranslation: TranslationType = {
                 taskTitle: "Gawain: {{title}}",
                 viewTask: "Tingnan Ang Gawain",
                 downloadDocument: "I-download ang File",
+                downloadHashManifest: "Hash manifest",
             },
             exportTasksExecution: {
                 success: "Matagumpay na natapos ang pag-export",

@@ -9,6 +9,7 @@ pub mod create_transmission_package_service;
 pub mod eml_generator;
 pub mod eml_types;
 pub mod logs;
+pub mod package_manifest;
 pub mod rsa;
 pub mod send_transmission_package_service;
 pub mod signatures;

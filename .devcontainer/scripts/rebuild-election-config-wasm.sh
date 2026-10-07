@@ -10,9 +10,10 @@ set -euo pipefail
 # This is a *second* package from the same crate, and it exists so the four front
 # ends that already vendor sequent-core do not have to carry what they will never
 # use. They build with `wasmtest,default_features`, which gives them the bundle
-# schema and the validator. This one adds election_config_xlsx, _templates and
-# _archive — a spreadsheet parser, a template engine and a zip writer, none of which
-# belong in the voting portal.
+# schema and the validator. This one adds election_config_xlsx, _templates,
+# _archive and _signing — a spreadsheet parser, a template engine, a zip writer and
+# the certificate checks behind `verifyConfigurationPackage`, none of which belong
+# in the voting portal. That export exists in this package only.
 #
 # wasm-pack takes the npm package name from the crate name, so both builds would
 # otherwise produce sequent-core-0.1.0.tgz. The rename below is what keeps them
@@ -49,8 +50,18 @@ wasm-pack build \
     --out-dir "${OUT_DIR}" \
     --release \
     --target web \
-    --features=wasmtest,default_features,election_config_xlsx,election_config_templates,election_config_archive \
+    --features=wasmtest,default_features,election_config_xlsx,election_config_templates,election_config_archive,election_config_signing \
     -- --locked
+
+echo "==> Checking that the package exports what only its features provide..."
+# An export behind a feature disappears without a build error when the feature
+# list above loses that feature.
+for exported in verifyConfigurationPackage openConfiguration; do
+    if ! grep -q "export function ${exported}(" "${OUT_DIR}/index.d.ts"; then
+        echo "error: ${OUT_DIR}/index.d.ts does not export ${exported}" >&2
+        exit 1
+    fi
+done
 
 echo "==> Renaming the package so it does not collide with sequent-core..."
 # node rather than sed: package.json is JSON, and a regex over it is how a build
