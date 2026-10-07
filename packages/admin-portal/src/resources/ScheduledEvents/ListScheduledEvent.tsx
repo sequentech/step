@@ -291,8 +291,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const confirmDeleteAction = async () => {
         if (scheduledEventToDelete) {
             let payload = scheduledEventToDelete.event_payload as
-                | IManageElectionDatePayload
-                | undefined
+                IManageElectionDatePayload | undefined
             if (
                 scheduledEventToDelete.election_event_id &&
                 scheduledEventToDelete.event_processor
@@ -300,20 +299,31 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 try {
                     let variables: ManageElectionDatesMutationVariables = {
                         electionEventId: scheduledEventToDelete.election_event_id,
+                        scheduledEventId: scheduledEventToDelete.id,
                         electionId: payload?.election_id,
                         scheduledDate: undefined, // to archive, set date to undefined
                         eventProcessor: scheduledEventToDelete.event_processor,
                     }
-                    const {errors} = await manageElectionDates({
+                    const {data, errors} = await manageElectionDates({
                         variables,
                     })
-                    if (errors) {
-                        console.error(errors)
-                        notify(t("eventsScreen.messages.editError"), {type: "error"})
+                    if (data?.manage_election_dates?.error_msg || errors?.length) {
+                        notify(
+                            data?.manage_election_dates?.error_msg ??
+                                getGraphQLActionErrorReason({graphQLErrors: errors}) ??
+                                t("eventsScreen.messages.editError"),
+                            {type: "error"}
+                        )
+                        return
                     }
                 } catch (error) {
-                    console.error(error)
-                    notify(t("eventsScreen.messages.editError"), {type: "error"})
+                    notify(
+                        getGraphQLActionErrorReason(error) ?? t("eventsScreen.messages.editError"),
+                        {
+                            type: "error",
+                        }
+                    )
+                    return
                 }
             }
         }
@@ -608,8 +618,9 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 handleClose={async (result: boolean) => {
                     if (result) {
                         await confirmDeleteAction()
+                    } else {
+                        setIsDeleteModalOpen(false)
                     }
-                    setIsDeleteModalOpen(false)
                 }}
             >
                 {t(`eventsScreen.edit.delete`)}

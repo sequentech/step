@@ -28,6 +28,7 @@ use windmill::services::signing::log::Actor;
 pub struct ManageElectionDatesBody {
     election_event_id: String,
     election_id: Option<String>,
+    scheduled_event_id: Option<String>,
     /// Older clients: the instant, with an offset.
     scheduled_date: Option<String>,
     event_processor: EventProcessors,
@@ -116,6 +117,7 @@ pub async fn manage_election_dates(
         &schedule,
         input.voting_channels.clone(),
         &actor,
+        input.scheduled_event_id.as_deref(),
     )
     .await
     {

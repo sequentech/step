@@ -989,6 +989,7 @@ pub async fn import_schedule(
                     &id,
                     entry.cron_config(),
                     entry.voting_channels.for_update().as_ref(),
+                    None,
                 )
                 .await
                 .with_context(|| format!("Error updating the event of row {}", entry.row))?;

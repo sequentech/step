@@ -205,7 +205,7 @@ pub async fn apply(
             Some(change) => {
                 let mut cron = event.cron_config.clone().unwrap_or_default();
                 cron.scheduled_date = Some(change.scheduled_date.clone());
-                update_scheduled_event(hasura_transaction, tenant_id, &event.id, cron, None)
+                update_scheduled_event(hasura_transaction, tenant_id, &event.id, cron, None, None)
                     .await?;
                 changes.push(json!({
                     "scheduled_event_id": event.id,

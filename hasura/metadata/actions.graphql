@@ -670,6 +670,7 @@ type Query {
 
 type Mutation {
     manage_election_dates(
+    scheduled_event_id: uuid
         election_event_id: uuid!
         election_id: uuid
         scheduled_date: String

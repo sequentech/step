@@ -19,6 +19,7 @@ pub mod document_password;
 pub mod documents;
 pub mod election;
 pub mod election_dates;
+pub mod scheduled_event_dates;
 pub mod election_event_board;
 pub mod election_event_dates;
 pub mod election_event_statistics;
