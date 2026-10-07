@@ -5,7 +5,6 @@ import {TranslationType} from "./en"
 
 const spanishTranslation: TranslationType = {
     translations: {
-        welcome: "Comencemos: Importe la papeleta auditable...",
         404: {
             title: "Página no encontrada",
             subtitle: "La página que busca no existe",

@@ -5,7 +5,6 @@ import {TranslationType} from "./en"
 
 const catalanInformalTranslation: TranslationType = {
     translations: {
-        "welcome": "Comencem: Importa la papereta auditable...",
         "404": {
             title: "Pàgina no trobada",
             subtitle: "La pàgina que busques no existeix",
