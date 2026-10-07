@@ -16,6 +16,7 @@ import SettingsIcon from "@mui/icons-material/Settings"
 import HelpIcon from "@mui/icons-material/Help"
 import MailIcon from "@mui/icons-material/Mail"
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong"
+import QueueIcon from "@mui/icons-material/Queue"
 import {TenantContext} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -144,6 +145,7 @@ export const CustomMenu = () => {
         authContext.tenantId,
         IPermissions.ELECTORAL_LOG_CONSOLE_READ
     )
+    const showTaskQueues = authContext.isAuthorized(true, null, IPermissions.TASK_QUEUES_READ)
 
     const openInNewTab = (url: string) => {
         setAnchorEl(null)
@@ -201,6 +203,13 @@ export const CustomMenu = () => {
                             leftIcon={
                                 <ReceiptLongIcon sx={{color: adminTheme.palette.brandColor}} />
                             }
+                        />
+                    )}
+                    {tenant && showTaskQueues && (
+                        <StyledItem
+                            to="/task-queues"
+                            primaryText={open ? t("sideMenu.taskQueues") : null}
+                            leftIcon={<QueueIcon sx={{color: adminTheme.palette.brandColor}} />}
                         />
                     )}
                     {tenant && showSettings && (

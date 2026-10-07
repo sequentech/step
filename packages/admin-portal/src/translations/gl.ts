@@ -1375,6 +1375,8 @@ const galegoTranslation: TranslationType = {
                 "electoral-log-console-read": "Explorar Rexistro Electoral",
                 "electoral-log-console-query": "Consultar Rexistro Electoral",
                 "electoral-log-personal-data-read": "Ler Datos Persoais do Rexistro Electoral",
+                "task-queues-read": "Ler Colas de Tarefas",
+                "task-queues-write": "Xestionar Colas de Tarefas",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
@@ -1787,6 +1789,7 @@ const galegoTranslation: TranslationType = {
             search: "Buscar",
             usersAndRoles: "Usuarios e Roles",
             electoralLogConsole: "Rexistro Electoral",
+            taskQueues: "Colas de Tarefas",
             logs: "Rexistros",
             settings: "Configuracións",
             help: "Axuda",
@@ -3003,6 +3006,119 @@ const galegoTranslation: TranslationType = {
                 summary: "Filas: {{rows}} · {{ms}} ms",
                 truncated: "Só se amosan as primeiras {{rows}} filas.",
                 error: "Non se puido executar a consulta.",
+            },
+        },
+        taskQueues: {
+            title: "Colas de Tarefas",
+            subtitle:
+                "As colas de tarefas do contorno: que está agardando, que se procesou e canto tardou. Os argumentos das tarefas nunca se mostran.",
+            notAllowed:
+                "Precisa o permiso task-queues-read do tenant de superadministración para abrir as colas de tarefas.",
+            live: "En directo",
+            updated: "Actualizado ás {{time}}",
+            error: "Non se puideron cargar as colas de tarefas.",
+            columns: {
+                queue: "Cola",
+                ready: "Listas",
+                runningOrScheduled: "En curso ou programadas",
+                oldest: "Máis antiga",
+                processed: "Procesadas (última hora)",
+                lastHour: "Resultados (última hora)",
+                sent: "Enviadas (total)",
+            },
+            outcomes: {
+                succeeded: "Correctas",
+                failed: "Fallidas",
+                expired: "Caducadas",
+                rejected: "Rexeitadas",
+                discarded: "Descartadas",
+                unknown: "Descoñecido",
+            },
+            graphs: {
+                title: "Rendemento",
+                period: "Período",
+                periods: {
+                    hour: "Última hora",
+                    sixHours: "Últimas 6 horas",
+                    day: "Últimas 24 horas",
+                    week: "Últimos 7 días",
+                },
+                outcomes: "Mensaxes procesadas por resultado",
+                durations: "Tempo medio de espera e de proceso",
+                wait: "Espera",
+                processing: "Proceso",
+                seconds: "Segundos",
+                empty: "Non se procesou ningunha mensaxe desta cola neste período.",
+            },
+            messages: {
+                title: "Mensaxes",
+                states: {
+                    queued: "En cola",
+                    archived: "Arquivadas",
+                },
+                argumentsHidden:
+                    "Os argumentos das tarefas nunca se mostran, porque poden conter datos de votantes.",
+                refresh: "Actualizar",
+                newest: "Máis recentes",
+                newer: "Máis novas",
+                older: "Máis antigas",
+                empty: "Non hai mensaxes",
+                unreadable: "Mensaxe ilexible",
+                columns: {
+                    id: "ID",
+                    task: "Tarefa",
+                    outcome: "Resultado",
+                    event: "Evento",
+                    error: "Erro",
+                    enqueued: "Engadida á cola",
+                    reads: "Lecturas",
+                    retries: "Reintentos",
+                    archived: "Arquivada",
+                    visible: "Visible desde",
+                    size: "Tamaño",
+                    taskId: "ID da tarefa",
+                },
+            },
+            deadLetters: {
+                help: "Estes eventos do rexistro electoral non se puideron procesar. Seleccione eventos para reenvialos á cola de eventos ou para descartalos; os eventos descartados quedan no arquivo.",
+                noWrite:
+                    "Precisa o permiso task-queues-write para reenviar ou descartar estes eventos.",
+                replay: "Reenviar",
+                discard: "Descartar",
+                cancel: "Cancelar",
+                confirmTitle: {
+                    replay: "Reenviar os eventos?",
+                    discard: "Descartar os eventos?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "Reenviarase {{count}} evento á cola de eventos do rexistro electoral. Se volve fallar, regresará aquí.",
+                    replay_many:
+                        "Reenviaranse {{count}} eventos á cola de eventos do rexistro electoral. Os eventos que volvan fallar regresarán aquí.",
+                    replay_other:
+                        "Reenviaranse {{count}} eventos á cola de eventos do rexistro electoral. Os eventos que volvan fallar regresarán aquí.",
+                    discard_one:
+                        "Moverase {{count}} evento ao arquivo e non se engadirá ao rexistro electoral.",
+                    discard_many:
+                        "Moveranse {{count}} eventos ao arquivo e non se engadirán ao rexistro electoral.",
+                    discard_other:
+                        "Moveranse {{count}} eventos ao arquivo e non se engadirán ao rexistro electoral.",
+                },
+                queued: {
+                    replay_one:
+                        "Reenvío de {{count}} evento engadido á cola como tarefa {{taskId}}.",
+                    replay_many:
+                        "Reenvío de {{count}} eventos engadido á cola como tarefa {{taskId}}.",
+                    replay_other:
+                        "Reenvío de {{count}} eventos engadido á cola como tarefa {{taskId}}.",
+                    discard_one:
+                        "Descarte de {{count}} evento engadido á cola como tarefa {{taskId}}.",
+                    discard_many:
+                        "Descarte de {{count}} eventos engadido á cola como tarefa {{taskId}}.",
+                    discard_other:
+                        "Descarte de {{count}} eventos engadido á cola como tarefa {{taskId}}.",
+                },
+                failed: "Non se puido engadir a operación á cola.",
             },
         },
     },

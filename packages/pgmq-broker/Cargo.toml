@@ -9,9 +9,10 @@ license = "AGPL-3.0-only"
 [dependencies]
 async-trait = "0.1"
 celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "7dfe34739d21a95754e34dedb5f10aa0a4f356ce" }
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 deadpool-postgres = "0.14"
 futures = "0.3"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"] }
@@ -19,6 +20,3 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["rt"] }
 tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
-
-[dev-dependencies]
-serde = { version = "1", features = ["derive"] }

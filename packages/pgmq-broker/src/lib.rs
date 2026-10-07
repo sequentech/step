@@ -35,6 +35,7 @@ pub const MAX_QUEUE_NAME_LEN: usize = 47;
 /// Message header recording how the processing of an archived message ended.
 pub const OUTCOME_HEADER: &str = "x-step-outcome";
 
+pub mod inspect;
 pub mod setup;
 
 fn db_error(error: impl std::error::Error + 'static) -> BrokerError {

@@ -1376,6 +1376,8 @@ const dutchTranslation: TranslationType = {
                 "electoral-log-console-read": "Verkiezingslog Bekijken",
                 "electoral-log-console-query": "Verkiezingslog Bevragen",
                 "electoral-log-personal-data-read": "Persoonsgegevens van Verkiezingslog Lezen",
+                "task-queues-read": "Taakwachtrijen Lezen",
+                "task-queues-write": "Taakwachtrijen Beheren",
                 "tasks-read": "Taakuitvoering Lezen",
                 "keys-read": "Sleutels Lezen",
                 "document-upload": "Documenten Uploaden",
@@ -1784,6 +1786,7 @@ const dutchTranslation: TranslationType = {
             search: "Zoeken",
             usersAndRoles: "Gebruikers en Rollen",
             electoralLogConsole: "Verkiezingslog",
+            taskQueues: "Taakwachtrijen",
             logs: "Logs",
             settings: "Instellingen",
             help: "Help",
@@ -3001,6 +3004,119 @@ const dutchTranslation: TranslationType = {
                 summary: "Rijen: {{rows}} · {{ms}} ms",
                 truncated: "Alleen de eerste {{rows}} rijen worden getoond.",
                 error: "De query kon niet worden uitgevoerd.",
+            },
+        },
+        taskQueues: {
+            title: "Taakwachtrijen",
+            subtitle:
+                "De taakwachtrijen van de omgeving: wat wacht, wat is verwerkt en hoe lang dat duurde. Taakargumenten worden nooit getoond.",
+            notAllowed:
+                "U hebt de machtiging task-queues-read van de superbeheerder-tenant nodig om de taakwachtrijen te openen.",
+            live: "Live",
+            updated: "Bijgewerkt om {{time}}",
+            error: "De taakwachtrijen konden niet worden geladen.",
+            columns: {
+                queue: "Wachtrij",
+                ready: "Klaar",
+                runningOrScheduled: "Bezig of gepland",
+                oldest: "Oudste",
+                processed: "Verwerkt (laatste uur)",
+                lastHour: "Resultaten (laatste uur)",
+                sent: "Verzonden (totaal)",
+            },
+            outcomes: {
+                succeeded: "Geslaagd",
+                failed: "Mislukt",
+                expired: "Verlopen",
+                rejected: "Geweigerd",
+                discarded: "Verworpen",
+                unknown: "Onbekend",
+            },
+            graphs: {
+                title: "Doorvoer",
+                period: "Periode",
+                periods: {
+                    hour: "Laatste uur",
+                    sixHours: "Laatste 6 uur",
+                    day: "Laatste 24 uur",
+                    week: "Laatste 7 dagen",
+                },
+                outcomes: "Verwerkte berichten per resultaat",
+                durations: "Gemiddelde wacht- en verwerkingstijd",
+                wait: "Wachten",
+                processing: "Verwerken",
+                seconds: "Seconden",
+                empty: "In deze periode zijn geen berichten van deze wachtrij verwerkt.",
+            },
+            messages: {
+                title: "Berichten",
+                states: {
+                    queued: "In wachtrij",
+                    archived: "Gearchiveerd",
+                },
+                argumentsHidden:
+                    "Taakargumenten worden nooit getoond, omdat ze gegevens van kiezers kunnen bevatten.",
+                refresh: "Vernieuwen",
+                newest: "Nieuwste",
+                newer: "Nieuwer",
+                older: "Ouder",
+                empty: "Geen berichten",
+                unreadable: "Onleesbaar bericht",
+                columns: {
+                    id: "ID",
+                    task: "Taak",
+                    outcome: "Resultaat",
+                    event: "Gebeurtenis",
+                    error: "Fout",
+                    enqueued: "In wachtrij gezet",
+                    reads: "Keren gelezen",
+                    retries: "Herhalingen",
+                    archived: "Gearchiveerd",
+                    visible: "Zichtbaar vanaf",
+                    size: "Grootte",
+                    taskId: "Taak-ID",
+                },
+            },
+            deadLetters: {
+                help: "Deze gebeurtenissen van het verkiezingslog konden niet worden verwerkt. Selecteer gebeurtenissen om ze opnieuw naar de gebeurteniswachtrij te sturen of om ze te verwerpen; verworpen gebeurtenissen blijven in het archief.",
+                noWrite:
+                    "U hebt de machtiging task-queues-write nodig om deze gebeurtenissen opnieuw te sturen of te verwerpen.",
+                replay: "Opnieuw sturen",
+                discard: "Verwerpen",
+                cancel: "Annuleren",
+                confirmTitle: {
+                    replay: "Gebeurtenissen opnieuw sturen?",
+                    discard: "Gebeurtenissen verwerpen?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "{{count}} gebeurtenis wordt opnieuw naar de gebeurteniswachtrij van het verkiezingslog gestuurd. Als die opnieuw mislukt, komt die hier terug.",
+                    replay_many:
+                        "{{count}} gebeurtenissen worden opnieuw naar de gebeurteniswachtrij van het verkiezingslog gestuurd. Gebeurtenissen die opnieuw mislukken, komen hier terug.",
+                    replay_other:
+                        "{{count}} gebeurtenissen worden opnieuw naar de gebeurteniswachtrij van het verkiezingslog gestuurd. Gebeurtenissen die opnieuw mislukken, komen hier terug.",
+                    discard_one:
+                        "{{count}} gebeurtenis wordt naar het archief verplaatst en niet aan het verkiezingslog toegevoegd.",
+                    discard_many:
+                        "{{count}} gebeurtenissen worden naar het archief verplaatst en niet aan het verkiezingslog toegevoegd.",
+                    discard_other:
+                        "{{count}} gebeurtenissen worden naar het archief verplaatst en niet aan het verkiezingslog toegevoegd.",
+                },
+                queued: {
+                    replay_one:
+                        "Opnieuw sturen van {{count}} gebeurtenis in de wachtrij gezet als taak {{taskId}}.",
+                    replay_many:
+                        "Opnieuw sturen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
+                    replay_other:
+                        "Opnieuw sturen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
+                    discard_one:
+                        "Verwerpen van {{count}} gebeurtenis in de wachtrij gezet als taak {{taskId}}.",
+                    discard_many:
+                        "Verwerpen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
+                    discard_other:
+                        "Verwerpen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
+                },
+                failed: "De bewerking kon niet in de wachtrij worden gezet.",
             },
         },
     },

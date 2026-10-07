@@ -1381,6 +1381,8 @@ const frenchTranslation: TranslationType = {
                 "electoral-log-console-query": "Interroger le Journal Électoral",
                 "electoral-log-personal-data-read":
                     "Lire les Données Personnelles du Journal Électoral",
+                "task-queues-read": "Lire les Files de Tâches",
+                "task-queues-write": "Gérer les Files de Tâches",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
@@ -1796,6 +1798,7 @@ const frenchTranslation: TranslationType = {
             search: "Chercher",
             usersAndRoles: "Utilisateurs et Rôles",
             electoralLogConsole: "Journal Électoral",
+            taskQueues: "Files de Tâches",
             logs: "Journaux",
             settings: "Configuration",
             help: "Aide",
@@ -3022,6 +3025,118 @@ const frenchTranslation: TranslationType = {
                 summary: "Lignes : {{rows}} · {{ms}} ms",
                 truncated: "Seules les {{rows}} premières lignes sont affichées.",
                 error: "La requête n'a pas pu s'exécuter.",
+            },
+        },
+        taskQueues: {
+            title: "Files de Tâches",
+            subtitle:
+                "Les files de tâches de l'environnement : ce qui attend, ce qui a été traité et en combien de temps. Les arguments des tâches ne sont jamais affichés.",
+            notAllowed:
+                "Vous avez besoin de la permission task-queues-read du tenant de super-administration pour ouvrir les files de tâches.",
+            live: "En direct",
+            updated: "Mis à jour à {{time}}",
+            error: "Impossible de charger les files de tâches.",
+            columns: {
+                queue: "File",
+                ready: "Prêts",
+                runningOrScheduled: "En cours ou planifiés",
+                oldest: "Plus ancien",
+                processed: "Traités (dernière heure)",
+                lastHour: "Résultats (dernière heure)",
+                sent: "Envoyés (total)",
+            },
+            outcomes: {
+                succeeded: "Réussis",
+                failed: "Échoués",
+                expired: "Expirés",
+                rejected: "Rejetés",
+                discarded: "Écartés",
+                unknown: "Inconnu",
+            },
+            graphs: {
+                title: "Débit",
+                period: "Période",
+                periods: {
+                    hour: "Dernière heure",
+                    sixHours: "6 dernières heures",
+                    day: "24 dernières heures",
+                    week: "7 derniers jours",
+                },
+                outcomes: "Messages traités par résultat",
+                durations: "Temps moyen d'attente et de traitement",
+                wait: "Attente",
+                processing: "Traitement",
+                seconds: "Secondes",
+                empty: "Aucun message de cette file n'a été traité sur cette période.",
+            },
+            messages: {
+                title: "Messages",
+                states: {
+                    queued: "En file",
+                    archived: "Archivés",
+                },
+                argumentsHidden:
+                    "Les arguments des tâches ne sont jamais affichés, car ils peuvent contenir des données d'électeurs.",
+                refresh: "Actualiser",
+                newest: "Les plus récents",
+                newer: "Plus récents",
+                older: "Plus anciens",
+                empty: "Aucun message",
+                unreadable: "Message illisible",
+                columns: {
+                    id: "ID",
+                    task: "Tâche",
+                    outcome: "Résultat",
+                    event: "Événement",
+                    error: "Erreur",
+                    enqueued: "Mis en file",
+                    reads: "Lectures",
+                    retries: "Nouvelles tentatives",
+                    archived: "Archivé",
+                    visible: "Visible à partir de",
+                    size: "Taille",
+                    taskId: "ID de tâche",
+                },
+            },
+            deadLetters: {
+                help: "Ces événements du journal électoral n'ont pas pu être traités. Sélectionnez des événements pour les renvoyer vers la file d'événements ou pour les écarter ; les événements écartés restent dans l'archive.",
+                noWrite:
+                    "Vous avez besoin de la permission task-queues-write pour renvoyer ou écarter ces événements.",
+                replay: "Renvoyer",
+                discard: "Écarter",
+                cancel: "Annuler",
+                confirmTitle: {
+                    replay: "Renvoyer les événements ?",
+                    discard: "Écarter les événements ?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "{{count}} événement sera renvoyé vers la file d'événements du journal électoral. S'il échoue à nouveau, il reviendra ici.",
+                    replay_many:
+                        "{{count}} événements seront renvoyés vers la file d'événements du journal électoral. Les événements qui échouent à nouveau reviendront ici.",
+                    replay_other:
+                        "{{count}} événements seront renvoyés vers la file d'événements du journal électoral. Les événements qui échouent à nouveau reviendront ici.",
+                    discard_one:
+                        "{{count}} événement sera déplacé vers l'archive et ne sera pas ajouté au journal électoral.",
+                    discard_many:
+                        "{{count}} événements seront déplacés vers l'archive et ne seront pas ajoutés au journal électoral.",
+                    discard_other:
+                        "{{count}} événements seront déplacés vers l'archive et ne seront pas ajoutés au journal électoral.",
+                },
+                queued: {
+                    replay_one: "Renvoi de {{count}} événement mis en file comme tâche {{taskId}}.",
+                    replay_many:
+                        "Renvoi de {{count}} événements mis en file comme tâche {{taskId}}.",
+                    replay_other:
+                        "Renvoi de {{count}} événements mis en file comme tâche {{taskId}}.",
+                    discard_one:
+                        "Mise à l'écart de {{count}} événement mise en file comme tâche {{taskId}}.",
+                    discard_many:
+                        "Mise à l'écart de {{count}} événements mise en file comme tâche {{taskId}}.",
+                    discard_other:
+                        "Mise à l'écart de {{count}} événements mise en file comme tâche {{taskId}}.",
+                },
+                failed: "L'opération n'a pas pu être mise en file.",
             },
         },
     },

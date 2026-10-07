@@ -978,6 +978,24 @@
         "attributes": {}
       },
       {
+        "id": "dad98a5c-8224-4183-91b4-8c009160decc",
+        "name": "task-queues-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "1f2fac0a-9b50-4cde-bc21-059bd76d78d0",
+        "name": "task-queues-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "c162751b-950c-4664-9dc5-91f564a4d310",
         "name": "electoral-log-personal-data-read",
         "description": "",
@@ -2502,6 +2520,8 @@
         "electoral-log-console-read",
         "electoral-log-console-query",
         "electoral-log-personal-data-read",
+        "task-queues-read",
+        "task-queues-write",
         "election-state-write",
         "candidate-write",
         "role-create",

@@ -49,6 +49,7 @@ CRUD endpoints for:
 - electoral-log-audit
 - electoral-log-console-read|query
 - electoral-log-personal-data-read
+- task-queues-read|write (super-admin tenant only)
 - keys-read
 - contest-create|read|write|delete
 - candidate-create|read|write|delete

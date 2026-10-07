@@ -49,7 +49,7 @@ Each component connects with a role of its own:
 | Owner | The setup job | Owns the database; installs PGMQ and creates the queues |
 | Worker | Windmill and Beat | Reads, sends, archives and deletes messages; purges archives |
 | Producer | Harvest and Keycloak | Only sends messages |
-| Reader | Read-only inspection | Reads queues, archives and their metrics |
+| Reader | Harvest's Task Queues page | Reads queues, archives and their metrics |
 
 The connection is configured with `QUEUE_DB__HOST`, `QUEUE_DB__PORT`,
 `QUEUE_DB__DBNAME`, `QUEUE_DB__USER`, `QUEUE_DB__PASSWORD` and, optionally,
@@ -161,6 +161,30 @@ them:
 3. Messages still in the environment's RabbitMQ queues are **not** migrated: they are
    discarded. To keep work in progress, let the queues drain before upgrading.
 4. Remove RabbitMQ from a cluster once none of its environments uses it.
+
+## The Task Queues page
+
+The super-admin tenant's **Task Queues** page, in the Admin Portal, shows every queue's
+depth and recent outcomes, the throughput and latency of a queue over time, and its
+messages. Harvest serves it through the `task_queues_overview`,
+`task_queues_throughput`, `task_queues_messages` and `task_queues_dead_letters` Hasura
+actions, to users of the super-admin tenant with `task-queues-read`.
+
+Harvest reads the task-queue database as the reader role, from
+`QUEUE_DB_READER_USER` and `QUEUE_DB_READER_PASSWORD` with the other `QUEUE_DB__*`
+settings; without them the page reports that inspection is not configured. Throughput
+comes from the archives, so it covers the archive retention. Messages are summarized
+from their Celery envelope: the task, task ID, retries, ETA, expiry and size, the
+`x-step-outcome`, `x-electoral-log-stage` and `x-electoral-log-error` headers, and, for
+electoral-log events, the tenant, election event and message type. Task arguments are
+never returned.
+
+With `task-queues-write`, operators replay or discard selected messages of
+`electoral_log_dead_letter_queue`. Harvest only enqueues
+`manage_electoral_log_dead_letters`, on `short_queue`, with the user who asked; a
+worker applies it in one transaction. A replay sends each event back to
+`electoral_log_event_queue` and deletes it from the dead letters; a discard archives it
+with the `discarded` outcome. The dead-letter archive is never purged.
 
 ## Operations and verification
 

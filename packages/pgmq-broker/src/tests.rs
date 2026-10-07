@@ -515,3 +515,107 @@ async fn purge_deletes_only_archived_messages_past_the_retention() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+#[ignore = "requires a disposable PostgreSQL database"]
+async fn inspection_summarizes_queues_without_task_arguments() {
+    use super::inspect::{messages, overview, throughput, InspectError, MessageState};
+    let pool = test_pool();
+    let queue = unique_queue("inspect");
+    set_up(&pool, &[&queue]).await;
+    let client = pool.get().await.unwrap();
+    let message = Message::try_from(retry_once::new()).unwrap();
+    send(&**client, &queue, &message).await.unwrap();
+    send(&**client, &queue, &message).await.unwrap();
+    client
+        .query_one("SELECT pgmq.send($1, '{\"not\": \"celery\"}')", &[&queue])
+        .await
+        .unwrap();
+    client
+        .execute(
+            &format!(
+                "UPDATE pgmq.q_{queue} SET headers = \
+                 jsonb_build_object('{OUTCOME_HEADER}', 'succeeded', 'private', 'x') \
+                 WHERE msg_id = 2"
+            ),
+            &[],
+        )
+        .await
+        .unwrap();
+    client
+        .query_one("SELECT pgmq.archive($1, 2::bigint)", &[&queue])
+        .await
+        .unwrap();
+
+    let queues = overview(&**client, &[&queue]).await.unwrap();
+    assert_eq!(queues.len(), 1);
+    assert_eq!(queues[0].ready, 2);
+    assert_eq!(queues[0].running_or_scheduled, 0);
+    assert_eq!(queues[0].total_sent, 3);
+    assert_eq!(queues[0].last_hour.get("succeeded"), Some(&1));
+
+    let queued = messages(&**client, &queue, MessageState::Queued, None, 10)
+        .await
+        .unwrap();
+    assert_eq!(
+        queued
+            .iter()
+            .map(|message| message.msg_id)
+            .collect::<Vec<_>>(),
+        [3, 1]
+    );
+    assert_eq!(queued[0].task, None);
+    assert!(queued[0].size_bytes > 0);
+    assert_eq!(queued[1].task.as_deref(), Some(retry_once::NAME));
+    assert_eq!(
+        queued[1].task_id.as_deref(),
+        Some(message.headers.id.as_str())
+    );
+    let older = messages(&**client, &queue, MessageState::Queued, Some(3), 10)
+        .await
+        .unwrap();
+    assert_eq!(older.len(), 1);
+    let archived = messages(&**client, &queue, MessageState::Archived, None, 10)
+        .await
+        .unwrap();
+    assert_eq!(archived.len(), 1);
+    assert!(archived[0].archived_at.is_some());
+    assert_eq!(
+        archived[0].headers.keys().collect::<Vec<_>>(),
+        [OUTCOME_HEADER]
+    );
+
+    let buckets = throughput(
+        &**client,
+        &queue,
+        Duration::from_secs(3600),
+        Duration::from_secs(60),
+    )
+    .await
+    .unwrap();
+    assert_eq!(buckets.len(), 1);
+    assert_eq!(buckets[0].outcomes.get("succeeded"), Some(&1));
+
+    assert!(matches!(
+        overview(&**client, &["Not-A-Queue"]).await,
+        Err(InspectError::InvalidQueueName(_))
+    ));
+    assert!(matches!(
+        messages(&**client, &queue, MessageState::Queued, None, 0).await,
+        Err(InspectError::InvalidRange(_))
+    ));
+    assert!(matches!(
+        throughput(
+            &**client,
+            &queue,
+            Duration::from_secs(60),
+            Duration::from_secs(3600)
+        )
+        .await,
+        Err(InspectError::InvalidRange(_))
+    ));
+    client
+        .query_one("SELECT pgmq.drop_queue($1)", &[&queue])
+        .await
+        .unwrap();
+}

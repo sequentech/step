@@ -1377,6 +1377,8 @@ const tagalogTranslation: TranslationType = {
                 "electoral-log-console-query": "I-query ang Electoral Log",
                 "electoral-log-personal-data-read":
                     "Basahin ang Personal na Datos ng Electoral Log",
+                "task-queues-read": "Basahin ang Mga Task Queue",
+                "task-queues-write": "Pamahalaan ang Mga Task Queue",
                 "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
@@ -1788,6 +1790,7 @@ const tagalogTranslation: TranslationType = {
             search: "Maghanap",
             usersAndRoles: "Mga Tagagamit at Tungkulin",
             electoralLogConsole: "Electoral Log",
+            taskQueues: "Mga Task Queue",
             logs: "Mga Log",
             settings: "Mga Setting",
             help: "Tulong",
@@ -3013,6 +3016,119 @@ const tagalogTranslation: TranslationType = {
                 summary: "Mga hilera: {{rows}} · {{ms}} ms",
                 truncated: "Ang unang {{rows}} hilera lang ang ipinapakita.",
                 error: "Hindi napatakbo ang query.",
+            },
+        },
+        taskQueues: {
+            title: "Mga Task Queue",
+            subtitle:
+                "Ang mga task queue ng environment: kung ano ang naghihintay, kung ano ang naproseso at gaano ito katagal. Hindi kailanman ipinapakita ang mga argumento ng mga task.",
+            notAllowed:
+                "Kailangan mo ang pahintulot na task-queues-read ng super-admin tenant para buksan ang mga task queue.",
+            live: "Live",
+            updated: "Na-update noong {{time}}",
+            error: "Hindi ma-load ang mga task queue.",
+            columns: {
+                queue: "Queue",
+                ready: "Handa",
+                runningOrScheduled: "Tumatakbo o naka-iskedyul",
+                oldest: "Pinakaluma",
+                processed: "Naproseso (huling oras)",
+                lastHour: "Mga resulta (huling oras)",
+                sent: "Naipadala (kabuuan)",
+            },
+            outcomes: {
+                succeeded: "Nagtagumpay",
+                failed: "Nabigo",
+                expired: "Nag-expire",
+                rejected: "Tinanggihan",
+                discarded: "Itinapon",
+                unknown: "Hindi alam",
+            },
+            graphs: {
+                title: "Throughput",
+                period: "Panahon",
+                periods: {
+                    hour: "Huling oras",
+                    sixHours: "Huling 6 na oras",
+                    day: "Huling 24 na oras",
+                    week: "Huling 7 araw",
+                },
+                outcomes: "Mga naprosesong mensahe ayon sa resulta",
+                durations: "Karaniwang tagal ng paghihintay at pagproseso",
+                wait: "Paghihintay",
+                processing: "Pagproseso",
+                seconds: "Segundo",
+                empty: "Walang naprosesong mensahe ng queue na ito sa panahong ito.",
+            },
+            messages: {
+                title: "Mga Mensahe",
+                states: {
+                    queued: "Nasa queue",
+                    archived: "Naka-archive",
+                },
+                argumentsHidden:
+                    "Hindi kailanman ipinapakita ang mga argumento ng mga task, dahil maaaring naglalaman ang mga ito ng datos ng mga botante.",
+                refresh: "I-refresh",
+                newest: "Pinakabago",
+                newer: "Mas bago",
+                older: "Mas luma",
+                empty: "Walang mensahe",
+                unreadable: "Hindi mabasang mensahe",
+                columns: {
+                    id: "ID",
+                    task: "Task",
+                    outcome: "Resulta",
+                    event: "Event",
+                    error: "Error",
+                    enqueued: "Na-queue",
+                    reads: "Mga pagbasa",
+                    retries: "Mga retry",
+                    archived: "Na-archive",
+                    visible: "Makikita mula",
+                    size: "Laki",
+                    taskId: "Task ID",
+                },
+            },
+            deadLetters: {
+                help: "Hindi naproseso ang mga event na ito ng electoral log. Pumili ng mga event para ipadala muli sa event queue o para itapon; nananatili sa archive ang mga itinapong event.",
+                noWrite:
+                    "Kailangan mo ang pahintulot na task-queues-write para ipadala muli o itapon ang mga event na ito.",
+                replay: "Ipadala muli",
+                discard: "Itapon",
+                cancel: "Kanselahin",
+                confirmTitle: {
+                    replay: "Ipadala muli ang mga event?",
+                    discard: "Itapon ang mga event?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "Ipapadala muli ang {{count}} na event sa event queue ng electoral log. Babalik ito rito kung mabibigo ulit.",
+                    replay_many:
+                        "Ipapadala muli ang {{count}} na event sa event queue ng electoral log. Babalik dito ang mga event na mabibigo ulit.",
+                    replay_other:
+                        "Ipapadala muli ang {{count}} na event sa event queue ng electoral log. Babalik dito ang mga event na mabibigo ulit.",
+                    discard_one:
+                        "Ililipat sa archive ang {{count}} na event at hindi ito idadagdag sa electoral log.",
+                    discard_many:
+                        "Ililipat sa archive ang {{count}} na event at hindi idadagdag sa electoral log.",
+                    discard_other:
+                        "Ililipat sa archive ang {{count}} na event at hindi idadagdag sa electoral log.",
+                },
+                queued: {
+                    replay_one:
+                        "Na-queue bilang task {{taskId}} ang muling pagpapadala ng {{count}} na event.",
+                    replay_many:
+                        "Na-queue bilang task {{taskId}} ang muling pagpapadala ng {{count}} na event.",
+                    replay_other:
+                        "Na-queue bilang task {{taskId}} ang muling pagpapadala ng {{count}} na event.",
+                    discard_one:
+                        "Na-queue bilang task {{taskId}} ang pagtatapon ng {{count}} na event.",
+                    discard_many:
+                        "Na-queue bilang task {{taskId}} ang pagtatapon ng {{count}} na event.",
+                    discard_other:
+                        "Na-queue bilang task {{taskId}} ang pagtatapon ng {{count}} na event.",
+                },
+                failed: "Hindi ma-queue ang operasyon.",
             },
         },
     },
