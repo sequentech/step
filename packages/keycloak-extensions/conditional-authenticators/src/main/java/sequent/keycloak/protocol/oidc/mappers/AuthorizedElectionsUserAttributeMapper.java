@@ -16,11 +16,9 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -237,21 +235,11 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     putElectionEventIdClaim(token, electionEventId);
   }
 
-  /**
-   * Maps authorized elections to election IDs. The keys of {@code electionIdsByKey} are external
-   * IDs, or the election ID for an election without one, and its values are election IDs. A value
-   * may also be the ID of an election that has an external ID, as voter imports used to store them.
-   * Values that match no election are dropped.
-   */
+  /** Maps authorized elections to election IDs, dropping values that name no election. */
   static List<String> toElectionIds(
       Collection<String> authorizedElections, Map<String, String> electionIdsByKey) {
-    Set<String> electionIds = new HashSet<>(electionIdsByKey.values());
     return authorizedElections.stream()
-        .map(
-            value ->
-                electionIdsByKey.containsKey(value)
-                    ? electionIdsByKey.get(value)
-                    : (electionIds.contains(value) ? value : null))
+        .map(electionIdsByKey::get)
         .filter(Objects::nonNull)
         .distinct()
         .collect(Collectors.toList());
@@ -454,8 +442,22 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       throw new RuntimeException("Unexpected JSON structure: " + response.body());
     }
 
+    Map<String, String> electionIds = electionIdsByKey(electionsNode);
+
+    // Cache the result for future calls
+    electionsCache.put(electionEventId, electionIds);
+    return electionIds;
+  }
+
+  /**
+   * Maps each election's external ID, or its ID when it has none, to its ID, and then each ID that
+   * is not already a key to itself: voter imports used to store election IDs, and an election whose
+   * external ID another one repeats can only be named by its ID.
+   */
+  static Map<String, String> electionIdsByKey(JsonNode electionsNode) {
     StringBuilder keyAreaLog = new StringBuilder();
     Map<String, String> electionIds = new HashMap<>();
+    List<String> ids = new ArrayList<>();
     for (JsonNode election : electionsNode) {
       String id = election.path("id").asText();
       // Use asText(null) so that if external_id is missing it returns null.
@@ -472,10 +474,11 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
       }
       log.info(keyAreaLog.toString());
       electionIds.put(key, id);
+      ids.add(id);
     }
-
-    // Cache the result for future calls
-    electionsCache.put(electionEventId, electionIds);
+    for (String id : ids) {
+      electionIds.putIfAbsent(id, id);
+    }
     return electionIds;
   }
 

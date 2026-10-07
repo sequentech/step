@@ -3,15 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The `authorized-election-ids` voter attribute restricts a voter to some of
-//! the election event's elections. Each value names an election by its
-//! external ID, or by its ID when it has none: that is what the Keycloak token
-//! mapper resolves and what the tally census matches.
+//! the election event's elections. The Keycloak token mapper looks each value
+//! up among the elections' external IDs, taking an election's ID when it has
+//! none, and then among their IDs.
 
 use crate::services::election::ElectionHead;
+use sequent_core::services::keycloak::MULTIVALUE_USER_ATTRIBUTE_SEPARATOR;
 use std::collections::HashMap;
+use std::fmt;
 
-/// The value that authorizes a voter for `election`.
-pub fn authorized_election_id(election: &ElectionHead) -> &str {
+/// What the token mapper first looks `election` up by.
+fn token_key(election: &ElectionHead) -> &str {
     election
         .external_id
         .as_deref()
@@ -19,47 +21,144 @@ pub fn authorized_election_id(election: &ElectionHead) -> &str {
         .unwrap_or(&election.id)
 }
 
-/// Resolves a reference to one of an event's elections, by external ID or by
-/// ID, to the value that authorizes a voter for it.
+/// Whether `value` reads back unchanged from a voters CSV cell, whose values
+/// are separated by `|` and trimmed.
+fn fits_in_a_cell(value: &str) -> bool {
+    !value.is_empty()
+        && value.trim() == value
+        && !value.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnresolvedElection {
+    NoElection,
+    SeveralElections,
+}
+
+impl fmt::Display for UnresolvedElection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            UnresolvedElection::NoElection => {
+                "no election in this election event has that external ID or ID"
+            }
+            UnresolvedElection::SeveralElections => {
+                "more than one election in this election event has that external ID or ID"
+            }
+        })
+    }
+}
+
+/// Resolves `authorized-election-ids` values as the token mapper does, to the
+/// value stored for the election each one names: its external ID, unless
+/// another election shares it or it does not fit in a voters CSV cell, and
+/// otherwise its ID.
 #[derive(Debug, Default)]
 pub struct AuthorizedElectionIds {
-    by_reference: HashMap<String, String>,
+    /// The IDs of the elections each value names.
+    elections_named: HashMap<String, Vec<String>>,
+    /// The value stored for each election, by ID, if one names it alone.
+    stored_values: HashMap<String, Option<String>>,
 }
 
 impl AuthorizedElectionIds {
     pub fn new(elections: &[ElectionHead]) -> Self {
-        let mut by_reference: HashMap<String, String> = elections
+        let mut elections_named: HashMap<String, Vec<String>> = HashMap::new();
+        for election in elections {
+            elections_named
+                .entry(token_key(election).to_string())
+                .or_default()
+                .push(election.id.clone());
+        }
+        // After the external IDs, which take precedence over an equal ID.
+        for election in elections {
+            elections_named
+                .entry(election.id.clone())
+                .or_insert_with(|| vec![election.id.clone()]);
+        }
+        let names_alone = |value: &str, election: &ElectionHead| {
+            matches!(
+                elections_named.get(value).map(Vec::as_slice),
+                Some([id]) if *id == election.id
+            )
+        };
+        let stored_values = elections
             .iter()
             .map(|election| {
-                (
-                    election.id.clone(),
-                    authorized_election_id(election).to_string(),
-                )
+                let value = election
+                    .external_id
+                    .iter()
+                    .chain([&election.id])
+                    .find(|value| fits_in_a_cell(value) && names_alone(value.as_str(), election))
+                    .cloned();
+                (election.id.clone(), value)
             })
             .collect();
-        // Inserted last so that an external ID equal to another election's ID
-        // names the election it belongs to, as it does in the token mapper.
-        for election in elections {
-            let value = authorized_election_id(election);
-            by_reference.insert(value.to_string(), value.to_string());
+        AuthorizedElectionIds {
+            elections_named,
+            stored_values,
         }
-        AuthorizedElectionIds { by_reference }
     }
 
     /// Also resolves the IDs an election event import replaced, given as a map
     /// from the exported ID to the imported one.
     pub fn with_replaced_ids(mut self, replaced_ids: &HashMap<String, String>) -> Self {
         for (old_id, new_id) in replaced_ids {
-            if let Some(value) = self.by_reference.get(new_id).cloned() {
-                self.by_reference.entry(old_id.clone()).or_insert(value);
+            if self.stored_values.contains_key(new_id) {
+                self.elections_named
+                    .entry(old_id.clone())
+                    .or_insert_with(|| vec![new_id.clone()]);
             }
         }
         self
     }
 
-    pub fn resolve(&self, reference: &str) -> Option<&str> {
-        self.by_reference.get(reference).map(String::as_str)
+    /// The value stored for the election that `reference` names.
+    pub fn resolve(&self, reference: &str) -> Result<&str, UnresolvedElection> {
+        match self.elections_named.get(reference).map(Vec::as_slice) {
+            Some([id]) => self
+                .stored_value(id)
+                .ok_or(UnresolvedElection::SeveralElections),
+            Some([_, _, ..]) => Err(UnresolvedElection::SeveralElections),
+            _ => Err(UnresolvedElection::NoElection),
+        }
     }
+
+    /// The value stored for the election with ID `election_id`.
+    pub fn stored_value(&self, election_id: &str) -> Option<&str> {
+        self.stored_values
+            .get(election_id)
+            .and_then(Option::as_deref)
+    }
+
+    /// The values the token mapper resolves to `election`, or may when
+    /// elections share an external ID.
+    fn census_values(&self, election: &ElectionHead) -> Vec<String> {
+        let key = token_key(election);
+        let id_names_it = self
+            .elections_named
+            .get(&election.id)
+            .is_some_and(|ids| ids.contains(&election.id));
+        let mut values = vec![key.to_string()];
+        if key != election.id && id_names_it {
+            values.push(election.id.clone());
+        }
+        values
+    }
+}
+
+/// The `authorized-election-ids` values that each election's census matches,
+/// by election ID.
+pub fn census_values_by_election(elections: &[ElectionHead]) -> HashMap<String, Vec<String>> {
+    let authorized_elections = AuthorizedElectionIds::new(elections);
+    elections
+        .iter()
+        .map(|election| {
+            (
+                election.id.clone(),
+                authorized_elections.census_values(election),
+            )
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -80,34 +179,66 @@ mod tests {
     }
 
     #[test]
-    fn elections_are_authorized_by_external_id_or_by_id_without_one() {
-        assert_eq!(
-            authorized_election_id(&election(ELECTION_A, Some("GIAMBI30-3-31"))),
-            "GIAMBI30-3-31"
-        );
-        assert_eq!(
-            authorized_election_id(&election(ELECTION_B, None)),
-            ELECTION_B
-        );
-        assert_eq!(
-            authorized_election_id(&election(ELECTION_C, Some(""))),
-            ELECTION_C
-        );
-    }
-
-    #[test]
-    fn external_ids_and_ids_resolve_to_the_authorizing_value() {
+    fn elections_are_stored_by_external_id_or_by_id_without_one() {
         let elections = AuthorizedElectionIds::new(&[
             election(ELECTION_A, Some("GIAMBI30-3-31")),
             election(ELECTION_B, None),
+            election(ELECTION_C, Some("")),
         ]);
 
-        assert_eq!(elections.resolve("GIAMBI30-3-31"), Some("GIAMBI30-3-31"));
-        assert_eq!(elections.resolve(ELECTION_A), Some("GIAMBI30-3-31"));
-        assert_eq!(elections.resolve(ELECTION_B), Some(ELECTION_B));
-        assert_eq!(elections.resolve(ELECTION_C), None);
-        assert_eq!(elections.resolve("giambi30-3-31"), None);
-        assert_eq!(elections.resolve(""), None);
+        assert_eq!(elections.resolve("GIAMBI30-3-31"), Ok("GIAMBI30-3-31"));
+        assert_eq!(elections.resolve(ELECTION_A), Ok("GIAMBI30-3-31"));
+        assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
+        assert_eq!(elections.resolve(ELECTION_C), Ok(ELECTION_C));
+        assert_eq!(elections.stored_value(ELECTION_A), Some("GIAMBI30-3-31"));
+        assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_B));
+    }
+
+    #[test]
+    fn values_matching_no_election_are_not_resolved() {
+        let elections = AuthorizedElectionIds::new(&[election(ELECTION_A, Some("GIAMBI30-3-31"))]);
+
+        for value in [ELECTION_B, "giambi30-3-31", ""] {
+            assert_eq!(
+                elections.resolve(value),
+                Err(UnresolvedElection::NoElection)
+            );
+        }
+    }
+
+    /// Stored, they would read back as other values, or as a blank cell that
+    /// leaves the voter unrestricted.
+    #[test]
+    fn external_ids_that_do_not_fit_in_a_cell_are_stored_by_id() {
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some("GIAMBI30-3-31|GIAMBI30-3-32")),
+            election(ELECTION_B, Some(" ")),
+            election(ELECTION_C, Some(" GIAMBI30-3-31")),
+        ]);
+
+        assert_eq!(
+            elections.resolve("GIAMBI30-3-31|GIAMBI30-3-32"),
+            Ok(ELECTION_A)
+        );
+        assert_eq!(elections.resolve(" "), Ok(ELECTION_B));
+        assert_eq!(elections.resolve(ELECTION_C), Ok(ELECTION_C));
+        assert_eq!(elections.stored_value(ELECTION_C), Some(ELECTION_C));
+    }
+
+    /// The token mapper resolves a shared external ID to only one of them.
+    #[test]
+    fn elections_sharing_an_external_id_are_stored_by_id() {
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, Some("GIAMBI30-3-31")),
+        ]);
+
+        assert_eq!(elections.resolve(ELECTION_A), Ok(ELECTION_A));
+        assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
+        assert_eq!(
+            elections.resolve("GIAMBI30-3-31"),
+            Err(UnresolvedElection::SeveralElections)
+        );
     }
 
     #[test]
@@ -117,8 +248,10 @@ mod tests {
             election(ELECTION_B, Some("GIAMBI30-3-31")),
         ]);
 
-        assert_eq!(elections.resolve(ELECTION_B), Some(ELECTION_B));
-        assert_eq!(elections.resolve(ELECTION_A), Some(ELECTION_B));
+        assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
+        assert_eq!(elections.resolve(ELECTION_A), Ok(ELECTION_B));
+        assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_B));
+        assert_eq!(elections.resolve("GIAMBI30-3-31"), Ok("GIAMBI30-3-31"));
     }
 
     #[test]
@@ -137,8 +270,67 @@ mod tests {
         ])
         .with_replaced_ids(&replaced_ids);
 
-        assert_eq!(elections.resolve(exported_a), Some("GIAMBI30-3-31"));
-        assert_eq!(elections.resolve(exported_b), Some(ELECTION_B));
-        assert_eq!(elections.resolve(exported_area), None);
+        assert_eq!(elections.resolve(exported_a), Ok("GIAMBI30-3-31"));
+        assert_eq!(elections.resolve(exported_b), Ok(ELECTION_B));
+        assert_eq!(
+            elections.resolve(exported_area),
+            Err(UnresolvedElection::NoElection)
+        );
+    }
+
+    #[test]
+    fn the_census_matches_the_external_id_and_the_id() {
+        let census = census_values_by_election(&[
+            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, None),
+            election(ELECTION_C, Some("")),
+        ]);
+
+        assert_eq!(
+            census,
+            HashMap::from([
+                (
+                    ELECTION_A.to_string(),
+                    vec!["GIAMBI30-3-31".to_string(), ELECTION_A.to_string()]
+                ),
+                (ELECTION_B.to_string(), vec![ELECTION_B.to_string()]),
+                (ELECTION_C.to_string(), vec![ELECTION_C.to_string()]),
+            ])
+        );
+    }
+
+    /// The token mapper resolves the ID to the election whose external ID it
+    /// is, so the other election's census must not match it.
+    #[test]
+    fn the_census_does_not_match_an_id_another_election_has_as_external_id() {
+        let census = census_values_by_election(&[
+            election(ELECTION_A, Some(ELECTION_B)),
+            election(ELECTION_B, Some("GIAMBI30-3-31")),
+        ]);
+
+        assert_eq!(
+            census[ELECTION_A],
+            vec![ELECTION_B.to_string(), ELECTION_A.to_string()]
+        );
+        assert_eq!(census[ELECTION_B], vec!["GIAMBI30-3-31".to_string()]);
+    }
+
+    /// The token mapper resolves a shared external ID to one of them, so both
+    /// censuses match it rather than risk leaving out cast ballots.
+    #[test]
+    fn the_census_of_elections_sharing_an_external_id_matches_it() {
+        let census = census_values_by_election(&[
+            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, Some("GIAMBI30-3-31")),
+        ]);
+
+        assert_eq!(
+            census[ELECTION_A],
+            vec!["GIAMBI30-3-31".to_string(), ELECTION_A.to_string()]
+        );
+        assert_eq!(
+            census[ELECTION_B],
+            vec!["GIAMBI30-3-31".to_string(), ELECTION_B.to_string()]
+        );
     }
 }
