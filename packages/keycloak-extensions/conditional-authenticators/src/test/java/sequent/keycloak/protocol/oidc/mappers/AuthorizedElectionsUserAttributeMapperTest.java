@@ -94,6 +94,30 @@ class AuthorizedElectionsUserAttributeMapperTest {
   }
 
   @Test
+  void electionIdsByKey_givesAnExternalIdPrecedenceOverTheIdOfAnElectionWithoutOne()
+      throws Exception {
+    Map<String, String> expected =
+        Map.of(
+            "election-2", "election-1",
+            "election-1", "election-1");
+
+    assertEquals(
+        expected,
+        electionIdsByKey(
+            """
+            [{"id": "election-1", "external_id": "election-2"},
+             {"id": "election-2", "external_id": null}]
+            """));
+    assertEquals(
+        expected,
+        electionIdsByKey(
+            """
+            [{"id": "election-2", "external_id": null},
+             {"id": "election-1", "external_id": "election-2"}]
+            """));
+  }
+
+  @Test
   void toElectionIds_dropsValuesThatNameNoElectionAndRepeats() {
     assertEquals(
         List.of("election-1", "election-2"),
