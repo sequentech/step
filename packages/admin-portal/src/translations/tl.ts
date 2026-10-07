@@ -635,6 +635,22 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Mga setting ng accessibility ng botante",
+                    options: {
+                        disabled: "Itago ang mga setting ng accessibility",
+                        enabled: "Ialok ang laki ng teksto, contrast, agwat at galaw",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Mga tagubiling audio",
+                    options: {
+                        "disabled": "Walang tagubiling audio",
+                        "recorded": "Mga in-upload na recording lamang",
+                        "recorded-or-synthesized":
+                            "Mga in-upload na recording, o ang boses ng browser kung wala",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Patakaran sa Ipakita ng mga Log ng Pagboto",
                     options: {
@@ -1097,6 +1113,21 @@ const tagalogTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Mga Slate",
+                configuration: "Configuration ng mga slate (JSON)",
+                helper: "Mga slate na may pangalan at ang mga kandidato ng bawat isa sa bawat paligsahan. Iwanang walang laman para sa halalang walang slate.",
+                loading:
+                    "Nilo-load pa ang mga paligsahan at kandidato ng halalan. Subukan muli sa ilang sandali.",
+                mobileCandidateLists: {
+                    label: "Mga listahan ng kandidato sa mobile",
+                    helper: "Kung paano nagsisimula ang listahan ng kandidato ng bawat slate sa telepono. Maaari itong buksan o isara ng botante anumang oras.",
+                    options: {
+                        collapsed: "Nakatiklop",
+                        expanded: "Nakabukas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -2007,6 +2038,7 @@ const tagalogTranslation: TranslationType = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Patanid",
                 "warn-and-alert": "Patanid asin Alerto",
+                "warn-and-confirm-in-review": "Patanid asin Kumpirmahon sa Review",
             },
             invalidVotePolicy: {
                 "label": "Patakaran sa walang boto",
@@ -2841,6 +2873,23 @@ const tagalogTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Mga tagubiling audio para sa screen",
+                languageLabel: "Wika ng recording",
+                none: "Hindi tagubiling audio",
+                helperText:
+                    "Maririnig ng mga botante ang file na ito kapag hiniling nila ang mga tagubilin sa screen na iyon.",
+                screens: {
+                    "election-chooser": "Listahan ng mga halalan",
+                    "start": "Simula",
+                    "ballot": "Balota",
+                    "review": "Pagsusuri",
+                    "confirmation": "Kumpirmasyon",
+                    "audit": "Audit",
+                    "ballot-locator": "Ballot locator",
+                    "support-materials": "Mga materyal na pansuporta",
+                },
+            },
             createMaterialSuccess: "Nalikha ang suportang materyal",
             createMaterialError: "Error sa paglikha ng suportang materyal",
             updateMaterialSuccess: "Na-update ang suportang materyal",

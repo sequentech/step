@@ -23,6 +23,7 @@ const basqueTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Itxi elkarrizketa-koadroa",
+            languageSelector: "Hizkuntza: {{language}}",
             dismissMessage: "Baztertu mezua",
             ballotIdHelp: "Zure botoaren IDari buruz",
             loading: "Kargatzen",
@@ -35,6 +36,48 @@ const basqueTranslation: TranslationType = {
             selectList: "Hautatu zerrenda osoa",
             preferenceLabel: "Lehentasuna",
             writeInFor: "Idatzitako hautagaiaren izena",
+        },
+        accessibility: {
+            button: "Irisgarritasuna",
+            title: "Irisgarritasun-ezarpenak",
+            description: "Aldatu gune honen itxura gailu honetan.",
+            textSize: {
+                label: "Testuaren tamaina",
+                default: "Lehenetsia",
+                large: "Handia",
+                larger: "Handiagoa",
+            },
+            contrast: {
+                label: "Kontrastea",
+                default: "Lehenetsia",
+                high: "Kontraste handia",
+            },
+            textSpacing: {
+                label: "Testuaren tartea",
+                default: "Lehenetsia",
+                wide: "Zabala",
+            },
+            motion: {
+                label: "Mugimendua",
+                default: "Lehenetsia",
+                reduced: "Murriztua",
+            },
+            reset: "Berrezarri ezarpenak",
+            close: "Itxi",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Ezarpenak berrezarri dira",
+        },
+        audioInstructions: {
+            label: "Audio-argibideak",
+            play: "Entzun argibideak",
+            pause: "Pausatu argibideak",
+            resume: "Jarraitu argibideekin",
+            stop: "Gelditu argibideak",
+            showTranscript: "Irakurri argibideak",
+            hideTranscript: "Ezkutatu argibideak",
+            playing: "Argibideak erreproduzitzen",
+            paused: "Argibideak pausatuta",
+            stopped: "Argibideak geldituta",
         },
         candidate: {
             moreInformationLink: "Informazio gehiago",
@@ -128,6 +171,8 @@ const basqueTranslation: TranslationType = {
                     "Boto-konfigurazio baliogabea: lehiaketak esplizituki baliogabe diren {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
                 multipleExplicitBlankCandidates:
                     "Boto-konfigurazio baliogabea: lehiaketak esplizituki zuri gisa markatutako {{count}} hautagai definitzen ditu, baina bakarra onartzen da.",
+                invalidSlateConfiguration:
+                    "Boto-konfigurazio baliogabea: hautagai-zerrendak ez dira baliozkoak ({{reason}}).",
             },
         },
         ballotHash: "Zure Txartelaren IDa: {{ballotId}}",

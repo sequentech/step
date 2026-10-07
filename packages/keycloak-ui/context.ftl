@@ -6,7 +6,9 @@
 // The UI receives only the presentation policies it implements, never the realm attribute map.
 window.kcContext.sequent = {
     loginValidationPolicy: "${(realm.attributes['login-validation-policy']!'BROWSER')?js_string}",
-    loginHintUsernamePolicy: "${(realm.attributes['loginHintUsernamePolicy']!'EDITABLE')?js_string}"
+    loginHintUsernamePolicy: "${(realm.attributes['loginHintUsernamePolicy']!'EDITABLE')?js_string}",
+    voterAccessibilitySettingsPolicy: "${(realm.attributes['voter-accessibility-settings-policy']!'disabled')?js_string}",
+    audioInstructionsPolicy: "${(realm.attributes['audio-instructions-policy']!'disabled')?js_string}"
 };
 <#if courier??>
 window.kcContext.courier = "${courier?string?js_string}";

@@ -23,6 +23,7 @@ const dutchTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Dialoogvenster sluiten",
+            languageSelector: "Taal: {{language}}",
             dismissMessage: "Bericht sluiten",
             ballotIdHelp: "Over uw stembiljet-ID",
             loading: "Laden",
@@ -35,6 +36,48 @@ const dutchTranslation: TranslationType = {
             selectList: "De hele lijst selecteren",
             preferenceLabel: "Voorkeur",
             writeInFor: "Naam van de geschreven kandidaat",
+        },
+        accessibility: {
+            button: "Toegankelijkheid",
+            title: "Toegankelijkheidsinstellingen",
+            description: "Pas aan hoe deze site er op dit apparaat uitziet.",
+            textSize: {
+                label: "Tekstgrootte",
+                default: "Standaard",
+                large: "Groot",
+                larger: "Groter",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Standaard",
+                high: "Hoog contrast",
+            },
+            textSpacing: {
+                label: "Tekstafstand",
+                default: "Standaard",
+                wide: "Ruim",
+            },
+            motion: {
+                label: "Beweging",
+                default: "Standaard",
+                reduced: "Verminderd",
+            },
+            reset: "Instellingen herstellen",
+            close: "Sluiten",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Instellingen hersteld",
+        },
+        audioInstructions: {
+            label: "Gesproken instructies",
+            play: "Instructies beluisteren",
+            pause: "Instructies pauzeren",
+            resume: "Instructies hervatten",
+            stop: "Instructies stoppen",
+            showTranscript: "Instructies lezen",
+            hideTranscript: "Instructies verbergen",
+            playing: "Instructies worden afgespeeld",
+            paused: "Instructies gepauzeerd",
+            stopped: "Instructies gestopt",
         },
         candidate: {
             moreInformationLink: "More information",
@@ -130,6 +173,8 @@ const dutchTranslation: TranslationType = {
                     "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciet ongeldige kandidaten, maar er is er maar één toegestaan.",
                 multipleExplicitBlankCandidates:
                     "Ongeldige stemconfiguratie: de verkiezing definieert {{count}} expliciete blanco kandidaten, maar er is er maar één toegestaan.",
+                invalidSlateConfiguration:
+                    "Ongeldige stemconfiguratie: de lijsten zijn niet geldig ({{reason}}).",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",

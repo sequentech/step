@@ -62,7 +62,7 @@ const ListTitle = styled(Typography)<{component?: React.ElementType}>`
     flex: 1 1 auto;
     min-width: 0;
     text-align: left;
-    font-size: 24px;
+    font-size: 1.5rem;
     margin: 0;
 `
 
@@ -97,7 +97,7 @@ const CollapseToggleText = styled("span")(({theme}) => ({
 
 const SelectedCandidatesLabel = styled("span")`
     color: ${theme.palette.customGrey.contrastText};
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.2;
     text-align: right;
     @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
@@ -218,7 +218,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                     ) : null}
                     <ListTitle
                         color={theme.palette.customGrey.contrastText}
-                        fontSize="24px"
+                        fontSize="1.5rem"
                         className="candidates-list-title"
                         component={titleComponent}
                         id={titleId}

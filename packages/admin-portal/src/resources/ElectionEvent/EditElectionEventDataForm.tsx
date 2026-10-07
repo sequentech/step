@@ -59,6 +59,8 @@ import {
     EVoterSigningPolicy,
     EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
+    EVoterAccessibilitySettingsPolicy,
+    EAudioInstructionsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventAutomaticRecountPolicy,
@@ -77,6 +79,8 @@ import {
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
+    REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
     ESupportMaterialsPolicy,
     getEffectiveSupportMaterialsPolicy,
     type ILifecyclePolicies,
@@ -757,6 +761,22 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EShowCastVoteLogsPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.showCastVoteLogs.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const voterAccessibilitySettingsPolicyChoices = (): Array<
+        EnumChoice<EVoterAccessibilitySettingsPolicy>
+    > => {
+        return Object.values(EVoterAccessibilitySettingsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterAccessibilitySettingsPolicy.options.${value}`),
+        }))
+    }
+
+    const audioInstructionsPolicyChoices = (): Array<EnumChoice<EAudioInstructionsPolicy>> => {
+        return Object.values(EAudioInstructionsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.audioInstructionsPolicy.options.${value}`),
         }))
     }
 
@@ -1554,6 +1574,40 @@ export const EditElectionEventDataForm: React.FC<{
                             defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
                             label={String(
                                 t("electionEventScreen.field.showCastVoteLogs.policyLabel")
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.voter_accessibility_settings_policy"
+                            choices={voterAccessibilitySettingsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EVoterAccessibilitySettingsPolicy.DISABLED}
+                            onChange={(e) =>
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
+                                    e.target.value as EVoterAccessibilitySettingsPolicy
+                                )
+                            }
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.voterAccessibilitySettingsPolicy.policyLabel"
+                                )
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.audio_instructions_policy"
+                            choices={audioInstructionsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EAudioInstructionsPolicy.DISABLED}
+                            onChange={(e) =>
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
+                                    e.target.value as EAudioInstructionsPolicy
+                                )
+                            }
+                            label={String(
+                                t("electionEventScreen.field.audioInstructionsPolicy.policyLabel")
                             )}
                         />
                         <FormDataConsumer>

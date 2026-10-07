@@ -23,6 +23,7 @@ const tagalogTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Isara ang dialog",
+            languageSelector: "Wika: {{language}}",
             dismissMessage: "I-dismiss ang mensahe",
             ballotIdHelp: "Tungkol sa iyong Ballot ID",
             loading: "Naglo-load",
@@ -35,6 +36,48 @@ const tagalogTranslation: TranslationType = {
             selectList: "Piliin ang buong listahan",
             preferenceLabel: "Kagustuhan",
             writeInFor: "Pangalan ng write-in candidate",
+        },
+        accessibility: {
+            button: "Accessibility",
+            title: "Mga setting ng accessibility",
+            description: "Baguhin ang itsura ng site na ito sa device na ito.",
+            textSize: {
+                label: "Laki ng teksto",
+                default: "Karaniwan",
+                large: "Malaki",
+                larger: "Mas malaki",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Karaniwan",
+                high: "Mataas na contrast",
+            },
+            textSpacing: {
+                label: "Agwat ng teksto",
+                default: "Karaniwan",
+                wide: "Maluwag",
+            },
+            motion: {
+                label: "Galaw",
+                default: "Karaniwan",
+                reduced: "Binawasan",
+            },
+            reset: "I-reset ang mga setting",
+            close: "Isara",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Na-reset ang mga setting",
+        },
+        audioInstructions: {
+            label: "Mga tagubiling audio",
+            play: "Pakinggan ang mga tagubilin",
+            pause: "I-pause ang mga tagubilin",
+            resume: "Ituloy ang mga tagubilin",
+            stop: "Ihinto ang mga tagubilin",
+            showTranscript: "Basahin ang mga tagubilin",
+            hideTranscript: "Itago ang mga tagubilin",
+            playing: "Pinatutugtog ang mga tagubilin",
+            paused: "Naka-pause ang mga tagubilin",
+            stopped: "Inihinto ang mga tagubilin",
         },
         candidate: {
             moreInformationLink: "Karagdagang impormasyon",
@@ -130,6 +173,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi wastong configuration ng balota: may {{count}} tahasang invalid na kandidato sa contest, ngunit isa lamang ang pinapayagan.",
                 multipleExplicitBlankCandidates:
                     "Hindi wastong configuration ng balota: may {{count}} tahasang blankong kandidato sa contest, ngunit isa lamang ang pinapayagan.",
+                invalidSlateConfiguration:
+                    "Hindi wastong configuration ng balota: hindi wasto ang mga slate ({{reason}}).",
             },
         },
         ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",

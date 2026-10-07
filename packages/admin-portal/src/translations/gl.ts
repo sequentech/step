@@ -632,6 +632,23 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Axustes de accesibilidade do votante",
+                    options: {
+                        disabled: "Ocultar os axustes de accesibilidade",
+                        enabled:
+                            "Ofrecer axustes de tamaño de texto, contraste, espazado e movemento",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instrucións en audio",
+                    options: {
+                        "disabled": "Sen instrucións en audio",
+                        "recorded": "Só gravacións subidas",
+                        "recorded-or-synthesized":
+                            "Gravacións subidas, ou a voz do navegador onde non haxa",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar Tab de Logs de Votación",
                     options: {
@@ -1096,6 +1113,21 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Candidaturas",
+                configuration: "Configuración de candidaturas (JSON)",
+                helper: "Candidaturas con nome e os candidatos que cada unha presenta en cada contenda. Déixao baleiro para unha elección sen candidaturas.",
+                loading:
+                    "As contendas e os candidatos da elección aínda se están a cargar. Téntao de novo nun momento.",
+                mobileCandidateLists: {
+                    label: "Listas de candidatos no móbil",
+                    helper: "Como aparece inicialmente a lista de candidatos de cada candidatura no móbil. O votante sempre pode abrila ou pechala.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Despregadas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -2004,6 +2036,7 @@ const galegoTranslation: TranslationType = {
                 "warn-only-in-review": "Avisar na Revisión",
                 "warn": "Avisar",
                 "warn-and-alert": "Avisar e Alertar",
+                "warn-and-confirm-in-review": "Avisar e Confirmar na Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Nulo",
@@ -2831,6 +2864,23 @@ const galegoTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instrucións en audio para a pantalla",
+                languageLabel: "Idioma da gravación",
+                none: "Non son instrucións en audio",
+                helperText:
+                    "Os votantes oen este ficheiro cando piden as instrucións nesa pantalla.",
+                screens: {
+                    "election-chooser": "Lista de eleccións",
+                    "start": "Inicio",
+                    "ballot": "Papeleta",
+                    "review": "Revisión",
+                    "confirmation": "Confirmación",
+                    "audit": "Auditoría",
+                    "ballot-locator": "Localizador de papeletas",
+                    "support-materials": "Materiais de apoio",
+                },
+            },
             createMaterialSuccess: "Material de soporte creado",
             createMaterialError: "Erro ao crear o material de soporte",
             updateMaterialSuccess: "Material de soporte actualizado",

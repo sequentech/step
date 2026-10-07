@@ -15,6 +15,26 @@ const galegoTranslation: TranslationType = {
             showMore: "Mostrar Máis",
             showLess: "Mostrar Menos",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Esta páxina mostra as eleccións nas que pode votar. Use a tecla Tabulador para pasar dunha elección á seguinte. Cada elección ten un botón para comezar a votar. Prema Intro nese botón para abrir a súa papeleta.",
+                "start":
+                    "Esta páxina explica como votar. Primeiro elixe as súas opcións, despois revísaas e por último emite o seu voto. Use a tecla Tabulador para chegar ao botón que inicia a votación e prema Intro. Se se mostra unha declaración, marque antes a súa casa coa barra espazadora.",
+                "ballot":
+                    "Esta é a súa papeleta. Cada pregunta é un grupo de opcións, e a pregunta indica cantas pode elixir. Use a tecla Tabulador para moverse entre as opcións e a barra espazadora para marcar ou desmarcar unha. Cando remate, vaia ao botón para continuar, ao final da páxina, e prema Intro para revisar as súas opcións. Tamén hai un botón para borrar todas as súas opcións. Non se emite nada ata que o confirme na páxina de revisión.",
+                "review":
+                    "Esta páxina mostra as opcións que elixiu. Compróbeas con atención. Para cambiar algo, use o botón para editar a súa papeleta. Para emitir o seu voto, vaia ao botón para emitir a papeleta e prema Intro. O identificador da súa papeleta está ao principio da páxina. Pode copialo para localizar a súa papeleta máis adiante.",
+                "confirmation":
+                    "O seu voto foi emitido. Esta páxina mostra o identificador da súa papeleta, co que pode comprobar que se rexistrou. Pode copialo ou imprimir esta páxina. Cando remate, use o botón do final da páxina para finalizar.",
+                "audit":
+                    "Esta páxina permítelle auditar a súa papeleta en lugar de emitila. Mostra a información que pode comprobar co verificador de papeletas. Unha papeleta auditada non se emite, así que volva despois á súa papeleta para votar.",
+                "ballot-locator":
+                    "Esta páxina permítelle comprobar que unha papeleta se rexistrou. Escriba ou pegue un identificador de papeleta no campo de texto e prema Intro. O resultado aparece debaixo do campo.",
+                "support-materials":
+                    "Esta páxina mostra documentos que lle axudan a votar. Use a tecla Tabulador para moverse entre eles e prema Intro no botón dun documento para abrilo. Use o botón para volver á lista de eleccións.",
+            },
+        },
         a11y: {
             skipToContent: "Ir ao contido principal",
             helpAbout: "Axuda sobre {{topic}}",
@@ -168,6 +188,15 @@ const galegoTranslation: TranslationType = {
                     "Non seleccionou ningún candidato. Unha vez confirme, a súa papeleta emitirase en branco.",
                 ok: "Si, quero emitir a miña papeleta en branco",
                 cancel: "Cancelar",
+            },
+            unfilledContestsDialog: {
+                title: "Hai seleccións sen completar",
+                content:
+                    "Pode deixar seleccións en branco ou escoller menos opcións das permitidas. Revise o seguinte antes de continuar.",
+                selected: "{{selected}} de {{max}} seleccionadas",
+                nothingSelected: "Sen selección",
+                ok: "Continuar con estas seleccións",
+                cancel: "Revisar seleccións",
             },
             error: {
                 NETWORK_ERROR:
@@ -444,6 +473,67 @@ const galegoTranslation: TranslationType = {
                 checkboxLabel: "Lin os Materiais de apoio",
                 continueButton: "Continuar",
                 error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
+            },
+        },
+        slates: {
+            title: "Candidaturas conxuntas",
+            description:
+                "Unha candidatura conxunta é un grupo de candidatos que se presentan xuntos. Cada candidato mostra a candidatura á que pertence.",
+            independent: "Independente",
+            contestMembers: "Candidatos de {{slate}} para {{contest}}",
+            noCandidate: "Sen candidato",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Só {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidato",
+                candidates_other: "{{count}} candidatos",
+                offices_one: "{{count}} cargo",
+                offices_other: "{{count}} cargos",
+            },
+            candidateList: {
+                show: "Amosar candidaturas",
+                hide: "Agochar candidaturas",
+            },
+            tabs: {
+                label: "Formas de cubrir a súa papeleta",
+                slates: "Elixir unha lista",
+                candidates: "Candidaturas individuais",
+            },
+            review: {
+                title: "As túas seleccións",
+                total: "Candidaturas seleccionadas: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidaturas independentes seleccionadas: {{count}}",
+                note: "O teu voto rexístrase para cada candidatura seleccionada. Unha lista non é un voto por si mesma.",
+                contestCount: "{{selected}} de {{max}} seleccionadas",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "As {{total}} seleccionadas",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionadas",
+                partly: "Seleccionada en parte · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar a selección",
+            },
+            apply: {
+                button: "Elixir esta candidatura",
+                buttonLabel: "Elixir a candidatura {{slate}}",
+                chosen: "{{slate}} elixida. Candidatos seleccionados: {{candidates}}. Contendas: {{contests}}.",
+                overMaximum:
+                    "{{slate}} non se pode elixir: ten {{candidates}} candidaturas para {{contest}}, que permite {{max}}. Pode seguir elixindo candidaturas individualmente.",
+                unavailable:
+                    "{{slate}} non se pode elixir nesta papeleta. Pode seguir elixindo candidaturas individualmente.",
+                replaceDialog: {
+                    title: "Substituír as túas opcións actuais?",
+                    content:
+                        "Elixir {{slate}} substitúe as túas opcións nas contendas seguintes. O resto das túas opcións non cambia.",
+                    removed: "Quítase:",
+                    added: "Selecciónase no seu lugar:",
+                    ok: "Substituír opcións",
+                    cancel: "Manter as miñas opcións",
+                },
             },
         },
         ballotLocator: {

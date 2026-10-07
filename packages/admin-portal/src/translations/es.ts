@@ -632,6 +632,23 @@ const spanishTranslation: TranslationType = {
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Ajustes de accesibilidad del votante",
+                    options: {
+                        disabled: "Ocultar los ajustes de accesibilidad",
+                        enabled:
+                            "Ofrecer ajustes de tamaño de texto, contraste, espaciado y movimiento",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instrucciones en audio",
+                    options: {
+                        "disabled": "Sin instrucciones en audio",
+                        "recorded": "Solo grabaciones subidas",
+                        "recorded-or-synthesized":
+                            "Grabaciones subidas, o la voz del navegador donde no haya",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar logs de votación",
                     options: {
@@ -1097,6 +1114,21 @@ const spanishTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Candidaturas",
+                configuration: "Configuración de candidaturas (JSON)",
+                helper: "Candidaturas con nombre y los candidatos que cada una presenta en cada contienda. Déjalo vacío para una elección sin candidaturas.",
+                loading:
+                    "Las contiendas y los candidatos de la elección aún se están cargando. Inténtalo de nuevo en un momento.",
+                mobileCandidateLists: {
+                    label: "Listas de candidatos en móvil",
+                    helper: "Cómo aparece inicialmente la lista de candidatos de cada candidatura en el móvil. El votante siempre puede abrirla o cerrarla.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Desplegadas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -2003,6 +2035,7 @@ const spanishTranslation: TranslationType = {
                 "warn-only-in-review": "Advertir en Revisión",
                 "warn": "Advertir",
                 "warn-and-alert": "Advertir y Alertar",
+                "warn-and-confirm-in-review": "Advertir y Confirmar en Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Inválido",
@@ -2831,6 +2864,23 @@ const spanishTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instrucciones en audio para la pantalla",
+                languageLabel: "Idioma de la grabación",
+                none: "No son instrucciones en audio",
+                helperText:
+                    "Los votantes oyen este archivo cuando piden las instrucciones en esa pantalla.",
+                screens: {
+                    "election-chooser": "Lista de elecciones",
+                    "start": "Inicio",
+                    "ballot": "Papeleta",
+                    "review": "Revisión",
+                    "confirmation": "Confirmación",
+                    "audit": "Auditoría",
+                    "ballot-locator": "Localizador de papeletas",
+                    "support-materials": "Materiales de apoyo",
+                },
+            },
             createMaterialSuccess: "Material de soporte creado",
             createMaterialError: "Error creando material de soporte",
             updateMaterialSuccess: "Material de soporte actualizado",

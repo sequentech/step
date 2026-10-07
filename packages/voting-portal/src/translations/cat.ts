@@ -14,6 +14,26 @@ const catalanTranslation: TranslationType = {
             showMore: "Mostra'n més",
             showLess: "Mostra'n menys",
         },
+        audioInstructions: {
+            screens: {
+                "election-chooser":
+                    "Aquesta pàgina mostra les eleccions en què podeu votar. Feu servir la tecla Tabulador per passar d'una elecció a la següent. Cada elecció té un botó per començar a votar. Premeu Retorn en aquest botó per obrir-ne la papereta.",
+                "start":
+                    "Aquesta pàgina explica com votar. Primer trieu les opcions, després les reviseu i finalment emeteu el vot. Feu servir la tecla Tabulador per arribar al botó que inicia la votació i premeu Retorn. Si es mostra una declaració, marqueu-ne abans la casella amb la barra espaiadora.",
+                "ballot":
+                    "Aquesta és la vostra papereta. Cada pregunta és un grup d'opcions, i la pregunta indica quantes en podeu triar. Feu servir la tecla Tabulador per moure-us entre les opcions i la barra espaiadora per marcar-ne o desmarcar-ne una. Quan acabeu, aneu al botó per continuar, al final de la pàgina, i premeu Retorn per revisar les opcions. També hi ha un botó per esborrar totes les opcions. No s'emet res fins que ho confirmeu a la pàgina de revisió.",
+                "review":
+                    "Aquesta pàgina mostra les opcions que heu triat. Comproveu-les amb atenció. Per canviar alguna cosa, feu servir el botó per editar la papereta. Per emetre el vot, aneu al botó per emetre la papereta i premeu Retorn. L'identificador de la papereta és al principi de la pàgina. El podeu copiar per localitzar la papereta més endavant.",
+                "confirmation":
+                    "El vostre vot s'ha emès. Aquesta pàgina mostra l'identificador de la papereta, amb què podeu comprovar que s'ha registrat. El podeu copiar o podeu imprimir aquesta pàgina. Quan acabeu, feu servir el botó del final de la pàgina per finalitzar.",
+                "audit":
+                    "Aquesta pàgina us permet auditar la papereta en lloc d'emetre-la. Mostra la informació que podeu comprovar amb el verificador de paperetes. Una papereta auditada no s'emet, de manera que després heu de tornar a la papereta per votar.",
+                "ballot-locator":
+                    "Aquesta pàgina us permet comprovar que una papereta s'ha registrat. Escriviu o enganxeu un identificador de papereta al camp de text i premeu Retorn. El resultat apareix sota el camp.",
+                "support-materials":
+                    "Aquesta pàgina mostra documents que us ajuden a votar. Feu servir la tecla Tabulador per moure-us entre ells i premeu Retorn al botó d'un document per obrir-lo. Feu servir el botó per tornar a la llista d'eleccions.",
+            },
+        },
         a11y: {
             skipToContent: "Vés al contingut principal",
             helpAbout: "Ajuda sobre {{topic}}",
@@ -167,6 +187,15 @@ const catalanTranslation: TranslationType = {
                     "No heu seleccionat cap candidat. Un cop confirmeu, la vostra papereta s'emetrà en blanc.",
                 ok: "Sí, vull emetre la meva papereta en blanc",
                 cancel: "Cancel·lar",
+            },
+            unfilledContestsDialog: {
+                title: "Hi ha seleccions sense completar",
+                content:
+                    "Podeu deixar seleccions en blanc o triar menys opcions de les permeses. Reviseu el següent abans de continuar.",
+                selected: "{{selected}} de {{max}} seleccionades",
+                nothingSelected: "Sense selecció",
+                ok: "Continuar amb aquestes seleccions",
+                cancel: "Revisar seleccions",
             },
             error: {
                 NETWORK_ERROR:
@@ -447,6 +476,67 @@ const catalanTranslation: TranslationType = {
                 checkboxLabel: "He llegit els Materials de Suport",
                 continueButton: "Continua",
                 error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
+            },
+        },
+        slates: {
+            title: "Candidatures conjuntes",
+            description:
+                "Una candidatura conjunta és un grup de candidats que es presenten junts. Cada candidat mostra la candidatura a la qual pertany.",
+            independent: "Independent",
+            contestMembers: "Candidats de {{slate}} per a {{contest}}",
+            noCandidate: "Sense candidat",
+            coverage: {
+                full: "Candidatura completa",
+                singleContest: "Només {{contest}}",
+                partial: "Candidatura parcial",
+                candidates_one: "{{count}} candidat",
+                candidates_other: "{{count}} candidats",
+                offices_one: "{{count}} càrrec",
+                offices_other: "{{count}} càrrecs",
+            },
+            candidateList: {
+                show: "Mostra les candidatures",
+                hide: "Amaga les candidatures",
+            },
+            tabs: {
+                label: "Maneres d'omplir la papereta",
+                slates: "Triar una llista",
+                candidates: "Candidatures individuals",
+            },
+            review: {
+                title: "Les teves seleccions",
+                total: "Candidatures seleccionades: {{selected}} de {{seats}}",
+                slate: "{{slate}}: {{status}}",
+                independent: "Candidatures independents seleccionades: {{count}}",
+                note: "El teu vot es registra per a cada candidatura seleccionada. Una llista no és un vot per si mateixa.",
+                contestCount: "{{selected}} de {{max}} seleccionades",
+                edit: "Editar",
+                editLabel: "Editar {{contest}}",
+            },
+            selection: {
+                all: "Les {{total}} seleccionades",
+                mixed: "Mixta · {{selected}} de {{total}} seleccionades",
+                partly: "Seleccionada en part · {{selected}} de {{total}}",
+                selected: "Seleccionada",
+                edit: "Editar la selecció",
+            },
+            apply: {
+                button: "Tria aquesta candidatura",
+                buttonLabel: "Tria la candidatura {{slate}}",
+                chosen: "{{slate}} triada. Candidats seleccionats: {{candidates}}. Conteses: {{contests}}.",
+                overMaximum:
+                    "{{slate}} no es pot triar: té {{candidates}} candidatures per a {{contest}}, que en permet {{max}}. Podeu continuar triant candidatures individualment.",
+                unavailable:
+                    "{{slate}} no es pot triar en aquesta papereta. Podeu continuar triant candidatures individualment.",
+                replaceDialog: {
+                    title: "Vols substituir les teves opcions actuals?",
+                    content:
+                        "Triar {{slate}} substitueix les teves opcions a les conteses següents. La resta de les teves opcions no canvia.",
+                    removed: "Es treu:",
+                    added: "Se selecciona en el seu lloc:",
+                    ok: "Substitueix les opcions",
+                    cancel: "Mantén les meves opcions",
+                },
             },
         },
         ballotLocator: {

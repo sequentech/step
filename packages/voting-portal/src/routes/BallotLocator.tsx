@@ -58,7 +58,7 @@ const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     display: flex;
     flex-direction: row;
     gap: 16px;
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 500;
     line-height: 27px;
     margin-top: 20px;
@@ -873,7 +873,7 @@ const BallotLocatorLogic = () => {
                             buttonClassName="screen-help-button"
                             icon={faCircleQuestion}
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                            fontSize="16px"
+                            fontSize="1rem"
                             onClick={() => setOpenTitleHelp(true)}
                             ariaLabel={t("a11y.helpAbout", {
                                 topic: t("ballotLocator.titleHelpDialog.title"),

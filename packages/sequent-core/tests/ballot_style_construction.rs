@@ -11,6 +11,7 @@ use sequent_core::ballot::{
     TieBreakingPolicy,
 };
 use sequent_core::ballot_style::{create_ballot_style, parse_i18n_field};
+use sequent_core::election_config::slates::{InvalidSlates, SLATES_ANNOTATION};
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::{Contest, Election, ElectionEvent};
 use serde_json::{json, Value};
@@ -261,4 +262,51 @@ fn extracting_a_translation_preserves_explicit_nulls_and_omits_missing_fields()
     assert_eq!(names["fr"], None);
     assert!(!names.contains_key("de"));
     assert!(parse_i18n_field(&None, "name").is_none());
+}
+
+fn with_slates(members: Value) -> Value {
+    let slates = json!({
+        "version": 1,
+        "slates": [{
+            "id": "conseil-uni",
+            "name": {"fr": "Conseil uni"},
+            "members": members
+        }]
+    });
+    let mut input = fixture();
+    input["election"]["annotations"] =
+        json!({SLATES_ANNOTATION: slates.to_string(), "other": "kept"});
+    input
+}
+
+#[test]
+fn a_style_carries_valid_slates_and_drops_nothing() {
+    let input = with_slates(
+        json!({"contest-a": ["candidate-a", "candidate-b"], "foreign": ["x"]}),
+    );
+    let style = build(&input, None).unwrap();
+    let annotations = style.election_annotations.unwrap();
+    assert!(annotations[SLATES_ANNOTATION].contains("conseil-uni"));
+    assert_eq!(annotations["other"], "kept");
+}
+
+#[test]
+fn a_style_is_not_built_from_slates_that_break_the_rules() {
+    for members in [
+        json!({"contest-a": ["candidate-gone"]}),
+        json!({"contest-b": ["candidate-a"]}),
+        json!({"contest-b": ["candidate-a", "candidate-b"]}),
+    ] {
+        let error = build(&with_slates(members), None).unwrap_err();
+        let invalid = error
+            .downcast_ref::<InvalidSlates>()
+            .expect("an invalid slates error");
+        assert!(!invalid.problems.is_empty());
+        assert!(error.to_string().contains("sequent.slates"));
+    }
+
+    let mut wrong_language = with_slates(json!({"contest-a": ["candidate-a"]}));
+    wrong_language["election"]["presentation"] =
+        json!({"language_conf": {"default_language_code": "de"}});
+    assert!(build(&wrong_language, None).is_err());
 }

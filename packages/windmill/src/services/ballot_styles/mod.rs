@@ -6,3 +6,4 @@ pub mod ballot_publication;
 pub mod ballot_style;
 pub mod design_check;
 pub mod publication_files;
+pub mod slates;

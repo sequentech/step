@@ -24,6 +24,7 @@ const galegoTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Pechar o diálogo",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar a mensaxe",
             ballotIdHelp: "Sobre o seu ID de voto",
             loading: "Cargando",
@@ -36,6 +37,48 @@ const galegoTranslation: TranslationType = {
             selectList: "Seleccionar toda a lista",
             preferenceLabel: "Preferencia",
             writeInFor: "Nome do candidato escrito",
+        },
+        accessibility: {
+            button: "Accesibilidade",
+            title: "Axustes de accesibilidade",
+            description: "Cambie o aspecto deste sitio neste dispositivo.",
+            textSize: {
+                label: "Tamaño do texto",
+                default: "Predeterminado",
+                large: "Grande",
+                larger: "Máis grande",
+            },
+            contrast: {
+                label: "Contraste",
+                default: "Predeterminado",
+                high: "Alto contraste",
+            },
+            textSpacing: {
+                label: "Espazado do texto",
+                default: "Predeterminado",
+                wide: "Amplo",
+            },
+            motion: {
+                label: "Movemento",
+                default: "Predeterminado",
+                reduced: "Reducido",
+            },
+            reset: "Restablecer os axustes",
+            close: "Pechar",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Axustes restablecidos",
+        },
+        audioInstructions: {
+            label: "Instrucións en audio",
+            play: "Escoitar as instrucións",
+            pause: "Pausar as instrucións",
+            resume: "Retomar as instrucións",
+            stop: "Deter as instrucións",
+            showTranscript: "Ler as instrucións",
+            hideTranscript: "Ocultar as instrucións",
+            playing: "Reproducindo as instrucións",
+            paused: "Instrucións en pausa",
+            stopped: "Instrucións detidas",
         },
         candidate: {
             moreInformationLink: "Máis información",
@@ -130,6 +173,8 @@ const galegoTranslation: TranslationType = {
                     "Configuración de voto inválida: o concurso define {{count}} candidatos explicitamente inválidos, pero só se permite un.",
                 multipleExplicitBlankCandidates:
                     "Configuración de voto inválida: o concurso define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
+                invalidSlateConfiguration:
+                    "Configuración de voto inválida: as candidaturas conxuntas non son válidas ({{reason}}).",
             },
         },
         ballotHash: "O teu ID de Papeleta: {{ballotId}}",

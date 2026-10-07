@@ -632,6 +632,23 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Paramètres d'accessibilité de l'électeur",
+                    options: {
+                        disabled: "Masquer les paramètres d'accessibilité",
+                        enabled:
+                            "Proposer la taille du texte, le contraste, l'espacement et les animations",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instructions audio",
+                    options: {
+                        "disabled": "Pas d'instructions audio",
+                        "recorded": "Enregistrements téléversés uniquement",
+                        "recorded-or-synthesized":
+                            "Enregistrements téléversés, ou la voix du navigateur à défaut",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Afficher les logs de vote",
                     options: {
@@ -1099,6 +1116,21 @@ const frenchTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Listes",
+                configuration: "Configuration des listes (JSON)",
+                helper: "Listes nommées et les candidats que chacune présente dans chaque scrutin. Laissez vide pour une élection sans listes.",
+                loading:
+                    "Les scrutins et les candidats de l'élection sont encore en cours de chargement. Réessayez dans un instant.",
+                mobileCandidateLists: {
+                    label: "Listes de candidats sur mobile",
+                    helper: "État initial de la liste de candidats de chaque liste sur mobile. L'électeur peut toujours l'ouvrir ou la fermer.",
+                    options: {
+                        collapsed: "Repliées",
+                        expanded: "Dépliées",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -2014,6 +2046,7 @@ const frenchTranslation: TranslationType = {
                 "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "warn-and-alert": "Avertir et Alerter",
+                "warn-and-confirm-in-review": "Avertir et Confirmer en Révision",
             },
             invalidVotePolicy: {
                 "label": "Politique de vote invalide",
@@ -2847,6 +2880,23 @@ const frenchTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instructions audio pour l'écran",
+                languageLabel: "Langue de l'enregistrement",
+                none: "Pas des instructions audio",
+                helperText:
+                    "Les électeurs entendent ce fichier lorsqu'ils demandent les instructions sur cet écran.",
+                screens: {
+                    "election-chooser": "Liste des élections",
+                    "start": "Début",
+                    "ballot": "Bulletin",
+                    "review": "Vérification",
+                    "confirmation": "Confirmation",
+                    "audit": "Audit",
+                    "ballot-locator": "Localisateur de bulletins",
+                    "support-materials": "Documents d'aide",
+                },
+            },
             createMaterialSuccess: "Matériel de support créé",
             createMaterialError: "Erreur lors de la création du matériel de support",
             updateMaterialSuccess: "Matériel de support mis à jour",

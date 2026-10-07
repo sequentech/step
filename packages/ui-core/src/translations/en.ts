@@ -21,6 +21,7 @@ const englishTranslation = {
         },
         a11y: {
             closeDialog: "Close dialog",
+            languageSelector: "Language: {{language}}",
             dismissMessage: "Dismiss message",
             ballotIdHelp: "About your Ballot ID",
             loading: "Loading",
@@ -33,6 +34,48 @@ const englishTranslation = {
             selectList: "Select the whole list",
             preferenceLabel: "Preference",
             writeInFor: "Write-in candidate name",
+        },
+        accessibility: {
+            button: "Accessibility",
+            title: "Accessibility settings",
+            description: "Change how this site looks on this device.",
+            textSize: {
+                label: "Text size",
+                default: "Default",
+                large: "Large",
+                larger: "Larger",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Default",
+                high: "High contrast",
+            },
+            textSpacing: {
+                label: "Text spacing",
+                default: "Default",
+                wide: "Wide",
+            },
+            motion: {
+                label: "Motion",
+                default: "Default",
+                reduced: "Reduced",
+            },
+            reset: "Reset settings",
+            close: "Close",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Settings reset",
+        },
+        audioInstructions: {
+            label: "Audio instructions",
+            play: "Listen to the instructions",
+            pause: "Pause the instructions",
+            resume: "Resume the instructions",
+            stop: "Stop the instructions",
+            showTranscript: "Read the instructions",
+            hideTranscript: "Hide the instructions",
+            playing: "Playing the instructions",
+            paused: "Instructions paused",
+            stopped: "Instructions stopped",
         },
         candidate: {
             moreInformationLink: "More information",
@@ -127,6 +170,8 @@ const englishTranslation = {
                     "Invalid ballot configuration: the contest defines {{count}} explicitly invalid candidates, but only one is allowed.",
                 multipleExplicitBlankCandidates:
                     "Invalid ballot configuration: the contest defines {{count}} explicit blank candidates, but only one is allowed.",
+                invalidSlateConfiguration:
+                    "Invalid ballot configuration: the slates are not valid ({{reason}}).",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",

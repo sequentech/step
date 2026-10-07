@@ -146,6 +146,40 @@ describe("the review screen's arrangement", () => {
         expect(screen.queryByTestId("steps")).toBeNull()
         expect(screen.queryByTestId("actions")).toBeNull()
     })
+
+    it("puts the host's summary between the description and the contests", () => {
+        render(<ReviewLayout {...props} summary={<div data-testid="summary" />} />)
+
+        const summary = screen.getByTestId("summary")
+        const description = document.querySelector(".screen-description") as Element
+        const first = screen.getByTestId("question-first")
+
+        expect(
+            description.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy()
+        expect(
+            summary.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy()
+    })
+
+    it("puts the host's footer under each contest, inside its container", () => {
+        render(
+            <ReviewLayout
+                {...props}
+                renderContestFooter={(contest) => <div data-testid={`footer-${contest.id}`} />}
+            />
+        )
+
+        const containers = document.querySelectorAll(".contest-container")
+        const footer = screen.getByTestId("footer-second")
+
+        expect(containers[0]).toContainElement(screen.getByTestId("footer-first"))
+        expect(containers[1]).toContainElement(footer)
+        expect(
+            screen.getByTestId("question-second").compareDocumentPosition(footer) &
+                Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy()
+    })
 })
 
 describe("where this screen's words come from", () => {

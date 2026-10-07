@@ -633,6 +633,22 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Configuració d'accessibilitat del votant",
+                    options: {
+                        disabled: "Amaga la configuració d'accessibilitat",
+                        enabled: "Ofereix la mida del text, el contrast, l'espaiat i el moviment",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instruccions en àudio",
+                    options: {
+                        "disabled": "Sense instruccions en àudio",
+                        "recorded": "Només enregistraments pujats",
+                        "recorded-or-synthesized":
+                            "Enregistraments pujats, o la veu del navegador on no n'hi hagi",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostra els registres de votació",
                     options: {
@@ -1099,6 +1115,21 @@ const catalanTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Candidatures",
+                configuration: "Configuració de candidatures (JSON)",
+                helper: "Candidatures amb nom i els candidats que cadascuna presenta a cada contesa. Deixa-ho buit per a una elecció sense candidatures.",
+                loading:
+                    "Les conteses i els candidats de l'elecció encara s'estan carregant. Torna-ho a provar d'aquí a un moment.",
+                mobileCandidateLists: {
+                    label: "Llistes de candidats al mòbil",
+                    helper: "Com apareix inicialment la llista de candidats de cada candidatura al mòbil. El votant sempre la pot obrir o tancar.",
+                    options: {
+                        collapsed: "Replegades",
+                        expanded: "Desplegades",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -2015,6 +2046,7 @@ const catalanTranslation: TranslationType = {
                 "warn-only-in-review": "Advertir en Revisió",
                 "warn": "Advertir",
                 "warn-and-alert": "Advertir i Alertar",
+                "warn-and-confirm-in-review": "Advertir i Confirmar en Revisió",
             },
             invalidVotePolicy: {
                 "label": "Política de vot invàlid",
@@ -2841,6 +2873,23 @@ const catalanTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instruccions en àudio per a la pantalla",
+                languageLabel: "Idioma de l'enregistrament",
+                none: "No són instruccions en àudio",
+                helperText:
+                    "Els votants senten aquest fitxer quan demanen les instruccions en aquesta pantalla.",
+                screens: {
+                    "election-chooser": "Llista d'eleccions",
+                    "start": "Inici",
+                    "ballot": "Papereta",
+                    "review": "Revisió",
+                    "confirmation": "Confirmació",
+                    "audit": "Auditoria",
+                    "ballot-locator": "Localitzador de paperetes",
+                    "support-materials": "Materials de suport",
+                },
+            },
             createMaterialSuccess: "Material de suport creat",
             createMaterialError: "Error creant material de suport",
             updateMaterialSuccess: "Material de suport actualitzat",

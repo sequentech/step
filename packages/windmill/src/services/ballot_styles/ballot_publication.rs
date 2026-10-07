@@ -7,6 +7,7 @@ use crate::postgres::ballot_publication::{
     update_ballot_publication,
 };
 use crate::postgres::ballot_style::get_publication_ballot_styles;
+use crate::postgres::contest::export_contests;
 use crate::postgres::election::{get_election_by_id, get_elections_ids, update_election_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::services::celery_app::get_celery_app;
@@ -34,6 +35,7 @@ use thiserror::Error;
 use tracing::{error, event, instrument, Level};
 
 use super::ballot_style;
+use super::slates;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ContestAcclamationState {
@@ -49,7 +51,7 @@ pub struct BallotPublicationValidationError {
 }
 
 impl BallotPublicationValidationError {
-    fn new(reasons: Vec<String>) -> Self {
+    pub(super) fn new(reasons: Vec<String>) -> Self {
         let message = format!(
             "Ballot publication validation failed:\n- {}",
             reasons.join("\n- ")
@@ -166,24 +168,14 @@ fn election_has_started(status: &ElectionStatus) -> bool {
     .any(|started_at| started_at.is_some())
 }
 
-async fn validate_published_acclamation_status(
+/// The live ballot styles of each election in `ballot_publication` whose
+/// voting has started, one publication per election.
+async fn started_elections_published_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication: &BallotPublication,
-) -> Result<()> {
-    let current = collect_acclamation_states(
-        &get_publication_json(
-            hasura_transaction,
-            tenant_id.to_owned(),
-            election_event_id.to_owned(),
-            ballot_publication.id.clone(),
-            None,
-            None,
-        )
-        .await?,
-    )?;
-    let mut previous = BTreeMap::new();
+) -> Result<Vec<Value>> {
     let election_ids = ballot_publication
         .election_ids
         .as_ref()
@@ -192,6 +184,7 @@ async fn validate_published_acclamation_status(
         return Err(anyhow!("Ballot publication has no election ids"));
     }
 
+    let mut publications = Vec::new();
     for election_id in election_ids {
         let election = get_election_by_id(
             hasura_transaction,
@@ -220,15 +213,81 @@ async fn validate_published_acclamation_status(
             continue;
         };
 
-        let publication = get_publication_json(
+        publications.push(
+            get_publication_json(
+                hasura_transaction,
+                tenant_id.to_owned(),
+                election_event_id.to_owned(),
+                previous_publication.id,
+                Some(election_id.clone()),
+                None,
+            )
+            .await?,
+        );
+    }
+    Ok(publications)
+}
+
+async fn validate_published_slates(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> Result<()> {
+    let current = get_publication_json(
+        hasura_transaction,
+        tenant_id.to_owned(),
+        election_event_id.to_owned(),
+        ballot_publication.id.clone(),
+        None,
+        None,
+    )
+    .await?;
+    let contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
+    slates::validate_publication_slates(&current, &contests)?;
+
+    let previous = started_elections_published_styles(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication,
+    )
+    .await?
+    .into_iter()
+    .flat_map(|publication| match publication {
+        Value::Array(ballot_styles) => ballot_styles,
+        other => vec![other],
+    })
+    .collect();
+    slates::validate_slates_unchanged(&Value::Array(previous), &current)
+}
+
+async fn validate_published_acclamation_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> Result<()> {
+    let current = collect_acclamation_states(
+        &get_publication_json(
             hasura_transaction,
             tenant_id.to_owned(),
             election_event_id.to_owned(),
-            previous_publication.id,
-            Some(election_id.clone()),
+            ballot_publication.id.clone(),
+            None,
             None,
         )
-        .await?;
+        .await?,
+    )?;
+    let mut previous = BTreeMap::new();
+    for publication in started_elections_published_styles(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication,
+    )
+    .await?
+    {
         merge_acclamation_states(&mut previous, collect_acclamation_states(&publication)?)?;
     }
 
@@ -382,6 +441,14 @@ pub async fn update_publish_ballot(
     }
 
     validate_published_acclamation_status(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &ballot_publication,
+    )
+    .await?;
+
+    validate_published_slates(
         hasura_transaction,
         &tenant_id,
         &election_event_id,

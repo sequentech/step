@@ -16,6 +16,10 @@ export {default as IconButton} from "./components/IconButton/IconButton"
 export {default as VisuallyHidden} from "./components/VisuallyHidden/VisuallyHidden"
 export {default as InfoDataBox} from "./components/InfoDataBox/InfoDataBox"
 export {default as LanguageMenu} from "./components/LanguageMenu/LanguageMenu"
+export {default as AccessibilityMenu} from "./components/AccessibilityMenu/AccessibilityMenu"
+export {accessibilityStyles} from "./components/AccessibilityMenu/accessibilityStyles"
+export {default as AudioInstructions} from "./components/AudioInstructions/AudioInstructions"
+export type {AudioInstructionsProps} from "./components/AudioInstructions/AudioInstructions"
 export {default as LanguageSetter} from "./components/LanguageSetter/LanguageSetter"
 export {default as LinkBehavior} from "./components/LinkBehavior/LinkBehavior"
 export {default as LogoutButton} from "./components/LogoutButton/LogoutButton"
@@ -159,7 +163,7 @@ export type {
     IvrEmulatorConfig,
     IvrEmulatorFailure,
 } from "./ballot/ivrEmulator"
-export {Question} from "./ballot/Question"
+export {Question, contestTitleId} from "./ballot/Question"
 export type {IQuestionProps} from "./ballot/Question"
 export {Answer} from "./ballot/Answer"
 export {AnswersList} from "./ballot/AnswersList"
@@ -167,6 +171,12 @@ export {InvalidErrorsList} from "./ballot/InvalidErrorsList"
 export {BallotSelectionProvider, useBallotSelection} from "./ballot/selection"
 export {BallotEngineProvider, useBallotEngine} from "./ballot/engine"
 export type {BallotEngine} from "./ballot/engine"
+export {
+    BallotSlatesProvider,
+    getDefaultLanguageCode,
+    useBallotSlates,
+    useCandidateSlateLabel,
+} from "./ballot/slates"
 export type {BallotSelectionPort, ContestSelection, VoteChoice} from "./ballot/selection"
 export type {IBallotStyle as IBallotStyleRow} from "./ballot/types"
 export * from "./ballot/presentation"

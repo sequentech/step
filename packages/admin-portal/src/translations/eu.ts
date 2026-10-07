@@ -629,6 +629,22 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Boto-emailearen irisgarritasun-ezarpenak",
+                    options: {
+                        disabled: "Ezkutatu irisgarritasun-ezarpenak",
+                        enabled: "Eskaini testuaren tamaina, kontrastea, tartea eta mugimendua",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Audio-argibideak",
+                    options: {
+                        "disabled": "Audio-argibiderik ez",
+                        "recorded": "Igotako grabazioak soilik",
+                        "recorded-or-synthesized":
+                            "Igotako grabazioak, edo nabigatzailearen ahotsa halakorik ez dagoenean",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Erakutsi Logs Bozketa Taba",
                     options: {
@@ -1093,6 +1109,21 @@ const basqueTranslation: TranslationType = {
                 options: {
                     "gold-level": "Urre maila Autentifikazioa",
                     "no-gold-level": "Ez da Urre maila Autentifikaziorik",
+                },
+            },
+            slates: {
+                title: "Hautagai-zerrendak",
+                configuration: "Hautagai-zerrenden konfigurazioa (JSON)",
+                helper: "Izendun hautagai-zerrendak eta bakoitzak lehia bakoitzean aurkezten dituen hautagaiak. Utzi hutsik hautagai-zerrendarik gabeko hauteskunde baterako.",
+                loading:
+                    "Hauteskundearen lehiak eta hautagaiak kargatzen ari dira oraindik. Saiatu berriro une batean.",
+                mobileCandidateLists: {
+                    label: "Hautagaien zerrendak mugikorrean",
+                    helper: "Nola agertzen den hasieran hautagai-zerrenda bakoitzaren hautagaien zerrenda mugikorrean. Hautesleak beti ireki edo itxi dezake.",
+                    options: {
+                        collapsed: "Tolestuta",
+                        expanded: "Zabalduta",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1995,6 +2026,7 @@ const basqueTranslation: TranslationType = {
                 "warn-only-in-review": "Abisatu Berrikuspena",
                 "warn": "Abisatu",
                 "warn-and-alert": "Abisatu eta Alerta",
+                "warn-and-confirm-in-review": "Abisatu eta Berretsi Berrikuspenean",
             },
             invalidVotePolicy: {
                 "label": "Baliogabeko Boto Politika",
@@ -2820,6 +2852,23 @@ const basqueTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Audio-argibideak pantaila honetarako",
+                languageLabel: "Grabazioaren hizkuntza",
+                none: "Ez dira audio-argibideak",
+                helperText:
+                    "Boto-emaileek fitxategi hau entzuten dute pantaila horretan argibideak eskatzean.",
+                screens: {
+                    "election-chooser": "Hauteskundeen zerrenda",
+                    "start": "Hasiera",
+                    "ballot": "Boto-papera",
+                    "review": "Berrikuspena",
+                    "confirmation": "Baieztapena",
+                    "audit": "Ikuskapena",
+                    "ballot-locator": "Boto-paperen bilatzailea",
+                    "support-materials": "Laguntza-materialak",
+                },
+            },
             createMaterialSuccess: "Laguntza materiala sortua",
             createMaterialError: "Errorea laguntza materiala sortzerakoan",
             updateMaterialSuccess: "Laguntza materiala eguneratua",

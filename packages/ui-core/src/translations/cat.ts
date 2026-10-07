@@ -23,6 +23,7 @@ const catalanTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Tancar el diàleg",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar el missatge",
             ballotIdHelp: "Sobre el vostre ID de vot",
             loading: "Carregant",
@@ -35,6 +36,48 @@ const catalanTranslation: TranslationType = {
             selectList: "Seleccionar tota la llista",
             preferenceLabel: "Preferència",
             writeInFor: "Nom del candidat per escrit",
+        },
+        accessibility: {
+            button: "Accessibilitat",
+            title: "Configuració d'accessibilitat",
+            description: "Canvieu l'aspecte d'aquest lloc en aquest dispositiu.",
+            textSize: {
+                label: "Mida del text",
+                default: "Predeterminada",
+                large: "Gran",
+                larger: "Més gran",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Predeterminat",
+                high: "Contrast alt",
+            },
+            textSpacing: {
+                label: "Espaiat del text",
+                default: "Predeterminat",
+                wide: "Ampli",
+            },
+            motion: {
+                label: "Moviment",
+                default: "Predeterminat",
+                reduced: "Reduït",
+            },
+            reset: "Restableix la configuració",
+            close: "Tanca",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Configuració restablerta",
+        },
+        audioInstructions: {
+            label: "Instruccions en àudio",
+            play: "Escolta les instruccions",
+            pause: "Posa en pausa les instruccions",
+            resume: "Reprèn les instruccions",
+            stop: "Atura les instruccions",
+            showTranscript: "Llegeix les instruccions",
+            hideTranscript: "Amaga les instruccions",
+            playing: "S'estan reproduint les instruccions",
+            paused: "Instruccions en pausa",
+            stopped: "Instruccions aturades",
         },
         candidate: {
             moreInformationLink: "Més informació",
@@ -127,6 +170,8 @@ const catalanTranslation: TranslationType = {
                     "Configuració de vot invàlida: el concurs defineix {{count}} candidats explícitament invàlids, però només se'n permet un.",
                 multipleExplicitBlankCandidates:
                     "Configuració de vot invàlida: el concurs defineix {{count}} candidats de vot en blanc explícit, però només se'n permet un.",
+                invalidSlateConfiguration:
+                    "Configuració de vot invàlida: les candidatures conjuntes no són vàlides ({{reason}}).",
             },
         },
         ballotHash: "El teu Localitzador de Vot: {{ballotId}}",
