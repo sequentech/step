@@ -24,9 +24,6 @@ The following environment variables can be used to configure Braid Trustees:
 |----------|-------------|----------|---------|
 | `TRUSTEE_NAME` | Unique identifier for the trustee instance | Yes* | - |
 | `B3_URL` | URL of the B3 service for trustee communication | Yes | - |
-| `IMMUDB_URL` | ImmuDB database connection URL | Yes | - |
-| `IMMUDB_USER` | ImmuDB username for authentication | Yes | - |
-| `IMMUDB_PASSWORD` | ImmuDB password for authentication | Yes | - |
 
 *Required unless `TRUSTEE_CONFIG_PATH` is set with an existing configuration file.
 
@@ -124,7 +121,7 @@ The generated configuration will be:
 
 1. **Secrets Management**: Always use a proper secrets backend in production. The `EnvVarMasterSecret` option should only be used for development.
 
-2. **Network Security**: Ensure that communication between trustees, B3 service, and ImmuDB is properly secured using TLS.
+2. **Network Security**: Ensure that communication between trustees and the B3 service is properly secured using TLS.
 
 3. **Access Control**: Limit access to trustee configuration and secrets to authorized personnel only.
 

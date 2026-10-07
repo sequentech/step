@@ -13,7 +13,6 @@ const frenchTranslation: TranslationType = {
         a11y: {
             skipToContent: "Aller au contenu principal",
             helpAbout: "Aide à propos de {{topic}}",
-            copyToClipboard: "Copier {{label}} dans le presse-papiers",
             previewMaterial: "Aperçu de {{title}}",
             ballotsTable: "Bulletins",
             ballotLocatorTabs: "Sections du localisateur de bulletin",
@@ -463,9 +462,7 @@ const frenchTranslation: TranslationType = {
             column: {
                 statement_kind: "Type",
                 statement_timestamp: "Marque de temps",
-                username: "Nom d'utilisateur",
                 ballot_id: "Numéro d'identification du bulletin",
-                message: "Message",
             },
         },
     },

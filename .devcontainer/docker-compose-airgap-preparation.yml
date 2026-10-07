@@ -28,8 +28,18 @@ services:
     platform: linux/amd64
     container_name: postgres
     restart: unless-stopped
+    volumes:
+      - ./postgresql/init-electoral-log.sh:/docker-entrypoint-initdb.d/20-electoral-log.sh:ro
+      - ../packages/electoral-log/schema.sql:/electoral-log-schema.sql:ro
     environment:
       POSTGRES_PASSWORD: ${HASURA_PG_PASSWORD}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-}
+      ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -293,26 +303,6 @@ services:
       - 3004:8000
     stdin_open: true
 
-  immudb:
-    profiles: ["full", "base"]
-    container_name: immudb
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb:STEP_VERSION
-    platform: linux/amd64
-    restart: always
-    environment:
-      - IMMUDB_PGSQL_SERVER=true
-    ports:
-      - 3322:3322 # immudb service
-      - 3324:9497 # prometheus
-      - 3325:8080 # web console
-    depends_on:
-      - immudb-init
-    healthcheck:
-      test: /usr/local/bin/immuadmin status
-      interval: 30s
-      timeout: 30s
-      retries: 3
-
   harvest:
     profiles: ["full", "base"]
     stdin_open: true
@@ -326,9 +316,17 @@ services:
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE_LAYOUT: ${ELECTORAL_LOG_PG_DATABASE_LAYOUT:-shared}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-}
+      ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD:-}
+      ELECTORAL_LOG_PG_TENANT_POOL_SIZE: ${ELECTORAL_LOG_PG_TENANT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       SMS_TRANSPORT_NAME: ${SMS_TRANSPORT_NAME}
       AWS_SNS_ATTRIBUTES: ${AWS_SNS_ATTRIBUTES}
       EMAIL_TRANSPORT_NAME: ${EMAIL_TRANSPORT_NAME}
@@ -387,20 +385,20 @@ services:
       CLOUDFLARE_ZONE: ${CLOUDFLARE_ZONE}
       CLOUDFLARE_API_KEY: ${CLOUDFLARE_API_KEY}
       CUSTOM_URLS_IP_DNS_CONTENT: ${CUSTOM_URLS_IP_DNS_CONTENT}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
     ports:
      - ${HARVEST_PORT}:${HARVEST_PORT}
 
-  b3:
+  b4:
     profiles: ["full", "base"]
     stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b3:STEP_VERSION
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/b4:STEP_VERSION
     platform: linux/amd64
-    container_name: b3
+    container_name: b4
     restart: always
     ports:
       - "50051:50051"
@@ -409,12 +407,19 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      B3_PG_HOST: ${B3_PG_HOST}
-      B3_PG_PORT: ${B3_PG_PORT}
-      B3_PG_USER: ${B3_PG_USER}
-      B3_PG_PASSWORD: ${B3_PG_PASSWORD}
-      B3_PG_DATABASE: ${B3_PG_DATABASE}
-      B3_BIND: ${B3_BIND}
+      B4_PG_HOST: ${B4_PG_HOST}
+      B4_PG_PORT: ${B4_PG_PORT}
+      B4_PG_USER: ${B4_PG_USER}
+      B4_PG_PASSWORD: ${B4_PG_PASSWORD}
+      B4_PG_DATABASE: ${B4_PG_DATABASE}
+      B4_BIND: ${B4_BIND}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_ENDPOINT_URL: ${AWS_S3_PRIVATE_URI}
+      S3_BUCKET_NAME: ${AWS_S3_BUCKET}
+      AWS_S3_UPLOAD_EXPIRATION_SECS: ${AWS_S3_UPLOAD_EXPIRATION_SECS}
+      AWS_S3_FETCH_EXPIRATION_SECS: ${AWS_S3_FETCH_EXPIRATION_SECS}
 
   trustee1:
     profiles: ["full"]
@@ -423,10 +428,6 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
     platform: linux/amd64
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG: ${TRUSTEE1_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
@@ -434,9 +435,6 @@ services:
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
         VAULT_TOKEN: ${VAULT_TOKEN}
 
-    depends_on:
-      immudb:
-        condition: service_healthy
 
   trustee2:
     profiles: ["full"]
@@ -444,14 +442,7 @@ services:
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
     platform: linux/amd64
     container_name: trustee2
-    depends_on:
-      immudb:
-        condition: service_healthy
     environment:
-        IMMUDB_USER: ${IMMUDB_USER}
-        IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-        IMMUDB_URL: ${IMMUDB_SERVER_URL}
-        IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG: ${TRUSTEE2_CONFIG}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
@@ -465,13 +456,8 @@ services:
   #   image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/braid:STEP_VERSION
   #   container_name: trustee3
   #   depends_on:
-  #     immudb:
   #       condition: service_healthy
   #   environment:
-  #       IMMUDB_USER: ${IMMUDB_USER}
-  #       IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-  #       IMMUDB_URL: ${IMMUDB_SERVER_URL}
-  #       IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG: ${TRUSTEE3_CONFIG}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
@@ -479,7 +465,6 @@ services:
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}
   #       VAULT_TOKEN: ${VAULT_TOKEN}
 
-  # Create collection in immudb
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
@@ -496,20 +481,6 @@ services:
       interval: 30s
       timeout: 30s
       retries: 3
-
-  immudb-init:
-    profiles: ["full", "base"]
-    stdin_open: true
-    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/immudb-init:STEP_VERSION
-    platform: linux/amd64
-    container_name: immudb-init
-    environment:
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
-      IMMUDB_BOARD_DB_NAME: ${IMMUDB_BOARD_DB_NAME}
-    restart: always
 
   windmill:
     profiles: ["full", "base"]
@@ -529,10 +500,18 @@ services:
       AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
-      IMMUDB_SERVER_URL: ${IMMUDB_SERVER_URL}
-      IMMUDB_USER: ${IMMUDB_USER}
-      IMMUDB_PASSWORD: ${IMMUDB_PASSWORD}
-      IMMUDB_INDEX_DB: ${IMMUDB_INDEX_DB}
+      ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
+      ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
+      ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
+      ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      ELECTORAL_LOG_PG_DATABASE_LAYOUT: ${ELECTORAL_LOG_PG_DATABASE_LAYOUT:-shared}
+      ELECTORAL_LOG_PG_TENANT_POOL_SIZE: ${ELECTORAL_LOG_PG_TENANT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_PROVISIONING_USER: ${ELECTORAL_LOG_PG_PROVISIONING_USER:-}
+      ELECTORAL_LOG_PG_PROVISIONING_PASSWORD: ${ELECTORAL_LOG_PG_PROVISIONING_PASSWORD:-}
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-}
+      ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
+      ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_URI: ${AWS_S3_PUBLIC_URI}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
@@ -584,6 +563,12 @@ services:
       LOW_SQL_LIMIT: ${LOW_SQL_LIMIT}
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
+      ELECTORAL_LOG_BATCH_SIZE: ${ELECTORAL_LOG_BATCH_SIZE:-1000}
+      ELECTORAL_LOG_BATCH_MAX_BYTES: ${ELECTORAL_LOG_BATCH_MAX_BYTES:-16777216}
+      ELECTORAL_LOG_CHECKPOINT_COPY: ${ELECTORAL_LOG_CHECKPOINT_COPY:-off}
+      ELECTORAL_LOG_CHECKPOINT_BUCKET: ${ELECTORAL_LOG_CHECKPOINT_BUCKET:-electoral-log-checkpoints}
+      ELECTORAL_LOG_CHECKPOINT_LOCK_MODE: ${ELECTORAL_LOG_CHECKPOINT_LOCK_MODE:-compliance}
+      ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS: ${ELECTORAL_LOG_CHECKPOINT_RETENTION_DAYS:-3650}
       WINDMILL_PROBE_ADDR: ${WINDMILL_PROBE_ADDR}
       WINDMILL_PROBE_LIVE_PATH: ${WINDMILL_PROBE_LIVE_PATH}
       WINDMILL_PROBE_READY_PATH: ${WINDMILL_PROBE_READY_PATH}
@@ -612,3 +597,4 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}

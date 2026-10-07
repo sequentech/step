@@ -34,6 +34,7 @@ import buildHasuraProvider from "ra-data-hasura"
 import {customBuildQuery} from "./queries/customBuildQuery"
 import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
+import {ElectoralLogConsole} from "./screens/ElectoralLogConsole"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
 import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
@@ -150,11 +151,11 @@ const App: React.FC<AppProps> = () => {
                         element={<Navigate to="/sequent_backend_election_event" replace />}
                         index
                     />
-                    {/* <Route path="/logs" element={<Logs />} /> */}
                     <Route path="/tenant" element={<SelectTenant />} />
                     <Route path="/user-roles" element={<UserAndRoles />} />
                     <Route path="/trustee" element={<TrusteeDashboard />} />
                     <Route path="/messages" element={<Messages />} />
+                    <Route path="/electoral-log-console" element={<ElectoralLogConsole />} />
                     <Route path="/settings/*" element={<SettingsScreen />} />
                 </CustomRoutes>
 

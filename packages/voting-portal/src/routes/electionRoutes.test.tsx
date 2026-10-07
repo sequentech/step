@@ -107,10 +107,9 @@ test.each(["a".repeat(64), "abcd"])(
         expect(screen.getByText("existing encrypted ballot")).toBeVisible()
         expect(mockVoterContext).not.toHaveBeenCalled()
         expect(mockQueries.find(({name}) => name === "GetCastVote")?.variables).toEqual({
-            tenantId: "tenant",
             electionEventId: "event",
             electionId: "election",
-            ballotIdPattern: ballotId.length === 4 ? ballotId + "%" : ballotId,
+            ...(ballotId.length === 4 ? {ballotIdPrefix: ballotId} : {ballotId}),
         })
         view.unmount()
     }

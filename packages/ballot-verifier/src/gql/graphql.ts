@@ -85,10 +85,8 @@ export type Boolean_Comparison_Exp = {
 export type CastVoteEntry = {
     __typename?: "CastVoteEntry"
     ballot_id: Scalars["String"]["output"]
-    message?: Maybe<Scalars["String"]["output"]>
     statement_kind: Scalars["String"]["output"]
     statement_timestamp: Scalars["Int"]["output"]
-    username?: Maybe<Scalars["String"]["output"]>
 }
 
 export type CastVotesByIp = {
@@ -217,12 +215,6 @@ export type CreateTallyOutput = {
 export type DataListElectoralLog = {
     __typename?: "DataListElectoralLog"
     items: Array<Maybe<ElectoralLogRow>>
-    total: TotalAggregate
-}
-
-export type DataListPgAudit = {
-    __typename?: "DataListPgAudit"
-    items: Array<Maybe<PgAuditRow>>
     total: TotalAggregate
 }
 
@@ -791,11 +783,6 @@ export type ListKeysCeremonyOutput = {
     total: TotalAggregate
 }
 
-export type LogEventOutput = {
-    __typename?: "LogEventOutput"
-    electionEventId?: Maybe<Scalars["String"]["output"]>
-}
-
 export type ManageElectionDatesOutput = {
     __typename?: "ManageElectionDatesOutput"
     error_msg?: Maybe<Scalars["String"]["output"]>
@@ -817,47 +804,6 @@ export type OptionalImportEvent = {
 export enum OrderDirection {
     Asc = "asc",
     Desc = "desc",
-}
-
-export type PgAuditFilter = {
-    audit_type?: InputMaybe<Scalars["String"]["input"]>
-    class?: InputMaybe<Scalars["String"]["input"]>
-    command?: InputMaybe<Scalars["String"]["input"]>
-    dbname?: InputMaybe<Scalars["String"]["input"]>
-    id?: InputMaybe<Scalars["String"]["input"]>
-    session_id?: InputMaybe<Scalars["String"]["input"]>
-    statement?: InputMaybe<Scalars["String"]["input"]>
-    user?: InputMaybe<Scalars["String"]["input"]>
-}
-
-export type PgAuditOrderBy = {
-    audit_type?: InputMaybe<OrderDirection>
-    class?: InputMaybe<OrderDirection>
-    command?: InputMaybe<OrderDirection>
-    dbname?: InputMaybe<OrderDirection>
-    id?: InputMaybe<OrderDirection>
-    server_timestamp?: InputMaybe<OrderDirection>
-    session_id?: InputMaybe<OrderDirection>
-    statement?: InputMaybe<OrderDirection>
-    user?: InputMaybe<OrderDirection>
-}
-
-export type PgAuditRow = {
-    __typename?: "PgAuditRow"
-    audit_type: Scalars["String"]["output"]
-    class: Scalars["String"]["output"]
-    command: Scalars["String"]["output"]
-    dbname: Scalars["String"]["output"]
-    id: Scalars["Int"]["output"]
-    server_timestamp: Scalars["Int"]["output"]
-    session_id: Scalars["String"]["output"]
-    statement: Scalars["String"]["output"]
-    user: Scalars["String"]["output"]
-}
-
-export enum PgAuditTable {
-    PgauditHasura = "pgaudit_hasura",
-    PgauditKeycloak = "pgaudit_keycloak",
 }
 
 export type PhoneBlacklistEntry = {
@@ -1173,6 +1119,19 @@ export type UserProfileConfiguration = {
     __typename?: "UserProfileConfiguration"
     attributes: Array<UserProfileAttribute>
     groups: Array<UserProfileAttributeGroup>
+}
+
+export type VoterCastVote = {
+    __typename?: "VoterCastVote"
+    area_id?: Maybe<Scalars["String"]["output"]>
+    ballot_id?: Maybe<Scalars["String"]["output"]>
+    content?: Maybe<Scalars["String"]["output"]>
+    created_at?: Maybe<Scalars["String"]["output"]>
+    election_event_id: Scalars["String"]["output"]
+    election_id?: Maybe<Scalars["String"]["output"]>
+    id: Scalars["String"]["output"]
+    status: Scalars["String"]["output"]
+    tenant_id: Scalars["String"]["output"]
 }
 
 export type VoterInformationLetterOutput = {
@@ -5008,6 +4967,12 @@ export enum Order_By {
 export type Query_Root = {
     __typename?: "query_root"
     count_users: CountUsersOutput
+    /** A page of an election event's electoral-log records or ballot box */
+    electoral_log_console_page: Scalars["jsonb"]["output"]
+    /** A read-only SQL query on the tenant's electoral-log database */
+    electoral_log_console_query: Scalars["jsonb"]["output"]
+    /** An electoral-log record with its message decoded */
+    electoral_log_console_record: Scalars["jsonb"]["output"]
     /** fetch document */
     fetchDocument?: Maybe<FetchDocumentOutput>
     /** Fetch voter-authorized results website artifact URLs */
@@ -5028,16 +4993,14 @@ export type Query_Root = {
     get_user_profile_attributes: Array<UserProfileAttribute>
     get_user_profile_configuration: UserProfileConfiguration
     get_users: GetUsersOutput
+    /** The voter's own cast votes, from the election event's ballot box or cast_vote table */
+    get_voter_cast_votes: Array<VoterCastVote>
     /** List Electoral Log */
     listElectoralLog?: Maybe<DataListElectoralLog>
-    /** List PostgreSQL audit logs */
-    listPgaudit?: Maybe<DataListPgAudit>
     /** List electoral log entries of statement_kind CastVote */
     list_cast_vote_messages?: Maybe<ListCastVoteMessagesOutput>
     list_keys_ceremony?: Maybe<ListKeysCeremonyOutput>
     list_user_roles: Array<KeycloakRole>
-    /** log an event in immudb */
-    logEvent?: Maybe<LogEventOutput>
     /** Resolve the active results website publication for authenticated viewers */
     resolveResultsPublication?: Maybe<ResolveResultsPublicationOutput>
     reveal_voter_secret_attribute: RevealVoterSecretAttributeOutput
@@ -5305,6 +5268,24 @@ export type Query_RootCount_UsersArgs = {
     body: CountUsersInput
 }
 
+export type Query_RootElectoral_Log_Console_PageArgs = {
+    after?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
+    filters?: InputMaybe<Scalars["jsonb"]["input"]>
+    limit?: InputMaybe<Scalars["Int"]["input"]>
+    order?: InputMaybe<Scalars["String"]["input"]>
+    table: Scalars["String"]["input"]
+}
+
+export type Query_RootElectoral_Log_Console_QueryArgs = {
+    sql: Scalars["String"]["input"]
+}
+
+export type Query_RootElectoral_Log_Console_RecordArgs = {
+    election_event_id: Scalars["String"]["input"]
+    position: Scalars["Int"]["input"]
+}
+
 export type Query_RootFetchDocumentArgs = {
     document_id: Scalars["String"]["input"]
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
@@ -5366,20 +5347,19 @@ export type Query_RootGet_UsersArgs = {
     body: GetUsersInput
 }
 
+export type Query_RootGet_Voter_Cast_VotesArgs = {
+    ballot_id?: InputMaybe<Scalars["String"]["input"]>
+    ballot_id_prefix?: InputMaybe<Scalars["String"]["input"]>
+    election_event_id: Scalars["String"]["input"]
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
 export type Query_RootListElectoralLogArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     filter?: InputMaybe<ElectoralLogFilter>
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
     order_by?: InputMaybe<ElectoralLogOrderBy>
-}
-
-export type Query_RootListPgauditArgs = {
-    audit_table?: InputMaybe<PgAuditTable>
-    filter?: InputMaybe<PgAuditFilter>
-    limit?: InputMaybe<Scalars["Int"]["input"]>
-    offset?: InputMaybe<Scalars["Int"]["input"]>
-    order_by?: InputMaybe<PgAuditOrderBy>
 }
 
 export type Query_RootList_Cast_Vote_MessagesArgs = {
@@ -5400,13 +5380,6 @@ export type Query_RootList_User_RolesArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user_id: Scalars["String"]["input"]
-}
-
-export type Query_RootLogEventArgs = {
-    body: Scalars["String"]["input"]
-    election_event_id: Scalars["String"]["input"]
-    message_type: Scalars["String"]["input"]
-    user_id?: InputMaybe<Scalars["String"]["input"]>
 }
 
 export type Query_RootResolveResultsPublicationArgs = {

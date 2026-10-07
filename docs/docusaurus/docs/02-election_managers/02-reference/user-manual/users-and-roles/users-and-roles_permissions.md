@@ -40,3 +40,11 @@ omitted. A decrypted voter-export document remains restricted: downloading it ch
 Assign read and write independently where duties require it. For example, an import operator can
 receive secret-write without secret-read, while a support operator who must inspect a value can
 receive secret-read without permission to change it.
+
+## Electoral Log Permissions
+
+| Permission | Allows |
+|---|---|
+| `electoral-log-console-read` | Open the **Electoral Log** page and browse the records, ballots, voters and sequencer queue of the tenant's election events. Usernames, IP addresses and countries show as `hidden`. |
+| `electoral-log-personal-data-read` | See usernames, IP addresses and countries on the **Electoral Log** page. |
+| `electoral-log-console-query` | Run read-only SQL queries on the **Electoral Log** page. Queries also need `electoral-log-personal-data-read`, because they read personal data as it is stored. |

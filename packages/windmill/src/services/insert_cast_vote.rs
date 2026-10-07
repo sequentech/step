@@ -5,9 +5,12 @@ use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::ballot_box::{
+    accept_ballot, get_allowed_votes, initial_ballot_status, BallotBoxPolicy, BallotFormat,
+};
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_board::get_election_event_board;
+use crate::services::election_event_board::{get_ballot_box_policy, get_election_event_board};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
     datafix_annotations, external_voter_lock_key, is_datafix_election_event,
@@ -21,6 +24,7 @@ use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome};
 use electoral_log::messages::newtypes::*;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
@@ -458,8 +462,42 @@ pub async fn try_insert_cast_vote(
     // connection/lock lifecycle (see `insert_datafix_cast_vote_locked`); ordinary
     // votes reuse this read transaction directly. Either way the connection is
     // released before the audit below, which only enqueues its signed message.
-    let result = match initial_status {
-        CastVoteStatus::InProgress => {
+    let ballot_box = get_ballot_box_policy(election_event.bulletin_board_reference.clone());
+    let format = if is_multi_contest {
+        BallotFormat::HashableMultiBallot
+    } else {
+        BallotFormat::HashableBallot
+    };
+    let result = match (ballot_box, initial_status) {
+        (BallotBoxPolicy::ElectoralLog, CastVoteStatus::InProgress) => {
+            Err(CastVoteError::InsertFailed(
+                "Datafix events cannot store cast votes in the electoral log yet".to_string(),
+            ))
+        }
+        (BallotBoxPolicy::ElectoralLog, status) => {
+            let result = accept_into_ballot_box(
+                &input,
+                hasura_transaction,
+                &election_event,
+                voting_channel,
+                ids,
+                &electoral_log.elog_database,
+                format,
+                status == CastVoteStatus::InProgress,
+                auth_time,
+                voter_ip,
+                voter_country,
+                username,
+                &voter_signature_data,
+                is_early_voting_area,
+                &pseudonym_h,
+                &vote_h,
+            )
+            .await;
+            drop(hasura_db_client);
+            result
+        }
+        (BallotBoxPolicy::CastVoteTable, CastVoteStatus::InProgress) => {
             // Release the read transaction and its connection before locking: the
             // txn borrows the client, and a voter blocked on the lease must not
             // pin a pool connection.
@@ -483,7 +521,7 @@ pub async fn try_insert_cast_vote(
             )
             .await
         }
-        _ => {
+        (BallotBoxPolicy::CastVoteTable, _) => {
             let result = insert_cast_vote_and_commit(
                 input,
                 hasura_transaction,
@@ -508,6 +546,10 @@ pub async fn try_insert_cast_vote(
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let _audit_phase = CastVotePhase::start("audit");
     match result {
+        // The sequencer appends the records of ballots in the ballot box.
+        Ok((inserted_cast_vote, _)) if ballot_box == BallotBoxPolicy::ElectoralLog => {
+            classify_inserted_cast_vote(inserted_cast_vote)
+        }
         Ok((inserted_cast_vote, effective_voting_channel)) => {
             let log_result = voter_electoral_log
                 .post_cast_vote(
@@ -774,6 +816,119 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
     Ok((cast_vote, effective_voting_channel))
+}
+
+/// Accept a vote into the ballot box of the event's electoral-log database, after
+/// the same status checks as `insert_cast_vote_and_commit`. The ballot box enforces
+/// the revote limit and cross-area exclusivity that `check_revote_limit` enforces
+/// for `cast_vote`.
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all, err)]
+async fn accept_into_ballot_box(
+    input: &InsertCastVoteInput,
+    hasura_transaction: Transaction<'_>,
+    election_event: &ElectionEvent,
+    voting_channel: VotingStatusChannel,
+    ids: CastVoteIds<'_>,
+    board: &str,
+    format: BallotFormat,
+    datafix: bool,
+    auth_time: &Option<i64>,
+    voter_ip: &Option<String>,
+    voter_country: &Option<String>,
+    username: &Option<String>,
+    voter_signature_data: &Option<(StrandSignaturePk, StrandSignature)>,
+    is_early_voting_area: bool,
+    pseudonym_hash: &PseudonymHash,
+    ballot_hash: &CastVoteHash,
+) -> Result<(CastVote, VotingStatusChannel), CastVoteError> {
+    let election_id = input.election_id.to_string();
+    let effective_voting_channel = check_status(
+        ids.tenant_id,
+        ids.election_event_id,
+        &election_id,
+        &hasura_transaction,
+        election_event,
+        auth_time,
+        voting_channel,
+        is_early_voting_area,
+    )
+    .await?;
+    let allowed_votes = get_allowed_votes(
+        &hasura_transaction,
+        ids.tenant_id,
+        ids.election_event_id,
+        &election_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::CheckRevotesFailed(e.to_string()))?;
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
+
+    let voter_signature: Option<Vec<u8>> = voter_signature_data
+        .as_ref()
+        .map(|(_, signature)| signature.to_bytes().to_vec());
+    let pseudonym_hash = pseudonym_hash.0.clone().to_inner();
+    let ballot_hash = ballot_hash.0.clone().to_inner();
+    let format = format.to_string();
+    let channel = effective_voting_channel.to_string();
+    let status = initial_ballot_status(datafix);
+    let _phase = CastVotePhase::start("accept");
+    let outcome = accept_ballot(
+        board,
+        &AcceptBallot {
+            election_event_id: ids.election_event_id,
+            election_id: &election_id,
+            area_id: ids.area_id,
+            voter_id: ids.voter_id,
+            ballot_id: &input.ballot_id,
+            format: &format,
+            content: &input.content,
+            voter_signature: voter_signature.as_deref(),
+            pseudonym_hash: &pseudonym_hash,
+            ballot_hash: &ballot_hash,
+            voting_channel: &channel,
+            status,
+            voter_ip: voter_ip.as_deref(),
+            voter_country: voter_country.as_deref(),
+            username: username.as_deref(),
+            allowed_votes,
+        },
+    )
+    .await
+    .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
+    match outcome {
+        AcceptOutcome::Accepted { id, .. } => Ok((
+            CastVote {
+                id,
+                tenant_id: ids.tenant_id.to_string(),
+                election_id: Some(election_id),
+                area_id: Some(ids.area_id.to_string()),
+                created_at: Some(chrono::Utc::now()),
+                last_updated_at: Some(chrono::Utc::now()),
+                content: Some(input.content.clone()),
+                voter_id_string: Some(ids.voter_id.to_string()),
+                election_event_id: ids.election_event_id.to_string(),
+                ballot_id: Some(input.ballot_id.clone()),
+                cast_ballot_signature: voter_signature,
+                status: if datafix {
+                    CastVoteStatus::InProgress
+                } else {
+                    CastVoteStatus::Valid
+                },
+            },
+            effective_voting_channel,
+        )),
+        AcceptOutcome::TooManyVotes => Err(CastVoteError::InsertFailedExceedsAllowedRevotes),
+        AcceptOutcome::VotedInOtherArea => Err(CastVoteError::CheckVotesInOtherAreasFailed(
+            "The voter already voted in another area".to_string(),
+        )),
+        AcceptOutcome::DuplicateBallotId => Err(CastVoteError::InsertFailed(
+            "The ballot ID was already used in this election event".to_string(),
+        )),
+    }
 }
 
 pub(crate) fn hash_voter_id(voter_id: &str) -> Result<Hash, StrandError> {

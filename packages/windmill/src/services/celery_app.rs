@@ -13,6 +13,7 @@ use tracing::{event, info, instrument, Level};
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
+use crate::tasks::audit_electoral_log::audit_electoral_log;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
@@ -58,6 +59,9 @@ use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
 use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
+use crate::tasks::publish_electoral_log_checkpoint::{
+    publish_electoral_log_checkpoint, publish_periodic_electoral_log_checkpoints,
+};
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
@@ -66,6 +70,7 @@ use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
 use crate::tasks::send_template::send_template;
+use crate::tasks::sequence_ballot_box::{schedule_ballot_box_sequencers, sequence_ballot_box};
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;
 use crate::tasks::voter_information_letter::generate_voter_information_letter;
@@ -90,6 +95,8 @@ pub enum Queue {
     ElectoralLogBatch,
     #[strum(serialize = "electoral_log_event_queue")]
     ElectoralLogEvent,
+    #[strum(serialize = "electoral_log_dead_letter_queue")]
+    ElectoralLogDeadLetter,
 }
 
 impl Queue {
@@ -287,6 +294,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             manage_election_date,
             export_election_event,
             generate_activity_logs_report,
+            audit_electoral_log,
+            publish_electoral_log_checkpoint,
+            publish_periodic_electoral_log_checkpoints,
             export_certificate_authority,
             create_transmission_package_task,
             send_transmission_package_task,
@@ -296,6 +306,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_tasks_execution,
             scheduled_reports,
             review_cast_votes,
+            schedule_ballot_box_sequencers,
+            sequence_ballot_box,
             export_templates,
             export_ballot_publication,
             export_application,
@@ -337,6 +349,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             import_users::NAME => &Queue::ImportExport.queue_name(&slug),
             export_users::NAME => &Queue::ImportExport.queue_name(&slug),
             export_election_event::NAME => &Queue::ImportExport.queue_name(&slug),
+            audit_electoral_log::NAME => &Queue::Reports.queue_name(&slug),
+            publish_electoral_log_checkpoint::NAME => &Queue::Short.queue_name(&slug),
+            publish_periodic_electoral_log_checkpoints::NAME => &Queue::Beat.queue_name(&slug),
             generate_activity_logs_report::NAME => &Queue::Reports.queue_name(&slug), // Using reports queue because there is more memory allocated for that queue
             export_tasks_execution::NAME => &Queue::ImportExport.queue_name(&slug),
             export_trustees_task::NAME => &Queue::ImportExport.queue_name(&slug),
@@ -347,6 +362,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
+            schedule_ballot_box_sequencers::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
+            sequence_ballot_box::NAME => &Queue::ElectoralLogBatch.queue_name(&slug),
             manage_election_date::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_event_date::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_event_enrollment::NAME => &Queue::Beat.queue_name(&slug),

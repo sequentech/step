@@ -210,6 +210,13 @@ const dutchTranslation: TranslationType = {
             actions: {
                 csv: "Exporteren als CSV",
                 pdf: "Exporteren als PDF",
+                audit: "Controleren",
+            },
+            auditDialog: {
+                title: "Verkiezingslog controleren",
+                confirm: "Controleren",
+                description:
+                    "De controle vergelijkt elke logregel met het Merkle-log en verifieert de gepubliceerde controlepunten. Het resultaat wordt als taak vastgelegd.",
             },
             exportdialog: {
                 description: "Bevestig dat u deze actie wilt uitvoeren. Dit kan even duren.",
@@ -258,6 +265,7 @@ const dutchTranslation: TranslationType = {
                 DELETE_TENANT: "Tenant verwijderen",
                 PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
+                AUDIT_ELECTORAL_LOG: "Verkiezingslog controleren",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
                 IMPORT_ELECTION_EVENT: "Verkiezingsevenement Importeren",
@@ -1364,6 +1372,10 @@ const dutchTranslation: TranslationType = {
                 "publish-results-read": "Resultatenpublicatie Lezen",
                 "publish-results-write": "Resultatenpublicatie Bewerken",
                 "logs-read": "Logs Lezen",
+                "electoral-log-audit": "Verkiezingslog Controleren",
+                "electoral-log-console-read": "Verkiezingslog Bekijken",
+                "electoral-log-console-query": "Verkiezingslog Bevragen",
+                "electoral-log-personal-data-read": "Persoonsgegevens van Verkiezingslog Lezen",
                 "tasks-read": "Taakuitvoering Lezen",
                 "keys-read": "Sleutels Lezen",
                 "document-upload": "Documenten Uploaden",
@@ -1772,6 +1784,7 @@ const dutchTranslation: TranslationType = {
             electionEvents: "Verkiezingsevenementen",
             search: "Zoeken",
             usersAndRoles: "Gebruikers en Rollen",
+            electoralLogConsole: "Verkiezingslog",
             logs: "Logs",
             settings: "Instellingen",
             help: "Help",
@@ -2925,6 +2938,71 @@ const dutchTranslation: TranslationType = {
             confirmDelete: "Certificaatautoriteit verwijderen",
             confirmDeleteDescription:
                 'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
+        },
+        electoralLogConsole: {
+            title: "Verkiezingslog",
+            subtitle:
+                "Bekijk het verkiezingslog en de stembus van een verkiezingsevenement, of bevraag de database van het verkiezingslog. Niets op deze pagina wijzigt gegevens.",
+            notAllowed:
+                "U hebt de machtiging electoral-log-console-read nodig om het verkiezingslog te openen.",
+            tabs: {
+                tables: "Tabellen",
+                query: "Query",
+            },
+            electionEvent: "Verkiezingsevenement",
+            table: "Tabel",
+            tables: {
+                records: "Records",
+                ballots: "Stembiljetten",
+                voters: "Kiezers",
+                queue: "Wachtrij van de Sequencer",
+            },
+            order: {
+                "label": "Volgorde",
+                "newest-first": "Nieuwste eerst",
+                "oldest-first": "Oudste eerst",
+            },
+            filters: {
+                statement_kind: "Soort",
+                election_id: "Verkiezing",
+                area_id: "Gebieds-ID",
+                user_id: "Gebruikers- of Kiezers-ID",
+                ballot_id: "Stembiljet-ID",
+                status: "Status",
+                created_after: "Vanaf",
+                created_before: "Tot",
+                any: "Alle",
+                apply: "Filters Toepassen",
+                clear: "Wissen",
+                invalid:
+                    "Controleer de gemarkeerde filters: datums moeten geldig zijn en gebieds-ID's van de stembus moeten UUID's zijn.",
+            },
+            statuses: {
+                valid: "Geldig",
+                pending: "In behandeling",
+                rejected: "Afgewezen",
+            },
+            estimatedRows: "Ongeveer {{rows}} rijen in deze tabel vóór filtering.",
+            personalDataHidden:
+                "Gebruikersnamen, IP-adressen en landen zijn verborgen: om ze te zien is de machtiging electoral-log-personal-data-read nodig.",
+            loadError: "Het verkiezingslog kon niet worden gelezen.",
+            record: {
+                title: "Record {{position}}",
+                view: "Record bekijken",
+                message: "Bericht (gedecodeerd)",
+                copy: "JSON Kopiëren",
+                close: "Sluiten",
+                loadError: "Het record kon niet worden gelezen.",
+            },
+            query: {
+                help: "Query's worden uitgevoerd op de database van het verkiezingslog in een alleen-lezen transactie. De tabellen zijn electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending en ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Alleen-lezen · tot 1.000 rijen · limiet van 30 s · elke query wordt met uw gebruiker vastgelegd in de serverlogs",
+                run: "Query Uitvoeren",
+                summary: "Rijen: {{rows}} · {{ms}} ms",
+                truncated: "Alleen de eerste {{rows}} rijen worden getoond.",
+                error: "De query kon niet worden uitgevoerd.",
+            },
         },
     },
 }

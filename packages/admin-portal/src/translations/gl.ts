@@ -208,6 +208,13 @@ const galegoTranslation: TranslationType = {
             actions: {
                 csv: "Exportar en CSV",
                 pdf: "Exportar en PDF",
+                audit: "Auditar",
+            },
+            auditDialog: {
+                title: "Auditar o rexistro electoral",
+                confirm: "Auditar",
+                description:
+                    "A auditoría comproba cada entrada do rexistro co seu rexistro Merkle e verifica os puntos de control publicados. O resultado gárdase como unha tarefa.",
             },
             exportdialog: {
                 description:
@@ -257,6 +264,7 @@ const galegoTranslation: TranslationType = {
                 DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para o votante",
+                AUDIT_ELECTORAL_LOG: "Auditar rexistro electoral",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -1363,6 +1371,10 @@ const galegoTranslation: TranslationType = {
                 "publish-results-read": "Leer Publicación de Resultados",
                 "publish-results-write": "Editar Publicación de Resultados",
                 "logs-read": "Leer Registros",
+                "electoral-log-audit": "Auditar Rexistro Electoral",
+                "electoral-log-console-read": "Explorar Rexistro Electoral",
+                "electoral-log-console-query": "Consultar Rexistro Electoral",
+                "electoral-log-personal-data-read": "Ler Datos Persoais do Rexistro Electoral",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
@@ -1775,6 +1787,7 @@ const galegoTranslation: TranslationType = {
             electionEvents: "Eventos Electorais",
             search: "Buscar",
             usersAndRoles: "Usuarios e Roles",
+            electoralLogConsole: "Rexistro Electoral",
             logs: "Rexistros",
             settings: "Configuracións",
             help: "Axuda",
@@ -2927,6 +2940,71 @@ const galegoTranslation: TranslationType = {
             confirmDelete: "Eliminar autoridade de certificación",
             confirmDeleteDescription:
                 '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
+        },
+        electoralLogConsole: {
+            title: "Rexistro Electoral",
+            subtitle:
+                "Explore o rexistro electoral e a urna dun evento electoral, ou consulte a base de datos do rexistro electoral. Nada nesta páxina modifica datos.",
+            notAllowed:
+                "Precisa o permiso electoral-log-console-read para abrir o rexistro electoral.",
+            tabs: {
+                tables: "Táboas",
+                query: "Consulta",
+            },
+            electionEvent: "Evento Electoral",
+            table: "Táboa",
+            tables: {
+                records: "Entradas",
+                ballots: "Papeletas",
+                voters: "Votantes",
+                queue: "Cola do Secuenciador",
+            },
+            order: {
+                "label": "Orde",
+                "newest-first": "Máis recentes primeiro",
+                "oldest-first": "Máis antigos primeiro",
+            },
+            filters: {
+                statement_kind: "Tipo",
+                election_id: "Elección",
+                area_id: "ID de Área",
+                user_id: "ID de Usuario ou Votante",
+                ballot_id: "ID de Papeleta",
+                status: "Estado",
+                created_after: "Desde",
+                created_before: "Ata",
+                any: "Calquera",
+                apply: "Aplicar Filtros",
+                clear: "Limpar",
+                invalid:
+                    "Revise os filtros marcados: as datas deben ser válidas e os ID de área da urna deben ser UUID.",
+            },
+            statuses: {
+                valid: "Válida",
+                pending: "Pendente",
+                rejected: "Rexeitada",
+            },
+            estimatedRows: "Unhas {{rows}} filas nesta táboa antes de filtrar.",
+            personalDataHidden:
+                "Os nomes de usuario, os enderezos IP e os países aparecen ocultos: velos require o permiso electoral-log-personal-data-read.",
+            loadError: "Non se puido ler o rexistro electoral.",
+            record: {
+                title: "Entrada {{position}}",
+                view: "Ver entrada",
+                message: "Mensaxe (descodificada)",
+                copy: "Copiar JSON",
+                close: "Pechar",
+                loadError: "Non se puido ler a entrada.",
+            },
+            query: {
+                help: "As consultas execútanse sobre a base de datos do rexistro electoral nunha transacción de só lectura. As súas táboas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending e ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Só lectura · ata 1.000 filas · límite de 30 s · cada consulta queda anotada nos rexistros do servidor co seu usuario",
+                run: "Executar Consulta",
+                summary: "Filas: {{rows}} · {{ms}} ms",
+                truncated: "Só se amosan as primeiras {{rows}} filas.",
+                error: "Non se puido executar a consulta.",
+            },
         },
     },
 }

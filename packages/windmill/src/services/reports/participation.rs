@@ -10,6 +10,7 @@ use super::template_renderer::*;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
+use crate::services::ballot_box_reads::{get_cast_vote_source, CastVoteSource};
 use crate::services::cast_votes::CastVoteStatus;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_users, ListUsersFilter};
 use anyhow::{anyhow, Context, Result};
@@ -104,6 +105,25 @@ impl ParticipationReportTemplate {
             .map(parse_uuid_v4)
             .transpose()
             .with_context(|| "Error parsing election_id as UUID")?;
+
+        if let CastVoteSource::BallotBox { store, .. } = get_cast_vote_source(
+            hasura_transaction,
+            &self.ids.tenant_id,
+            &self.ids.election_event_id,
+        )
+        .await?
+        {
+            let participation = store
+                .participation(
+                    &self.ids.election_event_id,
+                    election_uuid.map(|id| id.to_string()).as_deref(),
+                )
+                .await?;
+            return Ok(CastVoteParticipationStats {
+                voted_voters: participation.voters,
+                votes_count: participation.ballots,
+            });
+        }
 
         let status = CastVoteStatus::Valid.to_string();
         let statement = hasura_transaction

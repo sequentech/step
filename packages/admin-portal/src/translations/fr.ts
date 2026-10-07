@@ -209,6 +209,13 @@ const frenchTranslation: TranslationType = {
             actions: {
                 csv: "Exporter en CSV",
                 pdf: "Exporter en PDF",
+                audit: "Auditer",
+            },
+            auditDialog: {
+                title: "Auditer le journal électoral",
+                confirm: "Auditer",
+                description:
+                    "L'audit vérifie chaque entrée du journal par rapport à son journal Merkle et contrôle les points de contrôle publiés. Le résultat est enregistré en tant que tâche.",
             },
             exportdialog: {
                 description:
@@ -258,6 +265,7 @@ const frenchTranslation: TranslationType = {
                 DELETE_TENANT: "Supprimer l’organisation",
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
+                AUDIT_ELECTORAL_LOG: "Auditer le journal électoral",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
                 IMPORT_ELECTION_EVENT: "Importer l'événement électoral",
@@ -1368,6 +1376,11 @@ const frenchTranslation: TranslationType = {
                 "publish-results-read": "Lire Publication des Résultats",
                 "publish-results-write": "Éditer Publication des Résultats",
                 "logs-read": "Lire Journaux",
+                "electoral-log-audit": "Auditer le Journal Électoral",
+                "electoral-log-console-read": "Parcourir le Journal Électoral",
+                "electoral-log-console-query": "Interroger le Journal Électoral",
+                "electoral-log-personal-data-read":
+                    "Lire les Données Personnelles du Journal Électoral",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
@@ -1783,6 +1796,7 @@ const frenchTranslation: TranslationType = {
             electionEvents: "Processus Électoraux",
             search: "Chercher",
             usersAndRoles: "Utilisateurs et Rôles",
+            electoralLogConsole: "Journal Électoral",
             logs: "Journaux",
             settings: "Configuration",
             help: "Aide",
@@ -2945,6 +2959,71 @@ const frenchTranslation: TranslationType = {
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+        },
+        electoralLogConsole: {
+            title: "Journal Électoral",
+            subtitle:
+                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données du journal électoral. Rien sur cette page ne modifie les données.",
+            notAllowed:
+                "Vous avez besoin de la permission electoral-log-console-read pour ouvrir le journal électoral.",
+            tabs: {
+                tables: "Tables",
+                query: "Requête",
+            },
+            electionEvent: "Événement Électoral",
+            table: "Table",
+            tables: {
+                records: "Entrées",
+                ballots: "Bulletins",
+                voters: "Électeurs",
+                queue: "File du Séquenceur",
+            },
+            order: {
+                "label": "Ordre",
+                "newest-first": "Plus récents d'abord",
+                "oldest-first": "Plus anciens d'abord",
+            },
+            filters: {
+                statement_kind: "Type",
+                election_id: "Élection",
+                area_id: "ID de Zone",
+                user_id: "ID d'Utilisateur ou d'Électeur",
+                ballot_id: "ID de Bulletin",
+                status: "Statut",
+                created_after: "Du",
+                created_before: "Au",
+                any: "Tous",
+                apply: "Appliquer les Filtres",
+                clear: "Effacer",
+                invalid:
+                    "Vérifiez les filtres signalés : les dates doivent être valides et les ID de zone de l'urne doivent être des UUID.",
+            },
+            statuses: {
+                valid: "Valide",
+                pending: "En attente",
+                rejected: "Rejeté",
+            },
+            estimatedRows: "Environ {{rows}} lignes dans cette table avant filtrage.",
+            personalDataHidden:
+                "Les noms d'utilisateur, adresses IP et pays sont masqués : les voir nécessite la permission electoral-log-personal-data-read.",
+            loadError: "Le journal électoral n'a pas pu être lu.",
+            record: {
+                title: "Entrée {{position}}",
+                view: "Voir l'entrée",
+                message: "Message (décodé)",
+                copy: "Copier le JSON",
+                close: "Fermer",
+                loadError: "L'entrée n'a pas pu être lue.",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données du journal électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
+            },
         },
     },
 }

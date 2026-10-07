@@ -6,6 +6,8 @@ use super::sql_utils::escape_sql_literal;
 use crate::postgres::cast_vote::{
     count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
 };
+use crate::services::ballot_box::{wait_for_sequencer, TALLY_SEQUENCER_WAIT};
+use crate::services::ballot_box_reads::{ballot_box_time, get_cast_vote_source, CastVoteSource};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
@@ -13,6 +15,10 @@ use crate::services::external::utils::{
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::ballot_box_reads::{
+    tally_ballots_query, BucketRange, IpBallotsFilter,
+};
+use electoral_log::adapters::postgres::PostgresStore;
 use futures::TryStreamExt;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -111,6 +117,19 @@ pub async fn find_area_ballots(
     parse_uuid_v4(election_event_id)?;
     parse_uuid_v4(area_id)?;
     parse_uuid_v4(election_id)?;
+    if let CastVoteSource::BallotBox { store, board } =
+        get_cast_vote_source(hasura_transaction, tenant_id, election_event_id).await?
+    {
+        return find_area_ballots_in_ballot_box(
+            &store,
+            &board,
+            election_event_id,
+            area_id,
+            election_id,
+            output_file,
+        )
+        .await;
+    }
     let tenant_id = escape_sql_literal(tenant_id);
     let election_event_id = escape_sql_literal(election_event_id);
     let area_id = escape_sql_literal(area_id);
@@ -138,16 +157,59 @@ pub async fn find_area_ballots(
                 "#
     );
 
+    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+    debug!("copy_out_query: {copy_out_query}");
+    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
+    write_copy_out(reader, output_file).await
+}
+
+/// The tally input of an election's area from the ballot box, once every ballot the
+/// area accepted is in the electoral log: the CSV `find_area_ballots` writes from
+/// `cast_vote`.
+async fn find_area_ballots_in_ballot_box(
+    store: &PostgresStore,
+    board: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+    output_file: &PathBuf,
+) -> Result<()> {
+    let waiting = wait_for_sequencer(TALLY_SEQUENCER_WAIT, || {
+        store.unsequenced_count(election_event_id, election_id, area_id)
+    })
+    .await?;
+    if waiting > 0 {
+        return Err(anyhow!(
+            "Refusing to extract ballots for election {election_id} area {area_id}: \
+             {waiting} accepted ballot(s) are not in the electoral log yet. Tally again \
+             once the sequencer has appended them"
+        ));
+    }
+    let unrecorded = store
+        .unrecorded_count(board, election_event_id, election_id, area_id)
+        .await?;
+    if unrecorded > 0 {
+        return Err(anyhow!(
+            "Refusing to extract ballots for election {election_id} area {area_id}: \
+             {unrecorded} ballot(s) have no cast-vote record in the electoral log"
+        ));
+    }
+    let query = tally_ballots_query(election_event_id, election_id, area_id)?;
+    let client = store.client().await?;
+    let reader = client
+        .copy_out(&format!("COPY ({query}) TO STDOUT WITH (FORMAT CSV)"))
+        .await?;
+    write_copy_out(reader, output_file).await
+}
+
+async fn write_copy_out(
+    reader: tokio_postgres::CopyOutStream,
+    output_file: &PathBuf,
+) -> Result<()> {
     let tokio_temp_file = File::create(output_file)
         .await
-        .expect("Could not create/open temporary file for tokio");
-
-    let copy_out_query = format!("COPY ({}) TO STDOUT WITH (FORMAT CSV)", areas_statement);
+        .with_context(|| format!("Error creating {output_file:?}"))?;
     let mut writer = BufWriter::new(tokio_temp_file);
-
-    debug!("copy_out_query: {copy_out_query}");
-
-    let reader = hasura_transaction.copy_out(&copy_out_query).await?;
 
     let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
         std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
@@ -270,6 +332,8 @@ impl TryFrom<Row> for ElectionCastVotes {
 }
 
 const MAX_VOTES_TIME_BUCKETS: i32 = 1000;
+/// How times are given to the ballot box.
+const BALLOT_BOX_TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.f";
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone, Copy, Default)]
 #[serde(rename_all = "lowercase")]
@@ -306,10 +370,13 @@ pub struct CastVotesPerDay {
     pub day_count: i64,
 }
 
-fn voting_status_channel_from_row(item: &Row) -> Result<VotingStatusChannel> {
-    let channel = item.try_get::<_, String>("channel")?;
-    VotingStatusChannel::from_str(&channel)
+fn parse_voting_channel(channel: &str) -> Result<VotingStatusChannel> {
+    VotingStatusChannel::from_str(channel)
         .map_err(|error| anyhow!("Invalid voting channel {channel}: {error}"))
+}
+
+fn voting_status_channel_from_row(item: &Row) -> Result<VotingStatusChannel> {
+    parse_voting_channel(&item.try_get::<_, String>("channel")?)
 }
 
 impl TryFrom<Row> for CastVotesPerDay {
@@ -353,14 +420,35 @@ pub async fn get_count_distinct_voters_by_channel(
     election_event_id: &str,
     election_id: Option<&str>,
 ) -> Result<Vec<VotersByChannel>> {
-    get_count_distinct_voters_by_channel_from_relation(
-        transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-        CastVoteRelation::Production,
-    )
-    .await
+    match get_cast_vote_source(transaction, tenant_id, election_event_id).await? {
+        CastVoteSource::CastVoteTable => {
+            get_count_distinct_voters_by_channel_from_relation(
+                transaction,
+                tenant_id,
+                election_event_id,
+                election_id,
+                CastVoteRelation::Production,
+            )
+            .await
+        }
+        CastVoteSource::BallotBox { store, .. } => {
+            let election_id = election_id.map(parse_uuid_v4).transpose()?;
+            store
+                .voters_by_channel(
+                    election_event_id,
+                    election_id.map(|id| id.to_string()).as_deref(),
+                )
+                .await?
+                .into_iter()
+                .map(|(channel, count)| {
+                    Ok(VotersByChannel {
+                        channel: parse_voting_channel(&channel)?,
+                        count,
+                    })
+                })
+                .collect()
+        }
+    }
 }
 
 async fn get_count_distinct_voters_by_channel_from_relation(
@@ -521,19 +609,85 @@ pub async fn get_count_votes_per_day(
     resolution: VotesTimeResolution,
     bucket_count: Option<i32>,
 ) -> Result<Vec<CastVotesPerDay>> {
-    get_count_votes_per_day_from_relation(
-        transaction,
-        tenant_id,
-        election_event_id,
-        start_date,
-        end_date,
-        election_id,
-        user_timezone,
-        resolution,
-        bucket_count,
-        CastVoteRelation::Production,
-    )
-    .await
+    match get_cast_vote_source(transaction, tenant_id, election_event_id).await? {
+        CastVoteSource::CastVoteTable => {
+            get_count_votes_per_day_from_relation(
+                transaction,
+                tenant_id,
+                election_event_id,
+                start_date,
+                end_date,
+                election_id,
+                user_timezone,
+                resolution,
+                bucket_count,
+                CastVoteRelation::Production,
+            )
+            .await
+        }
+        CastVoteSource::BallotBox { store, .. } => {
+            get_count_votes_per_day_from_ballot_box(
+                &store,
+                election_event_id,
+                start_date,
+                end_date,
+                election_id,
+                user_timezone,
+                resolution,
+                bucket_count,
+            )
+            .await
+        }
+    }
+}
+
+async fn get_count_votes_per_day_from_ballot_box(
+    store: &PostgresStore,
+    election_event_id: &str,
+    start_date: &str,
+    end_date: &str,
+    election_id: Option<String>,
+    user_timezone: &str,
+    resolution: VotesTimeResolution,
+    bucket_count: Option<i32>,
+) -> Result<Vec<CastVotesPerDay>> {
+    let start =
+        parse_votes_time_boundary(start_date, false).with_context(|| "Error parsing start_date")?;
+    let end =
+        parse_votes_time_boundary(end_date, true).with_context(|| "Error parsing end_date")?;
+    validate_votes_time_range(start, end, resolution, bucket_count)?;
+    let election_id = election_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?
+        .map(|id| id.to_string());
+    let start = start.format(BALLOT_BOX_TIME_FORMAT).to_string();
+    let end = end.format(BALLOT_BOX_TIME_FORMAT).to_string();
+    let range = BucketRange {
+        resolution: resolution.as_sql(),
+        time_zone: user_timezone,
+        start: &start,
+        end: &end,
+        last_buckets: bucket_count,
+    };
+    store
+        .ballots_per_bucket(
+            election_event_id,
+            election_id.as_deref(),
+            &range,
+            &VotingStatusChannel::ONLINE.to_string(),
+        )
+        .await?
+        .into_iter()
+        .map(|bucket| {
+            Ok(CastVotesPerDay {
+                day: bucket.day,
+                bucket: bucket.bucket,
+                channel: parse_voting_channel(&bucket.channel)?,
+                day_count: bucket.count,
+            })
+        })
+        .collect()
 }
 
 async fn get_count_votes_per_day_from_relation(
@@ -632,67 +786,41 @@ pub async fn get_users_with_vote_info(
     if user_ids.is_empty() {
         return Ok(vec![]);
     }
-    let discarded_status = CastVoteStatus::Discarded.to_string();
-    let vote_info_statement = hasura_transaction
-        .prepare(
-            r#"
-        SELECT
-            v.voter_id_string AS voter_id_string,
-            v.election_id     AS election_id,
-            COUNT(v.id)       AS num_votes,
-            MAX(v.created_at) AS last_voted_at
-        FROM sequent_backend.cast_vote v
-        WHERE
-            v.tenant_id        = $1::uuid
-            AND v.election_event_id = $2::uuid
-            AND v.voter_id_string   = ANY($3::text[])
-            AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
-            AND v.status <> $5
-        GROUP BY
-            v.voter_id_string, v.election_id
-        "#,
-        )
-        .await?;
-
-    let rows = hasura_transaction
-        .query(
-            &vote_info_statement,
-            &[
+    let votes = match get_cast_vote_source(hasura_transaction, tenant_id, election_event_id).await?
+    {
+        CastVoteSource::CastVoteTable => {
+            get_cast_vote_table_votes_info(
+                hasura_transaction,
                 &tenant_uuid,
                 &election_event_uuid,
                 &user_ids,
                 &election_uuid,
-                &discarded_status,
-            ],
-        )
-        .await
-        .with_context(|| "Error executing the vote info query")?;
-
-    // Build a map from user_id -> Vec<VotesInfo> only for users who have votes
-    let mut user_votes_map = HashMap::<String, Vec<VotesInfo>>::with_capacity(rows.len());
-
-    for row in rows {
-        let voter_id_string: String = row
-            .try_get("voter_id_string")
-            .with_context(|| "Error getting voter_id_string from row")?;
-        let election_id: Uuid = row
-            .try_get("election_id")
-            .with_context(|| "Error getting election_id from row")?;
-        let num_votes: i64 = row
-            .try_get("num_votes")
-            .with_context(|| "Error getting num_votes from row")?;
-        let last_voted_at: DateTime<Utc> = row
-            .try_get("last_voted_at")
-            .with_context(|| "Error getting last_voted_at from row")?;
-
-        user_votes_map
-            .entry(voter_id_string)
-            .or_insert_with(Vec::new)
-            .push(VotesInfo {
-                election_id: election_id.to_string(),
-                num_votes: num_votes as usize,
-                last_voted_at: last_voted_at.to_string(),
-            });
+            )
+            .await?
+        }
+        CastVoteSource::BallotBox { store, .. } => store
+            .votes_of_voters(
+                election_event_id,
+                &user_ids,
+                election_uuid.map(|id| id.to_string()).as_deref(),
+            )
+            .await?
+            .into_iter()
+            .map(|votes| {
+                Ok((
+                    votes.voter_id,
+                    VotesInfo {
+                        election_id: votes.election_id,
+                        num_votes: usize::try_from(votes.votes)?,
+                        last_voted_at: ballot_box_time(votes.last_voted_at)?.to_string(),
+                    },
+                ))
+            })
+            .collect::<Result<Vec<_>>>()?,
+    };
+    let mut user_votes_map = HashMap::<String, Vec<VotesInfo>>::new();
+    for (voter_id, votes_info) in votes {
+        user_votes_map.entry(voter_id).or_default().push(votes_info);
     }
 
     // Attach votes_info to each user in-place. Then do datafix logic if needed.
@@ -723,6 +851,77 @@ pub async fn get_users_with_vote_info(
     }
 
     Ok(users)
+}
+
+/// Each voter's cast votes per election that were not discarded, from `cast_vote`.
+async fn get_cast_vote_table_votes_info(
+    hasura_transaction: &Transaction<'_>,
+    tenant_uuid: &Uuid,
+    election_event_uuid: &Uuid,
+    user_ids: &[String],
+    election_uuid: &Option<Uuid>,
+) -> Result<Vec<(String, VotesInfo)>> {
+    let discarded_status = CastVoteStatus::Discarded.to_string();
+    let vote_info_statement = hasura_transaction
+        .prepare(
+            r#"
+        SELECT
+            v.voter_id_string AS voter_id_string,
+            v.election_id     AS election_id,
+            COUNT(v.id)       AS num_votes,
+            MAX(v.created_at) AS last_voted_at
+        FROM sequent_backend.cast_vote v
+        WHERE
+            v.tenant_id        = $1::uuid
+            AND v.election_event_id = $2::uuid
+            AND v.voter_id_string   = ANY($3::text[])
+            AND ($4::uuid IS NULL OR v.election_id = $4::uuid)
+            AND v.status <> $5
+        GROUP BY
+            v.voter_id_string, v.election_id
+        "#,
+        )
+        .await?;
+
+    let rows = hasura_transaction
+        .query(
+            &vote_info_statement,
+            &[
+                tenant_uuid,
+                election_event_uuid,
+                &user_ids,
+                election_uuid,
+                &discarded_status,
+            ],
+        )
+        .await
+        .with_context(|| "Error executing the vote info query")?;
+
+    let mut votes = Vec::with_capacity(rows.len());
+    for row in rows {
+        let voter_id_string: String = row
+            .try_get("voter_id_string")
+            .with_context(|| "Error getting voter_id_string from row")?;
+        let election_id: Uuid = row
+            .try_get("election_id")
+            .with_context(|| "Error getting election_id from row")?;
+        let num_votes: i64 = row
+            .try_get("num_votes")
+            .with_context(|| "Error getting num_votes from row")?;
+        let last_voted_at: DateTime<Utc> = row
+            .try_get("last_voted_at")
+            .with_context(|| "Error getting last_voted_at from row")?;
+
+        votes.push((
+            voter_id_string,
+            VotesInfo {
+                election_id: election_id.to_string(),
+                num_votes: num_votes as usize,
+                last_voted_at: last_voted_at.to_string(),
+            },
+        ));
+    }
+    Ok(votes)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -795,6 +994,26 @@ pub async fn get_top_count_votes_by_ip(
     } else {
         None
     };
+    if let CastVoteSource::BallotBox { store, .. } =
+        get_cast_vote_source(hasura_transaction, tenant_id, election_event_id).await?
+    {
+        let election_id = election_id_pattern.map(|id| id.to_string());
+        let filter = IpBallotsFilter {
+            ip_pattern: ip_pattern.as_deref(),
+            country_pattern: country_pattern.as_deref(),
+            election_id: election_id.as_deref(),
+            limit: query_limit,
+            offset: query_offset,
+        };
+        return get_top_count_votes_by_ip_from_ballot_box(
+            hasura_transaction,
+            &store,
+            tenant_id,
+            election_event_id,
+            &filter,
+        )
+        .await;
+    }
     let status = CastVoteStatus::Valid.to_string();
     let statement = hasura_transaction
         .prepare(
@@ -863,6 +1082,52 @@ pub async fn get_top_count_votes_by_ip(
         .map_err(|err| anyhow!("Error collecting the votes: {err}"))?;
 
     Ok((cast_votes_by_ip, count))
+}
+
+/// Ballots by IP address from the ballot box, numbered by rank as the `cast_vote`
+/// query numbers them.
+async fn get_top_count_votes_by_ip_from_ballot_box(
+    hasura_transaction: &Transaction<'_>,
+    store: &PostgresStore,
+    tenant_id: &str,
+    election_event_id: &str,
+    filter: &IpBallotsFilter<'_>,
+) -> Result<(Vec<CastVoteCountByIp>, i32)> {
+    let groups = store.ballots_by_ip(election_event_id, filter).await?;
+    let election_ids: Vec<String> = groups
+        .iter()
+        .map(|group| group.election_id.clone())
+        .collect();
+    let presentations: HashMap<String, Option<Value>> = hasura_transaction
+        .query(
+            "SELECT id::text, presentation FROM sequent_backend.election \
+             WHERE tenant_id = $1::text::uuid AND election_event_id = $2::text::uuid \
+               AND id = ANY($3::text[]::uuid[])",
+            &[&tenant_id, &election_event_id, &election_ids],
+        )
+        .await
+        .context("Error reading the elections' presentation")?
+        .into_iter()
+        .map(|row| Ok((row.try_get(0)?, row.try_get(1)?)))
+        .collect::<Result<_>>()?;
+    let ranked: Vec<CastVoteCountByIp> = groups
+        .into_iter()
+        .enumerate()
+        .map(|(index, group)| {
+            let rank = filter.offset + i64::try_from(index)? + 1;
+            Ok(CastVoteCountByIp {
+                id: rank.to_string(),
+                ip: Some(group.ip),
+                country: Some(group.country),
+                vote_count: Some(group.count),
+                election_presentation: presentations.get(&group.election_id).cloned().flatten(),
+                election_id: group.election_id,
+                voters_id: group.voter_ids,
+            })
+        })
+        .collect::<Result<_>>()?;
+    let count = i32::try_from(ranked.len())?;
+    Ok((ranked, count))
 }
 
 #[instrument(err)]

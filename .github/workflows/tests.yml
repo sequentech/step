@@ -23,10 +23,10 @@ jobs:
         include:
           #- service: braid # these take too long!
           - service: electoral-log
+          - service: trellis
+            extra: --features upstream-service --lib --example monitor --example post
           - service: harvest
           - service: strand
-          - service: immu-board
-          - service: immudb-rs
           - service: sequent-core
             extra: --features keycloak,default_features
           - service: step-cli
@@ -101,6 +101,14 @@ jobs:
       DEFAULT_SQL_LIMIT: "20"
       DEFAULT_SQL_BATCH_SIZE: "1000"
       CARGO_BUILD_JOBS: "2"
+      ELECTORAL_LOG_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/test?sslmode=disable"
+      ELECTORAL_LOG_PG_HOST: "127.0.0.1"
+      ELECTORAL_LOG_PG_PORT: "3322"
+      ELECTORAL_LOG_PG_USER: "test"
+      ELECTORAL_LOG_PG_PASSWORD: "test"
+      ELECTORAL_LOG_PG_DATABASE: "test"
+      ELECTORAL_LOG_PG_SSLMODE: "disable"
+      ENV_SLUG: "electoral-log-tests"
     services:
       postgres:
         image: postgres:16
@@ -136,6 +144,22 @@ jobs:
           services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote
           -- --ignored --exact
         working-directory: packages/windmill
+
+      - name: Test PostgreSQL electoral-log contract
+        run: cd packages && cargo test -p electoral-log --lib --test postgres -- --ignored --test-threads=1
+
+      - name: Test electoral-log application wiring
+        run: cd packages && cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1
+
+      - name: Test upstream Trellis security regressions with PostgreSQL
+        env:
+          TRELLIS_TEST_DATABASE_URL: "postgresql://test:test@127.0.0.1:3322/trellis_security?sslmode=disable"
+        run: |
+          docker exec "${{ job.services.postgres.id }}" createdb -U test trellis_security
+          cd packages
+          cargo test -p trellis --features upstream-service --lib \
+            service::processor::tests::postgres_source_reconciliation_and_tree_recovery \
+            -- --ignored --exact --test-threads=1
 
   # ===========================================================================
   # JOB: run-frontend-tests

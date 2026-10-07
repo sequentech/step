@@ -13,7 +13,6 @@ const spanishTranslation: TranslationType = {
         a11y: {
             skipToContent: "Saltar al contenido principal",
             helpAbout: "Ayuda sobre {{topic}}",
-            copyToClipboard: "Copiar {{label}} al portapapeles",
             previewMaterial: "Vista previa de {{title}}",
             ballotsTable: "Papeletas",
             ballotLocatorTabs: "Secciones del localizador de papeletas",
@@ -466,9 +465,7 @@ const spanishTranslation: TranslationType = {
             column: {
                 statement_kind: "Tipo",
                 statement_timestamp: "Marca de tiempo",
-                username: "Usuario",
                 ballot_id: "ID de Papeleta",
-                message: "Mensaje",
             },
         },
     },

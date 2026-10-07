@@ -525,7 +525,7 @@ cli step create-applications \
 ---
 
 ## Create Electoral Logs
-Create electoral logs in immudb.
+Create electoral log entries in the PostgreSQL electoral log. Uses the `ELECTORAL_LOG_PG_*` connection settings.
 > Required additional confituration at `external_config.json` in the `working-directory` (tenant_id, election_event_id, election_id, area_id and realm_name fields)
 
 ```bash
@@ -536,6 +536,18 @@ cli step create-electoral-logs \
 
 * `--working-directory` – Working directory path **(required)**
 * `--num-logs` – Number of logs **(required)**
+
+---
+
+## Audit Electoral Log
+Start an electoral-log audit task for an election event, wait for it to finish and print its logs. Requires the `electoral-log-audit` permission. The command fails when the audit reports findings or cannot run.
+```bash
+cli step audit-electoral-log \
+  --election-event-id <ELECTION_EVENT_ID>
+```
+
+* `--election-event-id` – Election event to audit **(required)**
+* `--timeout-secs` – Seconds to wait for the audit *(default: 1800)*
 
 ---
 
@@ -555,16 +567,14 @@ cli step hash-passwords \
 ---
 
 ## Export Cast Votes CSV
-This command accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
+This command reads an election event's electoral log and exports the `ballot_id` of each cast ballot to a CSV file. It connects using the `ELECTORAL_LOG_PG_*` settings.
 ```bash
 cli step export-cast-votes \
-  --server-url <IMMUDB_URL> \
-  --username <USERNAME> \
-  --password <PASSWORD> \
-  --board-db <BOARD_DB_NAME>
+  --board-db <BOARD_NAME> \
+  --output <OUTPUT_CSV_PATH>
 ```
 
-* `--server-url` – ImmuDB server URL (`IMMUDB_SERVER_URL`) **(required)**
-* `--username` – ImmuDB username (`IMMUDB_USER`) **(required)**
-* `--password` – ImmuDB password (`IMMUDB_PASSWORD`) **(required)**
-* `--board-db` – Bulletin board database name **(required)**
+* `--board-db` – Electoral-log board name **(required)**
+* `--output` – Output CSV file *(default: `output.csv`)*
+
+The file is written as `<output>.partial` and renamed to `<output>` only when the export completes. On any error the command removes the partial file, leaves an existing `<output>` unchanged and exits with a non-zero status.

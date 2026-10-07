@@ -4,6 +4,7 @@
 
 use crate::postgres::area::get_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::services::ballot_box_reads::{get_cast_vote_source, CastVoteSource};
 use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
@@ -1763,6 +1764,22 @@ pub async fn count_have_voted(
     tenant_id: &str,
 ) -> Result<(i32)> {
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    if let Some(election_event_id) = &filter.election_event_id {
+        if let CastVoteSource::BallotBox { store, .. } =
+            get_cast_vote_source(hasura_transaction, tenant_id, election_event_id).await?
+        {
+            let election_id = filter
+                .election_id
+                .as_deref()
+                .map(parse_uuid_v4)
+                .transpose()?
+                .map(|id| id.to_string());
+            let participation = store
+                .participation(election_event_id, election_id.as_deref())
+                .await?;
+            return Ok(participation.voters.try_into()?);
+        }
+    }
     let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
         Box::new(tenant_uuid),
         Box::new(CastVoteStatus::Valid.to_string()),

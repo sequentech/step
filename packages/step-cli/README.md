@@ -15,7 +15,7 @@ Command-line tool for automating and streamlining operations within the Sequent 
 - Key ceremony and tally management
 - Load testing and data generation utilities
 - Template rendering for email notifications
-- ImmuDB bulletin board export
+- Electoral-log cast-vote export
 
 ## Quick Start
 
@@ -378,7 +378,7 @@ cli step create-applications --working-directory <PATH_FOR_INPUT_OUTPUT> --num-a
 - type:  OPTIONAL, should be AUTOMATIC or MANUAL
 
 ## Create Electoral Logs
-> This can be used to create electoral logs in immudb.
+> This can be used to create electoral logs in PostgreSQL using `ELECTORAL_LOG_PG_*` settings.
 > This required additional confituration at config.json in working-directory (like area_id and election_id)
 ```bash 
 cli step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num-logs <NUMBER_LOGS_TO_CREATE>
@@ -392,9 +392,9 @@ cli step create-electoral-logs --working-directory <PATH_FOR_INPUT_OUTPUT> --num
 cli step hash-passwords --input-file <PATH_FOR_INPUT_OUTPUT> --output-file <PATH_TO_OUTPUT_FILE> --iterations <NUMBER_OF_HASHING_ITERATIONS>
 ```
 ## Export cast votes csv
-> This accesses immudb bulletin board and exports in a csv file the casted ballots ballot_id.
+> This accesses the PostgreSQL electoral log and exports in a csv file the casted ballots ballot_id.
 ```bash 
-cli step export-cast-votes --server-url http://immudb:3322 --username immudb --password immudb --board-db tenant90505c8a23a94cdfaevent3a9fcf6515c4478db32105e02b509899
+cli step export-cast-votes --board-db tenant90505c8a23a94cdfaevent3a9fcf6515c4478db32105e02b509899
 ```
 - iterations = number of iterations for the hashing where the default if 600000
 

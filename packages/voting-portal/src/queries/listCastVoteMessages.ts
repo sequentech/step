@@ -27,8 +27,6 @@ export const LIST_CAST_VOTE_MESSAGES = gql`
                 statement_timestamp
                 statement_kind
                 ballot_id
-                username
-                message
             }
             total
         }
