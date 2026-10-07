@@ -17,6 +17,7 @@ use crate::services::reports::utils::get_public_asset_template;
 use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
 use crate::tasks::send_template::{send_template, send_template_email_or_sms};
 use crate::types::application::ApplicationRejectReason;
+use crate::types::application::NoMatchingVoterPolicy;
 use crate::{
     postgres::application::{insert_application, update_application_status},
     types::application::ApplicationStatus,
@@ -161,6 +162,7 @@ pub async fn verify_application(
         fields_match: result.fields_match.clone(),
         manual_verify_reason: result.manual_verify_reason.clone(),
         decision: Some(decision),
+        no_matching_voter_policy: annotations.no_matching_voter_policy.clone(),
     };
 
     let (mut permission_label, area_id) = get_permission_label_and_area_from_applicant_data(
@@ -363,6 +365,12 @@ pub struct ApplicationAnnotations {
     /// application.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     decision: Option<DecisionRecord>,
+    #[serde(
+        rename = "no-matching-voter-policy",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    no_matching_voter_policy: Option<NoMatchingVoterPolicy>,
 }
 
 /// The fields the enrollment flow asks to compare with the registry.
@@ -461,6 +469,18 @@ fn automatic_verification(
         .collect();
     let evaluation = evaluate(matrix, identity, valid_id, candidates);
     let record = evaluation.record;
+
+    // An identity that matches no voter of the census goes to review, if the
+    // realm asks for it, instead of being rejected. The record keeps what the
+    // approval matrix decided.
+    let no_voter_to_review = record.decision == ApplicationStatus::REJECTED
+        && record.reason == Some(ApplicationRejectReason::NO_VOTER)
+        && annotations.no_matching_voter_policy == Some(NoMatchingVoterPolicy::PENDING_APPROVAL);
+    let status = if no_voter_to_review {
+        ApplicationStatus::PENDING
+    } else {
+        record.decision.clone()
+    };
     info!(
         "Approval matrix version {} decided {} with rule {:?}",
         record.matrix_version, record.decision, record.rule
@@ -506,11 +526,11 @@ fn automatic_verification(
             .voter
             .and_then(|voter| voter.username)
             .unwrap_or_default(),
-        application_type: match record.decision {
+        application_type: match status {
             ApplicationStatus::PENDING => ApplicationType::MANUAL,
             ApplicationStatus::ACCEPTED | ApplicationStatus::REJECTED => ApplicationType::AUTOMATIC,
         },
-        application_status: record.decision.clone(),
+        application_status: status,
         mismatches: Some(mismatches),
         fields_match: Some(fields_match),
         attributes_unset,
@@ -1227,6 +1247,87 @@ fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn census_annotations(policy: Option<NoMatchingVoterPolicy>) -> ApplicationAnnotations {
+        ApplicationAnnotations {
+            session_id: None,
+            credentials: None,
+            verified_by: None,
+            rejection_reason: None,
+            rejection_message: None,
+            unset_attributes: Some("email".to_string()),
+            search_attributes: Some("firstName,lastName,dateOfBirth".to_string()),
+            update_attributes: None,
+            identity_method: None,
+            mismatches: None,
+            fields_match: None,
+            manual_verify_reason: None,
+            decision: None,
+            no_matching_voter_policy: policy,
+        }
+    }
+
+    fn census_matrix() -> MatrixVersion {
+        MatrixVersion::built_in(
+            ["firstName", "lastName", "dateOfBirth"]
+                .map(str::to_string)
+                .to_vec(),
+        )
+    }
+
+    #[test]
+    fn test_no_matching_voter_is_rejected_by_default() {
+        let (result, decision) = automatic_verification(
+            vec![],
+            &census_matrix(),
+            &census_annotations(None),
+            &HashMap::new(),
+        )
+        .unwrap();
+        assert_eq!(decision.decision, ApplicationStatus::REJECTED);
+        assert_eq!(result.application_status, ApplicationStatus::REJECTED);
+        assert_eq!(result.application_type, ApplicationType::AUTOMATIC);
+        assert_eq!(
+            result.rejection_reason,
+            Some(ApplicationRejectReason::NO_VOTER)
+        );
+    }
+
+    #[test]
+    fn test_no_matching_voter_goes_to_approval_with_its_policy() {
+        let (result, decision) = automatic_verification(
+            vec![],
+            &census_matrix(),
+            &census_annotations(Some(NoMatchingVoterPolicy::PENDING_APPROVAL)),
+            &HashMap::new(),
+        )
+        .unwrap();
+        // The record keeps what the approval matrix decided.
+        assert_eq!(decision.decision, ApplicationStatus::REJECTED);
+        assert_eq!(decision.reason, Some(ApplicationRejectReason::NO_VOTER));
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+        assert_eq!(result.application_type, ApplicationType::MANUAL);
+        assert_eq!(
+            result.rejection_reason,
+            Some(ApplicationRejectReason::NO_VOTER)
+        );
+        assert_eq!(result.user_id, None);
+    }
+
+    #[test]
+    fn test_no_matching_voter_policy_annotation_is_optional() {
+        let absent: ApplicationAnnotations =
+            serde_json::from_str(r#"{"search-attributes": "firstName"}"#).unwrap();
+        assert_eq!(absent.no_matching_voter_policy, None);
+        let pending: ApplicationAnnotations = serde_json::from_str(
+            r#"{"search-attributes": "firstName", "no-matching-voter-policy": "PENDING_APPROVAL"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            pending.no_matching_voter_policy,
+            Some(NoMatchingVoterPolicy::PENDING_APPROVAL)
+        );
+    }
 
     fn default_channels() -> ApplicationCommunicationChannels {
         ApplicationCommunicationChannels {

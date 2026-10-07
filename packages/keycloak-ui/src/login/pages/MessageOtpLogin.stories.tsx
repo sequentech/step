@@ -5,6 +5,7 @@ import {expect, fireEvent, userEvent, waitFor, within} from "storybook/test"
 import {createKcPageStory, getKcContextMock} from "../KcPageStory"
 import {MessageCourier} from "../KcContext"
 import KcPage from "../KcPage"
+import {expectStickyActions} from "../scanovate/stickyActions"
 
 const {KcPageStory} = createKcPageStory({pageId: "message-otp.login.ftl"})
 
@@ -33,6 +34,7 @@ export const Email: Story = {
         await expect(canvas.getByLabelText("Digit 1 of 6")).toHaveFocus()
         await userEvent.type(canvas.getByLabelText("Digit 1 of 6"), "123456")
         await expect(canvas.getByRole("button", {name: "Submit"})).toHaveFocus()
+        await expectStickyActions(canvas.getByRole("button", {name: "Submit"}))
         const form = canvas.getByLabelText("Digit 1 of 6").closest("form")!
         await expect(new FormData(form).get("code")).toBe("123456")
     },
@@ -50,6 +52,48 @@ export const BuildInfoUnavailable: Story = {
         const header = within(within(canvasElement).getByRole("banner"))
         await expect(canvasElement.ownerDocument.body.textContent).not.toContain("${")
         await expect(header.queryByRole("term")).toBeNull()
+    },
+}
+
+// A flow that asks for two codes in a row says which one the page is for, so that the second
+// doesn't look like the first one failed.
+export const FirstOfTwoCodes: Story = {
+    args: {kcContext: {codeRequest: 1, codeRequests: 2}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByText("Code 1 of 2")).toBeVisible()
+        await expect(canvas.getByRole("progressbar", {name: "Code 1 of 2"})).toHaveAttribute(
+            "aria-valuenow",
+            "1"
+        )
+        await expect(
+            canvas.getByText(
+                "You’ll get 2 codes, one after the other. After this one, we’ll send you the next."
+            )
+        ).toBeVisible()
+    },
+}
+
+export const LastOfTwoCodes: Story = {
+    args: {kcContext: {codeRequest: 2, codeRequests: 2}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByText("Code 2 of 2")).toBeVisible()
+        await expect(
+            canvas.getByText("Your previous code was accepted. This is the last one.")
+        ).toBeVisible()
+    },
+}
+
+/** A single code needs no count. */
+export const SingleCode: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.queryByText(/^Code \d of \d$/)).toBeNull()
+        await expect(canvas.queryByRole("progressbar")).toBeNull()
     },
 }
 

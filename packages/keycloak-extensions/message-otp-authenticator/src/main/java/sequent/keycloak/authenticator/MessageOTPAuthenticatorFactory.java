@@ -107,7 +107,18 @@ public class MessageOTPAuthenticatorFactory
             Utils.MessageCourier.BOTH.name(),
             Utils.MessageCourier.SMS.name(),
             Utils.MessageCourier.EMAIL.name()));
+    ProviderConfigProperty codeProgress =
+        new ProviderConfigProperty(
+            CodeProgress.POLICY,
+            "Code progress",
+            "SHOW tells the user which of the flow's codes the page asks for (\"Code 1 of 2\")"
+                + " when the flow asks for more than one; NONE doesn't.",
+            ProviderConfigProperty.LIST_TYPE,
+            CodeProgressPolicy.NONE.name());
+    codeProgress.setOptions(
+        java.util.Arrays.stream(CodeProgressPolicy.values()).map(Enum::name).toList());
     return List.of(
+        codeProgress,
         new ProviderConfigProperty(
             Utils.ONE_TIME_LINK,
             "Use OTL instead of OTP",

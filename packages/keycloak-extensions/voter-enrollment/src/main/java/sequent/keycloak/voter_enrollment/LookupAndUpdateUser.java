@@ -92,6 +92,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public static final String AUTO_2FA = "auto-2fa";
+  public static final String NO_MATCHING_VOTER_POLICY = "no-matching-voter-policy";
 
   /** Hours an election officer has to review a PENDING application; blank shows no reply-by. */
   public static final String REPLY_BY_HOURS = "reply-by-hours";
@@ -246,6 +247,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     if (identityMethod != null) {
       annotationsMap.put(IDENTITY_METHOD, identityMethod);
     }
+    annotationsMap.put(
+        NO_MATCHING_VOTER_POLICY,
+        NoMatchingVoterPolicy.fromConfig(config.getConfig().get(NO_MATCHING_VOTER_POLICY)).name());
 
     MessageCourier messageCourier =
         MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
@@ -932,6 +936,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             MessageCourier.EMAIL.name(),
             MessageCourier.NONE.name()));
 
+    ProviderConfigProperty noMatchingVoterPolicy =
+        new ProviderConfigProperty(
+            NO_MATCHING_VOTER_POLICY,
+            "No matching voter",
+            "What an enrollment whose identity matches no voter of the census becomes: REJECT"
+                + " rejects it, PENDING_APPROVAL leaves it pending in the election event's"
+                + " Approvals, for an election manager to review.",
+            ProviderConfigProperty.LIST_TYPE,
+            NoMatchingVoterPolicy.REJECT.name());
+    noMatchingVoterPolicy.setOptions(
+        Arrays.stream(NoMatchingVoterPolicy.values()).map(Enum::name).toList());
+
     // Define configuration properties
     return List.of(
         new ProviderConfigProperty(
@@ -978,7 +994,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 + " none.",
             ProviderConfigProperty.STRING_TYPE,
             ""),
-        messageCourier);
+        messageCourier,
+        noMatchingVoterPolicy);
   }
 
   @Override

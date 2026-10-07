@@ -197,3 +197,15 @@ recorded don't show a rule.
 
 An export of the election event carries the matrix in force. Importing it saves that matrix as
 version 1 of the new election event. Earlier versions are not exported.
+
+## Enrollments that match no voter
+
+An enrollment that matches **no voter of the registry** is decided by the approval matrix like any
+other, and its built-in rules reject it. An election event's realm can send it to review instead,
+whatever the matrix decides, with the `no-matching-voter-policy` setting of its census lookup
+(`lookup-and-update-user`) set to `PENDING_APPROVAL`: it then waits in the queue with the reason
+*no matching voter*. The COMELEC template does this. See
+[Scanovate Identity Verification](../../../integrations/scanovate_identity_verification_guide.md#after-the-identity-verification).
+
+A voter who isn't in the registry yet has to be added to it before the enrollment can be approved;
+otherwise, reject it.
