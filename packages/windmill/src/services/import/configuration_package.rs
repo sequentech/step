@@ -166,3 +166,34 @@ pub async fn record(
     }
     configuration_packages::remember_revocation_lists(hasura_transaction, tenant_id, &lists).await
 }
+
+/// The checksum typed with an upload, where it still has something to check.
+///
+/// A verified package was checked file by file against its signed manifest,
+/// so a hand-typed checksum of the upload has nothing to add.
+pub fn typed_checksum<P>(typed: Option<String>, package: Option<&P>) -> Option<String> {
+    match package {
+        Some(_) => None,
+        None => typed,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::typed_checksum;
+
+    #[test]
+    fn a_plain_upload_keeps_the_checksum_typed_with_it() {
+        assert_eq!(
+            typed_checksum::<()>(Some("abc".to_string()), None),
+            Some("abc".to_string())
+        );
+        assert_eq!(typed_checksum::<()>(None, None), None);
+    }
+
+    #[test]
+    fn a_verified_package_needs_no_typed_checksum() {
+        assert_eq!(typed_checksum(Some("abc".to_string()), Some(&())), None);
+        assert_eq!(typed_checksum(None, Some(&())), None);
+    }
+}

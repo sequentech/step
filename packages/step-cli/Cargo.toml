@@ -56,3 +56,5 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3"
+# builds the test certificates of the verify-package tests
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem", "x509-parser"] }
