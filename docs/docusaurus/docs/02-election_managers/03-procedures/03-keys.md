@@ -57,6 +57,8 @@ cannot get keys.
 9. Read the message "Are you sure you want to Create Keys Ceremony?".
 10. Click **Yes, Create Keys Ceremony**.
 
+![The Create Election Event Keys Ceremony page](../01-tutorials/assets/keys_config_panel.png)
+
 **Expected result:** the message "Keys Ceremony created" shows. The ceremony shows in the list
 of the **Keys** tab. Its status is `STARTED`, and then `IN_PROGRESS`.
 
@@ -66,6 +68,8 @@ of the **Keys** tab. Its status is `STARTED`, and then `IN_PROGRESS`.
 ## 2. Save the key fragment (each trustee)
 
 Each trustee does these steps on their own computer, with their own account.
+
+![The invitation message and the key icon in the Actions column](../01-tutorials/assets/keys_trustee_actions.png)
 
 1. Sign in to the admin portal.
 2. Open the election event.
@@ -102,6 +106,12 @@ until the end of the tally ceremony and the end of the period for claims. If too
 lose their fragment, nobody can decrypt the votes.
 :::
 
+![The Download Encrypted Private Key step](../01-tutorials/assets/keys_download_key.png)
+
+![The Backup your Encrypted Private Key window](../01-tutorials/assets/keys_secure_backups.png)
+
+![The Check your Encrypted Private Key Backups step](../01-tutorials/assets/keys_backup_verification.png)
+
 **Expected result:** the **Finished** step shows the progress of the ceremony.
 
 ### Check a backup again (optional)
@@ -123,6 +133,8 @@ status is `IN_PROGRESS` or `SUCCESS`.
    - **Key Fragment Generated**
    - **Private Key Fragment Downloaded**
    - **Private Key Fragment Checked**
+
+![The Keys Ceremony Progress page with the trustee table](../01-tutorials/assets/keys_ceremony_status.png)
 
 **Expected result:** the status is `SUCCESS`. The status changes to `SUCCESS` only when all
 trustees have checked their key fragment. An automatic ceremony changes to `SUCCESS` when the

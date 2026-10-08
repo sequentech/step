@@ -18,6 +18,8 @@ export default function ManualPdfLink() {
   const name = siteConfig.customFields.docsVersion;
   const locale = i18n.currentLocale;
   const href = useBaseUrl(`/pdf/sequent-admin-manual-${name}-${locale}.pdf`);
+  // PR previews and local development builds have no PDF.
+  if (name === 'dev') return null;
   return (
     <p>
       <a className="button button--primary" href={href} download target="_blank" rel="noopener">

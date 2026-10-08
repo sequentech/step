@@ -27,11 +27,15 @@ after the areas.
 
 ## 1. Create the election event
 
+![The Create an Election Event item in the Election Events menu](../01-tutorials/assets/elections_create_election_event.png)
+
 1. In the menu on the left, click the **+** icon next to **Election Events**.
 2. Click **Create an Election Event**.
 3. Type the **Name** of the election event.
 4. Type the **Description**.
 5. Click the save button.
+
+![The Create an Election Event form](../01-tutorials/assets/elections_name_desc.png)
 
 **Expected result:** the message "Election Event created" shows. The admin portal opens the
 new election event. The election event shows these tabs. You see only the tabs that your role permits:
@@ -68,6 +72,8 @@ election event.
 5. If the file is an `.ezip` file, type the password in **Decryption Password**.
 6. Click **Import**.
 
+![The Import Election Event panel](../01-tutorials/assets/import_file_upload.png)
+
 **Expected result:** the message "Election event imported Successfully" shows.
 
 :::caution CAUTION
@@ -94,6 +100,8 @@ If you do not type the hash, the admin portal asks "Import Without Integrity Che
 10. To publish the results on the results website, set **Results Website** to **Enabled**.
     Then set **Results Website Access** and **Results Website Visibility**.
 11. Click the save button.
+
+![The Data tab of an election event](../01-tutorials/assets/elections_data.png)
 
 **Expected result:** the admin portal saves the data. The menu shows the new name.
 
@@ -132,6 +140,8 @@ Do these steps for each election.
 | **Disallowed** | You cannot start the tally. |
 | **Requires Voting Period End** | You can start the tally only after all voting channels are closed. |
 
+![The Create an Election form](../01-tutorials/assets/elections_create_election.png)
+
 **Expected result:** the election shows under the election event in the menu. The election has
 these tabs: **Dashboard**, **Data**, **Voters**, **Publish**, **Approvals** and **Tally Sheets**.
 
@@ -163,6 +173,8 @@ Do these steps for each contest.
    ranks.
 9. Click the save button.
 
+![The Create a Contest form](../01-tutorials/assets/elections_create_contest.png)
+
 **Expected result:** the contest shows under the election in the menu.
 
 :::caution CAUTION
@@ -183,6 +195,8 @@ Do these steps for each candidate.
 7. In **Image**, add a photo or a logo if necessary.
 8. Click the save button.
 
+![The Create a Candidate form](../01-tutorials/assets/elections_create_candidate.png)
+
 **Expected result:** the candidate shows under the contest in the menu.
 
 ## 6. Create the areas
@@ -199,6 +213,8 @@ An area tells which contests its voters see. Each voter belongs to one area.
 7. If the voters of the area can vote early, turn on **Allow Early Voting**.
 8. Click the save button.
 
+![The Areas form](../01-tutorials/assets/area_config_details.png)
+
 **Expected result:** the message "Area created" shows. The area shows in the list.
 
 ### Import areas (alternative)
@@ -207,6 +223,8 @@ An area tells which contests its voters see. Each voter belongs to one area.
 2. Upload a CSV file without a header row. Each row has six columns in this order:
    identifier, country code, code, area name, delete flag, early voting policy.
 3. Use `0` in the delete flag column for each area to import.
+
+![The Import Areas panel](../01-tutorials/assets/import_areas.png)
 
 :::caution CAUTION
 An import links each imported area to **all** the contests of the election event. After the

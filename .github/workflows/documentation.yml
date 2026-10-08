@@ -58,7 +58,11 @@ jobs:
           yarn install --frozen-lockfile
           yarn build
           # Print the administrator manual to PDF (uses the runner's Chrome).
-          yarn pdf
+          # PR previews skip it: they are for reviewing pages, and the PDFs
+          # make each preview larger.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            yarn pdf
+          fi
 
       - name: Spectaql | GraphQL Documentation
         working-directory: ./docs/api/graphql

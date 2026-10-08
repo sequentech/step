@@ -16,7 +16,7 @@ and the rules that keep the election secure.
 ## The order of the work
 
 ```mermaid
-flowchart LR
+flowchart TD
   T[Set Up the Tenant] --> E[Create the Election Event]
   E --> K[Run the Key Ceremony]
   K --> P[Publish and Manage the Voting Period]
@@ -96,6 +96,8 @@ items that your role permits:
 | **Templates** | The templates of the messages and documents. |
 | **Help** | Help links. This item shows only if your tenant has help links. |
 
+![The admin portal: the menu on the left, the tabs and the content](01-tutorials/assets/basic_navigation.png)
+
 Under each election event, the menu shows a tree: election event, elections, contests and
 candidates. Click the three dots next to an item to see the actions for it.
 
@@ -107,6 +109,8 @@ to open the voting period. The confirmation is valid for 60 seconds after you si
 
 1. Click **Confirm**.
 2. Type your password on the sign-in page.
+
+![The password confirmation page](01-tutorials/assets/publish_password_auth.png)
 
 **Expected result:** the admin portal opens again and continues the action.
 
@@ -131,6 +135,7 @@ make a key fragment again.
 | **Bold** | A label on the screen: a button, a tab, a field or a menu item. The text is the same as on the screen. |
 | **Election Events** > **Data** | Go to the first item, then to the second. |
 | Expected result | What you see when the step is correct. |
+| Screenshot | An example of the screen. Your screen can look slightly different, because the screenshots can come from an earlier version. The labels in the text are correct for this version. |
 | WARNING | A risk to the secrecy, the integrity or the availability of the election. |
 | CAUTION | A risk of data loss, or an action that you cannot reverse. |
 

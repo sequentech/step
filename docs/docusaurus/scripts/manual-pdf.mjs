@@ -41,6 +41,8 @@ const titles = {
     generated: 'Generated',
     page: 'Page',
     of: 'of',
+    video: 'This page has a video in the online documentation.',
+    watch: 'Watch the video',
   },
   es: {
     title: 'Manual del administrador electoral',
@@ -49,6 +51,8 @@ const titles = {
     generated: 'Generado',
     page: 'Página',
     of: 'de',
+    video: 'Esta página tiene un vídeo en la documentación en línea.',
+    watch: 'Ver el vídeo',
   },
 };
 
@@ -299,7 +303,9 @@ async function printManual(browser, origin, locale) {
         section.id = `p${i}`;
         section.innerHTML = p.html;
         // Keep heading anchors unique across pages.
-        for (const el of section.querySelectorAll('[id]')) el.id = `p${i}-${el.id}`;
+        // Diagrams are skipped: Mermaid styles its SVG through the SVG's id.
+        for (const el of section.querySelectorAll('[id]'))
+          if (!el.closest('svg')) el.id = `p${i}-${el.id}`;
         for (const a of section.querySelectorAll('a[href]')) {
           const url = new URL(a.getAttribute('href'), location.origin + p.path);
           const target = index.get(url.pathname.replace(/\/$/, ''));
@@ -309,11 +315,12 @@ async function printManual(browser, origin, locale) {
             a.setAttribute('href', publicOrigin + url.pathname + url.hash);
           }
         }
-        // Videos cannot play on paper: print a link instead.
+        // Videos cannot play on paper: say that there is one, with a link.
         for (const iframe of section.querySelectorAll('iframe')) {
-          const link = document.createElement('p');
-          link.innerHTML = `<a href="${iframe.src}">${iframe.src}</a>`;
-          iframe.closest('.video-container, iframe').replaceWith(link);
+          const note = document.createElement('p');
+          note.className = 'manual-print__video';
+          note.innerHTML = `▶ ${t.video} <a href="${iframe.src}">${t.watch}</a>`;
+          iframe.closest('.video-container, iframe').replaceWith(note);
         }
         for (const el of section.querySelectorAll(
           '.theme-doc-breadcrumbs, .theme-doc-version-badge, .theme-doc-footer, .hash-link, button',
@@ -353,6 +360,7 @@ async function printManual(browser, origin, locale) {
         .manual-print td:first-child a { white-space: nowrap; }
         .manual-print h2, .manual-print h3 { break-after: avoid; }
         .manual-print img { max-width: 100%; }
+        .manual-print__video { border: 1px solid #B7C2E2; border-radius: 4px; padding: 0.5em 0.8em; }
         .manual-print details { display: block; }
         .manual-print details > :not(summary) { display: block !important; }
       `;

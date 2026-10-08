@@ -46,6 +46,8 @@ compares the **Current** publication with the **Changes to Publish**.
 
 6. Read the changes. Make sure that they are the changes that you expect.
 
+![The Changes to be Published page](../01-tutorials/assets/publish_diff.png)
+
 ## 2. Preview the ballot
 
 1. On the **Changes to be Published** page, click **Preview**.
@@ -62,6 +64,8 @@ If you find an error, correct it in the election event. Then start again at step
 
 1. On the **Changes to be Published** page, click **Publish Changes**.
 2. Confirm the action.
+
+![The Publish History list](../01-tutorials/assets/publish_history_log.png)
 
 **Expected result:** the message "Ballot published" shows. The **Publish History** list shows
 the new publication.
