@@ -279,6 +279,10 @@ impl PublicationObjects for MemoryPublicationObjects {
         Ok(())
     }
 
+    async fn get_json(&self, key: &str) -> Result<Value> {
+        self.json(key).ok_or_else(|| anyhow!("no such object"))
+    }
+
     async fn presign_get(&self, key: &str, expires_in: Duration) -> Result<String> {
         let mut bucket = self.bucket();
         if bucket.failing_presign {

@@ -96,6 +96,14 @@ default `65535`). This command stays inside the assigned range:
 STEP_UI_TEST_PORT_BASE=44000 STEP_UI_TEST_PORT_LIMIT=44999 yarn --cwd packages/voting-portal test:journeys
 ```
 
+The `ballot-design` journey publishes `ballotDesignFixture`
+(`@sequentech/ui-test-kit/fixtures/ballot-design`): a twelve-seat and a one-seat
+contest in two languages, with columns, pictures, a logo and a stylesheet. It
+checks that the ballot list, the ballot and the review screen show that
+published design on a desktop and a phone viewport, and that a random contest
+order is random and repeated on the review screen. Extend the fixture, and what
+its `design` says the screens show, when a ballot design gains a setting.
+
 Playwright fixtures pass their `workerInfo` to `serveDist` as
 the third argument: parallel slot 0 uses base, base + workers, and so on; slot 1
 uses base + 1, base + 1 + workers, and so on. Retries reuse their parallel slot.
