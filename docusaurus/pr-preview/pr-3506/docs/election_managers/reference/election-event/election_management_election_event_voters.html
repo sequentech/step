@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voters | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3506/docs/election_managers/reference/election-event/election_management_election_event_voters"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voters | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3506/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3506/docs/election_managers/reference/election-event/election_management_election_event_voters"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3506/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3506/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voters","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3506/docs/election_managers/reference/election-event/election_management_election_event_voters"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3506/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3506/assets/js/runtime~main.10328514.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3506/assets/js/runtime~main.b3eb3900.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3506/assets/js/main.59052948.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -46,7 +46,8 @@ it.</p>
 <p>In <code>authorized-election-ids</code>, name each election by its external ID, or by its ID if it has no
 external ID. An election&#x27;s ID is also accepted when it has an external ID, and the external ID is
 stored instead. An election is named and stored by its ID when another election shares its external
-ID, or when the external ID starts or ends with a space, contains <code>|</code> or starts with <code>&quot;</code>. It is also
+ID, or when the external ID starts or ends with whitespace, such as a space, a tab or a line break,
+contains <code>|</code> or starts with <code>&quot;</code>. It is also
 stored by its ID when its external ID is longer than 255 characters, the most a voter attribute
 holds. If an election&#x27;s ID is another election&#x27;s external ID, that value names the other election,
 as in the token mapper, so the first one can only be named and stored by its own external ID, and
