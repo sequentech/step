@@ -111,7 +111,9 @@ fn exported_attributes(user_attributes: Vec<UserProfileAttribute>) -> Vec<UserPr
 }
 
 /// The columns of a voters CSV: the account's, one per exported attribute, and,
-/// when exporting an election event's voters, one per election.
+/// when exporting an election event's voters, one per election. A name that a
+/// spreadsheet would run as a formula, as an attribute's can be, is written as
+/// text.
 #[instrument(skip(elections))]
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
@@ -151,6 +153,9 @@ fn get_headers(
         },
     ]
     .concat()
+    .iter()
+    .map(|header| escape_formula(header).into_owned())
+    .collect()
 }
 
 /// Writes the voter's authorized elections the way import reads them. Values
@@ -487,7 +492,8 @@ pub async fn export_users_file(
 mod tests {
     use super::*;
     use crate::services::import::import_users::{
-        get_copy_from_query, imported_fields, imported_value, resolve_authorized_election_ids,
+        column_names, get_copy_from_query, imported_fields, imported_value,
+        resolve_authorized_election_ids,
     };
     use crate::services::users::DELEGATE_TO_ATTR_NAME;
     use sequent_core::types::keycloak::{
@@ -897,7 +903,7 @@ mod tests {
     /// would be stored.
     fn import(csv: &[u8], elections: &AuthorizedElectionIds) -> Vec<HashMap<String, String>> {
         let mut reader = csv::Reader::from_reader(csv);
-        let all_headers = reader.headers().expect("headers").clone();
+        let all_headers = column_names(reader.headers().expect("headers"));
         let imported_columns = all_headers
             .iter()
             .map(|header| !is_election_column(header))
@@ -1068,6 +1074,28 @@ mod tests {
         let csv = export(&elections, &attributes, &voters);
         let imported = import(&csv, &AuthorizedElectionIds::new(&elections));
         assert_eq!(imported[0][AUTHORIZED_ELECTION_IDS_NAME], "=1+1|-1");
+    }
+
+    /// An attribute can be named like a formula too, which a spreadsheet would
+    /// run in the first row. Saved by a spreadsheet, which drops the `'`, the
+    /// name still imports.
+    #[test]
+    fn attribute_names_starting_like_a_formula_round_trip() {
+        let attributes = vec![attribute("-2-3")];
+        let mut user = voter("voter", &[EXTERNAL_ID]);
+        user.attributes
+            .get_or_insert_default()
+            .insert("-2-3".to_string(), vec!["value".to_string()]);
+
+        let csv = String::from_utf8(export(&elections(), &attributes, &[user])).expect("utf-8");
+        let header = csv.lines().next().expect("header row");
+        assert!(header.split(',').any(|name| name == "'-2-3"), "{header}");
+
+        let saved = csv.replacen("'-2-3", "-2-3", 1);
+        for file in [&csv, &saved] {
+            let imported = import(file.as_bytes(), &AuthorizedElectionIds::new(&elections()));
+            assert_eq!(imported[0]["-2-3"], "value");
+        }
     }
 
     /// A voters file in an election event exported before the fix: repeated

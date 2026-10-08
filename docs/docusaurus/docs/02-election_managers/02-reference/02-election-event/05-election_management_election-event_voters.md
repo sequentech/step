@@ -65,11 +65,11 @@ that import would not read back:
   `authorized-election-ids`, and otherwise the first.
 
 Spreadsheets run a cell that starts with `=`, `+`, `-`, `@` or their full-width forms, a tab or a
-line break as a formula. Export writes a `'` before such a value, so that they show it as text, and
-import removes it from every column but `password`. A spreadsheet that saves the file may drop the
-`'`: import still reads the value, but the spreadsheet runs it when it opens that file again. To
-import a value that starts with `'` followed by one of those characters, write another `'` before
-it.
+line break as a formula. Export writes a `'` before such a value, and before an attribute name such
+as `-2-3` in the first row, so that they show it as text. Import removes it from the first row and
+from every column but `password`. A spreadsheet that saves the file may drop the `'`: import still
+reads the value, but the spreadsheet runs it when it opens that file again. To import a value that
+starts with `'` followed by one of those characters, write another `'` before it.
 
 In `authorized-election-ids`, name each election by its external ID, or by its ID if it has no
 external ID. An election's ID is also accepted when it has an external ID, and the external ID is
