@@ -109,6 +109,9 @@ tar -xf - -C "$MOCK_IMAGE_CONTEXT"
             "PATH",
             format!("{}:{}", root.display(), std::env::var("PATH").unwrap()),
         )
+        // The bundled runtime is extracted to a cache; keep it in this test's
+        // directory so runs neither share state nor write to the user's cache.
+        .env("XDG_CACHE_HOME", root.join("cache"))
         .env("MOCK_IMAGE_CONTEXT", &context)
         .output()
         .unwrap();
