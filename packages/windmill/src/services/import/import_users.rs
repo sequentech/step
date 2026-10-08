@@ -58,7 +58,7 @@ const EMAIL_VERIFIED_COL_NAME: &str = "email_verified";
 const GROUP_COL_NAME: &str = "group_name";
 const AREA_NAME_COL_NAME: &str = "area_name";
 pub const ELECTION_COL_PREFIX: &str = "election__";
-const INTERNAL_USER_ID_COL_NAME: &str = "sequent_internal_user_id";
+pub(crate) const INTERNAL_USER_ID_COL_NAME: &str = "sequent_internal_user_id";
 /// Columns import reads as something other than the voter attribute of the same
 /// name.
 pub(crate) const RESERVED_COL_NAMES: [&str; 7] = [
@@ -69,6 +69,18 @@ pub(crate) const RESERVED_COL_NAMES: [&str; 7] = [
     NUMBER_OF_ITERATIONS_COL_NAME,
     EMAIL_VERIFIED_COL_NAME,
     INTERNAL_USER_ID_COL_NAME,
+];
+/// The `user_entity` columns import fills. It does not read a column named like
+/// one as a voter attribute.
+pub(crate) const USER_ENTITY_COLUMNS: [&str; 8] = [
+    "id",
+    "email",
+    "email_constraint",
+    "enabled",
+    "first_name",
+    "last_name",
+    "username",
+    "not_before",
 ];
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
@@ -158,6 +170,27 @@ fn sanitize_db_key(key: &String) -> String {
     key.replace(".", "_").replace("-", "_")
 }
 
+/// The column of the temp table that import stores the column `header` in. It
+/// reads `area_name` as `area-id`. Postgres folds unquoted names to lower case,
+/// so headers that differ only in case, or in the characters `sanitize_db_key`
+/// rewrites, share one.
+pub(crate) fn temp_table_column(header: &str) -> String {
+    let field = if header == AREA_NAME_COL_NAME {
+        AREA_ID_ATTR_NAME
+    } else {
+        header
+    };
+    sanitize_db_key(&field.to_string()).to_lowercase()
+}
+
+/// Whether `header` is a misspelling of `vote-weight`, which import refuses.
+pub(crate) fn is_misspelled_vote_weight(header: &str) -> bool {
+    header != VOTE_WEIGHT_ATTR_NAME
+        && header
+            .replace(['_', '.', '-'], "")
+            .eq_ignore_ascii_case(&VOTE_WEIGHT_ATTR_NAME.replace('-', ""))
+}
+
 fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
     let mut output: Credential = [0u8; CREDENTIAL_LEN];
     pbkdf2::derive(
@@ -205,7 +238,7 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
  *  - password: string: Example "secret-password"
  */
 #[instrument(ret)]
-fn get_copy_from_query(
+pub(crate) fn get_copy_from_query(
     headers: &StringRecord,
 ) -> anyhow::Result<(String, String, String, Vec<String>, Vec<String>, Vec<Type>)> {
     let random_number: u64 = rand::random();
@@ -268,10 +301,8 @@ fn get_copy_from_query(
     // it would be accepted as an ordinary attribute, stored under a name the
     // ballot dump never reads, and tallied as weight 1 for every voter. Refuse
     // it by name rather than let that happen silently.
-    let vote_weight_key = VOTE_WEIGHT_ATTR_NAME.replace('-', "");
     for header in headers_vec.iter() {
-        let normalised = header.replace(['_', '.', '-'], "");
-        if normalised.eq_ignore_ascii_case(&vote_weight_key) && header != VOTE_WEIGHT_ATTR_NAME {
+        if is_misspelled_vote_weight(header) {
             return Err(anyhow!(
                 "Column `{header}` is not recognised. The per-voter vote weight \
                  column is spelled exactly `{VOTE_WEIGHT_ATTR_NAME}`, in lower \
@@ -285,7 +316,7 @@ fn get_copy_from_query(
     // distinct headers that collide there.
     let mut seen: Vec<String> = Vec::with_capacity(processed_column_names.len());
     for column_name in &processed_column_names {
-        let sanitized = sanitize_db_key(column_name).to_lowercase();
+        let sanitized = temp_table_column(column_name);
         if seen.contains(&sanitized) {
             return Err(anyhow!(
                 "Duplicate column `{column_name}` in the import file: two headers \
@@ -349,17 +380,7 @@ fn get_insert_user_query(
     let voters_table = escape_sql_identifier(&voters_table);
 
     // Build the INSERT query for user_entity
-    let user_entity_columns = vec![
-        "id",
-        "email",
-        "email_constraint",
-        "enabled",
-        "first_name",
-        "last_name",
-        "username",
-        "not_before",
-    ];
-    let select_columns: Vec<String> = user_entity_columns
+    let select_columns: Vec<String> = USER_ENTITY_COLUMNS
         .iter()
         .map(|&column| {
             let col_name = column.to_string();
@@ -426,7 +447,7 @@ fn get_insert_user_query(
                 FROM
                     {}
                 RETURNING *"#,
-        user_entity_columns.join(", "),
+        USER_ENTITY_COLUMNS.join(", "),
         select_columns.join(", "),
         voters_table,
     );
@@ -436,7 +457,7 @@ fn get_insert_user_query(
         .clone()
         .into_iter()
         .filter(|col| {
-            !user_entity_columns.contains(&col.as_str())
+            !USER_ENTITY_COLUMNS.contains(&col.as_str())
                 && !RESERVED_COL_NAMES.iter().any(|&s| s == col)
         })
         .collect::<Vec<String>>();
