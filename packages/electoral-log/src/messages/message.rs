@@ -507,6 +507,18 @@ impl Message {
         )
     }
 
+    pub fn approval_matrix_updated_message(
+        event: EventIdString,
+        version: ApprovalMatrixVersion,
+        digest: ApprovalMatrixDigestString,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ApprovalMatrixUpdated(event.clone(), version, digest);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
     /// One entry of a signing step. The worker that posts the outbox calls
     /// it twice per step: for the USER entry with the person's user id and
     /// username, and for the SYSTEM entry without them. `timestamp` is when

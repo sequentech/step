@@ -1024,6 +1024,28 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a new version of the election event's approval matrix.
+    #[instrument(skip(self))]
+    pub async fn post_approval_matrix_updated(
+        &self,
+        event_id: String,
+        version: u32,
+        sha256: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::approval_matrix_updated_message(
+            EventIdString(event_id),
+            ApprovalMatrixVersion(version),
+            ApprovalMatrixDigestString(sha256),
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
     /// Posts a change to the election event's monitoring dashboards.
     #[instrument(skip(self))]
     pub async fn post_monitoring_config_changed(

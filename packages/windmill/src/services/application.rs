@@ -1,6 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::approval_matrix::evaluate::{
+    evaluate, Candidate, DecisionRecord, MatrixVersion, RuleInputs,
+};
+use super::approval_matrix::store::get_current_approval_matrix;
+use super::approval_matrix::{FieldMatch, IdentityMethod};
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
 use crate::postgres::area::get_event_areas;
@@ -33,7 +38,7 @@ use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
 use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use strum_macros::Display;
 use tracing::{debug, event, info, instrument, warn, Level};
 use uuid::Uuid;
@@ -41,6 +46,11 @@ use uuid::Uuid;
 use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 use unicode_normalization::char::decompose_canonical;
+
+const ID_CARD_TYPE_FIELD: &str = "sequent.read-only.id-card-type";
+const FIRST_NAME_FIELD: &str = "firstName";
+const FIRST_AND_MIDDLE_NAME_FIELD: &str = "firstName.middleName";
+const SEVERAL_VOTERS_MATCH_REASON: &str = "Several registry voters match";
 
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -60,6 +70,21 @@ pub enum ECardType {
     #[strum(serialize = "iBP")]
     #[serde(rename = "iBP")]
     IBP,
+}
+
+/// The identity document types enrollment knows, as the applicant data
+/// names them.
+pub fn id_card_types() -> Vec<String> {
+    [
+        ECardType::PHILIPPINE_PASSPORT,
+        ECardType::PHILSYS_ID,
+        ECardType::SEAMANS_BOOK,
+        ECardType::DRIVER_LICENSE,
+        ECardType::IBP,
+    ]
+    .iter()
+    .map(ECardType::to_string)
+    .collect()
 }
 
 /// Struct for email/sms Accepted/Rejected Communication object.
@@ -91,6 +116,16 @@ pub async fn verify_application(
     // Check Election Event exists
     let _event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
 
+    // The saved matrix names the compared fields; without one, the built-in
+    // matrix compares the search attributes the enrollment flow sends.
+    let matrix = get_current_approval_matrix(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        search_attributes_list(annotations)?,
+    )
+    .await?;
+
     // Generate a filter with applicant data
     let filter = get_filter_from_applicant_data(
         tenant_id.to_string(),
@@ -99,7 +134,7 @@ pub async fn verify_application(
         None,
         realm,
         None,
-        &annotations,
+        &matrix.matrix.compared_fields,
         applicant_data,
     )?;
 
@@ -107,8 +142,9 @@ pub async fn verify_application(
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
     debug!("Found {} users before verification", users.len());
 
-    // Finds an user from the list of found possible users
-    let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
+    // Decides the enrollment from the list of found possible users
+    let (result, decision) =
+        automatic_verification(users.clone(), &matrix, &annotations, applicant_data)?;
     info!("Verification result: {:?}", result);
 
     // Set the annotations
@@ -121,9 +157,11 @@ pub async fn verify_application(
         unset_attributes: annotations.unset_attributes.clone(),
         search_attributes: annotations.search_attributes.clone(),
         update_attributes: annotations.update_attributes.clone(),
+        identity_method: annotations.identity_method,
         mismatches: result.mismatches,
         fields_match: result.fields_match.clone(),
         manual_verify_reason: result.manual_verify_reason.clone(),
+        decision: Some(decision),
         no_matching_voter_policy: annotations.no_matching_voter_policy.clone(),
     };
 
@@ -173,14 +211,15 @@ async fn get_permission_label_and_area_from_applicant_data(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<(Option<String>, Option<Uuid>)> {
-    let post_name = applicant_data
-        .get("country")
-        .and_then(|country| country.split('/').next())
-        .ok_or(anyhow!("Error with applicant country"))?;
-
-    let post_description = applicant_data
-        .get("embassy")
-        .ok_or(anyhow!("Error with applicant embassy"))?;
+    // Enrollments that don't ask for a Post have no area or permission label.
+    let (Some(post_name), Some(post_description)) = (
+        applicant_data
+            .get("country")
+            .and_then(|country| country.split('/').next()),
+        applicant_data.get("embassy"),
+    ) else {
+        return Ok((None, None));
+    };
 
     info!("Found post: {:?}", &post_name);
     info!("Found embassy: {:?}", &post_description);
@@ -203,21 +242,17 @@ fn get_filter_from_applicant_data(
     area_id: Option<String>,
     realm: String,
     search: Option<String>,
-    annotations: &ApplicationAnnotations,
+    compared_fields: &[String],
     applicant_data: &HashMap<String, String>,
 ) -> Result<ListUsersFilter> {
-    let search_attributes: String = annotations.search_attributes.clone().ok_or(anyhow!(
-        "Error obtaining search_attributes from annotations"
-    ))?;
-
     let mut first_name = None;
     let mut last_name = None;
     let mut username = None;
     let mut email = None;
     let mut attributes_map = HashMap::new();
 
-    for attribute in search_attributes.split(",") {
-        match attribute {
+    for attribute in compared_fields {
+        match attribute.as_str() {
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
@@ -243,7 +278,7 @@ fn get_filter_from_applicant_data(
             }
             _ => {
                 let value = applicant_data
-                    .get(attribute)
+                    .get(attribute.as_str())
                     .cloned()
                     // Return an empty string if a value is missing from the applicant data.
                     .unwrap_or("".to_string());
@@ -315,15 +350,39 @@ pub struct ApplicationAnnotations {
     search_attributes: Option<String>,
     #[serde(rename = "update-attributes")]
     update_attributes: Option<String>,
+    /// How the enrollment flow established the applicant's identity, when
+    /// it reports it.
+    #[serde(
+        rename = "identity-method",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    identity_method: Option<IdentityMethod>,
     mismatches: Option<usize>,
     fields_match: Option<HashMap<String, bool>>,
     manual_verify_reason: Option<String>,
+    /// The approval matrix version, rule and inputs that decided the
+    /// application.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    decision: Option<DecisionRecord>,
     #[serde(
         rename = "no-matching-voter-policy",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     no_matching_voter_policy: Option<NoMatchingVoterPolicy>,
+}
+
+/// The fields the enrollment flow asks to compare with the registry.
+fn search_attributes_list(annotations: &ApplicationAnnotations) -> Result<Vec<String>> {
+    let search_attributes = annotations.search_attributes.as_ref().ok_or(anyhow!(
+        "Error obtaining search_attributes from annotations"
+    ))?;
+    Ok(search_attributes
+        .split(',')
+        .map(|field| field.trim().to_string())
+        .filter(|field| !field.is_empty())
+        .collect())
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -340,182 +399,147 @@ pub struct ApplicationVerificationResult {
     pub manual_verify_reason: Option<String>,
 }
 
+/// The compared fields the matrix's rules see for one registry voter. First
+/// and middle name compared together count as the first name; the middle
+/// name then has no result of its own.
+fn rule_fields(
+    compared_fields: &[String],
+    fields_match: &HashMap<String, bool>,
+) -> BTreeMap<String, FieldMatch> {
+    let result = |is_match: &bool| match is_match {
+        true => FieldMatch::MATCHES,
+        false => FieldMatch::DIFFERS,
+    };
+    compared_fields
+        .iter()
+        .filter_map(|field| {
+            let is_match = fields_match.get(field).or_else(|| {
+                (field == FIRST_NAME_FIELD)
+                    .then(|| fields_match.get(FIRST_AND_MIDDLE_NAME_FIELD))
+                    .flatten()
+            })?;
+            Some((field.clone(), result(is_match)))
+        })
+        .collect()
+}
+
+/// Decides the enrollment with the approval matrix from the registry voters
+/// the lookup returned.
 #[instrument(err, skip_all)]
 fn automatic_verification(
     users: Vec<User>,
+    matrix: &MatrixVersion,
     annotations: &ApplicationAnnotations,
     applicant_data: &HashMap<String, String>,
-) -> Result<ApplicationVerificationResult> {
-    let search_attributes: String = annotations.search_attributes.clone().ok_or(anyhow!(
-        "Error obtaining search_attributes from annotations"
-    ))?;
-
+) -> Result<(ApplicationVerificationResult, DecisionRecord)> {
     let unset_attributes: String = annotations
         .unset_attributes
         .clone()
         .ok_or(anyhow!("Error obtaining unset_attributes from annotations"))?;
+    let compared_fields = &matrix.matrix.compared_fields;
+    let identity = annotations.identity_method;
+    let valid_id = applicant_data.get(ID_CARD_TYPE_FIELD).cloned();
 
-    // Set fields match all to false for default response
-    let fields_match: HashMap<String, bool> = search_attributes
-        .split(",")
-        .map(|field| (field.trim().to_string(), false))
-        .collect();
-
-    let mut matched_user: Option<User> = None;
-    let mut matched_status = ApplicationStatus::REJECTED;
-    let mut matched_type = ApplicationType::AUTOMATIC;
-    let mut verification_mismatches = Some(fields_match.len());
-    let mut verification_fields_match = Some(fields_match);
-    let mut verification_attributes_unset = None;
-    let mut rejection_reason: Option<ApplicationRejectReason> =
-        Some(ApplicationRejectReason::NO_VOTER);
-    let mut rejection_message: Option<String> = None;
-    let mut mismatch_reason = None;
-
+    let mut comparisons = vec![];
     for user in users {
         let (mismatches, mismatches_unset, fields_match, attributes_unset) = check_mismatches(
             &user,
             applicant_data,
-            search_attributes.clone(),
+            compared_fields.join(","),
             unset_attributes.clone(),
         )?;
-        let username = user.username.clone().unwrap_or_default();
-
-        if mismatches > 0 {
-            mismatch_reason = Some(build_manual_verify_reason(fields_match.clone()));
-        }
-
-        // If there are no mismatches..
-        if mismatches == 0 {
-            // if the fields that need to be unset but were set is more than 0,
-            // this means we need to automatically reject. This is a user that
-            // already exists and is verified.
-            if mismatches_unset > 0 {
-                matched_user = Some(user);
-                matched_status = ApplicationStatus::REJECTED;
-                matched_type = ApplicationType::AUTOMATIC;
-                verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
-                verification_attributes_unset = Some(attributes_unset);
-                rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
-                rejection_message = None;
-            } else {
-                return Ok(ApplicationVerificationResult {
-                    user_id: user.id,
-                    username,
-                    application_status: ApplicationStatus::ACCEPTED,
-                    application_type: ApplicationType::AUTOMATIC,
-                    mismatches: Some(mismatches),
-                    fields_match: Some(fields_match),
-                    attributes_unset: Some(attributes_unset),
-                    rejection_reason: None,
-                    rejection_message: None,
-                    manual_verify_reason: None,
-                });
-            }
-        // If there was only 1 mismatch
-        } else if mismatches == 1 {
-            // if the fields that need to be unset but were set is more than 0,
-            // this means we need to automatically reject. This is a user that
-            // already exists and is verified.
-            if mismatches_unset > 0 {
-                matched_user = Some(user);
-                matched_status = ApplicationStatus::REJECTED;
-                matched_type = ApplicationType::AUTOMATIC;
-                verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
-                verification_attributes_unset = Some(attributes_unset);
-                rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
-                rejection_message = None;
-            } else {
-                if !fields_match.get("embassy").unwrap_or(&false) {
-                    return Ok(ApplicationVerificationResult {
-                        user_id: user.id,
-                        username,
-                        application_status: ApplicationStatus::ACCEPTED,
-                        application_type: ApplicationType::AUTOMATIC,
-                        mismatches: Some(mismatches),
-                        fields_match: Some(fields_match),
-                        attributes_unset: Some(attributes_unset),
-                        rejection_reason: None,
-                        rejection_message: None,
-                        manual_verify_reason: None,
-                    });
-                }
-                matched_user = None;
-                matched_status = ApplicationStatus::PENDING;
-                matched_type = ApplicationType::MANUAL;
-                verification_mismatches = Some(mismatches);
-                verification_fields_match = Some(fields_match);
-                verification_attributes_unset = Some(attributes_unset);
-                rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-                rejection_message = None;
-            }
-        } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
-            matched_user = None;
-            matched_status = ApplicationStatus::PENDING;
-            matched_type = ApplicationType::MANUAL;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
-            verification_attributes_unset = Some(attributes_unset);
-            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-            rejection_message = None;
-        } else if mismatches == 2
-            && !fields_match.get("middleName").unwrap_or(&false)
-            && !fields_match.get("lastName").unwrap_or(&false)
-        {
-            matched_user = None;
-            matched_status = ApplicationStatus::PENDING;
-            matched_type = ApplicationType::MANUAL;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
-            verification_attributes_unset = Some(attributes_unset);
-            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-            rejection_message = None;
-        } else if matched_status != ApplicationStatus::PENDING {
-            matched_user = None;
-            matched_status = ApplicationStatus::REJECTED;
-            matched_type = ApplicationType::AUTOMATIC;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
-            verification_attributes_unset = Some(attributes_unset);
-            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-            rejection_message = None;
-        }
+        let candidate = Candidate {
+            user_id: user.id.clone(),
+            username: user.username.clone(),
+            inputs: RuleInputs {
+                identity,
+                voter_found: true,
+                already_enrolled: mismatches_unset > 0,
+                valid_id: valid_id.clone(),
+                fields: rule_fields(compared_fields, &fields_match),
+                differing: mismatches,
+            },
+        };
+        comparisons.push((candidate, fields_match, attributes_unset));
     }
+
+    let candidates = comparisons
+        .iter()
+        .map(|(candidate, _, _)| candidate.clone())
+        .collect();
+    let evaluation = evaluate(matrix, identity, valid_id, candidates);
+    let record = evaluation.record;
 
     // An identity that matches no voter of the census goes to review, if the
-    // realm asks for it, instead of being rejected.
-    if matched_status == ApplicationStatus::REJECTED
-        && rejection_reason == Some(ApplicationRejectReason::NO_VOTER)
-        && annotations.no_matching_voter_policy == Some(NoMatchingVoterPolicy::PENDING_APPROVAL)
-    {
-        matched_user = None;
-        matched_status = ApplicationStatus::PENDING;
-        matched_type = ApplicationType::MANUAL;
-    }
-
-    info!("matched_status: {}", matched_status.to_string());
+    // realm asks for it, instead of being rejected. The record keeps what the
+    // approval matrix decided.
+    let no_voter_to_review = record.decision == ApplicationStatus::REJECTED
+        && record.reason == Some(ApplicationRejectReason::NO_VOTER)
+        && annotations.no_matching_voter_policy == Some(NoMatchingVoterPolicy::PENDING_APPROVAL);
+    let status = if no_voter_to_review {
+        ApplicationStatus::PENDING
+    } else {
+        record.decision.clone()
+    };
     info!(
-        "rejection_reason: {}",
-        rejection_reason.clone().unwrap_or_default().to_string()
+        "Approval matrix version {} decided {} with rule {:?}",
+        record.matrix_version, record.decision, record.rule
     );
 
-    Ok(ApplicationVerificationResult {
-        user_id: matched_user.clone().and_then(|user| user.id),
-        username: matched_user
-            .clone()
-            .and_then(|user| user.username)
+    let compared = evaluation.compared.and_then(|compared| {
+        comparisons
+            .into_iter()
+            .find(|(candidate, _, _)| *candidate == compared)
+    });
+    let (mismatches, fields_match, attributes_unset) = match compared {
+        Some((candidate, fields_match, attributes_unset)) => (
+            candidate.inputs.differing,
+            fields_match,
+            Some(attributes_unset),
+        ),
+        None => (
+            compared_fields.len(),
+            compared_fields
+                .iter()
+                .map(|field| (field.clone(), false))
+                .collect(),
+            None,
+        ),
+    };
+
+    let manual_verify_reason = if record.decision == ApplicationStatus::ACCEPTED {
+        None
+    } else if record.accepted_candidates > 1 {
+        Some(SEVERAL_VOTERS_MATCH_REASON.to_string())
+    } else if record.inputs.voter_found && mismatches > 0 {
+        Some(build_manual_verify_reason(fields_match.clone()))
+    } else {
+        None
+    };
+
+    let result = ApplicationVerificationResult {
+        user_id: evaluation
+            .voter
+            .as_ref()
+            .and_then(|voter| voter.user_id.clone()),
+        username: evaluation
+            .voter
+            .and_then(|voter| voter.username)
             .unwrap_or_default(),
-        application_status: matched_status,
-        application_type: matched_type,
-        mismatches: verification_mismatches,
-        fields_match: verification_fields_match,
-        attributes_unset: verification_attributes_unset,
-        rejection_reason,
-        rejection_message,
-        manual_verify_reason: mismatch_reason,
-    })
+        application_type: match status {
+            ApplicationStatus::PENDING => ApplicationType::MANUAL,
+            ApplicationStatus::ACCEPTED | ApplicationStatus::REJECTED => ApplicationType::AUTOMATIC,
+        },
+        application_status: status,
+        mismatches: Some(mismatches),
+        fields_match: Some(fields_match),
+        attributes_unset,
+        rejection_reason: record.reason.clone(),
+        rejection_message: None,
+        manual_verify_reason,
+    };
+
+    Ok((result, record))
 }
 
 #[instrument(err)]
@@ -534,14 +558,13 @@ fn check_mismatches(
         user.id, fields_to_check, fields_to_check_unset
     );
 
-    let card_type = applicant_data
-        .get("sequent.read-only.id-card-type")
-        .cloned()
-        .ok_or(anyhow!("Error converting applicant_data to map"))?;
-
     // Check if the card type is seamans_book or driver_license
-    let card_type_flag = card_type == ECardType::SEAMANS_BOOK.to_string()
-        || card_type == ECardType::DRIVER_LICENSE.to_string();
+    let card_type_flag = applicant_data
+        .get(ID_CARD_TYPE_FIELD)
+        .is_some_and(|card_type| {
+            *card_type == ECardType::SEAMANS_BOOK.to_string()
+                || *card_type == ECardType::DRIVER_LICENSE.to_string()
+        });
 
     for field_to_check in fields_to_check.split(",") {
         let field_to_check = field_to_check.trim();
@@ -1235,17 +1258,33 @@ mod tests {
             unset_attributes: Some("email".to_string()),
             search_attributes: Some("firstName,lastName,dateOfBirth".to_string()),
             update_attributes: None,
+            identity_method: None,
             mismatches: None,
             fields_match: None,
             manual_verify_reason: None,
+            decision: None,
             no_matching_voter_policy: policy,
         }
     }
 
+    fn census_matrix() -> MatrixVersion {
+        MatrixVersion::built_in(
+            ["firstName", "lastName", "dateOfBirth"]
+                .map(str::to_string)
+                .to_vec(),
+        )
+    }
+
     #[test]
     fn test_no_matching_voter_is_rejected_by_default() {
-        let result =
-            automatic_verification(vec![], &census_annotations(None), &HashMap::new()).unwrap();
+        let (result, decision) = automatic_verification(
+            vec![],
+            &census_matrix(),
+            &census_annotations(None),
+            &HashMap::new(),
+        )
+        .unwrap();
+        assert_eq!(decision.decision, ApplicationStatus::REJECTED);
         assert_eq!(result.application_status, ApplicationStatus::REJECTED);
         assert_eq!(result.application_type, ApplicationType::AUTOMATIC);
         assert_eq!(
@@ -1256,12 +1295,16 @@ mod tests {
 
     #[test]
     fn test_no_matching_voter_goes_to_approval_with_its_policy() {
-        let result = automatic_verification(
+        let (result, decision) = automatic_verification(
             vec![],
+            &census_matrix(),
             &census_annotations(Some(NoMatchingVoterPolicy::PENDING_APPROVAL)),
             &HashMap::new(),
         )
         .unwrap();
+        // The record keeps what the approval matrix decided.
+        assert_eq!(decision.decision, ApplicationStatus::REJECTED);
+        assert_eq!(decision.reason, Some(ApplicationRejectReason::NO_VOTER));
         assert_eq!(result.application_status, ApplicationStatus::PENDING);
         assert_eq!(result.application_type, ApplicationType::MANUAL);
         assert_eq!(
@@ -1474,3 +1517,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "application_matrix_tests.rs"]
+mod matrix_tests;

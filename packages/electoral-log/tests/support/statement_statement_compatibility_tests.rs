@@ -195,7 +195,11 @@ fn statement_type_borsh_discriminants_are_append_only() {
         borsh::to_vec(&StatementType::ReportGenerated).unwrap(),
         vec![53]
     );
-    assert!(borsh::from_slice::<StatementType>(&[54]).is_err());
+    assert_eq!(
+        borsh::to_vec(&StatementType::ApprovalMatrixUpdated).unwrap(),
+        vec![54]
+    );
+    assert!(borsh::from_slice::<StatementType>(&[55]).is_err());
 }
 
 fn report_generated(document_id: Option<&str>) -> StatementBody {
@@ -229,7 +233,7 @@ fn a_generated_report_entry_is_appended_and_names_its_hash_manifest() {
         borsh::from_slice::<StatementBody>(&expected).unwrap(),
         StatementBody::ReportGenerated(_, _)
     ));
-    assert!(borsh::from_slice::<StatementBody>(&[34]).is_err());
+    assert!(borsh::from_slice::<StatementBody>(&[35]).is_err());
 
     let head = StatementHead::from_body(EventIdString("event".to_string()), &stored);
     assert!(matches!(head.kind, StatementType::ReportGenerated));
@@ -408,7 +412,7 @@ fn an_election_publish_of_a_signed_configuration_carries_its_manifest_and_design
         }
         other => panic!("unexpected body {other:?}"),
     }
-    assert!(borsh::from_slice::<StatementBody>(&[34]).is_err());
+    assert!(borsh::from_slice::<StatementBody>(&[35]).is_err());
 
     let head = StatementHead::from_body(EventIdString("event".to_string()), &body);
     assert!(matches!(head.kind, StatementType::ElectionPublish));

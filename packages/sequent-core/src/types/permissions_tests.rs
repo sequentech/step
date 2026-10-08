@@ -84,6 +84,34 @@ fn every_realm_grants_monitoring_to_its_administrators_only() {
     }
 }
 
+/// Only administrators save new versions of the enrollment approval matrix.
+#[test]
+fn every_realm_grants_the_approval_matrix_to_its_administrators_only() {
+    let write = Permissions::APPROVAL_MATRIX_WRITE.to_string();
+    assert_eq!(write, "approval-matrix-write");
+    assert_eq!(
+        Permissions::from_str(&write),
+        Ok(Permissions::APPROVAL_MATRIX_WRITE)
+    );
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        assert!(
+            realm["roles"]["realm"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|role| role["name"] == write.as_str()),
+            "{name}: no {write} role"
+        );
+        assert_eq!(
+            groups_granting(&realm, &write),
+            BTreeSet::from(["admin".to_string()]),
+            "{name}: {write}"
+        );
+    }
+}
+
 /// The permissions of Election Event > Signatures and of signing each
 /// protected action, with their realm role names.
 const SIGNING_PERMISSIONS: [(&str, Permissions); 21] = [

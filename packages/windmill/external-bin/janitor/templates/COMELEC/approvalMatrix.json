@@ -1,0 +1,13 @@
+{
+  "compared_fields": ["firstName", "middleName", "lastName", "dateOfBirth", "embassy"],
+  "rules": [
+    {"when": {"already_enrolled": true, "differing": "at_most_1"}, "then": {"decision": "REJECTED", "reason": "ALREADY_APPROVED"}},
+    {"when": {"identity": "MANUAL_ENTRY"}, "then": {"decision": "PENDING", "reason": "IDENTITY_NOT_VERIFIED"}},
+    {"when": {"differing": "none"}, "then": {"decision": "ACCEPTED"}},
+    {"when": {"differing": "exactly_1", "fields": {"embassy": "DIFFERS"}}, "then": {"decision": "ACCEPTED"}},
+    {"when": {"differing": "exactly_1", "fields": {"embassy": "MATCHES"}}, "then": {"decision": "PENDING", "reason": "NO_VOTER"}},
+    {"when": {"differing": "exactly_2", "fields": {"embassy": "DIFFERS"}}, "then": {"decision": "PENDING", "reason": "NO_VOTER"}},
+    {"when": {"differing": "exactly_2", "fields": {"middleName": "DIFFERS", "lastName": "DIFFERS"}}, "then": {"decision": "PENDING", "reason": "NO_VOTER"}}
+  ],
+  "otherwise": {"decision": "REJECTED", "reason": "NO_VOTER"}
+}

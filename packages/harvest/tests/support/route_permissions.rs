@@ -224,6 +224,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/election/stats", {"election_event_id": EVENT_ID, "election_id": "test-election", "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/encrypt-report", {"election_event_id": EVENT_ID, "password": "test-password"}, [REPORT_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
+        case!(Admin, "/evaluate-approval-matrix", {"election_event_id": EVENT_ID, "matrix": {"compared_fields": ["firstName"], "rules": [], "otherwise": {"decision": "REJECTED", "reason": "NO_VOTER"}}, "enrollment": {"voter_found": false}}, [APPLICATION_READ], Reply::Json(Status::Ok), UNAUTHORIZED_JSON),
         case!(Admin, "/export-application", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [APPLICATION_EXPORT], BACKEND, BACKEND),
         // The task row is written before the permission check.
         case!(Admin, "/export-ballot-publication", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_WRITE], BACKEND, BACKEND),
@@ -255,6 +256,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
         case!(Voter, "/get-ballot-files-urls", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        case!(Admin, "/get-approval-matrix", {"election_event_id": EVENT_ID}, [APPLICATION_READ], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/get-ballot-publication-changes", {"election_event_id": EVENT_ID, "ballot_publication_id": "test-publication"}, [PUBLISH_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-custom-url", {"redirect_to": "https://redirect.invalid"}, [ELECTION_EVENT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-document-password", {"document_id": "test-document"}, [DOCUMENT_DOWNLOAD, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
@@ -335,6 +337,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/review-tally-sheet", {"election_event_id": EVENT_ID, "tally_sheet_id": "test-sheet", "new_status": "DISAPPROVED"}, [TALLY_SHEET_REVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/review-tally-sheet-import", {"election_event_id": EVENT_ID, "import_id": "test-import", "decision": "DISAPPROVE"}, [TALLY_SHEET_IMPORT_REVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/revoke-results-publication", {"election_event_id": EVENT_ID, "publication_id": "test-publication"}, [PUBLISH_RESULTS_WRITE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/save-approval-matrix", {"election_event_id": EVENT_ID, "matrix": {"compared_fields": ["firstName"], "rules": [], "otherwise": {"decision": "REJECTED", "reason": "NO_VOTER"}}}, [APPROVAL_MATRIX_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/scheduled-event", {"tenant_id": TENANT_ID, "event_processor": "SEND_TEMPLATE", "event_payload": {}}, [NOTIFICATION_SEND], BACKEND, UNAUTHORIZED),
         // An empty permission list checked in the caller's tenant; the body
         // tenant, which the report task receives, is not checked.

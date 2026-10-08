@@ -1567,6 +1567,7 @@ const galegoTranslation: TranslationType = {
                 "task-export": "Exportar Tareas",
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
+                "approval-matrix-write": "Editar a Matriz de Aprobación",
                 "logs-export": "Exportar Registros",
                 "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
                 "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
@@ -2950,46 +2951,435 @@ const galegoTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Estado",
-                id: "ID",
-                applicantId: "ID do Solicitante",
-                verificationType: "Tipo de Verificación",
-                createdAt: "Creado o",
-                updatedAt: "Actualizado o",
-                verified_by: "Aprobado Por",
+                id: "ID da solicitude",
+                applicantId: "ID do solicitante",
+                verificationType: "Verificación",
+                createdAt: "Solicitada",
+                verified_by: "Verificada por",
+                voter: "Votante",
+                what: "Que pasou",
+                post: "Posto",
+                when: "Cando",
             },
-            approvalRequest: "Solicitud de Aprobación",
-            taskInformation: "Información da Tarefa",
-            ok: "Aceptar",
-            title: "Votantes",
-            subtitle: "Atopar votantes coincidentes",
-            approve: {
-                body: "¿Estás seguro de que queres aprobar este votante? Esta acción non é reversible.",
+            status: {
+                PENDING: "Pendente de revisión",
+                ACCEPTED: "Aprobada",
+                REJECTED: "Rexeitada",
             },
-            reject: {
-                label: "Rechazar la solicitud",
-                confirm:
-                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
-                message: "Escribe aquí el motivo del rechazo",
-                rejectReason: "Motivo del rechazo",
-                messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Datos Faltantes",
-                    "no-matching-voter": "Votante no Coincidente",
-                    "voter-already-approved": "Ya Aprobado",
-                    "other": "Otro",
+            verification: {
+                AUTOMATIC: "Automática",
+                MANUAL: "Manual",
+            },
+            time: {
+                minutes_one: "{{count}} minuto",
+                minutes_other: "{{count}} minutos",
+                hours_one: "{{count}} hora",
+                hours_other: "{{count}} horas",
+                days_one: "{{count}} día",
+                days_other: "{{count}} días",
+            },
+            summary: {
+                join: "{{head}} e {{last}}",
+                differs_one: "{{fields}} non coincide co rexistro",
+                differs_other: "{{fields}} non coinciden co rexistro",
+                typedByHand: "Datos escritos á man, non lidos dun documento escaneado",
+                needsFaceToFace: "Precisa unha comprobación cara a cara",
+                scanVerified: "Documento escaneado e verificado",
+                noVoter: "Non se atopou ningún votante no rexistro",
+                allMatch: "Todos os datos coinciden co rexistro",
+                needsReview: "Á espera de que unha persoa decida",
+                approvedBy: "Aprobada por {{name}}",
+                approvedAuto: "Aprobada automaticamente",
+                rejectedBy: "Rexeitada por {{name}}",
+                rejectedAuto: "Rexeitada automaticamente",
+            },
+            list: {
+                title: "Aprobacións",
+                subtitle:
+                    "As inscricións que as regras non poden decidir por si soas agardan aquí por unha persoa.",
+                search: "Buscar",
+                review: "Revisar a inscrición",
+                openRecord: "Abrir a inscrición",
+                seeRule: "Ver a regra que decidiu",
+                unnamed: "Solicitante sen nome",
+                waiting: "Leva {{time}} agardando",
+                applied: "Solicitada o {{date}}",
+                empty: {
+                    title: "Aquí non hai nada",
+                    text: "As inscricións con este estado aparecerán aquí. Probe con outra busca ou outro estado.",
                 },
             },
+            flow: {
+                stepsLabel: "Pasos da revisión",
+                steps: {
+                    identity: "Comprobar a identidade",
+                    voter: "Buscar o votante",
+                    decide: "Decidir",
+                },
+                continue: "Continuar",
+                backToList: "Volver a Aprobacións",
+                identity: {
+                    details: "Datos da inscrición",
+                    confirm:
+                        "Comprobei o documento de identidade do votante en persoa ou por videochamada, e coincide con esta inscrición.",
+                    checked: "Comprobación cara a cara confirmada",
+                    notChecked: "Comprobación cara a cara aínda sen confirmar",
+                },
+                voter: {
+                    none: "Ningún destes é o votante",
+                    noneHint:
+                        "Nese caso a inscrición só se pode rexeitar, por non haber un votante coincidente.",
+                    noneChosen: "Ningún destes é o votante",
+                    notChosen: "Aínda non se escolleu ningún votante",
+                },
+                decide: {
+                    approve: "Aprobar",
+                    reject: "Rexeitar",
+                    approveText:
+                        "Vincula esta inscrición con {{voter}} no rexistro. Avísase o votante por correo electrónico ou SMS e poderá iniciar sesión para votar cando se abra a votación.",
+                    rejectText: "Díselle ao votante o motivo. Isto non se pode desfacer.",
+                    chooseVoter: "Escolla o votante coincidente no paso 2 para aprobar.",
+                    noVoter:
+                        "Non atopou un votante coincidente, así que esta inscrición só se pode rexeitar.",
+                    enrolled: "O votante escollido xa está inscrito.",
+                    faceToFace: "Confirme a comprobación cara a cara no paso 1 para aprobar.",
+                },
+            },
+            review: {
+                loadError: "Non se puido cargar a inscrición.",
+                applied: "Solicitada o {{date}}",
+                waiting: "Leva {{time}} agardando",
+                whyTitle: "Por que fai falta unha persoa",
+                decisionTitle: "Como se decidiu",
+                rule: "Regra {{rule}} da versión {{version}} da matriz",
+                ruleLast: "Última regra da versión {{version}} da matriz",
+                seeRule: "Ver a regra",
+                why: {
+                    typedByHand:
+                        "O votante escribiu os seus datos á man en lugar de escanear un documento de identidade. Estas inscricións nunca se aproban automaticamente: antes, un funcionario confirma quen é.",
+                    differs_one:
+                        "Un dato non coincide co rexistro: {{details}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differs_other:
+                        "{{count}} datos non coinciden co rexistro: {{details}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differsFields_one:
+                        "Un dato non coincide co rexistro: {{fields}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differsFields_other:
+                        "{{count}} datos non coinciden co rexistro: {{fields}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    difference:
+                        "en {{field}}, a inscrición di “{{enrollment}}” e o rexistro di “{{registry}}”",
+                    noVoter:
+                        "Ningún votante do rexistro ten estes datos. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    severalVoters:
+                        "Máis dun votante do rexistro encaixa con esta inscrición. Unha persoa escolle o correcto.",
+                    pending:
+                        "As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    unknown: "Esta inscrición está á espera de que unha persoa decida.",
+                    approvedAuto:
+                        "As regras de aprobación aprobaron esta inscrición automaticamente. Superáronse todas as comprobacións que esixen.",
+                    approvedBy: "{{name}} aprobou esta inscrición o {{date}}.",
+                    rejectedAuto:
+                        "As regras de aprobación rexeitaron esta inscrición automaticamente: {{reason}}.",
+                    rejectedBy: "{{name}} rexeitou esta inscrición o {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "Buscamos votantes cos mesmos datos: {{fields}}. Escolla aquel ao que pertence esta inscrición.",
+                registrySearching:
+                    "Estes son os votantes do rexistro que coinciden coa súa busca. Escolla aquel ao que pertence esta inscrición.",
+                registrySearch:
+                    "Non está na lista? Busque no rexistro por nome ou correo electrónico",
+                registryLoading: "Buscando no rexistro",
+                registryError: "Non se puido buscar no rexistro.",
+                noCandidates:
+                    "Ningún votante do rexistro coincide. Probe a buscar por nome ou correo electrónico.",
+                candidates: "Votantes do rexistro",
+                alreadyEnrolled: "Xa inscrito",
+                bestMatch: "Mellor coincidencia",
+                detailsMatch: "Coinciden {{count}} de {{total}} datos",
+                compareTitle: "Comparación con {{name}} no rexistro",
+                col: {
+                    detail: "Dato",
+                    enrollment: "Na inscrición",
+                    registry: "No rexistro",
+                    result: "Resultado",
+                },
+                same: "Igual",
+                differs: "Distinto",
+                compareNote: "Nos nomes non se teñen en conta maiúsculas, acentos nin guións.",
+                compareJoint:
+                    "Para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                applicationId: "ID da solicitude",
+                copy: "Copiar",
+                copied: "Copiado",
+                approve: "Aprobar a inscrición",
+                approveDialog: {
+                    title: "Aprobar a {{name}}?",
+                    body: "Isto vincula a inscrición co votante do rexistro que aparece abaixo. Avísase o votante por correo electrónico ou SMS e poderá iniciar sesión para votar cando se abra a votación.",
+                    checked: "Comprobou o documento de identidade do votante cara a cara.",
+                    irreversible: "Isto non se pode desfacer.",
+                    confirm: "Aprobar",
+                },
+                reject: "Rexeitar a inscrición",
+            },
+            idCheck: {
+                title: "Comprobación do documento",
+                method: {
+                    VERIFIED: "Documento escaneado e verificado",
+                    MANUAL_ENTRY: "Escrito á man",
+                    UNKNOWN: "Non indicado",
+                },
+                verified: "O proceso de inscrición verificou o documento de identidade do votante",
+                typedByHand: "O votante escribiu os seus datos á man",
+                unknown: "O proceso de inscrición non indicou como se comprobou a identidade",
+                faceToFaceTitle: "Comprobe a súa identidade cara a cara antes de aprobar",
+                faceToFaceText:
+                    "Reúnase co votante en persoa ou por videochamada e compare o seu documento de identidade cos datos desta páxina.",
+            },
+            reject: {
+                rejectReason: "Motivo do rexeitamento",
+                message: "Mensaxe para o votante",
+                messageRequired: "Escriba unha mensaxe para o votante cando o motivo sexa Outro.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Faltan datos",
+                    "no-matching-voter": "Votante non coincidente",
+                    "voter-already-approved": "Xa aprobado",
+                    "other": "Outro",
+                },
+                hint: {
+                    "insufficient-information": "Faltan datos ou non se poden ler.",
+                    "no-matching-voter": "A persoa non está no rexistro de votantes.",
+                    "voter-already-approved": "Este votante xa está inscrito.",
+                    "other": "Escriba a súa propia mensaxe.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Non puidemos inscribilo porque faltan algúns dos seus datos ou non se poden ler. Volva inscribirse cos datos completos.",
+                    "no-matching-voter":
+                        "Non atopamos no rexistro un votante que coincida cos seus datos. Revise os seus datos e volva inscribirse, ou póñase en contacto coa súa oficina electoral.",
+                    "voter-already-approved":
+                        "Xa está inscrito. Poderá iniciar sesión para votar cando se abra a votación.",
+                },
+                previewTitle: "O votante verá",
+            },
             notifications: {
-                approveError: "Error al aprobar al votante",
-                approveSuccess: "Votante aprobado",
-                rejectError: "Error al rechazar al votante",
-                rejectSuccess: "Votante rechazado",
-                VoterApprovedAlready: "El votante ya está aprobado.",
+                approveError: "Non se puido aprobar a inscrición",
+                approveSuccess: "Inscrición de {{name}} aprobada. Avisouse o votante.",
+                rejectError: "Non se puido rexeitar a inscrición",
+                rejectSuccess: "Inscrición de {{name}} rexeitada. Avisouse o votante.",
+                VoterApprovedAlready: "Este votante xa está inscrito.",
             },
             export: {
-                success: "La exportación de aplicaciones se completó con éxito",
-                error: "Error al exportar las aplicaciones",
+                success: "A exportación de solicitudes completouse con éxito",
+                error: "Erro ao exportar as solicitudes",
+            },
+            matrix: {
+                button: "Matriz de aprobación",
+                title: "Matriz de aprobación",
+                back: "Aprobacións",
+                subtitle:
+                    "As regras deciden que pasa con cada inscrición. Decide a primeira regra que se cumpre.",
+                versionChip: "Versión {{version}}",
+                savedBy: "Gardada o {{date}} por {{user}}",
+                builtIn: "Regras integradas, en uso ata que se garde unha versión",
+                unsaved: "Cambios sen gardar",
+                viewOnly: "Só lectura",
+                readOnlyTitle: "Pode ver as regras, pero non cambialas",
+                readOnlyText:
+                    "Pídalle a un administrador que teña o permiso approval-matrix-write que faga os cambios.",
+                loadError: "Non se puido cargar a matriz de aprobación.",
+                compared: "Que comparamos",
+                comparedHelp:
+                    "Cada inscrición compárase co votante atopado no rexistro. Nos nomes non se teñen en conta maiúsculas, acentos nin guións; para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                addCompared: "Comparar outro dato",
+                rules: "Regras",
+                rulesHelp:
+                    "As regras compróbanse desde arriba. Decide a primeira que se cumpre; se non se cumpre ningunha, aplícase a última regra.",
+                when: "Cando",
+                then: "Entón",
+                otherwise: "Noutro caso",
+                noneApply: "Non se aplica ningunha das regras anteriores",
+                andWord: "e",
+                and: " e ",
+                appliesToExample: "Aplícase ao seu exemplo",
+                cameFrom: "Decidiu a inscrición desde a que chegou",
+                voterIsTold: "Ao votante díselle: “{{reason}}”.",
+                sentence: "Cando {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Se non se aplica ningunha das regras anteriores, {{outcome}}.",
+                sentenceEmpty: "Engada unha condición para indicar cando se aplica esta regra.",
+                addRule: "Engadir regra",
+                discard: "Descartar os cambios",
+                actions: {
+                    edit: "Editar a regra {{number}}",
+                    editOtherwise: "Editar a última regra",
+                    moveUp: "Subir a regra {{number}}",
+                    moveDown: "Baixar a regra {{number}}",
+                    delete: "Eliminar a regra {{number}}",
+                },
+                saveBar: {
+                    title: "Ten cambios sen gardar",
+                    fix_one: "Corrixa 1 regra antes de gardar",
+                    fix_other: "Corrixa {{count}} regras antes de gardar",
+                    more: "+{{count}} máis",
+                },
+                test: "Probar un exemplo",
+                testHelp:
+                    "Describa unha inscrición para ver que regra a decide. Os cambios sen gardar tamén contan.",
+                testDetails: "Datos comparados",
+                applies: "Aplícase a regra {{number}}",
+                otherwiseApplies: "Aplícase a última regra",
+                testError: "Non se puido probar o exemplo.",
+                testInvalid: "Corrixa estas regras para probar un exemplo:",
+                ruleError: "Regra {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Unha identidade escrita á man nunca se aproba automaticamente, así que isto envíase a unha persoa.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Un votante que xa está inscrito nunca se aproba de novo.",
+                    NO_VOTER_NOT_ACCEPTED: "Non se aproba a ninguén sen un votante no rexistro.",
+                    OTHERWISE_NOT_ACCEPTED: "A última regra nunca aproba.",
+                },
+                dialog: {
+                    editTitle: "Editar a regra {{number}}",
+                    newTitle: "Nova regra",
+                    otherwiseTitle: "Editar a última regra",
+                    summary: "En resumo",
+                    whenHelp: "Deben cumprirse todas. Omita unha condición cando non importe.",
+                    otherwiseHelp: "Se non se aplica ningunha das regras anteriores",
+                    addCondition: "Engadir condición",
+                    remove: "Quitar “{{condition}}”",
+                    identity: "Comprobación de identidade",
+                    voterFound: "Votante no rexistro",
+                    alreadyEnrolled: "Xa inscrito",
+                    validId: "Tipo de documento",
+                    differing: "Datos que difiren",
+                    decision: "Decisión",
+                    reason: "Que se lle di ao votante",
+                    voterSees: "O votante ve",
+                    apply: "Aplicar",
+                    close: "Pechar",
+                    yes: "Si",
+                    no: "Non",
+                    notReported: "Non indicado",
+                },
+                identity: {
+                    VERIFIED: "Verificada con documento escaneado",
+                    MANUAL_ENTRY: "Escrita á man",
+                },
+                differing: {
+                    none: "Ningún",
+                    exactly_1: "Exactamente 1",
+                    at_most_1: "Como máximo 1",
+                    exactly_2: "Exactamente 2",
+                    at_most_2: "Como máximo 2",
+                    at_least_3: "3 ou máis",
+                },
+                fieldMatch: {
+                    MATCHES: "Igual",
+                    DIFFERS: "Distinto",
+                },
+                decisions: {
+                    ACCEPTED: "Aprobar automaticamente",
+                    PENDING: "Enviar a unha persoa",
+                    REJECTED: "Rexeitar",
+                },
+                outcomeShort: {
+                    ACCEPTED: "aprobar automaticamente",
+                    PENDING: "enviar a unha persoa",
+                    REJECTED: "rexeitar",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "O votante queda inscrito sen que ninguén o revise.",
+                    PENDING:
+                        "Decide un funcionario, e ao votante díselle que a súa inscrición está en revisión.",
+                    REJECTED: "Ao votante díselle o motivo, e pode volver inscribirse.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "apróbase a inscrición automaticamente",
+                    PENDING: "envíase a inscrición a unha persoa",
+                    REJECTED: "rexéitase a inscrición",
+                },
+                reasons: {
+                    NO_VOTER: "Votante non coincidente",
+                    ALREADY_APPROVED: "Xa aprobado",
+                    INSUFFICIENT_INFORMATION: "Faltan datos",
+                    IDENTITY_NOT_VERIFIED: "Identidade non verificada",
+                    OTHER: "Outro",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Non atopamos no rexistro un votante que coincida cos seus datos. Revise os seus datos e volva inscribirse, ou póñase en contacto coa súa oficina electoral.",
+                    ALREADY_APPROVED:
+                        "Xa está inscrito. Poderá iniciar sesión para votar cando se abra a votación.",
+                    INSUFFICIENT_INFORMATION:
+                        "Non puidemos inscribilo porque faltan algúns dos seus datos ou non se poden ler. Volva inscribirse cos datos completos.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Non puidemos verificar a súa identidade automaticamente, así que un funcionario electoral revisará a súa inscrición.",
+                    OTHER: "Un funcionario electoral escribe esta mensaxe cando decide.",
+                },
+                conditions: {
+                    any: "Aínda non hai condicións",
+                    identity: {
+                        VERIFIED: "Identidade verificada con documento escaneado",
+                        MANUAL_ENTRY: "Identidade escrita á man",
+                    },
+                    voterFound: {
+                        true: "Votante atopado no rexistro",
+                        false: "Ningún votante atopado no rexistro",
+                    },
+                    alreadyEnrolled: {
+                        true: "Xa inscrito",
+                        false: "Aínda non inscrito",
+                    },
+                    validId: "Documento: {{id}}",
+                    differing: {
+                        none: "Todos os datos coinciden",
+                        exactly_1: "Exactamente 1 dato difire",
+                        at_most_1: "Como máximo 1 dato difire",
+                        exactly_2: "Exactamente 2 datos difiren",
+                        at_most_2: "Como máximo 2 datos difiren",
+                        at_least_3: "3 ou máis datos difiren",
+                    },
+                    field: {
+                        MATCHES: "{{field}} coincide",
+                        DIFFERS: "{{field}} difire",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "As inscricións coa identidade escrita á man non se poden aprobar automaticamente.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un votante que xa está inscrito non se pode aprobar de novo.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Non se pode aprobar unha inscrición sen un votante no rexistro.",
+                    OTHERWISE_ACCEPTS:
+                        "A última regra pode enviar inscricións a unha persoa ou rexeitalas, pero non aprobalas.",
+                    MISSING_REASON: "Escolla que se lle di ao votante.",
+                    UNEXPECTED_REASON: "Unha aprobación non ten motivo.",
+                    NO_COMPARED_FIELDS: "Escolla polo menos un dato para comparar co rexistro.",
+                    DUPLICATE_COMPARED_FIELD: "Hai un dato comparado repetido.",
+                    UNKNOWN_FIELD: "Unha regra usa un dato que non se compara.",
+                    NO_CONDITIONS:
+                        "Engada polo menos unha condición. Só a última regra se aplica a todo o demais.",
+                },
+                change: {
+                    added: "Regra {{number}} engadida",
+                    decision: "Regra {{number}}: {{from}} → {{to}}",
+                    edited: "Regra {{number}} modificada",
+                    removed: "Eliminouse unha regra ({{text}})",
+                    moved: "Reordenáronse as regras",
+                    otherwise: "A última regra cambiou",
+                    compared: "Os datos comparados cambiaron",
+                },
+                save: {
+                    button: "Gardar como versión {{version}}",
+                    title: "Gardar como versión {{version}}?",
+                    body: "A partir de agora, as novas inscricións decídense con estas regras. As inscricións xa decididas conservan a súa decisión.",
+                    changes: "Que cambiou",
+                    log: "A nova versión queda anotada na bitácora electoral.",
+                    confirm: "Gardar a versión {{version}}",
+                    success: "Gardada como versión {{version}}",
+                    error: "Non se puido gardar a matriz de aprobación",
+                },
             },
         },
         monitoring: {

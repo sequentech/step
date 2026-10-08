@@ -309,8 +309,8 @@ export const PENDING_APPLICATION_ID = "99999999-9999-4999-8999-999999999901"
 export const REJECTED_APPLICATION_ID = "99999999-9999-4999-8999-999999999902"
 
 export const APPLICANT_ATTRIBUTES = [
-    attribute("first_name", {display_name: "First name"}),
-    attribute("last_name", {display_name: "Last name"}),
+    attribute("firstName", {display_name: "First name"}),
+    attribute("lastName", {display_name: "Last name"}),
     attribute("email", {display_name: "Email"}),
     attribute("dateOfBirth", {display_name: "Birth date", annotations: {inputType: "html5-date"}}),
 ]
@@ -328,7 +328,7 @@ export function application(id: string, status: string, overrides: Record<string
             email: "carol@example.test",
             dateOfBirth: "1990-05-01",
         },
-        annotations: {"search-attributes": "first_name,last_name,email"},
+        annotations: {"search-attributes": "firstName,lastName,email"},
         labels: {},
         verification_type: "MANUAL",
         status,

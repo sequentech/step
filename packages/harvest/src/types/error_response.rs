@@ -51,6 +51,7 @@ pub enum ErrorCode {
     VotingStatusValidation,
     RealmAttributesValidation,
     InvalidVotingChannels,
+    InvalidApprovalMatrix,
     /// The election event is locked down (as the signing rules answer).
     #[strum(serialize = "locked-down")]
     LockedDown,
