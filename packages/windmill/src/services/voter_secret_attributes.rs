@@ -41,7 +41,7 @@ const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-cha
 /// The first and last name are included: they live in Keycloak's top-level
 /// user fields, which every voter-level output copies verbatim. So is
 /// `password`, a column the voters import reads as the voter's password.
-const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 18] = [
+pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 18] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",

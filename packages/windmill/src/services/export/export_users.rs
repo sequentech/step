@@ -14,7 +14,7 @@ use crate::services::import::import_users::{
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
 use crate::services::voter_secret_attributes::{
-    get_secret_attribute_config, VoterSecretAttributeDecryptor,
+    get_secret_attribute_config, VoterSecretAttributeDecryptor, FORBIDDEN_SECRET_ATTRIBUTES,
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -76,19 +76,27 @@ pub enum ExportBody {
 /// The profile attributes export writes in columns of their own, in the
 /// profile's order: those import reads back as the same attribute. Import reads
 /// some columns as something else, such as the voter's password, and ignores
-/// those named like an account field it fills itself or starting with
-/// `election__`. It rejects a file with a column whose name it does not allow,
-/// or that it stores in the same column of its table as an account field or an
-/// earlier attribute.
+/// those it fills itself, such as `tenant-id`, or that start with `election__`.
+/// It rejects a file with a column whose name it does not allow, or that it
+/// stores in the same column of its table as an account field or another
+/// attribute. Of two attributes that share a column, one that other components
+/// read, and so cannot be secret, is exported, and otherwise the first.
 fn exported_attributes(user_attributes: Vec<UserProfileAttribute>) -> Vec<UserProfileAttribute> {
     let mut columns: HashSet<String> = USER_FIELDS
         .into_iter()
         .chain([INTERNAL_USER_ID_COL_NAME])
         .map(temp_table_column)
         .collect();
-    user_attributes
+    let mut attributes = user_attributes.into_iter().enumerate().collect::<Vec<_>>();
+    attributes.sort_by_key(|(_, attr)| {
+        !attr
+            .name
+            .as_deref()
+            .is_some_and(|name| FORBIDDEN_SECRET_ATTRIBUTES.contains(&name))
+    });
+    let mut exported = attributes
         .into_iter()
-        .filter(|attr| {
+        .filter(|(_, attr)| {
             attr.name.as_deref().is_some_and(|name| {
                 !RESERVED_COL_NAMES.contains(&name)
                     && !USER_ENTITY_COLUMNS.contains(&name)
@@ -98,7 +106,9 @@ fn exported_attributes(user_attributes: Vec<UserProfileAttribute>) -> Vec<UserPr
                     && columns.insert(temp_table_column(name))
             })
         })
-        .collect()
+        .collect::<Vec<_>>();
+    exported.sort_by_key(|(index, _)| *index);
+    exported.into_iter().map(|(_, attr)| attr).collect()
 }
 
 /// The columns of a voters CSV: the account's, one per exported attribute, and,
@@ -480,6 +490,9 @@ mod tests {
     use crate::services::import::import_users::{
         get_copy_from_query, imported_fields, imported_value, resolve_authorized_election_ids,
     };
+    use sequent_core::types::keycloak::{
+        TENANT_ID_ATTR_NAME, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
+    };
 
     /// A single-valued profile attribute named `name`.
     fn attribute(name: &str) -> UserProfileAttribute {
@@ -669,9 +682,9 @@ mod tests {
     }
 
     /// Import reads `password` and `group_name` as the voter's password and
-    /// group, fills `email_constraint` and `not_before` itself, and ignores
-    /// columns starting with `election__`, so these attributes would not come
-    /// back.
+    /// group, fills `email_constraint`, `not_before` and `tenant-id` itself, and
+    /// ignores columns starting with `election__`, so these attributes would not
+    /// come back.
     #[test]
     fn attributes_named_like_columns_import_reserves_are_not_exported() {
         let attributes = vec![
@@ -680,6 +693,7 @@ mod tests {
             attribute("election__notes"),
             attribute("email_constraint"),
             attribute("not_before"),
+            attribute(TENANT_ID_ATTR_NAME),
             attribute("mobile-number"),
         ];
         let user = User {
@@ -693,6 +707,10 @@ mod tests {
                     vec!["constraint".to_string()],
                 ),
                 ("not_before".to_string(), vec!["1".to_string()]),
+                (
+                    TENANT_ID_ATTR_NAME.to_string(),
+                    vec!["source-tenant".to_string()],
+                ),
                 ("mobile-number".to_string(), vec!["600000000".to_string()]),
             ])),
             ..Default::default()
@@ -704,6 +722,7 @@ mod tests {
         assert!(!cells.contains_key("election__notes"));
         assert!(!cells.contains_key("email_constraint"));
         assert!(!cells.contains_key("not_before"));
+        assert!(!cells.contains_key(TENANT_ID_ATTR_NAME));
         assert_eq!(cells["mobile-number"], "600000000");
     }
 
@@ -753,6 +772,42 @@ mod tests {
                 ("area-name", "area-name value"),
             ])
         );
+    }
+
+    /// Other components read operational attributes, such as
+    /// `authorized-election-ids`, so one keeps its column over an earlier
+    /// attribute that import stores in the same one. Exporting the earlier one
+    /// instead would import the voter unrestricted.
+    #[test]
+    fn operational_attributes_keep_their_columns() {
+        let attributes = vec![
+            attribute("authorized_election_ids"),
+            attribute(AUTHORIZED_ELECTION_IDS_NAME),
+            attribute("Voted_Channel"),
+            attribute(VOTED_CHANNEL),
+        ];
+        let mut user = voter("current", &[EXTERNAL_ID]);
+        user.attributes.get_or_insert_default().extend([
+            (
+                "authorized_election_ids".to_string(),
+                vec!["custom".to_string()],
+            ),
+            ("Voted_Channel".to_string(), vec!["custom".to_string()]),
+            (
+                VOTED_CHANNEL.to_string(),
+                vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+            ),
+        ]);
+
+        let rows = import(
+            &export(&elections(), &attributes, &[user]),
+            &AuthorizedElectionIds::new(&elections()),
+        );
+
+        assert_eq!(rows[0][AUTHORIZED_ELECTION_IDS_NAME], EXTERNAL_ID);
+        assert_eq!(rows[0][VOTED_CHANNEL], VOTED_CHANNEL_INTERNET_VALUE);
+        assert!(!rows[0].contains_key("authorized_election_ids"));
+        assert!(!rows[0].contains_key("Voted_Channel"));
     }
 
     /// Kept as they are, they could name an election in the election event they
