@@ -121,12 +121,12 @@ def main() -> int:
                 admin.get_by_role("tab", name="Voters", exact=True).click(timeout=90000)
                 rows = admin.locator("table tbody tr")
                 rows.first.wait_for(timeout=90000)
-                file = shot(admin, file)
+                taken = shot(admin, file)
                 if rows.filter(has_text=voter).count() == 0:
                     raise AssertionError(
-                        f"{voter} is not on the first page ({rows.count()} rows, see {file})"
+                        f"{voter} is not on the first page ({rows.count()} rows, see {taken})"
                     )
-                return f"{file} rows={rows.count()}, smoke voter listed"
+                return f"{taken} rows={rows.count()}, smoke voter listed"
 
             return run
 
