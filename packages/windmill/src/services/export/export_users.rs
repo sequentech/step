@@ -465,6 +465,8 @@ mod tests {
     const ELECTION_B: &str = "7a2b3c4d-5e6f-4a7b-9c8d-1e2f3a4b5c6d";
     const ELECTION_C: &str = "8b3c4d5e-6f7a-4b8c-ad9e-2f3a4b5c6d7e";
     const ELECTION_D: &str = "9c4d5e6f-7a8b-4c9d-be0f-3a4b5c6d7e8f";
+    const EXTERNAL_ID: &str = "GIAMBI30-3-31";
+    const OTHER_EXTERNAL_ID: &str = "GTELEC31+GCIBER30-1-01";
 
     fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
         ElectionHead {
@@ -479,8 +481,8 @@ mod tests {
 
     fn elections() -> Vec<ElectionHead> {
         vec![
-            election(ELECTION_A, Some("GTELEC31+GCIBER30-1-01")),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(OTHER_EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
             election(ELECTION_C, None),
             election(ELECTION_D, Some("")),
         ]
@@ -498,8 +500,8 @@ mod tests {
         assert_eq!(
             election_headers,
             vec![
-                "election__GTELEC31+GCIBER30-1-01".to_string(),
-                "election__GIAMBI30-3-31".to_string(),
+                format!("election__{OTHER_EXTERNAL_ID}"),
+                format!("election__{EXTERNAL_ID}"),
                 format!("election__{ELECTION_C}"),
                 format!("election__{ELECTION_D}"),
             ]
@@ -578,18 +580,18 @@ mod tests {
                 &elections(),
                 &voter("legacy", &[ELECTION_A, ELECTION_C, ELECTION_D])
             ),
-            format!("GTELEC31+GCIBER30-1-01|{ELECTION_C}|{ELECTION_D}")
+            format!("{OTHER_EXTERNAL_ID}|{ELECTION_C}|{ELECTION_D}")
         );
         assert_eq!(
-            exported_authorized_election_ids(&elections(), &voter("current", &["GIAMBI30-3-31"])),
-            "GIAMBI30-3-31"
+            exported_authorized_election_ids(&elections(), &voter("current", &[EXTERNAL_ID])),
+            EXTERNAL_ID
         );
         assert_eq!(
             exported_authorized_election_ids(
                 &elections(),
-                &voter("both", &[ELECTION_B, "GIAMBI30-3-31"])
+                &voter("both", &[ELECTION_B, EXTERNAL_ID])
             ),
-            "GIAMBI30-3-31"
+            EXTERNAL_ID
         );
         assert_eq!(
             exported_authorized_election_ids(&elections(), &voter("unrestricted", &[])),
@@ -605,34 +607,33 @@ mod tests {
     #[test]
     fn authorized_elections_naming_no_single_election_are_quoted() {
         let exporting_elections = [
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
         ];
         let importing_elections = [
             AuthorizedElectionIds::new(&exporting_elections),
             AuthorizedElectionIds::new(&elections()),
             AuthorizedElectionIds::new(&[
                 election(ELECTION_A, Some("\"\"")),
-                election(ELECTION_B, Some("\" GIAMBI30-3-31 \"")),
-                election(ELECTION_C, Some("\"GIAMBI30-3-31")),
-                election(ELECTION_D, Some("GTELEC31+GCIBER30-1-01\"")),
+                election(ELECTION_B, Some(&format!("\" {EXTERNAL_ID} \""))),
+                election(ELECTION_C, Some(&format!("\"{EXTERNAL_ID}"))),
+                election(ELECTION_D, Some(&format!("{OTHER_EXTERNAL_ID}\""))),
             ]),
         ];
-        for (stored, exported) in [
-            ("GIAMBI30-3-31", r#""GIAMBI30-3-31""#),
-            ("GTELEC31+GCIBER30-1-01", r#""GTELEC31+GCIBER30-1-01""#),
-            ("", r#""""#),
-            (" GIAMBI30-3-31 ", r#"" GIAMBI30-3-31 ""#),
-            ("=1+1", r#""=1+1""#),
-            (
-                "GIAMBI30-3-31|GTELEC31+GCIBER30-1-01",
-                r#""GIAMBI30-3-31|GTELEC31+GCIBER30-1-01""#,
-            ),
+        for stored in [
+            EXTERNAL_ID.to_string(),
+            OTHER_EXTERNAL_ID.to_string(),
+            String::new(),
+            format!(" {EXTERNAL_ID} "),
+            "=1+1".to_string(),
+            format!("{EXTERNAL_ID}|{OTHER_EXTERNAL_ID}"),
         ] {
-            let cell =
-                exported_authorized_election_ids(&exporting_elections, &voter("stale", &[stored]));
+            let cell = exported_authorized_election_ids(
+                &exporting_elections,
+                &voter("stale", &[stored.as_str()]),
+            );
 
-            assert_eq!(cell, exported);
+            assert_eq!(cell, format!("\"{stored}\""));
             for elections in &importing_elections {
                 assert!(
                     resolve_authorized_election_ids(&cell, 2, elections).is_err(),
@@ -718,7 +719,7 @@ mod tests {
         ];
         let voters = vec![
             voter("legacy", &[ELECTION_A, ELECTION_C]),
-            voter("current", &["GIAMBI30-3-31", "GTELEC31+GCIBER30-1-01"]),
+            voter("current", &[EXTERNAL_ID, OTHER_EXTERNAL_ID]),
             voter("unrestricted", &[]),
         ];
 
@@ -737,11 +738,8 @@ mod tests {
         assert_eq!(
             stored,
             vec![
-                ("legacy", format!("GTELEC31+GCIBER30-1-01|{ELECTION_C}")),
-                (
-                    "current",
-                    "GIAMBI30-3-31|GTELEC31+GCIBER30-1-01".to_string()
-                ),
+                ("legacy", format!("{OTHER_EXTERNAL_ID}|{ELECTION_C}")),
+                ("current", format!("{EXTERNAL_ID}|{OTHER_EXTERNAL_ID}")),
                 ("unrestricted", String::new()),
             ]
         );
@@ -752,14 +750,15 @@ mod tests {
     /// unrestricted.
     #[test]
     fn elections_without_a_usable_external_id_round_trip_by_id() {
+        let two_values = format!("{OTHER_EXTERNAL_ID}|{EXTERNAL_ID}");
         let elections = vec![
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
             election(ELECTION_C, Some(" ")),
-            election(ELECTION_D, Some("GTELEC31|GCIBER30")),
+            election(ELECTION_D, Some(&two_values)),
         ];
         let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
-        let voters = [voter("voter", &[ELECTION_A, " ", "GTELEC31|GCIBER30"])];
+        let voters = [voter("voter", &[ELECTION_A, " ", &two_values])];
 
         let csv = export(&elections, &attributes, &voters);
 
@@ -781,7 +780,7 @@ mod tests {
             "id,email,email_verified,enabled,first_name,last_name,username,area_name,\
              {AUTHORIZED_ELECTION_IDS_NAME},election__-,election__-\n\
              1,,true,true,,,legacy,EHU,{exported_a}|{exported_c},,\n\
-             2,,true,true,,,current,EHU,GIAMBI30-3-31,2025-05-01T10:00:00Z,\n\
+             2,,true,true,,,current,EHU,{EXTERNAL_ID},2025-05-01T10:00:00Z,\n\
              3,,true,true,,,unrestricted,EHU,,,\n"
         );
         let replaced_ids = HashMap::from([
@@ -798,8 +797,8 @@ mod tests {
         assert_eq!(
             stored,
             vec![
-                format!("GTELEC31+GCIBER30-1-01|{ELECTION_C}"),
-                "GIAMBI30-3-31".to_string(),
+                format!("{OTHER_EXTERNAL_ID}|{ELECTION_C}"),
+                EXTERNAL_ID.to_string(),
                 String::new(),
             ]
         );
