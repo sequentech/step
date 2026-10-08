@@ -530,7 +530,7 @@ pub fn replace_ids(
     // - Preserving UUIDs in Keycloak authenticator configurations
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
-    let (new_data, replacement_map) = replace_realm_ids(
+    let (new_data, mut replacement_map) = replace_realm_ids(
         data_str,
         vec![], // Empty keep list - replace_realm_ids will populate it automatically
         tenant_id_replacement,
@@ -539,6 +539,17 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+
+    // Explicit realm replacements are applied to the JSON but omitted from its
+    // map. Voters may name an election by an external ID that was one of them.
+    replacement_map.insert(
+        original_data.tenant_id.to_string(),
+        data.tenant_id.to_string(),
+    );
+    replacement_map.insert(
+        original_data.election_event.id.clone(),
+        data.election_event.id.clone(),
+    );
 
     // Return both the modified schema and the UUID replacement mapping
     Ok((data, replacement_map))
@@ -935,7 +946,10 @@ pub async fn process_election_event_file(
     Ok((data, replacement_map))
 }
 
-#[instrument(err, skip(hasura_transaction, temp_file))]
+/// Imports the voters file of an election event export. `replacement_map` maps
+/// the exported event's IDs to the imported ones, so that voters keep the
+/// elections their `authorized-election-ids` name.
+#[instrument(err, skip(hasura_transaction, temp_file, replacement_map))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -945,6 +959,7 @@ async fn process_voters_file(
     is_admin: bool,
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
+    replacement_map: &HashMap<String, String>,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -961,6 +976,7 @@ async fn process_voters_file(
         is_admin,
         may_write_secret_attributes,
         secret_write_initiator,
+        Some(replacement_map),
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1294,6 +1310,9 @@ pub async fn get_zip_entries(
     Ok((zip_entries, election_event_schema))
 }
 
+/// Imports the election event export that `object` names as
+/// `election_event_id`, and then the voters, activity logs, reports and files
+/// it carries.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
@@ -1409,6 +1428,7 @@ pub async fn process_document(
                     false,
                     may_write_secret_attributes,
                     secret_write_initiator.as_ref(),
+                    &replacement_map,
                 )
                 .await
                 .context("Failed to import voters")?;
@@ -1794,6 +1814,8 @@ pub async fn maybe_create_scheduled_event(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::authorized_elections::AuthorizedElectionIds;
+    use crate::services::election::ElectionHead;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
@@ -1914,6 +1936,59 @@ mod tests {
                 .expect("a bundle with no fatal problems should get past validation");
 
         assert!(!ids.is_empty());
+    }
+
+    /// Import replaces the exported tenant and event IDs wherever they appear,
+    /// so an election whose external ID was one of them gets the new one, and
+    /// voters exported with the old one must still name that election.
+    #[test]
+    fn voters_name_an_election_whose_external_id_was_a_replaced_id() {
+        const NEW_TENANT: &str = "a0000000-0000-5000-8000-000000000000";
+        const NEW_EVENT: &str = "e0000000-0000-5000-8000-000000000001";
+        let election = |id: &str, external_id: &str| {
+            serde_json::json!({
+                "id": id,
+                "tenant_id": TENANT,
+                "election_event_id": EVENT,
+                "external_id": external_id
+            })
+        };
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["elections"] = serde_json::json!([
+            election("e1000000-0000-5000-8000-000000000000", EVENT),
+            election("e2000000-0000-5000-8000-000000000000", TENANT),
+        ]);
+        bundle["contests"] = serde_json::json!([]);
+        let bundle = bundle.to_string();
+        let original: ImportElectionEventSchema =
+            deserialize_str(&bundle).expect("the bundle parses");
+
+        let (imported, replaced_ids) = replace_ids(
+            &bundle,
+            &original,
+            Some(NEW_EVENT.to_string()),
+            NEW_TENANT.to_string(),
+        )
+        .expect("the IDs are replaced");
+
+        let elections: Vec<ElectionHead> = imported
+            .elections
+            .into_iter()
+            .map(|election| ElectionHead {
+                id: election.id,
+                name: "-".to_string(),
+                alias: None,
+                external_id: election.external_id,
+            })
+            .collect();
+        let authorized_elections =
+            AuthorizedElectionIds::new(&elections).with_replaced_ids(&replaced_ids);
+        assert_eq!(authorized_elections.resolve_imported(EVENT), Ok(NEW_EVENT));
+        assert_eq!(
+            authorized_elections.resolve_imported(TENANT),
+            Ok(NEW_TENANT)
+        );
     }
 
     fn problem_id(error: &anyhow::Error) -> Option<String> {
