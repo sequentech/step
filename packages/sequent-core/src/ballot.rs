@@ -338,8 +338,13 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     })
 }
 
-// Returns Some(StrandSignature) if the signature was verified or None if there
-// was no signature to verify.
+/// Error for a ballot that carries only one of the voter signature and its
+/// public key.
+pub const INCOMPLETE_BALLOT_SIGNATURE_ERROR: &str =
+    "Incomplete ballot signature: public key and signature must both be present";
+
+// Returns Some(StrandSignature) if the signature was verified or None if both
+// signature fields were absent. A partial pair is malformed, not unsigned.
 pub fn verify_ballot_signature(
     ballot_id: &str,
     election_id: &str,
@@ -351,8 +356,12 @@ pub fn verify_ballot_signature(
             signed_hashable_ballot.voter_signing_pk.clone(),
         ) {
             (voter_ballot_signature, voter_signing_pk)
-        } else {
+        } else if signed_hashable_ballot.voter_ballot_signature.is_none()
+            && signed_hashable_ballot.voter_signing_pk.is_none()
+        {
             return Ok(None);
+        } else {
+            return Err(INCOMPLETE_BALLOT_SIGNATURE_ERROR.into());
         };
 
     let voter_signing_pk = StrandSignaturePk::from_der_b64_string(
@@ -2641,7 +2650,7 @@ impl ElectionStatus {
         new_status: VotingStatus,
     ) {
         let should_close_early_voting = channel == VotingStatusChannel::ONLINE
-            && (new_status.is_open() || new_status.is_closed());
+            && matches!(new_status, VotingStatus::OPEN | VotingStatus::CLOSED);
 
         if should_close_early_voting
             && self

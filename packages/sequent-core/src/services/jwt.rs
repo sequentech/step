@@ -125,7 +125,7 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
     let auth_time_local: DateTime<Local> =
         if let Some(auth_time_int) = claims.auth_time {
             if let Ok(auth_time_parsed) =
-                ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int * 1000)
+                ISO8601::timestamp_secs_utc_to_date_opt(auth_time_int)
             {
                 auth_time_parsed
             } else {
@@ -135,7 +135,7 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
         } else {
             info!("fallback to iat, claims.auth_time is None");
             if let Ok(iat_parsed) =
-                ISO8601::timestamp_ms_utc_to_date_opt(claims.iat * 1000)
+                ISO8601::timestamp_secs_utc_to_date_opt(claims.iat)
             {
                 iat_parsed
             } else {
