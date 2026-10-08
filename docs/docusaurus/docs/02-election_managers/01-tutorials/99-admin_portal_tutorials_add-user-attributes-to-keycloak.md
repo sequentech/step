@@ -216,6 +216,9 @@ cannot:
 - `vote-weight`, `delegate-vote-to`, `voted-channel`, `support-materials-acknowledged`, and
   `disable-comment`
 - `embassy`, `sequent.read-only.id-card-number-validated`, and `sequent.read-only.mobile-number`
+- any other column that the voters import reads as an account field, a credential, or the voter's
+  group or area, such as `email_verified`, `enabled`, `group_name`, `area_name`, or
+  `hashed_password`
 
 Step reads the secret-attribute configuration through a short cache, so a change to the
 annotation can take up to 30 seconds to be reflected in the voter list and editor. If the

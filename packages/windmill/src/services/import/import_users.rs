@@ -149,6 +149,15 @@ pub(crate) fn is_election_column(header: &str) -> bool {
     header.starts_with(ELECTION_COL_PREFIX)
 }
 
+/// Whether import reads a column named `name` as an account field, a
+/// credential, the voter's group or area, or fills it itself, rather than as
+/// the voter attribute of that name.
+pub(crate) fn is_reserved_column(name: &str) -> bool {
+    name == AREA_NAME_COL_NAME
+        || RESERVED_COL_NAMES.contains(&name)
+        || USER_ENTITY_COLUMNS.contains(&name)
+}
+
 /// The fields of `record` in the columns that are imported.
 pub(crate) fn imported_fields(record: &StringRecord, imported_columns: &[bool]) -> StringRecord {
     record
