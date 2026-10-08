@@ -49,9 +49,15 @@ event.
 
 Column names may only contain letters, digits, `.`, `_` and `-`, and two names that differ only in
 case or in those three characters are rejected as duplicates. Export writes a column for each voter
-attribute, except those that import would not read back: an attribute named like a column with
-another meaning, such as `password` or `group_name`, would set the voter's password or group, and
-one whose name starts with `election__` would be ignored.
+attribute, except those that import would not read back:
+
+- One named like a column with another meaning, such as `password` or `group_name`, which would set
+  the voter's password or group.
+- One named like an account field that import fills itself, such as `not_before`, or starting with
+  `election__`, which import ignores.
+- One that import would reject the file over: an attribute whose name has other characters, is a
+  misspelling of `vote-weight`, or differs only in case or in `.`, `_` and `-` from the name of an
+  account column or of an earlier attribute.
 
 Spreadsheets run a cell that starts with `=`, `+`, `-`, `@` or their full-width forms, a tab or a
 line break as a formula. Export writes a `'` before such a value, so that they show it as text, and
