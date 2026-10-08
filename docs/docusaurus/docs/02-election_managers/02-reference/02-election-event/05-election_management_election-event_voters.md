@@ -48,20 +48,21 @@ event.
 | `vote-weight`, `delegate-vote-to` | See the weighted and delegated voting policies under **Data > Advanced Configuration**. |
 | Any other column | Stored as the voter attribute of the same name, unless the name starts with `election__`: export adds those columns, one per election, and import ignores them. |
 
-Column names may only contain letters, digits, `.`, `_` and `-`. Import reads `area_name` as the
-voter's `area-id`, and any other name in lower case and with `.` and `-` as `_`, and rejects two
-columns that it reads as the same one, such as `Email` and `email`, `mobile.number` and
-`mobile_number`, or `area_name` and `area-id`. Export writes a column for each voter attribute,
-except those that import would not read back:
+Column names may only contain letters, digits, `.`, `_` and `-`. Import keeps an attribute's name
+as it is in the column, such as `Mobile-Number`, but rejects two columns whose names are the same in
+lower case and with `.` and `-` as `_`, such as `Email` and `email` or `mobile.number` and
+`mobile_number`. It reads `area_name` as `area-id` for this too, so it rejects the two together, but
+accepts `area_name` with `area-name`. Export writes a column for each voter attribute, except those
+that import would not read back:
 
 - One named like a column with another meaning, such as `password` or `group_name`, which would set
   the voter's password or group.
 - One that import fills itself, such as `tenant-id` or the account field `not_before`, or whose name
   starts with `election__`, which import ignores.
 - One that import would reject the file over: an attribute whose name has other characters, is a
-  misspelling of `vote-weight`, or that import reads as the same column as an account field or
-  another attribute. Of two such attributes, export writes the one that other components read, such
-  as `authorized-election-ids`, and otherwise the first.
+  misspelling of `vote-weight`, or is the same as an account field's or another attribute's in that
+  form. Of two such attributes, export writes the one that other components read, such as
+  `authorized-election-ids`, and otherwise the first.
 
 Spreadsheets run a cell that starts with `=`, `+`, `-`, `@` or their full-width forms, a tab or a
 line break as a formula. Export writes a `'` before such a value, so that they show it as text, and
