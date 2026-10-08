@@ -1091,6 +1091,8 @@ mod tests {
     const EXTERNAL_ID: &str = "GIAMBI30-3-31";
     const OTHER_EXTERNAL_ID: &str = "GTELEC31+GCIBER30-1-01";
 
+    /// An election with what resolving values reads from it: its ID and
+    /// external ID.
     fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
         ElectionHead {
             id: id.to_string(),
@@ -1100,6 +1102,7 @@ mod tests {
         }
     }
 
+    /// Resolves values among two elections with external IDs and one without.
     fn authorized_elections() -> AuthorizedElectionIds {
         AuthorizedElectionIds::new(&[
             election(ELECTION_A, Some(OTHER_EXTERNAL_ID)),
@@ -1150,6 +1153,8 @@ mod tests {
         assert_eq!(imported_value(PASSWORD_COL_NAME, "'=1+1"), "'=1+1");
     }
 
+    /// Values are trimmed, and an election named by its ID is stored by its
+    /// external ID.
     #[test]
     fn authorized_elections_are_stored_by_external_id_or_id_without_one() {
         let stored = resolve_authorized_election_ids(
@@ -1165,6 +1170,7 @@ mod tests {
         );
     }
 
+    /// Once by its external ID and once by its ID.
     #[test]
     fn an_election_named_twice_is_stored_once() {
         let stored = resolve_authorized_election_ids(
@@ -1190,6 +1196,8 @@ mod tests {
         }
     }
 
+    /// A value that differs only in case, an empty one and an unknown ID. The
+    /// message quotes the value, so that an empty one shows.
     #[test]
     fn authorized_elections_matching_no_election_are_rejected_naming_row_and_value() {
         let lowercase = EXTERNAL_ID.to_lowercase();

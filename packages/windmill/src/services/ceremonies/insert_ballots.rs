@@ -61,6 +61,9 @@ use deadpool_postgres::Client as DbClient;
 
 use std::sync::Arc; // Add this import
 
+/// Posts to the board, for the trustees to mix, the ballots of each tally
+/// session contest cast by voters in its census: the enabled voters of its area
+/// who may vote in its election.
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,

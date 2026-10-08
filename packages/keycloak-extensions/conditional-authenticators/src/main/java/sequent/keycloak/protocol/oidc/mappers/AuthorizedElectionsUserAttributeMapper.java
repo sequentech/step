@@ -134,6 +134,11 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     return "Map a custom user multivalue attribute used to identify the voters authorized elections to a token claim, compatible with hasura.";
   }
 
+  /**
+   * Puts in the token the IDs of the elections the user may vote in, which their authorized
+   * elections name, or else those of their area, or else all of the election event's, and the
+   * election event's ID among the Hasura claims.
+   */
   protected void setClaim(
       IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession) {
 
@@ -376,6 +381,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
   private final Cache<String, Map<String, List<String>>> areaElectionsCache =
       CacheBuilder.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).build();
 
+  /** The election event's elections, read from Hasura and cached for five minutes. */
   public Elections getAllElectionsFromElectionEvent(String electionEventId, String tenantId)
       throws IOException, InterruptedException {
 

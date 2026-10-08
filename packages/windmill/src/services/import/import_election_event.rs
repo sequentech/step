@@ -935,6 +935,9 @@ pub async fn process_election_event_file(
     Ok((data, replacement_map))
 }
 
+/// Imports the voters file of an election event export. `replacement_map` maps
+/// the exported event's IDs to the imported ones, so that voters keep the
+/// elections their `authorized-election-ids` name.
 #[instrument(err, skip(hasura_transaction, temp_file, replacement_map))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
@@ -1296,6 +1299,9 @@ pub async fn get_zip_entries(
     Ok((zip_entries, election_event_schema))
 }
 
+/// Imports the election event export that `object` names as
+/// `election_event_id`, and then the voters, activity logs, reports and files
+/// it carries.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
