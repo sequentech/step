@@ -123,7 +123,9 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()
         expect(tabLabels(canvasElement)).toEqual([
-            ...labels("dashboard", "data", "localization", "voters", "areas", "keys"),
+            ...labels("dashboard", "data", "localization", "voters"),
+            i18n.t("messagingEvent.tab"),
+            ...labels("areas", "keys"),
             signatures(),
             ...labels(
                 "tally",
