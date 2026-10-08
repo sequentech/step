@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Set up the local PDF test browser
+description: Install a pinned Chrome headless shell that supports the PDF runtime process flags
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgbm1 libnss3 libatk-bridge2.0-0 libxkbcommon0 libasound2t64 unzip
+        browser_dir="$RUNNER_TEMP/pdf-test-browser"
+        mkdir -p "$browser_dir/bin"
+        curl --fail --location --silent --show-error --output "$browser_dir/browser.zip" \
+          https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.36/linux64/chrome-headless-shell-linux64.zip
+        echo "a0079df5617da34bcd1debad18196568b072ec3d8ec57944008972a4fc970580  $browser_dir/browser.zip" | sha256sum --check
+        unzip -q "$browser_dir/browser.zip" -d "$browser_dir"
+        browser="$browser_dir/chrome-headless-shell-linux64/chrome-headless-shell"
+        "$browser" --version
+        echo "CHROME=$browser" >> "$GITHUB_ENV"
+        # Older stacked bases use this name in their browser startup control.
+        ln -s "$browser" "$browser_dir/bin/google-chrome-stable"
+        echo "$browser_dir/bin" >> "$GITHUB_PATH"
