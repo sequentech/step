@@ -125,7 +125,8 @@ pub(crate) fn resolve_authorized_election_ids(
 /// Exports add a column per election saying when each voter last voted in it.
 /// Nothing is imported from them, so they are dropped before the headers are
 /// checked: they are named after the elections' external IDs, which may hold
-/// characters a header may not, and repeat when two elections share one.
+/// characters a header may not, and older exports named them after display
+/// names, which repeat.
 pub(crate) fn is_election_column(header: &str) -> bool {
     header.starts_with(ELECTION_COL_PREFIX)
 }
