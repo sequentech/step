@@ -55,10 +55,13 @@ external ID. An election's ID is also accepted when it has an external ID, and t
 stored instead. An election is named and stored by its ID when another election shares its external
 ID, or when the external ID starts or ends with a space, contains `|` or starts with `"`. It is also
 stored by its ID when its external ID is longer than 255 characters, the most a voter attribute
-holds, or starts with `=`, `+`, `-` or `@`, which spreadsheets read as a formula. A blank cell
-leaves the voter unrestricted: they can vote in the elections of their area. A value that names no
-election in the election event, or more than one, or that starts with `"`, is rejected, with its row
-and the value, and nothing is imported.
+holds, or starts with `=`, `+`, `-` or `@`, which spreadsheets read as a formula. If an election's
+ID is another election's external ID, that value names the other election, as in the token mapper,
+so the first one can only be named and stored by its own external ID, and not at all if it has none
+or if it would be stored by its ID. A blank cell leaves the voter unrestricted: they can vote in the
+elections of their area. A value that names no election in the election event, or more than one, or
+an election that cannot be stored, or that starts with `"`, is rejected, with its row and the value,
+and nothing is imported.
 
 Export writes `authorized-election-ids` the same way, and adds one column per election, named
 `election__` followed by the value that names the election, holding when the voter last voted in it.
