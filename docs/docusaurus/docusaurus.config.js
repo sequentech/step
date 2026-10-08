@@ -14,6 +14,8 @@ const config = {
 
   customFields: {
     docsVersion: docsVersion.name,
+    docsSites: docsVersion.sites,
+    manualHome: docsVersion.manualHome,
   },
 
   onBrokenLinks: 'throw',
@@ -22,7 +24,8 @@ const config = {
   // The site language selector. Untranslated pages fall back to the English source.
   i18n: {
     defaultLocale: 'en',
-    locales: ['en', 'es'],
+    // DOCS_LOCALES=en builds only English (PR previews).
+    locales: (process.env.DOCS_LOCALES || 'en,es').split(','),
     localeConfigs: {
       en: {label: 'English', htmlLang: 'en'},
       es: {label: 'Español', htmlLang: 'es'},
@@ -71,11 +74,10 @@ const config = {
             label: 'Docs',
           },
           {
-            // Each release branch publishes its own site; this menu links them.
-            type: 'dropdown',
-            label: docsVersion.label,
+            // Each branch publishes its own site; this menu links them
+            // (src/components/VersionSitesNavbarItem).
+            type: 'custom-versionSites',
             position: 'right',
-            items: docsVersion.sites.map(({label, url}) => ({label, href: url})),
           },
           {
             type: 'localeDropdown',

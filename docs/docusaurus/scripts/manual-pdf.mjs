@@ -27,10 +27,12 @@ const siteDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const buildDir = path.join(siteDir, 'build');
 const baseUrl = withSlashes(process.env.BASE_URL || '/step/');
 const publicOrigin = process.env.PUBLIC_ORIGIN || 'https://docs.sequentech.io';
-const {versionName} = createRequire(import.meta.url)('../docs-version.js');
+const {versionName, versionLabel, manualHome} = createRequire(import.meta.url)(
+  '../docs-version.js',
+);
 const version = versionName(process.env.BASE_URL);
-// The manual is the Election Managers section of the docs.
-const manualPath = 'docs/election_managers';
+// The manual is the docs section of its home page.
+const manualPath = manualHome.slice(0, manualHome.lastIndexOf('/'));
 const defaultLocale = 'en';
 const locales = ['en', 'es'];
 const titles = {
@@ -41,6 +43,8 @@ const titles = {
     generated: 'Generated',
     page: 'Page',
     of: 'of',
+    video: 'This page has a video in the online documentation.',
+    watch: 'Watch the video',
   },
   es: {
     title: 'Manual del administrador electoral',
@@ -49,6 +53,8 @@ const titles = {
     generated: 'Generado',
     page: 'Página',
     of: 'de',
+    video: 'Esta página tiene un vídeo en la documentación en línea.',
+    watch: 'Ver el vídeo',
   },
 };
 
@@ -92,7 +98,13 @@ const mimeTypes = {
 // extensionless URLs that `trailingSlash: false` produces.
 function serve() {
   const server = http.createServer((req, res) => {
-    const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    let url;
+    try {
+      url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    } catch {
+      res.writeHead(400).end();
+      return;
+    }
     if (!url.startsWith(baseUrl)) {
       res.writeHead(404).end();
       return;
@@ -120,7 +132,13 @@ function serve() {
 }
 
 async function loadPage(page, url) {
-  await page.goto(url, {waitUntil: 'networkidle0'});
+  // A slow page load in CI should not fail the whole PDF: try once more.
+  try {
+    await page.goto(url, {waitUntil: 'networkidle0', timeout: 60000});
+  } catch (err) {
+    console.warn(`  Retrying ${url}: ${err.message}`);
+    await page.goto(url, {waitUntil: 'networkidle0', timeout: 60000});
+  }
   // Load lazy images and let Mermaid finish rendering its diagrams.
   await page.evaluate(async () => {
     document.documentElement.setAttribute('data-theme', 'light');
@@ -142,39 +160,94 @@ async function loadPage(page, url) {
     .catch(() => console.warn(`  Mermaid did not finish on ${url}`));
 }
 
-// Visit the manual in sidebar order and keep each page's article.
-async function collect(page, startUrl, sectionPath) {
+// Expand every category of the section in the sidebar, then read the sidebar
+// tree: [{label, path (or null for a category without a page), children}].
+async function readSidebar(page, origin, rootPath) {
+  await loadPage(page, origin + rootPath);
+  const findRoot = `(() => {
+    const norm = (h) => new URL(h, location.href).pathname.replace(/\\/$/, '');
+    const link = [...document.querySelectorAll('.theme-doc-sidebar-menu a.menu__link')]
+      .find((a) => norm(a.getAttribute('href') || '#') === ${JSON.stringify(rootPath)});
+    return link && link.closest('li');
+  })()`;
+  for (let i = 0; i < 100; i++) {
+    const clicked = await page.evaluate(`(() => {
+      const root = ${findRoot};
+      const li = root && root.querySelector('li.theme-doc-sidebar-item-category.menu__list-item--collapsed');
+      if (!li) return false;
+      const toggle =
+        li.querySelector(':scope > .menu__list-item-collapsible > button.menu__caret') ||
+        li.querySelector(':scope > .menu__list-item-collapsible > a.menu__link');
+      toggle.click();
+      return true;
+    })()`);
+    if (!clicked) break;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  const tree = await page.evaluate(`(() => {
+    const norm = (h) => new URL(h, location.href).pathname.replace(/\\/$/, '');
+    const parse = (ul) =>
+      ul ? [...ul.children].map((li) => {
+        const a = li.querySelector(':scope > .menu__list-item-collapsible > a, :scope > a');
+        const isCategory = li.classList.contains('theme-doc-sidebar-item-category');
+        const hasPage = a && !a.classList.contains('menu__link--sublist-caret') &&
+          (a.getAttribute('href') || '#') !== '#';
+        return {
+          label: a ? a.textContent.trim() : '',
+          path: hasPage ? norm(a.getAttribute('href')) : null,
+          children: isCategory ? parse(li.querySelector(':scope > ul')) : [],
+        };
+      }) : [];
+    const root = ${findRoot};
+    if (!root) return null;
+    const a = root.querySelector(':scope > .menu__list-item-collapsible > a');
+    return [
+      {label: a.textContent.trim(), path: norm(a.getAttribute('href')), children: []},
+      ...parse(root.querySelector(':scope > ul')),
+    ];
+  })()`);
+  if (!tree) throw new Error(`No sidebar section for ${rootPath}`);
+  return tree;
+}
+
+// Visit each page of the tree in sidebar order and keep its article.
+async function collect(page, origin, tree) {
   const pages = [];
   const seen = new Set();
-  let url = startUrl;
-  while (url && !seen.has(url) && new URL(url).pathname.startsWith(sectionPath)) {
-    seen.add(url);
-    await loadPage(page, url);
-    const data = await page.evaluate(() => {
-      const article = document.querySelector('article');
-      const next = document.querySelector('a.pagination-nav__link--next');
-      return {
-        path: location.pathname.replace(/\/$/, ''),
-        title: article?.querySelector('h1')?.textContent?.trim() || document.title,
-        html: article ? article.innerHTML : '',
-        next: next ? next.href : null,
-      };
-    });
-    if (!data.html) throw new Error(`No article on ${url}`);
-    pages.push(data);
-    url = data.next;
-  }
+  const walk = async (nodes) => {
+    for (const node of nodes) {
+      if (node.path && !seen.has(node.path)) {
+        seen.add(node.path);
+        await loadPage(page, origin + node.path);
+        const {html, generated} = await page.evaluate(() => ({
+          html: document.querySelector('article')?.innerHTML || '',
+          // Doc pages have Markdown content; a category's generated index
+          // page has only cards.
+          generated: !document.querySelector('.theme-doc-markdown'),
+        }));
+        if (generated) {
+          // A category overview of cards: print a heading page instead.
+          node.path = null;
+        } else {
+          if (!html) throw new Error(`No article on ${node.path}`);
+          pages.push({path: node.path, html});
+        }
+      }
+      await walk(node.children);
+    }
+  };
+  await walk(tree);
   return pages;
 }
 
 async function printManual(browser, origin, locale) {
   const localePrefix = locale === defaultLocale ? '' : `${locale}/`;
-  const sectionPath = `${baseUrl}${localePrefix}${manualPath}`;
   const page = await browser.newPage();
   await page.emulateMediaFeatures([{name: 'prefers-color-scheme', value: 'light'}]);
-  const pages = await collect(page, `${origin}${sectionPath}/election_management`, sectionPath);
+  const tree = await readSidebar(page, origin, `${baseUrl}${localePrefix}${manualHome}`);
+  const pages = await collect(page, origin, tree);
   const t = titles[locale] || titles[defaultLocale];
-  const label = version === 'main' ? 'Next' : version;
+  const label = versionLabel(version);
   let commit = '';
   try {
     commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {cwd: siteDir})
@@ -185,8 +258,19 @@ async function printManual(browser, origin, locale) {
   // Rebuild the last visited page as the print document so the site's
   // stylesheets stay loaded.
   await page.evaluate(
-    ({pages, t, label, locale, commit, publicOrigin, baseUrl}) => {
+    ({tree, pages, t, label, locale, commit, publicOrigin, baseUrl}) => {
       const index = new Map(pages.map((p, i) => [p.path, i]));
+      const html = new Map(pages.map((p) => [p.path, p.html]));
+      // The contents follow the sidebar: one numbered list item for each
+      // page or category, nested as in the sidebar.
+      let parts = 0;
+      const setAnchors = (nodes) => nodes.forEach((n) => {
+        n.anchor = n.path ? `p${index.get(n.path)}` : `part${parts++}`;
+        setAnchors(n.children);
+      });
+      setAnchors(tree);
+      const toc = (nodes) =>
+        `<ol>${nodes.map((n) => `<li><a href="#${n.anchor}">${n.label}</a>${n.children.length ? toc(n.children) : ''}</li>`).join('')}</ol>`;
       const body = document.createElement('div');
       body.className = 'manual-print';
       const today = new Date().toISOString().slice(0, 10);
@@ -199,15 +283,46 @@ async function printManual(browser, origin, locale) {
         </section>
         <section class="manual-print__toc">
           <h1>${t.contents}</h1>
-          <ol>${pages.map((p, i) => `<li><a href="#p${i}">${p.title}</a></li>`).join('')}</ol>
+          ${toc(tree)}
         </section>`;
-      pages.forEach((p, i) => {
+      const printed = new Set();
+      // Move the headings of a page down by its depth in the sidebar, so the
+      // bookmarks of the PDF have the structure of the sidebar. data-level
+      // keeps the original size on paper.
+      const shiftHeadings = (section, depth) => {
+        if (!depth) return;
+        for (const h of section.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+          const level = Number(h.tagName[1]);
+          const moved = document.createElement(`h${Math.min(6, level + depth)}`);
+          for (const attr of h.attributes) moved.setAttribute(attr.name, attr.value);
+          moved.dataset.level = level;
+          moved.innerHTML = h.innerHTML;
+          h.replaceWith(moved);
+        }
+      };
+      const emit = (nodes, depth) => nodes.forEach((n) => {
+        if (n.path && !printed.has(n.path)) {
+          printed.add(n.path);
+          emitPage({path: n.path, html: html.get(n.path)}, index.get(n.path), depth);
+        } else if (!n.path) {
+          const part = document.createElement('section');
+          part.className = 'manual-print__part';
+          part.id = n.anchor;
+          part.innerHTML = `<h1>${n.label}</h1>`;
+          shiftHeadings(part, depth);
+          body.appendChild(part);
+        }
+        emit(n.children, depth + 1);
+      });
+      const emitPage = (p, i, depth) => {
         const section = document.createElement('section');
         section.className = 'manual-print__page markdown';
         section.id = `p${i}`;
         section.innerHTML = p.html;
         // Keep heading anchors unique across pages.
-        for (const el of section.querySelectorAll('[id]')) el.id = `p${i}-${el.id}`;
+        // Diagrams are skipped: Mermaid styles its SVG through the SVG's id.
+        for (const el of section.querySelectorAll('[id]'))
+          if (!el.closest('svg')) el.id = `p${i}-${el.id}`;
         for (const a of section.querySelectorAll('a[href]')) {
           const url = new URL(a.getAttribute('href'), location.origin + p.path);
           const target = index.get(url.pathname.replace(/\/$/, ''));
@@ -217,18 +332,21 @@ async function printManual(browser, origin, locale) {
             a.setAttribute('href', publicOrigin + url.pathname + url.hash);
           }
         }
-        // Videos cannot play on paper: print a link instead.
+        // Videos cannot play on paper: say that there is one, with a link.
         for (const iframe of section.querySelectorAll('iframe')) {
-          const link = document.createElement('p');
-          link.innerHTML = `<a href="${iframe.src}">${iframe.src}</a>`;
-          iframe.closest('.video-container, iframe').replaceWith(link);
+          const note = document.createElement('p');
+          note.className = 'manual-print__video';
+          note.innerHTML = `▶ ${t.video} <a href="${iframe.src}">${t.watch}</a>`;
+          iframe.closest('.video-container, iframe').replaceWith(note);
         }
         for (const el of section.querySelectorAll(
-          '.theme-doc-breadcrumbs, .theme-doc-version-badge, .theme-doc-footer, .hash-link, button',
+          '.theme-doc-breadcrumbs, .theme-doc-version-badge, .theme-doc-footer, .hash-link, button, .manual-pdf-link',
         ))
           el.remove();
+        shiftHeadings(section, depth);
         body.appendChild(section);
-      });
+      };
+      emit(tree, 0);
       document.documentElement.lang = locale;
       document.body.replaceChildren(body);
       const style = document.createElement('style');
@@ -241,19 +359,31 @@ async function printManual(browser, origin, locale) {
         .manual-print__cover img { width: 60mm; margin-bottom: 20mm; }
         .manual-print__cover h1 { font-size: 30pt; }
         .manual-print__version { font-size: 16pt; font-weight: 600; }
-        .manual-print__toc, .manual-print__page { break-before: page; }
+        .manual-print__toc, .manual-print__page, .manual-print__part { break-before: page; }
+        .manual-print__part { padding-top: 80mm; }
         .manual-print__toc a { color: inherit; text-decoration: none; }
+        .manual-print__toc ol { counter-reset: item; list-style: none; padding-left: 1.5em; }
+        .manual-print__toc > ol { padding-left: 0; }
+        .manual-print__toc li { counter-increment: item; margin: 0.15em 0; }
+        .manual-print__toc li::before { content: counters(item, '.') '. '; }
+        .manual-print__toc > ol > li { font-weight: 600; margin-top: 0.6em; }
+        .manual-print__toc li li { font-weight: 400; }
+        .manual-print [data-level='1'] { font-size: var(--ifm-h1-font-size); }
+        .manual-print [data-level='2'] { font-size: var(--ifm-h2-font-size); }
+        .manual-print [data-level='3'] { font-size: var(--ifm-h3-font-size); }
+        .manual-print [data-level='4'] { font-size: var(--ifm-h4-font-size); }
         .manual-print pre, .manual-print tr, .manual-print img,
         .manual-print .admonition, .manual-print .theme-admonition { break-inside: avoid; }
         .manual-print td:first-child a { white-space: nowrap; }
         .manual-print h2, .manual-print h3 { break-after: avoid; }
         .manual-print img { max-width: 100%; }
+        .manual-print__video { border: 1px solid #B7C2E2; border-radius: 4px; padding: 0.5em 0.8em; }
         .manual-print details { display: block; }
         .manual-print details > :not(summary) { display: block !important; }
       `;
       document.head.appendChild(style);
     },
-    {pages, t, label, locale, commit, publicOrigin, baseUrl},
+    {tree, pages, t, label, locale, commit, publicOrigin, baseUrl},
   );
   // Expand collapsed <details> blocks so their content prints.
   await page.evaluate(() =>
@@ -268,6 +398,9 @@ async function printManual(browser, origin, locale) {
     path: out,
     format: 'A4',
     printBackground: true,
+    // PDF bookmarks from the headings, nested like the sidebar.
+    outline: true,
+    tagged: true,
     displayHeaderFooter: true,
     headerTemplate: `<div style="${small}">${t.title} · ${t.version} ${label}</div>`,
     footerTemplate: `<div style="${small}text-align:right">${t.page} <span class="pageNumber"></span> ${t.of} <span class="totalPages"></span></div>`,

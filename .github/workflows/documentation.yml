@@ -39,28 +39,33 @@ jobs:
         working-directory: ./docs/docusaurus
         run: |
           export BASE_URL=/docusaurus/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")
+          # PR previews are for reviewing pages: English only keeps them small.
+          export DOCS_LOCALES=en
           yarn install --frozen-lockfile
           yarn build
-          # Print the administrator manual to PDF (uses the runner's Chrome).
-          yarn pdf
       - name: Build Preview (main)
         if: github.event_name == 'push' && github.ref_name == 'main'
         working-directory: ./docs/docusaurus
         run: |
           export BASE_URL=/docusaurus/main
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_ENV
           yarn install --frozen-lockfile
           yarn build
-          # Print the administrator manual to PDF (uses the runner's Chrome).
-          yarn pdf
       - name: Build Preview (release)
         if: github.event_name == 'push' && startsWith(github.ref_name, 'release/')
         working-directory: ./docs/docusaurus
         run: |
           export BASE_URL=/docusaurus/${{ github.ref_name }}
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_ENV
           yarn install --frozen-lockfile
           yarn build
-          # Print the administrator manual to PDF (uses the runner's Chrome).
-          yarn pdf
+      # The administrator manual as PDF (uses the runner's Chrome). PR previews
+      # skip it, and a failure here does not stop the site from publishing.
+      - name: Print the administrator manual (PDF)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        working-directory: ./docs/docusaurus
+        run: yarn pdf
       - name: Publish (PR)
         uses: rossjrw/pr-preview-action@v1
         if: github.event_name == 'pull_request'
