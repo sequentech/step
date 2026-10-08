@@ -45,7 +45,7 @@ event.
 | `hashed_password`, `password_salt`, `num_of_iterations` | Instead of `password`, a base64 PBKDF2-SHA256 hash and its salt. `num_of_iterations` is 27500 if missing. |
 | `group_name` | The voter's group; `voter` if missing. |
 | `vote-weight`, `delegate-vote-to` | See the weighted and delegated voting policies under **Data > Advanced Configuration**. |
-| Any other column | Stored as the voter attribute of the same name. |
+| Any other column | Stored as the voter attribute of the same name, unless the name starts with `election__`: export adds those columns, one per election, and import ignores them. |
 
 Column names may only contain letters, digits, `.`, `_` and `-`, and two names that differ only in
 case or in those three characters are rejected as duplicates.
