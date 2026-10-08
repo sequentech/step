@@ -120,8 +120,8 @@ elections where your rules permit it.
 
 Do these steps for each election.
 
-1. In the menu on the left, click the three dots next to the election event.
-2. Click **Create an Election**.
+1. In the menu on the left, click the arrow next to the election event to show its elections.
+2. Under the elections, click **Create an Election**.
 3. Type the **Name**.
 4. Type the **External ID**. This is the identifier of the election in your other systems.
 5. Type the **Description**.
@@ -153,8 +153,8 @@ You cannot change the **External ID** after you save it.
 
 Do these steps for each contest.
 
-1. In the menu on the left, click the three dots next to the election.
-2. Click **Create a Contest**.
+1. In the menu on the left, click the arrow next to the election to show its contests.
+2. Under the contests, click **Create a Contest**.
 3. Type the **Name**, the **Description** and the **External ID**.
 4. Click the save button.
 5. Click the **Data** tab of the new contest.
@@ -186,8 +186,8 @@ before you save. Make sure that the maximum is not higher than the number of can
 
 Do these steps for each candidate.
 
-1. In the menu on the left, click the three dots next to the contest.
-2. Click **Create a Candidate**.
+1. In the menu on the left, click the arrow next to the contest to show its candidates.
+2. Under the candidates, click **Create a Candidate**.
 3. Type the **Name**, the **Description** and the **External ID**.
 4. Click the save button.
 5. Click the **Data** tab of the new candidate.

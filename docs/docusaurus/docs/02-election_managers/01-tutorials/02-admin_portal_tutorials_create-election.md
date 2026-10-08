@@ -17,13 +17,13 @@ This tutorial guides you through the process of creating a new election event, s
 
 ## Step 1: Initiate Election Event Creation
 
-There are several ways to start creating a new election event from the sidebar of the Sequent Admin Portal:
+You can start from the sidebar of the Sequent Admin Portal in these ways:
 
 ![Create Election Event](./assets/elections_create_election_event.png)
 
-* **Election Events Menu**: Select the `Election Events` menu and then select `Create Election Event`.
-* **Election List**: From the election list, click on one of the **three-dot icons** and choose the option to `Create an Election Event`.
-* **Direct Sidebar Link**: Click directly on the `+ Create an Election Event` menu in the sidebar.
+* **Election Events Menu**: Click the **+** icon next to **Election Events**, then click **Create an Election Event**.
+* **Election Event Tree**: Click **Create an Election Event** at the end of the election event tree, then click **Create an Election Event** in the menu that opens.
+* **Three-Dot Icon**: Click the three-dot icon next to an election event, then click **Create an Election Event**.
 
 
 ## Step 2: Configure Event Details
@@ -34,10 +34,10 @@ After initiating the process, the system will prompt you for the basic configura
 
 1.  Enter the **Name** of the election event.
 2.  Provide a **Description**.
-3.  Select `Save`.
+3.  Click the save button.
 
 :::info
-**Post-Creation Options**: Once the event is created, you will see different menu options at the election event level, including **Dashboard**, **Data**, **Localization** and **Voters**.
+**Post-Creation Options**: Once the event is created, you will see different menu options at the election event level, for example **Dashboard**, **Data**, **Localization** and **Voters**. For the full list, see [Create the Election Event](../03-procedures/02-event.md#1-create-the-election-event).
 :::
 
 ## Step 3: Set Event Data and Preferences
@@ -46,8 +46,8 @@ In the **Data** tab, you can manage the core properties of the event.
 
 ![Election Event Data Tab](./assets/elections_data.png)
 
-* **Localization**: View and define names and aliases in different languages, such as English and Spanish.
-* **Language Settings**: Set up the default languages for the event.
+* **General**: Define the name, alias and description in each language, such as English and Spanish.
+* **Language**: Set up the languages and the default language of the event.
 * **Ballot Design**: Customize visual options for the digital ballot.
 * **Advanced Configurations**: Manage specific policies such as the **Voting Portal Countdown policy** or the **Contest encryption policy**.
 
@@ -57,9 +57,9 @@ An Election Event acts as a container that can hold one or more specific electio
 
 ![Create an Election](./assets/elections_create_election.png)
 
-1.  In the sidebar under your new event, select `+ Create an Election`.
-2.  Enter the **Name** and **Description** for the specific election.
-3.  Select `Save`.
+1.  In the sidebar under your new event, click **Create an Election**.
+2.  Enter the **Name**, the **External ID** and the **Description** of the election. **Name** and **External ID** are required.
+3.  Click the save button.
 4.  (Optional) Continue customizing your election using the various configurations available in the Data tab.
 
 :::tip
@@ -72,11 +72,11 @@ Finally, define the structure of your ballot by adding contests (questions) and 
 
 ![Create a Contest](./assets/elections_create_contest.png)
 
-1.  **Create a Contest**: Select `+ Create a Contest` under the specific election. Enter the name (e.g., "Question 1") and click `Save`.
+1.  **Create a Contest**: Click **Create a Contest** under the specific election. Enter the **Name** (e.g., "Question 1") and click the save button.
 
 ![Create a Candidate](./assets/elections_create_candidate.png)
 
-2.  **Add Candidates**: Under the newly created contest, select `+ Create a Candidate`.
-3.  Enter the **Candidate Name** and details, then select `Save`.
+2.  **Add Candidates**: Under the newly created contest, click **Create a Candidate**.
+3.  Enter the **Name** and the other details, then click the save button.
 4. (Optional) Customize your contest using the various configurations available in the Data tab. See [Create Contests and Candidates](05-admin_portal_tutorials_contests-candidates.md).
 

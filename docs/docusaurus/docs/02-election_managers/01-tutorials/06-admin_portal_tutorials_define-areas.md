@@ -17,11 +17,11 @@ Areas allow you to organize an election into specific geographic or logical divi
 
 ## Accessing the Areas Menu
 
-To manage areas, first select your electoral event and then click on the **Areas** menu in the top navigation bar.
+To manage areas, open the election event and click the **Areas** tab.
 
 ![Areas Menu Location](./assets/areas_menu_navigation.png)
 
-From this screen, you can view existing areas, the contests assigned to them, and perform management actions like editing or deleting.
+From this screen, you can view existing areas and the contests assigned to them. You can also edit or delete an area. You see only the actions that your role permits.
 
 ## Creating a New Area
 
@@ -35,16 +35,22 @@ Follow these steps to define a new area within your election:
 ![Area Configuration Dialog](./assets/area_config_details.png)
 
 5. **Parent:** If the area is part of a larger hierarchy, you can select a parent area.
-6. **Allow Early Voting:** Turn it on if the voters of the area can vote early.
-7. Select `Save`.
+6. If the election event uses weighted voting for areas, set the **Weight** of the area.
+7. **Allow Early Voting:** Turn it on if the voters of the area can vote early. You can change it only when the early voting channel is on in **Voting Channels Allowed** on the **Data** tab of the election event.
+8. Click the save button.
 
 ## Managing and Importing Areas
 
 The Areas interface provides several tools for efficient organization and bulk data management.
 
 * **Search:** Quickly find an area by typing its name or description into the search bar.
-* **Filters:** Use the `ADD FILTER` button to narrow down the area list by specific criteria.
-* **Import:** Select `IMPORT` to upload area data in bulk using a CSV file.
+* **Filters:** Use the filter button to narrow down the area list by specific criteria.
+* **Import:** Click **Import** to upload areas in bulk from a CSV file without a header row. Each row has six columns: the area identifier, the country code, the code, the area name, the delete flag and the early voting policy. The identifier becomes the **Name** of the area and the area name becomes the **Description**. The country code and the code are not used. Only rows with `0` in the delete flag are imported. The early voting policy `allow_early_voting` allows early voting in the area.
+* **Upsert Areas:** Click **Upsert Areas** to set the parent of areas that exist. Upload a CSV file with a header row. Column 1 is the **Name** of the area and column 2 is the **Name** of the parent area. The rows of areas that do not exist are ignored.
+
+:::caution
+An import links each imported area to **all** the contests of the election event. After the import, open each area and remove the contests that are not for that area.
+:::
 
 :::info
 **Integrity Check:** When importing area data, the system allows you to paste a **SHA-256 hash** to verify the file's authenticity and ensure it hasn't been tampered with.
@@ -52,5 +58,6 @@ The Areas interface provides several tools for efficient organization and bulk d
 
 ![Import Areas Dialog](./assets/import_areas.png)
 
-8. Drag and drop your file or click **Browse** to select your CSV.
-9. Select `Import` to finalize the process.
+1. Type the hash in **Integrity Check (SHA-256)**. If you leave it empty, the admin portal asks "Import Without Integrity Check?".
+2. Drop your CSV file in the upload area.
+3. Click **Import** to finalize the process.

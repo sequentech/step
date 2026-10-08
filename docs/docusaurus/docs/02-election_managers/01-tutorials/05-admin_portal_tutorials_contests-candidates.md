@@ -29,8 +29,8 @@ invalidates the ballots that are already cast.
 
 ## Create a contest
 
-1. In the menu on the left, click the three dots next to the election.
-2. Click **Create a Contest**.
+1. In the menu on the left, click the arrow next to the election to show its contests.
+2. Under the contests, click **Create a Contest**.
 3. Type the **Name**, the **Description** and the **External ID**.
 4. Click the save button.
 
@@ -147,8 +147,8 @@ For the details of the policies, see [Contest: Data](../02-reference/04-contest/
 
 ## Create a candidate
 
-1. In the menu on the left, click the three dots next to the contest.
-2. Click **Create a Candidate**.
+1. In the menu on the left, click the arrow next to the contest to show its candidates.
+2. Under the candidates, click **Create a Candidate**.
 3. Type the **Name**, the **Description** and the **External ID**.
 4. Click the save button.
 

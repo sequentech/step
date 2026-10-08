@@ -13,9 +13,10 @@ The **VOTING CHANELS** tab is in **Settings**. It keeps a tenant-level record of
 channels: online, kiosk and telephone. The tenant administrator uses it.
 
 :::note
-In this version, no other screen reads the values of this tab. The voting channels that an
-election event accepts are set on the **Data** tab of the election event, in the section
-**Voting Channels Allowed**. See
+A new election event does not copy the values of this tab. It gets its own voting channels
+when you create it. The voting channels that an election event accepts are set on the **Data**
+tab of the election event, in the section **Voting Channels Allowed**. A change on this tab does
+not change the election events. See
 [Election event data](../../02-election-event/03-election_management_election-event_data.md).
 :::
 
@@ -53,6 +54,6 @@ immediately.
 | --- | --- |
 | The message "You don't have permission to access settings." shows. | Ask a tenant administrator or Sequent support to give your account the necessary permissions. |
 | **Online Voting** shows on after you turned it off and opened the tab again. | The tab always shows **Online Voting** on when it loads. This has no effect on the election events. Set the voting channels of each election event on its **Data** tab. |
-| An election event does not accept a voting channel. | Open the **Data** tab of the election event and check **Voting Channels Allowed**. |
+| An election event does not accept a voting channel. | Open the **Data** tab of the election event and check **Voting Channels Allowed**. This tab does not set it. |
 
 **Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md).

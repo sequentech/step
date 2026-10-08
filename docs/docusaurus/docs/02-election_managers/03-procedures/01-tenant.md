@@ -38,7 +38,7 @@ other users.
 | Tab | What it controls |
 | --- | --- |
 | **ELECTION TYPES** | Not in use. You do not have to set it. |
-| **VOTING CHANELS** | Not used by election events. Each election event sets its own channels in **Voting Channels Allowed** on its **Data** tab. See [Voting channels](../02-reference/user-manual/settings/settings_voting-channels.md). |
+| **VOTING CHANELS** | Election events do not copy it. Each election event sets its own channels in **Voting Channels Allowed** on its **Data** tab. See [Voting channels](../02-reference/user-manual/settings/settings_voting-channels.md). |
 | **TEMPLATES** | Not in use. The switches cannot be changed. |
 | **LANGUAGES** | The languages that election events can use, the **Default Language** and the **Language Detection Policy**. |
 | **LOCALIZATION** | Changes to the texts of the portals, for each language. Select the language, click **Add**, then type the **Key** and the **Value**. |

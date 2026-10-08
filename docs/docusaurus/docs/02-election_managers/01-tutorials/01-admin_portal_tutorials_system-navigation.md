@@ -48,7 +48,7 @@ The side menu, located on the left of the screen, provides easy access to **Elec
 
 This section of the screen is one of the most critical areas of the system. It contains the **Election Event tree**, where you can access and create **Elections**, **Contests/Questions**, or **Candidates/Answers**.
 
-To facilitate navigation, a **search field** is provided that allows you to search within the election event section and its entire tree structure for any entity name, whether it be a Question, Candidate, or Election.
+To facilitate navigation, a **search field** is provided that allows you to search the election event tree for the name or alias of an election event, an election, a contest or a candidate.
 
 Election Events are categorized into **Active** and **Archived** for better organization. This allows users to archive election events that have been finalized or used for testing purposes, maintaining a clean tree structure with only the events currently in progress.
 
