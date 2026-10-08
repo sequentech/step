@@ -14,7 +14,7 @@ on:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand, velvet, wrap-map-err]
+        options: [sequent-core, strand, velvet, wrap-map-err, harvest]
         default: sequent-core
         required: true
       base_ref:
@@ -76,8 +76,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err"]') }}
-    # The macro profile compiles and tests its existing Windmill consumers.
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest"]') }}
+    # Synthetic fixture for the macro profile and its Windmill consumers.
     services:
       postgres:
         image: ${{ (matrix.profile == 'wrap-map-err' || matrix.profile == 'windmill') && 'postgres:16' || '' }}
