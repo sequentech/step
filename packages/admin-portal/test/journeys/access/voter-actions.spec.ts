@@ -495,6 +495,9 @@ test.describe("voter list manager", () => {
                 sequent_backend_template_aggregate: {aggregate: {count: 0}},
             },
         }))
+        portal.graphql.on("GetMessagingAccounts", () => ({
+            data: {sequent_backend_messaging_account: []},
+        }))
         portal.graphql.on("CreateScheduledEvent", () => ({
             data: {createScheduledEvent: {id: "77777777-7777-4777-8777-777777777701"}},
         }))
@@ -522,7 +525,7 @@ test.describe("voter list manager", () => {
                 eventPayload: {
                     audience_selection: "SELECTED",
                     audience_voter_ids: [ALICE_ID],
-                    communication_method: "EMAIL",
+                    channel_selection: "VOTER_PREFERENCE",
                     schedule_now: true,
                     email: {
                         subject: 'Your code {{lookup user.attributes "reference"}}',
