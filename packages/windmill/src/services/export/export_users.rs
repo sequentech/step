@@ -70,6 +70,8 @@ pub enum ExportBody {
     },
 }
 
+/// The columns of a voters CSV: the account's, one per profile attribute, and,
+/// when exporting an election event's voters, one per election.
 #[instrument(skip(elections))]
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
@@ -143,6 +145,8 @@ fn get_authorized_election_ids(
     values.join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
 }
 
+/// The cells of `user`'s row, under the columns of [`get_headers`]. A cell that
+/// a spreadsheet would run as a formula is written as text.
 #[instrument(
     skip(elections, authorized_elections, areas_by_id, user, user_attributes),
     level = "trace"
@@ -213,6 +217,8 @@ fn get_user_record(
     .collect();
 }
 
+/// Writes the voters of `body`'s election event, or the users of its tenant, to
+/// a CSV file in the format import reads.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
@@ -453,6 +459,7 @@ mod tests {
         HEADER_RE,
     };
 
+    /// A single-valued profile attribute named `name`.
     fn attribute(name: &str) -> UserProfileAttribute {
         UserProfileAttribute {
             annotations: None,
@@ -474,6 +481,8 @@ mod tests {
     const EXTERNAL_ID: &str = "GIAMBI30-3-31";
     const OTHER_EXTERNAL_ID: &str = "GTELEC31+GCIBER30-1-01";
 
+    /// An election with what resolving values reads from it: its ID and
+    /// external ID.
     fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
         ElectionHead {
             id: id.to_string(),
@@ -485,6 +494,8 @@ mod tests {
         }
     }
 
+    /// Two elections with external IDs, one without, and one with an empty
+    /// external ID, which counts as none.
     fn elections() -> Vec<ElectionHead> {
         vec![
             election(ELECTION_A, Some(OTHER_EXTERNAL_ID)),
@@ -494,6 +505,8 @@ mod tests {
         ]
     }
 
+    /// Display names can repeat, so columns named after them could not tell
+    /// the elections apart.
     #[test]
     fn election_columns_are_named_after_external_ids_or_ids() {
         let headers = get_headers(&Some(elections()), &vec![]);
@@ -539,6 +552,8 @@ mod tests {
         );
     }
 
+    /// A voter in an area, restricted to `authorized_election_ids` unless it
+    /// is empty.
     fn voter(username: &str, authorized_election_ids: &[&str]) -> User {
         let mut attributes = HashMap::from([("area-id".to_string(), vec!["area-1".to_string()])]);
         if !authorized_election_ids.is_empty() {
@@ -576,6 +591,7 @@ mod tests {
         headers.into_iter().zip(record).collect()
     }
 
+    /// The `authorized-election-ids` cell export writes for `user`.
     fn exported_authorized_election_ids(elections: &[ElectionHead], user: &User) -> String {
         let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
         exported_cells(elections, &attributes, user)[AUTHORIZED_ELECTION_IDS_NAME].clone()
@@ -697,6 +713,7 @@ mod tests {
             .collect()
     }
 
+    /// The voters CSV export writes for `voters`.
     fn export(
         elections: &[ElectionHead],
         attributes: &Vec<UserProfileAttribute>,
@@ -722,6 +739,8 @@ mod tests {
         writer.into_inner().expect("csv")
     }
 
+    /// Each voter keeps the elections they were restricted to, and an
+    /// unrestricted one stays unrestricted.
     #[test]
     fn exported_voters_import_with_their_elections() {
         let elections = elections();

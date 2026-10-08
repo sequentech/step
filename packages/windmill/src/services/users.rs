@@ -359,6 +359,9 @@ fn authorized_election_condition(values: &[String]) -> String {
     format!("(ua_elections.value IN ({values}) OR ua_elections.value IS NULL)")
 }
 
+/// Writes to `output_file`, as CSV, the IDs of the enabled voters of `area_id`
+/// whose `authorized-election-ids` are blank or include one of
+/// `authorized_election_values`, each with its `multiplicity_column`.
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     keycloak_transaction: &Transaction<'_>,
@@ -1950,6 +1953,7 @@ mod tests {
         assert_eq!(clause, "(col = $1)");
     }
 
+    /// An election's external ID and its ID both restrict a voter to it.
     #[test]
     fn test_census_includes_voters_with_any_of_the_values() {
         let values = [
@@ -1963,6 +1967,8 @@ mod tests {
         );
     }
 
+    /// No value names an election whose ID is another election's external ID,
+    /// and that has none of its own.
     #[test]
     fn test_census_without_values_includes_only_unrestricted_voters() {
         assert_eq!(
@@ -1971,6 +1977,8 @@ mod tests {
         );
     }
 
+    /// External IDs come from election managers, and the census query is a
+    /// COPY statement, which takes no parameters.
     #[test]
     fn test_census_condition_escapes_its_values() {
         let values = ["x' OR '1'='1".to_string(), "O'Neill".to_string()];
