@@ -1963,8 +1963,7 @@ mod tests {
         );
     }
 
-    /// No value names an election whose ID is another election's external ID,
-    /// and that has none of its own.
+    /// `IN ()` is not valid SQL.
     #[test]
     fn test_census_without_values_includes_only_unrestricted_voters() {
         assert_eq!(
