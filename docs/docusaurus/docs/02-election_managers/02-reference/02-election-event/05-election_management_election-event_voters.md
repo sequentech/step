@@ -63,9 +63,9 @@ elections of their area. A value that names no election in the election event, o
 an election that cannot be stored, or that starts with `"`, is rejected, with its row and the value,
 and nothing is imported.
 
-Export writes `authorized-election-ids` the same way, and adds one column per election, named
-`election__` followed by the value that names the election, holding when the voter last voted in it.
-Import ignores these columns. A stored value that names no election, or more than one, is exported
+Export writes `authorized-election-ids` the same way, and adds one column per election, holding when
+the voter last voted in it. Each is named `election__` followed by the value stored for the election,
+or by its ID in double quotes if it has none. Import ignores these columns. A stored value that names no election, or more than one, is exported
 in double quotes, so that importing it into any election event fails instead of giving the voter
 other elections.
 
