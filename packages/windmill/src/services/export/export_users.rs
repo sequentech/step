@@ -492,7 +492,8 @@ mod tests {
     };
     use crate::services::users::DELEGATE_TO_ATTR_NAME;
     use sequent_core::types::keycloak::{
-        TENANT_ID_ATTR_NAME, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
+        SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
+        VOTED_CHANNEL_INTERNET_VALUE,
     };
 
     /// A single-valued profile attribute named `name`.
@@ -776,10 +777,10 @@ mod tests {
     }
 
     /// Other components read operational attributes, such as
-    /// `authorized-election-ids` or `delegate-vote-to`, so one keeps its column
-    /// over an earlier attribute that import stores in the same one. Exporting
-    /// the earlier one instead would import the voter unrestricted, or drop
-    /// their delegation.
+    /// `authorized-election-ids`, `delegate-vote-to` or `trustee`, so one keeps
+    /// its column over an earlier attribute that import stores in the same one.
+    /// Exporting the earlier one instead would import the voter unrestricted,
+    /// drop their delegation, or the trustee an administrator acts as.
     #[test]
     fn operational_attributes_keep_their_columns() {
         let attributes = vec![
@@ -789,6 +790,10 @@ mod tests {
             attribute(VOTED_CHANNEL),
             attribute("delegate_vote_to"),
             attribute(DELEGATE_TO_ATTR_NAME),
+            attribute("support_materials_acknowledged"),
+            attribute(SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME),
+            attribute("Trustee"),
+            attribute("trustee"),
         ];
         let mut user = voter("current", &[EXTERNAL_ID]);
         user.attributes.get_or_insert_default().extend([
@@ -806,6 +811,16 @@ mod tests {
                 DELEGATE_TO_ATTR_NAME.to_string(),
                 vec!["delegate".to_string()],
             ),
+            (
+                "support_materials_acknowledged".to_string(),
+                vec!["custom".to_string()],
+            ),
+            (
+                SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME.to_string(),
+                vec!["document".to_string()],
+            ),
+            ("Trustee".to_string(), vec!["custom".to_string()]),
+            ("trustee".to_string(), vec!["trustee-1".to_string()]),
         ]);
 
         let rows = import(
@@ -816,9 +831,16 @@ mod tests {
         assert_eq!(rows[0][AUTHORIZED_ELECTION_IDS_NAME], EXTERNAL_ID);
         assert_eq!(rows[0][VOTED_CHANNEL], VOTED_CHANNEL_INTERNET_VALUE);
         assert_eq!(rows[0][DELEGATE_TO_ATTR_NAME], "delegate");
+        assert_eq!(
+            rows[0][SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME],
+            "document"
+        );
         assert!(!rows[0].contains_key("authorized_election_ids"));
         assert!(!rows[0].contains_key("Voted_Channel"));
         assert!(!rows[0].contains_key("delegate_vote_to"));
+        assert_eq!(rows[0]["trustee"], "trustee-1");
+        assert!(!rows[0].contains_key("support_materials_acknowledged"));
+        assert!(!rows[0].contains_key("Trustee"));
     }
 
     /// Kept as they are, they could name an election in the election event they
