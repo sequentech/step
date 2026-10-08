@@ -4,6 +4,7 @@
 
 use crate::postgres::area::get_areas_by_id;
 use crate::services::authorized_elections::{quoted, AuthorizedElectionIds};
+use crate::services::csv_cell::escape_formula;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::import::import_users::ELECTION_COL_PREFIX;
@@ -205,7 +206,11 @@ fn get_user_record(
             None => vec![],
         },
     ]
-    .concat();
+    .concat()
+    .iter()
+    // Voters write their own names and attributes.
+    .map(|value| escape_formula(value).into_owned())
+    .collect();
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -444,7 +449,8 @@ pub async fn export_users_file(
 mod tests {
     use super::*;
     use crate::services::import::import_users::{
-        imported_fields, is_election_column, resolve_authorized_election_ids, HEADER_RE,
+        imported_fields, imported_value, is_election_column, resolve_authorized_election_ids,
+        HEADER_RE,
     };
 
     fn attribute(name: &str) -> UserProfileAttribute {
@@ -553,21 +559,26 @@ mod tests {
         }
     }
 
-    fn exported_authorized_election_ids(elections: &[ElectionHead], user: &User) -> String {
-        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
-        let headers = get_headers(&Some(elections.to_vec()), &attributes);
+    /// The cells export writes for `user`, by column.
+    fn exported_cells(
+        elections: &[ElectionHead],
+        attributes: &Vec<UserProfileAttribute>,
+        user: &User,
+    ) -> HashMap<String, String> {
+        let headers = get_headers(&Some(elections.to_vec()), attributes);
         let record = get_user_record(
             &Some(elections.to_vec()),
             Some(&AuthorizedElectionIds::new(elections)),
             &None,
             user,
-            &attributes,
+            attributes,
         );
-        let index = headers
-            .iter()
-            .position(|header| header == AUTHORIZED_ELECTION_IDS_NAME)
-            .expect("the column is exported");
-        record[index].clone()
+        headers.into_iter().zip(record).collect()
+    }
+
+    fn exported_authorized_election_ids(elections: &[ElectionHead], user: &User) -> String {
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        exported_cells(elections, &attributes, user)[AUTHORIZED_ELECTION_IDS_NAME].clone()
     }
 
     /// Voters imported before the fix kept the election IDs they were given.
@@ -672,6 +683,7 @@ mod tests {
                     .iter()
                     .zip(record.iter())
                     .map(|(header, field)| {
+                        let field = imported_value(header, field);
                         let field = if header == AUTHORIZED_ELECTION_IDS_NAME {
                             resolve_authorized_election_ids(field, index + 2, elections)
                                 .expect("every value names an election")
@@ -767,6 +779,55 @@ mod tests {
             imported[0][AUTHORIZED_ELECTION_IDS_NAME],
             format!("{ELECTION_A}|{ELECTION_C}|{ELECTION_D}")
         );
+    }
+
+    /// Voters can write their own names and attributes, which a spreadsheet
+    /// would otherwise run when the file is opened.
+    #[test]
+    fn values_a_spreadsheet_would_run_as_formulas_round_trip_as_text() {
+        let formula = "=HYPERLINK(\"https://example.com\",\"x\")";
+        let attributes = vec![attribute("mobile-number")];
+        let user = User {
+            username: Some("voter".to_string()),
+            first_name: Some(formula.to_string()),
+            last_name: Some("-2+3".to_string()),
+            attributes: Some(HashMap::from([(
+                "mobile-number".to_string(),
+                vec!["+34600000000".to_string()],
+            )])),
+            ..Default::default()
+        };
+
+        let cells = exported_cells(&elections(), &attributes, &user);
+        assert_eq!(cells["first_name"], format!("'{formula}"));
+        assert_eq!(cells["last_name"], "'-2+3");
+        assert_eq!(cells["mobile-number"], "'+34600000000");
+        assert_eq!(cells["area_name"], "-");
+
+        let csv = export(&elections(), &attributes, &[user]);
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections()));
+        assert_eq!(imported[0]["first_name"], formula);
+        assert_eq!(imported[0]["last_name"], "-2+3");
+        assert_eq!(imported[0]["mobile-number"], "+34600000000");
+    }
+
+    /// Export writes them as text, so they are stored like any other.
+    #[test]
+    fn external_ids_starting_like_a_formula_round_trip() {
+        let elections = vec![
+            election(ELECTION_A, Some("=1+1")),
+            election(ELECTION_B, Some("-1")),
+        ];
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        let voters = [voter("voter", &[ELECTION_A, ELECTION_B])];
+
+        assert_eq!(
+            exported_authorized_election_ids(&elections, &voters[0]),
+            "'=1+1|-1"
+        );
+        let csv = export(&elections, &attributes, &voters);
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections));
+        assert_eq!(imported[0][AUTHORIZED_ELECTION_IDS_NAME], "=1+1|-1");
     }
 
     /// A voters file in an election event exported before the fix: repeated
