@@ -56,13 +56,19 @@ jobs:
           echo "BASE_URL=$URL_PATH" >> $GITHUB_ENV
           export BASE_URL=$URL_PATH
           yarn install --frozen-lockfile
-          yarn build
-          # Print the administrator manual to PDF (uses the runner's Chrome).
-          # PR previews skip it: they are for reviewing pages, and the PDFs
-          # make each preview larger.
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            yarn pdf
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # PR previews are for reviewing pages: English only keeps them small.
+            export DOCS_LOCALES=en
           fi
+          yarn build
+
+      # The administrator manual as PDF (uses the runner's Chrome). PR previews
+      # skip it, and a failure here does not stop the site from publishing.
+      - name: Print the administrator manual (PDF)
+        if: github.event_name == 'push'
+        continue-on-error: true
+        working-directory: ./docs/docusaurus
+        run: yarn pdf
 
       - name: Spectaql | GraphQL Documentation
         working-directory: ./docs/api/graphql

@@ -27,10 +27,12 @@ const siteDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const buildDir = path.join(siteDir, 'build');
 const baseUrl = withSlashes(process.env.BASE_URL || '/step/');
 const publicOrigin = process.env.PUBLIC_ORIGIN || 'https://docs.sequentech.io';
-const {versionName} = createRequire(import.meta.url)('../docs-version.js');
+const {versionName, versionLabel, manualHome} = createRequire(import.meta.url)(
+  '../docs-version.js',
+);
 const version = versionName(process.env.BASE_URL);
-// The manual is the Election Managers section of the docs.
-const manualPath = 'docs/election_managers';
+// The manual is the docs section of its home page.
+const manualPath = manualHome.slice(0, manualHome.lastIndexOf('/'));
 const defaultLocale = 'en';
 const locales = ['en', 'es'];
 const titles = {
@@ -96,7 +98,13 @@ const mimeTypes = {
 // extensionless URLs that `trailingSlash: false` produces.
 function serve() {
   const server = http.createServer((req, res) => {
-    const url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    let url;
+    try {
+      url = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+    } catch {
+      res.writeHead(400).end();
+      return;
+    }
     if (!url.startsWith(baseUrl)) {
       res.writeHead(404).end();
       return;
@@ -154,12 +162,12 @@ async function loadPage(page, url) {
 
 // Expand every category of the section in the sidebar, then read the sidebar
 // tree: [{label, path (or null for a category without a page), children}].
-async function readSidebar(page, startUrl, sectionPath) {
-  await loadPage(page, startUrl);
+async function readSidebar(page, origin, rootPath) {
+  await loadPage(page, origin + rootPath);
   const findRoot = `(() => {
     const norm = (h) => new URL(h, location.href).pathname.replace(/\\/$/, '');
     const link = [...document.querySelectorAll('.theme-doc-sidebar-menu a.menu__link')]
-      .find((a) => norm(a.getAttribute('href') || '#') === ${JSON.stringify(sectionPath + '/election_management')});
+      .find((a) => norm(a.getAttribute('href') || '#') === ${JSON.stringify(rootPath)});
     return link && link.closest('li');
   })()`;
   for (let i = 0; i < 100; i++) {
@@ -198,7 +206,7 @@ async function readSidebar(page, startUrl, sectionPath) {
       ...parse(root.querySelector(':scope > ul')),
     ];
   })()`);
-  if (!tree) throw new Error(`No sidebar section for ${sectionPath}`);
+  if (!tree) throw new Error(`No sidebar section for ${rootPath}`);
   return tree;
 }
 
@@ -213,7 +221,9 @@ async function collect(page, origin, tree) {
         await loadPage(page, origin + node.path);
         const {html, generated} = await page.evaluate(() => ({
           html: document.querySelector('article')?.innerHTML || '',
-          generated: !!document.querySelector('[class*="generatedIndexPage"]'),
+          // Doc pages have Markdown content; a category's generated index
+          // page has only cards.
+          generated: !document.querySelector('.theme-doc-markdown'),
         }));
         if (generated) {
           // A category overview of cards: print a heading page instead.
@@ -232,13 +242,12 @@ async function collect(page, origin, tree) {
 
 async function printManual(browser, origin, locale) {
   const localePrefix = locale === defaultLocale ? '' : `${locale}/`;
-  const sectionPath = `${baseUrl}${localePrefix}${manualPath}`;
   const page = await browser.newPage();
   await page.emulateMediaFeatures([{name: 'prefers-color-scheme', value: 'light'}]);
-  const tree = await readSidebar(page, `${origin}${sectionPath}/election_management`, sectionPath);
+  const tree = await readSidebar(page, origin, `${baseUrl}${localePrefix}${manualHome}`);
   const pages = await collect(page, origin, tree);
   const t = titles[locale] || titles[defaultLocale];
-  const label = version === 'main' ? 'Next' : version;
+  const label = versionLabel(version);
   let commit = '';
   try {
     commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {cwd: siteDir})
@@ -331,7 +340,7 @@ async function printManual(browser, origin, locale) {
           iframe.closest('.video-container, iframe').replaceWith(note);
         }
         for (const el of section.querySelectorAll(
-          '.theme-doc-breadcrumbs, .theme-doc-version-badge, .theme-doc-footer, .hash-link, button',
+          '.theme-doc-breadcrumbs, .theme-doc-version-badge, .theme-doc-footer, .hash-link, button, .manual-pdf-link',
         ))
           el.remove();
         shiftHeadings(section, depth);

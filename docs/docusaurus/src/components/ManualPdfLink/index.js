@@ -21,7 +21,7 @@ export default function ManualPdfLink() {
   // PR previews and local development builds have no PDF.
   if (name === 'dev') return null;
   return (
-    <p>
+    <p className="manual-pdf-link">
       <a className="button button--primary" href={href} download target="_blank" rel="noopener">
         {labels[locale] || labels.en}
       </a>
