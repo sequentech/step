@@ -2962,7 +2962,7 @@ const frenchTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Journal Électoral",
             subtitle:
-                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données du journal électoral. Rien sur cette page ne modifie les données.",
+                "Parcourez le journal électoral et l'urne d'un événement électoral, ou interrogez la base de données de son journal électoral. Rien sur cette page ne modifie les données.",
             notAllowed:
                 "Vous avez besoin de la permission electoral-log-console-read pour ouvrir le journal électoral.",
             tabs: {
@@ -3016,8 +3016,9 @@ const frenchTranslation: TranslationType = {
                 loadError: "L'entrée n'a pas pu être lue.",
             },
             query: {
-                help: "Les requêtes s'exécutent sur la base de données du journal électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer.",
-                scope: "La base de données contient les données de tous les locataires.",
+                help: "Les requêtes s'exécutent sur la base de données du journal électoral de l'événement électoral dans une transaction en lecture seule. Ses tables sont electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending et ballot_box_sequencer ; trellis_logs décrit ses journaux Merkle.",
+                scope: "Chaque événement électoral a sa propre base de données : une requête lit un seul événement.",
+                chooseEvent: "Choisissez l'événement électoral à interroger.",
                 placeholder: "SELECT …",
                 limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
                 run: "Exécuter la Requête",

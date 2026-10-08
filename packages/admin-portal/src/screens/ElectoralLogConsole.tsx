@@ -614,16 +614,28 @@ const TablesTab: React.FC<{superAdmin: boolean}> = ({superAdmin}) => {
     )
 }
 
+// Each election event has a database of its own: a query reads the chosen event's.
 const QueryTab: React.FC = () => {
     const {t} = useTranslation()
     const client = useApolloClient()
+    const aliasRenderer = useAliasRenderer()
     const [sql, setSql] = useState(DEFAULT_QUERY)
     const [result, setResult] = useState<ConsoleQueryRows | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [running, setRunning] = useState(false)
+    const [tenantId, setTenantId] = useState("")
+    const [eventId, setEventId] = useState("")
+    const {data: tenantsData, error: tenantsError} = useQuery(ELECTORAL_LOG_CONSOLE_TENANTS, {
+        fetchPolicy: "network-only",
+        context: readHeaders,
+    })
+    const tenants =
+        (tenantsData?.electoral_log_console_tenants as ConsoleTenants | undefined)?.tenants ?? []
+    const events = tenantEvents(tenants, tenantId)
+    const ready = !!tenantId && !!eventId && !!sql.trim()
 
     const run = async () => {
-        if (running || !sql.trim()) {
+        if (running || !ready) {
             return
         }
         setRunning(true)
@@ -631,7 +643,7 @@ const QueryTab: React.FC = () => {
         try {
             const {data} = await client.query({
                 query: ELECTORAL_LOG_CONSOLE_QUERY,
-                variables: {sql},
+                variables: {tenantId, electionEventId: eventId, sql},
                 fetchPolicy: "no-cache",
                 context: queryHeaders,
             })
@@ -658,6 +670,54 @@ const QueryTab: React.FC = () => {
             <Typography variant="body2" color="text.secondary">
                 {t("electoralLogConsole.query.help")} {t("electoralLogConsole.query.scope")}
             </Typography>
+            {tenantsError && (
+                <Alert severity="error">
+                    {getGraphQLActionErrorReason(tenantsError) ??
+                        t("electoralLogConsole.loadError")}
+                </Alert>
+            )}
+            <Stack direction={{xs: "column", md: "row"}} spacing={2}>
+                <FormControl size="small" sx={{minWidth: 220}}>
+                    <InputLabel id="electoral-log-query-tenant">
+                        {t("electoralLogConsole.tenant")}
+                    </InputLabel>
+                    <Select
+                        labelId="electoral-log-query-tenant"
+                        label={t("electoralLogConsole.tenant")}
+                        value={tenants.some((tenant) => tenant.id === tenantId) ? tenantId : ""}
+                        onChange={(e) => {
+                            setTenantId(e.target.value)
+                            setEventId("")
+                        }}
+                    >
+                        {tenants.map((tenant) => (
+                            <MenuItem key={tenant.id} value={tenant.id}>
+                                {tenant.slug}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <FormControl size="small" sx={{minWidth: 280}}>
+                    <InputLabel id="electoral-log-query-event">
+                        {t("electoralLogConsole.electionEvent")}
+                    </InputLabel>
+                    <Select
+                        labelId="electoral-log-query-event"
+                        label={t("electoralLogConsole.electionEvent")}
+                        value={events.some((event) => event.id === eventId) ? eventId : ""}
+                        onChange={(e) => setEventId(e.target.value)}
+                    >
+                        {events.map((event) => (
+                            <MenuItem key={event.id} value={event.id}>
+                                {aliasRenderer(event)}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Stack>
+            {!eventId && (
+                <Alert severity="info">{t("electoralLogConsole.query.chooseEvent")}</Alert>
+            )}
             <TextField
                 multiline
                 minRows={6}
@@ -676,7 +736,7 @@ const QueryTab: React.FC = () => {
                 <Typography variant="caption" color="text.secondary">
                     {t("electoralLogConsole.query.limits")}
                 </Typography>
-                <Button variant="contained" onClick={run} disabled={running || !sql.trim()}>
+                <Button variant="contained" onClick={run} disabled={running || !ready}>
                     {t("electoralLogConsole.query.run")}
                 </Button>
             </Stack>
@@ -733,8 +793,8 @@ export const ElectoralLogConsole: React.FC = () => {
     const [tab, setTab] = useState<ConsoleTab>("tables")
     const allowed = (permission: IPermissions) =>
         authContext.isAuthorized(true, authContext.tenantId, permission)
-    // The electoral-log database holds every tenant's data: only users of the
-    // super-admin tenant browse other tenants or query it.
+    // Only users of the super-admin tenant browse other tenants' events or query an
+    // event's electoral-log database.
     const superAdminAllowed = (permission: IPermissions) =>
         authContext.isAuthorized(true, null, permission)
     const canRead = allowed(IPermissions.ELECTORAL_LOG_CONSOLE_READ)

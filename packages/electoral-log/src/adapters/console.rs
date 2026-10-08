@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Read-only views of an electoral-log database for administrators: a board's records
-//! and an election event's ballot box, page by page in key order, and SQL queries in a
-//! read-only transaction.
+//! Read-only views of an election event's electoral-log database for administrators:
+//! its records, those of the event's board and of the sealed logs the board continues,
+//! and its ballot box, page by page in key order, and SQL queries in a read-only
+//! transaction.
 
 use super::ballot_box::canonical_uuid;
 use super::postgres::PostgresStore;
@@ -21,7 +22,7 @@ use tokio_postgres::types::ToSql;
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum ConsoleTable {
-    /// The board's records, `electoral_log_messages`.
+    /// The records of every log of the database, `electoral_log_messages`.
     Records,
     /// The event's accepted ballots, without their content.
     Ballots,
@@ -56,7 +57,7 @@ pub struct ConsoleFilters {
 #[derive(Debug, Clone)]
 pub struct PageRequest<'a> {
     pub table: ConsoleTable,
-    /// The event's board, for records.
+    /// The event's board: records are read only from the database that holds it.
     pub board: &'a str,
     pub election_event_id: &'a str,
     pub filters: &'a ConsoleFilters,
@@ -158,9 +159,10 @@ fn table_query(table: ConsoleTable) -> TableQuery {
         ConsoleTable::Records => TableQuery {
             select: "m.id AS position, to_timestamp(m.created) AS created, \
                      m.statement_kind AS kind, m.user_id, m.username, m.election_id, \
-                     m.area_id, m.ballot_id, m.delivery_id, m.sender_pk, m.version",
+                     m.area_id, m.ballot_id, m.delivery_id, m.sender_pk, m.version, \
+                     m.board_name AS log",
             from: "electoral_log_messages m",
-            scope: "m.board_name = $1",
+            scope: "EXISTS (SELECT 1 FROM electoral_log_boards eb WHERE eb.board_name = $1)",
             key: &[("m.id", "bigint")],
         },
         ConsoleTable::Ballots => TableQuery {
@@ -397,10 +399,17 @@ impl PostgresStore {
         let partition = |prefix: &str| format!("{prefix}_{}", scope.replace('-', ""));
         let (estimate, count) = match table {
             ConsoleTable::Records => {
-                let row = client
-                    .query_opt("SELECT size FROM trellis_logs WHERE name = $1", &[&scope])
-                    .await?;
-                return Ok(row.map(|row| row.get::<_, i64>(0)).unwrap_or(0));
+                return Ok(client
+                    .query_one(
+                        "SELECT CASE WHEN EXISTS ( \
+                             SELECT 1 FROM electoral_log_boards WHERE board_name = $1) \
+                         THEN (SELECT coalesce(sum(l.size), 0)::bigint FROM trellis_logs l \
+                               JOIN electoral_log_boards b ON b.board_name = l.name) \
+                         ELSE 0 END",
+                        &[&scope],
+                    )
+                    .await?
+                    .get(0));
             }
             ConsoleTable::Ballots => (
                 partition("ballot_box_ballot"),
@@ -434,7 +443,7 @@ impl PostgresStore {
         }
     }
 
-    /// A record of a board, with its delivery ID.
+    /// A record of the database that holds `board`, with its delivery ID and log.
     pub async fn console_record(&self, board: &str, id: i64) -> Result<Option<ConsoleRecord>> {
         let row = self
             .client()
@@ -442,8 +451,9 @@ impl PostgresStore {
             .query_opt(
                 "SELECT id, to_json(to_timestamp(created)) #>> '{}', statement_kind, user_id, \
                         username, election_id, area_id, ballot_id, delivery_id, sender_pk, \
-                        version, message \
-                 FROM electoral_log_messages WHERE board_name = $1 AND id = $2",
+                        version, message, board_name \
+                 FROM electoral_log_messages WHERE id = $2 \
+                 AND EXISTS (SELECT 1 FROM electoral_log_boards WHERE board_name = $1)",
                 &[&board, &id],
             )
             .await?;
@@ -461,13 +471,14 @@ impl PostgresStore {
                 sender_pk: row.try_get(9)?,
                 version: row.try_get(10)?,
                 message: row.try_get(11)?,
+                log: row.try_get(12)?,
             })
         })
         .transpose()
     }
 
-    /// Let `role` read every table of the database, those created later included.
-    /// Run by the database's owner.
+    /// Let `role` read every table and sequence of the database, those created later
+    /// included. Run by the database's owner.
     pub async fn grant_read(&self, role: &str) -> Result<()> {
         ensure!(
             !role.is_empty()
@@ -482,7 +493,9 @@ impl PostgresStore {
             .batch_execute(&format!(
                 "GRANT USAGE ON SCHEMA public TO {role};
                  GRANT SELECT ON ALL TABLES IN SCHEMA public TO {role};
-                 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {role};"
+                 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {role};
+                 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {role};
+                 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {role};"
             ))
             .await
             .with_context(|| format!("Error letting {role} read the database"))
@@ -506,6 +519,8 @@ pub struct ConsoleRecord {
     pub version: String,
     /// The signed message, serialized.
     pub message: Vec<u8>,
+    /// Board name of the record's log.
+    pub log: String,
 }
 
 impl ConsoleRecord {
@@ -539,6 +554,7 @@ impl ConsoleRecord {
             "delivery_id": self.delivery_id,
             "sender_pk": self.sender_pk,
             "version": self.version,
+            "log": self.log,
             "message": message,
         });
         if personal_data == PersonalData::Hidden {
@@ -718,6 +734,7 @@ mod tests {
             sender_pk: "pk".into(),
             version: "1".into(),
             message: borsh::to_vec(&message).unwrap(),
+            log: "board".into(),
         }
     }
 

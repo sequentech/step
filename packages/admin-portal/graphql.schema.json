@@ -35649,6 +35649,22 @@
             "description": "A read-only SQL query on the electoral-log database, for the super-admin tenant",
             "args": [
               {
+                "name": "election_event_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
                 "name": "sql",
                 "description": null,
                 "type": {
@@ -35720,6 +35736,22 @@
                   "kind": "SCALAR",
                   "name": "String",
                   "ofType": null
+                },
+                "defaultValue": null,
+                "isDeprecated": false,
+                "deprecationReason": null
+              },
+              {
+                "name": "tenant_id",
+                "description": null,
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
                 },
                 "defaultValue": null,
                 "isDeprecated": false,
@@ -83072,15 +83104,15 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
-            "description": null,
+            "name": "log_uid",
+            "description": "Identity of the Trellis log: the event's board, or a sealed log it continues after an import.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
                 "kind": "SCALAR",
-                "name": "bigint",
+                "name": "uuid",
                 "ofType": null
               }
             },
@@ -83425,18 +83457,6 @@
         "isOneOf": null,
         "fields": [
           {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tree_size",
             "description": null,
             "args": [],
@@ -83562,11 +83582,11 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
+            "name": "log_uid",
             "description": null,
             "type": {
               "kind": "INPUT_OBJECT",
-              "name": "bigint_comparison_exp",
+              "name": "uuid_comparison_exp",
               "ofType": null
             },
             "defaultValue": null,
@@ -83660,14 +83680,14 @@
         "interfaces": null,
         "enumValues": [
           {
-            "name": "electoral_log_checkpoint_pkey",
-            "description": "unique or primary key constraint on columns \"id\"",
+            "name": "electoral_log_checkpoint_log_uid_tree_size_key",
+            "description": "unique or primary key constraint on columns \"tree_size\", \"log_uid\", \"tenant_id\", \"election_event_id\"",
             "isDeprecated": false,
             "deprecationReason": null
           },
           {
-            "name": "electoral_log_checkpoint_tenant_id_election_event_id_log_id_key",
-            "description": "unique or primary key constraint on columns \"tree_size\", \"log_id\", \"tenant_id\", \"election_event_id\"",
+            "name": "electoral_log_checkpoint_pkey",
+            "description": "unique or primary key constraint on columns \"id\"",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -83681,18 +83701,6 @@
         "isOneOf": false,
         "fields": null,
         "inputFields": [
-          {
-            "name": "log_id",
-            "description": null,
-            "type": {
-              "kind": "SCALAR",
-              "name": "bigint",
-              "ofType": null
-            },
-            "defaultValue": null,
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "tree_size",
             "description": null,
@@ -83766,11 +83774,11 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
-            "description": null,
+            "name": "log_uid",
+            "description": "Identity of the Trellis log: the event's board, or a sealed log it continues after an import.",
             "type": {
               "kind": "SCALAR",
-              "name": "bigint",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -83909,12 +83917,12 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
-            "description": null,
+            "name": "log_uid",
+            "description": "Identity of the Trellis log: the event's board, or a sealed log it continues after an import.",
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "bigint",
+              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -84053,12 +84061,12 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
-            "description": null,
+            "name": "log_uid",
+            "description": "Identity of the Trellis log: the event's board, or a sealed log it continues after an import.",
             "args": [],
             "type": {
               "kind": "SCALAR",
-              "name": "bigint",
+              "name": "uuid",
               "ofType": null
             },
             "isDeprecated": false,
@@ -84314,7 +84322,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
+            "name": "log_uid",
             "description": null,
             "type": {
               "kind": "ENUM",
@@ -84464,7 +84472,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
+            "name": "log_uid",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -84564,11 +84572,11 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
-            "description": null,
+            "name": "log_uid",
+            "description": "Identity of the Trellis log: the event's board, or a sealed log it continues after an import.",
             "type": {
               "kind": "SCALAR",
-              "name": "bigint",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -84659,18 +84667,6 @@
         "isOneOf": null,
         "fields": [
           {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tree_size",
             "description": null,
             "args": [],
@@ -84695,18 +84691,6 @@
         "isOneOf": null,
         "fields": [
           {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tree_size",
             "description": null,
             "args": [],
@@ -84730,18 +84714,6 @@
         "description": "aggregate stddev_samp on columns",
         "isOneOf": null,
         "fields": [
-          {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "tree_size",
             "description": null,
@@ -84856,11 +84828,11 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
-            "description": null,
+            "name": "log_uid",
+            "description": "Identity of the Trellis log: the event's board, or a sealed log it continues after an import.",
             "type": {
               "kind": "SCALAR",
-              "name": "bigint",
+              "name": "uuid",
               "ofType": null
             },
             "defaultValue": null,
@@ -84951,18 +84923,6 @@
         "isOneOf": null,
         "fields": [
           {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "bigint",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tree_size",
             "description": null,
             "args": [],
@@ -85014,7 +84974,7 @@
             "deprecationReason": null
           },
           {
-            "name": "log_id",
+            "name": "log_uid",
             "description": "column name",
             "isDeprecated": false,
             "deprecationReason": null
@@ -85117,18 +85077,6 @@
         "isOneOf": null,
         "fields": [
           {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tree_size",
             "description": null,
             "args": [],
@@ -85153,18 +85101,6 @@
         "isOneOf": null,
         "fields": [
           {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "tree_size",
             "description": null,
             "args": [],
@@ -85188,18 +85124,6 @@
         "description": "aggregate variance on columns",
         "isOneOf": null,
         "fields": [
-          {
-            "name": "log_id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "SCALAR",
-              "name": "Float",
-              "ofType": null
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
           {
             "name": "tree_size",
             "description": null,

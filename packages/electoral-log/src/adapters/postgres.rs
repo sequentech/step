@@ -4,7 +4,7 @@
 use crate::{
     domain::*,
     ports::ElectoralLogStore,
-    proofs::{leaf_hash, Checkpoint, Journal, JournalError, RecordProof},
+    proofs::{leaf_hash, Checkpoint, Journal, JournalError, LogIdentity, RecordProof, Uuid},
 };
 use anyhow::{ensure, Context, Result};
 use async_trait::async_trait;
@@ -18,7 +18,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio_postgres::{types::ToSql, Config, Row};
-use trellis::journal::{audit_tree, TreeAudit, INSERT_CHUNK};
+use trellis::journal::{audit_tree, create_log, TreeAudit, INSERT_CHUNK};
 
 /// Prefix of the advisory lock key that serializes audits of a board.
 pub const AUDIT_LOCK_NAMESPACE: &str = "electoral-log-audit:";
@@ -27,12 +27,14 @@ const AUDIT_LOCK_WAIT: Duration = Duration::from_secs(10 * 60);
 /// Pause between attempts to start an audit while another one runs.
 const AUDIT_LOCK_RETRY: Duration = Duration::from_secs(2);
 
-const COLUMNS: &str = "id, created, sender_pk, statement_timestamp, statement_kind, message, version, user_id, username, election_id, area_id, ballot_id";
+pub(crate) const COLUMNS: &str = "id, created, sender_pk, statement_timestamp, statement_kind, message, version, user_id, username, election_id, area_id, ballot_id";
 
-/// Role that may only read the electoral-log database, for the super-admin tenant's
-/// console queries.
+/// Role that may only read the election events' databases, for the super-admin
+/// tenant's console queries.
 pub const READER_USER_ENV: &str = "ELECTORAL_LOG_PG_READER_USER";
 pub const READER_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_READER_PASSWORD";
+/// Role of the environment's backups, which reads every election event's database.
+pub const BACKUP_USER_ENV: &str = "ELECTORAL_LOG_PG_BACKUP_USER";
 /// Connections of a store's pool.
 const POOL_SIZE: usize = 8;
 
@@ -109,24 +111,54 @@ impl PostgresConnection {
 
     /// The role of `ELECTORAL_LOG_PG_READER_USER`, if set.
     pub fn reader() -> Option<String> {
-        env::var(READER_USER_ENV)
+        Self::role(READER_USER_ENV)
+    }
+
+    /// The roles that read every election event's database: those of
+    /// `ELECTORAL_LOG_PG_READER_USER` and `ELECTORAL_LOG_PG_BACKUP_USER`, if set.
+    pub fn read_roles() -> Vec<String> {
+        [READER_USER_ENV, BACKUP_USER_ENV]
+            .into_iter()
+            .filter_map(Self::role)
+            .collect()
+    }
+
+    fn role(variable: &str) -> Option<String> {
+        env::var(variable)
             .ok()
-            .map(|reader| reader.trim().to_string())
-            .filter(|reader| !reader.is_empty())
+            .map(|role| role.trim().to_string())
+            .filter(|role| !role.is_empty())
     }
 
     /// A connection of its own to the database as the reader role, which needs
     /// `ELECTORAL_LOG_PG_READER_USER` and `ELECTORAL_LOG_PG_READER_PASSWORD`.
     pub async fn reader_client(&self) -> Result<tokio_postgres::Client> {
+        self.reader_client_of(&self.database).await
+    }
+
+    /// A connection of its own to a database of the server as the reader role.
+    pub async fn reader_client_of(&self, database: &str) -> Result<tokio_postgres::Client> {
         let reader = Self::reader().with_context(|| format!("{READER_USER_ENV} is not set"))?;
         let password = env::var(READER_PASSWORD_ENV)
             .with_context(|| format!("{READER_PASSWORD_ENV} must be set"))?;
         let mut config = self.config.clone();
-        config.user(&reader).password(password);
+        config.dbname(database).user(&reader).password(password);
+        self.connect(config, database).await
+    }
+
+    /// A connection of its own to a database of the server as the application role,
+    /// closed when the client is dropped.
+    pub async fn client_of(&self, database: &str) -> Result<tokio_postgres::Client> {
+        let mut config = self.config.clone();
+        config.dbname(database);
+        self.connect(config, database).await
+    }
+
+    async fn connect(&self, config: Config, database: &str) -> Result<tokio_postgres::Client> {
         let (client, connection) = config
             .connect(self.tls.clone())
             .await
-            .with_context(|| format!("Error connecting to {} as {reader}", self.database))?;
+            .with_context(|| format!("Error connecting to {database}"))?;
         tokio::spawn(async move {
             if let Err(error) = connection.await {
                 tracing::error!("Electoral-log connection failed: {error}");
@@ -164,11 +196,23 @@ impl PostgresStore {
         Ok(self.pool.get().await?)
     }
 
+    /// Close the pool: its idle connections now, the others when returned.
+    pub fn close(&self) {
+        self.pool.close();
+    }
+
+    /// Close the pool's connections that were not used for `idle`.
+    pub fn close_idle(&self, idle: Duration) {
+        self.pool.retain(|_, metrics| metrics.last_used() < idle);
+    }
+
     pub fn journal(&self) -> Journal {
         Journal::new(self.pool.clone())
     }
 
-    /// Load a stored record with Trellis evidence of its membership.
+    /// Load a stored record with Trellis evidence of its membership in its log, which
+    /// is `board` or, in an election event's database, any log of the database when
+    /// `board` is `None`.
     ///
     /// With a trusted checkpoint, the evidence verifies against it: the proof is at the
     /// trusted checkpoint when that already contains the record, and otherwise at the
@@ -176,35 +220,44 @@ impl PostgresStore {
     pub async fn record_proof(
         &self,
         journal: &Journal,
-        board: &str,
+        scope: LogScope<'_>,
         id: i64,
         trusted: Option<&Checkpoint>,
     ) -> Result<RecordProof, JournalError> {
+        let (condition, board) = match scope {
+            LogScope::Board(board) => ("board_name = $2", Some(board)),
+            LogScope::Database => ("$2::text IS NULL", None),
+        };
         let row = self
             .pool
             .get()
             .await?
             .query_opt(
-                &format!("SELECT {COLUMNS}, delivery_id FROM electoral_log_messages WHERE board_name=$1 AND id=$2"),
-                &[&board, &id],
+                &format!(
+                    "SELECT {COLUMNS}, delivery_id, board_name FROM electoral_log_messages \
+                     WHERE id = $1 AND {condition}"
+                ),
+                &[&id, &board],
             )
             .await?
             .ok_or_else(|| JournalError::NotFound(format!("Electoral-log record {id}")))?;
         let delivery_id = row.try_get("delivery_id")?;
+        let board: String = row.try_get("board_name")?;
         let entry = LogEntry {
             delivery_id,
             message: decode(row)?,
         };
-        let evidence = journal
-            .evidence(board, id, trusted)
-            .await
-            .map_err(|error| match error {
-                // The record exists, so a missing leaf is an integrity fault, not a bad request.
-                JournalError::NotFound(_) => {
-                    JournalError::Corrupt(format!("electoral-log record {id} has no leaf"))
-                }
-                error => error,
-            })?;
+        let evidence =
+            journal
+                .evidence(&board, id, trusted)
+                .await
+                .map_err(|error| match error {
+                    // The record exists, so a missing leaf is an integrity fault, not a bad request.
+                    JournalError::NotFound(_) => {
+                        JournalError::Corrupt(format!("electoral-log record {id} has no leaf"))
+                    }
+                    error => error,
+                })?;
         Ok(RecordProof::new(entry, evidence))
     }
 
@@ -269,7 +322,7 @@ async fn audit_snapshot(
     }
     let row = tx
         .query_opt(
-            "SELECT l.id, l.size, l.root, \
+            "SELECT l.id, l.uid, l.size, l.root, \
              (SELECT count(*) FROM trellis_leaves e WHERE e.log_id = l.id), \
              (SELECT coalesce(max(e.leaf_index) + 1, 0) FROM trellis_leaves e WHERE e.log_id = l.id), \
              (SELECT count(*) FROM electoral_log_messages m WHERE m.board_name = l.name) \
@@ -279,14 +332,18 @@ async fn audit_snapshot(
         .await?
         .context("Electoral-log board does not exist")?;
     let log_id: i64 = row.try_get(0)?;
+    let log = LogIdentity {
+        name: board.to_owned(),
+        uid: row.try_get(1)?,
+    };
     let mut report = AuditReport {
         board: board.to_owned(),
-        log_id,
-        committed_size: row.try_get(1)?,
-        root: hex::encode(row.try_get::<_, Vec<u8>>(2)?),
-        leaves: row.try_get(3)?,
-        leaf_index_end: row.try_get(4)?,
-        messages: row.try_get(5)?,
+        log_uid: log.uid,
+        committed_size: row.try_get(2)?,
+        root: hex::encode(row.try_get::<_, Vec<u8>>(3)?),
+        leaves: row.try_get(4)?,
+        leaf_index_end: row.try_get(5)?,
+        messages: row.try_get(6)?,
         ..AuditReport::default()
     };
     report.leaves_out_of_order = tx
@@ -332,7 +389,7 @@ async fn audit_snapshot(
                 message: decode(row)?,
             };
             report.checked_hashes += 1;
-            if leaf_hash(board, &entry)? != stored {
+            if leaf_hash(&log, &entry)? != stored {
                 report.hash_mismatch_count += 1;
                 if report.hash_mismatches.len() < AUDIT_SAMPLE as usize {
                     report.hash_mismatches.push(entry.message.id);
@@ -347,8 +404,8 @@ async fn audit_snapshot(
         report.published_checked += 1;
         let reason = if checkpoint.log_name != board {
             Some("it names another board".to_string())
-        } else if checkpoint.log_id != log_id {
-            Some("it belongs to another log generation".to_string())
+        } else if checkpoint.log_uid != log.uid {
+            Some("it belongs to another log".to_string())
         } else {
             match report.tree.roots.get(&checkpoint.tree_size) {
                 None => Some(format!(
@@ -364,7 +421,7 @@ async fn audit_snapshot(
         if let Some(reason) = reason {
             report.published_mismatches.push(PublishedMismatch {
                 tree_size: checkpoint.tree_size,
-                log_id: checkpoint.log_id,
+                log_uid: checkpoint.log_uid,
                 reason,
             });
         }
@@ -376,11 +433,12 @@ async fn audit_snapshot(
 /// Store records in one statement, in order, and append the new ones to the journal,
 /// then empty `pending`. A delivery that is already stored, or that appears earlier in
 /// `pending`, is not stored again.
-async fn insert_records(
+pub(crate) async fn insert_records(
     tx: &deadpool_postgres::Transaction<'_>,
-    board: &str,
+    log: &LogIdentity,
     pending: &mut Vec<LogEntry>,
 ) -> Result<()> {
+    let board = log.name.as_str();
     let mut seen = HashSet::with_capacity(pending.len());
     pending.retain(|entry| seen.insert(entry.delivery_id.clone()));
     if pending.is_empty() {
@@ -451,9 +509,7 @@ async fn insert_records(
     stored.sort_unstable();
     let mut leaves = Vec::with_capacity(stored.len());
     for (id, index) in stored {
-        let entry = &mut pending[index];
-        entry.message.id = id;
-        leaves.push((id, leaf_hash(board, entry)?));
+        leaves.push((id, leaf_hash(log, &pending[index])?));
     }
     Journal::append_batch(tx, board, &leaves).await?;
     pending.clear();
@@ -473,7 +529,7 @@ fn audit_page_sql() -> String {
     )
 }
 
-fn decode(row: Row) -> Result<ElectoralLogMessage> {
+pub(crate) fn decode(row: Row) -> Result<ElectoralLogMessage> {
     Ok(ElectoralLogMessage {
         id: row.try_get("id")?,
         created: row.try_get("created")?,
@@ -541,8 +597,8 @@ pub struct AuditAnnotations {
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct AuditReport {
     pub board: String,
-    /// Trellis log generation audited.
-    pub log_id: i64,
+    /// Identity of the Trellis log audited.
+    pub log_uid: Uuid,
     /// `trellis_logs.size`: leaves allocated by committed appends.
     pub committed_size: i64,
     /// Hex-encoded stored root at the audited size.
@@ -577,7 +633,7 @@ pub struct AuditReport {
 /// A supplied checkpoint that is not part of the board's history.
 #[derive(Debug, Clone, Serialize)]
 pub struct PublishedMismatch {
-    pub log_id: i64,
+    pub log_uid: Uuid,
     pub tree_size: u64,
     pub reason: String,
 }
@@ -663,7 +719,7 @@ impl AuditReport {
         for mismatch in &self.published_mismatches {
             findings.push(format!(
                 "Published checkpoint at size {} (log {}) does not match the log: {}",
-                mismatch.tree_size, mismatch.log_id, mismatch.reason
+                mismatch.tree_size, mismatch.log_uid, mismatch.reason
             ));
         }
         findings
@@ -685,10 +741,22 @@ impl Parameters {
     }
 }
 
-fn predicate(board: &str, query: &LogQuery) -> (String, Parameters) {
+/// Which logs of a database a read covers.
+#[derive(Debug, Clone, Copy)]
+pub enum LogScope<'a> {
+    /// The records of one board.
+    Board(&'a str),
+    /// Every record of the database. An election event's database holds its board and
+    /// the sealed logs that board continues, so these are the event's records.
+    Database,
+}
+
+fn predicate(scope: LogScope<'_>, query: &LogQuery) -> (String, Parameters) {
     let mut params = Parameters::default();
-    let scope = params.push(board.to_owned());
-    let mut clauses = vec![format!("board_name = {scope}")];
+    let mut clauses = vec![match scope {
+        LogScope::Board(board) => format!("board_name = {}", params.push(board.to_owned())),
+        LogScope::Database => "TRUE".to_string(),
+    }];
     for filter in &query.filters {
         clauses.push(match filter {
             Filter::Text(column, op, value) => {
@@ -728,11 +796,7 @@ impl ElectoralLogStore for PostgresStore {
         ensure!(!board.is_empty(), "Electoral-log board must not be empty");
         let mut conn = self.pool.get().await?;
         let tx = conn.transaction().await?;
-        tx.execute(
-            "INSERT INTO trellis_logs (name) VALUES ($1) ON CONFLICT DO NOTHING",
-            &[&board],
-        )
-        .await?;
+        create_log(&*tx, board, None).await?;
         tx.execute(
             "INSERT INTO electoral_log_boards (board_name) VALUES ($1) ON CONFLICT DO NOTHING",
             &[&board],
@@ -773,15 +837,23 @@ impl ElectoralLogStore for PostgresStore {
         let tx = client.transaction().await?;
         // Serialize appends within a board before allocating IDs. Otherwise a
         // later transaction can commit first and make a cursor skip earlier IDs.
-        ensure!(
-            tx.query_opt(
-                "SELECT board_name FROM electoral_log_boards WHERE board_name = $1 FOR UPDATE",
-                &[&board]
+        let log = tx
+            .query_opt(
+                "SELECT l.uid, l.sealed_at IS NULL FROM electoral_log_boards b \
+                 JOIN trellis_logs l ON l.name = b.board_name \
+                 WHERE b.board_name = $1 FOR UPDATE OF b",
+                &[&board],
             )
             .await?
-            .is_some(),
-            "Electoral-log board does not exist"
+            .context("Electoral-log board does not exist")?;
+        ensure!(
+            log.try_get::<_, bool>(1)?,
+            "Electoral-log board {board} is sealed"
         );
+        let log = LogIdentity {
+            name: board.to_owned(),
+            uid: log.try_get(0)?,
+        };
         let mut pending = Vec::with_capacity(entries.size_hint().0.min(INSERT_CHUNK));
         for entry in entries {
             let entry = entry?;
@@ -791,17 +863,32 @@ impl ElectoralLogStore for PostgresStore {
             );
             pending.push(entry);
             if pending.len() >= INSERT_CHUNK {
-                insert_records(&tx, board, &mut pending).await?;
+                insert_records(&tx, &log, &mut pending).await?;
             }
         }
-        insert_records(&tx, board, &mut pending).await?;
+        insert_records(&tx, &log, &mut pending).await?;
         tx.commit().await?;
         Ok(())
     }
 
     async fn query(&self, board: &str, query: &LogQuery) -> Result<Vec<ElectoralLogMessage>> {
+        self.query_scope(LogScope::Board(board), query).await
+    }
+
+    async fn count(&self, board: &str, query: &LogQuery) -> Result<i64> {
+        self.count_scope(LogScope::Board(board), query).await
+    }
+}
+
+impl PostgresStore {
+    /// Records of `scope` that match `query`.
+    pub async fn query_scope(
+        &self,
+        scope: LogScope<'_>,
+        query: &LogQuery,
+    ) -> Result<Vec<ElectoralLogMessage>> {
         query.validate()?;
-        let (where_clause, mut params) = predicate(board, query);
+        let (where_clause, mut params) = predicate(scope, query);
         let mut order: Vec<_> = query
             .order
             .iter()
@@ -823,23 +910,27 @@ impl ElectoralLogStore for PostgresStore {
             .collect()
     }
 
-    async fn count(&self, board: &str, query: &LogQuery) -> Result<i64> {
+    /// Number of records of `scope` that match `query`.
+    pub async fn count_scope(&self, scope: LogScope<'_>, query: &LogQuery) -> Result<i64> {
         let client = self.pool.get().await?;
         if query.filters.is_empty() && query.visibility.is_none() && !query.only_with_user {
-            // Each record commits with exactly one leaf, so the journal's size counts the
-            // board without scanning it.
+            // Each record commits with exactly one leaf, so the journals' sizes count the
+            // records without scanning them.
+            let board = match scope {
+                LogScope::Board(board) => Some(board),
+                LogScope::Database => None,
+            };
             return Ok(client
-                .query_opt(
-                    "SELECT l.size FROM trellis_logs l \
-                     JOIN electoral_log_boards b ON b.board_name = l.name WHERE l.name = $1",
+                .query_one(
+                    "SELECT coalesce(sum(l.size), 0)::bigint FROM trellis_logs l \
+                     JOIN electoral_log_boards b ON b.board_name = l.name \
+                     WHERE $1::text IS NULL OR l.name = $1",
                     &[&board],
                 )
                 .await?
-                .map(|row| row.try_get(0))
-                .transpose()?
-                .unwrap_or(0));
+                .try_get(0)?);
         }
-        let (where_clause, params) = predicate(board, query);
+        let (where_clause, params) = predicate(scope, query);
         let sql = format!("SELECT COUNT(*) FROM electoral_log_messages WHERE {where_clause}");
         Ok(client.query_one(&sql, &params.refs()).await?.try_get(0)?)
     }
@@ -930,7 +1021,7 @@ mod tests {
             },
             AuditReport {
                 published_mismatches: vec![PublishedMismatch {
-                    log_id: 1,
+                    log_uid: Uuid::from_u128(1),
                     tree_size: 2,
                     reason: "it names another board".into(),
                 }],

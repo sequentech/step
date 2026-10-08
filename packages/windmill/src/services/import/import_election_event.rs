@@ -95,15 +95,17 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_transfer::import_electoral_log;
 use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
 use crate::services::protocol_manager::get_election_board;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::protocol_manager::{
-    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client, get_electoral_log_store,
+    create_protocol_manager_keys, get_b3_pgsql_client, get_event_databases,
 };
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
+use electoral_log::ports::ElectoralLogStore;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::keycloak::{
@@ -137,12 +139,12 @@ pub async fn upsert_b3_and_elog(
 ) -> Result<Value> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
-    let electoral_log = get_board_client().await?;
-    electoral_log.create_board(&board_name).await?;
-    get_electoral_log_store()
+    let electoral_log = get_event_databases()
         .await?
-        .create_ballot_box(election_event_id)
+        .create_event(tenant_id, election_event_id)
         .await?;
+    electoral_log.create_board(&board_name).await?;
+    electoral_log.create_ballot_box(election_event_id).await?;
 
     let mut board_client = get_b3_pgsql_client().await?;
 
@@ -996,6 +998,41 @@ async fn process_activity_logs_file(
     Ok(())
 }
 
+/// Store an exported event's electoral logs, with their roots, in the new event's
+/// database, and start the new event's board with a record that continues them.
+#[instrument(err, skip(hasura_transaction, manifest, records))]
+async fn process_electoral_log_files(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    manifest: &[u8],
+    records: &[u8],
+) -> Result<()> {
+    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
+    let board_name = get_event_board(tenant_id, election_event_id, &slug);
+    let imported = import_electoral_log(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &board_name,
+        manifest,
+        records,
+    )
+    .await?;
+    for log in &imported.logs {
+        info!(
+            "Imported electoral log {} ({}): {} records, root {}, checked against {} \
+             published checkpoints",
+            log.checkpoint.log_name,
+            log.checkpoint.log_uid,
+            log.checkpoint.tree_size,
+            hex::encode(&log.checkpoint.root),
+            log.verified_checkpoints
+        );
+    }
+    Ok(())
+}
+
 async fn extract_document_uuid(filename: &str) -> Result<Option<&str>> {
     // Regex to match the UUID after "document_"
     let re = Regex::new(
@@ -1235,6 +1272,20 @@ pub async fn process_document(
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
 
+    // Exports that carry the electoral logs with their identities replace the activity
+    // logs file, which older exports carry alone.
+    let electoral_log_entry = |document: EDocuments| {
+        zip_entries
+            .iter()
+            .find(|(name, _)| name.contains(document.to_file_name()))
+            .map(|(_, contents)| contents)
+    };
+    let electoral_log_files = (
+        electoral_log_entry(EDocuments::ELECTORAL_LOG_MANIFEST),
+        electoral_log_entry(EDocuments::ELECTORAL_LOG_RECORDS),
+    );
+    let imports_electoral_log = matches!(electoral_log_files, (Some(_), Some(_)));
+
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, file_contents) in &zip_entries {
@@ -1242,7 +1293,23 @@ pub async fn process_document(
 
             let mut cursor = Cursor::new(&file_contents[..]);
 
-            if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
+            if file_name.contains(EDocuments::ELECTORAL_LOG_MANIFEST.to_file_name()) {
+                if let (Some(manifest), Some(records)) = electoral_log_files {
+                    process_electoral_log_files(
+                        hasura_transaction,
+                        &tenant_id,
+                        &election_event_id,
+                        manifest,
+                        records,
+                    )
+                    .await
+                    .context("Failed to import the electoral log")?;
+                }
+            }
+
+            if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name()))
+                && !imports_electoral_log
+            {
                 let mut temp_file = NamedTempFile::new()
                     .context("Failed to create activity logs temporary file")?;
 

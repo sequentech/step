@@ -139,7 +139,7 @@ jobs:
         working-directory: packages/windmill
 
       - name: Test PostgreSQL electoral-log contract
-        run: cd packages && cargo test -p electoral-log --lib --test postgres --test ballot_box -- --ignored --test-threads=1
+        run: cd packages && cargo test -p electoral-log --lib --test postgres --test ballot_box --test events -- --ignored --test-threads=1
 
       - name: Test electoral-log application wiring
         run: cd packages && cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1

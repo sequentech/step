@@ -4,9 +4,8 @@
 use super::jwks::remove_realm_jwks;
 use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use crate::postgres::election::get_elections;
-use crate::services::protocol_manager::get_board_client;
-use crate::services::protocol_manager::get_electoral_log_store;
 use crate::services::protocol_manager::get_event_board;
+use crate::services::protocol_manager::get_event_databases;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -83,18 +82,17 @@ pub async fn delete_election_event_b3(
     Ok(())
 }
 
+/// Drop the election event's electoral-log database: its board, the logs the board
+/// continues and its ballot box.
 #[instrument(err)]
 pub async fn delete_election_event_electoral_log(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
-    let board = get_event_board(tenant_id, election_event_id, &slug);
-    get_electoral_log_store()
+    get_event_databases()
         .await?
-        .drop_ballot_box(election_event_id)
-        .await?;
-    get_board_client().await?.delete_board(&board).await
+        .drop_event(tenant_id, election_event_id)
+        .await
 }
 
 #[instrument(err)]

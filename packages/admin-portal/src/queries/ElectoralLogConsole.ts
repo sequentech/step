@@ -36,8 +36,12 @@ export const ELECTORAL_LOG_CONSOLE_RECORD = gql`
 `
 
 export const ELECTORAL_LOG_CONSOLE_QUERY = gql`
-    query ElectoralLogConsoleQuery($sql: String!) {
-        electoral_log_console_query(sql: $sql)
+    query ElectoralLogConsoleQuery($tenantId: String!, $electionEventId: String!, $sql: String!) {
+        electoral_log_console_query(
+            tenant_id: $tenantId
+            election_event_id: $electionEventId
+            sql: $sql
+        )
     }
 `
 

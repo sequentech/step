@@ -46,7 +46,11 @@ type Query {
 }
 
 type Query {
-    electoral_log_console_query(sql: String!): jsonb!
+    electoral_log_console_query(
+        tenant_id: String!
+        election_event_id: String!
+        sql: String!
+    ): jsonb!
 }
 
 type Query {

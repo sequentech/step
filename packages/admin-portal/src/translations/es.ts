@@ -2945,7 +2945,7 @@ const spanishTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Registro Electoral",
             subtitle:
-                "Explore el registro electoral y la urna de un evento electoral, o consulte la base de datos del registro electoral. Nada en esta página modifica datos.",
+                "Explore el registro electoral y la urna de un evento electoral, o consulte su base de datos del registro electoral. Nada en esta página modifica datos.",
             notAllowed:
                 "Necesita el permiso electoral-log-console-read para abrir el registro electoral.",
             tabs: {
@@ -2999,8 +2999,9 @@ const spanishTranslation: TranslationType = {
                 loadError: "No se pudo leer la entrada.",
             },
             query: {
-                help: "Las consultas se ejecutan sobre la base de datos del registro electoral en una transacción de solo lectura. Sus tablas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending y ballot_box_sequencer.",
-                scope: "La base de datos contiene los datos de todos los inquilinos.",
+                help: "Las consultas se ejecutan sobre la base de datos del registro electoral del evento electoral en una transacción de solo lectura. Sus tablas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending y ballot_box_sequencer; trellis_logs describe sus registros Merkle.",
+                scope: "Cada evento electoral tiene su propia base de datos, así que una consulta lee un solo evento.",
+                chooseEvent: "Elija el evento electoral que consultar.",
                 placeholder: "SELECT …",
                 limits: "Solo lectura · hasta 1.000 filas · límite de 30 s · cada consulta queda anotada en los registros del servidor con su usuario",
                 run: "Ejecutar Consulta",

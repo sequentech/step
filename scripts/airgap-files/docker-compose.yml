@@ -35,7 +35,7 @@ services:
     container_name: postgres
     restart: unless-stopped
     volumes:
-      - ./electoral-log-schema.sql:/electoral-log-schema.sql:ro
+      - ./electoral-log-catalog.sql:/electoral-log-catalog.sql:ro
       - db_data:/var/lib/postgresql/data
       - db_logs:/logs
       - ./initdb:/docker-entrypoint-initdb.d
@@ -335,7 +335,13 @@ services:
       ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
       ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      # Granted read access to each election event's database when it is created.
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}
+      # Role of the backups, granted read access to each election event's database.
+      ELECTORAL_LOG_PG_BACKUP_USER: ${ELECTORAL_LOG_PG_BACKUP_USER:-}
       ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
       ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       KEYCLOAK_DB__USER: ${KEYCLOAK_DB__USER}
@@ -518,7 +524,13 @@ services:
       ELECTORAL_LOG_PG_PORT: ${ELECTORAL_LOG_PG_PORT}
       ELECTORAL_LOG_PG_USER: ${ELECTORAL_LOG_PG_USER}
       ELECTORAL_LOG_PG_PASSWORD: ${ELECTORAL_LOG_PG_PASSWORD}
+      # Granted read access to each election event's database when it is created.
+      ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER:-}
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
+      ELECTORAL_LOG_PG_EVENT_POOL_SIZE: ${ELECTORAL_LOG_PG_EVENT_POOL_SIZE:-4}
+      ELECTORAL_LOG_PG_OPEN_EVENTS: ${ELECTORAL_LOG_PG_OPEN_EVENTS:-16}
+      # Role of the backups, granted read access to each election event's database.
+      ELECTORAL_LOG_PG_BACKUP_USER: ${ELECTORAL_LOG_PG_BACKUP_USER:-}
       ELECTORAL_LOG_PG_SSLMODE: ${ELECTORAL_LOG_PG_SSLMODE}
       ELECTORAL_LOG_PG_SSLROOTCERT: ${ELECTORAL_LOG_PG_SSLROOTCERT:-}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}

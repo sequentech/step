@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::ballot_box::event_tenants;
-use crate::services::protocol_manager::get_electoral_log_store;
+use crate::services::ballot_box::events_with_ballot_activity;
+use crate::services::protocol_manager::get_event_store;
 use crate::services::{celery_app::get_celery_app, database::PgConfig};
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::types::error::Result;
@@ -22,16 +22,31 @@ const RECOVERY_TASK_EXPIRES_SECS: u32 = 90;
 const PENDING_ENQUEUE_GRACE_SECS: f64 = 90.0;
 
 /// Enqueues `process_cast_vote` for every Datafix vote whose outcome is still
-/// pending.
+/// pending, in the events marked when they accepted votes. An event keeps its mark
+/// while it has such votes.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0, expires = 90)]
 pub async fn review_cast_votes() -> Result<()> {
+    info!("review_cast_votes: Checking pending cast votes");
+    for activity in events_with_ballot_activity().await? {
+        if let Err(error) =
+            review_event_cast_votes(&activity.tenant_id, &activity.election_event_id).await
+        {
+            warn!(
+                "review_cast_votes: Could not review election event {}: {error:?}",
+                activity.election_event_id
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Enqueues `process_cast_vote` for an event's votes whose outcome is pending.
+async fn review_event_cast_votes(tenant_id: &str, election_event_id: &str) -> Result<()> {
     let celery_app = get_celery_app().await;
     let batch_size: i64 = PgConfig::from_env()?.default_sql_batch_size.into();
-
-    info!("review_cast_votes: Checking pending cast votes");
-    let store = get_electoral_log_store().await?;
+    let store = get_event_store(election_event_id).await?;
     let mut after: Option<BallotToReview> = None;
     loop {
         let ballots = store
@@ -40,26 +55,16 @@ pub async fn review_cast_votes() -> Result<()> {
         let Some(last) = ballots.last().cloned() else {
             break;
         };
-        info!("review_cast_votes: Processing {} cast votes", ballots.len());
-        let mut events: Vec<String> = ballots
-            .iter()
-            .map(|ballot| ballot.election_event_id.clone())
-            .collect();
-        events.dedup();
-        let tenants = event_tenants(&events).await?;
+        info!(
+            "review_cast_votes: Processing {} cast votes of election event {election_event_id}",
+            ballots.len()
+        );
         // For this Celery has to be properly configured with acks_late=true and a realistic value for prefetch_count, which establishes the number of tasks executed in parallel.
         for ballot in &ballots {
-            let Some(tenant_id) = tenants.get(&ballot.election_event_id) else {
-                warn!(
-                    "Pending cast vote {} belongs to an unknown election event {}",
-                    ballot.id, ballot.election_event_id
-                );
-                continue;
-            };
             celery_app
                 .send_task(
                     process_cast_vote::new(
-                        tenant_id.clone(),
+                        tenant_id.to_string(),
                         ballot.election_event_id.clone(),
                         ballot.id.clone(),
                     )

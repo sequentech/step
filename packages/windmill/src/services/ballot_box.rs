@@ -10,12 +10,15 @@ use crate::services::ballot_box_reads::get_event_ballot_box;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::{get_electoral_log_store, get_protocol_manager};
+use crate::services::protocol_manager::{
+    get_event_databases, get_event_store, get_protocol_manager,
+};
 use anyhow::{Context, Result};
 use b4::messages::message::Signer;
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::{AcceptBallot, AcceptOutcome, PendingBallot};
 use electoral_log::adapters::ballot_box_status::VoterBallotState;
+use electoral_log::adapters::events::{ActivityMark, BallotActivity};
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::messages::message::Message;
 use electoral_log::messages::newtypes::{
@@ -102,9 +105,27 @@ pub async fn get_allowed_votes(
     Ok(allowed.unwrap_or(1))
 }
 
-/// Accept a vote into the ballot box.
+/// Accept a vote into the event's ballot box. The event is marked first, so that the
+/// sequencer and the review of pending votes visit it.
 pub async fn accept_ballot(ballot: &AcceptBallot<'_>) -> Result<AcceptOutcome> {
-    get_electoral_log_store().await?.accept_ballot(ballot).await
+    let databases = get_event_databases().await?;
+    databases
+        .mark_ballot_activity(ballot.election_event_id, ActivityMark::Throttled)
+        .await?;
+    databases
+        .store(ballot.election_event_id)
+        .await?
+        .accept_ballot(ballot)
+        .await
+}
+
+/// Mark an event so that the sequencer visits it at its next run, before waiting for
+/// it.
+pub async fn request_sequencer(election_event_id: &str) -> Result<()> {
+    get_event_databases()
+        .await?
+        .mark_ballot_activity(election_event_id, ActivityMark::Immediate)
+        .await
 }
 
 /// Delivery ID of an accepted ballot's cast-vote record, so that appending it again
@@ -170,7 +191,7 @@ pub async fn sequence_event(tenant_id: &str, election_event_id: &str) -> Result<
         .await?;
         (board, protocol_manager.get_signing_key().clone())
     };
-    let store = get_electoral_log_store().await?;
+    let store = get_event_store(election_event_id).await?;
     let holder = uuid::Uuid::new_v4().to_string();
     if !store
         .take_sequencer_lease(election_event_id, &holder, SEQUENCER_LEASE_SECS)
@@ -265,40 +286,65 @@ pub async fn reject_voter_ballots(
         .await
 }
 
-/// The tenant of each of these election events.
-pub async fn event_tenants(election_event_ids: &[String]) -> Result<HashMap<String, String>> {
-    if election_event_ids.is_empty() {
-        return Ok(HashMap::new());
+/// What a marked event's ballot box holds for the background tasks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BallotBoxWork {
+    /// Accepted ballots wait for the sequencer.
+    Sequencing,
+    /// Only votes whose outcome is pending, which the review visits.
+    Review,
+    /// Nothing; the event's mark can be cleared.
+    Idle,
+}
+
+/// What an event's ballot box holds for the background tasks.
+async fn ballot_box_work(election_event_id: &str) -> Result<BallotBoxWork> {
+    let store = get_event_store(election_event_id).await?;
+    if store.pending_count(election_event_id).await? > 0 {
+        return Ok(BallotBoxWork::Sequencing);
     }
-    let mut client = get_hasura_pool().await.get().await?;
-    let transaction = client.build_transaction().read_only(true).start().await?;
-    let rows = transaction
-        .query(
-            "SELECT id::text, tenant_id::text FROM sequent_backend.election_event \
-             WHERE id = ANY($1::text[]::uuid[])",
-            &[&election_event_ids],
-        )
-        .await
-        .context("Error reading the tenants of election events")?;
-    Ok(rows
-        .into_iter()
-        .map(|row| (row.get(0), row.get(1)))
-        .collect())
+    if store.has_pending_status(election_event_id).await? {
+        return Ok(BallotBoxWork::Review);
+    }
+    Ok(BallotBoxWork::Idle)
 }
 
 /// `(tenant_id, election_event_id)` of every event whose ballot box holds ballots
-/// waiting for the sequencer.
+/// waiting for the sequencer. Only events marked when they accepted votes are
+/// visited; the mark of an event with nothing left to do is cleared.
 #[instrument(err)]
 pub async fn events_waiting_for_sequencer() -> Result<Vec<(String, String)>> {
-    let events = get_electoral_log_store()
+    let databases = get_event_databases().await?;
+    let mut waiting = Vec::new();
+    for activity in databases.events_with_ballot_activity().await? {
+        match ballot_box_work(&activity.election_event_id).await {
+            Ok(BallotBoxWork::Sequencing) => {
+                waiting.push((activity.tenant_id, activity.election_event_id))
+            }
+            Ok(BallotBoxWork::Review) => {}
+            Ok(BallotBoxWork::Idle) => {
+                if let Err(error) = databases.clear_ballot_activity(&activity).await {
+                    tracing::error!(
+                        "Could not clear the ballot activity of election event {}: {error:?}",
+                        activity.election_event_id
+                    );
+                }
+            }
+            Err(error) => tracing::error!(
+                "Could not read the ballot box of election event {}: {error:?}",
+                activity.election_event_id
+            ),
+        }
+    }
+    Ok(waiting)
+}
+
+/// Events marked when they accepted votes, which may hold votes to review.
+pub async fn events_with_ballot_activity() -> Result<Vec<BallotActivity>> {
+    get_event_databases()
         .await?
-        .events_with_pending_ballots()
-        .await?;
-    let tenants = event_tenants(&events).await?;
-    Ok(events
-        .into_iter()
-        .filter_map(|event| tenants.get(&event).map(|tenant| (tenant.clone(), event)))
-        .collect())
+        .events_with_ballot_activity()
+        .await
 }
 
 #[cfg(test)]

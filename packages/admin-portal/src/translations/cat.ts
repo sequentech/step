@@ -2955,7 +2955,7 @@ const catalanTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Registre Electoral",
             subtitle:
-                "Exploreu el registre electoral i l'urna d'un esdeveniment electoral, o consulteu la base de dades del registre electoral. Res d'aquesta pàgina modifica dades.",
+                "Exploreu el registre electoral i l'urna d'un esdeveniment electoral, o consulteu-ne la base de dades del registre electoral. Res d'aquesta pàgina modifica dades.",
             notAllowed:
                 "Necessiteu el permís electoral-log-console-read per obrir el registre electoral.",
             tabs: {
@@ -3009,8 +3009,9 @@ const catalanTranslation: TranslationType = {
                 loadError: "No s'ha pogut llegir l'entrada.",
             },
             query: {
-                help: "Les consultes s'executen sobre la base de dades del registre electoral en una transacció de només lectura. Les seves taules són electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending i ballot_box_sequencer.",
-                scope: "La base de dades conté les dades de tots els inquilins.",
+                help: "Les consultes s'executen sobre la base de dades del registre electoral de l'esdeveniment electoral en una transacció de només lectura. Les seves taules són electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending i ballot_box_sequencer; trellis_logs descriu els seus registres Merkle.",
+                scope: "Cada esdeveniment electoral té la seva pròpia base de dades, així que una consulta llegeix un sol esdeveniment.",
+                chooseEvent: "Trieu l'esdeveniment electoral que voleu consultar.",
                 placeholder: "SELECT …",
                 limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
                 run: "Executar Consulta",

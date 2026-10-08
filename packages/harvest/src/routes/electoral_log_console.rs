@@ -3,8 +3,8 @@
 
 //! The electoral-log console: administrators browse an election event's records
 //! and ballot box page by page and open a record. Users of the super-admin tenant
-//! browse any tenant's events and run read-only SQL queries on the electoral-log
-//! database, which holds every tenant's data.
+//! browse any tenant's events and run read-only SQL queries on an event's
+//! electoral-log database.
 
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -12,7 +12,7 @@ use electoral_log::adapters::console::{
     run_read_only_query, ConsoleFilters, ConsoleTable, Page, PageOrder,
     PageRequest, PersonalData, QueryResult,
 };
-use electoral_log::adapters::postgres::PostgresConnection;
+use electoral_log::adapters::postgres::PostgresStore;
 use rocket::{http::Status, serde::json::Json};
 use sequent_core::{
     services::{jwt::JwtClaims, uuid_validation::parse_uuid_v4},
@@ -27,7 +27,7 @@ use uuid::Uuid;
 use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_event_board::get_election_event_board;
-use windmill::services::protocol_manager::get_electoral_log_store;
+use windmill::services::protocol_manager::get_event_databases;
 
 /// Rows of a page unless the request asks for another number.
 const DEFAULT_PAGE_ROWS: i64 = 25;
@@ -224,6 +224,28 @@ async fn event_board(
     })
 }
 
+/// The electoral-log database of an election event.
+async fn event_store(
+    election_event_id: &str,
+) -> Result<PostgresStore, JsonError> {
+    let databases = get_event_databases().await.map_err(internal_error)?;
+    if !databases
+        .has_event(election_event_id)
+        .await
+        .map_err(internal_error)?
+    {
+        return Err(ErrorResponse::new(
+            Status::NotFound,
+            "Election event has no electoral log",
+            ErrorCode::ElectoralLogNotFound,
+        ));
+    }
+    databases
+        .store(election_event_id)
+        .await
+        .map_err(internal_error)
+}
+
 #[derive(Debug, PartialEq, Serialize)]
 pub struct ConsoleElection {
     id: String,
@@ -390,7 +412,7 @@ pub async fn electoral_log_console_page(
     let filters = input.filters.unwrap_or_default();
     check_filters(table, &filters)?;
     let board = event_board(&tenant_id, &input.election_event_id).await?;
-    let store = get_electoral_log_store().await.map_err(internal_error)?;
+    let store = event_store(&input.election_event_id).await?;
     let mut page = store
         .console_page(&PageRequest {
             table,
@@ -436,7 +458,7 @@ pub async fn electoral_log_console_record(
         vec![Permissions::ELECTORAL_LOG_CONSOLE_READ],
     )?;
     let board = event_board(&tenant_id, &input.election_event_id).await?;
-    let store = get_electoral_log_store().await.map_err(internal_error)?;
+    let store = event_store(&input.election_event_id).await?;
     let record = store
         .console_record(&board, input.position)
         .await
@@ -457,6 +479,10 @@ pub async fn electoral_log_console_record(
 
 #[derive(Deserialize)]
 pub struct ConsoleQueryInput {
+    /// The tenant of the election event.
+    tenant_id: String,
+    /// The election event whose database the query reads.
+    election_event_id: String,
     sql: String,
 }
 
@@ -468,10 +494,10 @@ pub enum ConsoleQueryOutput {
     Error { error: String },
 }
 
-/// Run a read-only SQL query on the electoral-log database, as a role that can
-/// only read, with a time limit. The database holds every tenant's data, so only
-/// users of the super-admin tenant query it. Queries read personal data as it is
-/// stored, so they need the personal-data permission too.
+/// Run a read-only SQL query on an election event's electoral-log database, as a
+/// role that can only read, with a time limit. Only users of the super-admin tenant
+/// query, any tenant's events. Queries read personal data as it is stored, so they
+/// need the personal-data permission too.
 #[instrument(skip(claims, body))]
 #[post("/electoral-log-console/query", format = "json", data = "<body>")]
 pub async fn electoral_log_console_query(
@@ -485,26 +511,33 @@ pub async fn electoral_log_console_query(
             Permissions::ELECTORAL_LOG_PERSONAL_DATA_READ,
         ],
     )?;
-    let sql = body.into_inner().sql;
+    let input = body.into_inner();
+    let sql = input.sql;
     check_query(&sql)?;
+    // Only an event of the named tenant: the request names what it reads.
+    event_board(&input.tenant_id, &input.election_event_id).await?;
     tracing::info!(
         tenant_id = %claims.hasura_claims.tenant_id,
         user_id = %claims.hasura_claims.user_id,
+        queried_tenant_id = %input.tenant_id,
+        election_event_id = %input.election_event_id,
         sql = %sql,
         "Electoral-log console query"
     );
-    let connection = PostgresConnection::from_env().map_err(internal_error)?;
-    let mut client = match connection.reader_client().await {
-        Ok(client) => client,
-        Err(error) => {
-            tracing::error!(
+    let databases = get_event_databases().await.map_err(internal_error)?;
+    let mut client =
+        match databases.reader_client(&input.election_event_id).await {
+            Ok(client) => client,
+            Err(error) => {
+                tracing::error!(
                 "Electoral-log console queries are not available: {error:?}"
             );
-            return Ok(Json(ConsoleQueryOutput::Error {
-                error: "Queries are not available in this environment".into(),
-            }));
-        }
-    };
+                return Ok(Json(ConsoleQueryOutput::Error {
+                    error: "Queries are not available in this environment"
+                        .into(),
+                }));
+            }
+        };
     let output = match run_read_only_query(
         &mut client,
         &sql,

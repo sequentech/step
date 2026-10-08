@@ -13,6 +13,12 @@ PostgreSQL adapter. The original source-table polling server and tools are
 available behind `upstream-service`; they are not started by Step.
 The package uses Step's workspace lockfile.
 
+`journal` keeps upstream's RFC 6962 hashing (`ct-merkle`), so its roots and
+proofs are those of upstream for the same leaves. Its own additions are a log
+identity and a seal: `trellis_logs.uid` names a log in checkpoints, so a log
+copied to another database keeps its checkpoints, and a log with `sealed_at`
+refuses appends. Checkpoints carry `log_uid` instead of the database key.
+
 Local correctness fixes require a trusted tree size when verifying consistency
 proofs. The upstream HTTP client retains complete root/size checkpoints, and the
 monitor validates their ordering, bounds growth-race retries, and keeps its last

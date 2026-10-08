@@ -13,7 +13,7 @@ use crate::postgres::electoral_log_checkpoint::{
     get_last_published_tree_size, PublishedCheckpoint,
 };
 use crate::postgres::tally_session_execution::append_tally_session_log;
-use crate::services::ballot_box::{wait_for_sequencer, CLOSING_SEQUENCER_WAIT};
+use crate::services::ballot_box::{request_sequencer, wait_for_sequencer, CLOSING_SEQUENCER_WAIT};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
@@ -21,9 +21,7 @@ use crate::services::electoral_log::ElectoralLog;
 use crate::services::electoral_log_checkpoint_copies::{
     cross_check, read_checkpoint_copies, CheckpointCopyConfig, CheckpointCopyPolicy,
 };
-use crate::services::protocol_manager::{
-    get_board_client, get_electoral_log_store, get_protocol_manager,
-};
+use crate::services::protocol_manager::{get_board_client, get_event_store, get_protocol_manager};
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tasks_execution::{post, update_fail, update_with_annotations};
 use crate::tasks::audit_electoral_log::audit_electoral_log;
@@ -34,7 +32,7 @@ use electoral_log::adapters::postgres::{AuditAnnotations, AuditOutcome};
 use electoral_log::domain::{LogQuery, OrderColumn, SortDirection};
 use electoral_log::messages::newtypes::ElectoralLogCheckpointReason;
 use electoral_log::messages::statement::StatementType;
-use electoral_log::proofs::{verify_checkpoint_signature, Checkpoint};
+use electoral_log::proofs::{verify_checkpoint_signature, Checkpoint, LogState};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::Value;
@@ -128,7 +126,8 @@ pub async fn publish_event_checkpoint(
     // Ballots accepted before voting closed reach the log through the sequencer, so
     // the closing checkpoint waits for them.
     if matches!(reason, ElectoralLogCheckpointReason::VotingClosed) {
-        let store = get_electoral_log_store().await?;
+        request_sequencer(election_event_id).await?;
+        let store = get_event_store(election_event_id).await?;
         let waiting = wait_for_sequencer(CLOSING_SEQUENCER_WAIT, || {
             store.pending_count(election_event_id)
         })
@@ -246,7 +245,7 @@ async fn publish_periodic_checkpoint(tenant_id: &str, election_event_id: &str) -
         let event = get_election_event_by_id(&transaction, tenant_id, election_event_id).await?;
         let board = get_election_event_board(event.bulletin_board_reference)
             .context("Election event has no electoral-log board")?;
-        let checkpoint = get_electoral_log_store()
+        let checkpoint = get_event_store(election_event_id)
             .await?
             .journal()
             .checkpoint(&board)
@@ -255,7 +254,7 @@ async fn publish_periodic_checkpoint(tenant_id: &str, election_event_id: &str) -
             &transaction,
             tenant_id,
             election_event_id,
-            checkpoint.log_id,
+            &checkpoint.log_uid,
         )
         .await?;
         (board, checkpoint, last_published)
@@ -363,7 +362,9 @@ pub async fn log_to_tally(
     }
 }
 
-/// Audit an election event's electoral log against its published checkpoints.
+/// Audit an election event's electoral log against its published checkpoints: the
+/// event's board, and the sealed logs it continues when the event was imported, each
+/// against the checkpoints published of it.
 #[instrument(err)]
 pub async fn run_electoral_log_audit(
     tenant_id: &str,
@@ -388,16 +389,20 @@ pub async fn run_electoral_log_audit(
     transaction.commit().await?;
     drop(client);
 
-    let (mut checkpoints, mut findings) = check_publications(&board, &expected_signer, &published);
+    let (own, imported): (Vec<_>, Vec<_>) = published
+        .iter()
+        .cloned()
+        .partition(|publication| publication.board_name == board);
+    let (mut checkpoints, mut findings) = check_publications(&board, &expected_signer, &own);
     let copies = CheckpointCopyConfig::from_env()?;
     if copies.policy != CheckpointCopyPolicy::Off {
         match read_checkpoint_copies(&copies, tenant_id, election_event_id).await {
             Ok(read) => {
                 findings.extend(read.findings);
-                findings.extend(cross_check(&published, &read.copies));
+                findings.extend(cross_check(&own, &read.copies));
                 let (copied, copy_findings) = check_labelled_publications(
                     &board,
-                    &expected_signer,
+                    CheckpointSigner::Expected(&expected_signer),
                     &read.copies,
                     "Write-once copy of the checkpoint",
                 );
@@ -413,11 +418,47 @@ pub async fn run_electoral_log_audit(
             )),
         }
     }
-    let report = get_electoral_log_store()
-        .await?
-        .audit(&board, &checkpoints)
-        .await?;
+    let store = get_event_store(election_event_id).await?;
+    let report = store.audit(&board, &checkpoints).await?;
     findings.extend(report.findings());
+    // The sealed logs an imported event's board continues, against the checkpoints
+    // published of them before the export, which carry the source event's signatures.
+    let logs = store.logs().await?;
+    for log in &logs {
+        let name = &log.checkpoint.log_name;
+        if *name == board {
+            continue;
+        }
+        if log.state != LogState::Sealed {
+            findings.push(format!(
+                "Log {name} is not sealed but is not the event's board"
+            ));
+        }
+        let publications: Vec<_> = imported
+            .iter()
+            .filter(|publication| publication.board_name == *name)
+            .cloned()
+            .collect();
+        let (checkpoints, signature_findings) = check_imported_publications(name, &publications);
+        findings.extend(
+            signature_findings
+                .into_iter()
+                .chain(store.audit(name, &checkpoints).await?.findings())
+                .map(|finding| format!("Continued log {name}: {finding}")),
+        );
+    }
+    for publication in &imported {
+        if !logs
+            .iter()
+            .any(|log| log.checkpoint.log_name == publication.board_name)
+        {
+            findings.push(format!(
+                "Published checkpoint at size {} names board {}, which is not in the event's \
+                 database",
+                publication.tree_size, publication.board_name
+            ));
+        }
+    }
     Ok(AuditResult {
         board,
         tree_size: report.committed_size,
@@ -434,13 +475,42 @@ fn check_publications(
     expected_signer: &str,
     published: &[PublishedCheckpoint],
 ) -> (Vec<Checkpoint>, Vec<String>) {
-    check_labelled_publications(board, expected_signer, published, "Published checkpoint")
+    check_labelled_publications(
+        board,
+        CheckpointSigner::Expected(expected_signer),
+        published,
+        "Published checkpoint",
+    )
+}
+
+/// Like `check_publications` for the checkpoints of a log an imported board continues,
+/// which were signed by the key of the event it was exported from: their signatures
+/// must verify against the key they name.
+fn check_imported_publications(
+    log: &str,
+    published: &[PublishedCheckpoint],
+) -> (Vec<Checkpoint>, Vec<String>) {
+    check_labelled_publications(
+        log,
+        CheckpointSigner::Named,
+        published,
+        "Published checkpoint",
+    )
+}
+
+/// Which key a checkpoint's signature must verify with.
+#[derive(Clone, Copy)]
+enum CheckpointSigner<'a> {
+    /// The event's own key.
+    Expected(&'a str),
+    /// The key the publication names.
+    Named,
 }
 
 /// Like `check_publications`, naming the checked items `label` in the findings.
 fn check_labelled_publications(
     board: &str,
-    expected_signer: &str,
+    signer: CheckpointSigner<'_>,
     published: &[PublishedCheckpoint],
     label: &str,
 ) -> (Vec<Checkpoint>, Vec<String>) {
@@ -458,7 +528,7 @@ fn check_labelled_publications(
         };
         let checkpoint = Checkpoint {
             log_name: publication.board_name.clone(),
-            log_id: publication.log_id,
+            log_uid: publication.log_uid,
             tree_size,
             root,
         };
@@ -469,7 +539,11 @@ fn check_labelled_publications(
             ));
             continue;
         }
-        if publication.signer_pk != expected_signer {
+        let unexpected_signer = match signer {
+            CheckpointSigner::Expected(expected) => publication.signer_pk != expected,
+            CheckpointSigner::Named => false,
+        };
+        if unexpected_signer {
             findings.push(format!(
                 "{label} at size {size} is signed by an unexpected key"
             ));
@@ -573,7 +647,7 @@ mod tests {
     fn publication(sk: &StrandSignatureSk, board: &str, size: i64) -> PublishedCheckpoint {
         let checkpoint = Checkpoint {
             log_name: board.to_string(),
-            log_id: 1,
+            log_uid: electoral_log::proofs::Uuid::from_u128(1),
             tree_size: u64::try_from(size).unwrap(),
             root: vec![9; 32],
         };
@@ -594,7 +668,7 @@ mod tests {
         let sd = SigningData::new(key.clone(), "", key.clone());
         let checkpoint = Checkpoint {
             log_name: "board".to_string(),
-            log_id: 2,
+            log_uid: electoral_log::proofs::Uuid::from_u128(2),
             tree_size: 17,
             root: vec![3; 32],
         };

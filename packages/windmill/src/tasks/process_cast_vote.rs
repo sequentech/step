@@ -12,7 +12,7 @@ use crate::services::external::utils::{
 };
 use crate::services::external::voterview_requests::SoapSendError;
 use crate::services::pg_lock::PgLock;
-use crate::services::protocol_manager::get_electoral_log_store;
+use crate::services::protocol_manager::get_event_store;
 use crate::types::error::Result;
 use celery::error::TaskError;
 use chrono::Duration;
@@ -299,7 +299,7 @@ async fn load_pending_vote(
             .await
             .map_err(|err| format!("Error loading election event: {err:?}"))?
     };
-    let store = get_electoral_log_store()
+    let store = get_event_store(election_event_id)
         .await
         .map_err(|err| format!("Error opening the event's ballot box: {err:?}"))?;
     let Some(ballot) = store

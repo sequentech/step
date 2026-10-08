@@ -2934,7 +2934,7 @@ const basqueTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Hauteskunde Erregistroa",
             subtitle:
-                "Arakatu hauteskunde-gertaera baten hauteskunde-erregistroa eta hautetontzia, edo kontsultatu hauteskunde-erregistroaren datu-basea. Orri honetan ez da daturik aldatzen.",
+                "Arakatu hauteskunde-gertaera baten hauteskunde-erregistroa eta hautetontzia, edo kontsultatu haren hauteskunde-erregistroaren datu-basea. Orri honetan ez da daturik aldatzen.",
             notAllowed:
                 "electoral-log-console-read baimena behar duzu hauteskunde-erregistroa irekitzeko.",
             tabs: {
@@ -2988,8 +2988,9 @@ const basqueTranslation: TranslationType = {
                 loadError: "Ezin izan da sarrera irakurri.",
             },
             query: {
-                help: "Kontsultak hauteskunde-erregistroaren datu-basean exekutatzen dira, irakurtzeko soilik den transakzio batean. Bere taulak hauek dira: electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending eta ballot_box_sequencer.",
-                scope: "Datu-baseak maizter guztien datuak ditu.",
+                help: "Kontsultak hauteskunde-gertaeraren hauteskunde-erregistroaren datu-basean exekutatzen dira, irakurtzeko soilik den transakzio batean. Bere taulak hauek dira: electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending eta ballot_box_sequencer; trellis_logs taulak bere Merkle erregistroak deskribatzen ditu.",
+                scope: "Hauteskunde-gertaera bakoitzak bere datu-basea du, beraz kontsulta batek gertaera bakarra irakurtzen du.",
+                chooseEvent: "Aukeratu kontsultatu nahi duzun hauteskunde-gertaera.",
                 placeholder: "SELECT …",
                 limits: "Irakurtzeko soilik · gehienez 1.000 errenkada · 30 s-ko muga · kontsulta bakoitza zerbitzariaren erregistroetan gordetzen da zure erabiltzailearekin",
                 run: "Exekutatu Kontsulta",

@@ -2953,7 +2953,7 @@ const tagalogTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Electoral Log",
             subtitle:
-                "I-browse ang electoral log at ballot box ng isang election event, o i-query ang database ng electoral log. Walang binabagong datos ang pahinang ito.",
+                "I-browse ang electoral log at ballot box ng isang election event, o i-query ang database ng electoral log nito. Walang binabagong datos ang pahinang ito.",
             notAllowed:
                 "Kailangan mo ang pahintulot na electoral-log-console-read para buksan ang electoral log.",
             tabs: {
@@ -3007,8 +3007,9 @@ const tagalogTranslation: TranslationType = {
                 loadError: "Hindi mabasa ang record.",
             },
             query: {
-                help: "Tumatakbo ang mga query sa database ng electoral log sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer.",
-                scope: "Nasa database ang datos ng lahat ng tenant.",
+                help: "Tumatakbo ang mga query sa database ng electoral log ng election event sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer; inilalarawan ng trellis_logs ang mga Merkle log nito.",
+                scope: "May sariling database ang bawat election event, kaya isang event lang ang binabasa ng isang query.",
+                chooseEvent: "Piliin ang election event na iqu-query.",
                 placeholder: "SELECT …",
                 limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
                 run: "Patakbuhin ang Query",

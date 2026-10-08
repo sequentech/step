@@ -26,6 +26,7 @@ use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
 use b4::client::pgsql::B3MessageRow;
+use electoral_log::adapters::events::EventDatabases;
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::BoardClient;
 use std::sync::Arc;
@@ -416,21 +417,27 @@ pub async fn add_ballots_to_board<C: Ctx>(
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 
-static ELECTORAL_LOG_STORE: OnceCell<PostgresStore> = OnceCell::const_new();
+static ELECTORAL_LOG_DATABASES: OnceCell<EventDatabases> = OnceCell::const_new();
 static ELECTORAL_LOG_CLIENT: OnceCell<BoardClient> = OnceCell::const_new();
 
-/// The process-wide store of the electoral-log database.
-pub async fn get_electoral_log_store() -> Result<PostgresStore> {
-    let store = ELECTORAL_LOG_STORE
-        .get_or_try_init(|| async { PostgresStore::from_env() })
+/// The process-wide pools of the election events' electoral-log databases.
+pub async fn get_event_databases() -> Result<EventDatabases> {
+    let databases = ELECTORAL_LOG_DATABASES
+        .get_or_try_init(|| async { EventDatabases::from_env() })
         .await?;
-    Ok(store.clone())
+    Ok(databases.clone())
 }
 
+/// The store of an election event's electoral-log database.
+pub async fn get_event_store(election_event_id: &str) -> Result<PostgresStore> {
+    get_event_databases().await?.store(election_event_id).await
+}
+
+/// Boards of every election event, each in its event's database.
 pub async fn get_board_client() -> Result<BoardClient> {
     let client = ELECTORAL_LOG_CLIENT
         .get_or_try_init(|| async {
-            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(get_electoral_log_store().await?)))
+            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(get_event_databases().await?)))
         })
         .await?;
     Ok(client.clone())

@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
 use electoral_log::{
-    adapters::postgres::PostgresStore,
+    adapters::{
+        events::EventDatabases,
+        postgres::{LogScope, PostgresStore},
+    },
+    ports::ElectoralLogStore,
     proofs::{Checkpoint, Consistency, JournalError, RecordProof},
 };
 use rocket::{http::Status, serde::json::Json, State};
@@ -12,18 +16,35 @@ use windmill::services::protocol_manager::get_event_board;
 
 type ApiResult<T> = Result<Json<T>, (Status, String)>;
 
-/// Proofs use their own connection pool, separate from Windmill's.
+/// Proofs use their own connection pools, separate from Windmill's.
 pub struct ProofService {
-    pub store: PostgresStore,
+    pub databases: EventDatabases,
 }
 
 #[derive(Deserialize)]
 pub struct ProofRequest {
     tenant_id: String,
     election_event_id: String,
+    /// A log of the event's database: the event's board, by default, or a sealed log
+    /// the board continues after an import.
+    #[serde(default)]
+    log_name: Option<String>,
 }
+
+/// The log a request reads and the database that holds it.
+struct ProofScope {
+    log: String,
+    store: PostgresStore,
+}
+
 impl ProofRequest {
-    fn board(&self, claims: &JwtClaims) -> Result<String, (Status, String)> {
+    /// The requested log, in the database of the tenant's election event. The event's
+    /// board, named after the tenant, must be in the database.
+    async fn scope(
+        &self,
+        claims: &JwtClaims,
+        databases: &EventDatabases,
+    ) -> Result<ProofScope, (Status, String)> {
         authorize(
             claims,
             true,
@@ -31,11 +52,29 @@ impl ProofRequest {
             vec![Permissions::LOGS_READ],
         )?;
         let slug = std::env::var("ENV_SLUG").map_err(internal_error)?;
-        Ok(get_event_board(
-            &self.tenant_id,
-            &self.election_event_id,
-            &slug,
-        ))
+        let board =
+            get_event_board(&self.tenant_id, &self.election_event_id, &slug);
+        let not_found = || {
+            (
+                Status::NotFound,
+                "Unknown electoral log or record".to_string(),
+            )
+        };
+        if !databases
+            .has_board(&board)
+            .await
+            .map_err(|error| internal_error(format!("{error:#}")))?
+        {
+            return Err(not_found());
+        }
+        let store = databases
+            .board_store(&board)
+            .await
+            .map_err(|error| internal_error(format!("{error:#}")))?;
+        Ok(ProofScope {
+            log: self.log_name.clone().unwrap_or(board),
+            store,
+        })
     }
 }
 
@@ -89,11 +128,11 @@ pub async fn checkpoint(
     claims: JwtClaims,
     state: &State<ProofService>,
 ) -> ApiResult<CheckpointResponse> {
-    let board = body.board(&claims)?;
-    let checkpoint = state
+    let scope = body.scope(&claims, &state.databases).await?;
+    let checkpoint = scope
         .store
         .journal()
-        .checkpoint(&board)
+        .checkpoint(&scope.log)
         .await
         .map_err(journal_error)?;
     Ok(Json(CheckpointResponse { checkpoint }))
@@ -105,22 +144,22 @@ pub async fn inclusion(
     claims: JwtClaims,
     state: &State<ProofService>,
 ) -> ApiResult<RecordProof> {
-    let board = body.scope.board(&claims)?;
+    let scope = body.scope.scope(&claims, &state.databases).await?;
     if body
         .trusted_checkpoint
         .as_ref()
-        .is_some_and(|trusted| trusted.log_name != board)
+        .is_some_and(|trusted| trusted.log_name != scope.log)
     {
         return Err((
             Status::BadRequest,
             "Checkpoint belongs to another board".into(),
         ));
     }
-    let store = &state.store;
+    let store = &scope.store;
     store
         .record_proof(
             &store.journal(),
-            &board,
+            LogScope::Board(&scope.log),
             body.record_id,
             body.trusted_checkpoint.as_ref(),
         )
@@ -135,14 +174,14 @@ pub async fn consistency(
     claims: JwtClaims,
     state: &State<ProofService>,
 ) -> ApiResult<Consistency> {
-    let board = body.scope.board(&claims)?;
-    if body.checkpoint.log_name != board {
+    let scope = body.scope.scope(&claims, &state.databases).await?;
+    if body.checkpoint.log_name != scope.log {
         return Err((
             Status::BadRequest,
             "Checkpoint belongs to another board".into(),
         ));
     }
-    state
+    scope
         .store
         .journal()
         .consistency(&body.checkpoint)
@@ -155,8 +194,8 @@ pub fn fairing() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::try_on_ignite(
         "Trellis electoral-log proofs",
         |rocket| async {
-            match PostgresStore::from_env() {
-                Ok(store) => Ok(rocket.manage(ProofService { store })),
+            match EventDatabases::from_env() {
+                Ok(databases) => Ok(rocket.manage(ProofService { databases })),
                 Err(error) => {
                     tracing::error!(
                         "Cannot configure electoral-log proofs: {error}"
