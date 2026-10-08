@@ -115,7 +115,7 @@ export const NoExplanation: Story = {
 
 const HASH = `ef187f0b${"3c".repeat(56)}22a65e5b`
 
-/** VOTE-FREEZE: a seal entry shows its hash, counts and Close voting request. */
+/** VOTE-FREEZE: a seal entry shows its hash, counts, why the others don't count and Close voting request. */
 export const BallotBoxSealed: Story = {
     args: {
         kind: "BallotBoxSealed",
@@ -125,6 +125,11 @@ export const BallotBoxSealed: Story = {
         const canvas = within(canvasElement)
         await expect(canvas.getByText(`Seal hash: ${HASH}`)).toBeVisible()
         await expect(canvas.getByText("1340 of 1342 ballots counted.")).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "The other 2 ballots were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible."
+            )
+        ).toBeVisible()
     },
 }
 

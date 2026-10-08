@@ -259,9 +259,9 @@ const galegoTranslation: TranslationType = {
                 nextStep: "Seguinte paso: {{step}}",
                 reason: {
                     "ballot-box-seal-policy":
-                        "Kept closed: with Seal at close, voting that has closed stays closed.",
+                        "Mantense pechada: con Selar ao pechar, a votación que xa se pechou segue pechada.",
                     "never-opened-kept-open":
-                        "Nothing to close on schedule: the Post never opened, so it stays as it is.",
+                        "Non hai nada que pechar segundo a programación: o Posto nunca se abriu, polo que queda como está.",
                 },
             },
             column: {
@@ -285,16 +285,21 @@ const galegoTranslation: TranslationType = {
                 title: "Rexistros da Base de Datos IAM",
             },
             ballotBoxSeal: {
-                sealHash: "Seal hash: {{hash}}",
-                counted: "{{counted}} of {{inBox}} ballots counted.",
-                closeRequest: "Closed by the Close voting request {{request}}.",
+                sealHash: "Hash do selo: {{hash}}",
+                counted: "Contabilizáronse {{counted}} de {{inBox}} papeletas.",
+                notCounted_one:
+                    "A outra papeleta foi substituída por unha papeleta posterior do votante, descartada ou emitida por un votante non elixible.",
+                notCounted_other:
+                    "As outras {{count}} papeletas foron substituídas por unha papeleta posterior do votante, descartadas ou emitidas por un votante non elixible.",
+                closeRequest:
+                    "Pechada pola solicitude de sinatura de Pechar a votación {{request}}.",
                 noCloseRequest:
-                    "Closed without a Close voting request (Stop Voting or the scheduled close).",
-                failedReason: "Why: {{reason}}",
-                failedLocked: "The ballot box stays locked and is not sealed: an incident.",
-                verifiedCounted: "{{counted}} ballots counted from the seal.",
-                tallySession: "Tally session {{session}}.",
-                differs: "What differs: {{differs}}",
+                    "Pechada sen solicitude de sinatura de Pechar a votación (Detener Votación ou o peche programado).",
+                failedReason: "Motivo: {{reason}}",
+                failedLocked: "A urna segue bloqueada e non está selada: é unha incidencia.",
+                verifiedCounted: "Contabilizáronse {{counted}} papeletas a partir do selo.",
+                tallySession: "Sesión de escrutinio {{session}}.",
+                differs: "Diferenzas: {{differs}}",
             },
         },
         tasksScreen: {
@@ -511,96 +516,105 @@ const galegoTranslation: TranslationType = {
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
             ballotBoxes: {
                 loadError:
-                    "The ballot boxes' seals could not be read. Reload the page, or check the connection to the server.",
-                title: "Ballot boxes",
+                    "Non se puideron ler os selos das urnas. Recargue a páxina ou comprobe a conexión co servidor.",
+                title: "Urnas",
                 sealing:
-                    "Voting closed at {{closed}}. The ballot boxes are sealed when the grace period ends, at {{deadline}}.",
-                sealed: "Voting closed at {{closed}}. The ballot boxes are sealed: no ballot can be added, changed or deleted.",
-                failed: "Voting closed at {{closed}}. A ballot box could not be sealed: it stays locked, and the incident is in the logs.",
+                    "A votación pechouse ás {{closed}}. As urnas sélanse cando remata o período de graza, ás {{deadline}}.",
+                sealed: "A votación pechouse ás {{closed}}. As urnas están seladas: non se pode engadir, cambiar nin borrar ningunha papeleta.",
+                failed: "A votación pechouse ás {{closed}}. Non se puido selar unha urna: segue bloqueada e a incidencia está nos rexistros.",
                 closedBySignatures:
-                    "Closed by {{names}} with their certificates, signing code {{code}}.",
-                closedByUser: "Closed by {{username}}.",
-                closedBySchedule: "Closed by the scheduled close of polls.",
+                    "Pechada por {{names}} cos seus certificados, código de sinatura {{code}}.",
+                closedByUser: "Pechada por {{username}}.",
+                closedBySchedule: "Pechada polo peche programado da votación.",
                 column: {
-                    area: "Area",
-                    status: "Status",
-                    inTheBox: "In the box",
-                    counted: "Counted",
-                    sealedAt: "Sealed",
-                    sealHash: "Seal hash",
-                    record: "Seal record",
+                    area: "Área",
+                    status: "Estado",
+                    inTheBox: "Na urna",
+                    counted: "Contabilizadas",
+                    sealedAt: "Selada",
+                    sealHash: "Hash do selo",
+                    record: "Acta de selado",
                 },
                 status: {
-                    open: "Open",
-                    sealing: "Sealing at {{time}}",
-                    publishing: "Sealed, publishing",
-                    sealed: "Sealed",
-                    failed: "Not sealed: incident",
-                    due: "Sealing now",
-                    overdue: "Sealing overdue",
+                    open: "Aberta",
+                    sealing: "Selarase ás {{time}}",
+                    publishing: "Selada, publicándose",
+                    sealed: "Selada",
+                    failed: "Sen selar: incidencia",
+                    due: "Selándose agora",
+                    overdue: "Selado atrasado",
                 },
                 help: {
                     publishing:
-                        "The ballot box is locked. Its entry on the bulletin board is being posted again.",
+                        "A urna está bloqueada. A súa entrada no taboleiro de anuncios estase a publicar de novo.",
                     counted:
-                        "Ballots that count: each voter's latest ballot. The others were replaced by the voter's later ballot.",
+                        "Papeletas que contan: a última papeleta válida de cada votante elixible. As demais da urna foron substituídas por unha papeleta posterior do votante, descartadas ou emitidas por un votante non elixible.",
                 },
-                copyHash: "Copy seal hash",
-                copied: "Seal hash copied",
-                copyError: "Could not copy the seal hash",
-                notYet: "Not yet",
-                openRecord: "Open the seal record of {{area}}",
-                beforeClose: "The ballot box of each area is sealed when voting closes.",
+                copyHash: "Copiar o hash do selo",
+                copied: "Hash do selo copiado",
+                copyError: "Non se puido copiar o hash do selo",
+                notYet: "Aínda non",
+                openRecord: "Abrir a acta de selado de {{area}}",
+                downloadRecord: "Descargar a acta de selado de {{area}}",
+                recordRestricted:
+                    "Restrinxida: pídella a un administrador que poida descargar documentos.",
+                recordError: "Non se puido descargar a acta de selado. Téntao de novo.",
+                beforeClose: "A urna de cada área sélase cando se pecha a votación.",
                 notStarted:
-                    "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
-                openOn: "Voting is open on {{channels}}. The ballot box of each area is sealed when voting closes.",
-                paused: "Voting is paused. The ballot box of each area is sealed when voting closes.",
+                    "A votación aínda non se abriu. A urna de cada área sélase cando se pecha a votación.",
+                openOn: "A votación está aberta en {{channels}}. A urna de cada área sélase cando se pecha a votación.",
+                paused: "A votación está en pausa. A urna de cada área sélase cando se pecha a votación.",
                 holding_one:
-                    "{{channels}} is enabled and not closed: stop it to seal the ballot boxes.",
+                    "A canle {{channels}} está habilitada e sen pechar: deteñaa para selar as urnas.",
                 holding_other:
-                    "{{channels}} are enabled and not closed: stop them to seal the ballot boxes.",
-                sealingNow: "Voting closed at {{closed}}. The ballot boxes are being sealed.",
+                    "As canles {{channels}} están habilitadas e sen pechar: deteñaas para selar as urnas.",
+                sealingNow: "A votación pechouse ás {{closed}}. As urnas estanse a selar.",
                 sealingPastGrace:
-                    "Voting closed at {{closed}}. The grace period ended at {{deadline}}; the ballot boxes are being sealed.",
+                    "A votación pechouse ás {{closed}}. O período de graza rematou ás {{deadline}}; as urnas estanse a selar.",
                 why: {
-                    due: "Being sealed: this takes up to a minute.",
+                    due: "Estase a selar: isto leva ata un minuto.",
                     channelOpen:
-                        "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
+                        "A canle {{channel}} segue habilitada e sen pechar: deteñaa para selar a urna.",
+                    channelNotEnabled:
+                        "A canle {{channel}} está aberta pero non está habilitada nesta elección: volva habilitala e deteñaa para selar a urna.",
+                    channelHasBallots:
+                        "A canle {{channel}} ten papeletas nesta urna e non está pechada: deteñaa para selar a urna.",
                     datafixVotes_one:
-                        "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
+                        "Hai {{count}} voto en curso en Datafix: a urna sélase cando se resolva.",
                     datafixVotes_other:
-                        "{{count}} votes are in progress in Datafix: the ballot box is sealed once they are resolved.",
-                    stale: "Last tried at {{time}}: the sealer may not be running. Check Beat and the seal worker.",
+                        "Hai {{count}} votos en curso en Datafix: a urna sélase cando se resolvan.",
+                    stale: "Último intento ás {{time}}: é posible que o selador non estea en execución. Comprobe Beat e o worker de selado.",
                     notTried:
-                        "Not tried yet: the sealer may not be running. Check Beat and the seal worker.",
+                        "Aínda non se intentou: é posible que o selador non estea en execución. Comprobe Beat e o worker de selado.",
                     errorCategory: {
-                        board: "The last attempt couldn't reach the bulletin board; it is retried every minute.",
-                        census: "The last attempt couldn't read the voter list; it is retried every minute.",
+                        board: "O último intento non puido acceder ao taboleiro de anuncios; reinténtase cada minuto.",
+                        census: "O último intento non puido ler a lista de votantes; reinténtase cada minuto.",
                         keystore:
-                            "The last attempt couldn't get the signing key; it is retried every minute.",
+                            "O último intento non puido obter a chave de sinatura; reinténtase cada minuto.",
                         storage:
-                            "The last attempt couldn't upload the seal record to the public file storage; it is retried every minute.",
+                            "O último intento non puido subir a acta de selado ao almacenamento de ficheiros; reinténtase cada minuto.",
                         settings:
-                            "The last attempt couldn't read the election's settings; it is retried every minute.",
-                        other: "The last attempt failed; it is retried every minute. The service log has the details.",
+                            "O último intento non puido ler a configuración da elección; reinténtase cada minuto.",
+                        other: "O último intento fallou; reinténtase cada minuto. O rexistro do servizo ten os detalles.",
                         ballots:
-                            "The last attempt found a ballot that can't be read yet or is still in progress; it is retried every minute.",
+                            "O último intento atopou unha papeleta que aínda non se pode ler ou que segue en curso; reinténtase cada minuto.",
                         database:
-                            "The last attempt couldn't complete in the database; it is retried every minute.",
+                            "O último intento non puido completarse na base de datos; reinténtase cada minuto.",
                     },
                 },
                 failure: {
-                    ballotIdMismatch: "A ballot does not match its Ballot ID.",
-                    missingContent: "A ballot has no content or no Ballot ID.",
-                    unreadable: "A ballot can't be read.",
-                    inProgress: "A ballot is still in progress.",
-                    alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
-                    noBoard: "The election event has no bulletin board.",
+                    ballotIdMismatch: "Unha papeleta non coincide co seu ID da papeleta.",
+                    missingContent: "Unha papeleta non ten contido ou non ten ID da papeleta.",
+                    unreadable: "Non se pode ler unha papeleta.",
+                    inProgress: "Unha papeleta segue en curso.",
+                    alreadyOnBoard: "Xa hai un selo desta urna no taboleiro de anuncios.",
+                    noBoard: "O evento electoral non ten taboleiro de anuncios.",
+                    unknownChannel: "Unha papeleta ten unha canle de votación descoñecida.",
                 },
                 incident: {
-                    title_one: "{{count}} ballot box could not be sealed",
-                    title_other: "{{count}} ballot boxes could not be sealed",
-                    body: "This is an incident: each of these ballot boxes stays locked and can't be tallied. Follow the runbook for a failed seal.",
+                    title_one: "Non se puido selar {{count}} urna",
+                    title_other: "Non se puideron selar {{count}} urnas",
+                    body: "Isto é unha incidencia: cada unha destas urnas segue bloqueada e non se pode escrutar. Siga o procedemento para un selado fallido.",
                     line: "{{election}}, {{area}}: {{reason}}",
                 },
             },
@@ -761,25 +775,38 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 ballotBoxSealPolicy: {
-                    policyLabel: "Ballot Box Seal Policy",
+                    policyLabel: "Política de Selado de Urnas",
                     helperText:
-                        "When voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again.",
-                    locked: "It cannot be changed after voting has opened.",
+                        "Cando se pecha a votación, a urna de cada área sélase: un hash asinado das súas papeletas publícase no taboleiro de anuncios, non se pode engadir, cambiar nin borrar ningunha papeleta e a votación non pode volver comezar.",
+                    locked: "Non se pode cambiar despois de que se abra a votación.",
                     options: {
-                        "seal-at-close": "Seal at close",
-                        "do-not-seal": "Do not seal",
+                        "seal-at-close": "Selar ao pechar",
+                        "do-not-seal": "Non selar",
                     },
-                    checking: "Checking whether voting has opened…",
+                    checking: "Comprobando se a votación se abriu…",
                     lockedUnknown:
-                        "Locked: the elections could not be read, so whether voting has opened is unknown.",
-                    lockedOpened: "Locked: voting has opened in {{names}}.",
-                    lockedEvent: "Locked: voting has opened in this election event.",
-                    refused: "The Ballot Box Seal Policy can't be changed after voting has opened.",
-                    settingLocked: "With Seal at close, the seal relies on this setting.",
+                        "Bloqueada: non se puideron ler as eleccións, polo que se descoñece se a votación se abriu.",
+                    lockedOpened: "Bloqueada: a votación abriuse en {{names}}.",
+                    lockedEvent: "Bloqueada: a votación abriuse neste evento electoral.",
+                    refused:
+                        "A Política de Selado de Urnas non se pode cambiar despois de que se abra a votación.",
+                    settingLocked: "Con Selar ao pechar, o selo depende desta opción.",
                     settingRefused:
-                        "This setting can't be changed after voting has opened: with Seal at close, the seal relies on it.",
+                        "Esta opción non se pode cambiar despois de que se abra a votación: con Selar ao pechar, o selo depende dela.",
                     boardRefused:
-                        "The election event's bulletin board can't change after voting has opened: with Seal at close, the seals are posted to it.",
+                        "O taboleiro de anuncios do evento electoral non pode cambiar despois de que se abra a votación: con Selar ao pechar, os selos publícanse nel.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Acta de selado de urnas",
+                    options: {
+                        restricted: "Restrinxida",
+                        public: "Pública",
+                    },
+                    help: {
+                        restricted:
+                            "Só os administradores poden descargala; compártea cos observadores.",
+                        public: "Calquera persoa cos identificadores do evento pode descargala, sen iniciar sesión; mostra como contou cada papeleta.",
+                    },
                 },
                 decodedBallots: {
                     policyLabel: "Incluír papeletas descodificadas na base de datos de resultados",
@@ -2038,7 +2065,7 @@ const galegoTranslation: TranslationType = {
                         unarchive: "¿Estás seguro de que queres desarquivar este elemento?",
                         delete: "¿Estás seguro de que queres eliminar este elemento?",
                         sealsUnknown:
-                            "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                            "Non se puideron comprobar os selos das urnas: se ten urnas seladas, rexeitarase a eliminación.",
                     },
                     notification: {
                         success: {
@@ -2052,11 +2079,11 @@ const galegoTranslation: TranslationType = {
                             unarchive: "Erro ao tentar desarquivar este elemento",
                             delete: "Erro ao tentar eliminar este elemento",
                             deleteSealedElection:
-                                "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.",
+                                "Esta elección ten urnas seladas e non se pode eliminar. No seu lugar, arquive o seu evento electoral.",
                             deleteSealedEvent:
-                                "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.",
+                                "Este evento electoral ten urnas seladas e non se pode eliminar. No seu lugar, arquíveo.",
                             deleteMaybeSealed:
-                                "Error while trying to delete this item. If it has sealed ballot boxes, it can't be deleted.",
+                                "Erro ao tentar eliminar este elemento. Se ten urnas seladas, non se pode eliminar.",
                         },
                     },
                 },
@@ -2482,28 +2509,31 @@ const galegoTranslation: TranslationType = {
             trusteeTallyTitle: "Fiduciarios",
             trusteeTallySubTitle: "Estado de importación do fragmento de chave",
             ballotBoxes: {
-                unavailable: "Seals unavailable",
-                sealed: "{{sealed}} of {{total}} sealed",
-                publishing: "Sealed, {{published}} of {{total}} on the bulletin board",
-                sealing: "Sealing at {{time}}",
-                notSealed: "Not sealed",
-                help: "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
-                failed: "Not sealed: incident",
-                overdue: "Sealing overdue",
+                unavailable: "Selos non dispoñibles",
+                sealed: "{{sealed}} de {{total}} seladas",
+                publishing: "Seladas, {{published}} de {{total}} no taboleiro de anuncios",
+                sealing: "Selarase ás {{time}}",
+                notSealed: "Sen selar",
+                help: "Unha elección pódese escrutar cando todas as súas urnas están seladas e os seus selos están no taboleiro de anuncios.",
+                failed: "Sen selar: incidencia",
+                overdue: "Selado atrasado",
                 blocked: "{{name}}: {{reason}}",
                 reason: {
-                    "not-sealed": "voting hasn't closed, so its ballot boxes have no seals yet",
-                    "sealing": "its ballot boxes are sealed when the grace period ends",
+                    "not-sealed":
+                        "a votación non se pechou, polo que as súas urnas aínda non teñen selos",
+                    "sealing": "as súas urnas sélanse cando remata o período de graza",
                     "overdue":
-                        "its ballot boxes are past their deadline and not sealed yet (see its Dashboard)",
-                    "publishing": "some of its seals are still being posted to the bulletin board",
-                    "failed": "a ballot box could not be sealed, an incident (see its Dashboard)",
-                    "unavailable": "its ballot box seals could not be read",
+                        "as súas urnas superaron o prazo e aínda non están seladas (consulte o seu Taboleiro)",
+                    "publishing":
+                        "algúns dos seus selos aínda se están a publicar no taboleiro de anuncios",
+                    "failed":
+                        "non se puido selar unha urna, o que é unha incidencia (consulte o seu Taboleiro)",
+                    "unavailable": "non se puideron ler os selos das súas urnas",
                 },
             },
             eligibility: {
                 ballotBoxesUnavailable:
-                    "The ballot boxes' seals of a selected election could not be read, so it can't be tallied yet. Reload the page to try again.",
+                    "Non se puideron ler os selos das urnas dunha elección seleccionada, polo que aínda non se pode escrutar. Recargue a páxina para tentalo de novo.",
                 selectElection: "Selecciona polo menos unha elección.",
                 publishElection:
                     "Publica cada elección seleccionada antes de crear o seu escrutinio.",
@@ -2511,7 +2541,7 @@ const galegoTranslation: TranslationType = {
                 endVoting:
                     "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
                 sealBallotBoxes:
-                    "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                    "Unha elección pódese escrutar cando todas as súas urnas están seladas e os seus selos están no taboleiro de anuncios.",
             },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",
@@ -2573,7 +2603,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             table: {
-                ballotBoxes: "Ballot boxes",
+                ballotBoxes: "Urnas",
                 elections: "Eleccións",
                 selected: "Seleccionado",
                 status: "Estado",
@@ -2728,11 +2758,11 @@ const galegoTranslation: TranslationType = {
                 header: "Non se pode Publicar ata que a Cerimonia de Chaves estea completa.",
             },
             skippedElections: {
-                dismiss: "Dismiss",
-                title: "Some elections stay closed",
+                dismiss: "Descartar",
+                title: "Algunhas eleccións seguen pechadas",
                 ballotBoxSealPolicy:
-                    "{{name}} stays closed: its voting has closed and Seal at close makes closing final.",
-                other: "{{name}} was left as it was ({{reason}}).",
+                    "{{name}} segue pechada: a súa votación pechouse e Selar ao pechar fai que o peche sexa definitivo.",
+                other: "{{name}} quedou como estaba ({{reason}}).",
             },
             dialog: {
                 title: "Confirmar Acción",
@@ -2744,18 +2774,16 @@ const galegoTranslation: TranslationType = {
                 stopInfo:
                     "Estás a piques de deter o período de votación. ¿Estás seguro de que queres continuar?",
                 stopSeal:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                    "Estás a piques de deter a votación en {{name}}. A continuación, as súas urnas sélanse: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
                 stopSealEvent:
-                    "You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
-                stopSealNeverOpened:
-                    "{{channels}} never opened and can't open once the ballot boxes are sealed.",
+                    "Estás a piques de deter a votación en todas as eleccións. A continuación, as súas urnas sélanse: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
                 startSealNote:
-                    "With Seal at close, closed voting stays closed: elections whose voting has closed won't open.",
+                    "Con Selar ao pechar, a votación pechada segue pechada: as eleccións cuxa votación se pechou non se abrirán.",
                 channel: {
-                    ONLINE: "Online",
-                    KIOSK: "Kiosk",
-                    EARLY_VOTING: "Early voting",
-                    TELEPHONE: "Telephone",
+                    ONLINE: "En Liña",
+                    KIOSK: "Quiosco",
+                    EARLY_VOTING: "Votación anticipada",
+                    TELEPHONE: "Teléfono",
                 },
                 kioskStopInfo:
                     "Estás a piques de deter o período de votación en quiosco. ¿Estás seguro de que queres continuar?",
@@ -2774,42 +2802,48 @@ const galegoTranslation: TranslationType = {
                 confirmation:
                     "A acción que estás a piques de realizar é sensible e require confirmación. Por favor, introduce o teu contrasinal para continuar con {{action}}.",
                 stopSealNotYet:
-                    "You are about to stop voting period. {{holding}} Are you sure you want to continue?",
+                    "Estás a piques de deter o período de votación. {{holding}} ¿Estás seguro de que queres continuar?",
                 sealHolding_one:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} is still enabled and not closed.",
+                    "Con Selar ao pechar, as súas urnas sélanse cando todas as canles habilitadas estean pechadas: a canle {{channels}} segue habilitada e sen pechar.",
                 sealHolding_other:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
-                stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
+                    "Con Selar ao pechar, as súas urnas sélanse cando todas as canles habilitadas estean pechadas: as canles {{channels}} seguen habilitadas e sen pechar.",
+                sealNotEnabled:
+                    "A canle {{channel}} está aberta pero non está habilitada nesta elección: volva habilitala e deteñaa para selar as urnas.",
+                sealNotEnabledPost:
+                    "En {{post}}, a canle {{channel}} está aberta pero non está habilitada: volva habilitala nesa elección e deteñaa para selar as súas urnas.",
+                stopNeverOpened_one:
+                    "A canle {{channels}} nunca se abriu: se a detés, xa non se abrirá.",
                 stopNeverOpened_other:
-                    "{{channels}} never opened: stopping them means they won't open.",
+                    "As canles {{channels}} nunca se abriron: se as detés, xa non se abrirán.",
                 stopSealGrace_one:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Estás a piques de deter a votación en {{name}}. As súas urnas sélanse cando remata o período de graza, {{count}} minuto despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
                 stopSealGrace_other:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Estás a piques de deter a votación en {{name}}. As súas urnas sélanse cando remata o período de graza, {{count}} minutos despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
                 stopSealEventGrace_one:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Estás a piques de deter a votación en todas as eleccións. As súas urnas sélanse cando remata o período de graza de cada elección, ata {{count}} minuto despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
                 stopSealEventGrace_other:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Estás a piques de deter a votación en todas as eleccións. As súas urnas sélanse cando remata o período de graza de cada elección, ata {{count}} minutos despois: a partir dese momento non se pode engadir, cambiar nin borrar ningunha papeleta. A votación non pode volver comezar. ¿Estás seguro de que queres continuar?",
                 stopSealEventSome:
-                    "You are about to stop voting in every election. {{sealed}} {{holding}} Are you sure you want to continue?",
+                    "Estás a piques de deter a votación en todas as eleccións. {{sealed}} {{holding}} ¿Estás seguro de que queres continuar?",
                 sealedNowPart:
-                    "The ballot boxes of {{names}} are then sealed: no ballot can be added, changed or deleted, and voting cannot start again there.",
+                    "A continuación, as urnas de {{names}} sélanse: non se pode engadir, cambiar nin borrar ningunha papeleta, e a votación non pode volver comezar alí.",
                 sealedGracePart_one:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minute later.",
+                    "As urnas de {{names}} sélanse cando remata o seu período de graza, ata {{count}} minuto despois.",
                 sealedGracePart_other:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minutes later.",
+                    "As urnas de {{names}} sélanse cando remata o seu período de graza, ata {{count}} minutos despois.",
                 holdingEventPart_one:
-                    "{{names}} keeps another channel enabled and not closed: its ballot boxes are sealed once that channel is closed.",
+                    "{{names}} mantén outra canle habilitada e sen pechar: as súas urnas sélanse cando esa canle estea pechada.",
                 holdingEventPart_other:
-                    "{{names}} keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed.",
-                startSealNoteList: "With Seal at close, closed voting stays closed: {{items}}.",
-                startKeptChannels_one: "{{post}}: {{channels}} stays closed",
-                startKeptChannels_other: "{{post}}: {{channels}} stay closed",
-                startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
+                    "{{names}} manteñen outra canle habilitada e sen pechar: as súas urnas sélanse cando esas canles estean pechadas.",
+                startSealNoteList:
+                    "Con Selar ao pechar, a votación pechada segue pechada: {{items}}.",
+                startKeptChannels_one: "{{post}}: a canle {{channels}} segue pechada",
+                startKeptChannels_other: "{{post}}: as canles {{channels}} seguen pechadas",
+                startKeptSealed: "{{post}} segue pechado, xa que as súas urnas están seladas",
                 stopNeverOpenedPosts_one:
-                    "{{names}} never opened: stopping closes it and seals its empty ballot boxes.",
+                    "{{names}} nunca se abriu: ao detelo, péchase e sélanse as súas urnas baleiras.",
                 stopNeverOpenedPosts_other:
-                    "{{names}} never opened: stopping closes them and seals their empty ballot boxes.",
+                    "{{names}} nunca se abriron: ao detelos, péchanse e sélanse as súas urnas baleiras.",
             },
             notifications: {
                 generated: "Papeleta xerada",
@@ -2818,11 +2852,11 @@ const galegoTranslation: TranslationType = {
             },
             sealRefusals: {
                 startAgain:
-                    "Voting can't start again: with Seal at close, voting that has closed stays closed and its ballot boxes are sealed.",
+                    "A votación non pode volver comezar: con Selar ao pechar, a votación que xa se pechou segue pechada e as súas urnas están seladas.",
                 startDisabled:
-                    "Start Voting isn't available: this election's ballot boxes are sealed or being sealed, and with Seal at close closed voting stays closed.",
+                    "Iniciar Votación non está dispoñible: as urnas desta elección están seladas ou selándose, e con Selar ao pechar a votación pechada segue pechada.",
                 closedIsFinal:
-                    "Closed voting can't change: with Seal at close, closed voting stays closed.",
+                    "A votación pechada non pode cambiar: con Selar ao pechar, a votación pechada segue pechada.",
             },
         },
         emailEditor: {

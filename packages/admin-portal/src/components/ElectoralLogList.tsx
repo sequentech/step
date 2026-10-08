@@ -27,7 +27,7 @@ import {
 } from "@/queries/ListElectoralLog"
 import {logMessage} from "./logs/logMessage"
 import {LogTime} from "./logs/LogTime"
-import {StatementExplanation} from "./logs/StatementExplanation"
+import {StatementExplanation, explanationLines} from "./logs/StatementExplanation"
 import {ExportLogsDialog} from "./logs/ExportLogsDialog"
 import {useLogRowZone, useLogZones, type ILogZones} from "./logs/useLogZones"
 import {TimeZonePicker} from "./timezones/TimeZonePicker"
@@ -274,20 +274,26 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                     <FunctionField
                         source="description"
                         label={String(t("logsScreen.column.description"))}
-                        render={(record: any) => (
-                            <>
+                        render={(record: any) => {
+                            const message = logMessage(record)
+                            // The explanation opens with the full description, under Show More.
+                            const explained = !!explanationLines(t, record.statement_kind, message)
+                                ?.length
+                            return (
                                 <MessageField
-                                    content={
-                                        logMessage(record)?.statement?.head?.description || "-"
-                                    }
+                                    content={message?.statement?.head?.description || "-"}
                                     initialLength={50}
+                                    details={
+                                        explained ? (
+                                            <StatementExplanation
+                                                kind={record.statement_kind}
+                                                message={message}
+                                            />
+                                        ) : undefined
+                                    }
                                 />
-                                <StatementExplanation
-                                    kind={record.statement_kind}
-                                    message={logMessage(record)}
-                                />
-                            </>
-                        )}
+                            )
+                        }}
                     />
                     <MessageField source="message" />
                 </DatagridConfigurable>

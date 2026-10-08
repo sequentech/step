@@ -102,11 +102,16 @@ describe("ballot box seal entries (VOTE-FREEZE)", () => {
         ).toEqual([
             "logsScreen.ballotBoxSeal.sealHash(hash=ab12)",
             "logsScreen.ballotBoxSeal.counted(counted=1340, inBox=1342)",
+            "logsScreen.ballotBoxSeal.notCounted(count=2)",
             "logsScreen.ballotBoxSeal.closeRequest(request=req-1)",
         ])
-        expect(lines(sealRow("BallotBoxSealed", ["post", "spain", "ab12", 2, 2, null]))?.[2]).toBe(
-            "logsScreen.ballotBoxSeal.noCloseRequest"
-        )
+    })
+    it("says why only when the box holds ballots it doesn't count", () => {
+        expect(lines(sealRow("BallotBoxSealed", ["post", "spain", "ab12", 2, 2, null]))).toEqual([
+            "logsScreen.ballotBoxSeal.sealHash(hash=ab12)",
+            "logsScreen.ballotBoxSeal.counted(counted=2, inBox=2)",
+            "logsScreen.ballotBoxSeal.noCloseRequest",
+        ])
     })
     it("explains a failed seal", () => {
         expect(

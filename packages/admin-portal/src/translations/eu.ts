@@ -260,9 +260,9 @@ const basqueTranslation: TranslationType = {
                 nextStep: "Hurrengo urratsa: {{step}}",
                 reason: {
                     "ballot-box-seal-policy":
-                        "Kept closed: with Seal at close, voting that has closed stays closed.",
+                        "Itxita mantendu da: Zigilatu ixtean aukerarekin, itxi den bozketa itxita geratzen da.",
                     "never-opened-kept-open":
-                        "Nothing to close on schedule: the Post never opened, so it stays as it is.",
+                        "Ez dago ezer programazioz ixteko: Postua ez da inoiz ireki, beraz dagoen bezala geratzen da.",
                 },
             },
             column: {
@@ -286,16 +286,21 @@ const basqueTranslation: TranslationType = {
                 title: "IAM Datu-basearen Egunkariak",
             },
             ballotBoxSeal: {
-                sealHash: "Seal hash: {{hash}}",
-                counted: "{{counted}} of {{inBox}} ballots counted.",
-                closeRequest: "Closed by the Close voting request {{request}}.",
+                sealHash: "Zigiluaren hash-a: {{hash}}",
+                counted: "Hautestontziko {{inBox}} botoetatik {{counted}} zenbatu dira.",
+                notCounted_one:
+                    "Beste botoa bozkatzailearen geroagoko boto batek ordezkatu zuen, baztertu egin zen, edo boto-eskubiderik ez duen bozkatzaile batek eman zuen.",
+                notCounted_other:
+                    "Beste {{count}} botoak bozkatzailearen geroagoko boto batek ordezkatu zituen, baztertu egin ziren, edo boto-eskubiderik ez duen bozkatzaile batek eman zituen.",
+                closeRequest: "«Bozketa itxi» eskaerak itxi du: {{request}}.",
                 noCloseRequest:
-                    "Closed without a Close voting request (Stop Voting or the scheduled close).",
-                failedReason: "Why: {{reason}}",
-                failedLocked: "The ballot box stays locked and is not sealed: an incident.",
-                verifiedCounted: "{{counted}} ballots counted from the seal.",
-                tallySession: "Tally session {{session}}.",
-                differs: "What differs: {{differs}}",
+                    "«Bozketa itxi» eskaerarik gabe itxi da (Gelditu Bozketa edo programatutako itxiera).",
+                failedReason: "Zergatia: {{reason}}",
+                failedLocked:
+                    "Hautestontzia blokeatuta geratzen da eta ez dago zigilatuta: gorabehera bat da.",
+                verifiedCounted: "Zigilutik {{counted}} boto zenbatu dira.",
+                tallySession: "Zenbaketa-saioa: {{session}}.",
+                differs: "Zer da desberdina: {{differs}}",
             },
         },
         tasksScreen: {
@@ -512,96 +517,105 @@ const basqueTranslation: TranslationType = {
             voterEnrollKioskURL: "Bozkatzaile Matrikula Kiosko URLa",
             ballotBoxes: {
                 loadError:
-                    "The ballot boxes' seals could not be read. Reload the page, or check the connection to the server.",
-                title: "Ballot boxes",
+                    "Ezin izan dira hautestontzien zigiluak irakurri. Kargatu berriro orria, edo egiaztatu zerbitzariarekiko konexioa.",
+                title: "Hautestontziak",
                 sealing:
-                    "Voting closed at {{closed}}. The ballot boxes are sealed when the grace period ends, at {{deadline}}.",
-                sealed: "Voting closed at {{closed}}. The ballot boxes are sealed: no ballot can be added, changed or deleted.",
-                failed: "Voting closed at {{closed}}. A ballot box could not be sealed: it stays locked, and the incident is in the logs.",
+                    "Bozketa itxi da ({{closed}}). Hautestontziak grazia-aldia amaitzean zigilatuko dira ({{deadline}}).",
+                sealed: "Bozketa itxi da ({{closed}}). Hautestontziak zigilatuta daude: ezin da botorik gehitu, aldatu edo ezabatu.",
+                failed: "Bozketa itxi da ({{closed}}). Hautestontzi bat ezin izan da zigilatu: blokeatuta geratzen da, eta gorabehera egunkarietan dago.",
                 closedBySignatures:
-                    "Closed by {{names}} with their certificates, signing code {{code}}.",
-                closedByUser: "Closed by {{username}}.",
-                closedBySchedule: "Closed by the scheduled close of polls.",
+                    "Itxi dutenak: {{names}}, beren ziurtagiriekin, {{code}} sinadura-kodearekin.",
+                closedByUser: "Itxi duena: {{username}}.",
+                closedBySchedule: "Programatutako bozketa-itxierak itxi du.",
                 column: {
-                    area: "Area",
-                    status: "Status",
-                    inTheBox: "In the box",
-                    counted: "Counted",
-                    sealedAt: "Sealed",
-                    sealHash: "Seal hash",
-                    record: "Seal record",
+                    area: "Eremua",
+                    status: "Egoera",
+                    inTheBox: "Hautestontzian",
+                    counted: "Zenbatuak",
+                    sealedAt: "Zigilatua",
+                    sealHash: "Zigiluaren hash-a",
+                    record: "Zigiluaren erregistroa",
                 },
                 status: {
-                    open: "Open",
-                    sealing: "Sealing at {{time}}",
-                    publishing: "Sealed, publishing",
-                    sealed: "Sealed",
-                    failed: "Not sealed: incident",
-                    due: "Sealing now",
-                    overdue: "Sealing overdue",
+                    open: "Irekita",
+                    sealing: "Zigilatzea: {{time}}",
+                    publishing: "Zigilatuta, argitaratzen",
+                    sealed: "Zigilatuta",
+                    failed: "Zigilatu gabe: gorabehera",
+                    due: "Zigilatzen orain",
+                    overdue: "Zigilatzea berandu",
                 },
                 help: {
                     publishing:
-                        "The ballot box is locked. Its entry on the bulletin board is being posted again.",
+                        "Hautestontzia blokeatuta dago. Iragarki-taulako bere sarrera berriro argitaratzen ari da.",
                     counted:
-                        "Ballots that count: each voter's latest ballot. The others were replaced by the voter's later ballot.",
+                        "Zenbatzen diren botoak: boto-eskubidea duen bozkatzaile bakoitzaren azken boto baliozkoa. Hautestontziko gainerakoak bozkatzailearen geroagoko boto batek ordezkatu zituen, baztertu egin ziren, edo boto-eskubiderik ez duen bozkatzaile batek eman zituen.",
                 },
-                copyHash: "Copy seal hash",
-                copied: "Seal hash copied",
-                copyError: "Could not copy the seal hash",
-                notYet: "Not yet",
-                openRecord: "Open the seal record of {{area}}",
-                beforeClose: "The ballot box of each area is sealed when voting closes.",
+                copyHash: "Kopiatu zigiluaren hash-a",
+                copied: "Zigiluaren hash-a kopiatu da",
+                copyError: "Ezin izan da zigiluaren hash-a kopiatu",
+                notYet: "Oraindik ez",
+                openRecord: "Ireki zigiluaren erregistroa (eremua: {{area}})",
+                downloadRecord: "Deskargatu zigiluaren erregistroa (eremua: {{area}})",
+                recordRestricted:
+                    "Mugatua: eskatu dokumentuak deskarga ditzakeen administratzaile bati.",
+                recordError: "Ezin izan da zigiluaren erregistroa deskargatu. Saiatu berriro.",
+                beforeClose: "Eremu bakoitzeko hautestontzia bozketa ixtean zigilatzen da.",
                 notStarted:
-                    "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
-                openOn: "Voting is open on {{channels}}. The ballot box of each area is sealed when voting closes.",
-                paused: "Voting is paused. The ballot box of each area is sealed when voting closes.",
+                    "Bozketa ez da oraindik ireki. Eremu bakoitzeko hautestontzia bozketa ixtean zigilatzen da.",
+                openOn: "Bozketa irekita dago kanal hauetan: {{channels}}. Eremu bakoitzeko hautestontzia bozketa ixtean zigilatzen da.",
+                paused: "Bozketa pausatuta dago. Eremu bakoitzeko hautestontzia bozketa ixtean zigilatzen da.",
                 holding_one:
-                    "{{channels}} is enabled and not closed: stop it to seal the ballot boxes.",
+                    "{{channels}} gaituta dago eta ez da itxi: gelditu ezazu hautestontziak zigilatzeko.",
                 holding_other:
-                    "{{channels}} are enabled and not closed: stop them to seal the ballot boxes.",
-                sealingNow: "Voting closed at {{closed}}. The ballot boxes are being sealed.",
+                    "{{channels}} gaituta daude eta ez dira itxi: gelditu itzazu hautestontziak zigilatzeko.",
+                sealingNow: "Bozketa itxi da ({{closed}}). Hautestontziak zigilatzen ari dira.",
                 sealingPastGrace:
-                    "Voting closed at {{closed}}. The grace period ended at {{deadline}}; the ballot boxes are being sealed.",
+                    "Bozketa itxi da ({{closed}}). Grazia-aldia amaitu da ({{deadline}}); hautestontziak zigilatzen ari dira.",
                 why: {
-                    due: "Being sealed: this takes up to a minute.",
+                    due: "Zigilatzen ari da: minutu bat arte iraun dezake.",
                     channelOpen:
-                        "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
+                        "{{channel}} gaituta dago oraindik eta ez da itxi: gelditu ezazu hautestontzia zigilatzeko.",
+                    channelNotEnabled:
+                        "{{channel}} irekita dago, baina ez dago gaituta hauteskunde honetan: gaitu ezazu berriro eta gelditu hautestontzia zigilatzeko.",
+                    channelHasBallots:
+                        "{{channel}} kanalak botoak ditu hautestontzi honetan eta ez da itxi: gelditu ezazu hautestontzia zigilatzeko.",
                     datafixVotes_one:
-                        "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
+                        "{{count}} boto Datafix-en bideratzen ari da: hautestontzia ebazten denean zigilatuko da.",
                     datafixVotes_other:
-                        "{{count}} votes are in progress in Datafix: the ballot box is sealed once they are resolved.",
-                    stale: "Last tried at {{time}}: the sealer may not be running. Check Beat and the seal worker.",
+                        "{{count}} boto Datafix-en bideratzen ari dira: hautestontzia ebazten direnean zigilatuko da.",
+                    stale: "Azken saiakera: {{time}}. Baliteke zigilatzailea martxan ez egotea. Egiaztatu Beat eta zigilatze-langilea.",
                     notTried:
-                        "Not tried yet: the sealer may not be running. Check Beat and the seal worker.",
+                        "Oraindik ez da saiatu: baliteke zigilatzailea martxan ez egotea. Egiaztatu Beat eta zigilatze-langilea.",
                     errorCategory: {
-                        board: "The last attempt couldn't reach the bulletin board; it is retried every minute.",
-                        census: "The last attempt couldn't read the voter list; it is retried every minute.",
+                        board: "Azken saiakerak ezin izan du iragarki-taulara iritsi; minuturo saiatzen da berriro.",
+                        census: "Azken saiakerak ezin izan du bozkatzaile-zerrenda irakurri; minuturo saiatzen da berriro.",
                         keystore:
-                            "The last attempt couldn't get the signing key; it is retried every minute.",
+                            "Azken saiakerak ezin izan du sinadura-gakoa lortu; minuturo saiatzen da berriro.",
                         storage:
-                            "The last attempt couldn't upload the seal record to the public file storage; it is retried every minute.",
+                            "Azken saiakerak ezin izan du zigiluaren erregistroa fitxategi-biltegira igo; minuturo saiatzen da berriro.",
                         settings:
-                            "The last attempt couldn't read the election's settings; it is retried every minute.",
-                        other: "The last attempt failed; it is retried every minute. The service log has the details.",
+                            "Azken saiakerak ezin izan ditu hauteskundearen ezarpenak irakurri; minuturo saiatzen da berriro.",
+                        other: "Azken saiakerak huts egin du; minuturo saiatzen da berriro. Zerbitzuaren egunkarian daude xehetasunak.",
                         ballots:
-                            "The last attempt found a ballot that can't be read yet or is still in progress; it is retried every minute.",
+                            "Azken saiakerak oraindik irakurri ezin den edo oraindik bideratzen ari den boto bat aurkitu du; minuturo saiatzen da berriro.",
                         database:
-                            "The last attempt couldn't complete in the database; it is retried every minute.",
+                            "Azken saiakera ezin izan da datu-basean osatu; minuturo saiatzen da berriro.",
                     },
                 },
                 failure: {
-                    ballotIdMismatch: "A ballot does not match its Ballot ID.",
-                    missingContent: "A ballot has no content or no Ballot ID.",
-                    unreadable: "A ballot can't be read.",
-                    inProgress: "A ballot is still in progress.",
-                    alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
-                    noBoard: "The election event has no bulletin board.",
+                    ballotIdMismatch: "Boto bat ez dator bat bere Boto IDarekin.",
+                    missingContent: "Boto batek ez du edukirik edo Boto IDrik.",
+                    unreadable: "Ezin da boto bat irakurri.",
+                    inProgress: "Boto bat oraindik bideratzen ari da.",
+                    alreadyOnBoard: "Hautestontzi honen zigilu bat badago jada iragarki-taulan.",
+                    noBoard: "Hauteskunde-gertaerak ez du iragarki-taularik.",
+                    unknownChannel: "Boto batek boto-kanal ezezagun bat du.",
                 },
                 incident: {
-                    title_one: "{{count}} ballot box could not be sealed",
-                    title_other: "{{count}} ballot boxes could not be sealed",
-                    body: "This is an incident: each of these ballot boxes stays locked and can't be tallied. Follow the runbook for a failed seal.",
+                    title_one: "{{count}} hautestontzi ezin izan da zigilatu",
+                    title_other: "{{count}} hautestontzi ezin izan dira zigilatu",
+                    body: "Gorabehera bat da: hautestontzi horietako bakoitza blokeatuta geratzen da eta ezin da zenbatu. Jarraitu zigilatze hutsetarako prozedura.",
                     line: "{{election}}, {{area}}: {{reason}}",
                 },
             },
@@ -758,25 +772,37 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 ballotBoxSealPolicy: {
-                    policyLabel: "Ballot Box Seal Policy",
+                    policyLabel: "Hautestontzien Zigilu Politika",
                     helperText:
-                        "When voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again.",
-                    locked: "It cannot be changed after voting has opened.",
+                        "Bozketa ixtean, eremu bakoitzeko hautestontzia zigilatzen da: bere botoen hash sinatu bat iragarki-taulara bidaltzen da, ezin da botorik gehitu, aldatu edo ezabatu, eta bozketa ezin da berriro hasi.",
+                    locked: "Ezin da aldatu bozketa ireki ondoren.",
                     options: {
-                        "seal-at-close": "Seal at close",
-                        "do-not-seal": "Do not seal",
+                        "seal-at-close": "Zigilatu ixtean",
+                        "do-not-seal": "Ez zigilatu",
                     },
-                    checking: "Checking whether voting has opened…",
+                    checking: "Bozketa ireki den egiaztatzen…",
                     lockedUnknown:
-                        "Locked: the elections could not be read, so whether voting has opened is unknown.",
-                    lockedOpened: "Locked: voting has opened in {{names}}.",
-                    lockedEvent: "Locked: voting has opened in this election event.",
-                    refused: "The Ballot Box Seal Policy can't be changed after voting has opened.",
-                    settingLocked: "With Seal at close, the seal relies on this setting.",
+                        "Blokeatuta: ezin izan dira hauteskundeak irakurri, beraz ez dakigu bozketa ireki den.",
+                    lockedOpened: "Blokeatuta: bozketa ireki da hauteskunde hauetan: {{names}}.",
+                    lockedEvent: "Blokeatuta: bozketa ireki da hauteskunde-gertaera honetan.",
+                    refused: "Hautestontzien Zigilu Politika ezin da aldatu bozketa ireki ondoren.",
+                    settingLocked: "Zigilatu ixtean aukerarekin, zigilua ezarpen honen mende dago.",
                     settingRefused:
-                        "This setting can't be changed after voting has opened: with Seal at close, the seal relies on it.",
+                        "Ezarpen hau ezin da aldatu bozketa ireki ondoren: Zigilatu ixtean aukerarekin, zigilua haren mende dago.",
                     boardRefused:
-                        "The election event's bulletin board can't change after voting has opened: with Seal at close, the seals are posted to it.",
+                        "Hauteskunde-gertaeraren iragarki-taula ezin da aldatu bozketa ireki ondoren: Zigilatu ixtean aukerarekin, zigiluak bertan argitaratzen dira.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Hautestontziaren zigiluaren erregistroa",
+                    options: {
+                        restricted: "Mugatua",
+                        public: "Publikoa",
+                    },
+                    help: {
+                        restricted:
+                            "Administratzaileek soilik deskarga dezakete; partekatu behatzaileekin.",
+                        public: "Gertaeraren identifikatzaileak dituen edonork deskarga dezake, saioa hasi gabe; boto bakoitza nola zenbatu den erakusten du.",
+                    },
                 },
                 decodedBallots: {
                     policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
@@ -2029,7 +2055,7 @@ const basqueTranslation: TranslationType = {
                         unarchive: "Ziur zaude elementu hau desartxibatu nahi duzula?",
                         delete: "Ziur zaude elementu hau ezabatu nahi duzula?",
                         sealsUnknown:
-                            "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                            "Ezin izan dira hautestontzien zigiluak egiaztatu: hautestontzi zigilaturik badu, ezabaketa baztertu egingo da.",
                     },
                     notification: {
                         success: {
@@ -2043,11 +2069,11 @@ const basqueTranslation: TranslationType = {
                             unarchive: "Errorea elementu hau desartxibatzen saiatzean",
                             delete: "Errorea elementu hau ezabatzen saiatzean",
                             deleteSealedElection:
-                                "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.",
+                                "Hauteskunde honek hautestontzi zigilatuak ditu eta ezin da ezabatu. Artxibatu bere hauteskunde-gertaera horren ordez.",
                             deleteSealedEvent:
-                                "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.",
+                                "Hauteskunde-gertaera honek hautestontzi zigilatuak ditu eta ezin da ezabatu. Artxibatu ezazu horren ordez.",
                             deleteMaybeSealed:
-                                "Error while trying to delete this item. If it has sealed ballot boxes, it can't be deleted.",
+                                "Errorea elementu hau ezabatzen saiatzean. Hautestontzi zigilaturik badu, ezin da ezabatu.",
                         },
                     },
                 },
@@ -2475,28 +2501,31 @@ const basqueTranslation: TranslationType = {
             trusteeTallyTitle: "Fideikomisarioak",
             trusteeTallySubTitle: "Giltza zatiaren inportazio egoera",
             ballotBoxes: {
-                unavailable: "Seals unavailable",
-                sealed: "{{sealed}} of {{total}} sealed",
-                publishing: "Sealed, {{published}} of {{total}} on the bulletin board",
-                sealing: "Sealing at {{time}}",
-                notSealed: "Not sealed",
-                help: "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
-                failed: "Not sealed: incident",
-                overdue: "Sealing overdue",
+                unavailable: "Zigiluak ez daude eskuragarri",
+                sealed: "{{sealed}}/{{total}} zigilatuta",
+                publishing: "Zigilatuta, {{published}}/{{total}} iragarki-taulan",
+                sealing: "Zigilatzea: {{time}}",
+                notSealed: "Zigilatu gabe",
+                help: "Hauteskunde bat zenbatu daiteke hautestontzi guztiak zigilatuta daudenean eta haien zigiluak iragarki-taulan daudenean.",
+                failed: "Zigilatu gabe: gorabehera",
+                overdue: "Zigilatzea berandu",
                 blocked: "{{name}}: {{reason}}",
                 reason: {
-                    "not-sealed": "voting hasn't closed, so its ballot boxes have no seals yet",
-                    "sealing": "its ballot boxes are sealed when the grace period ends",
+                    "not-sealed":
+                        "bozketa ez da itxi, beraz bere hautestontziek ez dute zigilurik oraindik",
+                    "sealing": "bere hautestontziak grazia-aldia amaitzean zigilatzen dira",
                     "overdue":
-                        "its ballot boxes are past their deadline and not sealed yet (see its Dashboard)",
-                    "publishing": "some of its seals are still being posted to the bulletin board",
-                    "failed": "a ballot box could not be sealed, an incident (see its Dashboard)",
-                    "unavailable": "its ballot box seals could not be read",
+                        "bere hautestontziek epea gainditu dute eta oraindik ez daude zigilatuta (ikus bere Panela)",
+                    "publishing":
+                        "bere zigiluetako batzuk oraindik iragarki-taulan argitaratzen ari dira",
+                    "failed":
+                        "hautestontzi bat ezin izan da zigilatu, gorabehera bat (ikus bere Panela)",
+                    "unavailable": "ezin izan dira bere hautestontzien zigiluak irakurri",
                 },
             },
             eligibility: {
                 ballotBoxesUnavailable:
-                    "The ballot boxes' seals of a selected election could not be read, so it can't be tallied yet. Reload the page to try again.",
+                    "Hautatutako hauteskunde baten hautestontzien zigiluak ezin izan dira irakurri, beraz ezin da oraindik zenbatu. Kargatu berriro orria berriro saiatzeko.",
                 selectElection: "Hautatu gutxienez hauteskunde bat.",
                 publishElection:
                     "Argitaratu hautatutako hauteskunde bakoitza zenbaketa sortu aurretik.",
@@ -2504,7 +2533,7 @@ const basqueTranslation: TranslationType = {
                 endVoting:
                     "Amaitu hautatutako hauteskunde bakoitzeko bozketa eta gelditu kanal aktiboak zenbaketa sortu aurretik.",
                 sealBallotBoxes:
-                    "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                    "Hauteskunde bat zenbatu daiteke hautestontzi guztiak zigilatuta daudenean eta haien zigiluak iragarki-taulan daudenean.",
             },
             createTallySuccess: "Zenbaketa sortua",
             createTallyError: "Ezin izan da Zenbaketa sortu",
@@ -2566,7 +2595,7 @@ const basqueTranslation: TranslationType = {
                 },
             },
             table: {
-                ballotBoxes: "Ballot boxes",
+                ballotBoxes: "Hautestontziak",
                 elections: "Hauteskundeak",
                 selected: "Hautatua",
                 status: "Egoera",
@@ -2721,11 +2750,11 @@ const basqueTranslation: TranslationType = {
                 header: "Ezin da Argitaratu Giltzen Zeremonia osatu arte.",
             },
             skippedElections: {
-                dismiss: "Dismiss",
-                title: "Some elections stay closed",
+                dismiss: "Baztertu",
+                title: "Hauteskunde batzuk itxita geratzen dira",
                 ballotBoxSealPolicy:
-                    "{{name}} stays closed: its voting has closed and Seal at close makes closing final.",
-                other: "{{name}} was left as it was ({{reason}}).",
+                    "{{name}} itxita geratzen da: bere bozketa itxi da eta Zigilatu ixtean aukerarekin itxiera behin betikoa da.",
+                other: "{{name}} zegoen bezala utzi da ({{reason}}).",
             },
             dialog: {
                 title: "Berretsi Ekintza",
@@ -2735,18 +2764,16 @@ const basqueTranslation: TranslationType = {
                 startInfo: "Bozketa aldia hasten ari naiz. Ziur zaude jarraitu nahi duzula?",
                 stopInfo: "Bozketa aldia gelditzera noa. Ziur zaude jarraitu nahi duzula?",
                 stopSeal:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                    "Bozketa gelditzera zoaz hauteskunde honetan: {{name}}. Ondoren bere hautestontziak zigilatuko dira: ezin izango da botorik gehitu, aldatu edo ezabatu, eta bozketa ezin izango da berriro hasi. Ziur zaude jarraitu nahi duzula?",
                 stopSealEvent:
-                    "You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
-                stopSealNeverOpened:
-                    "{{channels}} never opened and can't open once the ballot boxes are sealed.",
+                    "Hauteskunde guztietan bozketa gelditzera zoaz. Ondoren haien hautestontziak zigilatuko dira: ezin izango da botorik gehitu, aldatu edo ezabatu, eta bozketa ezin izango da berriro hasi. Ziur zaude jarraitu nahi duzula?",
                 startSealNote:
-                    "With Seal at close, closed voting stays closed: elections whose voting has closed won't open.",
+                    "Zigilatu ixtean aukerarekin, itxitako bozketa itxita geratzen da: bozketa itxita duten hauteskundeak ez dira irekiko.",
                 channel: {
                     ONLINE: "Online",
-                    KIOSK: "Kiosk",
-                    EARLY_VOTING: "Early voting",
-                    TELEPHONE: "Telephone",
+                    KIOSK: "Kiosko",
+                    EARLY_VOTING: "Aurre-botoa",
+                    TELEPHONE: "Telefono",
                 },
                 kioskStopInfo:
                     "Kiosko bozketa aldia gelditzera noa. Ziur zaude jarraitu nahi duzula?",
@@ -2763,42 +2790,49 @@ const basqueTranslation: TranslationType = {
                 confirmation:
                     "Egiteko saiatzen ari zaren ekintza sentikorra da eta berrespena behar du. Mesedez, sartu zure pasahitza {{action}} ekintzarekin jarraitzeko.",
                 stopSealNotYet:
-                    "You are about to stop voting period. {{holding}} Are you sure you want to continue?",
+                    "Bozketa aldia gelditzera zoaz. {{holding}} Ziur zaude jarraitu nahi duzula?",
                 sealHolding_one:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} is still enabled and not closed.",
+                    "Zigilatu ixtean aukerarekin, bere hautestontziak gaitutako kanal guztiak itxitakoan zigilatzen dira: {{channels}} gaituta dago oraindik eta ez da itxi.",
                 sealHolding_other:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
-                stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
+                    "Zigilatu ixtean aukerarekin, bere hautestontziak gaitutako kanal guztiak itxitakoan zigilatzen dira: {{channels}} gaituta daude oraindik eta ez dira itxi.",
+                sealNotEnabled:
+                    "{{channel}} irekita dago, baina ez dago gaituta hauteskunde honetan: gaitu ezazu berriro eta gelditu hautestontziak zigilatzeko.",
+                sealNotEnabledPost:
+                    "{{post}}: {{channel}} irekita dago, baina ez dago gaituta; gaitu ezazu berriro hauteskunde horretan eta gelditu bere hautestontziak zigilatzeko.",
+                stopNeverOpened_one:
+                    "{{channels}} ez da inoiz ireki: gelditzen baduzu, ez da irekiko.",
                 stopNeverOpened_other:
-                    "{{channels}} never opened: stopping them means they won't open.",
+                    "{{channels}} ez dira inoiz ireki: gelditzen badituzu, ez dira irekiko.",
                 stopSealGrace_one:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Bozketa gelditzera zoaz hauteskunde honetan: {{name}}. Bere hautestontziak grazia-aldia amaitzean zigilatuko dira, {{count}} minutu geroago: hortik aurrera ezin izango da botorik gehitu, aldatu edo ezabatu. Bozketa ezin izango da berriro hasi. Ziur zaude jarraitu nahi duzula?",
                 stopSealGrace_other:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Bozketa gelditzera zoaz hauteskunde honetan: {{name}}. Bere hautestontziak grazia-aldia amaitzean zigilatuko dira, {{count}} minutu geroago: hortik aurrera ezin izango da botorik gehitu, aldatu edo ezabatu. Bozketa ezin izango da berriro hasi. Ziur zaude jarraitu nahi duzula?",
                 stopSealEventGrace_one:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Hauteskunde guztietan bozketa gelditzera zoaz. Haien hautestontziak hauteskunde bakoitzaren grazia-aldia amaitzean zigilatuko dira, gehienez {{count}} minutu geroago: hortik aurrera ezin izango da botorik gehitu, aldatu edo ezabatu. Bozketa ezin izango da berriro hasi. Ziur zaude jarraitu nahi duzula?",
                 stopSealEventGrace_other:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Hauteskunde guztietan bozketa gelditzera zoaz. Haien hautestontziak hauteskunde bakoitzaren grazia-aldia amaitzean zigilatuko dira, gehienez {{count}} minutu geroago: hortik aurrera ezin izango da botorik gehitu, aldatu edo ezabatu. Bozketa ezin izango da berriro hasi. Ziur zaude jarraitu nahi duzula?",
                 stopSealEventSome:
-                    "You are about to stop voting in every election. {{sealed}} {{holding}} Are you sure you want to continue?",
+                    "Hauteskunde guztietan bozketa gelditzera zoaz. {{sealed}} {{holding}} Ziur zaude jarraitu nahi duzula?",
                 sealedNowPart:
-                    "The ballot boxes of {{names}} are then sealed: no ballot can be added, changed or deleted, and voting cannot start again there.",
+                    "Ondoren hauteskunde hauen hautestontziak zigilatuko dira: {{names}}. Ezin izango da botorik gehitu, aldatu edo ezabatu, eta bozketa ezin izango da berriro hasi haietan.",
                 sealedGracePart_one:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minute later.",
+                    "Hauteskunde hauen hautestontziak beren grazia-aldia amaitzean zigilatuko dira, gehienez {{count}} minutu geroago: {{names}}.",
                 sealedGracePart_other:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minutes later.",
+                    "Hauteskunde hauen hautestontziak beren grazia-aldia amaitzean zigilatuko dira, gehienez {{count}} minutu geroago: {{names}}.",
                 holdingEventPart_one:
-                    "{{names}} keeps another channel enabled and not closed: its ballot boxes are sealed once that channel is closed.",
+                    "{{names}}: beste kanal bat gaituta dago eta ez da itxi; bere hautestontziak kanal hori itxitakoan zigilatuko dira.",
                 holdingEventPart_other:
-                    "{{names}} keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed.",
-                startSealNoteList: "With Seal at close, closed voting stays closed: {{items}}.",
-                startKeptChannels_one: "{{post}}: {{channels}} stays closed",
-                startKeptChannels_other: "{{post}}: {{channels}} stay closed",
-                startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
+                    "{{names}}: beste kanal bat gaituta dute eta ez da itxi; haien hautestontziak kanal horiek itxitakoan zigilatuko dira.",
+                startSealNoteList:
+                    "Zigilatu ixtean aukerarekin, itxitako bozketa itxita geratzen da: {{items}}.",
+                startKeptChannels_one: "{{post}}: {{channels}} itxita geratzen da",
+                startKeptChannels_other: "{{post}}: {{channels}} itxita geratzen dira",
+                startKeptSealed:
+                    "{{post}}: itxita geratzen da, bere hautestontziak zigilatuta daudelako",
                 stopNeverOpenedPosts_one:
-                    "{{names}} never opened: stopping closes it and seals its empty ballot boxes.",
+                    "{{names}}: ez da inoiz ireki; gelditzeak itxi egingo du eta bere hautestontzi hutsak zigilatuko ditu.",
                 stopNeverOpenedPosts_other:
-                    "{{names}} never opened: stopping closes them and seals their empty ballot boxes.",
+                    "{{names}}: ez dira inoiz ireki; gelditzeak itxi egingo ditu eta haien hautestontzi hutsak zigilatuko ditu.",
             },
             notifications: {
                 generated: "Bozketa sortua",
@@ -2807,11 +2841,11 @@ const basqueTranslation: TranslationType = {
             },
             sealRefusals: {
                 startAgain:
-                    "Voting can't start again: with Seal at close, voting that has closed stays closed and its ballot boxes are sealed.",
+                    "Bozketa ezin da berriro hasi: Zigilatu ixtean aukerarekin, itxi den bozketa itxita geratzen da eta bere hautestontziak zigilatuta daude.",
                 startDisabled:
-                    "Start Voting isn't available: this election's ballot boxes are sealed or being sealed, and with Seal at close closed voting stays closed.",
+                    "Hasi Bozketa ez dago erabilgarri: hauteskunde honen hautestontziak zigilatuta daude edo zigilatzen ari dira, eta Zigilatu ixtean aukerarekin itxitako bozketa itxita geratzen da.",
                 closedIsFinal:
-                    "Closed voting can't change: with Seal at close, closed voting stays closed.",
+                    "Itxitako bozketa ezin da aldatu: Zigilatu ixtean aukerarekin, itxitako bozketa itxita geratzen da.",
             },
         },
         emailEditor: {

@@ -260,9 +260,9 @@ const dutchTranslation: TranslationType = {
                 nextStep: "Volgende stap: {{step}}",
                 reason: {
                     "ballot-box-seal-policy":
-                        "Kept closed: with Seal at close, voting that has closed stays closed.",
+                        "Gesloten gehouden: met Verzegelen bij sluiting blijft een gesloten stemming gesloten.",
                     "never-opened-kept-open":
-                        "Nothing to close on schedule: the Post never opened, so it stays as it is.",
+                        "Niets te sluiten volgens planning: de Post is nooit geopend en blijft zoals hij is.",
                 },
             },
             column: {
@@ -286,16 +286,20 @@ const dutchTranslation: TranslationType = {
                 title: "Logs IAM-database",
             },
             ballotBoxSeal: {
-                sealHash: "Seal hash: {{hash}}",
-                counted: "{{counted}} of {{inBox}} ballots counted.",
-                closeRequest: "Closed by the Close voting request {{request}}.",
+                sealHash: "Zegelhash: {{hash}}",
+                counted: "{{counted}} van {{inBox}} stembiljetten geteld.",
+                notCounted_one:
+                    "Het andere stembiljet is vervangen door een later stembiljet van de kiezer, afgekeurd, of uitgebracht door een kiezer die niet stemgerechtigd is.",
+                notCounted_other:
+                    "De andere {{count}} stembiljetten zijn vervangen door een later stembiljet van de kiezer, afgekeurd, of uitgebracht door een kiezer die niet stemgerechtigd is.",
+                closeRequest: "Gesloten door het verzoek Stemming sluiten {{request}}.",
                 noCloseRequest:
-                    "Closed without a Close voting request (Stop Voting or the scheduled close).",
-                failedReason: "Why: {{reason}}",
-                failedLocked: "The ballot box stays locked and is not sealed: an incident.",
-                verifiedCounted: "{{counted}} ballots counted from the seal.",
-                tallySession: "Tally session {{session}}.",
-                differs: "What differs: {{differs}}",
+                    "Gesloten zonder verzoek Stemming sluiten (Stemperiode Stoppen of de geplande sluiting).",
+                failedReason: "Reden: {{reason}}",
+                failedLocked: "De stembus blijft vergrendeld en is niet verzegeld: een incident.",
+                verifiedCounted: "{{counted}} stembiljetten geteld op basis van het zegel.",
+                tallySession: "Telsessie {{session}}.",
+                differs: "Wat verschilt: {{differs}}",
             },
         },
         tasksScreen: {
@@ -512,96 +516,106 @@ const dutchTranslation: TranslationType = {
             voterEnrollKioskURL: "Inschrijvings-URL kiosk kiezer",
             ballotBoxes: {
                 loadError:
-                    "The ballot boxes' seals could not be read. Reload the page, or check the connection to the server.",
-                title: "Ballot boxes",
+                    "De zegels van de stembussen konden niet worden gelezen. Laad de pagina opnieuw of controleer de verbinding met de server.",
+                title: "Stembussen",
                 sealing:
-                    "Voting closed at {{closed}}. The ballot boxes are sealed when the grace period ends, at {{deadline}}.",
-                sealed: "Voting closed at {{closed}}. The ballot boxes are sealed: no ballot can be added, changed or deleted.",
-                failed: "Voting closed at {{closed}}. A ballot box could not be sealed: it stays locked, and the incident is in the logs.",
+                    "De stemming is gesloten om {{closed}}. De stembussen worden verzegeld wanneer de respijttermijn eindigt, om {{deadline}}.",
+                sealed: "De stemming is gesloten om {{closed}}. De stembussen zijn verzegeld: er kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd.",
+                failed: "De stemming is gesloten om {{closed}}. Een stembus kon niet worden verzegeld: deze blijft vergrendeld en het incident staat in de logs.",
                 closedBySignatures:
-                    "Closed by {{names}} with their certificates, signing code {{code}}.",
-                closedByUser: "Closed by {{username}}.",
-                closedBySchedule: "Closed by the scheduled close of polls.",
+                    "Gesloten door {{names}} met hun certificaten, ondertekeningscode {{code}}.",
+                closedByUser: "Gesloten door {{username}}.",
+                closedBySchedule: "Gesloten door de geplande sluiting van de stemming.",
                 column: {
-                    area: "Area",
+                    area: "Gebied",
                     status: "Status",
-                    inTheBox: "In the box",
-                    counted: "Counted",
-                    sealedAt: "Sealed",
-                    sealHash: "Seal hash",
-                    record: "Seal record",
+                    inTheBox: "In de stembus",
+                    counted: "Geteld",
+                    sealedAt: "Verzegeld",
+                    sealHash: "Zegelhash",
+                    record: "Zegelrecord",
                 },
                 status: {
                     open: "Open",
-                    sealing: "Sealing at {{time}}",
-                    publishing: "Sealed, publishing",
-                    sealed: "Sealed",
-                    failed: "Not sealed: incident",
-                    due: "Sealing now",
-                    overdue: "Sealing overdue",
+                    sealing: "Verzegeling om {{time}}",
+                    publishing: "Verzegeld, wordt gepubliceerd",
+                    sealed: "Verzegeld",
+                    failed: "Niet verzegeld: incident",
+                    due: "Wordt nu verzegeld",
+                    overdue: "Verzegeling achterstallig",
                 },
                 help: {
                     publishing:
-                        "The ballot box is locked. Its entry on the bulletin board is being posted again.",
+                        "De stembus is vergrendeld. De vermelding op het prikbord wordt opnieuw geplaatst.",
                     counted:
-                        "Ballots that count: each voter's latest ballot. The others were replaced by the voter's later ballot.",
+                        "Stembiljetten die tellen: het laatste geldige stembiljet van elke stemgerechtigde kiezer. De overige in de stembus zijn vervangen door een later stembiljet van de kiezer, afgekeurd, of uitgebracht door een kiezer die niet stemgerechtigd is.",
                 },
-                copyHash: "Copy seal hash",
-                copied: "Seal hash copied",
-                copyError: "Could not copy the seal hash",
-                notYet: "Not yet",
-                openRecord: "Open the seal record of {{area}}",
-                beforeClose: "The ballot box of each area is sealed when voting closes.",
+                copyHash: "Zegelhash kopiëren",
+                copied: "Zegelhash gekopieerd",
+                copyError: "Kon de zegelhash niet kopiëren",
+                notYet: "Nog niet",
+                openRecord: "Het zegelrecord van {{area}} openen",
+                downloadRecord: "Het zegelrecord van {{area}} downloaden",
+                recordRestricted:
+                    "Beperkt: vraag het aan een beheerder die documenten mag downloaden.",
+                recordError: "Het zegelrecord kon niet worden gedownload. Probeer het opnieuw.",
+                beforeClose: "De stembus van elk gebied wordt verzegeld wanneer de stemming sluit.",
                 notStarted:
-                    "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
-                openOn: "Voting is open on {{channels}}. The ballot box of each area is sealed when voting closes.",
-                paused: "Voting is paused. The ballot box of each area is sealed when voting closes.",
+                    "De stemming is nog niet geopend. De stembus van elk gebied wordt verzegeld wanneer de stemming sluit.",
+                openOn: "De stemming is open via {{channels}}. De stembus van elk gebied wordt verzegeld wanneer de stemming sluit.",
+                paused: "De stemming is gepauzeerd. De stembus van elk gebied wordt verzegeld wanneer de stemming sluit.",
                 holding_one:
-                    "{{channels}} is enabled and not closed: stop it to seal the ballot boxes.",
+                    "{{channels}} is ingeschakeld en niet gesloten: stop dit kanaal om de stembussen te verzegelen.",
                 holding_other:
-                    "{{channels}} are enabled and not closed: stop them to seal the ballot boxes.",
-                sealingNow: "Voting closed at {{closed}}. The ballot boxes are being sealed.",
+                    "{{channels}} zijn ingeschakeld en niet gesloten: stop deze kanalen om de stembussen te verzegelen.",
+                sealingNow:
+                    "De stemming is gesloten om {{closed}}. De stembussen worden nu verzegeld.",
                 sealingPastGrace:
-                    "Voting closed at {{closed}}. The grace period ended at {{deadline}}; the ballot boxes are being sealed.",
+                    "De stemming is gesloten om {{closed}}. De respijttermijn is geëindigd om {{deadline}}; de stembussen worden nu verzegeld.",
                 why: {
-                    due: "Being sealed: this takes up to a minute.",
+                    due: "Wordt verzegeld: dit duurt maximaal een minuut.",
                     channelOpen:
-                        "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
+                        "{{channel}} is nog ingeschakeld en niet gesloten: stop dit kanaal om de stembus te verzegelen.",
+                    channelNotEnabled:
+                        "{{channel}} is open maar niet ingeschakeld voor deze verkiezing: schakel het opnieuw in en stop het om de stembus te verzegelen.",
+                    channelHasBallots:
+                        "{{channel}} heeft stembiljetten in deze stembus en is niet gesloten: stop dit kanaal om de stembus te verzegelen.",
                     datafixVotes_one:
-                        "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
+                        "{{count}} stem is in behandeling in Datafix: de stembus wordt verzegeld zodra deze is afgehandeld.",
                     datafixVotes_other:
-                        "{{count}} votes are in progress in Datafix: the ballot box is sealed once they are resolved.",
-                    stale: "Last tried at {{time}}: the sealer may not be running. Check Beat and the seal worker.",
+                        "{{count}} stemmen zijn in behandeling in Datafix: de stembus wordt verzegeld zodra deze zijn afgehandeld.",
+                    stale: "Laatste poging om {{time}}: de verzegelaar draait mogelijk niet. Controleer Beat en de seal-worker.",
                     notTried:
-                        "Not tried yet: the sealer may not be running. Check Beat and the seal worker.",
+                        "Nog niet geprobeerd: de verzegelaar draait mogelijk niet. Controleer Beat en de seal-worker.",
                     errorCategory: {
-                        board: "The last attempt couldn't reach the bulletin board; it is retried every minute.",
-                        census: "The last attempt couldn't read the voter list; it is retried every minute.",
+                        board: "De laatste poging kon het prikbord niet bereiken; er wordt elke minuut opnieuw geprobeerd.",
+                        census: "De laatste poging kon de kiezerslijst niet lezen; er wordt elke minuut opnieuw geprobeerd.",
                         keystore:
-                            "The last attempt couldn't get the signing key; it is retried every minute.",
+                            "De laatste poging kon de ondertekeningssleutel niet ophalen; er wordt elke minuut opnieuw geprobeerd.",
                         storage:
-                            "The last attempt couldn't upload the seal record to the public file storage; it is retried every minute.",
+                            "De laatste poging kon het zegelrecord niet uploaden naar de bestandsopslag; er wordt elke minuut opnieuw geprobeerd.",
                         settings:
-                            "The last attempt couldn't read the election's settings; it is retried every minute.",
-                        other: "The last attempt failed; it is retried every minute. The service log has the details.",
+                            "De laatste poging kon de instellingen van de verkiezing niet lezen; er wordt elke minuut opnieuw geprobeerd.",
+                        other: "De laatste poging is mislukt; er wordt elke minuut opnieuw geprobeerd. Het servicelogboek bevat de details.",
                         ballots:
-                            "The last attempt found a ballot that can't be read yet or is still in progress; it is retried every minute.",
+                            "De laatste poging vond een stembiljet dat nog niet kan worden gelezen of nog in behandeling is; er wordt elke minuut opnieuw geprobeerd.",
                         database:
-                            "The last attempt couldn't complete in the database; it is retried every minute.",
+                            "De laatste poging kon niet worden voltooid in de database; er wordt elke minuut opnieuw geprobeerd.",
                     },
                 },
                 failure: {
-                    ballotIdMismatch: "A ballot does not match its Ballot ID.",
-                    missingContent: "A ballot has no content or no Ballot ID.",
-                    unreadable: "A ballot can't be read.",
-                    inProgress: "A ballot is still in progress.",
-                    alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
-                    noBoard: "The election event has no bulletin board.",
+                    ballotIdMismatch: "Een stembiljet komt niet overeen met zijn stembiljet-ID.",
+                    missingContent: "Een stembiljet heeft geen inhoud of geen stembiljet-ID.",
+                    unreadable: "Een stembiljet kan niet worden gelezen.",
+                    inProgress: "Een stembiljet is nog in behandeling.",
+                    alreadyOnBoard: "Er staat al een zegel voor deze stembus op het prikbord.",
+                    noBoard: "Het verkiezingsevenement heeft geen prikbord.",
+                    unknownChannel: "Een stembiljet heeft een onbekend stemkanaal.",
                 },
                 incident: {
-                    title_one: "{{count}} ballot box could not be sealed",
-                    title_other: "{{count}} ballot boxes could not be sealed",
-                    body: "This is an incident: each of these ballot boxes stays locked and can't be tallied. Follow the runbook for a failed seal.",
+                    title_one: "{{count}} stembus kon niet worden verzegeld",
+                    title_other: "{{count}} stembussen konden niet worden verzegeld",
+                    body: "Dit is een incident: elk van deze stembussen blijft vergrendeld en kan niet worden geteld. Volg het runbook voor een mislukte verzegeling.",
                     line: "{{election}}, {{area}}: {{reason}}",
                 },
             },
@@ -763,25 +777,39 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 ballotBoxSealPolicy: {
-                    policyLabel: "Ballot Box Seal Policy",
+                    policyLabel: "Beleid Stembusverzegeling",
                     helperText:
-                        "When voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again.",
-                    locked: "It cannot be changed after voting has opened.",
+                        "Wanneer de stemming sluit, wordt de stembus van elk gebied verzegeld: een ondertekende hash van de stembiljetten gaat naar het prikbord, er kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd, en de stemming kan niet opnieuw starten.",
+                    locked: "Dit kan niet meer worden gewijzigd nadat de stemming is geopend.",
                     options: {
-                        "seal-at-close": "Seal at close",
-                        "do-not-seal": "Do not seal",
+                        "seal-at-close": "Verzegelen bij sluiting",
+                        "do-not-seal": "Niet verzegelen",
                     },
-                    checking: "Checking whether voting has opened…",
+                    checking: "Controleren of de stemming is geopend…",
                     lockedUnknown:
-                        "Locked: the elections could not be read, so whether voting has opened is unknown.",
-                    lockedOpened: "Locked: voting has opened in {{names}}.",
-                    lockedEvent: "Locked: voting has opened in this election event.",
-                    refused: "The Ballot Box Seal Policy can't be changed after voting has opened.",
-                    settingLocked: "With Seal at close, the seal relies on this setting.",
+                        "Vergrendeld: de verkiezingen konden niet worden gelezen, dus het is onbekend of de stemming is geopend.",
+                    lockedOpened: "Vergrendeld: de stemming is geopend in {{names}}.",
+                    lockedEvent: "Vergrendeld: de stemming is geopend in dit verkiezingsevenement.",
+                    refused:
+                        "Het Beleid Stembusverzegeling kan niet meer worden gewijzigd nadat de stemming is geopend.",
+                    settingLocked:
+                        "Met Verzegelen bij sluiting is het zegel afhankelijk van deze instelling.",
                     settingRefused:
-                        "This setting can't be changed after voting has opened: with Seal at close, the seal relies on it.",
+                        "Deze instelling kan niet meer worden gewijzigd nadat de stemming is geopend: met Verzegelen bij sluiting is het zegel ervan afhankelijk.",
                     boardRefused:
-                        "The election event's bulletin board can't change after voting has opened: with Seal at close, the seals are posted to it.",
+                        "Het prikbord van het verkiezingsevenement kan niet meer veranderen nadat de stemming is geopend: met Verzegelen bij sluiting worden de zegels daarop geplaatst.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Zegelrecord van de stembus",
+                    options: {
+                        restricted: "Beperkt",
+                        public: "Openbaar",
+                    },
+                    help: {
+                        restricted:
+                            "Alleen beheerders kunnen het downloaden; deel het met waarnemers.",
+                        public: "Iedereen met de id's van het evenement kan het downloaden, zonder in te loggen; het toont hoe elk stembiljet is geteld.",
+                    },
                 },
                 decodedBallots: {
                     policyLabel: "Gedecodeerde stembiljetten opnemen in de resultaten database",
@@ -2036,7 +2064,7 @@ const dutchTranslation: TranslationType = {
                         unarchive: "Weet u zeker dat u dit item wilt dearchiveren?",
                         delete: "Weet u zeker dat u dit item wilt verwijderen?",
                         sealsUnknown:
-                            "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                            "De zegels van de stembussen konden niet worden gecontroleerd: als er verzegelde stembussen zijn, wordt het verwijderen geweigerd.",
                     },
                     notification: {
                         success: {
@@ -2051,11 +2079,11 @@ const dutchTranslation: TranslationType = {
                             unarchive: "Fout bij het dearchiveren van dit item",
                             delete: "Fout bij het verwijderen van dit item",
                             deleteSealedElection:
-                                "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.",
+                                "Deze verkiezing heeft verzegelde stembussen en kan niet worden verwijderd. Archiveer in plaats daarvan het verkiezingsevenement.",
                             deleteSealedEvent:
-                                "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.",
+                                "Dit verkiezingsevenement heeft verzegelde stembussen en kan niet worden verwijderd. Archiveer het in plaats daarvan.",
                             deleteMaybeSealed:
-                                "Error while trying to delete this item. If it has sealed ballot boxes, it can't be deleted.",
+                                "Fout bij het verwijderen van dit item. Als het verzegelde stembussen heeft, kan het niet worden verwijderd.",
                         },
                     },
                 },
@@ -2480,28 +2508,30 @@ const dutchTranslation: TranslationType = {
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Status import sleutelfragment",
             ballotBoxes: {
-                unavailable: "Seals unavailable",
-                sealed: "{{sealed}} of {{total}} sealed",
-                publishing: "Sealed, {{published}} of {{total}} on the bulletin board",
-                sealing: "Sealing at {{time}}",
-                notSealed: "Not sealed",
-                help: "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
-                failed: "Not sealed: incident",
-                overdue: "Sealing overdue",
+                unavailable: "Zegels niet beschikbaar",
+                sealed: "{{sealed}} van {{total}} verzegeld",
+                publishing: "Verzegeld, {{published}} van {{total}} op het prikbord",
+                sealing: "Verzegeling om {{time}}",
+                notSealed: "Niet verzegeld",
+                help: "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegel ervan op het prikbord staat.",
+                failed: "Niet verzegeld: incident",
+                overdue: "Verzegeling achterstallig",
                 blocked: "{{name}}: {{reason}}",
                 reason: {
-                    "not-sealed": "voting hasn't closed, so its ballot boxes have no seals yet",
-                    "sealing": "its ballot boxes are sealed when the grace period ends",
+                    "not-sealed":
+                        "de stemming is niet gesloten, dus de stembussen hebben nog geen zegels",
+                    "sealing": "de stembussen worden verzegeld wanneer de respijttermijn eindigt",
                     "overdue":
-                        "its ballot boxes are past their deadline and not sealed yet (see its Dashboard)",
-                    "publishing": "some of its seals are still being posted to the bulletin board",
-                    "failed": "a ballot box could not be sealed, an incident (see its Dashboard)",
-                    "unavailable": "its ballot box seals could not be read",
+                        "de stembussen zijn over hun deadline en nog niet verzegeld (zie het Dashboard)",
+                    "publishing": "sommige zegels worden nog op het prikbord geplaatst",
+                    "failed":
+                        "een stembus kon niet worden verzegeld, een incident (zie het Dashboard)",
+                    "unavailable": "de zegels van de stembussen konden niet worden gelezen",
                 },
             },
             eligibility: {
                 ballotBoxesUnavailable:
-                    "The ballot boxes' seals of a selected election could not be read, so it can't be tallied yet. Reload the page to try again.",
+                    "De zegels van de stembussen van een geselecteerde verkiezing konden niet worden gelezen, dus deze kan nog niet worden geteld. Laad de pagina opnieuw om het nogmaals te proberen.",
                 selectElection: "Selecteer ten minste één verkiezing.",
                 publishElection:
                     "Publiceer elke geselecteerde verkiezing voordat u de telling aanmaakt.",
@@ -2509,7 +2539,7 @@ const dutchTranslation: TranslationType = {
                 endVoting:
                     "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
                 sealBallotBoxes:
-                    "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                    "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegel ervan op het prikbord staat.",
             },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
@@ -2571,7 +2601,7 @@ const dutchTranslation: TranslationType = {
                 },
             },
             table: {
-                ballotBoxes: "Ballot boxes",
+                ballotBoxes: "Stembussen",
                 elections: "Verkiezingen",
                 selected: "Geselecteerd",
                 status: "Status",
@@ -2726,11 +2756,11 @@ const dutchTranslation: TranslationType = {
                 header: "Publiceren niet mogelijk totdat de Sleutelceremonie is voltooid.",
             },
             skippedElections: {
-                dismiss: "Dismiss",
-                title: "Some elections stay closed",
+                dismiss: "Sluiten",
+                title: "Sommige verkiezingen blijven gesloten",
                 ballotBoxSealPolicy:
-                    "{{name}} stays closed: its voting has closed and Seal at close makes closing final.",
-                other: "{{name}} was left as it was ({{reason}}).",
+                    "{{name}} blijft gesloten: de stemming is gesloten en met Verzegelen bij sluiting is sluiten definitief.",
+                other: "{{name}} is ongewijzigd gelaten ({{reason}}).",
             },
             dialog: {
                 title: "Actie Bevestigen",
@@ -2742,18 +2772,16 @@ const dutchTranslation: TranslationType = {
                 stopInfo:
                     "U staat op het punt de stemperiode te stoppen. Weet u zeker dat u wilt doorgaan?",
                 stopSeal:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                    "U staat op het punt de stemming in {{name}} te stoppen. De stembussen worden dan verzegeld: er kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd, en de stemming kan niet opnieuw starten. Weet u zeker dat u wilt doorgaan?",
                 stopSealEvent:
-                    "You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
-                stopSealNeverOpened:
-                    "{{channels}} never opened and can't open once the ballot boxes are sealed.",
+                    "U staat op het punt de stemming in elke verkiezing te stoppen. De stembussen worden dan verzegeld: er kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd, en de stemming kan niet opnieuw starten. Weet u zeker dat u wilt doorgaan?",
                 startSealNote:
-                    "With Seal at close, closed voting stays closed: elections whose voting has closed won't open.",
+                    "Met Verzegelen bij sluiting blijft een gesloten stemming gesloten: verkiezingen waarvan de stemming is gesloten, gaan niet open.",
                 channel: {
                     ONLINE: "Online",
                     KIOSK: "Kiosk",
-                    EARLY_VOTING: "Early voting",
-                    TELEPHONE: "Telephone",
+                    EARLY_VOTING: "Vroeg stemmen",
+                    TELEPHONE: "Telefoon",
                 },
                 kioskStopInfo:
                     "U staat op het punt de kiosk stemperiode te stoppen. Weet u zeker dat u wilt doorgaan?",
@@ -2772,42 +2800,48 @@ const dutchTranslation: TranslationType = {
                 confirmation:
                     "De actie die u gaat uitvoeren is gevoelig en vereist bevestiging. Voer uw wachtwoord in om door te gaan met {{action}}.",
                 stopSealNotYet:
-                    "You are about to stop voting period. {{holding}} Are you sure you want to continue?",
+                    "U staat op het punt de stemperiode te stoppen. {{holding}} Weet u zeker dat u wilt doorgaan?",
                 sealHolding_one:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} is still enabled and not closed.",
+                    "Met Verzegelen bij sluiting worden de stembussen verzegeld zodra elk ingeschakeld kanaal is gesloten: {{channels}} is nog ingeschakeld en niet gesloten.",
                 sealHolding_other:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
-                stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
+                    "Met Verzegelen bij sluiting worden de stembussen verzegeld zodra elk ingeschakeld kanaal is gesloten: {{channels}} zijn nog ingeschakeld en niet gesloten.",
+                sealNotEnabled:
+                    "{{channel}} is open maar niet ingeschakeld voor deze verkiezing: schakel het opnieuw in en stop het om de stembussen te verzegelen.",
+                sealNotEnabledPost:
+                    "In {{post}} is {{channel}} open maar niet ingeschakeld: schakel het daar opnieuw in en stop het om de stembussen te verzegelen.",
+                stopNeverOpened_one:
+                    "{{channels}} is nooit geopend: door het te stoppen gaat het niet meer open.",
                 stopNeverOpened_other:
-                    "{{channels}} never opened: stopping them means they won't open.",
+                    "{{channels}} zijn nooit geopend: door ze te stoppen gaan ze niet meer open.",
                 stopSealGrace_one:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "U staat op het punt de stemming in {{name}} te stoppen. De stembussen worden verzegeld wanneer de respijttermijn eindigt, {{count}} minuut later: vanaf dan kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd. De stemming kan niet opnieuw starten. Weet u zeker dat u wilt doorgaan?",
                 stopSealGrace_other:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "U staat op het punt de stemming in {{name}} te stoppen. De stembussen worden verzegeld wanneer de respijttermijn eindigt, {{count}} minuten later: vanaf dan kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd. De stemming kan niet opnieuw starten. Weet u zeker dat u wilt doorgaan?",
                 stopSealEventGrace_one:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "U staat op het punt de stemming in elke verkiezing te stoppen. De stembussen worden verzegeld wanneer de respijttermijn van elke verkiezing eindigt, tot {{count}} minuut later: vanaf dan kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd. De stemming kan niet opnieuw starten. Weet u zeker dat u wilt doorgaan?",
                 stopSealEventGrace_other:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "U staat op het punt de stemming in elke verkiezing te stoppen. De stembussen worden verzegeld wanneer de respijttermijn van elke verkiezing eindigt, tot {{count}} minuten later: vanaf dan kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd. De stemming kan niet opnieuw starten. Weet u zeker dat u wilt doorgaan?",
                 stopSealEventSome:
-                    "You are about to stop voting in every election. {{sealed}} {{holding}} Are you sure you want to continue?",
+                    "U staat op het punt de stemming in elke verkiezing te stoppen. {{sealed}} {{holding}} Weet u zeker dat u wilt doorgaan?",
                 sealedNowPart:
-                    "The ballot boxes of {{names}} are then sealed: no ballot can be added, changed or deleted, and voting cannot start again there.",
+                    "De stembussen van {{names}} worden dan verzegeld: er kan geen stembiljet meer worden toegevoegd, gewijzigd of verwijderd, en de stemming kan daar niet opnieuw starten.",
                 sealedGracePart_one:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minute later.",
+                    "De stembussen van {{names}} worden verzegeld wanneer hun respijttermijn eindigt, tot {{count}} minuut later.",
                 sealedGracePart_other:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minutes later.",
+                    "De stembussen van {{names}} worden verzegeld wanneer hun respijttermijn eindigt, tot {{count}} minuten later.",
                 holdingEventPart_one:
-                    "{{names}} keeps another channel enabled and not closed: its ballot boxes are sealed once that channel is closed.",
+                    "{{names}} houdt een ander kanaal ingeschakeld en niet gesloten: de stembussen worden verzegeld zodra dat kanaal is gesloten.",
                 holdingEventPart_other:
-                    "{{names}} keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed.",
-                startSealNoteList: "With Seal at close, closed voting stays closed: {{items}}.",
-                startKeptChannels_one: "{{post}}: {{channels}} stays closed",
-                startKeptChannels_other: "{{post}}: {{channels}} stay closed",
-                startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
+                    "{{names}} houden een ander kanaal ingeschakeld en niet gesloten: hun stembussen worden verzegeld zodra die kanalen zijn gesloten.",
+                startSealNoteList:
+                    "Met Verzegelen bij sluiting blijft een gesloten stemming gesloten: {{items}}.",
+                startKeptChannels_one: "{{post}}: {{channels}} blijft gesloten",
+                startKeptChannels_other: "{{post}}: {{channels}} blijven gesloten",
+                startKeptSealed: "{{post}} blijft gesloten, omdat de stembussen zijn verzegeld",
                 stopNeverOpenedPosts_one:
-                    "{{names}} never opened: stopping closes it and seals its empty ballot boxes.",
+                    "{{names}} is nooit geopend: stoppen sluit de Post en verzegelt de lege stembussen.",
                 stopNeverOpenedPosts_other:
-                    "{{names}} never opened: stopping closes them and seals their empty ballot boxes.",
+                    "{{names}} zijn nooit geopend: stoppen sluit ze en verzegelt hun lege stembussen.",
             },
             notifications: {
                 generated: "Stembiljet gegenereerd",
@@ -2816,11 +2850,11 @@ const dutchTranslation: TranslationType = {
             },
             sealRefusals: {
                 startAgain:
-                    "Voting can't start again: with Seal at close, voting that has closed stays closed and its ballot boxes are sealed.",
+                    "De stemming kan niet opnieuw starten: met Verzegelen bij sluiting blijft een gesloten stemming gesloten en zijn de stembussen verzegeld.",
                 startDisabled:
-                    "Start Voting isn't available: this election's ballot boxes are sealed or being sealed, and with Seal at close closed voting stays closed.",
+                    "Stemperiode Starten is niet beschikbaar: de stembussen van deze verkiezing zijn verzegeld of worden verzegeld, en met Verzegelen bij sluiting blijft een gesloten stemming gesloten.",
                 closedIsFinal:
-                    "Closed voting can't change: with Seal at close, closed voting stays closed.",
+                    "Een gesloten stemming kan niet veranderen: met Verzegelen bij sluiting blijft een gesloten stemming gesloten.",
             },
         },
         emailEditor: {

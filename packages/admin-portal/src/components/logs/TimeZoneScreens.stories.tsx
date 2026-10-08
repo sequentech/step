@@ -254,7 +254,13 @@ export const TzLogs: Story = {
         await expectLogTimes(canvasElement, "primary")
         expect(canvas.getByLabelText("Created from")).toBeVisible()
         expect(canvas.getByLabelText("to")).toBeVisible()
-        // The explanation of a scheduled outcome change, as readable lines.
+        // The explanation of a scheduled outcome change, as readable lines under Show More.
+        const description = within(canvas.getByText("Scheduled close").closest("td")!)
+        await userEvent.click(
+            description.getByRole("button", {
+                name: i18n.t("electionEventScreen.common.showMore"),
+            })
+        )
         expect(
             canvas.getByText(
                 i18n.t("logsScreen.scheduledOutcome.changed", {

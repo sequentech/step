@@ -285,6 +285,10 @@ const englishTranslation = {
             ballotBoxSeal: {
                 sealHash: "Seal hash: {{hash}}",
                 counted: "{{counted}} of {{inBox}} ballots counted.",
+                notCounted_one:
+                    "The other ballot was replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible.",
+                notCounted_other:
+                    "The other {{count}} ballots were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible.",
                 closeRequest: "Closed by the Close voting request {{request}}.",
                 noCloseRequest:
                     "Closed without a Close voting request (Stop Voting or the scheduled close).",
@@ -541,13 +545,16 @@ const englishTranslation = {
                     publishing:
                         "The ballot box is locked. Its entry on the bulletin board is being posted again.",
                     counted:
-                        "Ballots that count: each voter's latest ballot. The others were replaced by the voter's later ballot.",
+                        "Ballots that count: each eligible voter's latest valid ballot. The others in the box were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible.",
                 },
                 copyHash: "Copy seal hash",
                 copied: "Seal hash copied",
                 copyError: "Could not copy the seal hash",
                 notYet: "Not yet",
                 openRecord: "Open the seal record of {{area}}",
+                downloadRecord: "Download the seal record of {{area}}",
+                recordRestricted: "Restricted: ask an administrator who can download documents.",
+                recordError: "The seal record could not be downloaded. Try again.",
                 beforeClose: "The ballot box of each area is sealed when voting closes.",
                 notStarted:
                     "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
@@ -564,6 +571,10 @@ const englishTranslation = {
                     due: "Being sealed: this takes up to a minute.",
                     channelOpen:
                         "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
+                    channelNotEnabled:
+                        "{{channel}} is open but not enabled for this Post: enable it again and stop it to seal the ballot box.",
+                    channelHasBallots:
+                        "{{channel}} has ballots in this ballot box and isn't closed: stop it to seal the ballot box.",
                     datafixVotes_one:
                         "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
                     datafixVotes_other:
@@ -577,7 +588,7 @@ const englishTranslation = {
                         keystore:
                             "The last attempt couldn't get the signing key; it is retried every minute.",
                         storage:
-                            "The last attempt couldn't upload the seal record to the public file storage; it is retried every minute.",
+                            "The last attempt couldn't upload the seal record to the file storage; it is retried every minute.",
                         settings:
                             "The last attempt couldn't read the election's settings; it is retried every minute.",
                         other: "The last attempt failed; it is retried every minute. The service log has the details.",
@@ -594,6 +605,7 @@ const englishTranslation = {
                     inProgress: "A ballot is still in progress.",
                     alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
                     noBoard: "The election event has no bulletin board.",
+                    unknownChannel: "A ballot has an unknown voting channel.",
                 },
                 incident: {
                     title_one: "{{count}} ballot box could not be sealed",
@@ -774,6 +786,17 @@ const englishTranslation = {
                         "This setting can't be changed after voting has opened: with Seal at close, the seal relies on it.",
                     boardRefused:
                         "The election event's bulletin board can't change after voting has opened: with Seal at close, the seals are posted to it.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Ballot Box Seal Record",
+                    options: {
+                        restricted: "Restricted",
+                        public: "Public",
+                    },
+                    help: {
+                        restricted: "Only administrators can download it; share it with observers.",
+                        public: "Anyone with the event's ids can download it, without signing in; it shows how each ballot counted.",
+                    },
                 },
                 decodedBallots: {
                     policyLabel: "Include decoded ballots to results database",
@@ -2718,8 +2741,6 @@ const englishTranslation = {
                     "You are about to stop voting in {{name}}. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
                 stopSealEvent:
                     "You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
-                stopSealNeverOpened:
-                    "{{channels}} never opened and can't open once the ballot boxes are sealed.",
                 startSealNote:
                     "With Seal at close, closed voting stays closed: elections whose voting has closed won't open.",
                 channel: {
@@ -2750,6 +2771,10 @@ const englishTranslation = {
                     "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} is still enabled and not closed.",
                 sealHolding_other:
                     "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
+                sealNotEnabled:
+                    "{{channel}} is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes.",
+                sealNotEnabledPost:
+                    "In {{post}}, {{channel}} is open but not enabled: enable it again for that Post and stop it to seal its ballot boxes.",
                 stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
                 stopNeverOpened_other:
                     "{{channels}} never opened: stopping them means they won't open.",

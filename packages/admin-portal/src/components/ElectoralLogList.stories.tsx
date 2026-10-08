@@ -30,7 +30,8 @@ const logRow = (
     id: number,
     kind: string,
     user: {id: string; name: string} | null,
-    head: {event_type: string; log_type: string; description: string}
+    head: {event_type: string; log_type: string; description: string},
+    body?: Record<string, unknown>
 ): StoryRecord<ElectoralLogRow> & {election_event_id: string} => ({
     id,
     election_event_id: EVENT_ID,
@@ -41,11 +42,21 @@ const logRow = (
     message: JSON.stringify({
         user_id: user?.id ?? null,
         username: user?.name ?? null,
-        statement: {head},
+        statement: {head, body},
     }),
 })
 
+const SEAL_HASH = `ef187f0b${"3c".repeat(56)}22a65e5b`
+const SEALED = "Ballot box of Madrid Post, Spain sealed: 1,340 of 1,342 ballots counted."
+
 const logs = [
+    logRow(
+        3,
+        "BallotBoxSealed",
+        null,
+        {event_type: "SYSTEM", log_type: "INFO", description: SEALED},
+        {BallotBoxSealed: [null, "spain", SEAL_HASH, 1342, 1340, null]}
+    ),
     logRow(
         2,
         "CastVote",
@@ -200,6 +211,27 @@ export const Populated: Story = {
             }),
         ])
         expect(graphql.calls).toEqual([])
+    },
+}
+
+/** A seal entry's details (seal hash, counts) open with its description under Show More. */
+export const DetailsUnderShowMore: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByText("alice")
+        const preview = canvas.getByText(SEALED.slice(0, 50).trim())
+        await expect(preview).toBeVisible()
+        const cell = within(preview.closest("td")!)
+        expect(canvas.queryByText(`Seal hash: ${SEAL_HASH}`)).toBeNull()
+        // Short descriptions without details get no toggle.
+        const keys = within(canvas.getByText("Keys generated").closest("td")!)
+        expect(keys.queryByRole("button")).toBeNull()
+        await userEvent.click(cell.getByRole("button", {name: "Show More"}))
+        await expect(cell.getByText(SEALED)).toBeVisible()
+        await expect(cell.getByText(`Seal hash: ${SEAL_HASH}`)).toBeVisible()
+        await expect(cell.getByText("1340 of 1342 ballots counted.")).toBeVisible()
+        await userEvent.click(cell.getByRole("button", {name: "Show Less"}))
+        expect(canvas.queryByText(`Seal hash: ${SEAL_HASH}`)).toBeNull()
     },
 }
 

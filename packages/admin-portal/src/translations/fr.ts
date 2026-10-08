@@ -260,9 +260,9 @@ const frenchTranslation: TranslationType = {
                 nextStep: "Étape suivante : {{step}}",
                 reason: {
                     "ballot-box-seal-policy":
-                        "Kept closed: with Seal at close, voting that has closed stays closed.",
+                        "Maintenu clos : avec Sceller à la clôture, un vote clôturé reste clos.",
                     "never-opened-kept-open":
-                        "Nothing to close on schedule: the Post never opened, so it stays as it is.",
+                        "Rien à clôturer selon le programme : le Poste n'a jamais ouvert, il reste donc en l'état.",
                 },
             },
             column: {
@@ -286,16 +286,20 @@ const frenchTranslation: TranslationType = {
                 title: "Journal de la Base de Données IAM",
             },
             ballotBoxSeal: {
-                sealHash: "Seal hash: {{hash}}",
-                counted: "{{counted}} of {{inBox}} ballots counted.",
-                closeRequest: "Closed by the Close voting request {{request}}.",
+                sealHash: "Hash du scellé : {{hash}}",
+                counted: "{{counted}} bulletins comptés sur {{inBox}}.",
+                notCounted_one:
+                    "L'autre bulletin a été remplacé par un bulletin ultérieur de l'électeur, écarté, ou déposé par un électeur non éligible.",
+                notCounted_other:
+                    "Les {{count}} autres bulletins ont été remplacés par un bulletin ultérieur de l'électeur, écartés, ou déposés par un électeur non éligible.",
+                closeRequest: "Clôturé par la demande de clôture du vote {{request}}.",
                 noCloseRequest:
-                    "Closed without a Close voting request (Stop Voting or the scheduled close).",
-                failedReason: "Why: {{reason}}",
-                failedLocked: "The ballot box stays locked and is not sealed: an incident.",
-                verifiedCounted: "{{counted}} ballots counted from the seal.",
-                tallySession: "Tally session {{session}}.",
-                differs: "What differs: {{differs}}",
+                    "Clôturé sans demande de clôture du vote (Arrêter la période de vote ou fermeture programmée).",
+                failedReason: "Motif : {{reason}}",
+                failedLocked: "L'urne reste verrouillée et n'est pas scellée : c'est un incident.",
+                verifiedCounted: "{{counted}} bulletins comptés à partir du scellé.",
+                tallySession: "Session de dépouillement {{session}}.",
+                differs: "Différences : {{differs}}",
             },
         },
         tasksScreen: {
@@ -512,97 +516,109 @@ const frenchTranslation: TranslationType = {
             voterEnrollKioskURL: "Kiosk URL d'inscription des électeurs",
             ballotBoxes: {
                 loadError:
-                    "The ballot boxes' seals could not be read. Reload the page, or check the connection to the server.",
-                title: "Ballot boxes",
+                    "Les scellés des urnes n'ont pas pu être lus. Rechargez la page ou vérifiez la connexion au serveur.",
+                title: "Urnes",
                 sealing:
-                    "Voting closed at {{closed}}. The ballot boxes are sealed when the grace period ends, at {{deadline}}.",
-                sealed: "Voting closed at {{closed}}. The ballot boxes are sealed: no ballot can be added, changed or deleted.",
-                failed: "Voting closed at {{closed}}. A ballot box could not be sealed: it stays locked, and the incident is in the logs.",
+                    "Le vote a été clôturé à {{closed}}. Les urnes sont scellées à la fin du délai de grâce, à {{deadline}}.",
+                sealed: "Le vote a été clôturé à {{closed}}. Les urnes sont scellées : aucun bulletin ne peut être ajouté, modifié ni supprimé.",
+                failed: "Le vote a été clôturé à {{closed}}. Une urne n'a pas pu être scellée : elle reste verrouillée, et l'incident figure dans les journaux.",
                 closedBySignatures:
-                    "Closed by {{names}} with their certificates, signing code {{code}}.",
-                closedByUser: "Closed by {{username}}.",
-                closedBySchedule: "Closed by the scheduled close of polls.",
+                    "Clôturé par {{names}} avec leurs certificats, code de signature {{code}}.",
+                closedByUser: "Clôturé par {{username}}.",
+                closedBySchedule: "Clôturé par la fermeture programmée du scrutin.",
                 column: {
-                    area: "Area",
-                    status: "Status",
-                    inTheBox: "In the box",
-                    counted: "Counted",
-                    sealedAt: "Sealed",
-                    sealHash: "Seal hash",
-                    record: "Seal record",
+                    area: "Zone",
+                    status: "Statut",
+                    inTheBox: "Dans l'urne",
+                    counted: "Comptés",
+                    sealedAt: "Scellée",
+                    sealHash: "Hash du scellé",
+                    record: "Procès-verbal de scellement",
                 },
                 status: {
-                    open: "Open",
-                    sealing: "Sealing at {{time}}",
-                    publishing: "Sealed, publishing",
-                    sealed: "Sealed",
-                    failed: "Not sealed: incident",
-                    due: "Sealing now",
-                    overdue: "Sealing overdue",
+                    open: "Ouverte",
+                    sealing: "Scellement à {{time}}",
+                    publishing: "Scellée, publication en cours",
+                    sealed: "Scellée",
+                    failed: "Non scellée : incident",
+                    due: "Scellement en cours",
+                    overdue: "Scellement en retard",
                 },
                 help: {
                     publishing:
-                        "The ballot box is locked. Its entry on the bulletin board is being posted again.",
+                        "L'urne est verrouillée. Son entrée est en cours de republication sur le tableau d'affichage.",
                     counted:
-                        "Ballots that count: each voter's latest ballot. The others were replaced by the voter's later ballot.",
+                        "Bulletins comptés : le dernier bulletin valide de chaque électeur éligible. Les autres bulletins de l'urne ont été remplacés par un bulletin ultérieur de l'électeur, écartés, ou déposés par un électeur non éligible.",
                 },
-                copyHash: "Copy seal hash",
-                copied: "Seal hash copied",
-                copyError: "Could not copy the seal hash",
-                notYet: "Not yet",
-                openRecord: "Open the seal record of {{area}}",
-                beforeClose: "The ballot box of each area is sealed when voting closes.",
+                copyHash: "Copier le hash du scellé",
+                copied: "Hash du scellé copié",
+                copyError: "Impossible de copier le hash du scellé",
+                notYet: "Pas encore",
+                openRecord: "Ouvrir le procès-verbal de scellement de {{area}}",
+                downloadRecord: "Télécharger le procès-verbal de scellement de {{area}}",
+                recordRestricted:
+                    "Restreint : demandez-le à un administrateur autorisé à télécharger des documents.",
+                recordError:
+                    "Le procès-verbal de scellement n'a pas pu être téléchargé. Réessayez.",
+                beforeClose: "L'urne de chaque zone est scellée à la clôture du vote.",
                 notStarted:
-                    "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
-                openOn: "Voting is open on {{channels}}. The ballot box of each area is sealed when voting closes.",
-                paused: "Voting is paused. The ballot box of each area is sealed when voting closes.",
+                    "Le vote n'a pas encore ouvert. L'urne de chaque zone est scellée à la clôture du vote.",
+                openOn: "Le vote est ouvert sur {{channels}}. L'urne de chaque zone est scellée à la clôture du vote.",
+                paused: "Le vote est en pause. L'urne de chaque zone est scellée à la clôture du vote.",
                 holding_one:
-                    "{{channels}} is enabled and not closed: stop it to seal the ballot boxes.",
+                    "{{channels}} est activé et non clôturé : arrêtez-le pour sceller les urnes.",
                 holding_other:
-                    "{{channels}} are enabled and not closed: stop them to seal the ballot boxes.",
-                sealingNow: "Voting closed at {{closed}}. The ballot boxes are being sealed.",
+                    "{{channels}} sont activés et non clôturés : arrêtez-les pour sceller les urnes.",
+                sealingNow:
+                    "Le vote a été clôturé à {{closed}}. Les urnes sont en cours de scellement.",
                 sealingPastGrace:
-                    "Voting closed at {{closed}}. The grace period ended at {{deadline}}; the ballot boxes are being sealed.",
+                    "Le vote a été clôturé à {{closed}}. Le délai de grâce a pris fin à {{deadline}} ; les urnes sont en cours de scellement.",
                 why: {
-                    due: "Being sealed: this takes up to a minute.",
+                    due: "Scellement en cours : cela peut prendre jusqu'à une minute.",
                     channelOpen:
-                        "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
+                        "{{channel}} est encore activé et non clôturé : arrêtez-le pour sceller l'urne.",
+                    channelNotEnabled:
+                        "{{channel}} est ouvert mais n'est pas activé pour cette élection : réactivez-le puis arrêtez-le pour sceller l'urne.",
+                    channelHasBallots:
+                        "{{channel}} a des bulletins dans cette urne et n'est pas clôturé : arrêtez-le pour sceller l'urne.",
                     datafixVotes_one:
-                        "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
+                        "{{count}} vote est en cours dans Datafix : l'urne est scellée une fois qu'il est résolu.",
                     datafixVotes_other:
-                        "{{count}} votes are in progress in Datafix: the ballot box is sealed once they are resolved.",
-                    stale: "Last tried at {{time}}: the sealer may not be running. Check Beat and the seal worker.",
+                        "{{count}} votes sont en cours dans Datafix : l'urne est scellée une fois qu'ils sont résolus.",
+                    stale: "Dernière tentative à {{time}} : le service de scellement n'est peut-être pas en cours d'exécution. Vérifiez Beat et le worker de scellement.",
                     notTried:
-                        "Not tried yet: the sealer may not be running. Check Beat and the seal worker.",
+                        "Aucune tentative pour l'instant : le service de scellement n'est peut-être pas en cours d'exécution. Vérifiez Beat et le worker de scellement.",
                     errorCategory: {
-                        board: "The last attempt couldn't reach the bulletin board; it is retried every minute.",
-                        census: "The last attempt couldn't read the voter list; it is retried every minute.",
+                        board: "La dernière tentative n'a pas pu joindre le tableau d'affichage ; une nouvelle tentative a lieu chaque minute.",
+                        census: "La dernière tentative n'a pas pu lire la liste des électeurs ; une nouvelle tentative a lieu chaque minute.",
                         keystore:
-                            "The last attempt couldn't get the signing key; it is retried every minute.",
+                            "La dernière tentative n'a pas pu obtenir la clé de signature ; une nouvelle tentative a lieu chaque minute.",
                         storage:
-                            "The last attempt couldn't upload the seal record to the public file storage; it is retried every minute.",
+                            "La dernière tentative n'a pas pu téléverser le procès-verbal de scellement vers le stockage de fichiers ; une nouvelle tentative a lieu chaque minute.",
                         settings:
-                            "The last attempt couldn't read the election's settings; it is retried every minute.",
-                        other: "The last attempt failed; it is retried every minute. The service log has the details.",
+                            "La dernière tentative n'a pas pu lire les paramètres de l'élection ; une nouvelle tentative a lieu chaque minute.",
+                        other: "La dernière tentative a échoué ; une nouvelle tentative a lieu chaque minute. Le journal du service contient les détails.",
                         ballots:
-                            "The last attempt found a ballot that can't be read yet or is still in progress; it is retried every minute.",
+                            "La dernière tentative a trouvé un bulletin qui ne peut pas encore être lu ou qui est encore en cours ; une nouvelle tentative a lieu chaque minute.",
                         database:
-                            "The last attempt couldn't complete in the database; it is retried every minute.",
+                            "La dernière tentative n'a pas pu aboutir dans la base de données ; une nouvelle tentative a lieu chaque minute.",
                     },
                 },
                 failure: {
-                    ballotIdMismatch: "A ballot does not match its Ballot ID.",
-                    missingContent: "A ballot has no content or no Ballot ID.",
-                    unreadable: "A ballot can't be read.",
-                    inProgress: "A ballot is still in progress.",
-                    alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
-                    noBoard: "The election event has no bulletin board.",
+                    ballotIdMismatch: "Un bulletin ne correspond pas à son ID de bulletin.",
+                    missingContent: "Un bulletin n'a pas de contenu ou pas d'ID de bulletin.",
+                    unreadable: "Un bulletin ne peut pas être lu.",
+                    inProgress: "Un bulletin est encore en cours.",
+                    alreadyOnBoard:
+                        "Un scellé de cette urne figure déjà sur le tableau d'affichage.",
+                    noBoard: "L'événement électoral n'a pas de tableau d'affichage.",
+                    unknownChannel: "Un bulletin a un canal de vote inconnu.",
                 },
                 incident: {
-                    title_one: "{{count}} ballot box could not be sealed",
-                    title_other: "{{count}} ballot boxes could not be sealed",
-                    body: "This is an incident: each of these ballot boxes stays locked and can't be tallied. Follow the runbook for a failed seal.",
-                    line: "{{election}}, {{area}}: {{reason}}",
+                    title_one: "{{count}} urne n'a pas pu être scellée",
+                    title_other: "{{count}} urnes n'ont pas pu être scellées",
+                    body: "Il s'agit d'un incident : chacune de ces urnes reste verrouillée et ne peut pas être dépouillée. Suivez la procédure prévue en cas d'échec du scellement.",
+                    line: "{{election}}, {{area}} : {{reason}}",
                 },
             },
             ipAddress: {
@@ -761,25 +777,38 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 ballotBoxSealPolicy: {
-                    policyLabel: "Ballot Box Seal Policy",
+                    policyLabel: "Politique de scellement des urnes",
                     helperText:
-                        "When voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again.",
-                    locked: "It cannot be changed after voting has opened.",
+                        "À la clôture du vote, l'urne de chaque zone est scellée : un hash signé de ses bulletins est publié sur le tableau d'affichage, aucun bulletin ne peut être ajouté, modifié ni supprimé, et le vote ne peut pas reprendre.",
+                    locked: "Elle ne peut plus être modifiée une fois le vote ouvert.",
                     options: {
-                        "seal-at-close": "Seal at close",
-                        "do-not-seal": "Do not seal",
+                        "seal-at-close": "Sceller à la clôture",
+                        "do-not-seal": "Ne pas sceller",
                     },
-                    checking: "Checking whether voting has opened…",
+                    checking: "Vérification de l'ouverture du vote…",
                     lockedUnknown:
-                        "Locked: the elections could not be read, so whether voting has opened is unknown.",
-                    lockedOpened: "Locked: voting has opened in {{names}}.",
-                    lockedEvent: "Locked: voting has opened in this election event.",
-                    refused: "The Ballot Box Seal Policy can't be changed after voting has opened.",
-                    settingLocked: "With Seal at close, the seal relies on this setting.",
+                        "Verrouillée : les élections n'ont pas pu être lues, on ne sait donc pas si le vote a ouvert.",
+                    lockedOpened: "Verrouillée : le vote a ouvert dans {{names}}.",
+                    lockedEvent: "Verrouillée : le vote a ouvert dans cet événement électoral.",
+                    refused:
+                        "La Politique de scellement des urnes ne peut plus être modifiée une fois le vote ouvert.",
+                    settingLocked: "Avec Sceller à la clôture, le scellé dépend de ce paramètre.",
                     settingRefused:
-                        "This setting can't be changed after voting has opened: with Seal at close, the seal relies on it.",
+                        "Ce paramètre ne peut plus être modifié une fois le vote ouvert : avec Sceller à la clôture, le scellé en dépend.",
                     boardRefused:
-                        "The election event's bulletin board can't change after voting has opened: with Seal at close, the seals are posted to it.",
+                        "Le tableau d'affichage de l'événement électoral ne peut plus changer une fois le vote ouvert : avec Sceller à la clôture, les scellés y sont publiés.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Procès-verbal de scellement des urnes",
+                    options: {
+                        restricted: "Restreint",
+                        public: "Public",
+                    },
+                    help: {
+                        restricted:
+                            "Seuls les administrateurs peuvent le télécharger ; partagez-le avec les observateurs.",
+                        public: "Toute personne connaissant les identifiants de l'événement peut le télécharger, sans se connecter ; il montre comment chaque bulletin a été compté.",
+                    },
                 },
                 decodedBallots: {
                     policyLabel:
@@ -2047,7 +2076,7 @@ const frenchTranslation: TranslationType = {
                         unarchive: "Êtes-vous sûr de vouloir désarchiver cet élément ?",
                         delete: "Êtes-vous sûr de vouloir supprimer cet élément ?",
                         sealsUnknown:
-                            "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
+                            "Les scellés des urnes n'ont pas pu être vérifiés : si l'élément a des urnes scellées, la suppression est refusée.",
                     },
                     notification: {
                         success: {
@@ -2062,11 +2091,11 @@ const frenchTranslation: TranslationType = {
                             unarchive: "Erreur lors de la tentative de désarchivage de cet élément",
                             delete: "Erreur lors de la tentative de suppression de cet élément",
                             deleteSealedElection:
-                                "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.",
+                                "Cette élection a des urnes scellées et ne peut pas être supprimée. Archivez plutôt son événement électoral.",
                             deleteSealedEvent:
-                                "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.",
+                                "Cet événement électoral a des urnes scellées et ne peut pas être supprimé. Archivez-le plutôt.",
                             deleteMaybeSealed:
-                                "Error while trying to delete this item. If it has sealed ballot boxes, it can't be deleted.",
+                                "Erreur lors de la suppression de cet élément. S'il a des urnes scellées, il ne peut pas être supprimé.",
                         },
                     },
                 },
@@ -2498,28 +2527,31 @@ const frenchTranslation: TranslationType = {
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État d'importation du fragment de clé",
             ballotBoxes: {
-                unavailable: "Seals unavailable",
-                sealed: "{{sealed}} of {{total}} sealed",
-                publishing: "Sealed, {{published}} of {{total}} on the bulletin board",
-                sealing: "Sealing at {{time}}",
-                notSealed: "Not sealed",
-                help: "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
-                failed: "Not sealed: incident",
-                overdue: "Sealing overdue",
-                blocked: "{{name}}: {{reason}}",
+                unavailable: "Scellés indisponibles",
+                sealed: "{{sealed}} sur {{total}} scellées",
+                publishing: "Scellées, {{published}} sur {{total}} sur le tableau d'affichage",
+                sealing: "Scellement à {{time}}",
+                notSealed: "Non scellées",
+                help: "Une élection peut être dépouillée une fois que chaque urne est scellée et que son scellé figure sur le tableau d'affichage.",
+                failed: "Non scellée : incident",
+                overdue: "Scellement en retard",
+                blocked: "{{name}} : {{reason}}",
                 reason: {
-                    "not-sealed": "voting hasn't closed, so its ballot boxes have no seals yet",
-                    "sealing": "its ballot boxes are sealed when the grace period ends",
+                    "not-sealed":
+                        "le vote n'est pas clôturé, ses urnes n'ont donc pas encore de scellés",
+                    "sealing": "ses urnes sont scellées à la fin du délai de grâce",
                     "overdue":
-                        "its ballot boxes are past their deadline and not sealed yet (see its Dashboard)",
-                    "publishing": "some of its seals are still being posted to the bulletin board",
-                    "failed": "a ballot box could not be sealed, an incident (see its Dashboard)",
-                    "unavailable": "its ballot box seals could not be read",
+                        "ses urnes ont dépassé leur échéance et ne sont pas encore scellées (voir son Tableau de Bord)",
+                    "publishing":
+                        "certains de ses scellés sont encore en cours de publication sur le tableau d'affichage",
+                    "failed":
+                        "une urne n'a pas pu être scellée, c'est un incident (voir son Tableau de Bord)",
+                    "unavailable": "les scellés de ses urnes n'ont pas pu être lus",
                 },
             },
             eligibility: {
                 ballotBoxesUnavailable:
-                    "The ballot boxes' seals of a selected election could not be read, so it can't be tallied yet. Reload the page to try again.",
+                    "Les scellés des urnes d'une élection sélectionnée n'ont pas pu être lus, elle ne peut donc pas encore être dépouillée. Rechargez la page pour réessayer.",
                 selectElection: "Sélectionnez au moins une élection.",
                 publishElection:
                     "Publiez chaque élection sélectionnée avant de créer son dépouillement.",
@@ -2527,7 +2559,7 @@ const frenchTranslation: TranslationType = {
                 endVoting:
                     "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
                 sealBallotBoxes:
-                    "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                    "Une élection peut être dépouillée une fois que chaque urne est scellée et que son scellé figure sur le tableau d'affichage.",
             },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
@@ -2589,7 +2621,7 @@ const frenchTranslation: TranslationType = {
                 },
             },
             table: {
-                ballotBoxes: "Ballot boxes",
+                ballotBoxes: "Urnes",
                 elections: "Élections",
                 selected: "Sélectionnées",
                 status: "État",
@@ -2737,11 +2769,11 @@ const frenchTranslation: TranslationType = {
                 header: "Impossible de publier tant que la cérémonie des clés n'est pas terminée.",
             },
             skippedElections: {
-                dismiss: "Dismiss",
-                title: "Some elections stay closed",
+                dismiss: "Fermer",
+                title: "Certaines élections restent closes",
                 ballotBoxSealPolicy:
-                    "{{name}} stays closed: its voting has closed and Seal at close makes closing final.",
-                other: "{{name}} was left as it was ({{reason}}).",
+                    "{{name}} reste close : son vote est clôturé et Sceller à la clôture rend la clôture définitive.",
+                other: "{{name}} a été laissée en l'état ({{reason}}).",
             },
             dialog: {
                 title: "Confirmer Action",
@@ -2753,18 +2785,16 @@ const frenchTranslation: TranslationType = {
                 stopInfo:
                     "Vous êtes sur le point d'arrêter la période de vote. Êtes-vous sûr de vouloir continuer?",
                 stopSeal:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                    "Vous êtes sur le point d'arrêter le vote dans {{name}}. Ses urnes seront alors scellées : aucun bulletin ne pourra être ajouté, modifié ni supprimé, et le vote ne pourra pas reprendre. Êtes-vous sûr de vouloir continuer ?",
                 stopSealEvent:
-                    "You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
-                stopSealNeverOpened:
-                    "{{channels}} never opened and can't open once the ballot boxes are sealed.",
+                    "Vous êtes sur le point d'arrêter le vote dans toutes les élections. Leurs urnes seront alors scellées : aucun bulletin ne pourra être ajouté, modifié ni supprimé, et le vote ne pourra pas reprendre. Êtes-vous sûr de vouloir continuer ?",
                 startSealNote:
-                    "With Seal at close, closed voting stays closed: elections whose voting has closed won't open.",
+                    "Avec Sceller à la clôture, un vote clôturé reste clos : les élections dont le vote est clôturé n'ouvriront pas.",
                 channel: {
-                    ONLINE: "Online",
-                    KIOSK: "Kiosk",
-                    EARLY_VOTING: "Early voting",
-                    TELEPHONE: "Telephone",
+                    ONLINE: "Vote en ligne",
+                    KIOSK: "Vote au kiosque",
+                    EARLY_VOTING: "Vote anticipé",
+                    TELEPHONE: "Vote par téléphone",
                 },
                 kioskStopInfo:
                     "Vous êtes sur le point d'arrêter la période de vote au kiosque. Êtes-vous sûr de vouloir continuer ?",
@@ -2783,42 +2813,48 @@ const frenchTranslation: TranslationType = {
                 confirmation:
                     "L'action que vous êtes sur le point d'effectuer est sensible et nécessite une confirmation. Veuillez entrer votre mot de passe pour continuer avec {{action}}.",
                 stopSealNotYet:
-                    "You are about to stop voting period. {{holding}} Are you sure you want to continue?",
+                    "Vous êtes sur le point d'arrêter la période de vote. {{holding}} Êtes-vous sûr de vouloir continuer ?",
                 sealHolding_one:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} is still enabled and not closed.",
+                    "Avec Sceller à la clôture, ses urnes sont scellées une fois tous les canaux activés clôturés : {{channels}} est encore activé et non clôturé.",
                 sealHolding_other:
-                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
-                stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
+                    "Avec Sceller à la clôture, ses urnes sont scellées une fois tous les canaux activés clôturés : {{channels}} sont encore activés et non clôturés.",
+                sealNotEnabled:
+                    "{{channel}} est ouvert mais n'est pas activé pour cette élection : réactivez-le puis arrêtez-le pour sceller les urnes.",
+                sealNotEnabledPost:
+                    "Dans {{post}}, {{channel}} est ouvert mais n'est pas activé : réactivez-le pour cette élection puis arrêtez-le pour sceller ses urnes.",
+                stopNeverOpened_one:
+                    "{{channels}} n'a jamais ouvert : l'arrêter signifie qu'il n'ouvrira pas.",
                 stopNeverOpened_other:
-                    "{{channels}} never opened: stopping them means they won't open.",
+                    "{{channels}} n'ont jamais ouvert : les arrêter signifie qu'ils n'ouvriront pas.",
                 stopSealGrace_one:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Vous êtes sur le point d'arrêter le vote dans {{name}}. Ses urnes seront scellées à la fin du délai de grâce, {{count}} minute plus tard : dès lors, aucun bulletin ne pourra être ajouté, modifié ni supprimé. Le vote ne pourra pas reprendre. Êtes-vous sûr de vouloir continuer ?",
                 stopSealGrace_other:
-                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Vous êtes sur le point d'arrêter le vote dans {{name}}. Ses urnes seront scellées à la fin du délai de grâce, {{count}} minutes plus tard : dès lors, aucun bulletin ne pourra être ajouté, modifié ni supprimé. Le vote ne pourra pas reprendre. Êtes-vous sûr de vouloir continuer ?",
                 stopSealEventGrace_one:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Vous êtes sur le point d'arrêter le vote dans toutes les élections. Leurs urnes seront scellées à la fin du délai de grâce de chaque élection, jusqu'à {{count}} minute plus tard : dès lors, aucun bulletin ne pourra être ajouté, modifié ni supprimé. Le vote ne pourra pas reprendre. Êtes-vous sûr de vouloir continuer ?",
                 stopSealEventGrace_other:
-                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                    "Vous êtes sur le point d'arrêter le vote dans toutes les élections. Leurs urnes seront scellées à la fin du délai de grâce de chaque élection, jusqu'à {{count}} minutes plus tard : dès lors, aucun bulletin ne pourra être ajouté, modifié ni supprimé. Le vote ne pourra pas reprendre. Êtes-vous sûr de vouloir continuer ?",
                 stopSealEventSome:
-                    "You are about to stop voting in every election. {{sealed}} {{holding}} Are you sure you want to continue?",
+                    "Vous êtes sur le point d'arrêter le vote dans toutes les élections. {{sealed}} {{holding}} Êtes-vous sûr de vouloir continuer ?",
                 sealedNowPart:
-                    "The ballot boxes of {{names}} are then sealed: no ballot can be added, changed or deleted, and voting cannot start again there.",
+                    "Les urnes de {{names}} seront alors scellées : aucun bulletin ne pourra être ajouté, modifié ni supprimé, et le vote ne pourra pas y reprendre.",
                 sealedGracePart_one:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minute later.",
+                    "Les urnes de {{names}} seront scellées à la fin de leur délai de grâce, jusqu'à {{count}} minute plus tard.",
                 sealedGracePart_other:
-                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minutes later.",
+                    "Les urnes de {{names}} seront scellées à la fin de leur délai de grâce, jusqu'à {{count}} minutes plus tard.",
                 holdingEventPart_one:
-                    "{{names}} keeps another channel enabled and not closed: its ballot boxes are sealed once that channel is closed.",
+                    "{{names}} garde un autre canal activé et non clôturé : ses urnes seront scellées une fois ce canal clôturé.",
                 holdingEventPart_other:
-                    "{{names}} keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed.",
-                startSealNoteList: "With Seal at close, closed voting stays closed: {{items}}.",
-                startKeptChannels_one: "{{post}}: {{channels}} stays closed",
-                startKeptChannels_other: "{{post}}: {{channels}} stay closed",
-                startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
+                    "{{names}} gardent un autre canal activé et non clôturé : leurs urnes seront scellées une fois ces canaux clôturés.",
+                startSealNoteList:
+                    "Avec Sceller à la clôture, un vote clôturé reste clos : {{items}}.",
+                startKeptChannels_one: "{{post}} : {{channels}} reste clos",
+                startKeptChannels_other: "{{post}} : {{channels}} restent clos",
+                startKeptSealed: "{{post}} reste clos, car ses urnes sont scellées",
                 stopNeverOpenedPosts_one:
-                    "{{names}} never opened: stopping closes it and seals its empty ballot boxes.",
+                    "{{names}} n'a jamais ouvert : l'arrêter le clôture et scelle ses urnes vides.",
                 stopNeverOpenedPosts_other:
-                    "{{names}} never opened: stopping closes them and seals their empty ballot boxes.",
+                    "{{names}} n'ont jamais ouvert : les arrêter les clôture et scelle leurs urnes vides.",
             },
             label: {
                 current: "Actuel",
@@ -2833,11 +2869,11 @@ const frenchTranslation: TranslationType = {
             },
             sealRefusals: {
                 startAgain:
-                    "Voting can't start again: with Seal at close, voting that has closed stays closed and its ballot boxes are sealed.",
+                    "Le vote ne peut pas reprendre : avec Sceller à la clôture, un vote clôturé reste clos et ses urnes sont scellées.",
                 startDisabled:
-                    "Start Voting isn't available: this election's ballot boxes are sealed or being sealed, and with Seal at close closed voting stays closed.",
+                    "Commencer la période de vote n'est pas disponible : les urnes de cette élection sont scellées ou en cours de scellement, et avec Sceller à la clôture un vote clôturé reste clos.",
                 closedIsFinal:
-                    "Closed voting can't change: with Seal at close, closed voting stays closed.",
+                    "Un vote clôturé ne peut pas changer : avec Sceller à la clôture, un vote clôturé reste clos.",
             },
         },
         emailEditor: {

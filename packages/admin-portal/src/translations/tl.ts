@@ -289,6 +289,10 @@ const tagalogTranslation: TranslationType = {
             ballotBoxSeal: {
                 sealHash: "Seal hash: {{hash}}",
                 counted: "{{counted}} sa {{inBox}} na balota ang binilang.",
+                notCounted_one:
+                    "Ang isa pang balota ay pinalitan ng mas huling balota ng botante, itinapon, o ibinoto ng botanteng hindi kwalipikado.",
+                notCounted_other:
+                    "Ang {{count}} pang balota ay pinalitan ng mas huling balota ng botante, itinapon, o ibinoto ng botanteng hindi kwalipikado.",
                 closeRequest: "Isinara ng Close voting request na {{request}}.",
                 noCloseRequest:
                     "Isinara nang walang Close voting request (Ihinto ang Pagboto o ang nakatakdang pagsasara).",
@@ -527,8 +531,8 @@ const tagalogTranslation: TranslationType = {
                 closedByUser: "Isinara ni {{username}}.",
                 closedBySchedule: "Isinara ng nakatakdang pagsasara ng botohan.",
                 column: {
-                    area: "Area",
-                    status: "Status",
+                    area: "Lugar",
+                    status: "Katayuan",
                     inTheBox: "Nasa box",
                     counted: "Binilang",
                     sealedAt: "Na-seal",
@@ -548,13 +552,17 @@ const tagalogTranslation: TranslationType = {
                     publishing:
                         "Naka-lock ang ballot box. Muling ipinapaskil ang entry nito sa bulletin board.",
                     counted:
-                        "Mga balotang binibilang: ang pinakahuling balota ng bawat botante. Ang iba ay pinalitan ng mas huling balota ng botante.",
+                        "Mga balotang binibilang: ang pinakahuling balidong balota ng bawat kwalipikadong botante. Ang iba sa ballot box ay pinalitan ng mas huling balota ng botante, itinapon, o ibinoto ng botanteng hindi kwalipikado.",
                 },
                 copyHash: "Kopyahin ang seal hash",
                 copied: "Nakopya ang seal hash",
                 copyError: "Hindi makopya ang seal hash",
                 notYet: "Wala pa",
                 openRecord: "Buksan ang seal record ng {{area}}",
+                downloadRecord: "I-download ang seal record ng {{area}}",
+                recordRestricted:
+                    "Limitado: hingin ito sa administrator na makakapag-download ng mga dokumento.",
+                recordError: "Hindi ma-download ang seal record. Subukang muli.",
                 beforeClose: "Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
                 notStarted:
                     "Hindi pa nagbubukas ang botohan. Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
@@ -572,6 +580,10 @@ const tagalogTranslation: TranslationType = {
                     due: "Sine-seal na: aabot ito nang hanggang isang minuto.",
                     channelOpen:
                         "Naka-enable pa at hindi sarado ang {{channel}}: ihinto ito para ma-seal ang ballot box.",
+                    channelNotEnabled:
+                        "Bukas ang {{channel}} pero hindi ito naka-enable para sa Post na ito: i-enable itong muli at ihinto para ma-seal ang ballot box.",
+                    channelHasBallots:
+                        "May mga balota ng {{channel}} sa ballot box na ito at hindi pa ito sarado: ihinto ito para ma-seal ang ballot box.",
                     datafixVotes_one:
                         "May {{count}} botong isinasagawa pa sa Datafix: sine-seal ang ballot box kapag naresolba ito.",
                     datafixVotes_other:
@@ -585,7 +597,7 @@ const tagalogTranslation: TranslationType = {
                         keystore:
                             "Hindi nakuha ng huling pagtatangka ang signing key; inuulit ito bawat minuto.",
                         storage:
-                            "Hindi na-upload ng huling pagtatangka ang seal record sa pampublikong file storage; inuulit ito bawat minuto.",
+                            "Hindi na-upload ng huling pagtatangka ang seal record sa file storage; inuulit ito bawat minuto.",
                         settings:
                             "Hindi nabasa ng huling pagtatangka ang mga setting ng halalan; inuulit ito bawat minuto.",
                         other: "Nabigo ang huling pagtatangka; inuulit ito bawat minuto. Nasa service log ang mga detalye.",
@@ -603,6 +615,7 @@ const tagalogTranslation: TranslationType = {
                     alreadyOnBoard:
                         "Nasa bulletin board na ang isang seal para sa ballot box na ito.",
                     noBoard: "Walang bulletin board ang election event.",
+                    unknownChannel: "May balotang hindi kilala ang voting channel.",
                 },
                 incident: {
                     title_one: "{{count}} ballot box ang hindi na-seal",
@@ -787,6 +800,18 @@ const tagalogTranslation: TranslationType = {
                         "Hindi na mababago ang setting na ito kapag nabuksan na ang botohan: sa I-seal sa pagsasara, umaasa rito ang seal.",
                     boardRefused:
                         "Hindi na mababago ang bulletin board ng election event kapag nabuksan na ang botohan: sa I-seal sa pagsasara, dito ipinapaskil ang mga seal.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Seal Record ng Ballot Box",
+                    options: {
+                        restricted: "Limitado",
+                        public: "Pampubliko",
+                    },
+                    help: {
+                        restricted:
+                            "Ang mga administrator lang ang makakapag-download nito; ibahagi ito sa mga tagamasid.",
+                        public: "Sinumang may mga id ng event ay makakapag-download nito nang hindi nagsa-sign in; ipinapakita nito kung paano binilang ang bawat balota.",
+                    },
                 },
                 decodedBallots: {
                     policyLabel: "Isama ang mga na-decode na balota sa database ng mga resulta",
@@ -2763,8 +2788,6 @@ const tagalogTranslation: TranslationType = {
                     "Ihihinto mo na ang botohan sa {{name}}. Pagkatapos ay sine-seal ang mga ballot box nito: wala nang balotang maidadagdag, mababago o mabubura, at hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
                 stopSealEvent:
                     "Ihihinto mo na ang botohan sa lahat ng halalan. Pagkatapos ay sine-seal ang kanilang mga ballot box: wala nang balotang maidadagdag, mababago o mabubura, at hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
-                stopSealNeverOpened:
-                    "Hindi kailanman nabuksan ang {{channels}} at hindi na ito mabubuksan kapag naka-seal na ang mga ballot box.",
                 startSealNote:
                     "Sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na: hindi magbubukas ang mga halalang sarado na ang botohan.",
                 channel: {
@@ -2795,6 +2818,10 @@ const tagalogTranslation: TranslationType = {
                     "Sa I-seal sa pagsasara, sine-seal ang mga ballot box nito kapag sarado na ang bawat naka-enable na channel: naka-enable pa at hindi sarado ang {{channels}}.",
                 sealHolding_other:
                     "Sa I-seal sa pagsasara, sine-seal ang mga ballot box nito kapag sarado na ang bawat naka-enable na channel: naka-enable pa at hindi sarado ang {{channels}}.",
+                sealNotEnabled:
+                    "Bukas ang {{channel}} pero hindi ito naka-enable para sa Post na ito: i-enable itong muli at ihinto para ma-seal ang mga ballot box.",
+                sealNotEnabledPost:
+                    "Sa {{post}}, bukas ang {{channel}} pero hindi ito naka-enable: i-enable itong muli sa Post na iyon at ihinto para ma-seal ang mga ballot box nito.",
                 stopNeverOpened_one:
                     "Hindi kailanman nabuksan ang {{channels}}: kapag inihinto ito, hindi na ito magbubukas.",
                 stopNeverOpened_other:

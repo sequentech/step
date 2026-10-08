@@ -71,7 +71,8 @@ const count = (value: unknown): number => (typeof value === "number" ? value : N
 
 /**
  * Readable lines for the ballot box seal entries (VOTE-FREEZE): the seal
- * hash and the counts the signed statement carries, the Close voting request,
+ * hash and the counts the signed statement carries, why the others don't
+ * count, the Close voting request,
  * the reason a seal failed, and what a tally found.
  */
 const SEAL_RENDERERS: Record<string, Renderer> = {
@@ -79,6 +80,7 @@ const SEAL_RENDERERS: Record<string, Renderer> = {
         const values = bodyValues(message, "BallotBoxSealed")
         if (!values) return null
         const [, , hash, inBox, counted, request] = values
+        const notCounted = count(inBox) - count(counted)
         return [
             String(t("logsScreen.ballotBoxSeal.sealHash", {hash: String(hash ?? "")})),
             String(
@@ -87,6 +89,9 @@ const SEAL_RENDERERS: Record<string, Renderer> = {
                     inBox: count(inBox),
                 })
             ),
+            ...(notCounted > 0
+                ? [String(t("logsScreen.ballotBoxSeal.notCounted", {count: notCounted}))]
+                : []),
             request
                 ? String(t("logsScreen.ballotBoxSeal.closeRequest", {request: String(request)}))
                 : String(t("logsScreen.ballotBoxSeal.noCloseRequest")),
