@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Logs | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_logs"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Logs | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/release-preview/release/10.0/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_logs"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_logs" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_logs" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Logs","item":"https://sequentech.github.io/docusaurus/release-preview/release/10.0/docs/election_managers/reference/election-event/election_management_election_event_logs"}]}</script><link rel="stylesheet" href="/docusaurus/release-preview/release/10.0/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.4de5942b.js" defer="defer"></script>
+<script src="/docusaurus/release-preview/release/10.0/assets/js/runtime~main.85a3abaf.js" defer="defer"></script>
 <script src="/docusaurus/release-preview/release/10.0/assets/js/main.6b63d805.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -43,19 +43,12 @@ validated <code>birthdate</code> of the request are written bare.</p>
 the external system, for example
 <code>voter_id=&quot;123456&quot;; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)</code>.
 The reason is only recorded here; the API reply carries the error code alone.</p>
-<p>Before writing to Keycloak, an inbound operation checks that the election
-event&#x27;s user profile stores every attribute it is about to write (for example
+<p>Before writing to Keycloak, an operation checks that the election event&#x27;s
+user profile stores every attribute it is about to write (for example
 <code>dateOfBirth</code>, <code>voted-channel</code> or <code>disable-comment</code>). If the realm would
 silently drop one, the operation fails without changing the voter, the
 external system receives <code>internal-error</code>, and the entry names the
 attributes the realm does not store.</p>
-<p>Only these inbound operations make the check. A voter edit from the Admin
-Portal, the Internet channel recorded when a vote is cast and the edits
-reconciliation applies to existing voters all write through Keycloak without
-it. On a realm that does not declare an attribute, and whose
-unmanaged-attribute policy does not let administrators write it, their value
-is dropped silently. The voters reconciliation adds are written directly to
-the database and keep their attributes whatever the realm declares.</p>
 <p>A request is attributed to the election event whose <code>datafix:id</code> annotation
 matches the Datafix id in the caller&#x27;s token. If several election events of
 the tenant share that id, the request cannot be attributed to any of them
