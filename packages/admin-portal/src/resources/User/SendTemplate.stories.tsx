@@ -208,6 +208,14 @@ async function choose(canvasElement: HTMLElement, select: string, option: string
     await userEvent.click(await within(document.body).findByRole("option", {name: option}))
 }
 
+/** The template is the third select (the schedule's timezone picker isn't one). */
+function aliasSelect(canvasElement: HTMLElement) {
+    const [, , alias] = within(canvasElement)
+        .getAllByRole("combobox")
+        .filter((box) => box.tagName !== "INPUT")
+    return alias
+}
+
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -297,8 +305,7 @@ export const EmailTemplateWithSecretAttribute: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         await waitFor(() => expect(data.calls).not.toHaveLength(0))
-        // The template is the third select (the schedule's timezone picker isn't one).
-        const [, , alias] = canvas.getAllByRole("combobox").filter((box) => box.tagName !== "INPUT")
+        const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         await userEvent.click(await within(document.body).findByRole("option", {name: "welcome"}))
         await waitFor(() =>
@@ -341,7 +348,7 @@ export const MultiMethodTemplateForSms: Story = {
     parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         await choose(canvasElement, "Each voter's channel", "SMS only")
-        const [, , alias] = within(canvasElement).getAllByRole("combobox")
+        const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         const options = within(await within(document.body).findByRole("listbox"))
             .getAllByRole("option")
@@ -354,7 +361,7 @@ export const WhatsAppOnly: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         await choose(canvasElement, "Each voter's channel", "WhatsApp only")
-        const [, , alias] = canvas.getAllByRole("combobox")
+        const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "voting-opens"})
@@ -370,7 +377,7 @@ export const WhatsAppOnly: Story = {
             alias: "voting-opens",
             whatsapp: whatsappReminder,
         })
-        expect(sent()?.eventPayload.whatsapp).toEqual(whatsappReminder)
+        expect(sent()?.eventPayload).toHaveProperty("whatsapp", whatsappReminder)
     },
 }
 
@@ -378,7 +385,7 @@ export const WhatsAppWithItsProviderTemplate: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         await choose(canvasElement, "Each voter's channel", "WhatsApp only")
-        const [, , alias] = canvas.getAllByRole("combobox")
+        const alias = aliasSelect(canvasElement)
         await userEvent.click(alias)
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "voting-opens"})
@@ -396,7 +403,7 @@ export const WhatsAppWithItsProviderTemplate: Story = {
         )
         await send(canvasElement)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
-        expect(sent()?.eventPayload.whatsapp).toEqual({
+        expect(sent()?.eventPayload).toHaveProperty("whatsapp", {
             ...whatsappReminder,
             provider_template: "voting_opens",
             provider_language: "en_US",
