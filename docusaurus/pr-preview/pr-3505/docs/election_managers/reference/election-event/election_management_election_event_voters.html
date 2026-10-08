@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voters | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voters | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3505/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voters","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3505/docs/election_managers/reference/election-event/election_management_election_event_voters"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3505/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3505/assets/js/runtime~main.cbd919cd.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3505/assets/js/runtime~main.ad31ac58.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3505/assets/js/main.ce336c30.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -42,16 +42,18 @@ external ID. An election&#x27;s ID is also accepted when it has an external ID, 
 stored instead. An election is named and stored by its ID when another election shares its external
 ID, or when the external ID starts or ends with a space, contains <code>|</code> or starts with <code>&quot;</code>. It is also
 stored by its ID when its external ID is longer than 255 characters, the most a voter attribute
-holds, or starts with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code>, which spreadsheets read as a formula. A blank cell
-leaves the voter unrestricted: they can vote in the elections of their area. A value that names no
-election in the election event, or more than one, or that starts with <code>&quot;</code>, is rejected, with its row
-and the value, and nothing is imported.</p>
-<p>Export writes <code>authorized-election-ids</code> the same way, and adds one column per election, named
-<code>election__</code> followed by the value that names the election, holding when the voter last voted in it.
-Import ignores these columns. A stored value that names no election, or more than one, is exported
-unchanged, so that importing it fails instead of giving the voter other elections. It is put in
-double quotes if it is blank, starts or ends with a space, contains <code>|</code>, or starts with <code>&quot;</code>, <code>=</code>,
-<code>+</code>, <code>-</code> or <code>@</code>.</p>
+holds, or starts with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code>, which spreadsheets read as a formula. If an election&#x27;s
+ID is another election&#x27;s external ID, that value names the other election, as in the token mapper,
+so the first one can only be named and stored by its own external ID, and not at all if it has none
+or if it would be stored by its ID. A blank cell leaves the voter unrestricted: they can vote in the
+elections of their area. A value that names no election in the election event, or more than one, or
+an election that cannot be stored, or that starts with <code>&quot;</code>, is rejected, with its row and the value,
+and nothing is imported.</p>
+<p>Export writes <code>authorized-election-ids</code> the same way, and adds one column per election, holding when
+the voter last voted in it. Each is named <code>election__</code> followed by the value stored for the election,
+or by its ID in double quotes if it has none. Import ignores these columns. A stored value that names no election, or more than one, is exported
+in double quotes, so that importing it into any election event fails instead of giving the voter
+other elections.</p>
 <p>When an election event export is imported, its elections get new IDs, and so do external IDs shaped
 like an ID. Voters whose <code>authorized-election-ids</code> name elections by the values they had in the
 exported event keep those elections.</p>
