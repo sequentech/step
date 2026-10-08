@@ -70,6 +70,13 @@ def save_state(**values: Any) -> None:
     STATE_FILE.write_text(json.dumps(state, indent=2))
 
 
+def forget_state(*keys: str) -> None:
+    state = load_state()
+    for key in keys:
+        state.pop(key, None)
+    STATE_FILE.write_text(json.dumps(state, indent=2))
+
+
 def require_state(*keys: str) -> dict:
     state = load_state()
     missing = [key for key in keys if key not in state]
@@ -264,3 +271,36 @@ class Checks:
     def finish(self) -> int:
         print(f"FAILURES={self.failures}", flush=True)
         return 0 if self.failures == 0 else 1
+
+
+# --- election events
+
+
+def election_event_exists(event_id: str) -> bool:
+    result = graphql_admin(
+        "query($id:uuid!){sequent_backend_election_event_by_pk(id:$id){id}}",
+        {"id": event_id},
+    )
+    return data(result, "sequent_backend_election_event_by_pk") is not None
+
+
+def delete_election_event(checks: Checks, event_id: str) -> bool:
+    """Deletes an election event through harvest, waits for the windmill task and checks that
+    Keycloak no longer has the event realm. Returns True when all of that succeeded."""
+    result = graphql(
+        "mutation($e:String!){delete_election_event(election_event_id:$e){error_msg task_execution{id}}}",
+        {"e": event_id},
+    )
+    deleted = data(result, "delete_election_event") or {}
+    accepted = checks.check(
+        "delete_election_event",
+        bool(deleted) and not deleted.get("error_msg"),
+        deleted or errors(result),
+    )
+    status = wait_task((deleted.get("task_execution") or {}).get("id"))
+    finished = checks.check("delete task", status == "SUCCESS", status)
+    realm_status = keycloak("GET", f"/{event_realm(event_id)}").status
+    removed = checks.check(
+        "event realm removed", realm_status == 404, f"HTTP {realm_status}"
+    )
+    return accepted and finished and removed

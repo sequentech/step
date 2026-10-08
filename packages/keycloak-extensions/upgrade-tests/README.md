@@ -118,8 +118,10 @@ It takes about six minutes. Every check prints one line:
 - `SKIP`: a check that doesn't apply here, with the reason;
 - `NOTE`: something to know that isn't a failure (for example the issuer alignment below).
 
-Cleanup always runs, even after a failure or Ctrl-C. The exit status is non-zero when any check
-failed, and the last lines list the failed scripts.
+Cleanup always runs, even after a failure or Ctrl-C. When something could not be deleted,
+`state.json` is kept and the next `run_all.py` retries that cleanup before creating anything (it
+stops if the retry fails too). The exit status is non-zero when any check failed, and the last
+lines list the failed scripts.
 
 ### 7. Review the results
 
@@ -171,9 +173,9 @@ $PY port_forwards.py stop
 | `rebuild_keycloak.py` | Builds the image, recreates only `keycloak` (`--no-deps`, realm import mounted from `$LOCAL_WORKSPACE_FOLDER`), checks the startup log |
 | `port_forwards.py start\|stop\|status` | Local `socat` forwards so a browser in the dev container reaches Keycloak (8090), Hasura (8080), keycloak-nginx (8443) and MinIO (9000, 9002) at the URLs the portals use |
 | `smoke_admin_client.py` | User profile, realm attributes, password policy and roles; creates a voter in each smoke event, resets its password (windmill task), reads it back, checks its roles and the voters list |
-| `smoke_realm_lifecycle.py` | Creates an election event (realm import), inspects the realm and its login page, deletes it |
+| `smoke_realm_lifecycle.py` | Creates an election event (realm import), inspects the realm and its login page, deletes it (also after a failure) |
 | `smoke_portals.py` | Admin portal login and Voters tab; voting portal login (username and password, wrong password, enrollment page, date of birth plus structured PIN); checks the Sequent theme and the session polling script on every Keycloak page |
-| `smoke_cleanup.py` | Deletes the smoke voters |
+| `smoke_cleanup.py` | Deletes the smoke voters and the `smoke_realm_lifecycle.py` event if it is still there |
 | `e2e_create_event.py` | Creates the election event both e2e runs use |
 | `e2e_idp_linking_setup.py` | Upstream OIDC realm with four identities; `linked_idp_identities` attribute, first broker login flow with `idp-linking-authenticator` and the IdP in the event realm; three voters |
 | `e2e_idp_linking.py` | Two identities linked to one voter, the link moving between them, and rejection of no match, ambiguous match and a missing claim |
@@ -227,7 +229,7 @@ data.
 | Certificate login fails with "Unexpected error when authenticating with identity provider" | The `digital-certificates` issuer doesn't match (see [Known issues](#known-issues)); `e2e_x509_setup.py` aligns its own realm |
 | Every certificate login logs `the trustAnchors parameter must be non-empty` | The first certificate login after Keycloak started was in a realm without CAs. Restart Keycloak (`$PY rebuild_keycloak.py`, or `docker restart keycloak`) |
 | `state.json lacks …` | Run the setup script the message names first |
-| Test data left after an interrupted run | `$PY smoke_cleanup.py && $PY e2e_cleanup.py` |
+| Test data left after an interrupted run | `$PY smoke_cleanup.py && $PY e2e_cleanup.py` (`run_all.py` does this itself when `state.json` is left over) |
 | Maven tests fail with `NoClassDefFoundError` in the repo checkout | The VS Code Java language server is rebuilding `target/`; build a copy (step 4) |
 
 When driving the structured PIN field by hand, focus it with the keyboard: a click selects the PIN

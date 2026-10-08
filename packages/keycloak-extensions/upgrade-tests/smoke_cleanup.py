@@ -3,7 +3,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-"""Deletes the voters smoke_admin_client.py created, through harvest's delete_user action."""
+"""Deletes the voters smoke_admin_client.py created, through harvest's delete_user action, and the
+election event smoke_realm_lifecycle.py created if it did not get to delete it.
+"""
 
 import sys
 
@@ -11,8 +13,11 @@ from common import (
     TENANT_ID,
     Checks,
     data,
+    delete_election_event,
+    election_event_exists,
     errors,
     event_realm,
+    forget_state,
     graphql,
     load_state,
     user_id,
@@ -48,6 +53,13 @@ def main() -> int:
             user_id(realm, username) is None,
             "",
         )
+    event_id = state.get("smoke_realm_event_id")
+    if event_id:
+        if not election_event_exists(event_id):
+            checks.skip("delete smoke realm event", "already deleted")
+            forget_state("smoke_realm_event_id")
+        elif delete_election_event(checks, event_id):
+            forget_state("smoke_realm_event_id")
     return checks.finish()
 
 

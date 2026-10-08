@@ -121,16 +121,21 @@ def main() -> int:
         def button_follows_policy() -> str:
             def visible(file: str) -> bool:
                 context = context_with(browser, None)
-                page = context.new_page()
-                open_login_page(page)
-                count = page.locator("#social-digital-certificates").count()
-                screenshot(page, SHOTS / file)
-                context.close()
-                return count > 0
+                try:
+                    page = context.new_page()
+                    open_login_page(page)
+                    count = page.locator("#social-digital-certificates").count()
+                    screenshot(page, SHOTS / file)
+                    return count > 0
+                finally:
+                    context.close()
 
-            set_certificate_policy("disabled")
-            when_disabled = visible("0-policy-disabled.png")
-            set_certificate_policy("enabled")
+            try:
+                set_certificate_policy("disabled")
+                when_disabled = visible("0-policy-disabled.png")
+            finally:
+                # The remaining checks need the policy e2e_x509_setup.py enabled.
+                set_certificate_policy("enabled")
             when_enabled = visible("0-policy-enabled.png")
             if when_disabled or not when_enabled:
                 raise AssertionError(
