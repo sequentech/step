@@ -515,6 +515,7 @@ const galegoTranslation: TranslationType = {
             voterEnrollURL: "URL de Rexistro do Votante",
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
             ballotBoxes: {
+                show: "Amosar as urnas",
                 loadError:
                     "Non se puideron ler os selos das urnas. Recargue a páxina ou comprobe a conexión co servidor.",
                 title: "Urnas",

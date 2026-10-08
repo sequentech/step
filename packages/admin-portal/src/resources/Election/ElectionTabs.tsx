@@ -18,6 +18,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
 import {BallotBoxesCard} from "@/components/dashboard/election/BallotBoxesCard"
+import {BallotBoxesSection} from "@/components/dashboard/election/BallotBoxesSection"
 import {MonitoringDashboardTab} from "@/components/monitoring/MonitoringDashboardTab"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -50,19 +51,26 @@ const DashboardTab: React.FC = () => {
     )
     // Unknown until the event has loaded, so configure actions do not flash.
     const lock = monitoringLock(electionEvent)
+    // Always shown under the standard dashboard; under the monitoring
+    // dashboards, the viewer may hide it.
+    const ballotBoxes = {
+        electionEventId: record?.election_event_id,
+        electionId: record?.id,
+        election: record,
+    }
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
             <MonitoringDashboardTab
                 electionEventId={record?.election_event_id}
                 electionId={record?.id}
                 lock={lock}
-                legacy={<DashboardElection />}
-            />
-            {/* Shown in both monitoring modes, under the dashboard. */}
-            <BallotBoxesCard
-                electionEventId={record?.election_event_id}
-                electionId={record?.id}
-                election={record}
+                legacy={
+                    <>
+                        <DashboardElection />
+                        <BallotBoxesCard {...ballotBoxes} />
+                    </>
+                }
+                below={<BallotBoxesSection {...ballotBoxes} />}
             />
         </Suspense>
     )

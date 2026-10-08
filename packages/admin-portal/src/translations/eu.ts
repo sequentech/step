@@ -516,6 +516,7 @@ const basqueTranslation: TranslationType = {
             voterEnrollURL: "Bozkatzaile Matrikula URLa",
             voterEnrollKioskURL: "Bozkatzaile Matrikula Kiosko URLa",
             ballotBoxes: {
+                show: "Erakutsi hautestontziak",
                 loadError:
                     "Ezin izan dira hautestontzien zigiluak irakurri. Kargatu berriro orria, edo egiaztatu zerbitzariarekiko konexioa.",
                 title: "Hautestontziak",

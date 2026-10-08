@@ -515,6 +515,7 @@ const dutchTranslation: TranslationType = {
             voterEnrollURL: "Inschrijvings-URL kiezer",
             voterEnrollKioskURL: "Inschrijvings-URL kiosk kiezer",
             ballotBoxes: {
+                show: "Stembussen tonen",
                 loadError:
                     "De zegels van de stembussen konden niet worden gelezen. Laad de pagina opnieuw of controleer de verbinding met de server.",
                 title: "Stembussen",

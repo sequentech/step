@@ -512,6 +512,7 @@ const englishTranslation = {
             voterEnrollURL: "Voter Enroll URL",
             voterEnrollKioskURL: "Voter Enroll Kiosk URL",
             ballotBoxes: {
+                show: "Show ballot boxes",
                 loadError:
                     "The ballot boxes' seals could not be read. Reload the page, or check the connection to the server.",
                 title: "Ballot boxes",

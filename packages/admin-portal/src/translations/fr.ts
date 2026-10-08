@@ -515,6 +515,7 @@ const frenchTranslation: TranslationType = {
             voterEnrollURL: "URL d'inscription des électeurs",
             voterEnrollKioskURL: "Kiosk URL d'inscription des électeurs",
             ballotBoxes: {
+                show: "Afficher les urnes",
                 loadError:
                     "Les scellés des urnes n'ont pas pu être lus. Rechargez la page ou vérifiez la connexion au serveur.",
                 title: "Urnes",

@@ -519,6 +519,7 @@ const tagalogTranslation: TranslationType = {
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
             voterEnrollKioskURL: "Kiosk URL para sa Pag-enroll ng Botante",
             ballotBoxes: {
+                show: "Ipakita ang mga ballot box",
                 loadError:
                     "Hindi mabasa ang mga seal ng mga ballot box. I-reload ang pahina, o suriin ang koneksyon sa server.",
                 title: "Mga ballot box",

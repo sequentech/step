@@ -24,6 +24,12 @@ export interface MonitoringDashboardTabProps {
     electionId?: string | null
     /** Today's dashboard, shown whenever monitoring is not. */
     legacy: ReactNode
+    /**
+     * Shown under the monitoring dashboards, only while monitoring is
+     * configured (also when it has no dashboards). Give `legacy` whatever the
+     * standard dashboard needs under it.
+     */
+    below?: ReactNode
     lock?: EMonitoringLock
     /** Replaces the editor's entry points, which a viewer who may configure gets. */
     actions?: MonitoringEditorActions
@@ -41,6 +47,7 @@ export function MonitoringDashboardTab({
     electionEventId,
     electionId,
     legacy,
+    below,
     lock = EMonitoringLock.OPEN,
     actions,
     editorApi,
@@ -81,22 +88,30 @@ export function MonitoringDashboardTab({
     }
     if (list.mode !== EMonitoringMode.CONFIGURED) return <>{legacy}</>
     if (!list.dashboards.length) {
-        return <Alert severity="info">{t("monitoring.noDashboards")}</Alert>
+        return (
+            <Stack spacing={2}>
+                <Alert severity="info">{t("monitoring.noDashboards")}</Alert>
+                {below}
+            </Stack>
+        )
     }
     return (
-        <MonitoringProvider
-            storageKey={`monitoring:${electionEventId}:${electionId ?? ""}`}
-            actions={actions ?? editor.actions}
-        >
-            <MonitoringDashboard
-                electionEventId={electionEventId as string}
-                electionId={electionId}
-                dashboards={list.dashboards}
-                presetTitle={list.preset?.title}
-                configure={configure}
-                refreshSeconds={list.refresh_seconds}
-            />
-            {editor.element}
-        </MonitoringProvider>
+        <>
+            <MonitoringProvider
+                storageKey={`monitoring:${electionEventId}:${electionId ?? ""}`}
+                actions={actions ?? editor.actions}
+            >
+                <MonitoringDashboard
+                    electionEventId={electionEventId as string}
+                    electionId={electionId}
+                    dashboards={list.dashboards}
+                    presetTitle={list.preset?.title}
+                    configure={configure}
+                    refreshSeconds={list.refresh_seconds}
+                />
+                {editor.element}
+            </MonitoringProvider>
+            {below}
+        </>
     )
 }

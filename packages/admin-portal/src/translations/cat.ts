@@ -516,6 +516,7 @@ const catalanTranslation: TranslationType = {
             voterEnrollURL: "URL d'inscripció de votants",
             voterEnrollKioskURL: "Kiosk URL d'inscripció de votants",
             ballotBoxes: {
+                show: "Mostra les urnes",
                 loadError:
                     "No s'han pogut llegir els segells de les urnes. Recarregueu la pàgina o comproveu la connexió amb el servidor.",
                 title: "Urnes",

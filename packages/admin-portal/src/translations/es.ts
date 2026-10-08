@@ -515,6 +515,7 @@ const spanishTranslation: TranslationType = {
             voterEnrollURL: "URL de inscripción de votantes",
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
             ballotBoxes: {
+                show: "Mostrar urnas",
                 loadError:
                     "No se pudieron leer los sellos de las urnas. Recargue la página o compruebe la conexión con el servidor.",
                 title: "Urnas",
