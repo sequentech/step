@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::import::import_users::is_reserved_column;
 use crate::services::vault::vault::get_master_secret;
 use anyhow::{anyhow, Context, Result};
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
@@ -39,9 +40,10 @@ const CONFIG_CACHE_TTL: Duration = Duration::from_secs(30);
 const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-characters"];
 /// Identity and operational fields that other components read in plaintext.
 /// The first and last name are included: they live in Keycloak's top-level
-/// user fields, which every voter-level output copies verbatim. So is
-/// `password`, a column the voters import reads as the voter's password.
-pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 22] = [
+/// user fields, which every voter-level output copies verbatim. Nor can a
+/// secret be named like a column the voters import reads as something else,
+/// such as `password`: see [`is_reserved_column`].
+pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 21] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",
@@ -54,7 +56,6 @@ pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 22] = [
     "first_name",
     "lastName",
     "last_name",
-    "password",
     "permission_labels",
     "sequent.read-only.id-card-number-validated",
     "sequent.read-only.mobile-number",
@@ -135,7 +136,7 @@ impl SecretAttributeConfig {
                 });
                 continue;
             };
-            if FORBIDDEN_SECRET_ATTRIBUTES.contains(&name.as_str()) {
+            if FORBIDDEN_SECRET_ATTRIBUTES.contains(&name.as_str()) || is_reserved_column(&name) {
                 error.get_or_insert_with(|| {
                     format!("User-profile attribute `{name}` cannot be configured as encrypted")
                 });
@@ -779,6 +780,30 @@ mod tests {
     fn embassy_cannot_be_secret() {
         let config = SecretAttributeConfig::from_profile(&[secret_attribute("embassy")]);
         assert!(config.validated_names().is_err());
+    }
+
+    /// Import encrypts a column named like a secret attribute before reading
+    /// it, so a secret named like a column it reads as something else would
+    /// fail the import, as `email_verified` would, or lose what the column
+    /// sets, as `group_name` would.
+    #[test]
+    fn import_columns_cannot_be_secret() {
+        for name in [
+            "id",
+            "email_constraint",
+            "email_verified",
+            "enabled",
+            "not_before",
+            "area_name",
+            "group_name",
+            "hashed_password",
+            "password_salt",
+            "num_of_iterations",
+            "sequent_internal_user_id",
+        ] {
+            let config = SecretAttributeConfig::from_profile(&[secret_attribute(name)]);
+            assert!(config.validated_names().is_err(), "{name}");
+        }
     }
 
     #[test]
