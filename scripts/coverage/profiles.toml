@@ -384,6 +384,7 @@ limitations = [
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.step-cli.excluded_files]
+"src/acceptance/tests.rs" = "Standalone unit-test module under cfg(test); the acceptance command modules remain measured."
 "src/load/setup_tests.rs" = "Standalone load setup unit tests; the setup use case and production adapters remain measured."
 "src/load/tests.rs" = "Standalone unit-test module under cfg(test); the load command modules remain measured."
 

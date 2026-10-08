@@ -2,6 +2,7 @@
 // //
 // // SPDX-License-Identifier: AGPL-3.0-only
 
+mod acceptance;
 mod adapters;
 mod commands;
 mod domain;
@@ -26,6 +27,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum MainCommand {
+    /// Check an acceptance stage against a live election event and keep its evidence.
+    #[command(subcommand)]
+    Acceptance(acceptance::Command),
     /// Prepare and measure complete synthetic voting journeys.
     #[command(subcommand)]
     Load(load::Command),
@@ -93,6 +97,12 @@ fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
+        MainCommand::Acceptance(command) => {
+            if let Err(error) = command.run() {
+                eprintln!("{error:#}");
+                std::process::exit(1);
+            }
+        }
         MainCommand::Load(command) => {
             if let Err(error) = command.run() {
                 eprintln!("{error:#}");
