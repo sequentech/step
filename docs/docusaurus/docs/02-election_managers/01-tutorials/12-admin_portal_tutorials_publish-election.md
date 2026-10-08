@@ -45,9 +45,8 @@ The main path is in [Publish and Manage the Voting Period](../03-procedures/05-p
 
 ## Step 4: Publish the Changes
 
-1.  On the **Changes to be Published** page, click **Publish Changes**.
-2.  Confirm the action.
-3.  Wait for the message "Ballot published". The **Publish History** list shows the new publication. Voters see the last publication.
+1.  On the **Changes to be Published** page, click **Publish Changes**. There is no confirmation window.
+2.  Wait for the message "Ballot published". The **Publish History** list shows the new publication. Voters see the last publication.
 
 :::tip **When to Publish**
 You should perform a publication after:
