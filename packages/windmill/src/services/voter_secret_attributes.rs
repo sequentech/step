@@ -729,8 +729,8 @@ mod tests {
         }
     }
 
-    /// An export with secrets would write it as a `password` column, which the
-    /// voters import reads as the voter's password, as written.
+    /// Import reads a `password` column as the voter's password, so a secret
+    /// with that name could not be carried through a voters CSV like the others.
     #[test]
     fn password_cannot_be_secret() {
         let config = SecretAttributeConfig::from_profile(&[secret_attribute("password")]);
