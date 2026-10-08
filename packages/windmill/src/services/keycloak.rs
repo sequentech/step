@@ -5,17 +5,14 @@
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentation};
-use keycloak::{KeycloakAdmin, KeycloakAdminToken};
-use rocket::http::Status;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::RoleAction;
 use sequent_core::services::s3::{get_file_from_s3, get_private_bucket};
-use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
-use uuid::Uuid;
+use tracing::instrument;
 
 fn normalize_realm_config_s3_key(s3_key_env_var: &str, s3_key: &str) -> anyhow::Result<String> {
     let s3_key = s3_key.trim();
@@ -163,161 +160,145 @@ pub fn find_group_by_name(
         .find(|group| group.name.as_deref() == Some(group_name))
 }
 
+fn parse_roles_config(reader: impl std::io::Read) -> Result<Vec<(String, Vec<String>)>> {
+    let mut reader = csv::Reader::from_reader(reader);
+    if reader.headers()?.iter().collect::<Vec<_>>() != ["role", "permissions"] {
+        return Err(anyhow!("Expected CSV headers: role,permissions").into());
+    }
+    let mut roles = Vec::new();
+    let mut names = HashSet::new();
+    for record in reader.records() {
+        let record = record?;
+        let role = record.get(0).ok_or_else(|| anyhow!("Role not found"))?;
+        if role.trim().is_empty() || !names.insert(role.to_string()) {
+            return Err(anyhow!("Empty or duplicate role in roles config: '{role}'").into());
+        }
+        let mut seen = HashSet::new();
+        let permissions = record
+            .get(1)
+            .ok_or_else(|| anyhow!("Permissions not found"))?
+            .split('|')
+            .filter(|name| !name.is_empty() && seen.insert(*name))
+            .map(str::to_string)
+            .collect();
+        roles.push((role.to_string(), permissions));
+    }
+    Ok(roles)
+}
+
 #[instrument(err, skip_all)]
 pub async fn read_roles_config_file(
     temp_file: NamedTempFile,
     realm: &RealmRepresentation,
     tenant_id: &str,
 ) -> Result<()> {
+    // Validate every row before changing Keycloak.
+    let roles = parse_roles_config(temp_file.reopen()?)?;
     let keycloak_pub_client = KeycloakAdminClient::pub_new().await?;
-    let keycloak_client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| anyhow!("Failed to create Keycloak client: {:?}", e))?;
-    let (container_id, existing_realm_groups, existing_realm_roles) = map_realm_data(realm);
-    let mut reader = csv::Reader::from_path(temp_file.path())
-        .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
+    let keycloak_client = KeycloakAdminClient::new().await?;
+    let (_, existing_groups, existing_roles) = map_realm_data(realm);
+    let realm_name = format!("tenant-{tenant_id}");
+    let mut permissions_by_name: HashMap<String, RoleRepresentation> = existing_roles
+        .into_iter()
+        .filter_map(|role| role.name.clone().map(|name| (name, role)))
+        .collect();
 
-    info!("existing_realm_groups: {:?}", existing_realm_groups);
-    let mut realm_roles: Vec<RoleRepresentation> = vec![];
-    let mut existing_permissions: HashSet<String> = HashSet::new();
-    for result in reader.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
-        let role: String = record
-            .get(0)
-            .ok_or_else(|| anyhow!("Role not found"))?
-            .to_string();
-        let permissions_str: String = record
-            .get(1)
-            .ok_or_else(|| anyhow!("Permissions not found"))?
-            .to_string();
-        let permissions: Vec<String> = permissions_str
-            .split("|")
-            .map(|permission| {
-                // Ensure adding unique permissions using the HashSet
-                if existing_permissions.insert(permission.to_string()) {
-                    realm_roles.push(RoleRepresentation {
-                        id: Some(Uuid::new_v4().to_string()),
-                        name: Some(permission.to_string()),
-                        container_id: container_id.clone(),
-                        description: None,
-                        composite: Some(false),
-                        composites: None,
-                        client_role: Some(false),
-                        ..Default::default()
-                    });
-                }
-
-                permission.to_string()
-            })
-            .collect();
-
-        let existing_roles_map: HashMap<String, RoleRepresentation> = existing_realm_roles
-            .clone()
-            .into_iter()
-            .filter_map(|r| r.name.clone().map(|name| (name, r)))
-            .collect();
-
-        if let Some(group) = find_group_by_name(&existing_realm_groups, &role) {
-            let current_group_roles = keycloak_client
-                .get_group_assigned_roles(
-                    &tenant_id,
-                    group.id.as_deref().unwrap_or_default(),
-                    &keycloak_pub_client,
-                )
-                .await
-                .map_err(|e| anyhow!("Failed to get group assigned roles: {:?}", e))?;
-
-            let current_role_names: HashSet<String> = current_group_roles
-                .iter()
-                .filter_map(|r| r.name.clone())
-                .collect();
-
-            let target_role_names: HashSet<String> = permissions.iter().cloned().collect();
-
-            // Determine names to add vs remove
-            let to_add_names: Vec<String> = target_role_names
-                .difference(&current_role_names)
-                .cloned()
-                .collect();
-
-            let to_remove_names: Vec<String> = current_role_names
-                .difference(&target_role_names)
-                .cloned()
-                .collect();
-
-            // Convert role names → RoleRepresentation
-            let to_add: Vec<RoleRepresentation> = to_add_names
-                .iter()
-                .filter_map(|role_name| existing_roles_map.get(role_name))
-                .cloned()
-                .collect();
-
-            let to_remove: Vec<RoleRepresentation> = to_remove_names
-                .iter()
-                .filter_map(|role_name| existing_roles_map.get(role_name))
-                .cloned()
-                .collect();
-
-            // Add missing roles
-            keycloak_client
-                .add_roles_to_group(
-                    &tenant_id,
-                    &keycloak_pub_client,
-                    group.id.as_deref().unwrap_or_default(),
-                    &to_add,
-                    RoleAction::Add,
-                )
-                .await
-                .with_context(|| {
-                    format!(
-                        "Error adding missing roles to group '{}'",
-                        group.name.as_deref().unwrap_or_default()
+    // Role-mapping requests require IDs issued by the destination Keycloak.
+    // Resolve all permissions before replacing any group's mappings.
+    for (_, permissions) in &roles {
+        for name in permissions {
+            if !permissions_by_name.contains_key(name) {
+                keycloak_client
+                    .client
+                    .realm_roles_post(
+                        &realm_name,
+                        RoleRepresentation {
+                            name: Some(name.clone()),
+                            ..Default::default()
+                        },
                     )
-                })?;
-
-            // Remove unnecessary roles
-            keycloak_client
-                .add_roles_to_group(
-                    &tenant_id,
-                    &keycloak_pub_client,
-                    group.id.as_deref().unwrap_or_default(),
-                    &to_remove,
-                    RoleAction::Remove,
-                )
-                .await
-                .with_context(|| {
-                    format!(
-                        "Error removing unnecessary roles from group '{}'",
-                        group.name.as_deref().unwrap_or_default()
-                    )
-                })?;
-        } else {
-            // Create new group and assign permissions
-            let new_group_id = keycloak_client
-                .create_new_group(&tenant_id, &role, &keycloak_pub_client)
-                .await
-                .with_context(|| {
-                    format!("Error creating group '{}' and assigning permissions", role)
-                })?;
-
-            match new_group_id {
-                Some(group_id) => {
-                    keycloak_client
-                        .add_roles_to_group(
-                            &tenant_id,
-                            &keycloak_pub_client,
-                            &group_id,
-                            &realm_roles,
-                            RoleAction::Add,
-                        )
-                        .await
-                        .with_context(|| format!("Error adding roles to new group '{}'", role))?;
-                }
-                None => {}
+                    .await
+                    .with_context(|| format!("Error creating permission '{name}'"))?;
+                let permission = keycloak_client
+                    .client
+                    .realm_roles_with_role_name_get(&realm_name, name)
+                    .await
+                    .with_context(|| format!("Error resolving permission '{name}'"))?;
+                permissions_by_name.insert(name.clone(), permission);
+            }
+            if permissions_by_name
+                .get(name)
+                .and_then(|role| role.id.as_deref())
+                .filter(|id| !id.is_empty())
+                .is_none()
+            {
+                return Err(anyhow!("Missing destination ID for permission '{name}'").into());
             }
         }
     }
 
+    for (name, permissions) in roles {
+        let (group_id, current_roles) = if let Some(group) =
+            find_group_by_name(&existing_groups, &name)
+        {
+            let group_id = group
+                .id
+                .filter(|id| !id.is_empty())
+                .ok_or_else(|| anyhow!("Missing ID for group '{name}'"))?;
+            let current_roles = keycloak_client
+                .get_group_assigned_roles(tenant_id, &group_id, &keycloak_pub_client)
+                .await
+                .map_err(|err| anyhow!("Error reading permissions for group '{name}': {err}"))?;
+            (group_id, current_roles)
+        } else {
+            let group_id = keycloak_client
+                .create_new_group(tenant_id, &name, &keycloak_pub_client)
+                .await
+                .with_context(|| format!("Error creating group '{name}'"))?
+                .filter(|id| !id.is_empty())
+                .ok_or_else(|| anyhow!("Keycloak returned no ID for new group '{name}'"))?;
+            (group_id, Vec::new())
+        };
+        let current_names: HashSet<_> = current_roles
+            .iter()
+            .filter_map(|role| role.name.as_ref())
+            .collect();
+        let target_names: HashSet<_> = permissions.iter().collect();
+        let to_add = permissions
+            .iter()
+            .filter(|name| !current_names.contains(name))
+            .map(|name| {
+                permissions_by_name
+                    .get(name)
+                    .cloned()
+                    .ok_or_else(|| anyhow!("Unresolved permission '{name}'"))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let to_remove = current_roles
+            .iter()
+            .filter(|role| {
+                role.name
+                    .as_ref()
+                    .is_some_and(|name| !target_names.contains(name))
+            })
+            .cloned()
+            .collect();
+
+        for (mappings, action) in [(to_add, RoleAction::Add), (to_remove, RoleAction::Remove)] {
+            if !mappings.is_empty() {
+                keycloak_client
+                    .add_roles_to_group(
+                        tenant_id,
+                        &keycloak_pub_client,
+                        &group_id,
+                        &mappings,
+                        action,
+                    )
+                    .await
+                    .with_context(|| format!("Error updating permissions for group '{name}'"))?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -382,5 +363,115 @@ mod tests {
 
         assert!(error.contains(S3_BUCKET));
         assert!(error.contains(S3_KEY));
+    }
+
+    #[test]
+    fn validates_roles_config_before_import() {
+        use super::parse_roles_config;
+
+        let roles =
+            parse_roles_config(b"role,permissions\nclerk,read|read\nempty,\n".as_slice()).unwrap();
+        assert_eq!(
+            roles,
+            vec![
+                ("clerk".to_string(), vec!["read".to_string()]),
+                ("empty".to_string(), vec![]),
+            ]
+        );
+        for csv in [
+            "permissions,role\nread,clerk\n",
+            "role,permissions\nclerk,read\nbroken\n",
+            "role,permissions\n,read\n",
+            "role,permissions\nclerk,read\nclerk,write\n",
+        ] {
+            assert!(parse_roles_config(csv.as_bytes()).is_err());
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a development Keycloak; creates and deletes a disposable realm"]
+    async fn imports_roles_with_destination_permission_ids() -> anyhow::Result<()> {
+        use super::*;
+        use std::io::Write;
+        use uuid::Uuid;
+
+        let tenant_id = format!("roles-import-test-{}", Uuid::new_v4());
+        let realm_name = format!("tenant-{tenant_id}");
+        let client = KeycloakAdminClient::new().await?;
+        let public_client = KeycloakAdminClient::pub_new().await?;
+        let fixture: RealmRepresentation = serde_json::from_value(serde_json::json!({
+            "realm": realm_name,
+            "enabled": true,
+            "roles": {"realm": [{"name": "read"}, {"name": "old"}]},
+            "groups": [
+                {"name": "existing", "realmRoles": ["old"]},
+                {"name": "untouched", "realmRoles": ["old"]}
+            ]
+        }))?;
+        client.client.post(fixture).await?;
+
+        // Keep cleanup outside the assertions so failures also delete the realm.
+        let result: anyhow::Result<()> = async {
+            let initial = KeycloakAdminClient::new()
+                .await?
+                .get_realm(&public_client, &realm_name)
+                .await?;
+            let existing_id = find_group_by_name(&initial.groups.unwrap_or_default(), "existing")
+                .context("Missing existing fixture group")?
+                .id;
+            for csv in [
+                "role,permissions\nclerk,read\nauditor,custom\nexisting,custom\nempty,\n",
+                "role,permissions\nclerk,read\nauditor,custom\nexisting,custom\nempty,\n",
+                "role,permissions\nclerk,\n",
+            ] {
+                let realm = KeycloakAdminClient::new()
+                    .await?
+                    .get_realm(&public_client, &realm_name)
+                    .await?;
+                let mut file = NamedTempFile::new()?;
+                file.write_all(csv.as_bytes())?;
+                read_roles_config_file(file, &realm, &tenant_id)
+                    .await
+                    .map_err(|err| anyhow!("Import failed: {err:?}"))?;
+                let imported = KeycloakAdminClient::new()
+                    .await?
+                    .get_realm(&public_client, &realm_name)
+                    .await?;
+                let groups = imported.groups.unwrap_or_default();
+                for (name, expected) in [
+                    (
+                        "clerk",
+                        if csv == "role,permissions\nclerk,\n" {
+                            vec![]
+                        } else {
+                            vec!["read"]
+                        },
+                    ),
+                    ("auditor", vec!["custom"]),
+                    ("existing", vec!["custom"]),
+                    ("untouched", vec!["old"]),
+                    ("empty", vec![]),
+                ] {
+                    let group = find_group_by_name(&groups, name)
+                        .ok_or_else(|| anyhow!("Missing group {name}"))?;
+                    anyhow::ensure!(
+                        group.realm_roles.unwrap_or_default() == expected,
+                        "Incorrect permissions for {name}"
+                    );
+                }
+                anyhow::ensure!(
+                    find_group_by_name(&groups, "existing")
+                        .context("Missing existing group")?
+                        .id
+                        == existing_id,
+                    "Existing group identity changed"
+                );
+            }
+            Ok(())
+        }
+        .await;
+
+        client.client.realm_delete(&realm_name).await?;
+        result
     }
 }
