@@ -163,6 +163,21 @@ actions:
       permissions:
           - role: task-queues-read
       comment: Messages of a task queue, without their tasks' arguments
+    - name: task_queues_query
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/task-queues/query
+          forward_client_headers: true
+          timeout: 45
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: task-queues-query
+      comment: A read-only SQL query on the environment's task-queue database
     - name: task_queues_dead_letters
       definition:
           kind: synchronous

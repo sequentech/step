@@ -1380,6 +1380,7 @@ const catalanTranslation: TranslationType = {
                 "electoral-log-personal-data-read": "Llegir Dades Personals del Registre Electoral",
                 "task-queues-read": "Llegir Cues de Tasques",
                 "task-queues-write": "Gestionar Cues de Tasques",
+                "task-queues-query": "Consultar Cues de Tasques",
                 "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
@@ -3023,7 +3024,7 @@ const catalanTranslation: TranslationType = {
         taskQueues: {
             title: "Cues de Tasques",
             subtitle:
-                "Les cues de tasques de l'entorn: què està esperant, què s'ha processat i quant ha trigat. Els arguments de les tasques no es mostren mai.",
+                "Les cues de tasques de l'entorn: què està esperant, què s'ha processat i quant ha trigat. Les llistes de les cues no mostren mai els arguments de les tasques.",
             notAllowed:
                 "Necessiteu el permís task-queues-read del tenant de superadministració per obrir les cues de tasques.",
             live: "En directe",
@@ -3130,6 +3131,21 @@ const catalanTranslation: TranslationType = {
                         "Descart de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
                 },
                 failed: "No s'ha pogut encuar l'operació.",
+            },
+            tabs: {
+                queues: "Cues",
+                query: "Consulta",
+            },
+            query: {
+                help: "Les consultes s'executen sobre la base de dades de cues de tasques de l'entorn en una transacció de només lectura, amb el seu rol de lectura. Cada cua té una taula de missatges en espera, pgmq.q_<cua>, i una altra de missatges processats, pgmq.a_<cua>.",
+                arguments:
+                    "Les consultes llegeixen els missatges tal com estan desats, amb els arguments de les seves tasques, que poden incloure dades de votants.",
+                placeholder: "SELECT …",
+                limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
+                run: "Executar Consulta",
+                summary: "Files: {{rows}} · {{ms}} ms",
+                truncated: "Només es mostren les primeres {{rows}} files.",
+                error: "No s'ha pogut executar la consulta.",
             },
         },
     },

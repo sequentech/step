@@ -68,6 +68,7 @@ export enum IPermissions {
     ELECTORAL_LOG_PERSONAL_DATA_READ = "electoral-log-personal-data-read",
     TASK_QUEUES_READ = "task-queues-read",
     TASK_QUEUES_WRITE = "task-queues-write",
+    TASK_QUEUES_QUERY = "task-queues-query",
     TASKS_READ = "tasks-read",
     KEYS_READ = "keys-read",
     DOCUMENT_UPLOAD = "document-upload",

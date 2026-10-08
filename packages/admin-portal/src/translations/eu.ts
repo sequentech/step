@@ -1373,6 +1373,7 @@ const basqueTranslation: TranslationType = {
                     "Hauteskunde Erregistroko Datu Pertsonalak Irakurri",
                 "task-queues-read": "Ataza-ilarak Irakurri",
                 "task-queues-write": "Ataza-ilarak Kudeatu",
+                "task-queues-query": "Ataza-ilarak Kontsultatu",
                 "tasks-read": "Irakurri Ataza Exekuzioa",
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",
@@ -3002,7 +3003,7 @@ const basqueTranslation: TranslationType = {
         taskQueues: {
             title: "Ataza-ilarak",
             subtitle:
-                "Ingurunearen ataza-ilarak: zer dagoen zain, zer prozesatu den eta zenbat denbora behar izan duen. Atazen argumentuak ez dira inoiz erakusten.",
+                "Ingurunearen ataza-ilarak: zer dagoen zain, zer prozesatu den eta zenbat denbora behar izan duen. Ilaren zerrendek ez dituzte inoiz atazen argumentuak erakusten.",
             notAllowed:
                 "Super-administrazio tenantaren task-queues-read baimena behar duzu ataza-ilarak irekitzeko.",
             live: "Zuzenean",
@@ -3110,6 +3111,21 @@ const basqueTranslation: TranslationType = {
                         "{{count}} gertaera alde batera uztea {{taskId}} ataza gisa ilaratu da.",
                 },
                 failed: "Ezin izan da eragiketa ilaratu.",
+            },
+            tabs: {
+                queues: "Ilarak",
+                query: "Kontsulta",
+            },
+            query: {
+                help: "Kontsultak ingurunearen ataza-ilaren datu-basean exekutatzen dira, irakurtzeko soilik den transakzio batean, bere irakurketa-rolarekin. Ilara bakoitzak zain dauden mezuen taula bat du, pgmq.q_<ilara>, eta prozesatutako mezuena beste bat, pgmq.a_<ilara>.",
+                arguments:
+                    "Kontsultek mezuak gordeta dauden bezala irakurtzen dituzte, atazen argumentuekin, eta horiek hautesleen datuak izan ditzakete.",
+                placeholder: "SELECT …",
+                limits: "Irakurtzeko soilik · gehienez 1.000 errenkada · 30 s-ko muga · kontsulta bakoitza zerbitzariaren erregistroetan gordetzen da zure erabiltzailearekin",
+                run: "Exekutatu Kontsulta",
+                summary: "Errenkadak: {{rows}} · {{ms}} ms",
+                truncated: "Lehen {{rows}} errenkadak bakarrik erakusten dira.",
+                error: "Ezin izan da kontsulta exekutatu.",
             },
         },
     },

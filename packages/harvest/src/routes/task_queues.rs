@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The Task Queues page of the super-admin tenant: the environment's queues, their
-//! recent outcomes and throughput, their messages without the tasks' arguments, and
-//! the replay or discard of dead-lettered electoral-log events.
+//! recent outcomes and throughput, their messages without the tasks' arguments, the
+//! replay or discard of dead-lettered electoral-log events, and read-only SQL queries.
 
+use crate::routes::electoral_log_console::ConsoleQueryOutput;
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
+use electoral_log::adapters::console::run_read_only_query;
 use pgmq_broker::inspect::{
     self, InspectError, MessageState, MessageSummary, QueueOverview,
     ThroughputBucket,
@@ -30,6 +32,10 @@ const MAX_THROUGHPUT_HOURS: u32 = 7 * 24;
 const DEFAULT_MESSAGE_LIMIT: i64 = 50;
 /// The most dead-lettered events one request replays or discards.
 const MAX_DEAD_LETTER_IDS: usize = 1_000;
+/// The most rows a query returns, its time limit and its longest text.
+const QUERY_MAX_ROWS: usize = 1_000;
+const QUERY_TIMEOUT: Duration = Duration::from_secs(30);
+const QUERY_MAX_CHARACTERS: usize = 20_000;
 
 fn internal_error(error: impl std::fmt::Debug) -> JsonError {
     tracing::error!("Task Queues request failed: {error:?}");
@@ -299,6 +305,55 @@ pub async fn task_queues_dead_letters(
     }))
 }
 
+#[derive(Deserialize, Debug)]
+pub struct QueryInput {
+    sql: String,
+}
+
+fn check_query(sql: &str) -> Result<(), JsonError> {
+    if sql.trim().is_empty() || sql.chars().count() > QUERY_MAX_CHARACTERS {
+        return Err(bad_request(&format!(
+            "Give a query of at most {QUERY_MAX_CHARACTERS} characters"
+        )));
+    }
+    Ok(())
+}
+
+/// Run a read-only SQL query on the environment's task-queue database, as its
+/// reader role, with a time limit. Queries read the messages as they are stored,
+/// with their tasks' arguments, so they have a permission of their own.
+#[instrument(skip(claims, body))]
+#[post("/task-queues/query", format = "json", data = "<body>")]
+pub async fn task_queues_query(
+    body: Json<QueryInput>,
+    claims: JwtClaims,
+) -> Result<Json<ConsoleQueryOutput>, JsonError> {
+    authorize_super_admin(&claims, vec![Permissions::TASK_QUEUES_QUERY])?;
+    let sql = body.into_inner().sql;
+    check_query(&sql)?;
+    tracing::info!(
+        tenant_id = %claims.hasura_claims.tenant_id,
+        user_id = %claims.hasura_claims.user_id,
+        sql = %sql,
+        "Task-queue query"
+    );
+    let mut client = reader().await?;
+    let output = match run_read_only_query(
+        &mut client,
+        &sql,
+        QUERY_MAX_ROWS,
+        QUERY_TIMEOUT,
+    )
+    .await
+    {
+        Ok(result) => ConsoleQueryOutput::Rows(result),
+        Err(error) => ConsoleQueryOutput::Error {
+            error: format!("{error:#}"),
+        },
+    };
+    Ok(Json(output))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -385,5 +440,14 @@ mod tests {
                 Status::BadRequest
             );
         }
+    }
+
+    #[test]
+    fn queries_have_text_within_the_limit() {
+        assert!(check_query("SELECT 1").is_ok());
+        assert_eq!(status(check_query("  \n")), Status::BadRequest);
+        let long = "x".repeat(QUERY_MAX_CHARACTERS + 1);
+        assert_eq!(status(check_query(&long)), Status::BadRequest);
+        assert!(check_query(&"é".repeat(QUERY_MAX_CHARACTERS)).is_ok());
     }
 }

@@ -1383,6 +1383,7 @@ const frenchTranslation: TranslationType = {
                     "Lire les Données Personnelles du Journal Électoral",
                 "task-queues-read": "Lire les Files de Tâches",
                 "task-queues-write": "Gérer les Files de Tâches",
+                "task-queues-query": "Interroger les Files de Tâches",
                 "tasks-read": "Lire l'Exécution des Tâches",
                 "keys-read": "Lire Clés",
                 "document-upload": "Télécharger Documents",
@@ -3030,7 +3031,7 @@ const frenchTranslation: TranslationType = {
         taskQueues: {
             title: "Files de Tâches",
             subtitle:
-                "Les files de tâches de l'environnement : ce qui attend, ce qui a été traité et en combien de temps. Les arguments des tâches ne sont jamais affichés.",
+                "Les files de tâches de l'environnement : ce qui attend, ce qui a été traité et en combien de temps. Les listes des files n'affichent jamais les arguments des tâches.",
             notAllowed:
                 "Vous avez besoin de la permission task-queues-read du tenant de super-administration pour ouvrir les files de tâches.",
             live: "En direct",
@@ -3137,6 +3138,21 @@ const frenchTranslation: TranslationType = {
                         "Mise à l'écart de {{count}} événements mise en file comme tâche {{taskId}}.",
                 },
                 failed: "L'opération n'a pas pu être mise en file.",
+            },
+            tabs: {
+                queues: "Files",
+                query: "Requête",
+            },
+            query: {
+                help: "Les requêtes s'exécutent sur la base de données des files de tâches de l'environnement dans une transaction en lecture seule, avec son rôle de lecture. Chaque file a une table des messages en attente, pgmq.q_<file>, et une des messages traités, pgmq.a_<file>.",
+                arguments:
+                    "Les requêtes lisent les messages tels qu'ils sont stockés, avec les arguments de leurs tâches, qui peuvent contenir des données d'électeurs.",
+                placeholder: "SELECT …",
+                limits: "Lecture seule · jusqu'à 1 000 lignes · délai de 30 s · chaque requête est consignée dans les journaux du serveur avec votre utilisateur",
+                run: "Exécuter la Requête",
+                summary: "Lignes : {{rows}} · {{ms}} ms",
+                truncated: "Seules les {{rows}} premières lignes sont affichées.",
+                error: "La requête n'a pas pu s'exécuter.",
             },
         },
     },

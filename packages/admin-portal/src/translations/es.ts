@@ -1377,6 +1377,7 @@ const spanishTranslation: TranslationType = {
                 "electoral-log-personal-data-read": "Leer Datos Personales del Registro Electoral",
                 "task-queues-read": "Leer Colas de Tareas",
                 "task-queues-write": "Gestionar Colas de Tareas",
+                "task-queues-query": "Consultar Colas de Tareas",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
@@ -3013,7 +3014,7 @@ const spanishTranslation: TranslationType = {
         taskQueues: {
             title: "Colas de Tareas",
             subtitle:
-                "Las colas de tareas del entorno: qué está esperando, qué se ha procesado y cuánto ha tardado. Los argumentos de las tareas nunca se muestran.",
+                "Las colas de tareas del entorno: qué está esperando, qué se ha procesado y cuánto ha tardado. Las listas de las colas nunca muestran los argumentos de las tareas.",
             notAllowed:
                 "Necesita el permiso task-queues-read del tenant de superadministración para abrir las colas de tareas.",
             live: "En directo",
@@ -3115,6 +3116,21 @@ const spanishTranslation: TranslationType = {
                     discard_other: "Descarte de {{count}} eventos encolado como tarea {{taskId}}.",
                 },
                 failed: "No se ha podido encolar la operación.",
+            },
+            tabs: {
+                queues: "Colas",
+                query: "Consulta",
+            },
+            query: {
+                help: "Las consultas se ejecutan sobre la base de datos de colas de tareas del entorno en una transacción de solo lectura, con su rol de lectura. Cada cola tiene una tabla de mensajes en espera, pgmq.q_<cola>, y otra de mensajes procesados, pgmq.a_<cola>.",
+                arguments:
+                    "Las consultas leen los mensajes tal como están guardados, con los argumentos de sus tareas, que pueden incluir datos de votantes.",
+                placeholder: "SELECT …",
+                limits: "Solo lectura · hasta 1.000 filas · límite de 30 s · cada consulta queda anotada en los registros del servidor con su usuario",
+                run: "Ejecutar Consulta",
+                summary: "Filas: {{rows}} · {{ms}} ms",
+                truncated: "Solo se muestran las primeras {{rows}} filas.",
+                error: "No se pudo ejecutar la consulta.",
             },
         },
     },

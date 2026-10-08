@@ -1379,6 +1379,7 @@ const tagalogTranslation: TranslationType = {
                     "Basahin ang Personal na Datos ng Electoral Log",
                 "task-queues-read": "Basahin ang Mga Task Queue",
                 "task-queues-write": "Pamahalaan ang Mga Task Queue",
+                "task-queues-query": "I-query ang Mga Task Queue",
                 "tasks-read": "Basahin ang Pagpapatupad ng Mga Gawain",
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
@@ -3021,7 +3022,7 @@ const tagalogTranslation: TranslationType = {
         taskQueues: {
             title: "Mga Task Queue",
             subtitle:
-                "Ang mga task queue ng environment: kung ano ang naghihintay, kung ano ang naproseso at gaano ito katagal. Hindi kailanman ipinapakita ang mga argumento ng mga task.",
+                "Ang mga task queue ng environment: kung ano ang naghihintay, kung ano ang naproseso at gaano ito katagal. Hindi kailanman ipinapakita ng mga listahan ng queue ang mga argumento ng mga task.",
             notAllowed:
                 "Kailangan mo ang pahintulot na task-queues-read ng super-admin tenant para buksan ang mga task queue.",
             live: "Live",
@@ -3129,6 +3130,21 @@ const tagalogTranslation: TranslationType = {
                         "Na-queue bilang task {{taskId}} ang pagtatapon ng {{count}} na event.",
                 },
                 failed: "Hindi ma-queue ang operasyon.",
+            },
+            tabs: {
+                queues: "Mga Queue",
+                query: "Query",
+            },
+            query: {
+                help: "Tumatakbo ang mga query sa task-queue database ng environment sa isang read-only na transaksyon, gamit ang reader role nito. Bawat queue ay may talahanayan ng mga naghihintay na mensahe, pgmq.q_<queue>, at isa ng mga naprosesong mensahe, pgmq.a_<queue>.",
+                arguments:
+                    "Binabasa ng mga query ang mga mensahe kung paano ito nakaimbak, kasama ang mga argumento ng kanilang mga task, na maaaring may data ng mga botante.",
+                placeholder: "SELECT …",
+                limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
+                run: "Patakbuhin ang Query",
+                summary: "Mga hilera: {{rows}} · {{ms}} ms",
+                truncated: "Ang unang {{rows}} hilera lang ang ipinapakita.",
+                error: "Hindi napatakbo ang query.",
             },
         },
     },

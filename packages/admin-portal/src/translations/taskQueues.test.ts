@@ -46,6 +46,7 @@ describe("task-queue labels", () => {
             sideMenu.taskQueues,
             usersAndRolesScreen.permissions[IPermissions.TASK_QUEUES_READ],
             usersAndRolesScreen.permissions[IPermissions.TASK_QUEUES_WRITE],
+            usersAndRolesScreen.permissions[IPermissions.TASK_QUEUES_QUERY],
         ]) {
             expect(typeof label).toBe("string")
             expect((label as string).trim()).not.toHaveLength(0)

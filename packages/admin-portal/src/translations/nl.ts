@@ -1378,6 +1378,7 @@ const dutchTranslation: TranslationType = {
                 "electoral-log-personal-data-read": "Persoonsgegevens van Verkiezingslog Lezen",
                 "task-queues-read": "Taakwachtrijen Lezen",
                 "task-queues-write": "Taakwachtrijen Beheren",
+                "task-queues-query": "Taakwachtrijen Bevragen",
                 "tasks-read": "Taakuitvoering Lezen",
                 "keys-read": "Sleutels Lezen",
                 "document-upload": "Documenten Uploaden",
@@ -3009,7 +3010,7 @@ const dutchTranslation: TranslationType = {
         taskQueues: {
             title: "Taakwachtrijen",
             subtitle:
-                "De taakwachtrijen van de omgeving: wat wacht, wat is verwerkt en hoe lang dat duurde. Taakargumenten worden nooit getoond.",
+                "De taakwachtrijen van de omgeving: wat wacht, wat is verwerkt en hoe lang dat duurde. De wachtrijlijsten tonen nooit taakargumenten.",
             notAllowed:
                 "U hebt de machtiging task-queues-read van de superbeheerder-tenant nodig om de taakwachtrijen te openen.",
             live: "Live",
@@ -3117,6 +3118,21 @@ const dutchTranslation: TranslationType = {
                         "Verwerpen van {{count}} gebeurtenissen in de wachtrij gezet als taak {{taskId}}.",
                 },
                 failed: "De bewerking kon niet in de wachtrij worden gezet.",
+            },
+            tabs: {
+                queues: "Wachtrijen",
+                query: "Query",
+            },
+            query: {
+                help: "Query's worden uitgevoerd op de taakwachtrijdatabase van de omgeving in een alleen-lezen transactie, met haar leesrol. Elke wachtrij heeft een tabel met wachtende berichten, pgmq.q_<wachtrij>, en een met verwerkte berichten, pgmq.a_<wachtrij>.",
+                arguments:
+                    "Query's lezen de berichten zoals ze zijn opgeslagen, met de argumenten van hun taken, die gegevens van kiezers kunnen bevatten.",
+                placeholder: "SELECT …",
+                limits: "Alleen-lezen · tot 1.000 rijen · limiet van 30 s · elke query wordt met uw gebruiker vastgelegd in de serverlogs",
+                run: "Query Uitvoeren",
+                summary: "Rijen: {{rows}} · {{ms}} ms",
+                truncated: "Alleen de eerste {{rows}} rijen worden getoond.",
+                error: "De query kon niet worden uitgevoerd.",
             },
         },
     },

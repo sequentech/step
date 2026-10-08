@@ -19,7 +19,8 @@ The page belongs to the super-admin tenant. To open it, select **Task Queues** i
 Admin Portal's left panel while you are in the super-admin tenant. It requires the
 `task-queues-read` permission.
 
-The page never shows the arguments of a task, because they can contain voters' data.
+The page's lists never show the arguments of a task, because they can contain voters'
+data. Only queries read them; see [Query](#query).
 
 ## Queues
 
@@ -84,3 +85,26 @@ Users with the `task-queues-write` permission can select events in the queue's
 
 Both ask for confirmation. A worker applies the operation shortly after; the page
 refreshes the list after a few seconds.
+
+## Query
+
+Users with the `task-queues-query` permission see a **Query** tab. It runs a read-only
+SQL query on the environment's task-queue database and shows up to 1,000 rows. A query
+runs for at most 30 seconds, and each one is recorded in the server logs with the user
+who ran it. Press **Run Query**, or Ctrl+Enter, to run it; the table's toolbar exports
+the rows as CSV.
+
+Each queue has two tables: `pgmq.q_<queue>`, its waiting messages, and
+`pgmq.a_<queue>`, its processed messages, with their outcome in the `x-step-outcome`
+header. For example, the outcomes of the last hour in `short_queue`:
+
+```sql
+SELECT headers->>'x-step-outcome' AS outcome, count(*) AS messages
+FROM pgmq.a_short_queue
+WHERE archived_at > now() - interval '1 hour'
+GROUP BY 1
+ORDER BY 2 DESC
+```
+
+Unlike the rest of the page, queries read messages as they are stored, with their tasks'
+arguments, which can include voters' data.

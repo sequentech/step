@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useMutation, useQuery} from "@apollo/client"
+import {ApolloError, useApolloClient, useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {
     Alert,
@@ -31,6 +31,7 @@ import {
     TableHead,
     TableRow,
     Tabs,
+    TextField,
     Typography,
 } from "@mui/material"
 import {DataGrid, GridColDef, GridRowSelectionModel} from "@mui/x-data-grid"
@@ -43,8 +44,19 @@ import {
     TASK_QUEUES_DEAD_LETTERS,
     TASK_QUEUES_MESSAGES,
     TASK_QUEUES_OVERVIEW,
+    TASK_QUEUES_QUERY,
     TASK_QUEUES_THROUGHPUT,
 } from "@/queries/TaskQueues"
+import {
+    columnField,
+    ConsoleQueryResult,
+    ConsoleQueryRows,
+    ConsoleRows,
+    displayValue,
+    isQueryError,
+    ROW_ID,
+    toGridRows,
+} from "@/services/ElectoralLogConsole"
 import {
     ChartSeries,
     countTicks,
@@ -86,6 +98,15 @@ const ERROR_HEADER = "x-electoral-log-error"
 
 const readHeaders = {headers: {"x-hasura-role": IPermissions.TASK_QUEUES_READ}}
 const writeHeaders = {headers: {"x-hasura-role": IPermissions.TASK_QUEUES_WRITE}}
+const queryHeaders = {headers: {"x-hasura-role": IPermissions.TASK_QUEUES_QUERY}}
+
+const DEFAULT_QUERY = `SELECT headers->>'x-step-outcome' AS outcome, count(*) AS messages
+FROM pgmq.a_short_queue
+WHERE archived_at > now() - interval '1 hour'
+GROUP BY 1
+ORDER BY 2 DESC`
+
+type PageTab = "queues" | "query"
 
 const NO_SELECTION: GridRowSelectionModel = {type: "include", ids: new Set()}
 
@@ -625,18 +646,142 @@ const Messages: React.FC<{queue: string; canWrite: boolean}> = ({queue, canWrite
     )
 }
 
+const queryColumns = ({columns}: ConsoleRows): GridColDef[] =>
+    columns.map((column, index) => ({
+        field: columnField(index),
+        headerName: column,
+        minWidth: 120,
+        flex: 1,
+        sortable: false,
+        valueFormatter: (value: unknown) => displayValue(value),
+    }))
+
+const QueryPanel: React.FC = () => {
+    const {t} = useTranslation()
+    const client = useApolloClient()
+    const [sql, setSql] = useState(DEFAULT_QUERY)
+    const [result, setResult] = useState<ConsoleQueryRows | null>(null)
+    const [error, setError] = useState<string | null>(null)
+    const [running, setRunning] = useState(false)
+
+    const run = async () => {
+        if (running || !sql.trim()) {
+            return
+        }
+        setRunning(true)
+        setError(null)
+        try {
+            const {data} = await client.query({
+                query: TASK_QUEUES_QUERY,
+                variables: {sql},
+                fetchPolicy: "no-cache",
+                context: queryHeaders,
+            })
+            const answer = data?.task_queues_query as ConsoleQueryResult
+            if (isQueryError(answer)) {
+                setResult(null)
+                setError(answer.error)
+            } else {
+                setResult(answer)
+            }
+        } catch (failure) {
+            setResult(null)
+            setError(getGraphQLActionErrorReason(failure) ?? t("taskQueues.query.error"))
+        } finally {
+            setRunning(false)
+        }
+    }
+
+    const columns = useMemo(() => (result ? queryColumns(result) : []), [result])
+    const rows = useMemo(() => (result ? toGridRows(result) : []), [result])
+
+    return (
+        <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+                {t("taskQueues.query.help")}
+            </Typography>
+            <Alert severity="warning">{t("taskQueues.query.arguments")}</Alert>
+            <TextField
+                multiline
+                minRows={6}
+                fullWidth
+                value={sql}
+                placeholder={t("taskQueues.query.placeholder")}
+                onChange={(e) => setSql(e.target.value)}
+                onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                        run()
+                    }
+                }}
+                inputProps={{spellCheck: false, style: {fontFamily: "monospace", fontSize: 13}}}
+            />
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+                <Typography variant="caption" color="text.secondary">
+                    {t("taskQueues.query.limits")}
+                </Typography>
+                <Button variant="contained" onClick={run} disabled={running || !sql.trim()}>
+                    {t("taskQueues.query.run")}
+                </Button>
+            </Stack>
+            {error && (
+                <Alert severity="error" sx={{whiteSpace: "pre-wrap", fontFamily: "monospace"}}>
+                    {error}
+                </Alert>
+            )}
+            {result && (
+                <>
+                    <Typography variant="body2" color="text.secondary">
+                        {t("taskQueues.query.summary", {
+                            rows: result.rows.length.toLocaleString(),
+                            ms: result.elapsed_ms.toLocaleString(),
+                        })}
+                    </Typography>
+                    {result.truncated && (
+                        <Alert severity="info">
+                            {t("taskQueues.query.truncated", {
+                                rows: result.rows.length.toLocaleString(),
+                            })}
+                        </Alert>
+                    )}
+                    <Box sx={{height: GRID_HEIGHT, width: "100%"}}>
+                        <DataGrid
+                            rows={rows}
+                            columns={columns}
+                            getRowId={(row) => row[ROW_ID] as number}
+                            loading={running}
+                            initialState={{pagination: {paginationModel: {pageSize: 25}}}}
+                            pageSizeOptions={[25, 50, 100]}
+                            disableRowSelectionOnClick
+                            showToolbar
+                            slotProps={{
+                                toolbar: {
+                                    showQuickFilter: false,
+                                    csvOptions: {fileName: "task-queues-query"},
+                                    printOptions: {disableToolbarButton: true},
+                                },
+                            }}
+                        />
+                    </Box>
+                </>
+            )}
+        </Stack>
+    )
+}
+
 export const TaskQueues: React.FC = () => {
     const {t, i18n} = useTranslation()
     const authContext = useContext(AuthContext)
     const locale = i18n.resolvedLanguage ?? i18n.language
     const canRead = authContext.isAuthorized(true, null, IPermissions.TASK_QUEUES_READ)
     const canWrite = authContext.isAuthorized(true, null, IPermissions.TASK_QUEUES_WRITE)
+    const canQuery = authContext.isAuthorized(true, null, IPermissions.TASK_QUEUES_QUERY)
+    const [tab, setTab] = useState<PageTab>("queues")
     const [live, setLive] = useState(true)
     const [queue, setQueue] = useState<string | null>(null)
     const {data, error} = useQuery(TASK_QUEUES_OVERVIEW, {
         fetchPolicy: "network-only",
-        pollInterval: live ? OVERVIEW_POLL_MS : 0,
-        skip: !canRead,
+        pollInterval: live && tab === "queues" ? OVERVIEW_POLL_MS : 0,
+        skip: !canRead || tab !== "queues",
         context: readHeaders,
     })
     const overview = data?.task_queues_overview as OverviewResult | undefined
@@ -664,46 +809,75 @@ export const TaskQueues: React.FC = () => {
                             {t("taskQueues.subtitle")}
                         </Typography>
                     </Box>
-                    <Stack
-                        direction="row"
-                        spacing={2}
-                        alignItems="center"
-                        justifyContent="space-between"
-                    >
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={live}
-                                    onChange={(e) => setLive(e.target.checked)}
-                                />
-                            }
-                            label={t("taskQueues.live")}
-                        />
-                        {updatedAt && (
-                            <Typography variant="caption" color="text.secondary">
-                                {t("taskQueues.updated", {
-                                    time: updatedAt.toLocaleTimeString(locale),
-                                })}
-                            </Typography>
-                        )}
-                    </Stack>
-                    {error && (
-                        <Alert severity="error">
-                            {getGraphQLActionErrorReason(error) ?? t("taskQueues.error")}
-                        </Alert>
+                    {canQuery && (
+                        <Tabs value={tab} onChange={(_, value: PageTab) => setTab(value)}>
+                            <Tab value="queues" label={t("taskQueues.tabs.queues")} />
+                            <Tab value="query" label={t("taskQueues.tabs.query")} />
+                        </Tabs>
                     )}
-                    <Overview result={overview} selected={queue} onSelect={setQueue} />
-                    {queue && (
-                        <>
-                            <Typography variant="h5" sx={{fontFamily: "monospace"}}>
-                                {queue}
-                            </Typography>
-                            <Graphs queue={queue} live={live} />
-                            <Messages queue={queue} canWrite={canWrite} />
-                        </>
+                    {tab === "query" && canQuery ? (
+                        <QueryPanel />
+                    ) : (
+                        <QueuesPanel
+                            live={live}
+                            setLive={setLive}
+                            updatedAt={updatedAt}
+                            locale={locale}
+                            error={error}
+                            overview={overview}
+                            queue={queue}
+                            setQueue={setQueue}
+                            canWrite={canWrite}
+                        />
                     )}
                 </Stack>
             </CardContent>
         </Card>
+    )
+}
+
+const QueuesPanel: React.FC<{
+    live: boolean
+    setLive: (live: boolean) => void
+    updatedAt: Date | null
+    locale: string
+    error: ApolloError | undefined
+    overview: OverviewResult | undefined
+    queue: string | null
+    setQueue: (queue: string) => void
+    canWrite: boolean
+}> = ({live, setLive, updatedAt, locale, error, overview, queue, setQueue, canWrite}) => {
+    const {t} = useTranslation()
+    return (
+        <Stack spacing={3}>
+            <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+                <FormControlLabel
+                    control={<Switch checked={live} onChange={(e) => setLive(e.target.checked)} />}
+                    label={t("taskQueues.live")}
+                />
+                {updatedAt && (
+                    <Typography variant="caption" color="text.secondary">
+                        {t("taskQueues.updated", {
+                            time: updatedAt.toLocaleTimeString(locale),
+                        })}
+                    </Typography>
+                )}
+            </Stack>
+            {error && (
+                <Alert severity="error">
+                    {getGraphQLActionErrorReason(error) ?? t("taskQueues.error")}
+                </Alert>
+            )}
+            <Overview result={overview} selected={queue} onSelect={setQueue} />
+            {queue && (
+                <>
+                    <Typography variant="h5" sx={{fontFamily: "monospace"}}>
+                        {queue}
+                    </Typography>
+                    <Graphs queue={queue} live={live} />
+                    <Messages queue={queue} canWrite={canWrite} />
+                </>
+            )}
+        </Stack>
     )
 }

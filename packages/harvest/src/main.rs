@@ -86,6 +86,7 @@ async fn rocket() -> _ {
                 routes::task_queues::task_queues_throughput,
                 routes::task_queues::task_queues_messages,
                 routes::task_queues::task_queues_dead_letters,
+                routes::task_queues::task_queues_query,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,

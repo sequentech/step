@@ -59,6 +59,10 @@ type Query {
     task_queues_messages(queue: String!, state: String!, before: String, limit: Int): jsonb!
 }
 
+type Query {
+    task_queues_query(sql: String!): jsonb!
+}
+
 type Mutation {
     task_queues_dead_letters(operation: String!, message_ids: [String!]!): jsonb!
 }

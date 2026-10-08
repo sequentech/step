@@ -129,6 +129,8 @@ pub enum Permissions {
     TASK_QUEUES_READ,
     #[strum(serialize = "task-queues-write")]
     TASK_QUEUES_WRITE,
+    #[strum(serialize = "task-queues-query")]
+    TASK_QUEUES_QUERY,
     #[strum(serialize = "tasks-read")]
     TASKS_READ,
     #[strum(serialize = "keys-read")]

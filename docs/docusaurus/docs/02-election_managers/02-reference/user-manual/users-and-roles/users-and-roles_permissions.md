@@ -57,3 +57,4 @@ These apply to users of the super-admin tenant only; in other tenants they grant
 |---|---|
 | `task-queues-read` | Open the **Task Queues** page: the environment's queues, their recent outcomes and throughput, and the messages in them, without their tasks' arguments. |
 | `task-queues-write` | Replay or discard dead-lettered electoral-log events on the **Task Queues** page. Also needs `task-queues-read`. |
+| `task-queues-query` | Run read-only SQL queries on the task-queue database from the **Task Queues** page. Queries read messages as they are stored, with their tasks' arguments, which can include voters' data. Also needs `task-queues-read`. |

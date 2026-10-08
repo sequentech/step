@@ -233,6 +233,7 @@ async fn roles_get_only_the_privileges_of_their_component() {
 
     assert!(allowed(&roles.reader, metrics.clone()).await);
     assert!(allowed(&roles.reader, format!("SELECT * FROM pgmq.a_{queue}")).await);
+    assert!(allowed(&roles.reader, format!("SELECT * FROM pgmq.q_{queue}")).await);
     assert!(!allowed(&roles.reader, send.clone()).await);
     assert!(!allowed(&roles.reader, read.clone()).await);
 

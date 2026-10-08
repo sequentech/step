@@ -1364,6 +1364,7 @@ const englishTranslation = {
                 "electoral-log-personal-data-read": "Read Electoral Log Personal Data",
                 "task-queues-read": "Read Task Queues",
                 "task-queues-write": "Manage Task Queues",
+                "task-queues-query": "Query Task Queues",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
@@ -2986,7 +2987,7 @@ const englishTranslation = {
         taskQueues: {
             title: "Task Queues",
             subtitle:
-                "The environment's task queues: what is waiting, what was processed and how long it took. Task arguments are never shown.",
+                "The environment's task queues: what is waiting, what was processed and how long it took. The queue lists never show task arguments.",
             notAllowed:
                 "You need the task-queues-read permission of the super-admin tenant to open the task queues.",
             live: "Live",
@@ -3088,6 +3089,21 @@ const englishTranslation = {
                     discard_other: "Discard of {{count}} events queued as task {{taskId}}.",
                 },
                 failed: "The operation could not be queued.",
+            },
+            tabs: {
+                queues: "Queues",
+                query: "Query",
+            },
+            query: {
+                help: "Queries run on the environment's task-queue database in a read-only transaction, as its reader role. Each queue has a table of waiting messages, pgmq.q_<queue>, and one of processed messages, pgmq.a_<queue>.",
+                arguments:
+                    "Queries read the messages as they are stored, with their tasks' arguments, which can include voters' data.",
+                placeholder: "SELECT …",
+                limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
+                run: "Run Query",
+                summary: "Rows: {{rows}} · {{ms}} ms",
+                truncated: "Only the first {{rows}} rows are shown.",
+                error: "The query could not run.",
             },
         },
     },

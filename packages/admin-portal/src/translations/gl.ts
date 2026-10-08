@@ -1377,6 +1377,7 @@ const galegoTranslation: TranslationType = {
                 "electoral-log-personal-data-read": "Ler Datos Persoais do Rexistro Electoral",
                 "task-queues-read": "Ler Colas de Tarefas",
                 "task-queues-write": "Xestionar Colas de Tarefas",
+                "task-queues-query": "Consultar Colas de Tarefas",
                 "tasks-read": "Leer la Ejecución de Tareas",
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
@@ -3011,7 +3012,7 @@ const galegoTranslation: TranslationType = {
         taskQueues: {
             title: "Colas de Tarefas",
             subtitle:
-                "As colas de tarefas do contorno: que está agardando, que se procesou e canto tardou. Os argumentos das tarefas nunca se mostran.",
+                "As colas de tarefas do contorno: que está agardando, que se procesou e canto tardou. As listas das colas nunca mostran os argumentos das tarefas.",
             notAllowed:
                 "Precisa o permiso task-queues-read do tenant de superadministración para abrir as colas de tarefas.",
             live: "En directo",
@@ -3119,6 +3120,21 @@ const galegoTranslation: TranslationType = {
                         "Descarte de {{count}} eventos engadido á cola como tarefa {{taskId}}.",
                 },
                 failed: "Non se puido engadir a operación á cola.",
+            },
+            tabs: {
+                queues: "Colas",
+                query: "Consulta",
+            },
+            query: {
+                help: "As consultas execútanse sobre a base de datos de colas de tarefas do contorno nunha transacción de só lectura, co seu rol de lectura. Cada cola ten unha táboa de mensaxes en espera, pgmq.q_<cola>, e outra de mensaxes procesadas, pgmq.a_<cola>.",
+                arguments:
+                    "As consultas len as mensaxes tal como están gardadas, cos argumentos das súas tarefas, que poden incluír datos de votantes.",
+                placeholder: "SELECT …",
+                limits: "Só lectura · ata 1.000 filas · límite de 30 s · cada consulta queda anotada nos rexistros do servidor co seu usuario",
+                run: "Executar Consulta",
+                summary: "Filas: {{rows}} · {{ms}} ms",
+                truncated: "Só se amosan as primeiras {{rows}} filas.",
+                error: "Non se puido executar a consulta.",
             },
         },
     },

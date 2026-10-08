@@ -26,3 +26,9 @@ export const TASK_QUEUES_DEAD_LETTERS = gql`
         task_queues_dead_letters(operation: $operation, message_ids: $messageIds)
     }
 `
+
+export const TASK_QUEUES_QUERY = gql`
+    query TaskQueuesQuery($sql: String!) {
+        task_queues_query(sql: $sql)
+    }
+`

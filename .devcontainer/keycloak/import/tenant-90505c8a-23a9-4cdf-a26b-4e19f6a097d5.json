@@ -996,6 +996,15 @@
         "attributes": {}
       },
       {
+        "id": "e1f640b6-eab1-47ed-aef0-1970b10018b8",
+        "name": "task-queues-query",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "c162751b-950c-4664-9dc5-91f564a4d310",
         "name": "electoral-log-personal-data-read",
         "description": "",
@@ -2522,6 +2531,7 @@
         "electoral-log-personal-data-read",
         "task-queues-read",
         "task-queues-write",
+        "task-queues-query",
         "election-state-write",
         "candidate-write",
         "role-create",
