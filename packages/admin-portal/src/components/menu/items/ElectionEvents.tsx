@@ -21,7 +21,6 @@ import {
     IContest,
     IElection,
     ICandidate,
-    translateFromPresentation,
 } from "@sequentech/ui-core"
 import SearchIcon from "@mui/icons-material/Search"
 import {
@@ -53,7 +52,7 @@ import {
 } from "@/queries/GetElectionEventsTree"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
-import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {MISSING_ALIAS, translateWithFallback, useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -460,7 +459,7 @@ export default function ElectionEvents() {
     const transformElectionEvent = (electionEvent: ElectionEventType): ElectionEventType => {
         return {
             ...electionEvent,
-            name: translateFromPresentation(electionEvent, "name", i18n.language) ?? "-",
+            name: translateWithFallback(electionEvent, ["name"], i18n.language) ?? MISSING_ALIAS,
             alias: aliasRenderer(electionEvent),
         }
     }
@@ -472,7 +471,7 @@ export default function ElectionEvents() {
                 tenant_id: tenantId || "",
                 image_document_id: election.image_document_id ?? "",
                 contests: [],
-                name: translateFromPresentation(election, "name", i18n.language) ?? "-",
+                name: translateWithFallback(election, ["name"], i18n.language) ?? MISSING_ALIAS,
                 alias: aliasRenderer(election),
             }
         })
@@ -488,7 +487,7 @@ export default function ElectionEvents() {
                 min_votes: 0,
                 winning_candidates_num: 0,
                 is_encrypted: false,
-                name: translateFromPresentation(contest, "name", i18n.language) ?? "-",
+                name: translateWithFallback(contest, ["name"], i18n.language) ?? MISSING_ALIAS,
                 alias: aliasRenderer(contest),
             }
         })
@@ -501,7 +500,7 @@ export default function ElectionEvents() {
                 id: candidate.id,
                 election_id: electionId || "",
                 tenant_id: tenantId || "",
-                name: translateFromPresentation(candidate, "name", i18n.language) ?? "-",
+                name: translateWithFallback(candidate, ["name"], i18n.language) ?? MISSING_ALIAS,
                 alias: aliasRenderer(candidate),
             }
         })
