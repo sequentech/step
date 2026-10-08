@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Adding User Attributes to Keycloak | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3508/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Adding User Attributes to Keycloak | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3508/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3508/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3508/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3508/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Adding User Attributes to Keycloak","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3508/docs/election_managers/tutorials/admin_portal_tutorials_add_user_attributes_to_keycloak"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3508/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3508/assets/js/runtime~main.1e5ea5af.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3508/assets/js/runtime~main.fb0769f8.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3508/assets/js/main.dad8589a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -133,7 +133,8 @@ are not encrypted retroactively, and Step refuses to reveal an unencrypted value
 <p>Only custom voter attributes can be secret. The following identity and operational attributes
 cannot:</p>
 <ul>
-<li class=""><code>username</code>, <code>email</code>, <code>first_name</code>, <code>last_name</code>, <code>dateOfBirth</code>, <code>area-id</code>, and <code>tenant-id</code></li>
+<li class=""><code>username</code>, <code>email</code>, <code>first_name</code>, <code>last_name</code>, <code>password</code>, <code>dateOfBirth</code>, <code>area-id</code>, and
+<code>tenant-id</code></li>
 <li class=""><code>authorized-election-ids</code>, <code>authorized-to-election-alias</code>, and <code>permission_labels</code></li>
 <li class=""><code>vote-weight</code>, <code>voted-channel</code>, and <code>disable-comment</code></li>
 <li class=""><code>sequent.read-only.id-card-number-validated</code> and <code>sequent.read-only.mobile-number</code></li>
