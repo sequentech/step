@@ -17,6 +17,12 @@ use tracing::instrument;
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
 use crate::messages::statement::StatementHead;
+use crate::messages::statement::{
+    ballot_box_seal_failed_description, ballot_box_sealed_description,
+    tally_ballot_box_rejected_description, tally_ballot_box_verified_description,
+};
+use crate::seal::BallotBoxSealManifest;
+use strand::hash::Hash;
 
 use super::newtypes::*;
 use crate::messages::newtypes::{
@@ -619,6 +625,129 @@ impl Message {
             username,
             elections_ids,
             area_id,
+            None,
+        )
+    }
+
+    /// The `BallotBoxSealed` entry of a sealed ballot box (VOTE-FREEZE). Every
+    /// field comes from the built manifest, and the head's timestamp is its
+    /// seal time, so the statement and the manifest cannot disagree. The
+    /// row's election_id and area_id are set.
+    pub fn ballot_box_sealed_message(
+        manifest: &BallotBoxSealManifest,
+        seal_hash: Hash,
+        election_name: &str,
+        area_name: &str,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::BallotBoxSealed(
+            ElectionIdString(Some(manifest.election_id.clone())),
+            AreaIdString(manifest.area_id.clone()),
+            SealHash::new(seal_hash),
+            manifest.ballots_in_box(),
+            manifest.ballots_counted(),
+            manifest.close_request_id.clone(),
+        );
+        let mut head =
+            StatementHead::from_body(EventIdString(manifest.election_event_id.clone()), &body);
+        head.timestamp = manifest.sealed_at;
+        head.description = ballot_box_sealed_description(
+            election_name,
+            area_name,
+            manifest.ballots_counted(),
+            manifest.ballots_in_box(),
+        );
+        Self::sign_ballot_box(head, body, sd, &manifest.election_id, &manifest.area_id)
+    }
+
+    /// The ERROR entry of a ballot box that could not be sealed; the box
+    /// stays locked (VOTE-FREEZE).
+    pub fn ballot_box_seal_failed_message(
+        event: EventIdString,
+        election_id: &str,
+        area_id: &str,
+        election_name: &str,
+        area_name: &str,
+        reason: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let description = ballot_box_seal_failed_description(election_name, area_name, &reason);
+        let body = StatementBody::BallotBoxSealFailed(
+            ElectionIdString(Some(election_id.to_string())),
+            AreaIdString(area_id.to_string()),
+            reason,
+        );
+        let mut head = StatementHead::from_body(event, &body);
+        head.description = description;
+        Self::sign_ballot_box(head, body, sd, election_id, area_id)
+    }
+
+    /// The tally checked a ballot box against its seal (VOTE-FREEZE).
+    pub fn tally_ballot_box_verified_message(
+        event: EventIdString,
+        election_id: &str,
+        area_id: &str,
+        election_name: &str,
+        area_name: &str,
+        seal_hash: Hash,
+        counted: u64,
+        tally_session_id: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let body = StatementBody::TallyBallotBoxVerified(
+            ElectionIdString(Some(election_id.to_string())),
+            AreaIdString(area_id.to_string()),
+            SealHash::new(seal_hash),
+            counted,
+            tally_session_id,
+        );
+        let mut head = StatementHead::from_body(event, &body);
+        head.description = tally_ballot_box_verified_description(election_name, area_name, counted);
+        Self::sign_ballot_box(head, body, sd, election_id, area_id)
+    }
+
+    /// The ERROR entry of a ballot box that does not match its seal
+    /// (VOTE-FREEZE); `what_differs` says how, e.g. `SealDiff::describe`.
+    pub fn tally_ballot_box_rejected_message(
+        event: EventIdString,
+        election_id: &str,
+        area_id: &str,
+        election_name: &str,
+        area_name: &str,
+        what_differs: String,
+        tally_session_id: String,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let description =
+            tally_ballot_box_rejected_description(election_name, area_name, &what_differs);
+        let body = StatementBody::TallyBallotBoxRejected(
+            ElectionIdString(Some(election_id.to_string())),
+            AreaIdString(area_id.to_string()),
+            what_differs,
+            tally_session_id,
+        );
+        let mut head = StatementHead::from_body(event, &body);
+        head.description = description;
+        Self::sign_ballot_box(head, body, sd, election_id, area_id)
+    }
+
+    fn sign_ballot_box(
+        head: StatementHead,
+        body: StatementBody,
+        sd: &SigningData,
+        election_id: &str,
+        area_id: &str,
+    ) -> Result<Self> {
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            None,
+            None,
+            Some(election_id.to_string()),
+            Some(area_id.to_string()),
             None,
         )
     }

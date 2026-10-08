@@ -437,8 +437,8 @@ pub trait SealRecordSink: Send + Sync {
     ) -> Result<Vec<voting::SealSummary>>;
 }
 
-/// No seal yet (until VOTE-FREEZE): the record stands on the closing
-/// signatures.
+/// A sink that records nothing, for tests of the signing flow; production
+/// runs pass VOTE-FREEZE's `PendingSealSink`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoSeal;
 

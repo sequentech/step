@@ -2852,3 +2852,66 @@ async fn completed_policy_subject_is_authoritative_and_invalid_signed_references
     );
     tx.rollback().await.unwrap();
 }
+
+/// VOTE-FREEZE (R8 B1): with Seal at close, a signed close touches only the
+/// channels the Post enables. Its default channels name KIOSK, which an
+/// ONLINE-only Post doesn't enable: KIOSK stays as it is; and a
+/// non-enabled ONLINE isn't closed on an early-voting Post (closing it
+/// would close the running early voting).
+#[tokio::test]
+async fn under_seal_at_close_a_signed_close_touches_only_enabled_channels() {
+    for (label, channels, status, untouched) in [
+        (
+            "seal-online-only",
+            json!({"online": true, "kiosk": false}),
+            json!({
+                "voting_status": "OPEN",
+                "voting_period_dates": {"first_started_at": "2026-01-01T00:00:00Z",
+                                        "last_started_at": "2026-01-01T00:00:00Z"}
+            }),
+            "kiosk_voting_status",
+        ),
+        (
+            "seal-early-only",
+            json!({"online": false, "kiosk": false, "early_voting": true}),
+            json!({
+                "early_voting_status": "OPEN",
+                "early_voting_period_dates": {"first_started_at": "2026-01-01T00:00:00Z",
+                                              "last_started_at": "2026-01-01T00:00:00Z"}
+            }),
+            "voting_status",
+        ),
+    ] {
+        let w = world(label).await;
+        require(&w, SigningAction::CloseVoting, 2).await;
+        require(&w, SigningAction::ApproveConfiguration, 2).await;
+        // The policy, before voting opens; the Post's channels.
+        w.execute(
+            "UPDATE sequent_backend.election_event
+             SET presentation = jsonb_set(COALESCE(presentation, '{}'::jsonb),
+                 '{ballot_box_seal_policy}', '\"seal-at-close\"'::jsonb, true)
+             WHERE id = $1",
+            &[&w.event],
+        )
+        .await;
+        w.execute(
+            "UPDATE sequent_backend.election SET voting_channels = $2 WHERE id = $1",
+            &[&w.post, &channels],
+        )
+        .await;
+        set_post_status(&w, status).await;
+        close_due(&w, -5).await;
+        approve(&w, None, 2, "officer").await;
+        let closed = enforce(&w).await;
+        let after = post_status(&w).await.unwrap();
+        assert!(
+            after.get(untouched).is_none() || after[untouched] == json!("NOT_STARTED"),
+            "{label}: {after}"
+        );
+        if label == "seal-online-only" {
+            // The enabled channel did close.
+            assert_eq!(closed, [w.post.to_string()]);
+            assert_eq!(after["voting_status"], json!("CLOSED"), "{after}");
+        }
+    }
+}

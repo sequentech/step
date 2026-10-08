@@ -102,5 +102,6 @@ pub async fn enforce_signed_closes_task(
         .with_context(|| "Error releasing pglock")?;
     res?;
     crate::tasks::signing_log_outbox::kick_signing_log_outbox();
+    crate::tasks::seal_ballot_boxes::kick_ballot_box_sealer();
     Ok(())
 }

@@ -813,3 +813,102 @@ async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
     assert_eq!(saved[0].get::<_, Value>("cron_config"), cron);
     assert_eq!(saved[0].get::<_, Value>("annotations"), annotations);
 }
+
+#[rocket::async_test]
+async fn deleting_an_event_with_ballot_box_seals_is_refused_before_its_task() {
+    const TEST: &str = "request_boundaries::deleting_an_event_with_ballot_box_seals_is_refused_before_its_task";
+    if !is_isolated_child() {
+        run_isolated_with_postgres(TEST, "http://127.0.0.1:9", true);
+        return;
+    }
+    use crate::route_services::{
+        json as response_json, post, rows, text, Services,
+    };
+    use windmill::postgres::ballot_box_seal::{
+        insert_pending, ClosedBy, NewPendingSeal,
+    };
+    use windmill::postgres::election_event::SEALED_EVENT_DELETE_REFUSAL;
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let database: String =
+        rows::query(&services.hasura, "SELECT current_database() AS name", &[])
+            .await[0]
+            .get("name");
+    // The delete route records its task and reads the seals through
+    // Windmill's global pool. This child initializes it on its own database.
+    std::env::set_var("HASURA_DB__DBNAME", database);
+    let election = event.election(&services.hasura).await;
+    let area = event.area(&services.hasura, "Sealed box").await;
+    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    let event_id = uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    {
+        let mut client = services.hasura.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let closed_at = chrono::Utc::now();
+        let seal = NewPendingSeal {
+            tenant_id: tenant,
+            election_event_id: event_id,
+            election_id: uuid::Uuid::parse_str(&election).unwrap(),
+            area_id: uuid::Uuid::parse_str(&area).unwrap(),
+            closed_at,
+            grace_deadline: closed_at,
+            close_request_id: None,
+            closed_by: ClosedBy::Scheduled,
+        };
+        assert_eq!(insert_pending(&tx, &[seal]).await.unwrap(), 1);
+        tx.commit().await.unwrap();
+    }
+    let client = services.client().await;
+    let deleter = Claims::new(&event.tenant_id, USER_ID)
+        .roles([Permissions::ELECTION_EVENT_DELETE]);
+
+    // Seals are permanent: the route answers the refusal and records it as
+    // the task's failure, before any delete task is queued.
+    let (status, output) = response_json(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": event.election_event_id}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{output}");
+    assert_eq!(output["id"], json!(event.election_event_id));
+    assert_eq!(output["error_msg"], json!(SEALED_EVENT_DELETE_REFUSAL));
+    let task =
+        uuid::Uuid::parse_str(output["task_execution"]["id"].as_str().unwrap())
+            .unwrap();
+    let stored = rows::query(
+        &services.hasura,
+        "SELECT execution_status FROM sequent_backend.tasks_execution WHERE id = $1",
+        &[&task],
+    )
+    .await;
+    assert_eq!(stored[0].get::<_, String>("execution_status"), "FAILED");
+    let events = rows::query(
+        &services.hasura,
+        "SELECT count(*) AS n FROM sequent_backend.election_event WHERE id = $1",
+        &[&event_id],
+    )
+    .await;
+    assert_eq!(events[0].get::<_, i64>("n"), 1);
+
+    // A seal check that cannot run is a server error, not a delete.
+    let (status, error) = text(
+        post(
+            &client,
+            "/delete-election-event",
+            &deleter,
+            &json!({"election_event_id": "not-an-event-uuid"}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::InternalServerError);
+    assert!(
+        error.starts_with("Failed to check the ballot box seals"),
+        "{error}"
+    );
+}

@@ -453,12 +453,33 @@ pub async fn get_election_event_by_election_area(
         .ok_or(anyhow!("Election event not found"))
 }
 
+/// Why an election event with ballot box seals can't be deleted.
+pub const SEALED_EVENT_DELETE_REFUSAL: &str =
+    "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.";
+
+/// The refusal to delete an election event with ballot box seals, as a
+/// type callers can match ([`SEALED_EVENT_DELETE_REFUSAL`] is its text).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("{}", SEALED_EVENT_DELETE_REFUSAL)]
+pub struct SealedEventDeleteRefusal;
+
 #[instrument(err, skip_all)]
 pub async fn delete_election_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
+    // Ballot box seals are permanent (VOTE-FREEZE): an event with any can't
+    // be deleted, only archived.
+    if super::ballot_box_seal::any_for_event(
+        hasura_transaction,
+        &parse_uuid_v4(tenant_id)?,
+        &parse_uuid_v4(election_event_id)?,
+    )
+    .await?
+    {
+        return Err(SealedEventDeleteRefusal.into());
+    }
     super::trusted_write::trusted_write(hasura_transaction).await?;
     // Children before the rows their ON DELETE RESTRICT foreign keys name:
     // tally_sheet_import_item references tally_sheet, tally_sheet_import,

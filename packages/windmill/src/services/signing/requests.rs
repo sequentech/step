@@ -20,8 +20,11 @@ use super::{
     action_title, allowed_by, allowed_by_permission, log_scope, Allowance, SigningCaller,
     SigningError, SigningResult,
 };
+use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::signing::*;
 use crate::postgres::signing_certificates::get_signing_request_in_tenant;
+use crate::services::ballot_box_seal::seal_policy;
+use crate::services::ballot_box_seal::sink::{closing_ballot_boxes, ClosingBallotBox};
 use crate::services::documents::{get_document_url, upload_and_return_document};
 use crate::services::time_zones::event_time_zone;
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
@@ -32,6 +35,7 @@ use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::newtypes::SigningStatementKind;
 use openssl::nid::Nid;
 use openssl::x509::X509;
+use sequent_core::ballot::BallotBoxSealPolicy;
 use sequent_core::services::keycloak::get_tenant_realm;
 use sequent_core::signing::{
     sha256_hex, CancelReason, CertificateOpenFailure, ExecutionMode, SigningAction,
@@ -555,6 +559,14 @@ pub struct SigningPanel {
     /// For a trustee's request, the names beside its ceremony and trustee ids.
     #[serde(flatten)]
     pub key_share: KeyShareLabels,
+    /// A Close voting request at an event with Seal at close: closing seals
+    /// the Post's ballot boxes (VOTE-FREEZE).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub seals_ballots: bool,
+    /// Such a request's ballot boxes as they stand now, one per country;
+    /// none until the Post closes.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ballot_boxes: Vec<ClosingBallotBox>,
 }
 
 /// The subject's fields in key order, lists joined with commas.
@@ -730,6 +742,8 @@ pub async fn get_panel(
     let document = documents
         .panel_document(hasura_transaction, &request)
         .await?;
+    let (seals_ballots, ballot_boxes) =
+        closing_seals(hasura_transaction, tenant_id, &request).await?;
     Ok(SigningPanel {
         request: SigningRequestView::from(&request),
         rule,
@@ -748,7 +762,44 @@ pub async fn get_panel(
             .name()
             .to_owned(),
         key_share: key_share_labels(hasura_transaction, &request).await?,
+        seals_ballots,
+        ballot_boxes,
     })
+}
+
+/// Whether a Close voting request seals its Post's ballot boxes, and, once
+/// it ran, the boxes it closed as they stand now (VOTE-FREEZE); nothing for
+/// other requests.
+async fn closing_seals(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    request: &SigningRequestRow,
+) -> Result<(bool, Vec<ClosingBallotBox>)> {
+    let (SigningAction::CloseVoting, Some(election_id)) = (request.action, request.election_id)
+    else {
+        return Ok((false, vec![]));
+    };
+    let election_event = get_election_event_by_id(
+        hasura_transaction,
+        &tenant_id.to_string(),
+        &request.election_event_id.to_string(),
+    )
+    .await?;
+    if seal_policy(&election_event) != BallotBoxSealPolicy::SEAL_AT_CLOSE {
+        return Ok((false, vec![]));
+    }
+    if request.status != SigningRequestStatus::Executed {
+        return Ok((true, vec![]));
+    }
+    let boxes = closing_ballot_boxes(
+        hasura_transaction,
+        tenant_id,
+        request.election_event_id,
+        election_id,
+        request.id,
+    )
+    .await?;
+    Ok((true, boxes))
 }
 
 /// What the Signatures tab and a signer's list of waiting requests show

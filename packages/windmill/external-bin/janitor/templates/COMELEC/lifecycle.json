@@ -89,6 +89,7 @@
         "initialization_scope": "post-and-country",
         "unsigned_scheduled_close": "run-as-system"
     },
+    "ballot_box_seal_policy": "seal-at-close",
     "posts": [
         {
             "post": "BANGKOK PE",

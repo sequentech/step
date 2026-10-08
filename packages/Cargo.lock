@@ -3598,7 +3598,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.8.6",
+ "base64 0.22.1",
  "borsh",
+ "chrono",
  "clap",
  "hex",
  "immudb-rs",

@@ -2617,6 +2617,7 @@ custom_types:
         - name: StartTallyOutput
         - name: PublishBallotOutput
         - name: UpdateEventVotingStatusOutput
+        - name: SkippedElection
         - name: UpdateElectionVotingStatusOutput
         - name: BallotPublicationStyles
         - name: GetBallotPublicationChangesOutput

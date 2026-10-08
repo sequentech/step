@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::domain::tally_ceremony::TallyExecuter;
+use crate::postgres::ballot_box_seal::BallotBoxSealStatus;
 use b4::messages::newtypes::BatchNumber;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
@@ -40,6 +41,17 @@ pub struct TallyEventSnapshot {
     pub contests: Vec<Contest>,
     pub areas: Vec<Area>,
     pub area_contests: Vec<AreaContest>,
+}
+
+/// Where the seal of one ballot box is (VOTE-FREEZE), as the tally's
+/// readiness check needs it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BallotBoxSealState {
+    pub election_id: String,
+    pub area_id: String,
+    pub status: BallotBoxSealStatus,
+    /// Every ballot of the box, once it is sealed.
+    pub ballots_in_box: Option<i64>,
 }
 
 pub trait TallyCreationReader: Sync {
@@ -80,6 +92,14 @@ pub trait TallyCreationReader: Sync {
         tenant_id: &str,
         election_event_id: &str,
     ) -> impl Future<Output = anyhow::Result<Vec<TallySheet>>> + Send;
+
+    /// The seals of the given elections' ballot boxes, in any status.
+    fn ballot_box_seals(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> impl Future<Output = anyhow::Result<Vec<BallotBoxSealState>>> + Send;
 }
 
 /// Tally sessions and their execution history. Each execution is a snapshot

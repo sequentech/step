@@ -25,6 +25,7 @@ use windmill::services::signing::actions::voting::{
 use windmill::services::signing::actions::{event_ids, is_required};
 use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::{election_event_status, voting_status};
+use windmill::tasks::seal_ballot_boxes::kick_ballot_box_sealer;
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
 fn voting_response_error((status, message): (Status, String)) -> JsonError {
@@ -67,6 +68,10 @@ pub struct UpdateEventVotingStatusInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventVotingStatusOutput {
     pub election_event_id: String,
+    /// The Posts the change left as they were, and why (e.g. with Seal at
+    /// close, a Start leaves closed Posts closed). Left out when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub skipped_elections: Vec<election_event_status::SkippedElection>,
 }
 
 #[instrument(skip(claims, services))]
@@ -133,25 +138,31 @@ async fn update_event_status_response(
         }
     }
 
-    election_event_status::update_event_voting_status(
-        &hasura_transaction,
-        tenant_id,
-        Some(&user_id),
-        username.as_deref(),
-        &input.election_event_id,
-        &input.voting_status,
-        &input.voting_channels,
-    )
-    .await
-    .map_err(voting_service_error)?;
+    let (_, skipped_elections) =
+        election_event_status::update_event_voting_status(
+            &hasura_transaction,
+            tenant_id,
+            Some(&user_id),
+            username.as_deref(),
+            &input.election_event_id,
+            &input.voting_status,
+            &input.voting_channels,
+        )
+        .await
+        .map_err(voting_service_error)?;
 
     let _commit = hasura_transaction
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    // The close may have created ballot box seals to make (VOTE-FREEZE).
+    if input.voting_status == VotingStatus::CLOSED {
+        kick_ballot_box_sealer();
+    }
 
     Ok(Json(UpdateEventVotingStatusOutput {
         election_event_id: input.election_event_id.clone(),
+        skipped_elections,
     }))
 }
 
@@ -252,6 +263,10 @@ async fn update_election_status_response(
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    // The close may have created ballot box seals to make (VOTE-FREEZE).
+    if input.voting_status == VotingStatus::CLOSED {
+        kick_ballot_box_sealer();
+    }
 
     Ok(Json(UpdateElectionVotingStatusOutput {
         election_id: input.election_id.clone(),

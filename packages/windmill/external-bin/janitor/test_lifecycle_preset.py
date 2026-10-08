@@ -60,6 +60,7 @@ class ComelecPresetTest(unittest.TestCase):
             PRESET["lifecycle_policies"],
             {"initialization_scope": "post-and-country", "unsigned_scheduled_close": "run-as-system"},
         )
+        self.assertEqual(PRESET["ballot_box_seal_policy"], "seal-at-close")
 
 
 class ApplyTest(unittest.TestCase):
@@ -67,14 +68,18 @@ class ApplyTest(unittest.TestCase):
         event = lifecycle_preset.apply_event({"presentation": {"locked_down": "not-locked-down"}}, PRESET)
         self.assertEqual(event["presentation"]["timezones"], PRESET["timezones"])
         self.assertEqual(event["presentation"]["lifecycle_policies"], PRESET["lifecycle_policies"])
+        self.assertEqual(event["presentation"]["ballot_box_seal_policy"], "seal-at-close")
         self.assertEqual(event["presentation"]["locked_down"], "not-locked-down")
         # A copy: changing the event doesn't change the preset.
         event["presentation"]["timezones"]["configured"].append("UTC")
         self.assertEqual(len(PRESET["timezones"]["configured"]), 80)
 
         own = {"configured": ["UTC"], "primary": "UTC", "logs": "election"}
-        event = lifecycle_preset.apply_event({"presentation": {"timezones": own}}, PRESET)
+        event = lifecycle_preset.apply_event(
+            {"presentation": {"timezones": own, "ballot_box_seal_policy": "do-not-seal"}}, PRESET
+        )
         self.assertEqual(event["presentation"]["timezones"], own)
+        self.assertEqual(event["presentation"]["ballot_box_seal_policy"], "do-not-seal")
         self.assertEqual(event["presentation"]["lifecycle_policies"], PRESET["lifecycle_policies"])
 
     def test_elections_get_their_posts_zone_unless_the_sheet_gave_one(self):

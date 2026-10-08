@@ -94,6 +94,74 @@ fn statement_body_borsh_discriminants_are_append_only() {
     assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 28);
     assert_eq!(borsh::to_vec(&monitoring_config_changed()).unwrap()[0], 29);
     assert_eq!(borsh::to_vec(&signing()).unwrap()[0], 30);
+    for (body, tag) in ballot_box_bodies().iter().zip(31u8..) {
+        assert_eq!(borsh::to_vec(body).unwrap()[0], tag);
+    }
+}
+
+fn ballot_box_bodies() -> Vec<StatementBody> {
+    let election = || ElectionIdString(Some("election".to_string()));
+    let area = || AreaIdString("area".to_string());
+    vec![
+        StatementBody::BallotBoxSealed(election(), area(), SealHash::new([7; 64]), 3, 2, None),
+        StatementBody::BallotBoxSealFailed(election(), area(), "reason".to_string()),
+        StatementBody::TallyBallotBoxVerified(
+            election(),
+            area(),
+            SealHash::new([7; 64]),
+            2,
+            "session".to_string(),
+        ),
+        StatementBody::TallyBallotBoxRejected(
+            election(),
+            area(),
+            "what".to_string(),
+            "session".to_string(),
+        ),
+    ]
+}
+
+/// The seal kinds are appended after `LockdownChanged`; the failures are
+/// ERROR entries, every one is a SYSTEM entry.
+#[test]
+fn the_ballot_box_seal_kinds_are_appended() {
+    let expected = [
+        (StatementType::BallotBoxSealed, 52, StatementLogType::INFO),
+        (
+            StatementType::BallotBoxSealFailed,
+            53,
+            StatementLogType::ERROR,
+        ),
+        (
+            StatementType::TallyBallotBoxVerified,
+            54,
+            StatementLogType::INFO,
+        ),
+        (
+            StatementType::TallyBallotBoxRejected,
+            55,
+            StatementLogType::ERROR,
+        ),
+    ];
+    for (body, (kind, tag, log_type)) in ballot_box_bodies().iter().zip(expected) {
+        assert_eq!(borsh::to_vec(&kind).unwrap(), vec![tag]);
+        let head = StatementHead::from_body(EventIdString("event".to_string()), body);
+        assert_eq!(head.kind.to_string(), kind.to_string());
+        assert_eq!(head.log_type, log_type);
+        assert_eq!(head.event_type, StatementEventType::SYSTEM);
+        assert!(head.kind.to_string().len() <= 40);
+    }
+}
+
+#[test]
+fn a_seal_description_names_the_box_and_groups_thousands() {
+    assert_eq!(
+        ballot_box_sealed_description("Madrid PE", "Spain", 1340, 1342),
+        "Ballot box of Madrid PE, Spain sealed: 1,340 of 1,342 ballots counted."
+    );
+    assert_eq!(group_thousands(0), "0");
+    assert_eq!(group_thousands(999), "999");
+    assert_eq!(group_thousands(1_000_000), "1,000,000");
 }
 
 fn signing() -> StatementBody {

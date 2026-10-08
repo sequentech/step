@@ -8,6 +8,7 @@ pub mod keys_ceremony;
 pub mod renamer;
 pub mod result_documents;
 pub mod results;
+pub mod sealed_box_ballots;
 pub mod serialize_logs;
 pub mod tally_ceremony;
 pub mod tally_execution;

@@ -196,6 +196,10 @@ policy_contract!(lockdown, LockedDown,
     LOCKED_DOWN => ("locked-down", 0),
     NOT_LOCKED_DOWN => ("not-locked-down", 1),
 );
+policy_contract!(ballot_box_seal, BallotBoxSealPolicy,
+    DO_NOT_SEAL => ("do-not-seal", 0),
+    SEAL_AT_CLOSE => ("seal-at-close", 1),
+);
 policy_contract!(publication, Publish,
     ALWAYS => ("always", 0),
     AFTER_LOCKDOWN => ("after-lockdown", 1),

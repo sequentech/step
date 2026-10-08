@@ -4,12 +4,13 @@
 
 use crate::domain::tally_ceremony::TallyExecuter;
 use crate::ports::tally_ceremony::{
-    DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
-    NewTallySession, TallyCeremonyAudit, TallyCreationReader, TallyEventSnapshot, TallySessions,
-    TrusteePrivateKeys,
+    BallotBoxSealState, DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug,
+    KeysCeremonyReader, NewTallySession, TallyCeremonyAudit, TallyCreationReader,
+    TallyEventSnapshot, TallySessions, TrusteePrivateKeys,
 };
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
+use crate::postgres::ballot_box_seal::list_for_elections;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::{export_elections, get_elections_by_ids};
@@ -347,6 +348,58 @@ impl TallyCreationReader for PgTallyCreationReader<'_> {
     ) -> Result<Vec<TallySheet>> {
         get_approved_tally_sheets_by_event(self.transaction, tenant_id, election_event_id).await
     }
+
+    async fn ballot_box_seals(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<BallotBoxSealState>> {
+        let election_ids = election_ids
+            .iter()
+            .map(|id| uuid::Uuid::parse_str(id))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(list_for_elections(
+            self.transaction,
+            &uuid::Uuid::parse_str(tenant_id)?,
+            &uuid::Uuid::parse_str(election_event_id)?,
+            &election_ids,
+        )
+        .await?
+        .into_iter()
+        .map(|seal| BallotBoxSealState {
+            election_id: seal.election_id.to_string(),
+            area_id: seal.area_id.to_string(),
+            status: seal.status,
+            ballots_in_box: seal.ballots_in_box,
+        })
+        .collect())
+    }
+}
+
+impl ElectionEventReader for PgTallyCreationReader<'_> {
+    async fn get(&self, tenant_id: &str, election_event_id: &str) -> Result<ElectionEvent> {
+        get_election_event_by_id(self.transaction, tenant_id, election_event_id).await
+    }
+}
+
+/// Starting a tally reads the elections and, for the ballot box seal check,
+/// the event and the same data a tally is created from.
+impl ElectionsById for PgTallyCreationReader<'_> {
+    async fn get(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<Election>> {
+        get_elections_by_ids(
+            self.transaction,
+            tenant_id,
+            election_event_id,
+            &election_ids.to_vec(),
+        )
+        .await
+    }
 }
 
 pub struct PgKeysCeremonies<'a> {
@@ -401,33 +454,6 @@ impl TrusteePrivateKeys for BoardTrusteePrivateKeys<'_> {
             election_event_id,
             trustee_name,
             keys_ceremony,
-        )
-        .await
-    }
-}
-
-pub struct PgElectionsById<'a> {
-    transaction: &'a Transaction<'a>,
-}
-
-impl<'a> PgElectionsById<'a> {
-    pub fn new(transaction: &'a Transaction<'a>) -> Self {
-        Self { transaction }
-    }
-}
-
-impl ElectionsById for PgElectionsById<'_> {
-    async fn get(
-        &self,
-        tenant_id: &str,
-        election_event_id: &str,
-        election_ids: &[String],
-    ) -> Result<Vec<Election>> {
-        get_elections_by_ids(
-            self.transaction,
-            tenant_id,
-            election_event_id,
-            &election_ids.to_vec(),
         )
         .await
     }

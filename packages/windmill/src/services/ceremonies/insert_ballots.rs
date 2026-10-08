@@ -2,16 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
+use crate::services::ceremonies::sealed_box_ballots::{
+    check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxLog,
+};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
-use crate::services::election::get_election_event_elections;
+use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::join::merge_join_csv;
-use crate::services::join::MultiplicitySource;
+use crate::services::join::{MergeJoinResult, MultiplicitySource};
 use crate::services::protocol_manager::*;
 use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::{
@@ -42,12 +46,15 @@ use sequent_core::serialization::deserialize_with_path::{deserialize_str, deseri
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContestAnnotations};
+use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::hasura::core::{
+    TallySession, TallySessionContest, TallySessionContestAnnotations,
+};
 use sequent_core::types::keycloak::{
     MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
 };
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
@@ -75,6 +82,92 @@ fn election_voter_authorization_aliases(
         .collect()
 }
 
+/// The annotations of a dumped contest area: its counts, the batches its
+/// weights fill and, for a sealed ballot box, the seal it was counted from.
+pub fn contest_annotations(
+    merge_result: &MergeJoinResult,
+    weight_bit_mask: Option<u32>,
+    ballot_box_seal_hash: Option<String>,
+) -> TallySessionContestAnnotations {
+    TallySessionContestAnnotations {
+        elegible_voters: merge_result.eligible_voters,
+        ballots_without_voter: merge_result.ballots_without_voter,
+        casted_ballots: merge_result.casted_ballots,
+        votes_by_channel: Some(merge_result.casted_ballots_by_channel.clone()),
+        weight_bit_mask,
+        ballot_box_seal_hash,
+    }
+}
+
+/// What counting a sealed ballot box needs, shared by the contest tasks.
+pub struct SealedBoxes {
+    log: SealedBoxLog,
+    /// The elections counted from their seals.
+    election_ids: HashSet<String>,
+    election_names: HashMap<String, String>,
+    area_names: HashMap<String, String>,
+}
+
+/// What the execution of a tally session needs to count its sealed ballot
+/// boxes, or `None` when it counts none. Electoral results of an event that
+/// seals its ballot boxes at close, or whose boxes were sealed, are counted
+/// from the seals; everything else selects ballots and voters as it always
+/// has. Refuses a session that leaves out a sealed box with ballots: its
+/// contests can change between the creation and the execution.
+pub async fn sealed_boxes_for_execution(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session: &TallySession,
+    event_elections: &[ElectionHead],
+) -> Result<Option<SealedBoxes>> {
+    let tally_type = tally_session
+        .tally_type
+        .as_deref()
+        .map(|tally_type| TallyType::try_from(tally_type).unwrap_or_default())
+        .unwrap_or_default();
+    let election_event =
+        get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?;
+    let session_election_ids: HashSet<String> = tally_session
+        .election_ids
+        .clone()
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    let election_ids =
+        sealed_elections(&election_event, &tally_type, &session_election_ids).await?;
+    if election_ids.is_empty() {
+        return Ok(None);
+    }
+    let sealed_boxes = SealedBoxes {
+        log: SealedBoxLog::new(hasura_transaction, tenant_id, &election_event).await?,
+        election_ids,
+        election_names: event_elections
+            .iter()
+            .map(|election| (election.id.clone(), election.name.clone()))
+            .collect(),
+        area_names: get_event_areas(hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .into_iter()
+            .map(|area| {
+                let name = area.name.unwrap_or_else(|| area.id.clone());
+                (area.id, name)
+            })
+            .collect(),
+    };
+    check_sealed_boxes_tallied(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &sealed_boxes.election_ids,
+        &tally_session.id,
+        &sealed_boxes.election_names,
+        &sealed_boxes.area_names,
+    )
+    .await?;
+    Ok(Some(sealed_boxes))
+}
+
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -87,6 +180,7 @@ pub async fn insert_ballots_messages(
     contest_encryption_policy: ContestEncryptionPolicy,
     delegated_voting_policy: DelegatedVotingPolicy,
     weighted_voting_policy: WeightedVotingPolicy,
+    tally_session: &TallySession,
 ) -> Result<Vec<TallySessionContest>> {
     // A delegate's ballot has no defined weighted semantics, so refuse rather
     // than silently computing weight * (1 + delegate_count). This is a backstop:
@@ -140,12 +234,23 @@ pub async fn insert_ballots_messages(
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
+    let event_elections =
+        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id).await?;
     let election_ids_alias = election_voter_authorization_aliases(
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .into_iter()
-            .map(|election| (election.id, election.external_id)),
+        event_elections
+            .iter()
+            .map(|election| (election.id.clone(), election.external_id.clone())),
     );
+
+    let sealed_boxes = sealed_boxes_for_execution(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session,
+        &event_elections,
+    )
+    .await?
+    .map(Arc::new);
 
     // Collect all futures for parallel execution
     let mut tally_session_contests_updated = Vec::with_capacity(tally_session_contests.len());
@@ -164,6 +269,8 @@ pub async fn insert_ballots_messages(
             let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
             let selected_trustees_clone = selected_trustees.clone();
             let election_ids_alias_clone = election_ids_alias.clone();
+            let sealed_boxes_clone = sealed_boxes.clone();
+            let weighted_voting_policy_clone = weighted_voting_policy.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
@@ -205,15 +312,6 @@ pub async fn insert_ballots_messages(
                         .await
                         .with_context(|| "Error acquiring hasura transaction")?;
 
-                    // Create a temporary file (auto-deleted when dropped)
-                    let ballots_temp_file = NamedTempFile::new()
-                        .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
-                    event!(
-                        Level::INFO,
-                        "Creating temporary file for ballots with path {:?}",
-                        ballots_temp_file.path()
-                    );
-
                     // Backstop for the tally-session guard: never extract
                     // ballots while this contest area has an unresolved vote.
                     let tenant_uuid = parse_uuid_v4(&tenant_id_clone)
@@ -241,74 +339,121 @@ pub async fn insert_ballots_messages(
                         ));
                     }
 
-                    find_area_ballots(
-                        &hasura_transaction_clone,
-                        &tenant_id_clone,
-                        &election_event_id_clone,
-                        &tally_session_contest.area_id,
-                        &tally_session_contest.election_id,
-                        &ballots_temp_file.path().to_path_buf(),
-                    )
-                    .await?;
-
-                    let ballots_temp_file = ballots_temp_file.reopen()?;
-
-                    // Create a temporary file (auto-deleted when dropped)
-                    let users_temp_file = NamedTempFile::new()
-                        .map_err(|error| anyhow!("Failed to create temp file: {}", error))?;
-                    event!(
-                        Level::INFO,
-                        "Creating temporary file for users with path {:?}",
-                        users_temp_file.path()
-                    );
-
-                    let election_alias =
-                        match election_ids_alias_clone.get(&tally_session_contest.election_id) {
-                            Some(alias) => alias,
-                            None => "",
-                        }
-                        .to_string();
-
-                    list_keycloak_enabled_users_by_area_id_and_authorized_elections(
-                        &keycloak_transaction_clone,
-                        &realm_clone,
-                        &tally_session_contest.area_id,
-                        &election_alias,
-                        &users_temp_file.path().to_path_buf(),
-                        multiplicity_column,
-                    )
-                    .await?;
-
-                    let users_temp_file = users_temp_file.reopen()?;
-
-                    // Use a join function to filter and extract the ballot content
-                    let ballots_output_index = 1;
-                    let ballots_channel_index = 2;
-                    let ballots_join_indexes = 0;
-                    let users_join_idexes = 0;
                     let contest_id = tally_session_contest.contest_id.clone();
+                    let sealed_boxes = sealed_boxes_clone.as_ref().filter(|sealed_boxes| {
+                        sealed_boxes
+                            .election_ids
+                            .contains(&tally_session_contest.election_id)
+                    });
+                    let (merge_result, ballot_box_seal_hash) = match sealed_boxes {
+                        Some(sealed_boxes) => {
+                            let election_name = sealed_boxes
+                                .election_names
+                                .get(&tally_session_contest.election_id)
+                                .unwrap_or(&tally_session_contest.election_id);
+                            let area_name = sealed_boxes
+                                .area_names
+                                .get(&tally_session_contest.area_id)
+                                .unwrap_or(&tally_session_contest.area_id);
+                            let sealed = sealed_box_ballots(
+                                &hasura_transaction_clone,
+                                &sealed_boxes.log,
+                                &SealedBox {
+                                    tenant_id: &tenant_id_clone,
+                                    election_event_id: &election_event_id_clone,
+                                    election_id: &tally_session_contest.election_id,
+                                    area_id: &tally_session_contest.area_id,
+                                    election_name,
+                                    area_name,
+                                    tally_session_id: &tally_session_contest.tally_session_id,
+                                },
+                                weighted_voting_policy_clone,
+                            )
+                            .await?;
+                            (sealed.merge_result, Some(sealed.seal_hash))
+                        }
+                        None => {
+                            // Create a temporary file (auto-deleted when dropped)
+                            let ballots_temp_file = NamedTempFile::new()
+                                .map_err(|error| anyhow!("Failed to create temp file {}", error))?;
+                            event!(
+                                Level::INFO,
+                                "Creating temporary file for ballots with path {:?}",
+                                ballots_temp_file.path()
+                            );
 
-                    // At most one multiplicity column is emitted by the voter
-                    // dump, always at index 1.
-                    let multiplicity_source = match multiplicity_column {
-                        VoterMultiplicityColumn::DelegateCount => {
-                            Some(MultiplicitySource::DelegateCount(1))
+                            find_area_ballots(
+                                &hasura_transaction_clone,
+                                &tenant_id_clone,
+                                &election_event_id_clone,
+                                &tally_session_contest.area_id,
+                                &tally_session_contest.election_id,
+                                &ballots_temp_file.path().to_path_buf(),
+                            )
+                            .await?;
+
+                            let ballots_temp_file = ballots_temp_file.reopen()?;
+
+                            // Create a temporary file (auto-deleted when dropped)
+                            let users_temp_file = NamedTempFile::new().map_err(|error| {
+                                anyhow!("Failed to create temp file: {}", error)
+                            })?;
+                            event!(
+                                Level::INFO,
+                                "Creating temporary file for users with path {:?}",
+                                users_temp_file.path()
+                            );
+
+                            let election_alias = match election_ids_alias_clone
+                                .get(&tally_session_contest.election_id)
+                            {
+                                Some(alias) => alias,
+                                None => "",
+                            }
+                            .to_string();
+
+                            list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+                                &keycloak_transaction_clone,
+                                &realm_clone,
+                                &tally_session_contest.area_id,
+                                &election_alias,
+                                &users_temp_file.path().to_path_buf(),
+                                multiplicity_column,
+                            )
+                            .await?;
+
+                            let users_temp_file = users_temp_file.reopen()?;
+
+                            // Use a join function to filter and extract the ballot content
+                            let ballots_output_index = 1;
+                            let ballots_channel_index = 2;
+                            let ballots_join_indexes = 0;
+                            let users_join_idexes = 0;
+
+                            // At most one multiplicity column is emitted by the voter
+                            // dump, always at index 1.
+                            let multiplicity_source = match multiplicity_column {
+                                VoterMultiplicityColumn::DelegateCount => {
+                                    Some(MultiplicitySource::DelegateCount(1))
+                                }
+                                VoterMultiplicityColumn::VoteWeight => {
+                                    Some(MultiplicitySource::VoteWeight(1))
+                                }
+                                VoterMultiplicityColumn::None => None,
+                            };
+
+                            let merge_result = merge_join_csv(
+                                &ballots_temp_file,
+                                &users_temp_file,
+                                ballots_join_indexes,
+                                users_join_idexes,
+                                ballots_output_index,
+                                Some(ballots_channel_index),
+                                multiplicity_source,
+                            )?;
+                            (merge_result, None)
                         }
-                        VoterMultiplicityColumn::VoteWeight => {
-                            Some(MultiplicitySource::VoteWeight(1))
-                        }
-                        VoterMultiplicityColumn::None => None,
                     };
-
-                    let merge_result = merge_join_csv(
-                        &ballots_temp_file,
-                        &users_temp_file,
-                        ballots_join_indexes,
-                        users_join_idexes,
-                        ballots_output_index,
-                        Some(ballots_channel_index),
-                        multiplicity_source,
-                    )?;
 
                     // Checked before anything is posted, so a run that would
                     // be refused does not leave batches on an append-only
@@ -400,13 +545,8 @@ pub async fn insert_ballots_messages(
                         None
                     };
 
-                    let annotations = TallySessionContestAnnotations {
-                        elegible_voters: merge_result.eligible_voters,
-                        ballots_without_voter: merge_result.ballots_without_voter,
-                        casted_ballots: merge_result.casted_ballots,
-                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
-                        weight_bit_mask,
-                    };
+                    let annotations =
+                        contest_annotations(&merge_result, weight_bit_mask, ballot_box_seal_hash);
 
                     let annotations = serde_json::to_value(&annotations)?;
 
