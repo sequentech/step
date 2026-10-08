@@ -49,7 +49,7 @@ event. For example:
 Where the PIN box sits relative to the other fields, and the rest of the
 User Profile settings that shape these pages, are described in [Configuring
 Login and Registration
-Fields](../../02-election_managers/02-reference/10-user-profile-login-registration-fields.md).
+Fields](../../02-election_managers/04-reference/10-user-profile-login-registration-fields.md).
 
 Removing `credential-input-policy`, or setting it to `standard`, restores the
 ordinary password field. The setting is realm-wide; this implementation has no
