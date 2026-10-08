@@ -1,7 +1,7 @@
 ---
 title: Create the Election Event
 sidebar_position: 2
-description: "This procedure creates the election event and its content: the elections, the contests, the candidates, the areas and the voters. The election administrator does this procedure."
+description: "This procedure creates the election event and its content: the elections, the contests, the candidates and the areas. The election administrator does this procedure."
 ---
 
 <!--
@@ -12,7 +12,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Create the Election Event
 
 This procedure creates the election event and its content: the elections, the contests, the
-candidates, the areas and the voters. The election administrator does this procedure.
+candidates and the areas. The election administrator does this procedure. The voters are in
+the next procedure, [Add the Voters](03-voters.md).
 
 ## Before you start
 
@@ -20,11 +21,9 @@ candidates, the areas and the voters. The election administrator does this proce
 - You have the content of the ballot: the elections, the contests and the candidates, in all
   the languages of the election.
 - You have the list of areas and the contests of each area.
-- You have the voter list as a CSV file, or the data to create each voter.
 - If you import an election event: you have the file and its SHA-256 hash.
 
-The order of the steps is important. Create the areas after the contests, and the voters
-after the areas.
+The order of the steps is important. Create the areas after the contests.
 
 ## 1. Create the election event
 
@@ -49,11 +48,11 @@ new election event. The election event shows these tabs. You see only the tabs t
 | **Localization** | The texts of the election event in each language. |
 | **Voters** | The voter list. |
 | **Areas** | The areas and their contests. |
-| **Keys** | The key ceremony. See [Run the Key Ceremony](03-keys.md). |
+| **Keys** | The key ceremony. See [Run the Key Ceremony](04-keys.md). |
 | **Certificates** | The certificate authorities for voter digital certificates. Only when the election event uses voter certificates. |
-| **Tally** | The tally ceremony and the results. See [Run the Tally Ceremony](05-tally.md). |
+| **Tally** | The tally ceremony and the results. See [Run the Tally Ceremony](06-tally.md). |
 | **Tally sheet imports** | The import of result files from other voting systems. |
-| **Publish** | The publication of the ballot and the voting period. See [Publish and Manage the Voting Period](04-publish.md). |
+| **Publish** | The publication of the ballot and the voting period. See [Publish and Manage the Voting Period](05-publish.md). |
 | **Tasks** | The background tasks, for example imports and exports, with their status. |
 | **Logs** | The record of the actions in the election event. |
 | **Scheduled Events** | The automatic start and end of the voting period. |
@@ -232,44 +231,6 @@ An import links each imported area to **all** the contests of the election event
 import, open each area and remove the contests that are not for that area.
 :::
 
-## 7. Add the voters
-
-### Import the voters
-
-1. Open the election event.
-2. Click the **Voters** tab.
-3. Click the import button. The **Import Voters** panel opens.
-4. Click the link to download the example CSV file. Use it as a model.
-5. Prepare your CSV file. The first row must be the header. The table gives the columns.
-6. Upload the file.
-
-| Column | Content |
-| --- | --- |
-| `username` | The user name of the voter. |
-| `email` | The email address. |
-| `first_name`, `last_name` | The name of the voter. |
-| `area_name` | The name of the area of the voter. It must be the same as in the **Areas** tab. |
-| `enabled` | `TRUE` or `FALSE`. A voter with `FALSE` cannot sign in. |
-| `password` | Optional. The password of the voter. |
-| `sequent.read-only.mobile-number` | Optional. The mobile number, for text messages. |
-| `vote-weight` | Optional. A positive whole number. Use it only if the election event uses weighted voting. |
-
-Other columns become attributes of the voter. Use a comma as separator. For a tab separator,
-give the file the extension `.tsv`.
-
-**Expected result:** the message "Voters Import Scheduled Successfully" shows. When the task
-is complete on the **Tasks** tab, the voters show on the **Voters** tab.
-
-### Create one voter
-
-1. On the **Voters** tab, click the create button.
-2. Type the fields of the voter.
-3. Select the **Area**.
-4. Select **Enabled**.
-5. Click the save button.
-
-**Expected result:** the voter shows in the list.
-
 ## If there is a problem
 
 | Problem | Action |
@@ -277,7 +238,6 @@ is complete on the **Tasks** tab, the voters show on the **Voters** tab.
 | The **+** icon next to **Election Events** is not there. | Your account does not have the permission to create election events. Ask your tenant administrator. |
 | The import shows "Hashes don't match. Integrity check failure." | The file is not the file that you expect. Get the file again from its source. Do not import it without the check. |
 | A language is not available in **Language**. | Turn on the language in **Settings** > **LANGUAGES**. See [Set Up the Tenant](01-tenant.md). |
-| The voter import fails on the **Tasks** tab. | Open the task to see the error. Check the header row and the area names, then import again. |
 | A contest is not in the list of **Contests** of an area. | Type three or more letters of the contest name. |
 
 ## More information
@@ -287,14 +247,10 @@ is complete on the **Tasks** tab, the voters show on the **Voters** tab.
 - [Archive an election event](../01-tutorials/03-admin_portal_tutorials_archive-elections.md)
 - [Define the areas](../01-tutorials/06-admin_portal_tutorials_define-areas.md)
 - [Translate the election event](../01-tutorials/09-admin_portal_tutorials_election-localization.md)
-- [Create voters](../01-tutorials/07-admin_portal_tutorials_create-voters.md)
-- [Import voters](../01-tutorials/08-admin_portal_tutorials_import-voters.md)
-- [Voter password policy](../01-tutorials/05-admin_portal_tutorials_password-policy.md)
 - [Election event: Data](../02-reference/02-election-event/03-election_management_election-event_data.md)
 - [Election: Data](../02-reference/03-election/03-election_management_election_data.md)
 - [Contest: Data](../02-reference/04-contest/01-election_management_contest_data.md)
 - [Candidate: Data](../02-reference/05-candidate/01-election_management_candidate_data.md)
 - [Areas](../02-reference/02-election-event/06-election_management_election-event_areas.md)
-- [Voters](../02-reference/02-election-event/05-election_management_election-event_voters.md)
 
-**Next:** [Run the Key Ceremony](03-keys.md).
+**Next:** [Add the Voters](03-voters.md).

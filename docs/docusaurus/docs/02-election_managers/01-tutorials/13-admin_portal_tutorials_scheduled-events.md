@@ -10,7 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 The main path to schedule the voting period is in
-[Publish and Manage the Voting Period](../03-procedures/04-publish.md#7-schedule-the-voting-period-alternative). This page
+[Publish and Manage the Voting Period](../03-procedures/05-publish.md#7-schedule-the-voting-period-alternative). This page
 gives all the types of scheduled events, their effect and the rules that apply when they run.
 
 A scheduled event makes a change in the election event at a set date and time, with no action

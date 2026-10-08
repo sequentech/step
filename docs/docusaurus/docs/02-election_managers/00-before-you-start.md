@@ -19,7 +19,8 @@ and the rules that keep the election secure.
 ```mermaid
 flowchart TD
   T[Set Up the Tenant] --> E[Create the Election Event]
-  E --> K[Run the Key Ceremony]
+  E --> V[Add the Voters]
+  V --> K[Run the Key Ceremony]
   K --> P[Publish and Manage the Voting Period]
   P --> Y[Run the Tally Ceremony]
   Y --> R[Get the Results]

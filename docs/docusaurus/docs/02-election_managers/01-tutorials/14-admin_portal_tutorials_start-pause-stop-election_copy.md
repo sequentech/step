@@ -9,7 +9,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The main path is in [Publish and Manage the Voting Period](../03-procedures/04-publish.md#5-open-the-voting-period). This
+The main path is in [Publish and Manage the Voting Period](../03-procedures/05-publish.md#5-open-the-voting-period). This
 page gives the status model of the voting channels, the rules for each menu item and the edge
 cases.
 

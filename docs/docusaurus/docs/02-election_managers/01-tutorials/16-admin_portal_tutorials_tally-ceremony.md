@@ -9,7 +9,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The main path is in [Run the Tally Ceremony](../03-procedures/05-tally.md). This page gives the details: the
+The main path is in [Run the Tally Ceremony](../03-procedures/06-tally.md). This page gives the details: the
 statuses, the policies that block or permit a tally, the automatic tally, the resolution of ties,
 the recount and the cancellation.
 
@@ -180,7 +180,7 @@ You cannot undo a cancellation. For a new tally, the trustees must upload their 
 | --- | --- |
 | **Start Tally Ceremony** is not available. | Complete the key ceremony and make a publication. Wait until the page shows no warning. |
 | "Select at least one election." | Select one or more elections. |
-| "Publish each selected election before creating its tally." | Publish the ballot. See [Publish and Manage the Voting Period](../03-procedures/04-publish.md). |
+| "Publish each selected election before creating its tally." | Publish the ballot. See [Publish and Manage the Voting Period](../03-procedures/05-publish.md). |
 | "Tallying is disabled for a selected election." | **Allow Tally** of the election is **Disallowed**. Change it, or wait for the **Allow Tally** scheduled event. |
 | "End voting in each selected election and stop its active voting channels before creating the tally." | Close online voting and each other open or paused channel of the election. |
 | "Elections have different keys ceremonies" | Make one tally for each key ceremony. |

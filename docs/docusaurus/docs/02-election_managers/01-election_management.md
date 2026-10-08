@@ -35,11 +35,12 @@ election with the Sequent Online Voting admin portal, the next version (in devel
 | --- | --- | --- | --- | --- |
 |  | [Before You Start](00-before-you-start.md) | Roles, terms and safety rules | All | You know who does each task. |
 | 1 | [Set Up the Tenant](03-procedures/01-tenant.md) | Settings, users, roles and trustees | Tenant administrator | The administrators and trustees can sign in. |
-| 2 | [Create the Election Event](03-procedures/02-event.md) | Elections, contests, candidates, areas and voters | Election administrator | The ballot content and the voter list are complete. |
-| 3 | [Run the Key Ceremony](03-procedures/03-keys.md) | The election keys | Election administrator and trustees | The election public key exists. Each trustee keeps a key fragment. |
-| 4 | [Publish and Manage the Voting Period](03-procedures/04-publish.md) | Publish the ballot; open, pause and close the voting | Election administrator | Voters can vote. Then the voting period is closed. |
-| 5 | [Run the Tally Ceremony](03-procedures/05-tally.md) | Decrypt and count the votes | Election administrator and trustees | The votes are decrypted and counted. |
-| 6 | [Get the Results](03-procedures/06-results.md) | Results, reports and the results website | Election administrator | You have the result documents. The public can see the results. |
+| 2 | [Create the Election Event](03-procedures/02-event.md) | Elections, contests, candidates and areas | Election administrator | The ballot content is complete. |
+| 3 | [Add the Voters](03-procedures/03-voters.md) | Import, add and check the voters | Election administrator | The voter list is complete and correct. |
+| 4 | [Run the Key Ceremony](03-procedures/04-keys.md) | The election keys | Election administrator and trustees | The election public key exists. Each trustee keeps a key fragment. |
+| 5 | [Publish and Manage the Voting Period](03-procedures/05-publish.md) | Publish the ballot; open, pause and close the voting | Election administrator | Voters can vote. Then the voting period is closed. |
+| 6 | [Run the Tally Ceremony](03-procedures/06-tally.md) | Decrypt and count the votes | Election administrator and trustees | The votes are decrypted and counted. |
+| 7 | [Get the Results](03-procedures/07-results.md) | Results, reports and the results website | Election administrator | You have the result documents. The public can see the results. |
 
 ## Versions and languages
 

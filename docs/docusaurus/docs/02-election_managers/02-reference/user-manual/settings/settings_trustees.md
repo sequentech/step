@@ -101,4 +101,4 @@ once.
 | The **Add** or **Export** button does not show. | Your account does not have the necessary permission. |
 
 **Related procedures:** [Set Up the Tenant](../../../03-procedures/01-tenant.md) and
-[Run the Key Ceremony](../../../03-procedures/03-keys.md).
+[Run the Key Ceremony](../../../03-procedures/04-keys.md).

@@ -9,7 +9,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The main path is in [Publish and Manage the Voting Period](../03-procedures/04-publish.md#4-make-the-initialization-report-if-necessary).
+The main path is in [Publish and Manage the Voting Period](../03-procedures/05-publish.md#4-make-the-initialization-report-if-necessary).
 This page gives the details: when the report is necessary, what blocks it and how it unblocks the
 voting period.
 
@@ -52,9 +52,9 @@ the status of an election does not permit them, this event permits them at the s
 
 ## Before you start
 
-- The key ceremony status is `SUCCESS`. See [Run the Key Ceremony](../03-procedures/03-keys.md).
+- The key ceremony status is `SUCCESS`. See [Run the Key Ceremony](../03-procedures/04-keys.md).
 - The election event has a publication, and each election in the report is published. See
-  [Publish and Manage the Voting Period](../03-procedures/04-publish.md).
+  [Publish and Manage the Voting Period](../03-procedures/05-publish.md).
 - Your account can create tally ceremonies (**Create Ceremony** permission).
 - For a manual key ceremony, the trustees are available with their key fragment.
 
@@ -85,7 +85,7 @@ it names.
 6. Click **Start Initialization Report**.
 7. Confirm the action.
 8. Continue as in a tally ceremony: the trustees upload their key fragment, then you click
-   **Start Tally**. See [Run the Tally Ceremony](../03-procedures/05-tally.md#2-upload-the-key-fragment-each-trustee).
+   **Start Tally**. See [Run the Tally Ceremony](../03-procedures/06-tally.md#2-upload-the-key-fragment-each-trustee).
 
 For an automatic key ceremony, the trustees do nothing and the report runs immediately. For the
 statuses of the ceremony, see [Tally ceremony](16-admin_portal_tutorials_tally-ceremony.md).
@@ -112,8 +112,8 @@ Keep the downloaded report with the records of the election.
 
 | Problem | Action |
 | --- | --- |
-| "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed." | Complete the key ceremony. See [Run the Key Ceremony](../03-procedures/03-keys.md). |
-| "The Tally Ceremony cannot start until you create one publication in the Publish tab." | Publish the ballot. See [Publish and Manage the Voting Period](../03-procedures/04-publish.md). |
+| "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed." | Complete the key ceremony. See [Run the Key Ceremony](../03-procedures/04-keys.md). |
+| "The Tally Ceremony cannot start until you create one publication in the Publish tab." | Publish the ballot. See [Publish and Manage the Voting Period](../03-procedures/05-publish.md). |
 | "You cannot continue the ceremony because no elections are selected or the elections are not published." | Select one or more elections. Make sure that each election is published and has no other initialization report. |
 | "Election ...: publish the election before creating its tally." | Publish the election, then start again. |
 | "Election ...: initialization reports are not allowed." | The status of the election does not permit the report. Wait for the **Allow Initialization Report** scheduled event, or contact Sequent support. |

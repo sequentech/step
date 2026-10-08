@@ -16,7 +16,7 @@ The manual is the **Election Managers** section of the documentation (`docs/02-e
 | --- | --- | --- |
 | `01-election_management.md` | Manual home: purpose, audience, the procedure table and the PDF link. | Section page |
 | `00-before-you-start.md` | **Before You Start**: roles, terms, conventions and the safety notices. Read first. | 1 |
-| `03-procedures/` | The main path of an election, in order: **Set Up the Tenant**, **Create the Election Event**, **Run the Key Ceremony**, **Publish and Manage the Voting Period**, **Run the Tally Ceremony**, **Get the Results**. | 2 |
+| `03-procedures/` | The main path of an election, in order: **Set Up the Tenant**, **Create the Election Event**, **Add the Voters**, **Run the Key Ceremony**, **Publish and Manage the Voting Period**, **Run the Tally Ceremony**, **Get the Results**. | 2 |
 | `01-tutorials/` | One task in depth: all options, statuses, edge cases and errors. A tutorial on a topic of a procedure links to the procedure and does not repeat its steps. | 3 |
 | `02-reference/` | One page for each screen of the admin portal, with all fields and options. | 4 |
 | `02-results-website.md`, `03-support-materials.md` | Optional features. | 5, 6 |

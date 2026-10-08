@@ -1,6 +1,6 @@
 ---
 title: Run the Key Ceremony
-sidebar_position: 3
+sidebar_position: 4
 description: "The key ceremony makes the keys of the election. The voting portal encrypts each ballot with the public key. The private key is in fragments: each trustee keeps one fragment."
 ---
 
@@ -171,4 +171,4 @@ public key exists.
 - [Election event: Keys](../02-reference/02-election-event/07-election_management_election-event_keys.md)
 - [Settings: Trustees](../02-reference/user-manual/settings/settings_trustees.md)
 
-**Next:** [Publish and Manage the Voting Period](04-publish.md).
+**Next:** [Publish and Manage the Voting Period](05-publish.md).

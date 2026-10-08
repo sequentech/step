@@ -1,6 +1,6 @@
 ---
 title: Publish and Manage the Voting Period
-sidebar_position: 4
+sidebar_position: 5
 description: "This procedure makes the ballot available in the voting portal, then opens, pauses and closes the voting period. The election administrator does this procedure."
 ---
 
@@ -17,7 +17,8 @@ the voting period. The election administrator does this procedure.
 ## Before you start
 
 - The content of the election event is complete and correct. See [Create the Election Event](02-event.md).
-- The key ceremony status is `SUCCESS`. See [Run the Key Ceremony](03-keys.md).
+- The voter list is complete. See [Add the Voters](03-voters.md).
+- The key ceremony status is `SUCCESS`. See [Run the Key Ceremony](04-keys.md).
 - Your account has the permissions to publish and to change the voting status.
 - You know your password. Publication and the voting status are sensitive actions. See
   [Before You Start](../00-before-you-start.md#sensitive-actions).
@@ -88,7 +89,7 @@ report exists. See [Initialization report](../01-tutorials/11-admin_portal_tutor
 3. Click **Generate Initialization Report**.
 4. Select the elections in **Elections for Initialization Report**.
 5. Click **Start Initialization Report**.
-6. Continue as in a tally ceremony. See [Run the Tally Ceremony](05-tally.md).
+6. Continue as in a tally ceremony. See [Run the Tally Ceremony](06-tally.md).
 
 **Expected result:** the **Tally** list shows a row with the **Tally Type**
 **Initialization Results**.
@@ -200,4 +201,4 @@ the election, convert the times.
 - [Election: Publish](../02-reference/03-election/05-election_management_election_publish.md)
 - [Election event: Scheduled Events](../02-reference/02-election-event/12-election_management_election-event_scheduled-events.md)
 
-**Next:** [Run the Tally Ceremony](05-tally.md).
+**Next:** [Run the Tally Ceremony](06-tally.md).

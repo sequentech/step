@@ -1,6 +1,6 @@
 ---
 title: Get the Results
-sidebar_position: 6
+sidebar_position: 7
 description: "This procedure shows the results of a tally, downloads the result documents and publishes the results on the results website. The election administrator does this procedure."
 ---
 
@@ -16,7 +16,7 @@ results on the results website. The election administrator does this procedure.
 
 ## Before you start
 
-- The tally status is `SUCCESS`. See [Run the Tally Ceremony](05-tally.md).
+- The tally status is `SUCCESS`. See [Run the Tally Ceremony](06-tally.md).
 - Your account has the **Read Tally Results** permission to see the results, and the
   **Export Ceremony** permission to download them.
 
