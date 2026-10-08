@@ -10,7 +10,6 @@ import GoogleVideo from '@site/src/components/GoogleVideo';
 SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
----
 
 <GoogleVideo id="13KrQtqIfsw24sZCCBjO0-f6wM_kcDUI-" />
 
@@ -22,35 +21,37 @@ Exporting allows you to save a comprehensive snapshot of your election event.
 
 ![Export Menu Selection](./assets/export_menu_selection.png)
 
-1.  Navigate to the **Data** menu within your specific Electoral Event.
-2.  Select the `Export` button.
+1.  Open the **Data** tab of the election event.
+2.  Click **Export**.
 
 ![Export Password and Instructions](./assets/export_menu_selections.png)
 
 3.  Choose the data components you wish to include in the export:
     * **Include Voters:** Exports the registered voter list.
     * **Activity Logs:** Includes a history of administrative actions.
-    *  * **Bulletin Board:** Includes the cryptographic state of the Election Event such as key ceremonies.
-    *  **Publications:** Includes the publication history for the Election Event.
-    *  **S3 Files:** Includes images, support materials or other files that are saved in cloud storage.
-    *  **Scheduled Events:** Includes configured Scheduled Events.
+    * **Bulletin Board:** Includes the cryptographic state of the Election Event such as key ceremonies.
+    * **Publications:** Includes the publication history for the Election Event.
+    * **S3 Files:** Includes images, support materials or other files that are saved in cloud storage.
+    * **Scheduled Events:** Includes configured Scheduled Events.
     * **Reports:** Includes generated election reports.
-    * **Tally:** Includes the final vote counts (if available).
+    * **Applications:** Includes the enrollment applications of voters.
+    * **Tally:** Includes the final vote counts (if available). When you select **Tally**, the dialog also selects **Bulletin Board**.
+    * **Certificates:** Includes the certificate authorities of the election event.
 
 :::info
-**Security:** If you select sensitive data like voter lists, the system automatically activates **Password Encryption** for the resulting ZIP file.
+**Security:** Select **Encrypt with Password** to protect the file with a password. If you select **Bulletin Board**, **Reports** or **Applications**, the file is always protected with a password. Select **Encrypt with Password** together with **Include Voters** or **S3 Files** to also include the decrypted secret voter fields. Your role needs the permission **Reveal Secret Voter Fields** for this.
 :::
 
 
 
 ![Export Password and Instructions](./assets/export_password_display.png)
 
-1.  Click `Export` to generate an `.ezip` file.
-2.  **Save the Password:** A dialog will display a unique decryption password. Copy and store this securely; you will need it to import the file later or to unzip it manually.
+1.  Click **Export**. A password-protected export is an `.ezip` file. An export without a password is a `.zip` file.
+2.  **Save the Password:** For a password-protected export, a dialog displays a unique decryption password. Copy and store this securely; you will need it to import the file later or to unzip it manually.
 
 ## Importing an Election Event
 
-You can import an election event using a previously exported `.ezip` file to recreate an event configuration.
+You can import an election event from a `.json` file, a `.zip` export or a password-protected `.ezip` export to recreate an event configuration. The main steps are in [Create the Election Event](../03-procedures/02-event.md#import-an-election-event-alternative).
 
 :::info
 You can only import election events exported from the same major version, with the same or lower minor version.
@@ -60,7 +61,10 @@ For example, assuming you have version **10.1.0** installed, you can only import
 
 ![Import Election Options](./assets/import_election.png)
 
-1.  From the sidebar, click the **plus icon** next to "Election Events" or the `+ Create an Election Event` button.
-2.  Select `Import Election Event`.
+1.  From the sidebar, click the **+** icon next to **Election Events**, or click **Create an Election Event** at the end of the tree.
+2.  Click **Import Election Event**.
+3.  Type the hash of the file in **Integrity Check (SHA-256)**. If you leave the field empty, the admin portal asks "Import Without Integrity Check?".
+4.  Drag and drop the file, or click **Browse** to select it. For an `.ezip` file, type the password in **Decryption Password**.
+5.  Click **Import**.
 
 ![Import File Upload](./assets/import_file_upload.png)

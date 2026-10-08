@@ -29,11 +29,13 @@ The security of the Sequent system relies on **Threshold Decryption**.
 The Platform Administrator acts as the coordinator for the ceremony.
 
 1.  Log in with **Administrator** permissions.
-2.  Select the **Electoral Event** and navigate to the **Keys** menu.
-3.  Click `+ Create Key Ceremony`.
-4.  **Configure the Threshold**: Set the minimum number of members needed to tally. Sequent recommends that the threshold be lower than the total number of Trustees (e.g., a threshold of 2 for 3 Trustees).
-5.  **Assign Trustees**: Use the filter to select specific authorized users (usually members of an electoral board).
-6.  Select the **Election** scope (one specific election or "All Elections") and confirm.
+2.  Open the election event and click the **Keys** tab.
+3.  Click **Create Key Ceremony**. If the election event already has a key ceremony, click **Add**.
+4.  **Configure the Threshold**: In **Threshold**, set the minimum number of members needed to tally. The value is `2` at the start. It must be 2 or more, and not more than the number of trustees of the tenant. Sequent recommends that the threshold be lower than the total number of Trustees (e.g., a threshold of 2 for 3 Trustees).
+5.  **Assign Trustees**: In **Trustees**, use **Filter Trustees** to find the authorized users (usually members of an electoral board). Select at least as many trustees as the threshold.
+6.  If the election event permits automatic ceremonies, the page shows **Automatic Ceremony**. Leave it off for a ceremony with trustees.
+7.  In **Election**, type three or more letters of the name to select one election, or leave the field empty for **All Elections**. The list shows only the elections that have no key ceremony.
+8.  Click **Create Key Ceremony**, then click **Yes, Create Key Ceremony** to confirm.
 
 ![Ceremony Configuration Panel](./assets/keys_config_panel.png)
 
@@ -42,34 +44,35 @@ The Platform Administrator acts as the coordinator for the ceremony.
 Once the ceremony is created, each assigned Trustee must perform their individual security steps.
 
 1.  **Login**: Each Trustee must log in with their own unique credentials.
-2.  **Access Keys**: Navigate to the **Keys** menu of the event. A notification will invite the user to participate. Alternatively, trustees may select the **green key icon**.
+2.  **Access Keys**: Open the **Keys** tab of the election event. A message invites the trustee to participate. Click the green key icon **Participate in Keys Ceremony** in the **Actions** column of the ceremony.
 
 ![Trustee Key Actions](./assets/keys_trustee_actions.png)
 
-3.  **Generate & Download**: Click the  to download the unique private key fragment.
+3.  **Start**: Read the steps on the **Trustee Key Ceremony** page and click **Next**. If the message "Waiting for Keys Generation.." shows, wait until the keys exist.
+4.  **Download**: Click **Download your Encrypted Private Key** to download the unique private key fragment.
 
 ![Trustee Key Download](./assets/keys_download_key.png)
 
 
-4.  **Secure Backups**: Trustees are required to confirm they have saved the fragment in at least two different secure locations, typically encrypted USB devices.
+5.  **Secure Backups**: Click **Next**. In the **Backup your Encrypted Private Key** window, select **First backup secured** and **Second backup secured**, then click **Confirm Backups and Continue**. Trustees are required to confirm they have saved the fragment in at least two different secure locations, typically encrypted USB devices.
 
 ![Trustee Secure Backups](./assets/keys_secure_backups.png)
 
-5.  **Integrity Check**: The Trustee must upload the file back into the "Check" box to verify that the download was successful and the file is valid.
+6.  **Integrity Check**: On the **Check your Encrypted Private Key Backups** page, the Trustee must upload the file back into the upload area to verify that the download was successful and the file is valid. The message "Backup verified successfully." shows when the file is valid. The Trustee can try again with each backup.
 
 ![Key Backup Verification](./assets/keys_backup_verification.png)
 
 ## Step 3: Monitoring and Success
 
-The Administrator can monitor the **Key Ceremony Progress** dashboard to track completions.
+The Administrator can monitor the **Key Ceremony Progress** section to track completions. The page opens after you create the ceremony. To open it later, click the file icon in the **Actions** column of the ceremony.
 
 ![Key Ceremony Monitoring](./assets/keys_ceremony_status.png)
 
 
-* **Green Checkmarks**: Indicate that a Trustee has successfully generated, downloaded, and verified their fragment.
+* **Green Checkmarks**: In the columns **Key Fragment Generated**, **Private Key Fragment Downloaded** and **Private Key Fragment Checked**, a check mark indicates that a Trustee has completed that step. An hourglass indicates that the step is not complete.
 * **Logs**: A detailed activity log at the bottom of the screen records every step of the ceremony for auditing purposes.
 
-Once all Trustees complete their tasks, the status will change to **SUCCESS**.
+Once all Trustees complete their tasks, the status will change to `SUCCESS`.
 
 :::danger **Irrecoverable Data Warning**
 If too many Trustees lose their fragments (dropping the total below the set threshold), the election results **cannot be decrypted by anyone**, including Sequent technical support. Secure storage of these fragments is the most critical responsibility of the Trustees.

@@ -120,8 +120,8 @@ elections where your rules permit it.
 
 Do these steps for each election.
 
-1. In the menu on the left, click the three dots next to the election event.
-2. Click **Create an Election**.
+1. In the menu on the left, click the arrow next to the election event to show its elections.
+2. Under the elections, click **Create an Election**.
 3. Type the **Name**.
 4. Type the **External ID**. This is the identifier of the election in your other systems.
 5. Type the **Description**.
@@ -153,8 +153,8 @@ You cannot change the **External ID** after you save it.
 
 Do these steps for each contest.
 
-1. In the menu on the left, click the three dots next to the election.
-2. Click **Create a Contest**.
+1. In the menu on the left, click the arrow next to the election to show its contests.
+2. Under the contests, click **Create a Contest**.
 3. Type the **Name**, the **Description** and the **External ID**.
 4. Click the save button.
 5. Click the **Data** tab of the new contest.
@@ -186,8 +186,8 @@ before you save. Make sure that the maximum is not higher than the number of can
 
 Do these steps for each candidate.
 
-1. In the menu on the left, click the three dots next to the contest.
-2. Click **Create a Candidate**.
+1. In the menu on the left, click the arrow next to the contest to show its candidates.
+2. Under the candidates, click **Create a Candidate**.
 3. Type the **Name**, the **Description** and the **External ID**.
 4. Click the save button.
 5. Click the **Data** tab of the new candidate.
@@ -245,6 +245,7 @@ import, open each area and remove the contests that are not for that area.
 - [Create an election event (with video)](../01-tutorials/02-admin_portal_tutorials_create-election.md)
 - [Import an election event](../01-tutorials/04-admin_portal_tutorials_import-elections.md)
 - [Archive an election event](../01-tutorials/03-admin_portal_tutorials_archive-elections.md)
+- [Create contests and candidates](../01-tutorials/05-admin_portal_tutorials_contests-candidates.md)
 - [Define the areas](../01-tutorials/06-admin_portal_tutorials_define-areas.md)
 - [Translate the election event](../01-tutorials/09-admin_portal_tutorials_election-localization.md)
 - [Election event: Data](../02-reference/02-election-event/03-election_management_election-event_data.md)

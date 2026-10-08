@@ -44,7 +44,7 @@ cannot get keys.
 
 1. Open the election event.
 2. Click the **Keys** tab.
-3. Click **Create Keys Ceremony**. If the election event already has a key ceremony, click
+3. Click **Create Key Ceremony**. If the election event already has a key ceremony, click
    **Add**.
 4. In **Threshold**, type the threshold.
 5. In **Trustees**, select the trustees of the ceremony. Select a number of trustees that is
@@ -54,13 +54,13 @@ cannot get keys.
    [Create the Election Event](02-event.md#2-configure-the-election-event).
 7. In **Election**, select one election. To make one key for all the elections, leave the field
    empty. The ceremony then has the name **All Elections**.
-8. Click **Create Keys Ceremony**.
-9. Read the message "Are you sure you want to Create Keys Ceremony?".
-10. Click **Yes, Create Keys Ceremony**.
+8. Click **Create Key Ceremony**.
+9. Read the message "Are you sure you want to Create Key Ceremony?".
+10. Click **Yes, Create Key Ceremony**.
 
-![The Create Election Event Keys Ceremony page](../01-tutorials/assets/keys_config_panel.png)
+![The Create Election Event Key Ceremony page](../01-tutorials/assets/keys_config_panel.png)
 
-**Expected result:** the message "Keys Ceremony created" shows. The ceremony shows in the list
+**Expected result:** the message "Key Ceremony created" shows. The ceremony shows in the list
 of the **Keys** tab. Its status is `STARTED`, and then `IN_PROGRESS`.
 
 11. Tell the trustees that the key ceremony has started. For an automatic ceremony, the trustees
@@ -78,7 +78,7 @@ Each trustee does these steps on their own computer, with their own account.
    ceremony." shows.
 4. In the row of the ceremony, click the key icon **Participate in Keys Ceremony** in the
    **Actions** column.
-5. Read the **Trustee Keys Ceremony** page. Make sure that the trustee name on the page is
+5. Read the **Trustee Key Ceremony** page. Make sure that the trustee name on the page is
    your trustee.
 6. Click **Next**.
 
@@ -129,13 +129,13 @@ status is `IN_PROGRESS` or `SUCCESS`.
 
 1. Open the election event.
 2. Click the **Keys** tab.
-3. Click the view icon of the ceremony. The **Keys Ceremony Progress** page opens.
+3. Click the view icon of the ceremony. The **Key Ceremony Progress** page opens.
 4. Make sure that each trustee has a tick in these columns:
    - **Key Fragment Generated**
    - **Private Key Fragment Downloaded**
    - **Private Key Fragment Checked**
 
-![The Keys Ceremony Progress page with the trustee table](../01-tutorials/assets/keys_ceremony_status.png)
+![The Key Ceremony Progress page with the trustee table](../01-tutorials/assets/keys_ceremony_status.png)
 
 **Expected result:** the status is `SUCCESS`. The status changes to `SUCCESS` only when all
 trustees have checked their key fragment. An automatic ceremony changes to `SUCCESS` when the

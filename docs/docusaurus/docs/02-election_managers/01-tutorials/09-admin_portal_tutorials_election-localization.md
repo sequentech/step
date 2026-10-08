@@ -20,28 +20,29 @@ The Sequent platform allows administrators to overwrite or customize any text ap
 
 You can change the labels of menus and tabs within the Admin Portal to better suit your organization's terminology.
 
-1. Navigate to the **Settings** menu and select the **Localization** tab.
-2. Choose the language you wish to modify (e.g., English).
-3. Click the `+ ADD` button to create a new localization configuration.
+1. In the menu on the left, click **Settings**, then click the **LOCALIZATION** tab.
+2. In **Select Language**, choose the language you wish to modify (e.g., English).
+3. Click **Add** to create a new localization configuration.
 
 ![Localization Configuration Dialog](./assets/localization_add_dialog.png)
 
-4. Enter the **Key** for the text you want to change (e.g., `electionEventScreen.tabs.dashboard`).
+4. In **Portal scope**, select **Admin portal** (the default) or **Global**. Enter the **Key** for the text you want to change (e.g., `electionEventScreen.tabs.dashboard`).
 5. Enter the new **Value** you want to display (e.g., "Statistics").
-6. Click `Save`.
+6. Click the save button.
 
 ## Overwriting Voting Portal Text
 
 To customize the experience for voters, you can modify instructions and descriptions within the voting interface.
 
-1. Select the specific **Electoral Event** or **Election** you want to modify.
-2. Click on the **Localization** menu in the top navigation bar.
-3. Select `+ ADD` to overwrite a specific element of the voter interface.
+1. Open the election event you want to modify. Elections do not have a **Localization** tab.
+2. Click the **Localization** tab.
+3. If the tab shows **Select Language**, choose the language you wish to modify.
+4. Click **Add** to overwrite a specific element of the voter interface.
 
 ![Voter Portal Localization Key Entry](./assets/voter_localization_key.png)
 
-4. Provide the specific **Key** (e.g., `startScreen.step1Description`) and the new **Value**.
-5. Click `Save` to apply the changes to the voter experience.
+5. In **Portal scope**, select **Voting portal** (the default), **Ballot verifier**, **Results portal** or **Global**. Provide the specific **Key** (e.g., `startScreen.step1Description`) and the new **Value**.
+6. Click the save button to apply the changes to the voter experience.
 
 :::info
 **Key Identification:** To successfully overwrite text, you must know the specific system key associated with that screen element. All text across all screens can be modified once the corresponding key is identified.

@@ -146,7 +146,7 @@ tally.
 
 | Problem | Action |
 | --- | --- |
-| "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed." | Complete the key ceremony. See [Run the Key Ceremony](04-keys.md). |
+| "The Tally Ceremony cannot start until the Key Ceremony has been successfully completed." | Complete the key ceremony. See [Run the Key Ceremony](04-keys.md). |
 | "The Tally Ceremony cannot start until you create one publication in the Publish tab." | Publish the ballot. See [Publish and Manage the Voting Period](05-publish.md). |
 | "Select at least one election." | Select one or more elections. |
 | "Publish each selected election before creating its tally." | Publish the ballot. See [Publish and Manage the Voting Period](05-publish.md). |
