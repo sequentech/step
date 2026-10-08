@@ -117,9 +117,9 @@ fn get_headers(
 }
 
 /// Writes the voter's authorized elections the way import reads them. Values
-/// that do not name a single election are kept, so that importing them fails
-/// rather than leaving the voter unrestricted, in double quotes when the cell
-/// would not read them back as they are.
+/// that do not name a single election are kept in double quotes, so that
+/// importing them into any election event fails, rather than leaving the voter
+/// unrestricted or giving them other elections.
 fn get_authorized_election_ids(
     user: &User,
     authorized_elections: Option<&AuthorizedElectionIds>,
@@ -130,7 +130,7 @@ fn get_authorized_election_ids(
             authorized_elections.and_then(|elections| elections.resolve(&value).ok());
         let value = match stored_value {
             Some(stored_value) => stored_value.to_string(),
-            None => unresolved_cell_value(value),
+            None => unresolved_cell_value(&value),
         };
         if !values.contains(&value) {
             values.push(value);
@@ -523,13 +523,12 @@ mod tests {
         }
     }
 
-    fn exported_authorized_election_ids(user: &User) -> String {
-        let elections = elections();
+    fn exported_authorized_election_ids(elections: &[ElectionHead], user: &User) -> String {
         let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
-        let headers = get_headers(&Some(elections.clone()), &attributes);
+        let headers = get_headers(&Some(elections.to_vec()), &attributes);
         let record = get_user_record(
-            &Some(elections.clone()),
-            Some(&AuthorizedElectionIds::new(&elections)),
+            &Some(elections.to_vec()),
+            Some(&AuthorizedElectionIds::new(elections)),
             &None,
             user,
             &attributes,
@@ -547,43 +546,42 @@ mod tests {
     #[test]
     fn authorized_elections_are_exported_by_external_id_or_id_without_one() {
         assert_eq!(
-            exported_authorized_election_ids(&voter(
-                "legacy",
-                &[ELECTION_A, ELECTION_C, ELECTION_D]
-            )),
+            exported_authorized_election_ids(
+                &elections(),
+                &voter("legacy", &[ELECTION_A, ELECTION_C, ELECTION_D])
+            ),
             format!("GTELEC31+GCIBER30-1-01|{ELECTION_C}|{ELECTION_D}")
         );
         assert_eq!(
-            exported_authorized_election_ids(&voter("current", &["GIAMBI30-3-31"])),
+            exported_authorized_election_ids(&elections(), &voter("current", &["GIAMBI30-3-31"])),
             "GIAMBI30-3-31"
         );
         assert_eq!(
-            exported_authorized_election_ids(&voter("both", &[ELECTION_B, "GIAMBI30-3-31"])),
+            exported_authorized_election_ids(
+                &elections(),
+                &voter("both", &[ELECTION_B, "GIAMBI30-3-31"])
+            ),
             "GIAMBI30-3-31"
         );
         assert_eq!(
-            exported_authorized_election_ids(&voter("unrestricted", &[])),
+            exported_authorized_election_ids(&elections(), &voter("unrestricted", &[])),
             ""
         );
     }
 
-    /// A value that names no election cannot be authorized by anything, and
-    /// dropping it could leave the voter unrestricted.
+    /// Kept as they are, they could name an election in the election event they
+    /// are imported into, or read back from the cell as other values, or as a
+    /// blank one that leaves the voter unrestricted. Quoted, they must not
+    /// import into any election event, even one with external IDs that start
+    /// or end with a double quote.
     #[test]
-    fn authorized_elections_naming_no_election_are_exported_unchanged() {
-        assert_eq!(
-            exported_authorized_election_ids(&voter("stale", &["GONE-1"])),
-            "GONE-1"
-        );
-    }
-
-    /// Written as they are, the cell would read them back as other values, or
-    /// as a blank one that leaves the voter unrestricted. Quoted, they must not
-    /// import into any election event, even one with external IDs that start or
-    /// end with a double quote.
-    #[test]
-    fn authorized_elections_naming_no_election_that_do_not_fit_in_a_cell_are_quoted() {
+    fn authorized_elections_naming_no_single_election_are_quoted() {
+        let exporting_elections = [
+            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, Some("GIAMBI30-3-31")),
+        ];
         let importing_elections = [
+            AuthorizedElectionIds::new(&exporting_elections),
             AuthorizedElectionIds::new(&elections()),
             AuthorizedElectionIds::new(&[
                 election(ELECTION_A, Some("\"\"")),
@@ -593,6 +591,8 @@ mod tests {
             ]),
         ];
         for (stored, exported) in [
+            ("GIAMBI30-3-31", r#""GIAMBI30-3-31""#),
+            ("GTELEC31+GCIBER30-1-01", r#""GTELEC31+GCIBER30-1-01""#),
             ("", r#""""#),
             (" GIAMBI30-3-31 ", r#"" GIAMBI30-3-31 ""#),
             ("=1+1", r#""=1+1""#),
@@ -601,7 +601,8 @@ mod tests {
                 r#""GIAMBI30-3-31|GTELEC31+GCIBER30-1-01""#,
             ),
         ] {
-            let cell = exported_authorized_election_ids(&voter("stale", &[stored]));
+            let cell =
+                exported_authorized_election_ids(&exporting_elections, &voter("stale", &[stored]));
 
             assert_eq!(cell, exported);
             for elections in &importing_elections {
