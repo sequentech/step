@@ -325,5 +325,14 @@
   "theme.tags.tagsPageTitle": {
     "message": "Etiquetas",
     "description": "The title of the tag list page"
+  },
+  "versionSites.next": {
+    "message": "Siguiente"
+  },
+  "versionSites.versions": {
+    "message": "Versiones"
+  },
+  "versionSites.main": {
+    "message": "Siguiente (main)"
   }
 }

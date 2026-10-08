@@ -1,0 +1,6 @@
+label: 'Tutorials'
+position: 3
+link:
+  type: generated-index
+  slug: /election_managers/tutorials
+  description: 'One task in depth: all its options, statuses and errors.'

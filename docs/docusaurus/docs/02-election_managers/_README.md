@@ -12,17 +12,24 @@ Docusaurus does not publish files whose name starts with `_`.
 
 The manual is the **Election Managers** section of the documentation (`docs/02-election_managers/`).
 
-| Folder or file | Content |
-| --- | --- |
-| `00-index.md` | Manual home: purpose, audience, the procedure table and the PDF link. |
-| `01-before-you-start.md` | `00-START`: roles, terms, conventions and the safety notices. Read first. |
-| `02-procedures/` | The main procedures, numbered in the order of an election: `01-TENANT`, `02-EVENT`, `03-KEYS`, `04-PUBLISH`, `05-TALLY`, `06-RESULTS`. |
-| `03-more-procedures/` | Procedures for optional features (voter import, communication, login methods and more). |
-| `04-reference/` | One page for each screen of the admin portal, with all fields and options. |
+| Folder or file | Content | Sidebar |
+| --- | --- | --- |
+| `01-election_management.md` | Manual home: purpose, audience, the procedure table and the PDF link. | Section page |
+| `00-before-you-start.md` | **Before You Start**: roles, terms, conventions and the safety notices. Read first. | 1 |
+| `03-procedures/` | The main path of an election, in order: **Set Up the Tenant**, **Create the Election Event**, **Add the Voters**, **Run the Key Ceremony**, **Publish and Manage the Voting Period**, **Run the Tally Ceremony**, **Get the Results**. | 2 |
+| `01-tutorials/` | One task in depth: all options, statuses, edge cases and errors. A tutorial on a topic of a procedure links to the procedure and does not repeat its steps. | 3 |
+| `02-reference/` | One page for each screen of the admin portal, with all fields and options. | 4 |
+| `02-results-website.md`, `03-support-materials.md` | Optional features. | 5, 6 |
+
+The folder and file names keep the URLs of earlier versions of the documentation. Do not rename
+them: the number prefix does not set the order of the sidebar (the `position` in
+`_category_.yml` and `sidebar_position` do), and a new name changes the URL of each page.
 
 Each procedure page has the same parts, in this order:
 
-1. A title with the procedure code: `03-KEYS: Run the key ceremony`.
+1. A title in Title Case that starts with a verb, like the other pages of the documentation:
+   `Run the Key Ceremony`. Reference pages use the name of the screen (`Trustees`), tutorials
+   the name of the task (`Tally Ceremony`, `Import Voters`).
 2. One paragraph: what the procedure does and who does it.
 3. **Before you start**: the role, the preconditions and what to have.
 4. Numbered steps, grouped under `##` headings, one action in each step.
@@ -66,7 +73,7 @@ not in the STE dictionary.
 ### Words
 
 - Use one word for one meaning. Use the terms in the glossary of
-  [00-START](01-before-you-start.md) and nothing else: *election event*, not *event* in one
+  [Before You Start](00-before-you-start.md) and nothing else: *election event*, not *event* in one
   place and *election process* in another.
 - Write the labels of the admin portal exactly as the screen shows them, in **bold**:
   click **Create Key Ceremony**.

@@ -1,0 +1,6 @@
+label: 'Contest'
+position: 4
+link:
+  type: generated-index
+  slug: /election_managers/reference/contest
+  description: 'The tabs of a contest.'

@@ -1,0 +1,6 @@
+label: 'Users and Roles'
+position: 2
+link:
+  type: generated-index
+  slug: /election_managers/reference/tenant/users-and-roles
+  description: 'The tabs of the Users and Roles page.'

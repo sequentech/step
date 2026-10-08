@@ -234,5 +234,61 @@
   "sidebar.docs.category.release-9.5": {
     "message": "release-9.5",
     "description": "The label for category 'release-9.5' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Procedures.link.generated-index.description": {
+    "message": "El recorrido principal de una elección, en orden. Haga estos procedimientos del primero al último.",
+    "description": "The generated-index page description for category 'Procedures' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Tutorials": {
+    "message": "Tutoriales",
+    "description": "The label for category 'Tutorials' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Tutorials.link.generated-index.description": {
+    "message": "Una tarea en detalle: todas sus opciones, estados y errores.",
+    "description": "The generated-index page description for category 'Tutorials' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Reference.link.generated-index.description": {
+    "message": "Una página para cada pantalla del portal de administración, con todos sus campos y opciones.",
+    "description": "The generated-index page description for category 'Reference' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Election Event.link.generated-index.description": {
+    "message": "Las pestañas de un evento electoral.",
+    "description": "The generated-index page description for category 'Election Event' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Election.link.generated-index.description": {
+    "message": "Las pestañas de una elección.",
+    "description": "The generated-index page description for category 'Election' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Contest.link.generated-index.description": {
+    "message": "Las pestañas de una pregunta.",
+    "description": "The generated-index page description for category 'Contest' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Candidate.link.generated-index.description": {
+    "message": "Las pestañas de un candidato.",
+    "description": "The generated-index page description for category 'Candidate' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Tenant Configuration.link.generated-index.description": {
+    "message": "Los ajustes, usuarios, roles, plantillas y registros del cliente.",
+    "description": "The generated-index page description for category 'Tenant Configuration' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Settings": {
+    "message": "Ajustes",
+    "description": "The label for category 'Settings' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Settings.link.generated-index.description": {
+    "message": "Las pestañas de la página Ajustes.",
+    "description": "The generated-index page description for category 'Settings' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Users and Roles.link.generated-index.description": {
+    "message": "Las pestañas de la página Usuarios y roles.",
+    "description": "The generated-index page description for category 'Users and Roles' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Templates": {
+    "message": "Plantillas",
+    "description": "The label for category 'Templates' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Templates.link.generated-index.description": {
+    "message": "La página Plantillas.",
+    "description": "The generated-index page description for category 'Templates' in sidebar 'docs'"
   }
 }

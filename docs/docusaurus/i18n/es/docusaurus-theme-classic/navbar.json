@@ -14,25 +14,5 @@
   "item.label.GitHub": {
     "message": "GitHub",
     "description": "Navbar item with label GitHub"
-  },
-  "item.label.Versions": {
-    "message": "Versiones",
-    "description": "Navbar item with label Versions"
-  },
-  "item.label.Next (main)": {
-    "message": "Siguiente (main)",
-    "description": "Navbar item with label Next (main)"
-  },
-  "item.label.10.0": {
-    "message": "10.0",
-    "description": "Navbar item with label 10.0"
-  },
-  "item.label.9.0": {
-    "message": "9.0",
-    "description": "Navbar item with label 9.0"
-  },
-  "item.label.Next": {
-    "message": "Siguiente",
-    "description": "Navbar item with label Next"
   }
 }

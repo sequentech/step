@@ -45,8 +45,8 @@ Choose your path based on your role:
 
 ### 🗳️ For Election Managers
 Learn how to create and manage elections:
-- [Setting Up Your First Election](../02-election_managers/00-index.md)
-- [Admin Portal Overview](../02-election_managers/02-procedures/02-event.md)
+- [Setting Up Your First Election](../02-election_managers/01-election_management.md)
+- [Admin Portal Overview](../02-election_managers/01-tutorials/02-admin_portal_tutorials_create-election.md)
 
 ### 👥 For Voters
 Understand the voting process:
