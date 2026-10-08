@@ -54,4 +54,4 @@ immediately.
 | **Online Voting** shows on after you turned it off and opened the tab again. | The tab always shows **Online Voting** on when it loads. This has no effect on the election events. Set the voting channels of each election event on its **Data** tab. |
 | An election event does not accept a voting channel. | Open the **Data** tab of the election event and check **Voting Channels Allowed**. |
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md).
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md).

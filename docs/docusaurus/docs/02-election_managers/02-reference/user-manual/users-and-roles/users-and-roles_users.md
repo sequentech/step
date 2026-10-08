@@ -190,5 +190,5 @@ user data. It does not contain the passwords or the roles.
 | The message "Error editing voter" shows. | Make sure that your account has the necessary permissions. If you changed a password, make sure that it meets the password rules of the tenant. |
 | The **Add**, **Import** or **Export** button does not show. | Your account does not have the necessary permission. See [Required permission](#required-permission). |
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md),
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md),
 step 3.

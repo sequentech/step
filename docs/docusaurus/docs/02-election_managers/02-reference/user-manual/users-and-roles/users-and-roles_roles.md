@@ -113,5 +113,5 @@ permissions. You cannot undo this action.
 | The role stays in the list after you delete it. | Make sure that your account has the **Edit Role** permission. |
 | A user does not see a new permission. | Ask the user to sign out and sign in again. |
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md),
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md),
 step 2.

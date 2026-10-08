@@ -1,6 +1,5 @@
 ---
-title: "05-TALLY: Run the tally ceremony"
-sidebar_label: "05-TALLY: Run the tally ceremony"
+title: Run the Tally Ceremony
 sidebar_position: 5
 ---
 
@@ -9,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# 05-TALLY: Run the tally ceremony
+# Run the Tally Ceremony
 
 The tally ceremony decrypts and counts the votes. The election administrator creates the tally.
 The trustees upload their key fragments. When enough trustees have uploaded their fragment, the
@@ -17,10 +16,10 @@ election administrator starts the tally.
 
 ## Before you start
 
-- The key ceremony status is `SUCCESS`. See [03-KEYS](03-keys.md).
-- The election event has a publication. See [04-PUBLISH](04-publish.md).
+- The key ceremony status is `SUCCESS`. See [Run the Key Ceremony](03-keys.md).
+- The election event has a publication. See [Publish and Manage the Voting Period](04-publish.md).
 - All voting channels are closed, unless you make an initialization report.
-- **Allow Tally** of each election permits the tally. See [02-EVENT](02-event.md#3-create-the-elections).
+- **Allow Tally** of each election permits the tally. See [Create the Election Event](02-event.md#3-create-the-elections).
 - A number of trustees equal to or more than the threshold are available, with one copy of
   their key fragment.
 - If the election has tally sheets (results from paper or other ballot boxes), each tally sheet
@@ -88,7 +87,7 @@ The **Elections Tally Progress** table shows the progress of each election.
 
 7. Wait until the status is `SUCCESS`. The time depends on the number of votes. If the status
    is `AWAITING_INPUT`, resolve the tie. See [Resolve a tie](#resolve-a-tie).
-8. Click **Results**. See [06-RESULTS](06-results.md).
+8. Click **Results**. See [Get the Results](06-results.md).
 9. Record the date, the time, the trustees present and the result of the ceremony.
 
 :::caution CAUTION
@@ -146,11 +145,11 @@ tally.
 
 | Problem | Action |
 | --- | --- |
-| "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed." | Complete the key ceremony. See [03-KEYS](03-keys.md). |
-| "The Tally Ceremony cannot start until you create one publication in the Publish tab." | Publish the ballot. See [04-PUBLISH](04-publish.md). |
+| "The Tally Ceremony cannot start until the Keys Ceremony has been successfully completed." | Complete the key ceremony. See [Run the Key Ceremony](03-keys.md). |
+| "The Tally Ceremony cannot start until you create one publication in the Publish tab." | Publish the ballot. See [Publish and Manage the Voting Period](04-publish.md). |
 | "Select at least one election." | Select one or more elections. |
-| "Publish each selected election before creating its tally." | Publish the ballot. See [04-PUBLISH](04-publish.md). |
-| "End voting in each selected election and stop its active voting channels before creating the tally." | Close all the voting channels of the elections. See [04-PUBLISH](04-publish.md#6-pause-or-close-the-voting-period). |
+| "Publish each selected election before creating its tally." | Publish the ballot. See [Publish and Manage the Voting Period](04-publish.md). |
+| "End voting in each selected election and stop its active voting channels before creating the tally." | Close all the voting channels of the elections. See [Publish and Manage the Voting Period](04-publish.md#6-pause-or-close-the-voting-period). |
 | "Tallying is disabled for a selected election." | **Allow Tally** of the election is **Disallowed**. Change it on the **Data** tab of the election. |
 | "Elections have different keys ceremonies" | Make one tally for each key ceremony. |
 | "You cannot continue the ceremony because the tally session is not connected or the start of the ceremony is not allowed." | Wait for more trustees. If the status is `CONNECTED`, check **Allow Tally** of each election and close the voting period. |
@@ -167,4 +166,4 @@ tally.
 - [Tally sheet imports](../02-reference/02-election-event/08-03-election_management_election-event_tally-sheet-imports.md)
 - [Ballot boxes](../01-tutorials/21-admin_portal_tutorials_ballot-boxes.md)
 
-**Next:** [06-RESULTS: Get the results](06-results.md).
+**Next:** [Get the Results](06-results.md).

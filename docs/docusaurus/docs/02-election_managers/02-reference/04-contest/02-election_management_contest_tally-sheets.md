@@ -178,7 +178,7 @@ the other versions of the ballot box, also newer versions that wait for a review
 :::note
 The tally reads the approved tally sheets when it runs. If you approve a tally sheet after a
 tally is complete, count the tally again. See
-[05-TALLY: Count again](../../03-procedures/05-tally.md#count-again).
+[Count again](../../03-procedures/05-tally.md#count-again).
 :::
 
 ## If there is a problem
@@ -200,4 +200,4 @@ tally is complete, count the tally again. See
 
 - [Tally Sheet Imports](../02-election-event/08-03-election_management_election-event_tally-sheet-imports.md)
 - [Contest data](01-election_management_contest_data.md)
-- [05-TALLY: Run the tally ceremony](../../03-procedures/05-tally.md)
+- [Run the Tally Ceremony](../../03-procedures/05-tally.md)

@@ -1,6 +1,6 @@
 ---
 id: settings_templates-deprecated
-title: Templates tab in Settings (not in use)
+title: Templates (Deprecated)
 ---
 
 <!--
@@ -27,4 +27,4 @@ The **TEMPLATES** tab is in **Settings**. It is **not in use**. You do not have 
 To manage the messages and documents that the system sends or makes, use **Templates** in the
 menu on the left. See [Templates](../templates/admin_portal_reference_user-manual_templates.md).
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md).
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md).

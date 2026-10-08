@@ -1,6 +1,6 @@
 ---
 id: admin_portal_tutorials_election-logs
-title: Election logs
+title: Election Logs
 ---
 
 <!--
@@ -8,8 +8,8 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The procedures [04-PUBLISH](../03-procedures/04-publish.md), [05-TALLY](../03-procedures/05-tally.md)
-and [06-RESULTS](../03-procedures/06-results.md) give the main path of an election. Each important
+The procedures [Publish and Manage the Voting Period](../03-procedures/04-publish.md), [Run the Tally Ceremony](../03-procedures/05-tally.md)
+and [Get the Results](../03-procedures/06-results.md) give the main path of an election. Each important
 action of that path makes a record in the electoral log. This page tells you how to read, filter,
 export and audit the electoral log.
 
@@ -118,7 +118,7 @@ show as hidden without **Read Electoral Log Personal Data**.
 - Compare the records of the tally with the records of the tally ceremony.
 - Run the audit before you publish the results, and keep the task result.
 - Export the log at the end of the election, and keep it with the other records. See
-  [06-RESULTS](../03-procedures/06-results.md#5-keep-the-records).
+  [Get the Results](../03-procedures/06-results.md#5-keep-the-records).
 
 ## If there is a problem
 

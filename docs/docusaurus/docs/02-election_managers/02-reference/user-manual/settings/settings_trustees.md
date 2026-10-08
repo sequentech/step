@@ -99,5 +99,5 @@ once.
 | A trustee user does not see the key ceremony. | Make sure that the user has the `trustee` role and the correct trustee in **Act as Trustee**. |
 | The **Add** or **Export** button does not show. | Your account does not have the necessary permission. |
 
-**Related procedures:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md) and
-[03-KEYS: Run the key ceremony](../../../03-procedures/03-keys.md).
+**Related procedures:** [Set Up the Tenant](../../../03-procedures/01-tenant.md) and
+[Run the Key Ceremony](../../../03-procedures/03-keys.md).

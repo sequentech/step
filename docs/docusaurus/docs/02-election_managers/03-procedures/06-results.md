@@ -1,6 +1,5 @@
 ---
-title: "06-RESULTS: Get the results"
-sidebar_label: "06-RESULTS: Get the results"
+title: Get the Results
 sidebar_position: 6
 ---
 
@@ -9,14 +8,14 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# 06-RESULTS: Get the results
+# Get the Results
 
 This procedure shows the results of a tally, downloads the result documents and publishes the
 results on the results website. The election administrator does this procedure.
 
 ## Before you start
 
-- The tally status is `SUCCESS`. See [05-TALLY](05-tally.md).
+- The tally status is `SUCCESS`. See [Run the Tally Ceremony](05-tally.md).
 - Your account has the **Read Tally Results** permission to see the results, and the
   **Export Ceremony** permission to download them.
 
@@ -88,7 +87,7 @@ Do this step only if your election event uses the results website.
 ### Before you publish
 
 - **Results Website** is **Enabled** on the **Data** tab of the election event. See
-  [02-EVENT](02-event.md#2-configure-the-election-event).
+  [Create the Election Event](02-event.md#2-configure-the-election-event).
 - The tally status is `SUCCESS`.
 - Your account has the permission to publish the results.
 - The persons responsible for the election have approved the results.

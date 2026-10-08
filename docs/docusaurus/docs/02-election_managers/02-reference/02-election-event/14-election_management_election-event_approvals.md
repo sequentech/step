@@ -174,4 +174,4 @@ export finished successfully" shows.
 
 - [Voters](05-election_management_election-event_voters.md)
 - [Tasks](10-election_management_election-event_tasks.md)
-- [02-EVENT: Create the election event](../../03-procedures/02-event.md)
+- [Create the Election Event](../../03-procedures/02-event.md)

@@ -1,6 +1,6 @@
 ---
 id: settings_backup-restore
-title: Backup / Restore
+title: Backup & Restore
 ---
 
 <!--
@@ -105,5 +105,5 @@ not in the file does not change.
 | The restore task fails with a message about the integrity or the hash. | The hash that you typed is not the hash of the file. Check the hash and the file, then try again. |
 | The browser does not download the backup file. | Make sure that the browser permits downloads from the admin portal. Click **Backup** again. |
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md),
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md),
 step 4.

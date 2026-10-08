@@ -1,6 +1,5 @@
 ---
-title: "02-EVENT: Create the election event"
-sidebar_label: "02-EVENT: Create the election event"
+title: Create the Election Event
 sidebar_position: 2
 ---
 
@@ -9,14 +8,14 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# 02-EVENT: Create the election event
+# Create the Election Event
 
 This procedure creates the election event and its content: the elections, the contests, the
 candidates, the areas and the voters. The election administrator does this procedure.
 
 ## Before you start
 
-- The tenant is ready. See [01-TENANT](01-tenant.md).
+- The tenant is ready. See [Set Up the Tenant](01-tenant.md).
 - You have the content of the ballot: the elections, the contests and the candidates, in all
   the languages of the election.
 - You have the list of areas and the contests of each area.
@@ -45,11 +44,11 @@ new election event. The election event shows these tabs. You see only the tabs t
 | **Localization** | The texts of the election event in each language. |
 | **Voters** | The voter list. |
 | **Areas** | The areas and their contests. |
-| **Keys** | The key ceremony. See [03-KEYS](03-keys.md). |
+| **Keys** | The key ceremony. See [Run the Key Ceremony](03-keys.md). |
 | **Certificates** | The certificate authorities for voter digital certificates. Only when the election event uses voter certificates. |
-| **Tally** | The tally ceremony and the results. See [05-TALLY](05-tally.md). |
+| **Tally** | The tally ceremony and the results. See [Run the Tally Ceremony](05-tally.md). |
 | **Tally sheet imports** | The import of result files from other voting systems. |
-| **Publish** | The publication of the ballot and the voting period. See [04-PUBLISH](04-publish.md). |
+| **Publish** | The publication of the ballot and the voting period. See [Publish and Manage the Voting Period](04-publish.md). |
 | **Tasks** | The background tasks, for example imports and exports, with their status. |
 | **Logs** | The record of the actions in the election event. |
 | **Scheduled Events** | The automatic start and end of the voting period. |
@@ -258,7 +257,7 @@ is complete on the **Tasks** tab, the voters show on the **Voters** tab.
 | --- | --- |
 | The **+** icon next to **Election Events** is not there. | Your account does not have the permission to create election events. Ask your tenant administrator. |
 | The import shows "Hashes don't match. Integrity check failure." | The file is not the file that you expect. Get the file again from its source. Do not import it without the check. |
-| A language is not available in **Language**. | Turn on the language in **Settings** > **LANGUAGES**. See [01-TENANT](01-tenant.md). |
+| A language is not available in **Language**. | Turn on the language in **Settings** > **LANGUAGES**. See [Set Up the Tenant](01-tenant.md). |
 | The voter import fails on the **Tasks** tab. | Open the task to see the error. Check the header row and the area names, then import again. |
 | A contest is not in the list of **Contests** of an area. | Type three or more letters of the contest name. |
 
@@ -279,4 +278,4 @@ is complete on the **Tasks** tab, the voters show on the **Voters** tab.
 - [Areas](../02-reference/02-election-event/06-election_management_election-event_areas.md)
 - [Voters](../02-reference/02-election-event/05-election_management_election-event_voters.md)
 
-**Next:** [03-KEYS: Run the key ceremony](03-keys.md).
+**Next:** [Run the Key Ceremony](03-keys.md).

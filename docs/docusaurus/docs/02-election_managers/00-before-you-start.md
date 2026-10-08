@@ -1,6 +1,5 @@
 ---
-title: "00-START: Before you start"
-sidebar_label: "00-START: Before you start"
+title: Before You Start
 sidebar_position: 1
 ---
 
@@ -9,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# 00-START: Before you start
+# Before You Start
 
 Read this page before you do a procedure. It gives the order of the work, the roles, the terms
 and the rules that keep the election secure.
@@ -18,11 +17,11 @@ and the rules that keep the election secure.
 
 ```mermaid
 flowchart LR
-  T[01-TENANT<br/>Set up the tenant] --> E[02-EVENT<br/>Create the election event]
-  E --> K[03-KEYS<br/>Key ceremony]
-  K --> P[04-PUBLISH<br/>Publish and voting period]
-  P --> Y[05-TALLY<br/>Tally ceremony]
-  Y --> R[06-RESULTS<br/>Results]
+  T[Set Up the Tenant] --> E[Create the Election Event]
+  E --> K[Run the Key Ceremony]
+  K --> P[Publish and Manage the Voting Period]
+  P --> Y[Run the Tally Ceremony]
+  Y --> R[Get the Results]
 ```
 
 Do the procedures in this order. You can change the ballot content after the key ceremony,
@@ -135,4 +134,4 @@ make a key fragment again.
 | WARNING | A risk to the secrecy, the integrity or the availability of the election. |
 | CAUTION | A risk of data loss, or an action that you cannot reverse. |
 
-**Next:** [01-TENANT: Set up the tenant](03-procedures/01-tenant.md).
+**Next:** [Set Up the Tenant](03-procedures/01-tenant.md).

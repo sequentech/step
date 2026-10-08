@@ -1,6 +1,5 @@
 ---
-title: "03-KEYS: Run the key ceremony"
-sidebar_label: "03-KEYS: Run the key ceremony"
+title: Run the Key Ceremony
 sidebar_position: 3
 ---
 
@@ -9,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# 03-KEYS: Run the key ceremony
+# Run the Key Ceremony
 
 The key ceremony makes the keys of the election. The voting portal encrypts each ballot with
 the public key. The private key is in fragments: each trustee keeps one fragment. To decrypt
@@ -21,9 +20,9 @@ their key fragment.
 
 ## Before you start
 
-- All the elections of the election event exist. See [02-EVENT](02-event.md).
+- All the elections of the election event exist. See [Create the Election Event](02-event.md).
 - Each trustee has an account with the `trustee` role and the correct **Act as Trustee**
-  value. See [01-TENANT](01-tenant.md).
+  value. See [Set Up the Tenant](01-tenant.md).
 - You know the threshold. It must be 2 or more, and not more than the number of trustees.
 - Each trustee has two storage devices for the backups, for example two USB flash drives.
 - You have agreed a date and a time with the trustees. All trustees must do their part.
@@ -51,7 +50,7 @@ cannot get keys.
    equal to or more than the threshold.
 6. If the election event permits automatic ceremonies, decide about **Automatic Ceremony**.
    Leave it off for an election with trustees. See the warning in
-   [02-EVENT](02-event.md#2-configure-the-election-event).
+   [Create the Election Event](02-event.md#2-configure-the-election-event).
 7. In **Election**, select one election. To make one key for all the elections, leave the field
    empty. The ceremony then has the name **All Elections**.
 8. Click **Create Keys Ceremony**.
@@ -159,4 +158,4 @@ public key exists.
 - [Election event: Keys](../02-reference/02-election-event/07-election_management_election-event_keys.md)
 - [Settings: Trustees](../02-reference/user-manual/settings/settings_trustees.md)
 
-**Next:** [04-PUBLISH: Publish the ballot and manage the voting period](04-publish.md).
+**Next:** [Publish and Manage the Voting Period](04-publish.md).

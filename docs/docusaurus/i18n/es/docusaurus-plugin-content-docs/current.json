@@ -175,10 +175,6 @@
     "message": "Procedimientos",
     "description": "The label for category 'Procedures' in sidebar 'docs'"
   },
-  "sidebar.docs.category.More procedures": {
-    "message": "Otros procedimientos",
-    "description": "The label for category 'More procedures' in sidebar 'docs'"
-  },
   "sidebar.docs.category.Reference": {
     "message": "Referencia",
     "description": "The label for category 'Reference' in sidebar 'docs'"

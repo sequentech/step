@@ -88,4 +88,4 @@ To remove the custom logo or the custom style, delete the text of the field and 
 | The logo does not show. | Make sure that the web address in **Logo URL** opens the image in a browser. |
 | The **Save** button does not show. | Your account does not have the **Edit Tenant** permission. |
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md).
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md).

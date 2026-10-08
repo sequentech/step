@@ -1,6 +1,6 @@
 ---
 id: settings_election-types-deprecated
-title: Election Types (not in use)
+title: Election Types (Deprecated)
 ---
 
 <!--
@@ -34,6 +34,6 @@ To configure an election, use the screens of the election event and of the elect
 - The settings of the election event are on its **Data** tab. See
   [Election event data](../../02-election-event/03-election_management_election-event_data.md).
 - The procedure that creates an election event is
-  [02-EVENT](../../../03-procedures/02-event.md).
+  [Create the Election Event](../../../03-procedures/02-event.md).
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md).
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md).

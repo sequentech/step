@@ -58,4 +58,4 @@ For the messages of the approve, reject, import and export actions, see
 ## Related pages
 
 - [Election voters](04-election_management_election_voters.md)
-- [02-EVENT: Create the election event](../../03-procedures/02-event.md)
+- [Create the Election Event](../../03-procedures/02-event.md)

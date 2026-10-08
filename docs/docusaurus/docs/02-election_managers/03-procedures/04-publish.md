@@ -1,6 +1,5 @@
 ---
-title: "04-PUBLISH: Publish the ballot and manage the voting period"
-sidebar_label: "04-PUBLISH: Publish and voting period"
+title: Publish and Manage the Voting Period
 sidebar_position: 4
 ---
 
@@ -9,18 +8,18 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# 04-PUBLISH: Publish the ballot and manage the voting period
+# Publish and Manage the Voting Period
 
 This procedure makes the ballot available in the voting portal, then opens, pauses and closes
 the voting period. The election administrator does this procedure.
 
 ## Before you start
 
-- The content of the election event is complete and correct. See [02-EVENT](02-event.md).
-- The key ceremony status is `SUCCESS`. See [03-KEYS](03-keys.md).
+- The content of the election event is complete and correct. See [Create the Election Event](02-event.md).
+- The key ceremony status is `SUCCESS`. See [Run the Key Ceremony](03-keys.md).
 - Your account has the permissions to publish and to change the voting status.
 - You know your password. Publication and the voting status are sensitive actions. See
-  [00-START](../00-before-you-start.md#sensitive-actions).
+  [Before You Start](../00-before-you-start.md#sensitive-actions).
 
 :::danger WARNING
 Do not publish the ballot for voters before the key ceremony status is `SUCCESS`. The admin portal
@@ -84,7 +83,7 @@ report exists. See [Initialization report](../01-tutorials/11-admin_portal_tutor
 3. Click **Generate Initialization Report**.
 4. Select the elections in **Elections for Initialization Report**.
 5. Click **Start Initialization Report**.
-6. Continue as in a tally ceremony. See [05-TALLY](05-tally.md).
+6. Continue as in a tally ceremony. See [Run the Tally Ceremony](05-tally.md).
 
 **Expected result:** the **Tally** list shows a row with the **Tally Type**
 **Initialization Results**.
@@ -177,7 +176,7 @@ the election, convert the times.
 
 | Problem | Action |
 | --- | --- |
-| "Election event is locked down" | Set **Lockdown Status** to **Not Locked Down** on the **Data** tab. See [02-EVENT](02-event.md). |
+| "Election event is locked down" | Set **Lockdown Status** to **Not Locked Down** on the **Data** tab. See [Create the Election Event](02-event.md). |
 | "Ballot publication not generated yet, can't publish." | Make a publication first. See [step 1](#1-make-a-publication). |
 | "Error change ballot publication status" | The status change is not permitted now. Check the current status of the channel, then try again. If you were asked for your password, confirm it first. |
 | **Start Online Voting** is not available. | Make the initialization report, if the election needs one. If the channel is closed, contact Sequent support. |
@@ -196,4 +195,4 @@ the election, convert the times.
 - [Election: Publish](../02-reference/03-election/05-election_management_election_publish.md)
 - [Election event: Scheduled Events](../02-reference/02-election-event/12-election_management_election-event_scheduled-events.md)
 
-**Next:** [05-TALLY: Run the tally ceremony](05-tally.md).
+**Next:** [Run the Tally Ceremony](05-tally.md).

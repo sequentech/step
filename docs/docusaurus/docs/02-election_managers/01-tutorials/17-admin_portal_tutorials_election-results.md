@@ -1,6 +1,6 @@
 ---
 id: admin_portal_tutorials_election-results
-title: Election results
+title: Election Results
 ---
 
 <!--
@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2025 Sequent Tech <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-The main path is in [06-RESULTS](../03-procedures/06-results.md). This page gives the details:
+The main path is in [Get the Results](../03-procedures/06-results.md). This page gives the details:
 the sections of the results page, all the export formats and levels, and the publication on the
 results website.
 
@@ -102,7 +102,7 @@ See [Reports and templates](18-reports_and_templates.md).
 ## Publish the results on the results website
 
 The main steps are in
-[06-RESULTS](../03-procedures/06-results.md#4-publish-the-results-on-the-results-website). These
+[Get the Results](../03-procedures/06-results.md#4-publish-the-results-on-the-results-website). These
 rules apply:
 
 - **Results Website** of the election event must be **Enabled**.

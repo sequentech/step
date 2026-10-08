@@ -1,6 +1,6 @@
 ---
 id: settings_countries
-title: Countries (Country Blocking)
+title: Countries
 ---
 
 <!--
@@ -76,4 +76,4 @@ If a list is empty when you save, the system removes the blocking rule for that 
 | The lists do not change after **Save**, or an error message shows. | Make sure that your account has the **Edit Country Blocking Rules in Cloudflare** permission. If it has, contact Sequent support. |
 | Voters from a country that is not in the list cannot sign in. | Contact Sequent support. Other network rules can block access. |
 
-**Related procedure:** [01-TENANT: Set up the tenant](../../../03-procedures/01-tenant.md).
+**Related procedure:** [Set Up the Tenant](../../../03-procedures/01-tenant.md).

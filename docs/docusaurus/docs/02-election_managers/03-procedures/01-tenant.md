@@ -1,6 +1,5 @@
 ---
-title: "01-TENANT: Set up the tenant"
-sidebar_label: "01-TENANT: Set up the tenant"
+title: Set Up the Tenant
 sidebar_position: 1
 ---
 
@@ -9,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# 01-TENANT: Set up the tenant
+# Set Up the Tenant
 
 This procedure prepares the tenant for your election events. You set the tenant settings, you
 create the accounts of the administrators and trustees, and you make a backup of the
@@ -165,4 +164,4 @@ help of Sequent support. See [Backup / Restore](../02-reference/user-manual/sett
 - [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md)
 - [Navigate the admin portal](../01-tutorials/01-admin_portal_tutorials_system-navigation.md)
 
-**Next:** [02-EVENT: Create the election event](02-event.md).
+**Next:** [Create the Election Event](02-event.md).
