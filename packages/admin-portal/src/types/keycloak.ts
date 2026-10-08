@@ -246,4 +246,7 @@ export enum IPermissions {
     SIGN_APPROVE_CONFIGURATION = "sign-approve-configuration",
     SIGN_KEY_CEREMONY = "sign-key-ceremony",
     SIGN_TALLY_KEY = "sign-tally-key",
+    MESSAGING_ACCOUNT_READ = "messaging-account-read",
+    MESSAGING_ACCOUNT_WRITE = "messaging-account-write",
+    MESSAGING_CONFIG_WRITE = "messaging-config-write",
 }

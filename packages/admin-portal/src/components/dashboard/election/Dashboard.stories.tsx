@@ -76,7 +76,15 @@ const meta = {
                                 votes_per_day: votesPerDay,
                             },
                             users: {count: 1204},
-                            election: [{statistics: {num_emails_sent: 12, num_sms_sent: 3}}],
+                            election: [
+                                {
+                                    statistics: {
+                                        num_emails_sent: 12,
+                                        num_sms_sent: 3,
+                                        num_whatsapp_sent: 40,
+                                    },
+                                },
+                            ],
                         },
                     }
                 },
@@ -103,6 +111,9 @@ export const Populated: Story = {
         await expect(within(eligible.parentElement as HTMLElement).getByText("1,204")).toBeVisible()
         await expect(within(card(canvasElement, "Actual Voters")).getByText("38")).toBeVisible()
         await expect(within(card(canvasElement, "SMS sent")).getByText("3")).toBeVisible()
+        await expect(
+            within(card(canvasElement, "WhatsApp messages sent")).getByText("40")
+        ).toBeVisible()
         expect(statsCalls()).toEqual([
             {
                 name: "GetElectionStats",

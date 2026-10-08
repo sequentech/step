@@ -65,6 +65,7 @@ use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::tasks::recompute_schedule_instants::recompute_schedule_instants;
+use crate::tasks::reconcile_messages::reconcile_messages;
 use crate::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_event_snapshot, refresh_monitoring_snapshots,
 };
@@ -300,6 +301,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         tasks = [
             create_keys,
             review_boards,
+            reconcile_messages,
             process_board,
             render_report,
             generate_report,
@@ -373,6 +375,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
+            reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
             process_board::NAME => &Queue::Beat.queue_name(&slug),
             render_report::NAME => &Queue::Reports.queue_name(&slug),
             create_ballot_receipt::NAME => &Queue::Reports.queue_name(&slug),

@@ -148,6 +148,9 @@ test("saves election text and a custom contest order with complete payloads", as
                 receipts: {
                     EMAIL: {allowed: false, template: null},
                     SMS: {allowed: false, template: null},
+                    WHATSAPP: {allowed: false, template: null},
+                    VIBER: {allowed: false, template: null},
+                    MESSENGER: {allowed: false, template: null},
                     DOCUMENT: {allowed: false, template: null},
                 },
             },

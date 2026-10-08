@@ -88,6 +88,8 @@ import {
     VoterField,
     VOTER_EDITOR_FIXED_FIELDS,
 } from "./VoterEditorLayout"
+import {VoterMessagingSummary} from "./VoterMessagingSummary"
+import {isVoterMessagingAttribute} from "./voterMessaging"
 import {REVEAL_VOTER_SECRET_ATTRIBUTE} from "@/queries/RevealVoterSecretAttribute"
 
 interface ListUserRolesProps {
@@ -1485,6 +1487,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const renderFormField = useCallback(
         (attribute: UserProfileAttribute, index: number) => {
             if (!attribute.name) return null
+            if (!createMode && isVoterMessagingAttribute(attribute.name)) return null
             const input = renderFormInput(attribute, index)
             if (!input) return null
             return (
@@ -1498,7 +1501,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 </VoterField>
             )
         },
-        [renderFormInput]
+        [renderFormInput, createMode]
     )
     const formFields = (
         <VoterAttributeGroups
@@ -1586,6 +1589,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         }}
                     >
                         {formFields}
+                        {!createMode && electionEventId ? (
+                            <VoterMessagingSummary attributes={user?.attributes} />
+                        ) : null}
                         <VoterField
                             name="enabled"
                             inputType={VOTER_EDITOR_FIXED_FIELDS.enabled}

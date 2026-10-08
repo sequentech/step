@@ -21,6 +21,7 @@ use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
 use windmill::tasks::recompute_schedule_instants::{
     recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
 };
+use windmill::tasks::reconcile_messages::reconcile_messages;
 use windmill::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_snapshots, scheduled_fan_out,
 };
@@ -47,6 +48,9 @@ struct CeleryOpt {
     review_cast_votes_interval: u64,
     #[arg(short = 'e', long, default_value = "5")]
     electoral_log_interval: u64,
+    /// Seconds between two passes resolving messages whose outcome is unknown.
+    #[arg(long, default_value = "300")]
+    reconcile_messages_interval: u64,
     /// Seconds between two monitoring snapshot passes; bounds and default
     /// in `sequent_core::monitoring::cadence`.
     #[arg(short = 'm', long, env = SNAPSHOT_INTERVAL_ENV)]
@@ -124,6 +128,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(RECOMPUTE_INTERVAL_SECONDS)),
                 args = (),
             },
+            reconcile_messages::NAME => {
+                reconcile_messages,
+                schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().reconcile_messages_interval)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -139,6 +148,7 @@ async fn main() -> Result<()> {
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
             refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
             recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
+            reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.

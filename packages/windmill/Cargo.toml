@@ -86,6 +86,7 @@ immudb-rs = { path = "../immudb-rs" }
 b4 = { path = "../b4", features = ["client"] }
 electoral-log = { path = "../electoral-log" }
 strand = { path = "../strand" }
+messaging = { path = "../messaging" }
 sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "plugins_wit", "sqlite", "monitoring", "election_config_signing"] }
 velvet = { path = "../velvet" }
 
@@ -147,6 +148,8 @@ rustls = { version = "0.23.32", features = ["ring"] }
 [dev-dependencies]
 tonic = "0.13"
 dhat = "0.3"
+hmac = "0.12"
+messaging = { path = "../messaging", features = ["test-support"] }
 
 [package.metadata.component]
 

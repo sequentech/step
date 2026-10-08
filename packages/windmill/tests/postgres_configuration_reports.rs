@@ -32,7 +32,8 @@ use sequent_core::types::hasura::core::{
     DocumentAnnotations, ElectionEvent, ReportManifestFile, TallySession,
 };
 use sequent_core::types::templates::{
-    EmailConfig, PrintToPdfOptionsLocal, ReportOptions, SendTemplateBody, SmsConfig,
+    ChannelSelection, EmailConfig, PrintToPdfOptionsLocal, ReportOptions, SendTemplateBody,
+    SmsConfig,
 };
 use serde_json::json;
 use signing_pki::{ec_key, issued, Issued, Pki, Spec};
@@ -245,6 +246,11 @@ async fn template(tx: &Transaction<'_>, tenant: &str, alias: &str, document: &st
         schedule_date: None,
         email: Some(EmailConfig::default()),
         sms: Some(SmsConfig::default()),
+        whatsapp: None,
+        viber: None,
+        messenger: None,
+        channel_selection: ChannelSelection::default(),
+        send_id: None,
         document: Some(document.to_string()),
         name: None,
         alias: Some(alias.to_string()),

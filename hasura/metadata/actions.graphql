@@ -2789,3 +2789,72 @@ type Query {
 type GetLifecycleSnapshotsOutput {
     snapshots: jsonb!
 }
+
+type Mutation {
+    upsert_messaging_account(
+        id: uuid
+        channel: String
+        name: String!
+        sender: jsonb!
+        limits: jsonb
+        provider_approval: String
+        readiness: String
+        is_default: Boolean
+    ): MessagingAccountOutput
+}
+
+type Mutation {
+    delete_messaging_account(id: uuid!): MessagingAccountOutput
+}
+
+type Mutation {
+    replace_messaging_account_credentials(
+        id: uuid!
+        credentials: jsonb!
+        generate_verify_token: Boolean
+    ): ReplaceMessagingAccountCredentialsOutput
+}
+
+type Mutation {
+    check_messaging_account(id: uuid!): CheckMessagingAccountOutput
+}
+
+type Mutation {
+    test_messaging_account(
+        id: uuid!
+        purpose: String!
+        destination: String!
+        language: String
+        template: String
+    ): TestMessagingAccountOutput
+}
+
+type Mutation {
+    update_event_messaging_config(
+        election_event_id: uuid!
+        config: jsonb!
+    ): UpdateEventMessagingConfigOutput
+}
+
+type MessagingAccountOutput {
+    id: uuid!
+}
+
+type ReplaceMessagingAccountCredentialsOutput {
+    replaced: [String!]!
+    verify_token: String
+}
+
+type CheckMessagingAccountOutput {
+    status: jsonb!
+}
+
+type TestMessagingAccountOutput {
+    message_id: String
+    state: String!
+    reason: String
+}
+
+type UpdateEventMessagingConfigOutput {
+    errors: jsonb!
+}
