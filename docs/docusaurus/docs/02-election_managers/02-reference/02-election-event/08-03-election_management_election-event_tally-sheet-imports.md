@@ -1,6 +1,7 @@
 ---
 sidebar_position: 8.3
 title: Tally Sheet Imports
+description: "Tally sheet imports let election administrators upload precinct-level results from an external tabulator and review them as a batch before those results become active tally-sheet versions."
 ---
 
 # Tally Sheet Imports

@@ -1,1 +1,6 @@
 label: 'Tenant Configuration'
+position: 6
+link:
+  type: generated-index
+  slug: /election_managers/reference/tenant
+  description: 'The settings, users, roles, templates and logs of the tenant.'

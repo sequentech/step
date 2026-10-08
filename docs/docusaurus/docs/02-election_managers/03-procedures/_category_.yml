@@ -1,0 +1,7 @@
+label: 'Procedures'
+position: 2
+collapsed: false
+link:
+  type: generated-index
+  slug: /election_managers/procedures
+  description: 'The main path of an election, in order. Do these procedures from the first to the last.'

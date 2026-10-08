@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_keys
 title: Keys
+description: "The Key Ceremony establishes the collective private key used to decrypt votes and publishes a corresponding public key for voters to encrypt their ballots."
 ---
 
 <!--

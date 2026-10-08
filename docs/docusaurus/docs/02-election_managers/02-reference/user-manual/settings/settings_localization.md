@@ -1,6 +1,7 @@
 ---
 id: settings_localization
 title: Localization
+description: "Tenant localization overrides customize Admin Portal text for each enabled language. The editor offers Admin portal for a portal-specific override and Global for source-wide overrides."
 ---
 
 <!--

@@ -1,6 +1,7 @@
 ---
 id: election_management_election_data
 title: Data
+description: "Manage data related to the Election. This tab allows configuration of core settings for an individual Election, similar in structure to the Election Event Data tab but scoped to this specific…"
 ---
 
 <!--

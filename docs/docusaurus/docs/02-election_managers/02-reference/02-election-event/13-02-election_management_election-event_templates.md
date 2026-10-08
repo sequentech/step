@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_templates
 title: Templates
+description: "Managing Templates is essential for consistent report generation. Each Report Type is associated with a Template to form a “recipe” used when generating reports."
 ---
 
 <!--

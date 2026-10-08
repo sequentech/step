@@ -1,6 +1,7 @@
 ---
 id: users-and-roles_permissions
 title: Permissions
+description: "Permissions are assigned to roles under Users and Roles > Roles. A user receives the permissions of the roles assigned to them."
 ---
 
 <!--

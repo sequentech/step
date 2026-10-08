@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_areas
 title: Areas
+description: "Represents geographical or organizational divisions within which elections are conducted. These can range from small precincts or wards to larger regions such as districts or states."
 ---
 
 <!--
