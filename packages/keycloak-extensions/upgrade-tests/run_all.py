@@ -28,23 +28,35 @@ def run(script: str, *args: str) -> bool:
     return ok
 
 
+def cleanup() -> bool:
+    """Deletes what the scripts recorded in the state file. The file is kept when any of it could
+    not be deleted, so the next run retries before creating anything."""
+    results = [run("smoke_cleanup.py"), run("e2e_cleanup.py")]
+    if all(results):
+        STATE_FILE.unlink(missing_ok=True)
+        return True
+    print(f"cleanup failed, keeping {STATE_FILE} for the next attempt")
+    return False
+
+
 def main() -> int:
-    STATE_FILE.unlink(missing_ok=True)
+    if STATE_FILE.exists():
+        print(f"{STATE_FILE} is left from an earlier run, cleaning that up first")
+        if not cleanup():
+            return 1
     shutil.rmtree(OUT / "screenshots", ignore_errors=True)
-    if not run("port_forwards.py", "start"):
-        return 1
     try:
-        run("smoke_admin_client.py")
-        run("smoke_realm_lifecycle.py")
-        run("smoke_portals.py")
-        if run("e2e_create_event.py"):
-            if run("e2e_idp_linking_setup.py"):
-                run("e2e_idp_linking.py")
-            if run("e2e_x509_setup.py"):
-                run("e2e_x509_login.py")
+        if run("port_forwards.py", "start"):
+            run("smoke_admin_client.py")
+            run("smoke_realm_lifecycle.py")
+            run("smoke_portals.py")
+            if run("e2e_create_event.py"):
+                if run("e2e_idp_linking_setup.py"):
+                    run("e2e_idp_linking.py")
+                if run("e2e_x509_setup.py"):
+                    run("e2e_x509_login.py")
     finally:
-        run("smoke_cleanup.py")
-        run("e2e_cleanup.py")
+        cleanup()
         run("port_forwards.py", "stop")
 
     print(f"\nscreenshots: {OUT / 'screenshots'}")

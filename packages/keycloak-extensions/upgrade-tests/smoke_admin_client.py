@@ -114,6 +114,14 @@ def read_only_calls(checks: Checks) -> None:
     ]
     checks.check("get_roles (tenant)", bool(roles), roles or errors(result))
     admin_id = user_id(TENANT_REALM, ADMIN_PORTAL_TEST_USERNAME)
+    if not checks.check(
+        "admin user in the tenant realm",
+        admin_id is not None,
+        admin_id or f"{ADMIN_PORTAL_TEST_USERNAME} not found in {TENANT_REALM}",
+    ):
+        checks.skip("list_user_roles (admin)", "no admin user")
+        checks.skip("get_user (admin)", "no admin user")
+        return
     result = graphql(
         "query($t:String!,$u:String!){list_user_roles(tenant_id:$t,user_id:$u){name}}",
         {"t": TENANT_ID, "u": admin_id},

@@ -14,13 +14,10 @@ from common import (
     OUT,
     Checks,
     data,
-    errors,
-    event_realm,
-    graphql,
+    delete_election_event,
     graphql_admin,
     keycloak,
     load_state,
-    wait_task,
 )
 
 
@@ -29,21 +26,7 @@ def main() -> int:
     checks = Checks()
     event_id = state.get("e2e_event_id")
     if event_id:
-        realm = event_realm(event_id)
-        result = graphql(
-            "mutation($e:String!){delete_election_event(election_event_id:$e){error_msg task_execution{id}}}",
-            {"e": event_id},
-        )
-        deleted = data(result, "delete_election_event") or {}
-        checks.check(
-            "delete_election_event",
-            bool(deleted) and not deleted.get("error_msg"),
-            deleted or errors(result),
-        )
-        status = wait_task((deleted.get("task_execution") or {}).get("id"))
-        checks.check("delete task", status == "SUCCESS", status)
-        realm_status = keycloak("GET", f"/{realm}").status
-        checks.check("event realm removed", realm_status == 404, f"HTTP {realm_status}")
+        delete_election_event(checks, event_id)
         remaining = data(
             graphql_admin(
                 "query($e:uuid!){sequent_backend_certificate_authority_aggregate(where:{election_event_id:{_eq:$e}}){aggregate{count}}}",
