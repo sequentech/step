@@ -11,6 +11,7 @@ import static org.mockito.Mockito.*;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -40,7 +41,8 @@ class SmartLinkSecretLoggingTest {
         .thenReturn(URI.create("https://auth.example/"));
     when(realm.getName()).thenReturn("test");
     LoginBridgeActionToken token = mock(LoginBridgeActionToken.class);
-    when(token.serialize(eq(session), eq(realm), any())).thenReturn("synthetic-smart-link-token");
+    when(token.serialize(eq(session), eq(realm), any(UriInfo.class)))
+        .thenReturn("synthetic-smart-link-token");
     when(token.getIssuedFor()).thenReturn("portal");
     RealmModel originalRealm = session.getContext().getRealm();
     try (CapturedLogs logs = new CapturedLogs(LoginBridge.class)) {
