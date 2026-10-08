@@ -490,6 +490,7 @@ mod tests {
     use crate::services::import::import_users::{
         get_copy_from_query, imported_fields, imported_value, resolve_authorized_election_ids,
     };
+    use crate::services::users::DELEGATE_TO_ATTR_NAME;
     use sequent_core::types::keycloak::{
         TENANT_ID_ATTR_NAME, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
     };
@@ -775,9 +776,10 @@ mod tests {
     }
 
     /// Other components read operational attributes, such as
-    /// `authorized-election-ids`, so one keeps its column over an earlier
-    /// attribute that import stores in the same one. Exporting the earlier one
-    /// instead would import the voter unrestricted.
+    /// `authorized-election-ids` or `delegate-vote-to`, so one keeps its column
+    /// over an earlier attribute that import stores in the same one. Exporting
+    /// the earlier one instead would import the voter unrestricted, or drop
+    /// their delegation.
     #[test]
     fn operational_attributes_keep_their_columns() {
         let attributes = vec![
@@ -785,6 +787,8 @@ mod tests {
             attribute(AUTHORIZED_ELECTION_IDS_NAME),
             attribute("Voted_Channel"),
             attribute(VOTED_CHANNEL),
+            attribute("delegate_vote_to"),
+            attribute(DELEGATE_TO_ATTR_NAME),
         ];
         let mut user = voter("current", &[EXTERNAL_ID]);
         user.attributes.get_or_insert_default().extend([
@@ -797,6 +801,11 @@ mod tests {
                 VOTED_CHANNEL.to_string(),
                 vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
             ),
+            ("delegate_vote_to".to_string(), vec!["custom".to_string()]),
+            (
+                DELEGATE_TO_ATTR_NAME.to_string(),
+                vec!["delegate".to_string()],
+            ),
         ]);
 
         let rows = import(
@@ -806,8 +815,10 @@ mod tests {
 
         assert_eq!(rows[0][AUTHORIZED_ELECTION_IDS_NAME], EXTERNAL_ID);
         assert_eq!(rows[0][VOTED_CHANNEL], VOTED_CHANNEL_INTERNET_VALUE);
+        assert_eq!(rows[0][DELEGATE_TO_ATTR_NAME], "delegate");
         assert!(!rows[0].contains_key("authorized_election_ids"));
         assert!(!rows[0].contains_key("Voted_Channel"));
+        assert!(!rows[0].contains_key("delegate_vote_to"));
     }
 
     /// Kept as they are, they could name an election in the election event they

@@ -48,18 +48,20 @@ event.
 | `vote-weight`, `delegate-vote-to` | See the weighted and delegated voting policies under **Data > Advanced Configuration**. |
 | Any other column | Stored as the voter attribute of the same name, unless the name starts with `election__`: export adds those columns, one per election, and import ignores them. |
 
-Column names may only contain letters, digits, `.`, `_` and `-`, and two names that differ only in
-case or in those three characters are rejected as duplicates. Export writes a column for each voter
-attribute, except those that import would not read back:
+Column names may only contain letters, digits, `.`, `_` and `-`. Import reads `area_name` as the
+voter's `area-id`, and any other name in lower case and with `.` and `-` as `_`, and rejects two
+columns that it reads as the same one, such as `Email` and `email`, `mobile.number` and
+`mobile_number`, or `area_name` and `area-id`. Export writes a column for each voter attribute,
+except those that import would not read back:
 
 - One named like a column with another meaning, such as `password` or `group_name`, which would set
   the voter's password or group.
 - One that import fills itself, such as `tenant-id` or the account field `not_before`, or whose name
   starts with `election__`, which import ignores.
 - One that import would reject the file over: an attribute whose name has other characters, is a
-  misspelling of `vote-weight`, or differs only in case or in `.`, `_` and `-` from the name of an
-  account column or of another attribute. Of two such attributes, export writes the one that other
-  components read, such as `authorized-election-ids`, and otherwise the first.
+  misspelling of `vote-weight`, or that import reads as the same column as an account field or
+  another attribute. Of two such attributes, export writes the one that other components read, such
+  as `authorized-election-ids`, and otherwise the first.
 
 Spreadsheets run a cell that starts with `=`, `+`, `-`, `@` or their full-width forms, a tab or a
 line break as a formula. Export writes a `'` before such a value, so that they show it as text, and
