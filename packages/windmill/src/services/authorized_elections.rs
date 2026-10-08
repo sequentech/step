@@ -44,9 +44,9 @@ fn can_be_stored(value: &str) -> bool {
         && !value.starts_with(FORMULA_PREFIXES)
 }
 
-/// How export writes a stored value that does not name a single election, so
-/// that importing it into any election event fails: in double quotes.
-pub(crate) fn unresolved_cell_value(value: &str) -> String {
+/// `value` in double quotes, as export writes values that do not name a single
+/// election, so that importing them into any election event fails.
+pub(crate) fn quoted(value: &str) -> String {
     format!("{QUOTE}{}{QUOTE}", value.escape_debug())
 }
 
