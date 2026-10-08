@@ -30,12 +30,12 @@ export default function VersionSitesNavbarItem({mobile, ...props}) {
     i18n.currentLocale === i18n.defaultLocale ? '' : `${i18n.currentLocale}/`;
   const section = manualHome.slice(0, manualHome.lastIndexOf('/'));
   const inManual = pathname.includes(`/${section}`);
-  const items = docsSites.map(({name, url}) => ({
+  const items = docsSites.map(({name, url, manualHome: home}) => ({
     label:
       name === 'main'
         ? translate({id: 'versionSites.main', message: 'Next (main)'})
         : name,
-    href: `${url}${localePrefix}${inManual ? manualHome : ''}`,
+    href: `${url}${localePrefix}${inManual ? home : ''}`,
     className: name === docsVersion ? 'dropdown__link--active' : undefined,
   }));
   return (

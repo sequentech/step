@@ -8,17 +8,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 // release branch at /docusaurus/release/<name>.
 const SITE = 'https://docs.sequentech.io/docusaurus';
 
-// The release lines in service. Add a line here when a release branch is cut.
+// The home page of the election administrator manual, relative to the base
+// URL of a site. The PDF starts there and the version menu links to it.
+const MANUAL = 'docs/election_managers/election_management';
+const MANUAL_9 = 'docs/admin_portal/election_management';
+
+// The release lines in service, with the address of their manual. Add a line
+// here when a release branch is cut.
 const sites = [
-  {name: 'main', url: `${SITE}/main/`},
-  {name: '10.1', url: `${SITE}/release/10.1/`},
-  {name: '10.0', url: `${SITE}/release/10.0/`},
-  {name: '9.0', url: `${SITE}/release/9.0/`},
+  {name: 'main', url: `${SITE}/main/`, manualHome: MANUAL},
+  {name: '10.1', url: `${SITE}/release/10.1/`, manualHome: MANUAL},
+  {name: '10.0', url: `${SITE}/release/10.0/`, manualHome: MANUAL},
+  {name: '9.0', url: `${SITE}/release/9.0/`, manualHome: MANUAL_9},
 ];
 
-// The home page of the election administrator manual, relative to the base
-// URL. The PDF starts there and the version menu links to it.
-const manualHome = 'docs/election_managers/election_management';
+// The manual of this branch.
+const manualHome = MANUAL;
 
 // "main", the full release branch name after "release/" (for example "10.0"
 // or "9.0.0"), or "dev" for PR previews and local builds.
