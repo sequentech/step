@@ -213,6 +213,52 @@ const tagalogTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Pakikonpirma na nais mong isagawa ang aksyong ito, maaaring magtagal ito bago matapos.",
+                title: "I-export ang mga log",
+                from: "Mula",
+                to: "Hanggang",
+                timeZone: "Timezone",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Bawat hilera ay may oras sa UTC (ISO 8601) at sa {{abbr}}, kasama ang pangalan ng timezone. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+                zoneNotePdf:
+                    "Ipinapakita ng PDF ang bawat oras sa {{abbr}}. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+                rowZones: "Ang timezone ng halalan ng bawat hilera",
+                zoneNoteRows:
+                    "Bawat hilera ay may oras sa UTC (ISO 8601) at sa timezone ng halalan nito, kasama ang pangalan ng timezone. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "Ipinapakita ng PDF ang bawat oras sa timezone ng halalan nito. Kasama sa saklaw ng petsa ang magkabilang dulo, sa {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Nilikha mula",
+                createdTo: "hanggang",
+                statementTimestampFrom: "Timestamp ng pahayag mula",
+                statementTimestampTo: "Timestamp ng pahayag hanggang",
+                timeZone: "Timezone",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Naghihintay ng inisyalisasyon",
+                    "runs": "tumatakbo",
+                    "runs-unsigned": "tumatakbo nang walang lagda",
+                    "refused": "tinanggihan",
+                },
+                check: {
+                    "initialization": "Hindi pa kumpleto ang kinakailangang inisyalisasyon",
+                    "voting-close":
+                        "Hindi maaaring buksan ang pagboto pagkatapos ng takdang pagsasara",
+                    "needs-signatures": "kailangan ng lagda",
+                    "covered": "nasa nilagdaang configuration",
+                    "unsigned-close": "pagsasara nang walang lagda",
+                    "stricter-copy": "kasalukuyan at nailathalang setting",
+                    "defaults": "wala pang nailathala",
+                },
+                changed: "Ngayon ay {{after}} (dati: {{before}}).",
+                result: "Kinalabasan: {{outcome}}.",
+                deciding: "Nagpasyang pagsusuri: {{check}}. {{value}}",
+                authorizedBy: "Pinahintulutan ng configuration {{code}}.",
+                nextStep: "Susunod na hakbang: {{step}}",
             },
             column: {
                 id: "ID",
@@ -304,6 +350,7 @@ const tagalogTranslation: TranslationType = {
                 taskTitle: "Gawain: {{title}}",
                 viewTask: "Tingnan Ang Gawain",
                 downloadDocument: "I-download ang File",
+                downloadHashManifest: "Hash manifest",
             },
             exportTasksExecution: {
                 success: "Matagumpay na natapos ang pag-export",
@@ -507,6 +554,7 @@ const tagalogTranslation: TranslationType = {
                     duplicateKey: "May override na para sa key at saklaw ng portal na ito.",
                     invalidDateTimeFormat:
                         "Di-wastong format ng petsa/oras. Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Dapat panatilihin ng tekstong ito ang {{placeholders}}.",
                 },
                 common: {
                     title: "Localization",
@@ -524,6 +572,7 @@ const tagalogTranslation: TranslationType = {
                     ballotVerifier: "Tagapagpatunay ng balota",
                     resultsPortal: "Portal ng mga resulta",
                     adminPortal: "Portal ng admin",
+                    templates: "Mga ulat at mensahe",
                 },
             },
             field: {
@@ -586,6 +635,22 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Mga setting ng accessibility ng botante",
+                    options: {
+                        disabled: "Itago ang mga setting ng accessibility",
+                        enabled: "Ialok ang laki ng teksto, contrast, agwat at galaw",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Mga tagubiling audio",
+                    options: {
+                        "disabled": "Walang tagubiling audio",
+                        "recorded": "Mga in-upload na recording lamang",
+                        "recorded-or-synthesized":
+                            "Mga in-upload na recording, o ang boses ng browser kung wala",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Patakaran sa Ipakita ng mga Log ng Pagboto",
                     options: {
@@ -595,6 +660,8 @@ const tagalogTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "Kalagayan ng Lockdown",
+                    helperText:
+                        "Iiskedyul ang simula o katapusan ng panahon ng lockdown upang baguhin ang kalagayang ito.",
                     options: {
                         "locked-down": "Naka-lockdown",
                         "not-locked-down": "Hindi naka-lockdown",
@@ -1048,6 +1115,21 @@ const tagalogTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Mga Slate",
+                configuration: "Configuration ng mga slate (JSON)",
+                helper: "Mga slate na may pangalan at ang mga kandidato ng bawat isa sa bawat paligsahan. Iwanang walang laman para sa halalang walang slate.",
+                loading:
+                    "Nilo-load pa ang mga paligsahan at kandidato ng halalan. Subukan muli sa ilang sandali.",
+                mobileCandidateLists: {
+                    label: "Mga listahan ng kandidato sa mobile",
+                    helper: "Kung paano nagsisimula ang listahan ng kandidato ng bawat slate sa telepono. Maaari itong buksan o isara ng botante anumang oras.",
+                    options: {
+                        collapsed: "Nakatiklop",
+                        expanded: "Nakabukas",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Patakaran sa Pamagat ng Pangunahing Screen",
                 options: {
@@ -1488,6 +1570,7 @@ const tagalogTranslation: TranslationType = {
                 "task-export": "I-export ang mga Gawain",
                 "application-read": "Basahin ang Aplikasyon",
                 "application-write": "I-edit ang Aplikasyon",
+                "approval-matrix-write": "I-edit ang Matrix ng Pag-apruba",
                 "logs-export": "I-export ang mga Log",
                 "election-event-logs-columns": "Mga Kolum ng mga Log ng Kaganapang Halalan",
                 "election-events-logs-filters": "Mga Filter ng mga Log ng Kaganapang Halalan",
@@ -1602,6 +1685,22 @@ const tagalogTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Simulan ang Lockdown Period",
                 END_LOCKDOWN_PERIOD: "Tapusin ang Panahon ng Lockdown",
                 ALLOW_TALLY: "Payagan ang tally",
+                START_READINESS_TEST: "Simulan ang Pagsubok sa Kahandaan ng Halalan",
+                END_READINESS_TEST: "Tapusin ang Pagsubok sa Kahandaan ng Halalan",
+                START_FINAL_TESTING: "Simulan ang Huling Pagsubok at Lockdown",
+                END_FINAL_TESTING: "Tapusin ang Huling Pagsubok at Lockdown",
+                START_TEST_VOTING: "Simulan ang Pagsubok na Pagboto",
+                END_TEST_VOTING: "Tapusin ang Pagsubok na Pagboto",
+            },
+            warning: {
+                votingWindowDays:
+                    "Ang botohan ng {{election}} ay sumasaklaw sa {{days}} lokal na araw ({{start_local}} hanggang {{end_local}}, {{time_zone}}); {{expected}} ang hinihingi ng patakaran.",
+                finalTestingLeadTime:
+                    "Magsisimula ang final testing ng {{election}} sa {{final_testing_local}}, wala pang {{minimum_days}} araw bago magbukas ang botohan sa {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "Nagsasara ang botohan ng {{election}} bago o sa mismong pagbubukas nito ({{start_local}} hanggang {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "Ang huling araw ng botohan ng {{election}} ay may {{hours}} oras, kulang sa {{minimum_hours}}: nagsasara ang botohan sa {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Halalan",
@@ -1940,6 +2039,7 @@ const tagalogTranslation: TranslationType = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Patanid",
                 "warn-and-alert": "Patanid asin Alerto",
+                "warn-and-confirm-in-review": "Patanid asin Kumpirmahon sa Review",
             },
             invalidVotePolicy: {
                 "label": "Patakaran sa walang boto",
@@ -2447,6 +2547,16 @@ const tagalogTranslation: TranslationType = {
                 "I-export ang resulta ng lahat ng lugar sa format na {{format}} para kay '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Bumuo ng ulat para sa buong Post o isang bansa. Mananatiling naka-block ang pagboto hanggang makumpleto ang lahat ng kinakailangang inisyalisasyon para sa mga bansa at sa buong kaganapan.",
+                countriesError:
+                    "Hindi ma-load ang mga kwalipikadong bansa. Isara at subukang muli.",
+                noCountries:
+                    "Walang kwalipikadong bansa na may aktibong mga estilo ng balota ang Post na ito. Suriin ang mga lugar at publikasyon nito bago mag-inisyalisa.",
+                country: "Bansa",
+                entirePost: "Buong Post",
+            },
             preview: {
                 publicationAreas: "Piliin ang Lugar para sa Preview",
                 action: "Preview",
@@ -2764,6 +2874,23 @@ const tagalogTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Mga tagubiling audio para sa screen",
+                languageLabel: "Wika ng recording",
+                none: "Hindi tagubiling audio",
+                helperText:
+                    "Maririnig ng mga botante ang file na ito kapag hiniling nila ang mga tagubilin sa screen na iyon.",
+                screens: {
+                    "election-chooser": "Listahan ng mga halalan",
+                    "start": "Simula",
+                    "ballot": "Balota",
+                    "review": "Pagsusuri",
+                    "confirmation": "Kumpirmasyon",
+                    "audit": "Audit",
+                    "ballot-locator": "Ballot locator",
+                    "support-materials": "Mga materyal na pansuporta",
+                },
+            },
             createMaterialSuccess: "Nalikha ang suportang materyal",
             createMaterialError: "Error sa paglikha ng suportang materyal",
             updateMaterialSuccess: "Na-update ang suportang materyal",
@@ -2835,46 +2962,442 @@ const tagalogTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Katayuan",
-                id: "ID",
-                applicantId: "ID ng Aplikante",
-                verificationType: "Uri ng Pag-verify",
-                createdAt: "Nilikha Noong",
-                updatedAt: "Na-update Noong",
-                verified_by: "Napatunayan Noong",
+                id: "ID ng aplikasyon",
+                applicantId: "ID ng aplikante",
+                verificationType: "Pag-verify",
+                createdAt: "Nag-apply",
+                verified_by: "Na-verify ni",
+                voter: "Botante",
+                what: "Ano ang nangyari",
+                post: "Post",
+                when: "Kailan",
             },
-            approvalRequest: "Kahilingan para sa Pag-apruba",
-            taskInformation: "Impormasyon ng Gawain",
-            ok: "Sige",
-            title: "Mga Botante",
-            subtitle: "Maghanap ng mga tumutugmang botante",
-            approve: {
-                body: "Sigurado ka bang nais mong aprubahan ang botanteng ito? Hindi na mababawi ang aksyong ito.",
+            status: {
+                PENDING: "Kailangang suriin",
+                ACCEPTED: "Naaprubahan",
+                REJECTED: "Tinanggihan",
             },
-            reject: {
-                label: "Tanggihan ang aplikasyon",
-                confirm:
-                    "Sigurado ka bang gusto mong tanggihan ang botanteng ito? Ang aksyong ito ay hindi maaaring bawiin.",
-                message: "Isulat dito ang dahilan ng pagtanggi",
-                rejectReason: "Dahilan ng Pagtanggi",
-                messageRequired: "Kinakailangan ang mensahe ng pagtanggi para sa opsyon na 'Iba'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Kulang na Datos",
-                    "no-matching-voter": "Walang Tumutugma na Botante",
-                    "voter-already-approved": "Naaprubahan Na",
-                    "other": "Iba Pa",
+            verification: {
+                AUTOMATIC: "Awtomatiko",
+                MANUAL: "Mano-mano",
+            },
+            time: {
+                minutes_one: "{{count}} minuto",
+                minutes_other: "{{count}} minuto",
+                hours_one: "{{count}} oras",
+                hours_other: "{{count}} oras",
+                days_one: "{{count}} araw",
+                days_other: "{{count}} araw",
+            },
+            summary: {
+                join: "{{head}} at {{last}}",
+                differs_one: "{{fields}} ang naiiba sa talaan",
+                differs_other: "{{fields}} ang naiiba sa talaan",
+                typedByHand:
+                    "Mano-manong tinype ang mga detalye, hindi binasa mula sa na-scan na ID",
+                needsFaceToFace: "Kailangan ng harapang pagsusuri",
+                scanVerified: "Na-verify ang na-scan na ID",
+                noVoter: "Walang natagpuang botante sa talaan",
+                allMatch: "Tumutugma sa talaan ang lahat ng detalye",
+                needsReview: "Naghihintay ng pasya ng isang tao",
+                approvedBy: "Inaprubahan ni {{name}}",
+                approvedAuto: "Awtomatikong naaprubahan",
+                rejectedBy: "Tinanggihan ni {{name}}",
+                rejectedAuto: "Awtomatikong tinanggihan",
+            },
+            list: {
+                title: "Mga Pag-apruba",
+                subtitle:
+                    "Dito naghihintay ng isang tao ang mga pagpapatalang hindi mapagpasyahan ng mga panuntunan nang mag-isa.",
+                search: "Maghanap",
+                review: "Suriin ang pagpapatala",
+                openRecord: "Buksan ang pagpapatala",
+                seeRule: "Tingnan ang panuntunang nagpasya",
+                unnamed: "Aplikanteng walang pangalan",
+                waiting: "{{time}} nang naghihintay",
+                applied: "Nag-apply noong {{date}}",
+                empty: {
+                    title: "Walang laman dito",
+                    text: "Lalabas dito ang mga pagpapatalang may ganitong katayuan. Subukan ang ibang paghahanap o katayuan.",
                 },
             },
+            flow: {
+                stepsLabel: "Mga hakbang ng pagsusuri",
+                steps: {
+                    identity: "Suriin ang pagkakakilanlan",
+                    voter: "Hanapin ang botante",
+                    decide: "Magpasya",
+                },
+                continue: "Magpatuloy",
+                backToList: "Bumalik sa Mga Pag-apruba",
+                identity: {
+                    details: "Mga detalye sa pagpapatala",
+                    confirm:
+                        "Sinuri ko ang ID ng botante nang personal o sa video call, at tumutugma ito sa pagpapatalang ito.",
+                    checked: "Nakumpirma ang harapang pagsusuri",
+                    notChecked: "Hindi pa nakukumpirma ang harapang pagsusuri",
+                },
+                voter: {
+                    none: "Wala sa mga ito ang botante",
+                    noneHint:
+                        "Kung gayon, matatanggihan lamang ang pagpapatala dahil walang tumutugmang botante.",
+                    noneChosen: "Wala sa mga ito ang botante",
+                    notChosen: "Wala pang napiling botante",
+                },
+                decide: {
+                    approve: "Aprubahan",
+                    reject: "Tanggihan",
+                    approveText:
+                        "Iugnay ang pagpapatalang ito kay {{voter}} sa talaan. Sasabihan ang botante sa email o text message at makakapag-sign in siya upang bumoto kapag nagbukas ang botohan.",
+                    rejectText: "Sasabihin sa botante ang dahilan. Hindi na ito mababawi.",
+                    chooseVoter:
+                        "Piliin ang tumutugmang botante sa hakbang 2 upang makapag-apruba.",
+                    noVoter:
+                        "Wala kang nahanap na tumutugmang botante, kaya matatanggihan lamang ang pagpapatalang ito.",
+                    enrolled: "Nakatala na ang napiling botante.",
+                    faceToFace:
+                        "Kumpirmahin ang harapang pagsusuri sa hakbang 1 upang makapag-apruba.",
+                },
+            },
+            review: {
+                loadError: "Hindi ma-load ang pagpapatala.",
+                applied: "Nag-apply noong {{date}}",
+                waiting: "{{time}} nang naghihintay",
+                whyTitle: "Bakit kailangan nito ng isang tao",
+                decisionTitle: "Paano ito napagpasyahan",
+                rule: "Panuntunan {{rule}} ng bersyon {{version}} ng matrix",
+                ruleLast: "Huling panuntunan ng bersyon {{version}} ng matrix",
+                seeRule: "Tingnan ang panuntunan",
+                why: {
+                    typedByHand:
+                        "Mano-manong tinype ng botante ang kanyang mga detalye sa halip na mag-scan ng ID. Hindi kailanman awtomatikong inaaprubahan ang ganitong mga pagpapatala: kinukumpirma muna ng isang opisyal kung sino siya.",
+                    differs_one:
+                        "Isang detalye ang hindi tumutugma sa talaan: {{details}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    differs_other:
+                        "{{count}} detalye ang hindi tumutugma sa talaan: {{details}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    differsFields_one:
+                        "Isang detalye ang hindi tumutugma sa talaan: {{fields}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    differsFields_other:
+                        "{{count}} detalye ang hindi tumutugma sa talaan: {{fields}}. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    difference:
+                        "ang {{field}} ay “{{enrollment}}” sa pagpapatala at “{{registry}}” sa talaan",
+                    noVoter:
+                        "Walang botante sa talaan na may ganitong mga detalye. Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    severalVoters:
+                        "Higit sa isang botante sa talaan ang tumutugma sa pagpapatalang ito. Isang tao ang pipili ng tama.",
+                    pending:
+                        "Hinihiling ng mga panuntunan sa pag-apruba na suriin ng isang tao ang pagpapatalang ito.",
+                    unknown: "Naghihintay ang pagpapatalang ito ng pasya ng isang tao.",
+                    approvedAuto:
+                        "Awtomatikong inaprubahan ng mga panuntunan sa pag-apruba ang pagpapatalang ito. Pumasa ang lahat ng pagsusuring hinihingi ng mga ito.",
+                    approvedBy: "Inaprubahan ni {{name}} ang pagpapatalang ito noong {{date}}.",
+                    rejectedAuto:
+                        "Awtomatikong tinanggihan ng mga panuntunan sa pag-apruba ang pagpapatalang ito: {{reason}}.",
+                    rejectedBy:
+                        "Tinanggihan ni {{name}} ang pagpapatalang ito noong {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "Naghanap kami ng mga botanteng may parehong {{fields}}. Piliin kung kanino ang pagpapatalang ito.",
+                registrySearching:
+                    "Ito ang mga botante sa talaan na tumutugma sa iyong paghahanap. Piliin kung kanino ang pagpapatalang ito.",
+                registrySearch: "Wala sa listahan? Maghanap sa talaan ayon sa pangalan o email",
+                registryLoading: "Naghahanap sa talaan",
+                registryError: "Hindi makapaghanap sa talaan.",
+                noCandidates:
+                    "Walang botante sa talaan na tumutugma. Subukang maghanap ayon sa pangalan o email.",
+                candidates: "Mga botante sa talaan",
+                alreadyEnrolled: "Nakatala na",
+                bestMatch: "Pinakatugma",
+                detailsMatch: "{{count}} sa {{total}} detalye ang tumutugma",
+                compareTitle: "Inihambing kay {{name}} sa talaan",
+                col: {
+                    detail: "Detalye",
+                    enrollment: "Sa pagpapatala",
+                    registry: "Sa talaan",
+                    result: "Resulta",
+                },
+                same: "Pareho",
+                differs: "Magkaiba",
+                compareNote:
+                    "Hindi isinasaalang-alang sa mga pangalan ang malaki at maliit na titik, mga tuldik at gitling.",
+                compareJoint:
+                    "Para sa mga lisensya sa pagmamaneho at seafarer's book, pinagsamang inihahambing ang unang pangalan at gitnang pangalan.",
+                applicationId: "ID ng aplikasyon",
+                copy: "Kopyahin",
+                copied: "Nakopya",
+                approve: "Aprubahan ang pagpapatala",
+                approveDialog: {
+                    title: "Aprubahan si {{name}}?",
+                    body: "Iuugnay nito ang pagpapatala sa botante sa talaan na nasa ibaba. Sasabihan ang botante sa email o text message at makakapag-sign in siya upang bumoto kapag nagbukas ang botohan.",
+                    checked: "Sinuri mo nang harapan ang ID ng botante.",
+                    irreversible: "Hindi na ito mababawi.",
+                    confirm: "Aprubahan",
+                },
+                reject: "Tanggihan ang pagpapatala",
+            },
+            idCheck: {
+                title: "Pagsusuri ng ID",
+                method: {
+                    VERIFIED: "Na-verify ang na-scan na ID",
+                    MANUAL_ENTRY: "Mano-manong tinype",
+                    UNKNOWN: "Hindi iniulat",
+                },
+                verified: "Na-verify ng proseso ng pagpapatala ang ID ng botante",
+                typedByHand: "Mano-manong tinype ng botante ang kanyang mga detalye",
+                unknown:
+                    "Hindi iniulat ng proseso ng pagpapatala kung paano sinuri ang pagkakakilanlan",
+                faceToFaceTitle: "Suriin siya nang harapan bago aprubahan",
+                faceToFaceText:
+                    "Kausapin ang botante nang personal o sa video call at ihambing ang kanyang ID sa mga detalye sa pahinang ito.",
+            },
+            reject: {
+                rejectReason: "Dahilan ng pagtanggi",
+                message: "Mensahe sa botante",
+                messageRequired: "Sumulat ng mensahe para sa botante kapag ang dahilan ay Iba pa.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Kulang na datos",
+                    "no-matching-voter": "Walang tumutugmang botante",
+                    "voter-already-approved": "Naaprubahan na",
+                    "other": "Iba pa",
+                },
+                hint: {
+                    "insufficient-information": "May kulang na detalye o hindi ito mabasa.",
+                    "no-matching-voter": "Wala ang tao sa talaan ng mga botante.",
+                    "voter-already-approved": "Nakatala na ang botanteng ito.",
+                    "other": "Sumulat ng sarili mong mensahe.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Hindi ka namin naitala dahil may kulang o hindi mabasa sa iyong mga detalye. Mangyaring magpatala muli na may kumpletong detalye.",
+                    "no-matching-voter":
+                        "Wala kaming nahanap na botante sa talaan na tumutugma sa iyong mga detalye. Suriin ang iyong mga detalye at magpatala muli, o makipag-ugnayan sa iyong tanggapan ng halalan.",
+                    "voter-already-approved":
+                        "Nakatala ka na. Makakapag-sign in ka upang bumoto kapag nagbukas ang botohan.",
+                },
+                previewTitle: "Makikita ng botante",
+            },
             notifications: {
-                approveError: "Error sa pag-apruba ng botante",
-                approveSuccess: "Inaprubahan ang botante",
-                rejectError: "Error sa pagtanggi ng botante",
-                rejectSuccess: "Tinanggihan ang botante",
-                VoterApprovedAlready: "Ang botante ay naaprubahan na.",
+                approveError: "Hindi maaprubahan ang pagpapatala",
+                approveSuccess: "Naaprubahan si {{name}}. Nasabihan na ang botante.",
+                rejectError: "Hindi matanggihan ang pagpapatala",
+                rejectSuccess: "Tinanggihan si {{name}}. Nasabihan na ang botante.",
+                VoterApprovedAlready: "Nakatala na ang botanteng ito.",
             },
             export: {
                 success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",
                 error: "Error sa pag-export ng mga aplikasyon",
+            },
+            matrix: {
+                button: "Matrix ng pag-apruba",
+                title: "Matrix ng pag-apruba",
+                back: "Mga Pag-apruba",
+                subtitle:
+                    "Ang mga panuntunan ang nagpapasya kung ano ang mangyayari sa bawat pagpapatala. Ang unang panuntunang tumutugma ang nagpapasya.",
+                versionChip: "Bersyon {{version}}",
+                savedBy: "Na-save noong {{date}} ni {{user}}",
+                builtIn: "Mga likas na panuntunan, ginagamit hanggang may ma-save na bersyon",
+                unsaved: "May mga pagbabagong hindi pa na-save",
+                viewOnly: "Pagtingin lamang",
+                readOnlyTitle: "Makikita mo ang mga panuntunan ngunit hindi mo mababago",
+                readOnlyText:
+                    "Hilingin sa isang administrator na may pahintulot na approval-matrix-write na gawin ang mga pagbabago.",
+                loadError: "Hindi ma-load ang matrix ng pag-apruba.",
+                compared: "Ano ang inihahambing namin",
+                comparedHelp:
+                    "Ang bawat pagpapatala ay inihahambing sa botanteng natagpuan sa talaan. Hindi isinasaalang-alang sa mga pangalan ang malaki at maliit na titik, mga tuldik at gitling; para sa mga lisensya sa pagmamaneho at seafarer's book, pinagsamang inihahambing ang unang pangalan at gitnang pangalan.",
+                addCompared: "Maghambing ng isa pang detalye",
+                rules: "Mga panuntunan",
+                rulesHelp:
+                    "Sinusuri ang mga panuntunan mula sa itaas. Ang unang tumutugma ang nagpapasya; kung walang tumutugma, ang huling panuntunan ang ilalapat.",
+                when: "Kapag",
+                then: "Kung gayon",
+                otherwise: "Kung hindi",
+                noneApply: "Walang tumutugma sa mga panuntunan sa itaas",
+                andWord: "at",
+                and: " at ",
+                appliesToExample: "Tumutugma sa iyong halimbawa",
+                cameFrom: "Nagpasya sa pagpapatalang pinanggalingan mo",
+                voterIsTold: "Sasabihin sa botante: “{{reason}}”.",
+                sentence: "Kapag {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Kung walang tumutugma sa mga panuntunan sa itaas, {{outcome}}.",
+                sentenceEmpty:
+                    "Magdagdag ng kondisyon upang sabihin kung kailan tumutugma ang panuntunang ito.",
+                addRule: "Magdagdag ng panuntunan",
+                discard: "Itapon ang mga pagbabago",
+                actions: {
+                    edit: "I-edit ang panuntunan {{number}}",
+                    editOtherwise: "I-edit ang huling panuntunan",
+                    moveUp: "Itaas ang panuntunan {{number}}",
+                    moveDown: "Ibaba ang panuntunan {{number}}",
+                    delete: "Tanggalin ang panuntunan {{number}}",
+                },
+                saveBar: {
+                    title: "May mga pagbabago kang hindi pa na-save",
+                    fix_one: "Ayusin ang 1 panuntunan bago mag-save",
+                    fix_other: "Ayusin ang {{count}} panuntunan bago mag-save",
+                    more: "+{{count}} pa",
+                },
+                test: "Sumubok ng halimbawa",
+                testHelp:
+                    "Ilarawan ang isang pagpapatala upang makita kung aling panuntunan ang nagpapasya rito. Kasama ang mga pagbabago mong hindi pa na-save.",
+                testDetails: "Mga detalyeng inihahambing",
+                applies: "Tumutugma ang panuntunan {{number}}",
+                otherwiseApplies: "Ang huling panuntunan ang ilalapat",
+                testError: "Hindi masubukan ang halimbawa.",
+                testInvalid: "Ayusin ang mga panuntunang ito upang makasubok ng halimbawa:",
+                ruleError: "Panuntunan {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Hindi kailanman awtomatikong inaaprubahan ang pagkakakilanlang tinype, kaya ipapadala ito sa isang tao.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Hindi na muling inaaprubahan ang botanteng nakatala na.",
+                    NO_VOTER_NOT_ACCEPTED: "Walang inaaprubahan kung walang botante sa talaan.",
+                    OTHERWISE_NOT_ACCEPTED: "Hindi kailanman nag-aapruba ang huling panuntunan.",
+                },
+                dialog: {
+                    editTitle: "I-edit ang panuntunan {{number}}",
+                    newTitle: "Bagong panuntunan",
+                    otherwiseTitle: "I-edit ang huling panuntunan",
+                    summary: "Sa madaling salita",
+                    whenHelp:
+                        "Dapat totoo ang lahat ng ito. Huwag isama ang isang kondisyon kapag hindi ito mahalaga.",
+                    otherwiseHelp: "Kung walang tumutugma sa mga panuntunan sa itaas",
+                    addCondition: "Magdagdag ng kondisyon",
+                    remove: "Alisin ang “{{condition}}”",
+                    identity: "Pagsusuri ng pagkakakilanlan",
+                    voterFound: "Botante sa talaan",
+                    alreadyEnrolled: "Nakatala na",
+                    validId: "Uri ng ID",
+                    differing: "Mga detalyeng naiiba",
+                    decision: "Pasya",
+                    reason: "Ano ang sasabihin sa botante",
+                    voterSees: "Makikita ng botante",
+                    apply: "Ilapat",
+                    close: "Isara",
+                    yes: "Oo",
+                    no: "Hindi",
+                    notReported: "Hindi iniulat",
+                },
+                identity: {
+                    VERIFIED: "Na-verify sa pag-scan ng ID",
+                    MANUAL_ENTRY: "Mano-manong tinype",
+                },
+                differing: {
+                    none: "Wala",
+                    exactly_1: "Eksaktong 1",
+                    at_most_1: "Hindi hihigit sa 1",
+                    exactly_2: "Eksaktong 2",
+                    at_most_2: "Hindi hihigit sa 2",
+                    at_least_3: "3 o higit pa",
+                },
+                fieldMatch: {
+                    MATCHES: "Pareho",
+                    DIFFERS: "Magkaiba",
+                },
+                decisions: {
+                    ACCEPTED: "Awtomatikong aprubahan",
+                    PENDING: "Ipadala sa isang tao",
+                    REJECTED: "Tanggihan",
+                },
+                outcomeShort: {
+                    ACCEPTED: "awtomatikong aprubahan",
+                    PENDING: "ipadala sa isang tao",
+                    REJECTED: "tanggihan",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "Naitatala ang botante nang walang taong tumitingin dito.",
+                    PENDING:
+                        "Isang opisyal ang magpapasya, at sasabihin sa botante na sinusuri ang kanyang pagpapatala.",
+                    REJECTED: "Sasabihin sa botante ang dahilan, at maaari siyang magpatala muli.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "awtomatikong aaprubahan ang pagpapatala",
+                    PENDING: "ipapadala ang pagpapatala sa isang tao",
+                    REJECTED: "tatanggihan ang pagpapatala",
+                },
+                reasons: {
+                    NO_VOTER: "Walang tumutugmang botante",
+                    ALREADY_APPROVED: "Naaprubahan na",
+                    INSUFFICIENT_INFORMATION: "Kulang na datos",
+                    IDENTITY_NOT_VERIFIED: "Hindi na-verify ang pagkakakilanlan",
+                    OTHER: "Iba pa",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Wala kaming nahanap na botante sa talaan na tumutugma sa iyong mga detalye. Suriin ang iyong mga detalye at magpatala muli, o makipag-ugnayan sa iyong tanggapan ng halalan.",
+                    ALREADY_APPROVED:
+                        "Nakatala ka na. Makakapag-sign in ka upang bumoto kapag nagbukas ang botohan.",
+                    INSUFFICIENT_INFORMATION:
+                        "Hindi ka namin naitala dahil may kulang o hindi mabasa sa iyong mga detalye. Mangyaring magpatala muli na may kumpletong detalye.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Hindi namin awtomatikong na-verify ang iyong pagkakakilanlan, kaya susuriin ng isang opisyal ng halalan ang iyong pagpapatala.",
+                    OTHER: "Isang opisyal ng halalan ang susulat ng mensaheng ito kapag nagpasya na siya.",
+                },
+                conditions: {
+                    any: "Wala pang kondisyon",
+                    identity: {
+                        VERIFIED: "Na-verify ang pagkakakilanlan sa pag-scan ng ID",
+                        MANUAL_ENTRY: "Mano-manong tinype ang pagkakakilanlan",
+                    },
+                    voterFound: {
+                        true: "Natagpuan ang botante sa talaan",
+                        false: "Walang natagpuang botante sa talaan",
+                    },
+                    alreadyEnrolled: {
+                        true: "Nakatala na",
+                        false: "Hindi pa nakatala",
+                    },
+                    validId: "ID: {{id}}",
+                    differing: {
+                        none: "Tumutugma ang lahat ng detalye",
+                        exactly_1: "Eksaktong 1 detalye ang naiiba",
+                        at_most_1: "Hindi hihigit sa 1 detalye ang naiiba",
+                        exactly_2: "Eksaktong 2 detalye ang naiiba",
+                        at_most_2: "Hindi hihigit sa 2 detalye ang naiiba",
+                        at_least_3: "3 o higit pang detalye ang naiiba",
+                    },
+                    field: {
+                        MATCHES: "Tumutugma ang {{field}}",
+                        DIFFERS: "Naiiba ang {{field}}",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Hindi maaaring awtomatikong aprubahan ang mga pagpapatalang mano-manong tinype ang pagkakakilanlan.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Hindi na maaaring aprubahan muli ang botanteng nakatala na.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Hindi maaaring aprubahan ang pagpapatala kung walang botante sa talaan.",
+                    OTHERWISE_ACCEPTS:
+                        "Ang huling panuntunan ay maaaring magpadala ng mga pagpapatala sa isang tao o tanggihan ang mga ito, ngunit hindi aprubahan.",
+                    MISSING_REASON: "Piliin kung ano ang sasabihin sa botante.",
+                    UNEXPECTED_REASON: "Walang dahilan ang isang pag-apruba.",
+                    NO_COMPARED_FIELDS: "Pumili ng kahit isang detalyeng ihahambing sa talaan.",
+                    DUPLICATE_COMPARED_FIELD: "May inihahambing na detalyeng inulit.",
+                    UNKNOWN_FIELD: "May panuntunang gumagamit ng detalyeng hindi inihahambing.",
+                    NO_CONDITIONS:
+                        "Magdagdag ng kahit isang kondisyon. Ang huling panuntunan lamang ang sumasaklaw sa lahat ng iba pa.",
+                },
+                change: {
+                    added: "Naidagdag ang panuntunan {{number}}",
+                    decision: "Panuntunan {{number}}: {{from}} → {{to}}",
+                    edited: "Nabago ang panuntunan {{number}}",
+                    removed: "May inalis na panuntunan ({{text}})",
+                    moved: "Binago ang pagkakasunod-sunod ng mga panuntunan",
+                    otherwise: "Nabago ang huling panuntunan",
+                    compared: "Nabago ang mga detalyeng inihahambing",
+                },
+                save: {
+                    button: "I-save bilang bersyon {{version}}",
+                    title: "I-save bilang bersyon {{version}}?",
+                    body: "Mula ngayon, pagpapasyahan ang mga bagong pagpapatala gamit ang mga panuntunang ito. Mananatili ang pasya ng mga pagpapatalang napagpasyahan na.",
+                    changes: "Ano ang nagbago",
+                    log: "Itinatala ang bagong bersyon sa electoral log.",
+                    confirm: "I-save ang bersyon {{version}}",
+                    success: "Na-save bilang bersyon {{version}}",
+                    error: "Hindi ma-save ang matrix ng pag-apruba",
+                },
             },
         },
         monitoring: {
@@ -4108,6 +4631,386 @@ const tagalogTranslation: TranslationType = {
                 redo: "Naiambag ang iyong piraso ng susi nang walang pirma mo, na kailangan na ngayon ng halalang ito. Iambag itong muli at pirmahan.",
                 notTaken:
                     "Hindi na tinatanggap ng seremonya ang piraso ng susi na ito. I-drop muli ang file ng iyong piraso ng susi.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Nilagdaang takdang pagsasara",
+                deadline: "{{election}}: {{time}} · pinahintulutan ng configuration {{code}}.",
+                explanation:
+                    "Mananatiling masusunod ang nilagdaang takdang oras na ito kahit baguhin o alisin ang nae-edit na iskedyul. Isinasara ng tagaiskedyul ang mga pinahintulutang channel na bukas pa.",
+                reached:
+                    "Lumipas na ang nilagdaang takdang oras na ito. Suriin ang kasalukuyang kalagayan ng pagboto at ang audit log; hindi pa naitala ang pagproseso.",
+                processed: "Naproseso ang nilagdaang takdang pagsasara noong {{time}}.",
+                signedAt: "Nilagdaang takdang oras: {{time}}.",
+                channels: "Mga channel na saklaw pa rin ng takdang oras na ito: {{channels}}.",
+                result: "Tingnan ang kalagayan ng pagboto at ang audit log para sa aktuwal na mga pagbabago at kumpletong resulta.",
+                unavailable:
+                    "Hindi ma-load ang mga nilagdaang takdang pagsasara. Suriin ang nailathalang iskedyul at ang audit log.",
+            },
+            picker: {
+                noMatch:
+                    "Walang tumugmang timezone. Mag-type ng lungsod, bansa, zone, daglat o offset.",
+            },
+            input: {
+                timezone: "Timezone",
+                scheduledAt: "Nakaiskedyul sa",
+                meetingStart: "Simula ng pulong",
+                cronZone: "Tumatakbo ang iskedyul sa pangunahing timezone ng event, {{zone}}.",
+                unconfiguredZone:
+                    "Ang {{zone}} ay hindi isa sa mga naka-configure na timezone ng event. Pumili ng isa sa mga ito.",
+            },
+            schedule: {
+                allElections: "Lahat ng halalan",
+                outcome: "Kalalabasan",
+                noOffset: "Walang timezone offset: hindi kailanman tatakbo",
+                unpublished: "Hindi pa nailalathala",
+                notPublished:
+                    "Wala pang nailalathala: makikita ng mga botante ang iskedyul pagkatapos ng unang paglalathala.",
+                unpublishedChanges_one:
+                    "{{count}} nakaiskedyul na event ang nagbago mula sa huling paglalathala. Makikita ito ng mga botante pagkatapos mong maglathala.",
+                unpublishedChanges_other:
+                    "{{count}} nakaiskedyul na event ang nagbago mula sa huling paglalathala. Makikita ang mga ito ng mga botante pagkatapos mong maglathala.",
+                offsetless_one:
+                    "{{count}} nakaiskedyul na oras ang walang timezone offset, kaya hindi ito kailanman tatakbo. I-edit ito para itakda ang timezone nito.",
+                offsetless_other:
+                    "{{count}} nakaiskedyul na oras ang walang timezone offset, kaya hindi kailanman tatakbo ang mga ito. I-edit ang mga ito para itakda ang kanilang timezone.",
+                outcomeChange:
+                    "Kapag na-save, mababago ang gagawin ng nakaiskedyul na transisyong ito: {{before}} → {{after}}.",
+                outcomeNew: "Kapag na-save, ang nakaiskedyul na transisyong ito: {{after}}.",
+                outcomeElections: "{{count}} sa {{total}} na halalan",
+                exportError: "Hindi ma-export ang iskedyul.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} nakaiskedyul na row ang tatanggihan ({{transitions}} transisyon ng halalan).",
+                    refused_other:
+                        "{{count}} nakaiskedyul na row ang tatanggihan ({{transitions}} transisyon ng halalan).",
+                    runsUnsigned_one:
+                        "{{count}} nakaiskedyul na pagsasara ang tatakbo nang walang lagda ({{transitions}} transisyon ng halalan).",
+                    runsUnsigned_other:
+                        "{{count}} nakaiskedyul na pagsasara ang tatakbo nang walang lagda ({{transitions}} transisyon ng halalan).",
+                    review: "Suriin",
+                    showAll: "Ipakita lahat",
+                    showing: {
+                        refused:
+                            "Ipinapakita ang {{count}} nakaiskedyul na row na tatanggihan ({{transitions}} transisyon ng halalan).",
+                        runsUnsigned:
+                            "Ipinapakita ang {{count}} nakaiskedyul na pagsasara na tatakbo nang walang lagda ({{transitions}} transisyon ng halalan).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Inililipat ng isang update sa timezone database ang {{count}} nakaiskedyul na oras sa hinaharap. Walang magbabago hangga't hindi mo ito inilalapat.",
+                    title_other:
+                        "Inililipat ng isang update sa timezone database ang {{count}} nakaiskedyul na oras sa hinaharap. Walang magbabago hangga't hindi mo inilalapat ang mga ito.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Ilapat",
+                    applied_one: "{{count}} nakaiskedyul na oras ang na-update.",
+                    applied_other: "{{count}} nakaiskedyul na oras ang na-update.",
+                    error: "Hindi ma-update ang mga nakaiskedyul na oras.",
+                },
+                outcomeChangeElections_one:
+                    "Binabago ng pag-save ang kalalabasan sa {{count}} halalan:",
+                outcomeChangeElections_other:
+                    "Binabago ng pag-save ang kalalabasan sa {{count}} halalan:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "Nananatiling kailangan ang isang ulat na kailangan sa nilagdaang configuration na ito kahit gawing hindi kailangan sa kasalukuyang setting ng Post.",
+                title: "Ano ang pinahihintulutan ng pag-apruba na ito",
+                schedule: "Mga nakaiskedyul na pagbubukas at pagsasara",
+                noSchedule:
+                    "Walang nakaiskedyul na pagbubukas o pagsasara: ang mga pumipirma ang nagbubukas at nagsasara ng pagboto.",
+                opens: "Magbubukas {{time}}",
+                closes: "Magsasara {{time}}",
+                settings: "Mga setting",
+                unsignedClose: "Nakaiskedyul na pagsasara nang walang lagda: {{value}}",
+                initialization: "Inisyalisasyon: {{value}}",
+                firstConfiguration:
+                    "Ito ang unang naaprubahang configuration: walang maihahambing.",
+                sameAsPrevious: "Pareho ang mga setting sa nakaraang naaprubahang configuration.",
+                rule: {
+                    openNeeds_one: "Kailangan ng {{count}} lagda para magbukas",
+                    openNeeds_other: "Kailangan ng {{count}} lagda para magbukas",
+                    openNoSignatures: "Hindi kailangan ng lagda para magbukas",
+                    closeNeeds_one: "Kailangan ng {{count}} lagda para magsara",
+                    closeNeeds_other: "Kailangan ng {{count}} lagda para magsara",
+                    closeNoSignatures: "Hindi kailangan ng lagda para magsara",
+                    openSetting: "Pagbubukas ng pagboto",
+                    closeSetting: "Pagsasara ng pagboto",
+                    signatures_one: "{{count}} lagda",
+                    signatures_other: "{{count}} lagda",
+                    none: "walang lagda",
+                },
+                diff: {
+                    tightens: "Hinihigpitan: {{setting}} {{before}} → {{after}}",
+                    loosens: "Niluluwagan: {{setting}} {{before}} → {{after}}",
+                    mixed: "Mga pagbabago: {{setting}} {{before}} → {{after}} (mas mahigpit sa isang paraan, mas maluwag sa iba)",
+                },
+                comparedWith: "Kumpara sa naunang aprubadong configuration, approval {{code}}:",
+                channels: "Mga voting channel bawat halalan",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "wala",
+            },
+            publish: {
+                openedAuthorized:
+                    "Nagbukas ang pagboto ayon sa iskedyul noong {{time}}, pinahintulutan ng pag-apruba ng configuration {{code}} (nilagdaan ni/nina {{names}}).",
+                closedAuthorized:
+                    "Nagsara ang pagboto ayon sa iskedyul noong {{time}}, pinahintulutan ng pag-apruba ng configuration {{code}} (nilagdaan ni/nina {{names}}).",
+                closedUnsigned:
+                    "Nagsara ang pagboto ayon sa iskedyul noong {{time}}. Walang lagda sa pagsasara: isinara ng iskedyul ang pagboto sa takdang oras nito.",
+                authorizedBy: "Pinahintulutan ni/ng",
+                cancelledRequest:
+                    "Ang kahilingang {{code}} ay may {{n}} sa {{k}} na lagda at kinansela.",
+                openedRefused: "Tinanggihan ang nakaiskedyul na pagbubukas sa {{time}}.",
+                closedRefused: "Tinanggihan ang nakaiskedyul na pagsasara sa {{time}}.",
+                openedNoSignaturesNeeded:
+                    "Nagbukas ang botohan ayon sa iskedyul ({{time}}); walang kailangang lagda.",
+                closedNoSignaturesNeeded:
+                    "Nagsara ang botohan ayon sa iskedyul ({{time}}); walang kailangang lagda.",
+                openedNothingToChange:
+                    "Noong {{time}}, walang mabubuksan ang nakaiskedyul na pagbubukas: bukas na ang mga channel nito.",
+                closedNothingToChange:
+                    "Noong {{time}}, walang maisasara ang nakaiskedyul na pagsasara: sarado na ang mga channel nito.",
+            },
+            import: {
+                title: "Mag-import ng iskedyul",
+                subtitle:
+                    "Isang row bawat event at halalan, sa lokal na oras. Iwanang blangko ang timezone para gamitin ang timezone ng halalan.",
+                chooseFile: "Pumili ng CSV file",
+                template: "I-download ang template",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} event ang handa para sa {{posts}} halalan.",
+                needsAttention_one:
+                    "{{ok}} event ang handa para sa {{posts}} halalan. {{count}} row ang kailangang ayusin; itama ang file at i-upload itong muli.",
+                needsAttention_other:
+                    "{{ok}} event ang handa para sa {{posts}} halalan. {{count}} row ang kailangang ayusin; itama ang file at i-upload itong muli.",
+                preview: "Mga row na ii-import",
+                row: "Row",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…at {{count}} pang row",
+                imported:
+                    "Na-import ang iskedyul: {{created}} ang nalikha, {{updated}} ang na-update.",
+                uploadError: "Hindi masuri ang file. I-upload itong muli.",
+                importError: "Hindi ma-import ang iskedyul.",
+                error: {
+                    unknownElection: "Walang halalan na may alias na {{election}}.",
+                    unknownEventType: "Ang {{type}} ay hindi uri ng nakaiskedyul na event.",
+                    invalidTimeZone: "Ang {{zone}} ay hindi isang timezone.",
+                    invalidDateTime: "Ang petsa at oras ay dapat nasa anyong YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "Hindi kilala ang mga channel ng pagboto, o sabay na nagbubukas ng Online at Maagang pagboto.",
+                    dstGap: "Hindi umiiral ang {{dateTime}} sa {{city}} dahil umuusad ang orasan. Maglagay ng oras na umiiral.",
+                    duplicate:
+                        "May ibang row na nag-iiskedyul ng parehong event para sa halalang ito.",
+                    other: "Hindi ma-import ang row na ito ({{code}}).",
+                    ambiguousElection: "Higit sa isang halalan ang may alias na {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Wika, Petsa at Oras",
+                dateAndTime: "Petsa at oras",
+                configured: "Mga naka-configure na timezone",
+                configuredHelp:
+                    "{{count}} timezone. Pumipili ang mga halalan ng kanilang timezone mula sa listahang ito; mag-type ng lungsod o bansa para magdagdag.",
+                moreZones: "+{{count}}",
+                primary: "Pangunahing timezone",
+                primaryHelp:
+                    "Ginagamit para sa mga iskedyul ng buong event, mga ulat at mga halalang walang sariling timezone.",
+                primaryInUse:
+                    "Ang {{zone}} ang pangunahing timezone. Pumili muna ng ibang pangunahing timezone.",
+                inUse: "Ginagamit ang {{zone}} ng {{names}}. Baguhin muna ang mga halalang iyon.",
+                logs: "Mga oras sa Logs at sa mga export ng log",
+                logsPrimary: "Pangunahing timezone ({{abbr}})",
+                logsElection: "Timezone ng halalan ng bawat row",
+                logsHelp: "Ginagamit ng mga row na walang halalan ang pangunahing timezone.",
+                electionZone: "Timezone",
+                electionPrimary: "Pangunahin ng event: {{zone}}",
+                electionZoneHelp:
+                    "Ginagamit ng mga iskedyul, screen ng botante at ulat para sa halalang ito ang timezone na ito, kasama ang bawat area sa ilalim nito. Kapag blangko, ginagamit ang pangunahing timezone ng event.",
+                electionUnconfigured:
+                    "Hindi na naka-configure sa event ang timezone na ito, kaya ginagamit ng halalan ang pangunahing timezone, {{zone}}. Pumili ng isa sa mga naka-configure na timezone.",
+                electionUnconfiguredSave:
+                    "Pumili ng isa sa mga naka-configure na timezone ng event.",
+            },
+            policies: {
+                accordion: "Lifecycle ng pagboto",
+                intro: "Bahagi ang mga setting na ito ng configuration ng election event: nilalagdaan ang mga ito ng pag-apruba ng configuration, at sinusunod ng mga nakaiskedyul na pagbubukas at pagsasara ang mas mahigpit sa kasalukuyan at sa nailathalang mga setting.",
+                nothingPublished:
+                    "Wala pang nailalathala: hanggang sa unang paglalathala, ginagamit ng mga nakaiskedyul na pagbubukas at pagsasara ang mga default (bawat halalan, tanggihan).",
+                publishedValue: "Nailathalang configuration: {{value}}",
+                changedSincePublished:
+                    "Nagbago mula sa nailathalang configuration: sinusunod ng mga nakaiskedyul na pagbubukas at pagsasara ang mas mahigpit sa dalawa hanggang sa susunod na aprubadong paglalathala.",
+                scope: {
+                    title: "Inisyalisasyon bago magbukas ang pagboto",
+                    post: {
+                        label: "Bawat halalan",
+                        help: "Nagbubukas ang isang halalan kapag na-initialize na ito.",
+                    },
+                    event: {
+                        label: "Buong event",
+                        help: "Walang halalang magbubukas hangga't hindi na-initialize ang bawat halalan.",
+                        warning:
+                            "Kapag may isang halalang hindi pa na-initialize, mananatiling sarado ang bawat halalan, kahit sa kanilang nakaiskedyul na pagbubukas.",
+                    },
+                    postAndCountry: {
+                        label: "Bawat halalan at bansa",
+                        help: "Nagbubukas ang isang halalan kapag na-initialize na ang bawat bansa (area) sa ilalim nito.",
+                        warning:
+                            "Mananatiling sarado ang isang halalan, kahit sa nakaiskedyul nitong pagbubukas, hangga't hindi na-initialize ang bawat bansa sa ilalim nito; ini-initialize ang bawat bansa gamit ang sarili nitong ulat.",
+                    },
+                },
+                close: {
+                    title: "Nakaiskedyul na pagsasara nang walang lagda",
+                    help: "Kapag kailangan ng lagda ang pagsasara ng pagboto at wala sa nilagdaang configuration ang isang nakaiskedyul na pagsasara.",
+                    refuse: {
+                        label: "Tanggihan",
+                        help: "Hindi tatakbo ang pagsasara; isinasara ng mga pumipirma ng halalan ang pagboto gamit ang kanilang lagda.",
+                    },
+                    runAsSystem: {
+                        label: "Patakbuhin bilang system",
+                        help: "Magsasara ang pagboto sa takdang oras, at itatala bilang isinara ng iskedyul nang walang lagda.",
+                        warning:
+                            "Isinasara ng mga nakaiskedyul na pagsasara na wala sa nilagdaang configuration ang pagboto nang walang lagda ng sinuman. Nakasaad ito sa log at sa mga dokumento.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero:
+                        "Walang nakaiskedyul na transisyon ang magbabago ng kalalabasan.",
+                    outcomes_one:
+                        "{{count}} nakaiskedyul na transisyon ang magbabago ng kalalabasan. Suriin ito sa Naka-schedule na Kaganapan.",
+                    outcomes_other:
+                        "{{count}} nakaiskedyul na transisyon ang magbabago ng kalalabasan. Suriin ang mga ito sa Naka-schedule na Kaganapan.",
+                },
+                saveError: "Hindi ma-save ang mga setting ng lifecycle ng pagboto.",
+                publishedPerTarget: "Nailathalang configuration, bawat target: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} target)",
+                publishedCount_other: "{{value}} ({{count}} target)",
+                savedWithoutPolicies:
+                    "Na-save ang election event, pero hindi ang mga setting ng voting lifecycle: {{reason}}. I-save muli ang mga ito.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Naghihintay ng inisyalisasyon",
+                runs: "Tatakbo",
+                runsUnsigned: "Tatakbo nang walang lagda",
+                refused: "Tatanggihan",
+            },
+            note: {
+                waitingForInitialization: "Naghihintay ng inisyalisasyon",
+                authorized: "Pinahintulutan ng configuration {{code}}",
+                noSignaturesNeeded: "Hindi kailangan ng lagda",
+                closesUnsigned: "Magsasara nang walang lagda",
+                refused: {
+                    initialization: "Hindi pa kumpleto ang kinakailangang inisyalisasyon",
+                    votingClose:
+                        "Hindi maaaring buksan ang pagboto pagkatapos ng takdang pagsasara",
+                    needsSignatures: "Kailangan ng lagda ng mga pumipirma",
+                    covered: "Wala sa nilagdaang configuration",
+                    unsignedClose: "Tinatanggihan ang pagsasara na walang lagda",
+                    stricterCopy:
+                        "Nagbago mula sa nailathalang configuration, na siya pa ring nagpapasya",
+                    defaults: "Wala pang nailathala: ang mga default ang ginagamit",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Bakit?",
+                title: {
+                    waitingForInitialization: "Bakit naghihintay ng inisyalisasyon",
+                    runs: "Bakit ito tatakbo",
+                    runsUnsigned: "Bakit ito tatakbo nang walang lagda",
+                    refused: "Bakit ito tatanggihan",
+                },
+                checks: "Mga pagsusuri",
+                check: "Pagsusuri",
+                current: "Kasalukuyang mga setting",
+                published: "Nailathalang configuration",
+                verdict: "Pasya",
+                allows: "Pinapayagan",
+                blocks: "Hinaharangan",
+                deciding: "Mapagpasyang pagsusuri",
+                nextStep: "Susunod na hakbang:",
+                signedBy: "Nilagdaan ni/nina {{names}}",
+            },
+            question: {
+                initialization: "Kumpleto na ba ang kinakailangang inisyalisasyon?",
+                votingClose: "Sinusunod ba ng pagbubukas na ito ang takdang pagsasara ng pagboto?",
+                needsSignatures: "Kailangan ba ng lagda ang aksyong ito?",
+                covered: "Nasa nilagdaang configuration ba ang eksaktong iskedyul na ito?",
+                unsignedClose: "Ano ang mangyayari sa pagsasara nang walang lagda?",
+                stricterCopy:
+                    "Magkaiba ba ang kasalukuyan at ang nailathalang mga setting? Alin ang nagpapasya?",
+                defaults: "May nailathala na ba?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Kailangang makumpleto ang mga inisyalisasyong hinihingi ng kasalukuyan at nailathalang mga setting.",
+                },
+                votingClose: {
+                    passed: "Magsasara ang pagboto sa {{closes_at}}; hindi maaaring isagawa ang pagbubukas na ito sa oras na iyon o pagkatapos nito.",
+                },
+                needsSignatures: {
+                    yes: "Oo, {{signatures}} lagda",
+                    yes_one: "Oo, {{count}} lagda",
+                    yes_other: "Oo, {{count}} lagda",
+                    no: "Hindi",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "Ginagamit ng nilagdaang configuration {{code}} ang sariling pagbubukas {{scheduled_event_id}} ng Post na ito. Hindi nalalapat ang pagbubukas para sa buong kaganapan.",
+                    yes: "Oo: pag-apruba {{code}}, walang pagbabago",
+                    changed: "Hindi: nagbago mula sa pag-apruba {{code}}",
+                    changedBy:
+                        "Hindi: in-edit noong {{edited_at}} ni {{edited_by}}, pagkatapos ng pag-apruba {{code}}",
+                    notInApproval: "Hindi: hindi ito kasama sa pag-apruba {{code}}",
+                    noApproval: "Wala pang naaprubahang configuration",
+                    channelsChanged:
+                        "Hindi: nagbago ang mga voting channel ng halalan mula sa approval {{code}}",
+                    alreadyFired:
+                        "Hindi: tumakbo na ang transisyong ito ng approval {{code}} noong {{fired_at}}; kailangan ng lagda para patakbuhin ito muli",
+                    late: "Hindi: lampas na ng 15 minuto mula {{scheduled_date}} (approval {{code}}); kailangan ng lagda para patakbuhin ito ngayon",
+                },
+                unsignedClose: {
+                    refuse: "Tanggihan",
+                    runAsSystem: "Patakbuhin bilang system",
+                },
+                stricterCopy: {
+                    same: "Pareho ang dalawa",
+                    currentStricter:
+                        "Mas mahigpit ang kasalukuyang mga setting: nalalapat na ngayon",
+                    currentLooser:
+                        "Mas maluwag ang kasalukuyang mga setting: malalapat ang mga ito pagkatapos ng susunod na naaprubahang paglalathala",
+                    combined: "Mas mahigpit ang bawat isa sa isang halaga: parehong nalalapat",
+                },
+                defaults: {
+                    published: "Nailathala noong {{published_at}}",
+                    nothingPublished: "Walang nailathala: ang mga default ang nalalapat",
+                    noSnapshot:
+                        "Nailathala noong {{published_at}}, bago itinatago ng mga paglalathala ang mga setting na ito: ang mga default ang nalalapat",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Kumpletuhin ang kinakailangang inisyalisasyon. Susubukan muli ng tagaiskedyul bago magsara ang pagboto.",
+                closed: "Hindi isasagawa ang pagbubukas na ito pagkatapos magsara ang pagboto.",
+                none: "Walang kailangang gawin.",
+                publishAndApprove: "Ilathala at aprubahan ang configuration.",
+                requireConfigurationApproval:
+                    "Gawing nangangailangan ng lagda ang Pag-apruba ng configuration, pagkatapos ay ilathala at aprubahan ang configuration.",
+                askSignersToOpen: "Hilingin sa mga pumipirma ng halalan na buksan ang pagboto.",
+                askSignersToClose: "Hilingin sa mga pumipirma ng halalan na isara ang pagboto.",
+            },
+            applies: {
+                tightens: "Nalalapat na ngayon sa mga manwal at nakaiskedyul na aksyon.",
+                loosens:
+                    "Nalalapat na ngayon sa mga manwal na aksyon; sa mga nakaiskedyul na pagbubukas at pagsasara pagkatapos ng susunod na naaprubahang paglalathala.",
+                tightensAndLoosens:
+                    "Nalalapat na ngayon ang mas mahigpit na bahagi nito sa mga manwal at nakaiskedyul na aksyon; nalalapat na ngayon ang mas maluwag na bahagi nito sa mga manwal na aksyon, at sa mga nakaiskedyul na pagbubukas at pagsasara pagkatapos ng susunod na naaprubahang paglalathala.",
             },
         },
     },

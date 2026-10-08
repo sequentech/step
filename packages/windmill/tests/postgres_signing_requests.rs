@@ -809,6 +809,42 @@ fn details_show_each_subject_field_as_text() {
     );
 }
 
+#[test]
+fn details_canonicalize_schedule_objects_and_recursively_display_arrays() {
+    // JSONB returns its own key order. The browser verifies displayed details
+    // against canonical sorted objects and recursively joined arrays; literal
+    // expectations here must not inherit the backend serializer's key order.
+    let subject: serde_json::Value = serde_json::from_str(
+        r#"{
+            "schedule": [{
+                "timezone": "Europe/Madrid",
+                "scheduled_date": "2026-10-04T10:00:00Z",
+                "metadata": {"z": null, "a": [{"y": 2, "x": 1}]},
+                "event_processor": "END_VOTING_PERIOD"
+            }],
+            "object": {"z": null, "a": {"y": 2, "x": 1}},
+            "nested": [["ONLINE", null, {"z": 2, "a": 1}], null, true, ["KIOSK", 3]]
+        }"#,
+    )
+    .unwrap();
+    let details = windmill::services::signing::requests::subject_details(&subject);
+    let shown: Vec<(&str, &str)> = details
+        .iter()
+        .map(|detail| (detail.key.as_str(), detail.value.as_str()))
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            ("nested", r#"ONLINE, , {"a":1,"z":2}, , true, KIOSK, 3"#),
+            ("object", r#"{"a":{"x":1,"y":2},"z":null}"#),
+            (
+                "schedule",
+                r#"{"event_processor":"END_VOTING_PERIOD","metadata":{"a":[{"x":1,"y":2}],"z":null},"scheduled_date":"2026-10-04T10:00:00Z","timezone":"Europe/Madrid"}"#,
+            ),
+        ]
+    );
+}
+
 #[tokio::test]
 async fn a_cancel_note_is_capped_and_export_cells_never_read_as_formulas() {
     let w = world("madrid-pe").await;

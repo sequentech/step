@@ -7,7 +7,7 @@
 // whose Posts have three signers, and a student council that renames its Posts
 // and actions through tenant translation overrides and switches most rules off.
 import React, {useState, type PropsWithChildren} from "react"
-import {EElectionEventLockedDown} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, ELogTimeZonePolicy} from "@sequentech/ui-core"
 import type {FetchResult, Operation} from "@apollo/client"
 import {GraphQLError} from "graphql"
 import {RecordContextProvider} from "react-admin"
@@ -17,6 +17,7 @@ import {electionPresentation, eventPresentation, eventRecord, storyId} from "@/_
 import {documentHandlers} from "@/__stories__/downloads"
 import {applyTenantTranslationOverrides} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {
     CertificatePostBinding,
     CertificateRegistration,
@@ -684,7 +685,7 @@ export const capacityOf = (organization: ISigningOrganization, action: SigningAc
 
 /** The event's Posts, countries, people and roles, as react-admin reads them. */
 export function signingRecords(organization: ISigningOrganization) {
-    return recordsOrPending({
+    const data = recordsOrPending({
         sequent_backend_election: organization.posts.map(({id, name}) => ({
             id,
             tenant_id: TENANT_ID,
@@ -701,6 +702,7 @@ export function signingRecords(organization: ISigningOrganization) {
         user: organization.people.map((person) => ({...person})),
         role: organization.roles.map((name) => ({id: roleId(name), name})),
     })
+    return {...data, timeZone: organization.timeZone}
 }
 
 /** A signing widget api whose requests never load: the stories that don't open a panel. */
@@ -729,6 +731,11 @@ export function SignaturesStory({
     const record = eventRecord(undefined, {
         presentation: {
             ...eventPresentation,
+            timezones: {
+                configured: [data.timeZone],
+                primary: data.timeZone,
+                logs: ELogTimeZonePolicy.PRIMARY,
+            },
             locked_down: lockedDown
                 ? EElectionEventLockedDown.LOCKED_DOWN
                 : EElectionEventLockedDown.NOT_LOCKED_DOWN,
@@ -741,7 +748,9 @@ export function SignaturesStory({
             roles={SIGNING_ROLES[role]}
         >
             <SigningProvider api={api}>
-                <RecordContextProvider value={record}>{children}</RecordContextProvider>
+                <EventTimeZoneProvider event={record}>
+                    <RecordContextProvider value={record}>{children}</RecordContextProvider>
+                </EventTimeZoneProvider>
             </SigningProvider>
         </AdminStoryProvider>
     )

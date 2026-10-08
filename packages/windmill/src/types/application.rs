@@ -42,9 +42,34 @@ pub enum ApplicationRejectReason {
     NO_VOTER,
     #[strum(to_string = "voter-already-approved")]
     ALREADY_APPROVED,
+    #[strum(to_string = "identity-not-verified")]
+    IDENTITY_NOT_VERIFIED,
     #[default]
     #[strum(to_string = "other")]
     OTHER, //mandatory comment
+}
+
+/// What an enrollment whose identity matches no voter of the census becomes.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Default,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    EnumVariantNames,
+    Serialize,
+    Deserialize,
+)]
+pub enum NoMatchingVoterPolicy {
+    /// Rejected automatically.
+    #[default]
+    REJECT,
+    /// Pending, for an election manager to review in the election event's
+    /// Approvals.
+    PENDING_APPROVAL,
 }
 
 #[allow(non_camel_case_types)]

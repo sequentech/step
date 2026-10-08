@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ports::electoral_log::{
-    ElectoralLogs, PhoneBlacklistChange, PhoneBlacklistEntryLog,
+    ApprovalMatrixLog, ElectoralLogs, PhoneBlacklistChange,
+    PhoneBlacklistEntryLog,
 };
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
@@ -23,6 +24,12 @@ pub enum LoggedEntry {
         voter_id: Option<String>,
         attribute_names: Vec<String>,
         document_id: Option<String>,
+    },
+    ApprovalMatrixUpdated {
+        election_event_id: String,
+        admin_id: String,
+        version: u32,
+        sha256: String,
     },
     PhoneBlacklistEntry {
         change: PhoneBlacklistChange,
@@ -91,6 +98,19 @@ impl ElectoralLogs for MemoryElectoralLogs {
             election_event_id: entry.election_event_id.to_string(),
             admin_id: entry.user_id.to_string(),
             phone_e164: entry.phone_e164,
+        })
+    }
+
+    async fn approval_matrix_updated(
+        &self,
+        _transaction: &Transaction<'_>,
+        entry: ApprovalMatrixLog<'_>,
+    ) -> anyhow::Result<()> {
+        self.record(LoggedEntry::ApprovalMatrixUpdated {
+            election_event_id: entry.election_event_id.to_string(),
+            admin_id: entry.user_id.to_string(),
+            version: entry.version,
+            sha256: entry.sha256,
         })
     }
 }

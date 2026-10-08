@@ -20,6 +20,59 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 use windmill::postgres::signing::upsert_signing_rule;
 
+/// Seed one already-authorized server result, then restore the marker before
+/// any route or ordinary fixture write can use this pooled connection.
+async fn trusted_seed(
+    pool: &deadpool_postgres::Pool,
+    sql: &str,
+    params: &[&(dyn tokio_postgres::types::ToSql + Sync)],
+) {
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let previous: Option<String> = tx
+        .query_one("SELECT current_setting('sequent.trusted_write', true)", &[])
+        .await
+        .unwrap()
+        .get(0);
+    windmill::postgres::trusted_write(&tx).await.unwrap();
+    tx.execute(sql, params).await.unwrap();
+    tx.execute(
+        "SELECT set_config('sequent.trusted_write', $1, true)",
+        &[&previous.unwrap_or_default()],
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+}
+
+/// Generated event-level publication with the same target membership and
+/// immutable root that the normal server completion workflow records.
+async fn generated_publication(
+    pool: &deadpool_postgres::Pool,
+    event: &Event,
+    published: bool,
+) -> String {
+    let tenant = uuid::Uuid::parse_str(&event.tenant_id).unwrap();
+    let election_event =
+        uuid::Uuid::parse_str(&event.election_event_id).unwrap();
+    let id = uuid::Uuid::new_v4();
+    let elections: Vec<uuid::Uuid> = rows::query(pool,
+        "SELECT id FROM sequent_backend.election WHERE tenant_id=$1 AND election_event_id=$2 ORDER BY id",
+        &[&tenant, &election_event],
+    ).await.into_iter().map(|row| row.get(0)).collect();
+    let annotations = published.then(|| serde_json::json!({
+        windmill::domain::publication_files::FILES_ANNOTATION:
+            windmill::domain::publication_files::publication_root(tenant, election_event, id, uuid::Uuid::new_v4())
+    }));
+    trusted_seed(pool,
+        "INSERT INTO sequent_backend.ballot_publication
+        (id,tenant_id,election_event_id,is_generated,election_ids,published_at,annotations)
+        VALUES ($1,$2,$3,true,$4,CASE WHEN $5 THEN now() END,$6)",
+        &[&id,&tenant,&election_event,&elections,&published,&annotations],
+    ).await;
+    id.to_string()
+}
+
 /// Two configurations: a Post label and how many sign.
 const PRESETS: [(&str, u16); 2] = [("madrid-pe", 2), ("faculty-of-science", 3)];
 
@@ -100,7 +153,7 @@ async fn request(pool: &Pool, id: &Value) -> (String, String, Value, i32) {
 async fn open_post(pool: &Pool, election: &str) {
     rows::execute(
         pool,
-        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1",
+        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
         &[
             &Uuid::parse_str(election).unwrap(),
             &json!({"voting_status": "OPEN"}),
@@ -113,7 +166,7 @@ async fn open_post(pool: &Pool, election: &str) {
 async fn published_for(pool: &Pool, event: &Event, election: &str) -> String {
     let (tenant, election_event) = ids(event);
     let id = Uuid::new_v4();
-    rows::execute(
+    trusted_seed(
         pool,
         "INSERT INTO sequent_backend.ballot_publication
              (id, tenant_id, election_event_id, is_generated, election_ids, published_at)
@@ -204,10 +257,10 @@ async fn opening_a_post_with_the_rule_off_runs_the_status_change_as_before() {
     )
     .await;
     // The status service ran: this event has no bulletin board to post to.
-    let status = response.status();
-    let body = response.into_string().await.unwrap_or_default();
+    let (status, body) = json(response).await;
     assert_eq!(status, Status::InternalServerError);
-    assert!(body.contains("bulletin board"), "{body}");
+    assert_eq!(body["message"], "Could not update voting status.");
+    assert_eq!(body["extensions"]["code"], "InternalServerError");
     assert_eq!(
         rows::query(
             &services.hasura,
@@ -274,9 +327,8 @@ async fn publishing_waits_for_signatures_and_a_new_publication_cancels_the_reque
         2,
     )
     .await;
-    let publication = event
-        .ballot_publication(&services.hasura, true, false)
-        .await;
+    let publication =
+        generated_publication(&services.hasura, &event, false).await;
     let publisher = Claims::new(&event.tenant_id, "publisher")
         .roles([Permissions::PUBLISH_WRITE])
         .acr(&Permissions::GOLD.to_string())
@@ -543,5 +595,60 @@ async fn a_key_step_commits_its_outcome_and_answers_the_request_to_sign() {
         let answered = finish_key_share_step(transaction, outcome).await;
         assert_eq!(answered, Ok(answer), "{step}");
         assert_eq!(markers(&client).await, recorded, "{step}");
+    }
+}
+
+/// Hasura must receive a JSON action error and retain the initialization
+/// refusal, rather than replacing a plain-text webhook failure with a generic
+/// invalid-JSON message. Neither route may open the uninitialized Post.
+#[rocket::async_test]
+async fn initialization_refusals_are_readable_json_for_post_and_event_opening()
+{
+    for route in [
+        "/update-election-voting-status",
+        "/update-event-voting-status",
+    ] {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let event = rows::event(&services.hasura).await;
+        let election = post_of(&services.hasura, &event, "required-init").await;
+        rows::execute(
+            &services.hasura,
+            "UPDATE sequent_backend.election SET presentation=$2 WHERE id=$1",
+            &[
+                &Uuid::parse_str(&election).unwrap(),
+                &json!({
+                    "initialization_report_policy": "required"
+                }),
+            ],
+        )
+        .await;
+        let before = election_status(&services.hasura, &election).await;
+        let response = post(
+            &client,
+            route,
+            &gold(
+                &event,
+                &[Permissions::ELECTION_STATE_WRITE],
+                "required-init",
+            ),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "election_id": election,
+                "voting_status": "OPEN",
+                "voting_channels": ["ONLINE"],
+            }),
+        )
+        .await;
+        let (status, body) = json(response).await;
+        assert_eq!(status, Status::BadRequest, "{body}");
+        let message = body["message"]
+            .as_str()
+            .expect("Hasura action error message");
+        assert!(message.contains("initializ"), "{route}: {body}");
+        assert!(!message.contains("Stack backtrace"), "{body}");
+        assert!(!message.contains("/packages/"), "{body}");
+        assert_eq!(body["extensions"]["code"], "VotingStatusValidation");
+        assert_eq!(election_status(&services.hasura, &election).await, before);
     }
 }

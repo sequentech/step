@@ -1,0 +1,132 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+package sequent.keycloak.scanovate_authenticator;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * What the voter captures for a document type, and the limits applied to it.
+ *
+ * @param sides document sides to capture, front first
+ * @param videoSeconds seconds the voter holds the document next to their face before its photo
+ * @param maxImageBytes size limit of each photo
+ */
+public record CaptureSettings(List<DocumentSide> sides, int videoSeconds, int maxImageBytes) {
+  static final List<DocumentSide> DEFAULT_SIDES = List.of(DocumentSide.FRONT, DocumentSide.BACK);
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  public CaptureSettings {
+    sides = List.copyOf(sides);
+  }
+
+  /**
+   * Reads the settings for the given document type from the authenticator configuration.
+   *
+   * @throws ScanovateException if a setting is malformed
+   */
+  public static CaptureSettings fromConfig(Map<String, String> config, String docType)
+      throws ScanovateException {
+    return new CaptureSettings(
+        parseSides(config.get(ScanovateAuthenticatorFactory.CAPTURE_SIDES), docType),
+        positiveInt(
+            config,
+            ScanovateAuthenticatorFactory.VIDEO_SECONDS,
+            ScanovateAuthenticatorFactory.DEFAULT_VIDEO_SECONDS),
+        positiveInt(
+            config,
+            ScanovateAuthenticatorFactory.MAX_IMAGE_BYTES,
+            ScanovateAuthenticatorFactory.DEFAULT_MAX_IMAGE_BYTES));
+  }
+
+  /**
+   * Returns the sides to capture for the given document type.
+   *
+   * <p>The configuration is a JSON object keyed by document type, with a {@code default} key for
+   * any other document type. Without a matching entry, both sides are captured.
+   *
+   * @throws ScanovateException if the configuration is malformed
+   */
+  public static List<DocumentSide> parseSides(String configuration, String docType)
+      throws ScanovateException {
+    if (configuration == null || configuration.isBlank()) {
+      return DEFAULT_SIDES;
+    }
+    JsonNode root;
+    try {
+      root = MAPPER.readTree(configuration);
+    } catch (IOException e) {
+      throw new ScanovateException("Invalid capture sides configuration", e);
+    }
+    if (root == null || !root.isObject()) {
+      throw new ScanovateException("Capture sides configuration must be an object");
+    }
+    JsonNode entry =
+        docType != null && root.has(docType)
+            ? root.get(docType)
+            : root.get(AttributeRules.DEFAULT_DOC_TYPE);
+    if (entry == null) {
+      return DEFAULT_SIDES;
+    }
+    if (!entry.isArray() || entry.isEmpty()) {
+      throw new ScanovateException("Capture sides for " + docType + " must be a non-empty list");
+    }
+    Set<DocumentSide> sides = EnumSet.noneOf(DocumentSide.class);
+    for (JsonNode value : entry) {
+      Optional<DocumentSide> side =
+          value.isTextual() ? DocumentSide.fromValue(value.asText()) : Optional.empty();
+      if (side.isEmpty() || !sides.add(side.get())) {
+        throw new ScanovateException("Invalid or repeated capture side " + value);
+      }
+    }
+    if (!sides.contains(DocumentSide.FRONT)) {
+      throw new ScanovateException("Capture sides for " + docType + " must include the front");
+    }
+    return List.copyOf(sides);
+  }
+
+  /**
+   * Photos that the capture page must post: the document sides and the voter holding the document.
+   * The voter's face is taken by Liveness Plus instead.
+   */
+  public List<MediaKind> requiredMedia() {
+    List<MediaKind> media = documentMedia();
+    media.add(MediaKind.HOLDING_IMAGE);
+    return media;
+  }
+
+  /** Photos of the document sides, front first, read by the OCR service. */
+  public List<MediaKind> documentMedia() {
+    List<MediaKind> media = new ArrayList<>();
+    sides.forEach(side -> media.add(side.mediaKind()));
+    return media;
+  }
+
+  static int positiveInt(Map<String, String> config, String key, int defaultValue)
+      throws ScanovateException {
+    String value = config.get(key);
+    if (value == null || value.isBlank()) {
+      return defaultValue;
+    }
+    int parsed;
+    try {
+      parsed = Integer.parseInt(value.trim());
+    } catch (NumberFormatException e) {
+      throw new ScanovateException("Invalid " + key + ": " + value, e);
+    }
+    // The byte limits are read with one extra byte to detect oversized files
+    if (parsed <= 0 || parsed == Integer.MAX_VALUE) {
+      throw new ScanovateException("Invalid " + key + ": " + value);
+    }
+    return parsed;
+  }
+}

@@ -24,11 +24,31 @@ export interface VoterFile {
     status: Election["status"]
     num_allowed_revotes: Election["num_allowed_revotes"]
     voting_channels: Election["voting_channels"]
+    /** Current authoritative display cap, separate from signed ballot bytes. */
+    signed_close?: {scheduled_at: string | null; timezone?: string | null} | null
 }
 export interface VoterFiles {
     event_id: string
     status: GetElectionEventQuery["sequent_backend_election_event"][number]["status"]
     files: VoterFile[]
+}
+
+/** Attach current dates without changing downloaded objects or signed EML. */
+export const capDisplayVotingClose = (
+    summary: BallotSummary,
+    close: VoterFile["signed_close"]
+): BallotSummary => {
+    if (close === undefined) return summary
+    if (close?.scheduled_at && !Number.isFinite(Date.parse(close.scheduled_at))) {
+        throw new Error("Invalid voting close metadata")
+    }
+    return {
+        ...summary,
+        election_dates: {
+            ...summary.election_dates,
+            authoritative_close: close ?? {scheduled_at: null},
+        },
+    }
 }
 
 export class PublicationDownloadError extends Error {
@@ -115,7 +135,7 @@ export async function loadPublicationList(
                 num_allowed_revotes: file.num_allowed_revotes,
                 voting_channels: file.voting_channels,
             },
-            summary,
+            summary: capDisplayVotingClose(summary, file.signed_close),
         }
     })
     const selectedEvent =

@@ -113,16 +113,18 @@ export const Ofov: Story = {
         ).toBeVisible()
         await expect(within(rows[0]).getByText(requests[0].code)).toBeVisible()
         // Times in the event's zone with its name, as the signing panel shows them
-        // (Asia/Manila: 11:02 UTC is 19:02 GMT+8).
-        await expect(within(rows[0]).getByText("May 8, 2028, 19:02 GMT+8")).toBeVisible()
+        // Asia/Manila: 11:02 UTC is 7:02 PM PhST in the canonical admin format.
+        await expect(within(rows[0]).getByText("May 8, 2028, 7:02 PM PhST")).toBeVisible()
         await expect(
-            within(rows[0]).getByText(label("requests.expires", {time: "May 8, 2028, 19:32 GMT+8"}))
+            within(rows[0]).getByText(
+                label("requests.expires", {time: "May 8, 2028, 7:32 PM PhST"})
+            )
         ).toBeVisible()
         await expect(
             within(rows[0]).getByText(
                 label("requests.lastSignatureBy", {
                     name: requests[0].approvals[0].display_name,
-                    time: "May 8, 2028, 19:03 GMT+8",
+                    time: "May 8, 2028, 7:03 PM PhST",
                 })
             )
         ).toBeVisible()
@@ -155,9 +157,8 @@ export const Ofov: Story = {
         expect(graphql.calls.find(({name}) => name === "GetSigningRequests")).toMatchObject({
             headers: {"x-hasura-role": "signing-requests-read"},
         })
-        expect(graphql.calls.find(({name}) => name === "SigningEventInfo")).toMatchObject({
-            headers: {"x-hasura-role": "signing-requests-read"},
-        })
+        // The event screen supplies its timezone, so rendering dates needs no extra read.
+        expect(graphql.calls.filter(({name}) => name === "SigningEventInfo")).toEqual([])
     },
 }
 
@@ -224,7 +225,7 @@ export const SecondOrganization: Story = {
                 name: `${label("actions.close-voting.short")} · ${posts[0].name}`,
             })
         ).toBeVisible()
-        // Its event's own zone (Europe/Madrid: 11:02 UTC is 13:02 GMT+2).
-        await expect(within(rows[0]).getByText("May 8, 2028, 13:02 GMT+2")).toBeVisible()
+        // Its event's own zone (Europe/Madrid: 11:02 UTC is 1:02 PM GMT+2).
+        await expect(within(rows[0]).getByText("May 8, 2028, 1:02 PM GMT+2")).toBeVisible()
     },
 }

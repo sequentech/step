@@ -18,8 +18,10 @@
 //!   one statement each.
 
 use crate::postgres::monitoring_config::EventRef;
+use crate::services::time_zones::event_time_zone;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, NaiveDate, TimeZone, Utc};
+use chrono_tz::Tz;
 use deadpool_postgres::Transaction;
 use sequent_core::monitoring::config::Settings;
 use sequent_core::monitoring::voter::{voter_facts, VoterFacts, VoterSources};
@@ -570,28 +572,38 @@ pub struct ProjectionRun {
     pub activity: u64,
 }
 
-/// When the last full pass ran, and under which settings revision.
+/// When the last full pass ran, under which settings revision and in which
+/// event zone (ages are counted on the event's first day in it).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LastPass {
     pub at: DateTime<Utc>,
     pub settings_revision: i32,
+    /// `None` for a pass recorded before passes recorded their zone.
+    pub time_zone: Option<Tz>,
 }
 
-/// Whether a full pass is due.
+/// Whether a full pass is due: first, on new settings or a new event zone,
+/// then every interval.
 pub fn full_pass_due(
     last: Option<LastPass>,
     settings_revision: i32,
+    time_zone: Tz,
     now: DateTime<Utc>,
     every: Duration,
 ) -> bool {
     match last {
         None => true,
-        Some(last) => last.settings_revision != settings_revision || now - last.at >= every,
+        Some(last) => {
+            last.settings_revision != settings_revision
+                || last.time_zone != Some(time_zone)
+                || now - last.at >= every
+        }
     }
 }
 
 const PASS_AT: &str = "voters_full_pass_at";
 const PASS_SETTINGS: &str = "voters_settings_revision";
+const PASS_TIME_ZONE: &str = "voters_time_zone";
 
 async fn last_pass(transaction: &Transaction<'_>, event: EventRef) -> Result<Option<LastPass>> {
     let row = transaction
@@ -614,14 +626,23 @@ async fn last_pass(transaction: &Transaction<'_>, event: EventRef) -> Result<Opt
         .get(PASS_SETTINGS)
         .and_then(Value::as_i64)
         .and_then(|revision| i32::try_from(revision).ok());
+    let time_zone = watermarks
+        .get(PASS_TIME_ZONE)
+        .and_then(Value::as_str)
+        .and_then(|zone| zone.parse::<Tz>().ok());
     Ok(at.zip(revision).map(|(at, settings_revision)| LastPass {
         at,
         settings_revision,
+        time_zone,
     }))
 }
 
 async fn record_pass(transaction: &Transaction<'_>, event: EventRef, pass: LastPass) -> Result<()> {
-    let marks = json!({ PASS_AT: pass.at.to_rfc3339(), PASS_SETTINGS: pass.settings_revision });
+    let marks = json!({
+        PASS_AT: pass.at.to_rfc3339(),
+        PASS_SETTINGS: pass.settings_revision,
+        PASS_TIME_ZONE: pass.time_zone.map(|zone| zone.name()),
+    });
     transaction
         .execute(
             "INSERT INTO sequent_backend.monitoring_snapshot_state
@@ -637,13 +658,13 @@ async fn record_pass(transaction: &Transaction<'_>, event: EventRef, pass: LastP
     Ok(())
 }
 
-/// The event's first day in `settings`' time zone: when its first voting
+/// The event's first day in its primary `zone`: when its first voting
 /// period is scheduled to start, otherwise `now`.
-#[instrument(err, skip(transaction, settings))]
+#[instrument(err, skip(transaction))]
 pub async fn event_first_day(
     transaction: &Transaction<'_>,
     event: EventRef,
-    settings: &Settings,
+    zone: Tz,
     now: DateTime<Utc>,
 ) -> Result<NaiveDate> {
     let starts: Vec<String> = transaction
@@ -665,10 +686,7 @@ pub async fn event_first_day(
         .map(|start| start.with_timezone(&Utc))
         .min()
         .unwrap_or(now);
-    Ok(match settings.time_zone.parse::<chrono_tz::Tz>() {
-        Ok(zone) => zone.from_utc_datetime(&start.naive_utc()).date_naive(),
-        Err(_) => start.date_naive(),
-    })
+    Ok(zone.from_utc_datetime(&start.naive_utc()).date_naive())
 }
 
 /// Brings the event's projection up to date: a full pass over the voters
@@ -685,9 +703,11 @@ pub async fn refresh_voter_projection(
     full_pass_every: Duration,
 ) -> Result<ProjectionRun> {
     let mut run = ProjectionRun::default();
+    let zone = event_time_zone(transaction, event.tenant_id, event.election_event_id).await?;
     if full_pass_due(
         last_pass(transaction, event).await?,
         settings_revision,
+        zone,
         now,
         full_pass_every,
     ) {
@@ -697,7 +717,7 @@ pub async fn refresh_voter_projection(
             settings,
             settings_revision,
             places: &places,
-            on: event_first_day(transaction, event, settings, now).await?,
+            on: event_first_day(transaction, event, zone, now).await?,
         };
         let realm = get_event_realm(
             &event.tenant_id.to_string(),
@@ -727,6 +747,7 @@ pub async fn refresh_voter_projection(
             LastPass {
                 at: now,
                 settings_revision,
+                time_zone: Some(zone),
             },
         )
         .await?;

@@ -17,6 +17,7 @@ import ElectionHeader from "@/components/ElectionHeader"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
+import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
@@ -628,11 +629,14 @@ export const ElectionEventTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={record}>
-                    <Tabs
-                        elements={tabs}
-                        selectedTab={selectedTab}
-                        onSelectedTabChange={setSelectedTab}
-                    />
+                    {/* The event's screens show their times in its zones. */}
+                    <EventTimeZoneProvider event={record}>
+                        <Tabs
+                            elements={tabs}
+                            selectedTab={selectedTab}
+                            onSelectedTabChange={setSelectedTab}
+                        />
+                    </EventTimeZoneProvider>
                 </RecordContextProvider>
             </Box>
         </Box>

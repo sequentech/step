@@ -6,7 +6,12 @@ use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
+use crate::services::documents::{
+    get_document_as_temp_file, upload_and_return_document_with_annotations,
+};
+use crate::services::reports::generation::{
+    attach_report_manifest, manifest_of, manifest_of_document, ReportRequester, WrittenManifest,
+};
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::{Error as WrapError, Result as WrapResult};
@@ -14,10 +19,12 @@ use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use sequent_core::election_config::archive::Artifact;
+use sequent_core::election_config::manifest::ReportManifest;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::pdf::{PdfRenderer, PrintToPdfOptions};
 use sequent_core::temp_path::write_into_named_temp_file;
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::util::path::change_file_extension;
 use std::io::{Read, Seek};
 use tracing::instrument;
@@ -70,6 +77,23 @@ pub fn tally_pdf_options(tally_path: &std::path::Path) -> Result<Option<PrintToP
     Ok(config
         .pdf_options
         .map(|option| option.to_print_to_pdf_options()))
+}
+
+/// The hash manifest of a PDF rendered from a document that was stored
+/// with one: the PDF, under the configuration the document's names.
+pub fn rendered_pdf_manifest(
+    source: &ReportManifest,
+    name: &str,
+    pdf: &[u8],
+) -> Result<WrittenManifest> {
+    manifest_of(
+        &source.report_type,
+        &source.configuration,
+        &[Artifact {
+            name: name.to_string(),
+            bytes: pdf.to_vec(),
+        }],
+    )
 }
 
 #[instrument(err)]
@@ -125,7 +149,25 @@ pub async fn render_document_pdf_wrap(
     )
     .ok_or(anyhow!("Error changing file extension"))?;
 
-    let _document = upload_and_return_document(
+    // A rendering of a report of a signed configuration is a file of that
+    // report: it gets its hash manifest, stored and logged with it.
+    let mut annotations = DocumentAnnotations::default();
+    if let (Some(source), Some(event_id)) = (
+        manifest_of_document(document.annotations.as_ref())?,
+        election_event_id.as_deref(),
+    ) {
+        attach_report_manifest(
+            &hasura_transaction,
+            &tenant_id,
+            event_id,
+            &rendered_pdf_manifest(&source, &document_name, &bytes)?,
+            &ReportRequester::named(executer_username.clone()),
+            &mut annotations,
+        )
+        .await?;
+    }
+
+    let _document = upload_and_return_document_with_annotations(
         &hasura_transaction,
         &temp_path_string,
         file_size,
@@ -135,11 +177,45 @@ pub async fn render_document_pdf_wrap(
         &document_name,
         Some(output_document_id),
         false,
+        &annotations,
     )
     .await?;
 
     hasura_transaction.commit().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::election_config::manifest::{
+        sha256_hex, ConfigurationStamp, ReportManifestFormat,
+    };
+
+    #[test]
+    fn a_rendered_pdf_is_listed_under_the_configuration_of_what_it_was_rendered_from() {
+        let source = ReportManifest {
+            format: ReportManifestFormat::V1,
+            report_type: "ELECTORAL_RESULTS".to_string(),
+            configuration: ConfigurationStamp {
+                external_id: "ov-2028".to_string(),
+                revision: 3,
+                manifest_sha256: "ab".repeat(32),
+                template_sha256: "cd".repeat(32),
+            },
+            files: Vec::new(),
+        };
+
+        let written = rendered_pdf_manifest(&source, "report.pdf", b"%PDF-1.5").unwrap();
+
+        assert_eq!(written.manifest.report_type, "ELECTORAL_RESULTS");
+        assert_eq!(written.manifest.configuration, source.configuration);
+        assert_eq!(written.manifest.files.len(), 1);
+        assert_eq!(written.manifest.files[0].path, "report.pdf");
+        assert_eq!(written.manifest.files[0].size, 8);
+        assert_eq!(written.manifest.files[0].sha256, sha256_hex(b"%PDF-1.5"));
+        assert_eq!(written.sha256, sha256_hex(&written.bytes));
+    }
 }
 
 #[instrument(err)]

@@ -19,8 +19,18 @@ it("uses the theme text color and commits a language before notifying the caller
     await i18n.init({
         lng: "en",
         resources: {
-            en: {translation: {language: "English"}},
-            fr: {translation: {language: "Français"}},
+            en: {
+                translation: {
+                    language: "English",
+                    a11y: {languageSelector: "Language: {{language}}"},
+                },
+            },
+            fr: {
+                translation: {
+                    language: "Français",
+                    a11y: {languageSelector: "Langue : {{language}}"},
+                },
+            },
         },
     })
     const onChange = jest.fn((language: string) => expect(i18n.language).toBe(language))
@@ -31,13 +41,24 @@ it("uses the theme text color and commits a language before notifying the caller
             </ThemeProvider>
         </I18nextProvider>
     )
-    const button = screen.getByRole("button", {name: "English"})
+    const button = screen.getByRole("button", {name: "Language: English"})
     expect(getComputedStyle(button).color).toBe("rgb(0, 0, 0)")
     await user.click(button)
     expect(button).toHaveAttribute("aria-expanded", "true")
-    await user.click(screen.getByRole("menuitem", {name: "Français"}))
+    const english = screen.getByRole("menuitemradio", {name: "English"})
+    const french = screen.getByRole("menuitemradio", {name: "Français"})
+    expect(english).toBeChecked()
+    expect(french).not.toBeChecked()
+    expect(english).toHaveAttribute("lang", "en")
+    expect(french).toHaveAttribute("lang", "fr")
+    await user.click(french)
     await waitFor(() => expect(onChange).toHaveBeenCalledWith("fr"))
-    expect(screen.getByRole("button", {name: "Français"})).not.toHaveAttribute("aria-expanded")
+    const renamed = screen.getByRole("button", {name: "Langue : Français"})
+    expect(renamed).not.toHaveAttribute("aria-expanded")
+    expect(renamed).toHaveTextContent("Français")
+    await user.click(renamed)
+    expect(screen.getByRole("menuitemradio", {name: "Français"})).toBeChecked()
+    expect(screen.getByRole("menuitemradio", {name: "English"})).not.toBeChecked()
 })
 
 it("changes the inherited language when the configured language changes", async () => {

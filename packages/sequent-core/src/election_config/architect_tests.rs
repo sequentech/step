@@ -6192,3 +6192,442 @@ fn the_bundle_carries_the_same_refusal_for_the_importer() {
     let clean = validated(&telephone_in(&["en"]));
     assert!(with_id(&clean, "ivr.missing-prompts").is_empty(), "{clean}");
 }
+
+// -- reports ----------------------------------------------------------------
+
+fn election_returns() -> PlannedReport {
+    PlannedReport {
+        report_type: ReportType::ELECTORAL_RESULTS,
+        election: Some("officers".to_string()),
+        formats: vec![ReportFormat::Pdf, ReportFormat::Xml],
+        copies: 7,
+        template: None,
+    }
+}
+
+fn with_reports(reports: Vec<PlannedReport>) -> Blueprint {
+    Blueprint { reports, ..sound() }
+}
+
+#[test]
+fn a_plans_reports_reach_the_reports_csv() {
+    let bundle = compiled(&with_reports(vec![election_returns()]));
+    let reports = bundle.reports.expect("a reports table");
+    assert_eq!(reports.rows.len(), 1);
+    let row = &reports.rows[0];
+    assert_eq!(row[2], "ELECTORAL_RESULTS");
+    assert_eq!(
+        row[1],
+        bundle.export["elections"][0]["id"].as_str().unwrap(),
+        "the election is resolved to the id the bundle gives it"
+    );
+    assert_eq!(row[8], "7");
+    assert_eq!(row[9], "pdf|xml");
+}
+
+#[test]
+fn a_plan_without_reports_writes_no_reports_sheet() {
+    let workbook = workbook_of(&sound()).unwrap();
+    assert!(workbook.sheet(sheet::SHEET_REPORTS).is_none());
+    assert!(!serde_json::to_string(&sound())
+        .unwrap()
+        .contains("\"reports\""));
+}
+
+#[test]
+fn a_plans_reports_join_a_carried_reports_sheet() {
+    let carried = Sheet::from_grid(
+        "Reports",
+        &[
+            vec![Cell::text("report_type"), Cell::text("encryption_policy")],
+            vec![Cell::text("ACTIVITY_LOGS"), Cell::text("unencrypted")],
+        ],
+    )
+    .unwrap();
+    let plan = Blueprint {
+        platform: vec![carried],
+        ..with_reports(vec![election_returns()])
+    };
+    let workbook = workbook_of(&plan).expect("one Reports sheet, not two");
+    let rows = workbook.rows(sheet::SHEET_REPORTS);
+    let types: Vec<String> = rows
+        .iter()
+        .map(|row| {
+            row.get("report_type")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        })
+        .collect();
+    assert_eq!(types, vec!["ACTIVITY_LOGS", "ELECTORAL_RESULTS"]);
+    assert_eq!(compiled(&plan).reports.unwrap().rows.len(), 2);
+}
+
+#[test]
+fn a_plans_reports_come_back_from_its_workbook() {
+    let plan = with_reports(vec![election_returns()]);
+    let workbook = workbook_of(&plan).unwrap();
+    let back = crate::election_config::plan_from_workbook::plan_from_workbook(
+        &workbook,
+    )
+    .unwrap()
+    .plan;
+    assert_eq!(back.reports, plan.reports);
+    assert!(
+        back.platform
+            .iter()
+            .all(|sheet| sheet.key != sheet::SHEET_REPORTS),
+        "the rows the field holds don't also stay in a carried sheet"
+    );
+}
+
+fn compiled_plan(plan: &Blueprint) -> Compiled {
+    compile_plan(Compile {
+        plan,
+        templates: &TemplateSet::builtin().unwrap(),
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .expect("a sound plan compiles")
+}
+
+#[test]
+fn a_compiled_plan_becomes_a_revisions_content() {
+    use crate::election_config::manifest::{revision_content, ReportSetting};
+
+    let plan = with_reports(vec![PlannedReport {
+        formats: Vec::new(),
+        ..election_returns()
+    }]);
+    let revision = revision_content(&compiled_plan(&plan), &[]).unwrap();
+
+    assert!(revision
+        .members
+        .iter()
+        .any(|member| member.name == "official_election_setup.zip"));
+    assert!(revision
+        .content
+        .files
+        .iter()
+        .any(|file| file.path == "official_election_setup.zip"
+            && !file.members.is_empty()));
+    assert!(!revision.content.ballot_designs.is_empty());
+    assert!(revision
+        .content
+        .ballot_designs
+        .iter()
+        .all(|design| design.version == 1));
+    assert_eq!(
+        revision.content.reports,
+        vec![ReportSetting {
+            report_type: "ELECTORAL_RESULTS".to_string(),
+            formats: vec![ReportFormat::Pdf],
+            copies: 7,
+            template: None,
+            template_sha256: None,
+        }],
+        "no formats means the type's default"
+    );
+
+    let again = revision_content(
+        &compiled_plan(&plan),
+        &revision.content.ballot_designs,
+    )
+    .unwrap();
+    assert_eq!(
+        again.content, revision.content,
+        "the same plan is the same content"
+    );
+}
+
+#[test]
+fn a_carried_reports_row_is_in_the_revisions_content() {
+    use crate::election_config::manifest::{revision_content, ReportSetting};
+
+    let carried = Sheet::from_grid(
+        "Reports",
+        &[
+            vec![Cell::text("report_type"), Cell::text("encryption_policy")],
+            vec![Cell::text("ACTIVITY_LOGS"), Cell::text("unencrypted")],
+        ],
+    )
+    .unwrap();
+    let plan = Blueprint {
+        platform: vec![carried],
+        ..with_reports(vec![election_returns()])
+    };
+    let revision = revision_content(&compiled_plan(&plan), &[]).unwrap();
+
+    assert_eq!(
+        revision.content.reports,
+        vec![
+            ReportSetting {
+                report_type: "ACTIVITY_LOGS".to_string(),
+                formats: vec![ReportFormat::Pdf],
+                copies: 1,
+                template: None,
+                template_sha256: None,
+            },
+            ReportSetting {
+                report_type: "ELECTORAL_RESULTS".to_string(),
+                formats: vec![ReportFormat::Pdf, ReportFormat::Xml],
+                copies: 7,
+                template: None,
+                template_sha256: None,
+            },
+        ],
+        "every row of the reports file is approved, not only the plan's own"
+    );
+}
+
+#[test]
+fn a_report_drawn_with_a_template_the_plan_lacks_has_no_content() {
+    use crate::election_config::manifest::revision_content;
+
+    // The builder refuses a template alias no Templates row defines, so the
+    // alias is written into a compiled plan's reports afterwards.
+    let mut compiled = compiled_plan(&with_reports(vec![election_returns()]));
+    let reports = compiled.bundle.reports.as_mut().expect("a reports table");
+    let alias = reports
+        .columns
+        .iter()
+        .position(|column| column == "template_alias")
+        .expect("a template_alias column");
+    reports.rows[0][alias] = "comelec-er".to_string();
+
+    let report = revision_content(&compiled, &[]).unwrap_err();
+    assert_eq!(with_id(&report, "package.report-template-missing").len(), 1);
+}
+
+#[test]
+fn a_reports_row_that_cannot_be_read_has_no_content() {
+    use crate::election_config::manifest::revision_content;
+
+    let mut compiled = compiled_plan(&with_reports(vec![election_returns()]));
+    let reports = compiled.bundle.reports.as_mut().expect("a reports table");
+    let copies = reports
+        .columns
+        .iter()
+        .position(|column| column == "copies")
+        .expect("a copies column");
+    reports.rows[0][copies] = "many".to_string();
+
+    let report = revision_content(&compiled, &[]).unwrap_err();
+    assert_eq!(with_id(&report, "package.report-unreadable").len(), 1);
+}
+
+/// Sets `column` of the first reports row of a compiled plan.
+fn set_report_cell(compiled: &mut Compiled, column: &str, value: &str) {
+    let reports = compiled.bundle.reports.as_mut().expect("a reports table");
+    let at = reports
+        .columns
+        .iter()
+        .position(|name| name == column)
+        .unwrap_or_else(|| panic!("a {column} column"));
+    reports.rows[0][at] = value.to_string();
+}
+
+#[test]
+fn a_reports_row_in_a_format_nobody_knows_has_no_content() {
+    use crate::election_config::manifest::revision_content;
+
+    let mut compiled = compiled_plan(&with_reports(vec![election_returns()]));
+    set_report_cell(&mut compiled, "output_formats", "pdf|papyrus");
+
+    let report = revision_content(&compiled, &[]).unwrap_err();
+    let unreadable = with_id(&report, "package.report-unreadable");
+    assert_eq!(unreadable.len(), 1, "{report}");
+    assert_eq!(unreadable[0].path, "reports[0]");
+    assert_eq!(unreadable[0].details["report"], "ELECTORAL_RESULTS");
+    assert_eq!(
+        unreadable[0].details["reason"],
+        "'papyrus' is not a report format"
+    );
+}
+
+#[test]
+fn a_reports_row_without_a_type_has_no_content() {
+    use crate::election_config::manifest::revision_content;
+
+    let mut compiled = compiled_plan(&with_reports(vec![election_returns()]));
+    set_report_cell(&mut compiled, "report_type", " ");
+
+    let report = revision_content(&compiled, &[]).unwrap_err();
+    let unreadable = with_id(&report, "package.report-unreadable");
+    assert_eq!(unreadable.len(), 1, "{report}");
+    assert_eq!(unreadable[0].code, Code::MissingField);
+    assert_eq!(unreadable[0].path, "reports[0]");
+    assert!(unreadable[0].details.is_empty());
+}
+
+#[test]
+fn a_report_drawn_with_a_template_is_approved_with_the_templates_digest() {
+    use crate::election_config::build::CommunicationTemplate;
+    use crate::election_config::manifest::{revision_content, sha256_hex};
+
+    let mut compiled = compiled_plan(&with_reports(vec![election_returns()]));
+    set_report_cell(&mut compiled, "template_alias", "comelec-er");
+    compiled.bundle.templates.push(CommunicationTemplate {
+        name: "Election Returns".to_string(),
+        alias: " comelec-er ".to_string(),
+        document: "<h1>Election Returns</h1>".to_string(),
+        communication_method: None,
+        template_type: None,
+        selected_methods: None,
+    });
+
+    let revision = revision_content(&compiled, &[]).unwrap();
+    assert_eq!(revision.content.reports.len(), 1);
+    let setting = &revision.content.reports[0];
+    assert_eq!(setting.template.as_deref(), Some("comelec-er"));
+    assert_eq!(
+        setting.template_sha256.as_deref(),
+        Some(sha256_hex(b"<h1>Election Returns</h1>").as_str())
+    );
+}
+
+#[test]
+fn a_reports_file_written_before_copies_and_formats_reads_with_the_defaults() {
+    use crate::election_config::manifest::{revision_content, ReportSetting};
+
+    let mut compiled = compiled_plan(&with_reports(vec![election_returns()]));
+    let reports = compiled.bundle.reports.as_mut().expect("a reports table");
+    let kept: Vec<usize> = reports
+        .columns
+        .iter()
+        .enumerate()
+        .filter(|(_, name)| {
+            !["copies", "output_formats"].contains(&name.as_str())
+        })
+        .map(|(at, _)| at)
+        .collect();
+    reports.columns =
+        kept.iter().map(|at| reports.columns[*at].clone()).collect();
+    for row in &mut reports.rows {
+        *row = kept.iter().map(|at| row[*at].clone()).collect();
+    }
+    // A row shorter than the header, as a hand-edited file may have.
+    let mut short = reports.rows[0].clone();
+    short.truncate(3);
+    short[2] = "ACTIVITY_LOGS".to_string();
+    reports.rows.push(short);
+
+    let revision = revision_content(&compiled, &[]).unwrap();
+    let default_of = |report_type: &str| ReportSetting {
+        report_type: report_type.to_string(),
+        formats: vec![ReportFormat::Pdf],
+        copies: 1,
+        template: None,
+        template_sha256: None,
+    };
+    assert_eq!(
+        revision.content.reports,
+        vec![default_of("ELECTORAL_RESULTS"), default_of("ACTIVITY_LOGS")]
+    );
+}
+
+#[test]
+fn a_bundle_without_a_reports_file_approves_no_reports() {
+    use crate::election_config::manifest::revision_content;
+
+    let mut compiled = compiled_plan(&sound());
+    compiled.bundle.reports = None;
+    let revision = revision_content(&compiled, &[]).unwrap();
+    assert!(revision.content.reports.is_empty());
+    assert!(!revision.content.files.is_empty());
+}
+
+#[test]
+fn a_delivery_that_cannot_be_packed_or_read_back_has_no_content() {
+    use crate::election_config::archive::Artifact;
+    use crate::election_config::manifest::revision_content;
+
+    // The zip writer refuses a name twice.
+    let mut twice = compiled_plan(&sound());
+    let again = twice.layout.importable[0].clone();
+    twice.layout.importable.push(again);
+    assert!(revision_content(&twice, &[]).unwrap_err().has_errors());
+
+    // A member named like a zip is listed by its own members.
+    let mut broken = compiled_plan(&sound());
+    broken.layout.auxiliary.push(Artifact {
+        name: "notes.zip".to_string(),
+        bytes: b"not a zip".to_vec(),
+    });
+    let report = revision_content(&broken, &[]).unwrap_err();
+    assert_eq!(with_id(&report, "package.unreadable-zip").len(), 1);
+}
+
+#[test]
+fn a_bundle_whose_election_lost_its_external_id_has_no_content() {
+    use crate::election_config::manifest::revision_content;
+
+    let mut compiled = compiled_plan(&sound());
+    compiled.bundle.export["elections"][0]["external_id"] =
+        serde_json::Value::Null;
+    let report = revision_content(&compiled, &[]).unwrap_err();
+    assert_eq!(
+        with_id(&report, "design.no-stable-key").len(),
+        1,
+        "{report}"
+    );
+}
+
+#[test]
+fn a_report_planned_without_a_number_of_copies_prints_one() {
+    let report: PlannedReport =
+        serde_json::from_str(r#"{"report_type": "ACTIVITY_LOGS"}"#).unwrap();
+    assert_eq!(
+        report,
+        PlannedReport {
+            report_type: ReportType::ACTIVITY_LOGS,
+            election: None,
+            formats: Vec::new(),
+            copies: 1,
+            template: None,
+        }
+    );
+}
+
+#[test]
+fn a_report_must_print_at_least_one_copy() {
+    let report = checked(&with_reports(vec![PlannedReport {
+        copies: 0,
+        ..election_returns()
+    }]));
+    assert_eq!(with_id(&report, "reports.no-copies").len(), 1, "{report}");
+}
+
+#[test]
+fn a_report_offers_only_the_formats_its_type_has() {
+    let report = checked(&with_reports(vec![PlannedReport {
+        report_type: ReportType::BALLOT_RECEIPT,
+        formats: vec![ReportFormat::Csv],
+        ..election_returns()
+    }]));
+    let unsupported = with_id(&report, "reports.unsupported-format");
+    assert_eq!(unsupported.len(), 1, "{report}");
+    assert_eq!(unsupported[0].details["format"], "csv");
+}
+
+#[test]
+fn a_report_about_an_unknown_election_is_refused() {
+    let report = checked(&with_reports(vec![PlannedReport {
+        election: Some("nobody".to_string()),
+        ..election_returns()
+    }]));
+    assert_eq!(with_id(&report, "reports.unknown-election").len(), 1);
+}
+
+#[test]
+fn a_report_set_twice_is_refused() {
+    let report =
+        checked(&with_reports(vec![election_returns(), election_returns()]));
+    assert_eq!(with_id(&report, "reports.duplicate").len(), 1);
+    assert!(with_id(
+        &checked(&with_reports(vec![election_returns()])),
+        "reports.duplicate"
+    )
+    .is_empty());
+}

@@ -10,6 +10,7 @@ single test must produce a failing decision even though the remaining tests pass
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -102,7 +103,8 @@ class PairedCoverageTests(unittest.TestCase):
     def test_the_rust_runner_receives_the_comparison_base_flag(self):
         commands = []
 
-        def runner(arguments, root, output, name):
+        def runner(arguments, root, output, name, *, native=False):
+            self.assertTrue(native)
             commands.append(arguments)
             summary = output / "native" / "existing" / "run" / "summary.json"
             summary.parent.mkdir(parents=True)
@@ -164,6 +166,43 @@ class PairedCoverageTests(unittest.TestCase):
             )
         self.assertNotIn("GITHUB_STEP_SUMMARY", execute.call_args.args[2])
         self.assertEqual(execute.call_args.kwargs["cwd"], self.head)
+
+    def test_native_budget_applies_to_outer_runner_but_not_other_gates(self):
+        with (
+            patch.object(ci, "execute", return_value="ok") as execute,
+            patch.dict(os.environ, {"NATIVE_COVERAGE_TIMEOUT_SECONDS": "3600"}),
+        ):
+            ci.command(["run.py"], self.head, self.output, "measurement", native=True)
+            self.assertEqual(
+                execute.call_args.args[2]["NATIVE_COVERAGE_TIMEOUT_SECONDS"], "3600"
+            )
+            self.assertTrue(execute.call_args.kwargs["cooperative"])
+            ci.command(["node"], self.head, self.output, "frontend")
+            self.assertNotIn(
+                "NATIVE_COVERAGE_TIMEOUT_SECONDS", execute.call_args.args[2]
+            )
+            self.assertFalse(execute.call_args.kwargs["cooperative"])
+
+    def test_cli_uses_cancellation_scope_only_for_native_pairs(self):
+        for kind, package in [("rust", "windmill"), ("python", "coverage-tooling")]:
+            arguments = [
+                "ci.py",
+                kind,
+                package,
+                "--base",
+                str(self.base),
+                "--head",
+                str(self.head),
+                "--output",
+                str(self.output),
+            ]
+            with (
+                patch.object(sys, "argv", arguments),
+                patch.object(ci, "paired_run", return_value=0),
+                patch.object(ci, "native_cancellation") as cancellation,
+            ):
+                self.assertEqual(ci.main(), 0)
+            self.assertEqual(cancellation.call_count, int(kind == "rust"))
 
     def test_zero_python_tests_is_an_error(self):
         with patch.object(ci, "command", return_value="Ran 0 tests in 0.001s"):

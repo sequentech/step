@@ -59,6 +59,19 @@ pub async fn list_cast_vote_messages(
         )
     })?; // TODO: Temporary till merging the ballot performace inprovements.
 
+    // The log list's range filter keys aren't columns: they never sort.
+    if let Some(field) = input
+        .order_by
+        .as_ref()
+        .and_then(|order_by| order_by.keys().find(|field| !field.is_column()))
+    {
+        return Err(ErrorResponse::new(
+            Status::BadRequest,
+            &format!("Cannot sort by {field}"),
+            ErrorCode::InvalidOrderBy,
+        ));
+    }
+
     // Check that the policy is enabled
     provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = claims.hasura_claims.tenant_id.clone();

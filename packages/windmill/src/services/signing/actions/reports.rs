@@ -26,6 +26,7 @@ use super::super::requests::{cancel_request, last_signer, stage_request_step};
 use super::super::{SigningCaller, SigningError, SigningResult};
 use super::transmission::sha256_hex;
 use super::{gate, refuse, EffectProgress, EFFECT_PARTIAL};
+use crate::postgres::document::{get_document, set_document_annotations};
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::signing::{
     get_signing_request, list_waiting_signing_requests, lock_signing_event,
@@ -44,6 +45,9 @@ use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cb
 use crate::services::document_password::save_password;
 use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
+use crate::services::reports::generation::{
+    attach_report_manifest, manifest_of, manifest_of_document, released_manifest, ReportRequester,
+};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::signing::guard::SigningRequestSummary;
 use crate::services::vault;
@@ -52,6 +56,8 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::{Client, Transaction};
 use electoral_log::messages::newtypes::SigningStatementKind;
+use sequent_core::election_config::archive::Artifact;
+use sequent_core::election_config::manifest::ReportManifest;
 use sequent_core::signing::{
     CancelReason, DocumentKind, DocumentRevisionState, DocumentSubject, SigningAction, SigningScope,
 };
@@ -264,6 +270,30 @@ pub trait ReportPublisher: Send + Sync {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StoredReports;
 
+/// The hash manifest the document held for `request`'s signatures was
+/// stored with: it names the configuration its release is stamped with.
+/// `None` for a report of an event not imported from a signed one.
+async fn held_manifest(
+    hasura_transaction: &Transaction<'_>,
+    request: &SigningRequestRow,
+) -> Result<Option<ReportManifest>> {
+    let Some(document_id) = request.document_id else {
+        return Ok(None);
+    };
+    let document = get_document(
+        hasura_transaction,
+        &request.tenant_id.to_string(),
+        Some(request.election_event_id.to_string()),
+        &document_id.to_string(),
+    )
+    .await?;
+    manifest_of_document(
+        document
+            .as_ref()
+            .and_then(|document| document.annotations.as_ref()),
+    )
+}
+
 /// `name` with the extension of an encrypted report.
 fn encrypted_name(name: &str) -> String {
     let stem = name.strip_suffix(".pdf").unwrap_or(name);
@@ -285,6 +315,7 @@ impl ReportPublisher for StoredReports {
             .context("Error creating the signed report's file")?;
         std::fs::write(file.path(), pdf).context("Error writing the signed report")?;
         let path = file.path().to_string_lossy().to_string();
+        let held = held_manifest(hasura_transaction, request).await?;
         match &release.target {
             ReleaseTarget::Report { document_id } => {
                 let document_id = document_id.to_string();
@@ -335,6 +366,31 @@ impl ReportPublisher for StoredReports {
                         )
                     }
                 };
+                // The hash manifest of the report as it is released: the
+                // signed file, and the encrypted one when that is stored.
+                if let Some(held) = &held {
+                    let signed = Artifact {
+                        name: release.file_name.clone(),
+                        bytes: pdf.to_vec(),
+                    };
+                    let stored = match release.encryption {
+                        ReleaseEncryption::NoEncryption => None,
+                        ReleaseEncryption::ConfiguredPassword => Some(Artifact {
+                            name: name.clone(),
+                            bytes: std::fs::read(&upload_path)
+                                .context("Error reading the encrypted report")?,
+                        }),
+                    };
+                    attach_report_manifest(
+                        hasura_transaction,
+                        &tenant_id,
+                        &event_id,
+                        &released_manifest(held, signed, stored)?,
+                        &ReportRequester::default(),
+                        &mut annotations,
+                    )
+                    .await?;
+                }
                 let size = get_file_size(&upload_path)
                     .map_err(|error| anyhow!("Error reading the report's size: {error}"))?;
                 upload_and_return_document_with_annotations(
@@ -382,6 +438,25 @@ impl ReportPublisher for StoredReports {
                 .await?;
                 let protected = wrapped_path != path;
                 let upload_path = wrapped_path;
+                // The hash manifest of the file that is stored, wrapped or
+                // not.
+                let mut annotations = DocumentAnnotations::default();
+                if let Some(held) = &held {
+                    let stored = Artifact {
+                        name: release.file_name.clone(),
+                        bytes: std::fs::read(&upload_path)
+                            .context("Error reading the signed report")?,
+                    };
+                    attach_report_manifest(
+                        hasura_transaction,
+                        &tenant_id,
+                        &event_id,
+                        &released_manifest(held, stored, None)?,
+                        &ReportRequester::default(),
+                        &mut annotations,
+                    )
+                    .await?;
+                }
                 let size = get_file_size(&upload_path)
                     .map_err(|error| anyhow!("Error reading the report's size: {error}"))?;
                 let document = upload_and_return_document_with_annotations(
@@ -394,7 +469,7 @@ impl ReportPublisher for StoredReports {
                     &release.file_name,
                     None,
                     false,
-                    &DocumentAnnotations::default(),
+                    &annotations,
                 )
                 .await
                 .context("Error uploading the signed report")?;
@@ -649,6 +724,30 @@ pub struct TallyReport<'a> {
     pub file_name: &'a str,
     pub pdf: &'a [u8],
     pub requester: &'a TallyRequester,
+    /// The hash manifest of the report's folder, for an event imported from
+    /// a signed configuration: its release is stamped with what it names.
+    pub configuration: Option<&'a ReportManifest>,
+}
+
+/// The annotations of the document kept to be signed: the hash manifest of
+/// that file, under the configuration its folder's manifest names.
+pub fn held_annotations(
+    configuration: &ReportManifest,
+    file_name: &str,
+    base: &[u8],
+) -> Result<DocumentAnnotations> {
+    let written = manifest_of(
+        &configuration.report_type,
+        &configuration.configuration,
+        &[Artifact {
+            name: file_name.to_string(),
+            bytes: base.to_vec(),
+        }],
+    )?;
+    Ok(DocumentAnnotations {
+        report_manifest: Some(serde_json::to_value(&written.manifest)?),
+        ..Default::default()
+    })
 }
 
 /// Holds a tally's report of a Post (or a Post and country) whose action
@@ -681,15 +780,26 @@ pub async fn hold_tally_report(
         .file_name
         .strip_suffix(".pdf")
         .unwrap_or(report.file_name);
+    let to_sign = format!("{stem}-to-sign.pdf");
     let base_document_id = store
         .store(
             hasura_transaction,
             report.tenant_id,
             report.election_event_id,
-            &format!("{stem}-to-sign.pdf"),
+            &to_sign,
             &base,
         )
         .await?;
+    if let Some(configuration) = report.configuration {
+        set_document_annotations(
+            hasura_transaction,
+            report.tenant_id,
+            report.election_event_id,
+            base_document_id,
+            &held_annotations(configuration, &to_sign, &base)?,
+        )
+        .await?;
+    }
     let id = Uuid::new_v4();
     insert_tally_hold(
         hasura_transaction,

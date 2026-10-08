@@ -459,6 +459,7 @@ pub async fn delete_election_event(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
+    super::trusted_write::trusted_write(hasura_transaction).await?;
     // Children before the rows their ON DELETE RESTRICT foreign keys name:
     // tally_sheet_import_item references tally_sheet, tally_sheet_import,
     // election, area and contest; tally_sheet references tally_sheet_import,

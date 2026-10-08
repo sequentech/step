@@ -21,11 +21,12 @@ use super::{
     signatures::{
         check_certificate_cas, ecdsa_sign_data, get_p12_cert, get_p12_fingerprint, get_pk12_id,
     },
-    signed_transmission_package::{lock_transmission_data, transmission_timezone},
+    signed_transmission_package::{lock_transmission_data, transmission_zone},
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
 use crate::postgres::election_event::update_election_event_annotations;
+use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::upload_signature_refusal;
 use crate::{
     postgres::{
@@ -49,13 +50,12 @@ use crate::{
     types::miru_plugin::{MiruDocument, MiruDocumentIds, MiruSbeiUser, MiruSignature},
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{Local, Utc};
+use chrono::Utc;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
-    services::date::ISO8601,
     types::hasura::core::{ElectionEvent, Trustee},
 };
 use sequent_core::{
@@ -278,7 +278,6 @@ pub async fn upload_transmission_package_signature_service(
 
     // get time
     let now_utc = Utc::now();
-    let now_local = now_utc.with_timezone(&Local);
 
     // get event and annotations
     let election_event =
@@ -287,9 +286,10 @@ pub async fn upload_transmission_package_signature_service(
             .with_context(|| "Error fetching election event")?;
 
     let election_event_annotations = election_event.get_annotations()?;
-    // The zone the package was dated in at its creation.
-    let time_zone =
-        transmission_timezone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
+    // The package is dated in the event's primary zone.
+    let zone =
+        transmission_zone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
+    let now_local = now_utc.with_timezone(&zone.zone);
 
     // get election and annotations
     let Some(election) = get_election_by_id(
@@ -472,11 +472,13 @@ pub async fn upload_transmission_package_signature_service(
         &election_event_annotations,
         &election_event.id,
         tenant_id,
-        time_zone.clone(),
+        zone.offset,
         now_utc.clone(),
         new_acm_signatures,
         &new_transmission_package_data.logs,
         &election_annotations,
+        &miru_document.transaction_id,
+        &ReportRequester::named(Some(username.to_string())),
     )
     .await?;
 
@@ -493,7 +495,7 @@ pub async fn upload_transmission_package_signature_service(
         },
         transaction_id: first_document.transaction_id.clone(),
         servers_sent_to: vec![],
-        created_at: ISO8601::to_string(&now_local),
+        created_at: now_local.to_rfc3339(),
         signatures: new_miru_signatures,
     });
     update_transmission_package_annotations(

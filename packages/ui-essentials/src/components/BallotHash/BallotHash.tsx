@@ -141,7 +141,7 @@ export const BallotHashCopyButton: React.FC<Pick<BallotHashProps, "hash" | "copy
                     "&:hover": {paddingBottom: "2px"},
                     "&:active": {border: "2px solid transparent"},
                 }}
-                fontSize="18px"
+                fontSize="1.125rem"
                 onClick={handleCopy}
             />
             <CopyStatus
@@ -170,7 +170,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                 <Icon
                     className="hash-check-icon"
                     icon={faCheck}
-                    style={{fontSize: "14px", lineHeight: "unset", paddingBottom: "2px"}}
+                    style={{fontSize: "0.875rem", lineHeight: "unset", paddingBottom: "2px"}}
                 />
             </DecorativeIconBox>
             <BallotHashText className="hash-text">
@@ -188,7 +188,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                         paddingBottom: "2px",
                         color: theme.palette.customGrey.contrastText,
                     }}
-                    fontSize="18px"
+                    fontSize="1.125rem"
                     onClick={onHelpClick}
                     ariaLabel={helpButtonLabel || t("a11y.ballotIdHelp")}
                 />

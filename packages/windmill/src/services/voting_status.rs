@@ -97,6 +97,8 @@ pub async fn update_election_status(
             .await?;
         }
     }
+    // The event's voting status follows the Post's, past the checks above.
+    crate::postgres::trusted_write(hasura_transaction).await?;
     update_election_event_status(
         &hasura_transaction,
         &tenant_id,

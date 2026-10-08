@@ -110,6 +110,17 @@ pub struct ImportElectionEventSchema {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signing_checks: Option<crate::signing::SigningChecks>,
 
+    /// The event's enrollment approval matrix: the fields compared with the
+    /// registry, the ordered rules and the last rule.
+    ///
+    /// Absent (older bundles, or an event that never saved one): nothing is
+    /// imported and enrollment uses the built-in matrix. Present: the import
+    /// saves it as the event's version 1. `Value` because the rule model
+    /// belongs to the service that evaluates it, which refuses a matrix it
+    /// can't read or that breaks an invariant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval_matrix: Option<Value>,
+
     /// The platform version that wrote the bundle.
     ///
     /// Defaults to the first version that recorded one, so bundles predating the

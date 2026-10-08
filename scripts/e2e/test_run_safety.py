@@ -110,6 +110,7 @@ class RunSafety(unittest.TestCase):
             "STEP_E2E_CARGO_TARGET",
             "STEP_E2E_CARGO_HOME",
             "STEP_E2E_COVERAGE",
+            "STEP_E2E_COMPOSE_OVERLAY",
         ):
             self.env.pop(name, None)
         self.env.update(
@@ -140,6 +141,21 @@ class RunSafety(unittest.TestCase):
 
     def compose_calls(self, verb):
         return [args for args in self.calls() if args[0] == "compose" and verb in args]
+
+    def test_optional_overlay_is_last_for_startup_and_cleanup(self):
+        overlay = self.root / "manual override.yml"
+        overlay.write_text("services: {}\n")
+        result = self.run_script("--skip-images", "--skip-build", STEP_E2E_COMPOSE_OVERLAY=str(overlay))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for call in self.compose_calls("up") + self.compose_calls("down"):
+            files = [call[i + 1] for i, arg in enumerate(call) if arg == "-f"]
+            self.assertEqual(files[-1], str(overlay))
+
+    def test_missing_optional_overlay_fails_before_docker(self):
+        result = self.run_script("--skip-images", "--skip-build", STEP_E2E_COMPOSE_OVERLAY=str(self.root / "missing.yml"))
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("STEP_E2E_COMPOSE_OVERLAY", result.stderr)
+        self.assertEqual(self.calls(), [])
 
     def test_bash_invocation_from_the_script_directory_retains_arguments(self):
         script_directory = self.root / "scripts/e2e"

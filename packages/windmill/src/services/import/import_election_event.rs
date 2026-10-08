@@ -6,14 +6,16 @@ use crate::postgres::application::insert_applications;
 use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
+use crate::postgres::trusted_write;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::approval_matrix::store::import_approval_matrix;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
-use crate::services::keycloak::read_realm_config_from_s3;
+use crate::services::keycloak::{read_realm_config_from_s3, require_enrollment_window_checks};
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
@@ -126,8 +128,11 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 //   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
 //                        comes from the keycloak crate, which pulls reqwest.
 //                        Deserialized into the typed form where it is used.
+use super::configuration_package;
 use super::rejection::reject;
 use sequent_core::election_config;
+use sequent_core::election_config::package_verify::VerifiedPackage;
+use sequent_core::election_config::report::{parse_copies, parse_output_formats};
 pub use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::election_config::{import_problems, Rejected};
 
@@ -373,10 +378,32 @@ pub async fn upsert_keycloak_realm(
         realm.attributes = Some(attrs);
     }
 
+    require_enrollment_window_checks(&mut realm)?;
     realm = remove_keycloak_realm_secrets(&realm)?;
-    let realm_config = serde_json::to_string(&realm)?;
     let client = KeycloakAdminClient::new().await?;
     let realm_name = get_event_realm(tenant_id, election_event_id);
+    let registration_allowed = match realm.registration_allowed {
+        Some(allowed) => allowed,
+        None => match client.client.realm_get(&realm_name).await {
+            Ok(existing) => {
+                crate::tasks::migrate_registration_flows::registration_desire(&existing)?
+            }
+            Err(::keycloak::KeycloakError::HttpFailure { status: 404, .. }) => false,
+            Err(error) => return Err(error.into()),
+        },
+    };
+    // Imported partial/builtin flows remain closed until the installed
+    // registration forms have been verified. Failed verification stays closed.
+    realm.registration_allowed = Some(false);
+    // A source realm's unfinished workflow state is not an imported policy.
+    if let Some(attributes) = realm.attributes.as_mut() {
+        attributes.remove(crate::tasks::migrate_registration_flows::REGISTRATION_RESTORE_ATTRIBUTE);
+    }
+    crate::tasks::migrate_registration_flows::mark_import_registration_pending(
+        &mut realm,
+        registration_allowed,
+    );
+    let realm_config = serde_json::to_string(&realm)?;
     client
         .upsert_realm(
             realm_name.as_str(),
@@ -387,7 +414,23 @@ pub async fn upsert_keycloak_realm(
             Some(election_event_id.to_string()),
         )
         .await?;
+    // upsert_realm consumes its administrator client.
+    let client = KeycloakAdminClient::new().await?;
+    let public_client = KeycloakAdminClient::pub_new().await?;
+    let outcome = crate::tasks::migrate_registration_flows::migrate_realm_for_import(
+        &client,
+        &public_client,
+        &realm_name,
+    )
+    .await?;
+    if outcome == crate::tasks::migrate_registration_flows::FlowOutcome::NoRealm {
+        return Err(anyhow!(
+            "Imported event realm is missing before enrollment verification"
+        ));
+    }
     upsert_realm_jwks(realm_name.as_str()).await?;
+    crate::tasks::migrate_registration_flows::finish_registration_setup(&client, &realm_name)
+        .await?;
     Ok(())
 }
 
@@ -506,7 +549,12 @@ pub async fn get_document(
     hasura_transaction: &Transaction<'_>,
     object: ImportElectionEventBody,
     election_event_id: Option<String>,
-) -> Result<(NamedTempFile, Document, String)> {
+) -> Result<(
+    NamedTempFile,
+    Document,
+    String,
+    Option<Box<VerifiedPackage>>,
+)> {
     let document = postgres::document::get_document(
         hasura_transaction,
         &object.tenant_id,
@@ -534,7 +582,13 @@ pub async fn get_document(
         .await
         .with_context(|| format!("error decrypting document {:?}", document.id))?;
 
-    Ok((temp_file, document, document_type))
+    // Before anything in the file is read: a signed configuration package is
+    // verified and replaced by its importable archive.
+    let (temp_file, package) =
+        configuration_package::admit_document(hasura_transaction, &object.tenant_id, temp_file)
+            .await?;
+
+    Ok((temp_file, document, document_type, package))
 }
 
 #[instrument(err, skip_all)]
@@ -697,11 +751,15 @@ pub async fn process_election_event_file(
                 .unwrap_or_default()
                 .unwrap_or_default();
 
+            // An imported election starts with voting not started on every
+            // channel (the database refuses anything else).
             status.voting_status = VotingStatus::default();
             status.kiosk_voting_status = VotingStatus::default();
+            status.early_voting_status = VotingStatus::default();
             status.telephone_voting_status = VotingStatus::default();
             status.voting_period_dates = PeriodDates::default();
             status.kiosk_voting_period_dates = PeriodDates::default();
+            status.early_voting_period_dates = PeriodDates::default();
             status.telephone_voting_period_dates = PeriodDates::default();
 
             clone.status = Some(
@@ -729,6 +787,12 @@ pub async fn process_election_event_file(
         .transpose()
         .with_context(|| "Error deserializing keycloak_event_realm")?;
 
+    crate::postgres::scheduled_event::lock_scheduling_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+    )
+    .await?;
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
@@ -738,6 +802,8 @@ pub async fn process_election_event_file(
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
 
+    // The import keeps an exported lockdown, which only the server may set.
+    trusted_write(hasura_transaction).await?;
     insert_election_event(hasura_transaction, &data.election_event)
         .await
         .with_context(|| "Error inserting election event")?;
@@ -845,6 +911,12 @@ pub async fn process_election_event_file(
     )
     .await
     .with_context(|| "Error importing the signing configuration")?;
+
+    if let Some(matrix) = data.approval_matrix.as_ref() {
+        import_approval_matrix(hasura_transaction, &tenant_id, &election_event_id, matrix)
+            .await
+            .with_context(|| "Error importing the approval matrix")?;
+    }
 
     if let Some(applications) = data.applications.clone() {
         insert_applications(hasura_transaction, &applications)
@@ -965,6 +1037,9 @@ pub async fn process_reports_file(
                     )
                 }
             }),
+            // Absent from a file written before these columns existed.
+            copies: parse_copies(record.get(8)).map_err(|err| anyhow!(err))?,
+            output_formats: parse_output_formats(record.get(9)).map_err(|err| anyhow!(err))?,
         };
 
         if let Some(password) = record
@@ -1227,7 +1302,7 @@ pub async fn process_document(
     tenant_id: String,
 ) -> Result<()> {
     let importer = object.importer.clone();
-    let (temp_file_path, document, document_type) = get_document(
+    let (temp_file_path, document, document_type, package) = get_document(
         hasura_transaction,
         object.clone(),
         Some(election_event_id.clone()),
@@ -1598,6 +1673,19 @@ pub async fn process_document(
         }
     };
 
+    if let Some(package) = package {
+        configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
+            .await?;
+        configuration_package::log_import(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &package,
+            importer.as_ref(),
+        )
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -1644,18 +1732,22 @@ pub async fn manage_dates(
         {
             continue;
         }
-        let Some(date) = scheduled_event
+        // The wall time and its zone come along with the instant. A date
+        // without an offset is recomputed from them, or refused.
+        let Some(cron_config) = scheduled_event
             .cron_config
-            .and_then(|config| config.scheduled_date)
+            .filter(|config| config.scheduled_date.is_some())
         else {
             continue;
         };
+        let cron_config = crate::services::schedule_csv::checked_import_cron_config(cron_config)
+            .with_context(|| format!("Scheduled event {}", scheduled_event.id))?;
         maybe_create_scheduled_event(
             hasura_transaction,
             &data.tenant_id.to_string(),
             &data.election_event.id,
             processor,
-            date,
+            cron_config,
             payload.election_id.as_deref(),
             payload.voting_channels,
         )
@@ -1671,7 +1763,7 @@ pub async fn maybe_create_scheduled_event(
     tenant_id: &str,
     election_event_id: &str,
     event_processor: EventProcessors,
-    start_date: String,
+    cron_config: CronConfig,
     election_id: Option<&str>,
     voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
@@ -1683,7 +1775,7 @@ pub async fn maybe_create_scheduled_event(
     };
     let cron_config = CronConfig {
         cron: None,
-        scheduled_date: Some(start_date.to_string()),
+        ..cron_config
     };
     insert_scheduled_event(
         hasura_transaction,

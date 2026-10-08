@@ -72,12 +72,28 @@ fn every_signing_kind_names_its_own_statement_type() {
         SigningStatementKind::SigningChecksChanged,
         SigningStatementKind::SigningCertificateRevoked,
         SigningStatementKind::SigningRequestsExported,
+        // Scheduling entries (VOTE-LIFECYCLE) share the outbox.
+        SigningStatementKind::LifecycleWindowChanged,
+        SigningStatementKind::ScheduleRecomputeApplied,
+        SigningStatementKind::ScheduleImported,
+        // VOTE-LIFECYCLE: steps of scheduled openings and closings.
+        SigningStatementKind::ScheduledOutcomeChanged,
     ];
     for kind in kinds {
         let statement_kind = kind.statement_type().to_string();
         // The kind is stored in the board's `statement_kind` column.
         assert_eq!(statement_kind, kind.to_string());
-        assert!(statement_kind.starts_with("Signing"), "{statement_kind}");
+        assert!(
+            statement_kind.starts_with("Signing")
+                || matches!(
+                    kind,
+                    SigningStatementKind::LifecycleWindowChanged
+                        | SigningStatementKind::ScheduleRecomputeApplied
+                        | SigningStatementKind::ScheduleImported
+                        | SigningStatementKind::ScheduledOutcomeChanged
+                ),
+            "{statement_kind}"
+        );
         assert!(statement_kind.len() <= 40, "{statement_kind}");
     }
 }
@@ -108,6 +124,10 @@ fn the_signing_body_and_kinds_are_appended() {
         (StatementType::SigningChecksChanged, 43),
         (StatementType::SigningCertificateRevoked, 44),
         (StatementType::SigningRequestsExported, 45),
+        (StatementType::LifecycleWindowChanged, 46),
+        (StatementType::ScheduleRecomputeApplied, 47),
+        (StatementType::ScheduleImported, 48),
+        (StatementType::ScheduledOutcomeChanged, 49),
     ];
     for (kind, discriminant) in appended {
         assert_eq!(borsh::to_vec(&kind).unwrap(), vec![discriminant], "{kind}");

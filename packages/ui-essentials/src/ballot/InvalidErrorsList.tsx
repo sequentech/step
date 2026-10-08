@@ -115,7 +115,9 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                         !(
                             ("errors.implicit.underVote" === error.message &&
                                 !isReview &&
-                                under_vote_policy === EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
+                                (under_vote_policy === EUnderVotePolicy.WARN_ONLY_IN_REVIEW ||
+                                    under_vote_policy ===
+                                        EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)) ||
                             ("errors.implicit.blankVote" === error.message &&
                                 !isReview &&
                                 blank_vote_policy === EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||

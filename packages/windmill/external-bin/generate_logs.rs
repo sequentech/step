@@ -9,6 +9,7 @@ use chrono::{TimeZone, Utc};
 use clap::Parser;
 use csv::Writer;
 use electoral_log::messages::message::Message;
+use electoral_log::ElectoralLogMessage;
 use immudb_rs::{sql_value::Value as ImmudbSqlValue, Client};
 use serde::Deserialize;
 use std::collections::HashMap; // Added for HashMap
@@ -19,7 +20,7 @@ use tokio_stream::StreamExt; // Added for streaming
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
 use windmill::services::electoral_log::ElectoralLogRow;
-use windmill::services::reports::activity_log::ActivityLogRow;
+use windmill::services::reports::activity_log::{ActivityLogRow, LogZones};
 
 /// Generates a CSV report of activity logs from immudb.
 #[derive(Parser, Debug)]
@@ -48,6 +49,9 @@ struct Config {
     immudb_user: String,
     immudb_password: String,
     elections: HashMap<String, String>, // election_id -> election_name (for CSV filename)
+    /// IANA zone for this standalone export; absent settings use UTC.
+    #[serde(default)]
+    time_zone: Option<String>,
 }
 
 // --- Helper Functions ---
@@ -124,7 +128,13 @@ async fn main() -> Result<()> {
         )
     })?;
 
-    info!(config = ?config, "Configuration loaded successfully."); // Use ? for Debug formatting of Config
+    let chosen_zone = config
+        .time_zone
+        .as_deref()
+        .map(windmill::services::time_zones::parse_zone)
+        .transpose()?;
+    let log_zones = LogZones::new(chosen_zone, None, &[]);
+    info!("Configuration loaded successfully.");
 
     // Get board name
     let board_name = get_event_board_name(&cli.tenant_id, &cli.election_event_id);
@@ -217,7 +227,9 @@ async fn main() -> Result<()> {
                     };
                     let extracted_election_id_opt = message.election_id.clone();
 
-                    let activity_log_row = match ActivityLogRow::try_from(elog_row.clone()) {
+                    let activity_log_row = match ElectoralLogMessage::try_from(&message)
+                        .and_then(|entry| ActivityLogRow::new(entry, &log_zones))
+                    {
                         Ok(activity_log_row) => activity_log_row,
                         Err(e) => {
                             warn!(log_id = elog_row.id, error = %e, "Failed to transform ElectoralLogRow.");

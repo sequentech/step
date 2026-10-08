@@ -7,6 +7,7 @@ use super::report_variables::{
     ExecutionAnnotations,
 };
 use super::template_renderer::*;
+use super::template_time::{election_presentation, event_presentation};
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
@@ -14,11 +15,11 @@ use crate::services::cast_votes::CastVoteStatus;
 use crate::services::users::{count_keycloak_enabled_users, count_keycloak_users, ListUsersFilter};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::Local;
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::translations::Name;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::time_zones::effective_time_zone;
 use sequent_core::types::hasura::core::Election;
 use serde::{Deserialize, Serialize};
 use tokio_postgres::row::Row;
@@ -259,6 +260,15 @@ impl TemplateRenderer for ParticipationReportTemplate {
         let participation_percentage =
             calc_voters_turnout(cast_vote_stats.voted_voters, total_voters)?.unwrap_or(0.0);
         let generated_at = get_date_and_time();
+        // The zone the report prints its times in (the template's
+        // `electionTimezone`), never the server's clock zone.
+        let generated_timezone = effective_time_zone(
+            Some(&event_presentation(election_event.presentation.as_ref())),
+            election
+                .as_ref()
+                .map(|election| election_presentation(election.presentation.as_ref()))
+                .as_ref(),
+        );
 
         Ok(UserData {
             execution_annotations: ExecutionAnnotations {
@@ -282,7 +292,7 @@ impl TemplateRenderer for ParticipationReportTemplate {
                 election_event_name,
                 election_name,
                 generated_at,
-                generated_timezone: Local::now().format("%:z").to_string(),
+                generated_timezone,
                 total_voters,
                 voted_voters: cast_vote_stats.voted_voters,
                 participation_percentage,

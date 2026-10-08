@@ -867,6 +867,33 @@ fn a_base_export_carries_its_signing_configuration_over() {
 }
 
 #[test]
+fn a_base_exports_approval_matrix_is_carried_over() {
+    let templates = TemplateSet::builtin().unwrap();
+    let matrix = json!({
+        "compared_fields": ["firstName", "lastName", "dateOfBirth"],
+        "rules": [{"when": {"differing": "none"}, "then": {"decision": "ACCEPTED"}}],
+        "otherwise": {"decision": "PENDING", "reason": "NO_VOTER"},
+    });
+
+    let bundle = build(
+        &sound(),
+        &templates,
+        &BuildOptions {
+            base_export: Some(json!({"approval_matrix": matrix})),
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .unwrap();
+
+    assert_eq!(bundle.export["approval_matrix"], matrix);
+    let schema: crate::election_config::schema::ImportElectionEventSchema =
+        serde_json::from_value(bundle.export.clone()).unwrap();
+    assert_eq!(schema.approval_matrix, Some(matrix));
+    assert!(built(&sound()).export.get("approval_matrix").is_none());
+}
+
+#[test]
 fn without_a_base_export_a_bundle_has_no_signing_configuration() {
     let export = built(&sound()).export;
     assert!(export.get("signing_rules").is_none());
@@ -1464,7 +1491,9 @@ fn a_report_row_becomes_a_positional_csv_row() {
     let reports = bundle.reports.expect("a reports table");
     let row = &reports.rows[0];
 
-    assert_eq!(row.len(), 8);
+    assert_eq!(row.len(), 10);
+    assert_eq!(row[8], "", "no copies means the default");
+    assert_eq!(row[9], "", "no formats means the type's default");
     assert_eq!(
         row[1],
         bundle.export["elections"][0]["id"].as_str().unwrap()
@@ -1475,6 +1504,86 @@ fn a_report_row_becomes_a_positional_csv_row() {
     assert_eq!(row[5], "configured_password");
     // Option<Vec<String>>, split on "|" by process_reports_file.
     assert_eq!(row[7], "statewide-officers|auditors");
+}
+
+#[test]
+fn a_reports_copies_and_formats_travel_in_their_own_columns() {
+    let bundle = built(&with_sheet(
+        "Reports",
+        vec![
+            vec![text("report_type"), text("copies"), text("output_formats")],
+            vec![
+                text("ELECTORAL_RESULTS"),
+                text("7"),
+                text("PDF | xml | pdf"),
+            ],
+        ],
+    ));
+    let row = &bundle.reports.expect("a reports table").rows[0];
+    assert_eq!(row[8], "7");
+    assert_eq!(row[9], "pdf|xml");
+}
+
+#[test]
+fn a_reports_formats_may_be_written_as_a_json_list() {
+    let bundle = built(&with_sheet(
+        "Reports",
+        vec![
+            vec![text("report_type"), text("output_formats")],
+            vec![text("ELECTORAL_RESULTS"), text(r#"["xml", "PDF"]"#)],
+        ],
+    ));
+    let row = &bundle.reports.expect("a reports table").rows[0];
+    assert_eq!(row[9], "xml|pdf");
+}
+
+#[test]
+fn a_report_needs_at_least_one_copy() {
+    for copies in ["0", "two", "-1"] {
+        let report = refused(&with_sheet(
+            "Reports",
+            vec![
+                vec![text("report_type"), text("copies")],
+                vec![text("ELECTORAL_RESULTS"), text(copies)],
+            ],
+        ));
+        assert!(has_error_saying(
+            &report,
+            &format!(
+                "copies must be a whole number of at least 1, not '{copies}'"
+            )
+        ));
+    }
+}
+
+#[test]
+fn a_format_the_report_type_cannot_be_generated_in_is_refused() {
+    let report = refused(&with_sheet(
+        "Reports",
+        vec![
+            vec![text("report_type"), text("output_formats")],
+            vec![text("BALLOT_RECEIPT"), text("csv")],
+        ],
+    ));
+    assert!(has_error_saying(
+        &report,
+        "a BALLOT_RECEIPT report can't be generated as csv"
+    ));
+}
+
+#[test]
+fn an_unknown_format_is_refused() {
+    let report = refused(&with_sheet(
+        "Reports",
+        vec![
+            vec![text("report_type"), text("output_formats")],
+            vec![text("ELECTORAL_RESULTS"), text("docx")],
+        ],
+    ));
+    assert!(has_error_saying(
+        &report,
+        "'docx' is not a report format: use pdf, csv, xml or sql"
+    ));
 }
 
 #[test]

@@ -54,6 +54,7 @@ CRUD endpoints for:
 - election-publish-tab|voters-tab
 - election-event-voter-list-reconciliation
 - monitoring-view|configure
+- approval-matrix-write
 - signing-rules-read|write
 - signing-certificates-read|register|revoke
 - signing-issuers-write

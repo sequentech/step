@@ -1,0 +1,621 @@
+{
+    "timezones": {
+        "configured": [
+            "Asia/Manila",
+            "Africa/Addis_Ababa",
+            "Africa/Cairo",
+            "Africa/Casablanca",
+            "Africa/Johannesburg",
+            "Africa/Lagos",
+            "Africa/Nairobi",
+            "Africa/Tripoli",
+            "America/Argentina/Buenos_Aires",
+            "America/Chicago",
+            "America/Edmonton",
+            "America/Los_Angeles",
+            "America/Mexico_City",
+            "America/New_York",
+            "America/Santiago",
+            "America/Sao_Paulo",
+            "America/Toronto",
+            "America/Vancouver",
+            "Asia/Amman",
+            "Asia/Baghdad",
+            "Asia/Bahrain",
+            "Asia/Bangkok",
+            "Asia/Beirut",
+            "Asia/Brunei",
+            "Asia/Colombo",
+            "Asia/Dhaka",
+            "Asia/Dili",
+            "Asia/Dubai",
+            "Asia/Ho_Chi_Minh",
+            "Asia/Hong_Kong",
+            "Asia/Jakarta",
+            "Asia/Jerusalem",
+            "Asia/Karachi",
+            "Asia/Kathmandu",
+            "Asia/Kolkata",
+            "Asia/Kuala_Lumpur",
+            "Asia/Kuwait",
+            "Asia/Macau",
+            "Asia/Makassar",
+            "Asia/Muscat",
+            "Asia/Phnom_Penh",
+            "Asia/Qatar",
+            "Asia/Riyadh",
+            "Asia/Seoul",
+            "Asia/Shanghai",
+            "Asia/Singapore",
+            "Asia/Taipei",
+            "Asia/Tehran",
+            "Asia/Tokyo",
+            "Asia/Vientiane",
+            "Asia/Yangon",
+            "Australia/Melbourne",
+            "Australia/Sydney",
+            "Europe/Amsterdam",
+            "Europe/Athens",
+            "Europe/Berlin",
+            "Europe/Brussels",
+            "Europe/Bucharest",
+            "Europe/Budapest",
+            "Europe/Copenhagen",
+            "Europe/Dublin",
+            "Europe/Istanbul",
+            "Europe/Lisbon",
+            "Europe/London",
+            "Europe/Madrid",
+            "Europe/Moscow",
+            "Europe/Oslo",
+            "Europe/Paris",
+            "Europe/Prague",
+            "Europe/Rome",
+            "Europe/Stockholm",
+            "Europe/Vienna",
+            "Europe/Warsaw",
+            "Europe/Zurich",
+            "Pacific/Auckland",
+            "Pacific/Fiji",
+            "Pacific/Guam",
+            "Pacific/Honolulu",
+            "Pacific/Pago_Pago",
+            "Pacific/Port_Moresby"
+        ],
+        "primary": "Asia/Manila",
+        "logs": "primary"
+    },
+    "lifecycle_policies": {
+        "initialization_scope": "post-and-country",
+        "unsigned_scheduled_close": "run-as-system"
+    },
+    "posts": [
+        {
+            "post": "BANGKOK PE",
+            "timezone": "Asia/Bangkok",
+            "source": "workbook"
+        },
+        {
+            "post": "HONG KONG PCG",
+            "timezone": "Asia/Hong_Kong",
+            "source": "workbook"
+        },
+        {
+            "post": "MACAU PCG",
+            "timezone": "Asia/Macau",
+            "source": "workbook"
+        },
+        {
+            "post": "BRUNEI PE",
+            "timezone": "Asia/Brunei",
+            "source": "workbook"
+        },
+        {
+            "post": "CANBERRA PE",
+            "timezone": "Australia/Sydney",
+            "source": "workbook"
+        },
+        {
+            "post": "MELBOURNE PCG",
+            "timezone": "Australia/Melbourne",
+            "source": "workbook"
+        },
+        {
+            "post": "SYDNEY PCG",
+            "timezone": "Australia/Sydney",
+            "source": "workbook"
+        },
+        {
+            "post": "DHAKA PE",
+            "timezone": "Asia/Dhaka",
+            "source": "workbook"
+        },
+        {
+            "post": "HANOI PE",
+            "timezone": "Asia/Ho_Chi_Minh",
+            "source": "workbook"
+        },
+        {
+            "post": "ISLAMABAD PE",
+            "timezone": "Asia/Karachi",
+            "source": "workbook"
+        },
+        {
+            "post": "JAKARTA PE",
+            "timezone": "Asia/Jakarta",
+            "source": "workbook"
+        },
+        {
+            "post": "MANADO PCG",
+            "timezone": "Asia/Makassar",
+            "source": "workbook"
+        },
+        {
+            "post": "KUALA LUMPUR PE",
+            "timezone": "Asia/Kuala_Lumpur",
+            "source": "workbook"
+        },
+        {
+            "post": "MECO TAIPEI",
+            "timezone": "Asia/Taipei",
+            "source": "workbook"
+        },
+        {
+            "post": "MECO KAOHSIUNG",
+            "timezone": "Asia/Taipei",
+            "source": "workbook"
+        },
+        {
+            "post": "MECO TAICHUNG",
+            "timezone": "Asia/Taipei",
+            "source": "workbook"
+        },
+        {
+            "post": "NEW DELHI PE",
+            "timezone": "Asia/Kolkata",
+            "source": "workbook"
+        },
+        {
+            "post": "PHNOM PENH PE",
+            "timezone": "Asia/Phnom_Penh",
+            "source": "workbook"
+        },
+        {
+            "post": "SEOUL PE",
+            "timezone": "Asia/Seoul",
+            "source": "workbook"
+        },
+        {
+            "post": "SINGAPORE PE",
+            "timezone": "Asia/Singapore",
+            "source": "workbook"
+        },
+        {
+            "post": "TOKYO PE",
+            "timezone": "Asia/Tokyo",
+            "source": "workbook"
+        },
+        {
+            "post": "NAGOYA PCG",
+            "timezone": "Asia/Tokyo",
+            "source": "workbook"
+        },
+        {
+            "post": "OSAKA PCG",
+            "timezone": "Asia/Tokyo",
+            "source": "workbook"
+        },
+        {
+            "post": "VIENTIANE PE",
+            "timezone": "Asia/Vientiane",
+            "source": "workbook"
+        },
+        {
+            "post": "WELLINGTON PE",
+            "timezone": "Pacific/Auckland",
+            "source": "workbook"
+        },
+        {
+            "post": "BRASILIA PE",
+            "timezone": "America/Sao_Paulo",
+            "source": "workbook"
+        },
+        {
+            "post": "BUENOS AIRES PE",
+            "timezone": "America/Argentina/Buenos_Aires",
+            "source": "workbook"
+        },
+        {
+            "post": "MEXICO PE",
+            "timezone": "America/Mexico_City",
+            "source": "workbook"
+        },
+        {
+            "post": "OTTAWA PE",
+            "timezone": "America/Toronto",
+            "source": "workbook"
+        },
+        {
+            "post": "CALGARY PCG",
+            "timezone": "America/Edmonton",
+            "source": "workbook"
+        },
+        {
+            "post": "TORONTO PCG",
+            "timezone": "America/Toronto",
+            "source": "workbook"
+        },
+        {
+            "post": "VANCOUVER PCG",
+            "timezone": "America/Vancouver",
+            "source": "workbook"
+        },
+        {
+            "post": "SANTIAGO PE",
+            "timezone": "America/Santiago",
+            "source": "workbook"
+        },
+        {
+            "post": "WASHINGTON D.C. PE",
+            "timezone": "America/New_York",
+            "source": "workbook"
+        },
+        {
+            "post": "AGANA PCG",
+            "timezone": "Pacific/Guam",
+            "source": "workbook"
+        },
+        {
+            "post": "CHICAGO PCG",
+            "timezone": "America/Chicago",
+            "source": "workbook"
+        },
+        {
+            "post": "HONOLULU PCG",
+            "timezone": "Pacific/Honolulu",
+            "source": "workbook"
+        },
+        {
+            "post": "HOUSTON PCG",
+            "timezone": "America/Chicago",
+            "source": "workbook"
+        },
+        {
+            "post": "LOS ANGELES PCG",
+            "timezone": "America/Los_Angeles",
+            "source": "workbook"
+        },
+        {
+            "post": "NEW YORK PCG",
+            "timezone": "America/New_York",
+            "source": "workbook"
+        },
+        {
+            "post": "SAN FRANCISCO PCG",
+            "timezone": "America/Los_Angeles",
+            "source": "workbook"
+        },
+        {
+            "post": "ABU DHABI PE",
+            "timezone": "Asia/Dubai",
+            "source": "workbook"
+        },
+        {
+            "post": "DUBAI PCG",
+            "timezone": "Asia/Dubai",
+            "source": "workbook"
+        },
+        {
+            "post": "AMMAN PE",
+            "timezone": "Asia/Amman",
+            "source": "workbook"
+        },
+        {
+            "post": "CAIRO PE",
+            "timezone": "Africa/Cairo",
+            "source": "workbook"
+        },
+        {
+            "post": "DOHA PE",
+            "timezone": "Asia/Qatar",
+            "source": "workbook"
+        },
+        {
+            "post": "KUWAIT PE",
+            "timezone": "Asia/Kuwait",
+            "source": "workbook"
+        },
+        {
+            "post": "MANAMA PE",
+            "timezone": "Asia/Bahrain",
+            "source": "workbook"
+        },
+        {
+            "post": "MUSCAT PE",
+            "timezone": "Asia/Muscat",
+            "source": "workbook"
+        },
+        {
+            "post": "NAIROBI PE",
+            "timezone": "Africa/Nairobi",
+            "source": "workbook"
+        },
+        {
+            "post": "PRETORIA PE",
+            "timezone": "Africa/Johannesburg",
+            "source": "workbook"
+        },
+        {
+            "post": "RABAT PE",
+            "timezone": "Africa/Casablanca",
+            "source": "workbook"
+        },
+        {
+            "post": "RIYADH PE",
+            "timezone": "Asia/Riyadh",
+            "source": "workbook"
+        },
+        {
+            "post": "JEDDAH PCG",
+            "timezone": "Asia/Riyadh",
+            "source": "workbook"
+        },
+        {
+            "post": "TEL AVIV PE",
+            "timezone": "Asia/Jerusalem",
+            "source": "workbook"
+        },
+        {
+            "post": "ATHENS PE",
+            "timezone": "Europe/Athens",
+            "source": "workbook"
+        },
+        {
+            "post": "BERLIN PE",
+            "timezone": "Europe/Berlin",
+            "source": "workbook"
+        },
+        {
+            "post": "FRANKFURT PCG",
+            "timezone": "Europe/Berlin",
+            "source": "workbook"
+        },
+        {
+            "post": "BERNE PE",
+            "timezone": "Europe/Zurich",
+            "source": "workbook"
+        },
+        {
+            "post": "GENEVA PM PCG",
+            "timezone": "Europe/Zurich",
+            "source": "workbook"
+        },
+        {
+            "post": "BRUSSELS PE",
+            "timezone": "Europe/Brussels",
+            "source": "workbook"
+        },
+        {
+            "post": "BUDAPEST PE",
+            "timezone": "Europe/Budapest",
+            "source": "workbook"
+        },
+        {
+            "post": "COPENHAGEN PE",
+            "timezone": "Europe/Copenhagen",
+            "source": "workbook"
+        },
+        {
+            "post": "LISBON PE",
+            "timezone": "Europe/Lisbon",
+            "source": "workbook"
+        },
+        {
+            "post": "LONDON PE",
+            "timezone": "Europe/London",
+            "source": "workbook"
+        },
+        {
+            "post": "MADRID PE",
+            "timezone": "Europe/Madrid",
+            "source": "workbook"
+        },
+        {
+            "post": "BARCELONA PCG",
+            "timezone": "Europe/Madrid",
+            "source": "workbook"
+        },
+        {
+            "post": "OSLO PE",
+            "timezone": "Europe/Oslo",
+            "source": "workbook"
+        },
+        {
+            "post": "PARIS PE",
+            "timezone": "Europe/Paris",
+            "source": "workbook"
+        },
+        {
+            "post": "PRAGUE PE",
+            "timezone": "Europe/Prague",
+            "source": "workbook"
+        },
+        {
+            "post": "ROME PE",
+            "timezone": "Europe/Rome",
+            "source": "workbook"
+        },
+        {
+            "post": "MILAN PCG",
+            "timezone": "Europe/Rome",
+            "source": "workbook"
+        },
+        {
+            "post": "STOCKHOLM PE",
+            "timezone": "Europe/Stockholm",
+            "source": "workbook"
+        },
+        {
+            "post": "THE HAGUE PE",
+            "timezone": "Europe/Amsterdam",
+            "source": "workbook"
+        },
+        {
+            "post": "VATICAN PE",
+            "timezone": "Europe/Rome",
+            "source": "workbook"
+        },
+        {
+            "post": "VIENNA PE",
+            "timezone": "Europe/Vienna",
+            "source": "workbook"
+        },
+        {
+            "post": "WARSAW PE",
+            "timezone": "Europe/Warsaw",
+            "source": "workbook"
+        },
+        {
+            "post": "BEIJING PE",
+            "timezone": "Asia/Shanghai",
+            "source": "synthetic"
+        },
+        {
+            "post": "SHANGHAI PCG",
+            "timezone": "Asia/Shanghai",
+            "source": "synthetic"
+        },
+        {
+            "post": "GUANGZHOU PCG",
+            "timezone": "Asia/Shanghai",
+            "source": "synthetic"
+        },
+        {
+            "post": "XIAMEN PCG",
+            "timezone": "Asia/Shanghai",
+            "source": "synthetic"
+        },
+        {
+            "post": "CHONGQING PCG",
+            "timezone": "Asia/Shanghai",
+            "source": "synthetic"
+        },
+        {
+            "post": "YANGON PE",
+            "timezone": "Asia/Yangon",
+            "source": "synthetic"
+        },
+        {
+            "post": "DILI PE",
+            "timezone": "Asia/Dili",
+            "source": "synthetic"
+        },
+        {
+            "post": "KATHMANDU PCG",
+            "timezone": "Asia/Kathmandu",
+            "source": "synthetic"
+        },
+        {
+            "post": "COLOMBO PCG",
+            "timezone": "Asia/Colombo",
+            "source": "synthetic"
+        },
+        {
+            "post": "TEHRAN PE",
+            "timezone": "Asia/Tehran",
+            "source": "synthetic"
+        },
+        {
+            "post": "BAGHDAD PE",
+            "timezone": "Asia/Baghdad",
+            "source": "synthetic"
+        },
+        {
+            "post": "BEIRUT PE",
+            "timezone": "Asia/Beirut",
+            "source": "synthetic"
+        },
+        {
+            "post": "ANKARA PE",
+            "timezone": "Europe/Istanbul",
+            "source": "synthetic"
+        },
+        {
+            "post": "BUSAN PCG",
+            "timezone": "Asia/Seoul",
+            "source": "synthetic"
+        },
+        {
+            "post": "TRIPOLI PE",
+            "timezone": "Africa/Tripoli",
+            "source": "synthetic"
+        },
+        {
+            "post": "ABUJA PE",
+            "timezone": "Africa/Lagos",
+            "source": "synthetic"
+        },
+        {
+            "post": "ADDIS ABABA PE",
+            "timezone": "Africa/Addis_Ababa",
+            "source": "synthetic"
+        },
+        {
+            "post": "AUCKLAND PCG",
+            "timezone": "Pacific/Auckland",
+            "source": "synthetic"
+        },
+        {
+            "post": "MOSCOW PE",
+            "timezone": "Europe/Moscow",
+            "source": "synthetic"
+        },
+        {
+            "post": "DUBLIN PE",
+            "timezone": "Europe/Dublin",
+            "source": "synthetic"
+        },
+        {
+            "post": "BUCHAREST PE",
+            "timezone": "Europe/Bucharest",
+            "source": "synthetic"
+        },
+        {
+            "post": "ISTANBUL PCG",
+            "timezone": "Europe/Istanbul",
+            "source": "synthetic"
+        },
+        {
+            "post": "PORT MORESBY PE",
+            "timezone": "Pacific/Port_Moresby",
+            "source": "synthetic"
+        },
+        {
+            "post": "SUVA PE",
+            "timezone": "Pacific/Fiji",
+            "source": "synthetic"
+        },
+        {
+            "post": "PAGO PAGO PCG",
+            "timezone": "Pacific/Pago_Pago",
+            "source": "synthetic"
+        },
+        {
+            "post": "MIAMI PCG",
+            "timezone": "America/New_York",
+            "source": "synthetic"
+        },
+        {
+            "post": "HAMBURG PCG",
+            "timezone": "Europe/Berlin",
+            "source": "synthetic"
+        }
+    ],
+    "fixture_provenance": {
+        "status": "synthetic-expanded-fixture",
+        "source_posts": 77,
+        "synthetic_posts": 27,
+        "source": "extra_files-2025-02-19.xlsx, Posts sheet",
+        "limitation": "Official Annex A was not available. Added Posts and all timezone assignments must be reconciled before production use."
+    }
+}

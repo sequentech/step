@@ -213,6 +213,51 @@ const dutchTranslation: TranslationType = {
             },
             exportdialog: {
                 description: "Bevestig dat u deze actie wilt uitvoeren. Dit kan even duren.",
+                title: "Logboeken exporteren",
+                from: "Van",
+                to: "Tot",
+                timeZone: "Tijdzone",
+                format: "Formaat",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Elke rij bewaart de tijd in UTC (ISO 8601) en in {{abbr}}, met de naam van de tijdzone. Het datumbereik omvat beide grenzen, in {{abbr}}.",
+                zoneNotePdf:
+                    "De PDF toont elke tijd in {{abbr}}. Het datumbereik omvat beide grenzen, in {{abbr}}.",
+                rowZones: "De tijdzone van de verkiezing van elke rij",
+                zoneNoteRows:
+                    "Elke rij bewaart de tijd in UTC (ISO 8601) en in de tijdzone van de verkiezing, met de naam van de tijdzone. Het datumbereik omvat beide grenzen, in {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "De PDF toont elke tijd in de tijdzone van de verkiezing. Het datumbereik omvat beide grenzen, in {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Aangemaakt van",
+                createdTo: "tot",
+                statementTimestampFrom: "Tijdstempel van de verklaring van",
+                statementTimestampTo: "Tijdstempel van de verklaring tot",
+                timeZone: "Tijdzone",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Wacht op initialisatie",
+                    "runs": "wordt uitgevoerd",
+                    "runs-unsigned": "wordt zonder handtekeningen uitgevoerd",
+                    "refused": "wordt geweigerd",
+                },
+                check: {
+                    "initialization": "De vereiste initialisatie is niet voltooid",
+                    "voting-close": "Stemmen kan niet openen na de sluitingstijd",
+                    "needs-signatures": "handtekeningen nodig",
+                    "covered": "in de ondertekende configuratie",
+                    "unsigned-close": "sluiten zonder handtekeningen",
+                    "stricter-copy": "huidige of gepubliceerde instellingen",
+                    "defaults": "nog niets gepubliceerd",
+                },
+                changed: "Nu {{after}} (was: {{before}}).",
+                result: "Resultaat: {{outcome}}.",
+                deciding: "Beslissende controle: {{check}}. {{value}}",
+                authorizedBy: "Goedgekeurd door configuratie {{code}}.",
+                nextStep: "Volgende stap: {{step}}",
             },
             column: {
                 id: "Id",
@@ -303,6 +348,7 @@ const dutchTranslation: TranslationType = {
                 taskTitle: "Taak: {{title}}",
                 viewTask: "Taak Bekijken",
                 downloadDocument: "Bestand Downloaden",
+                downloadHashManifest: "Hashmanifest",
             },
             exportTasksExecution: {
                 success: "Export succesvol voltooid",
@@ -507,6 +553,7 @@ const dutchTranslation: TranslationType = {
                         "Er bestaat al een overschrijving met deze sleutel en dit bereik.",
                     invalidDateTimeFormat:
                         "Ongeldige datum-/tijdnotatie. Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Deze tekst moet {{placeholders}} behouden.",
                 },
                 common: {
                     title: "Localisatie",
@@ -524,6 +571,7 @@ const dutchTranslation: TranslationType = {
                     ballotVerifier: "Stembiljetverificatie",
                     resultsPortal: "Resultatenportaal",
                     adminPortal: "Beheerportaal",
+                    templates: "Rapporten en berichten",
                 },
             },
             field: {
@@ -586,6 +634,22 @@ const dutchTranslation: TranslationType = {
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Toegankelijkheidsinstellingen voor de kiezer",
+                    options: {
+                        disabled: "Toegankelijkheidsinstellingen verbergen",
+                        enabled: "Tekstgrootte, contrast, tekstafstand en beweging aanbieden",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Gesproken instructies",
+                    options: {
+                        "disabled": "Geen gesproken instructies",
+                        "recorded": "Alleen geüploade opnamen",
+                        "recorded-or-synthesized":
+                            "Geüploade opnamen, of de stem van de browser waar er geen is",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Logboeken stemmen tonen",
                     options: {
@@ -595,6 +659,8 @@ const dutchTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "Vergrendelingsstatus",
+                    helperText:
+                        "Plan het begin of einde van de vergrendelingsperiode om deze status te wijzigen.",
                     options: {
                         "locked-down": "Vergrendeld",
                         "not-locked-down": "Niet vergrendeld",
@@ -1047,6 +1113,21 @@ const dutchTranslation: TranslationType = {
                     "no-gold-level": "Geen 'Gold level' Authenticatie",
                 },
             },
+            slates: {
+                title: "Lijsten",
+                configuration: "Lijstconfiguratie (JSON)",
+                helper: "Benoemde lijsten en de kandidaten die elke lijst per verkiezingsonderdeel voordraagt. Laat leeg voor een verkiezing zonder lijsten.",
+                loading:
+                    "De verkiezingsonderdelen en kandidaten van de verkiezing worden nog geladen. Probeer het zo opnieuw.",
+                mobileCandidateLists: {
+                    label: "Kandidatenlijsten op mobiel",
+                    helper: "Hoe de kandidatenlijst van elke lijst op een telefoon begint. De kiezer kan deze altijd openen of sluiten.",
+                    options: {
+                        collapsed: "Ingeklapt",
+                        expanded: "Uitgeklapt",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Titelbeleid startscherm",
                 options: {
@@ -1486,6 +1567,7 @@ const dutchTranslation: TranslationType = {
                 "task-export": "Taken Exporteren",
                 "application-read": "Applicatie Lezen",
                 "application-write": "Applicatie Bewerken",
+                "approval-matrix-write": "Goedkeuringsmatrix Bewerken",
                 "logs-export": "Logs Exporteren",
                 "election-event-logs-columns": "Kolommen Logs Verkiezingsevenement",
                 "election-events-logs-filters": "Filters Logs Verkiezingsevenement",
@@ -1599,6 +1681,22 @@ const dutchTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Start Vergrendelingsperiode",
                 END_LOCKDOWN_PERIOD: "Einde Vergrendelingsperiode",
                 ALLOW_TALLY: "Telling Toestaan",
+                START_READINESS_TEST: "Verkiezingsgereedheidstest starten",
+                END_READINESS_TEST: "Verkiezingsgereedheidstest beëindigen",
+                START_FINAL_TESTING: "Eindtests en vergrendeling starten",
+                END_FINAL_TESTING: "Eindtests en vergrendeling beëindigen",
+                START_TEST_VOTING: "Teststemming starten",
+                END_TEST_VOTING: "Teststemming beëindigen",
+            },
+            warning: {
+                votingWindowDays:
+                    "De stemperiode van {{election}} beslaat {{days}} lokale dagen ({{start_local}} tot {{end_local}}, {{time_zone}}); de regel vraagt {{expected}}.",
+                finalTestingLeadTime:
+                    "De eindtests van {{election}} beginnen op {{final_testing_local}}, minder dan {{minimum_days}} dagen voordat de stemming opent op {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "De stemming van {{election}} sluit op of vóór het moment van openen ({{start_local}} tot {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "De laatste stemdag van {{election}} heeft {{hours}} uur, minder dan {{minimum_hours}}: de stemming sluit op {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Verkiezing",
@@ -1937,6 +2035,7 @@ const dutchTranslation: TranslationType = {
                 "warn-only-in-review": "Waarschuwen bij Controle",
                 "warn": "Waarschuwen",
                 "warn-and-alert": "Waarschuwen en Melden",
+                "warn-and-confirm-in-review": "Waarschuwen en Bevestigen bij Controle",
             },
             invalidVotePolicy: {
                 "label": "Beleid Ongeldige Stem",
@@ -2436,6 +2535,16 @@ const dutchTranslation: TranslationType = {
                 "Exporteer de resultaten van alle gebieden in {{format}}-formaat voor '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Genereer het rapport voor de hele post of één land. Stemmen blijft geblokkeerd totdat alle vereiste initialisaties per land en voor het hele evenement voltooid zijn.",
+                countriesError:
+                    "De beschikbare landen konden niet worden geladen. Sluit en probeer opnieuw.",
+                noCountries:
+                    "Deze post heeft geen beschikbare landen met actieve stembiljetmodellen. Controleer de gebieden en publicatie voordat u initialiseert.",
+                country: "Land",
+                entirePost: "Hele post",
+            },
             preview: {
                 publicationAreas: "Selecteer Gebied voor Voorbeeldweergave",
                 action: "Voorbeeldweergave",
@@ -2753,6 +2862,23 @@ const dutchTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Gesproken instructies voor scherm",
+                languageLabel: "Taal van de opname",
+                none: "Geen gesproken instructies",
+                helperText:
+                    "Kiezers horen dit bestand wanneer ze op dat scherm om de instructies vragen.",
+                screens: {
+                    "election-chooser": "Lijst met verkiezingen",
+                    "start": "Start",
+                    "ballot": "Stembiljet",
+                    "review": "Controle",
+                    "confirmation": "Bevestiging",
+                    "audit": "Audit",
+                    "ballot-locator": "Stembiljetzoeker",
+                    "support-materials": "Ondersteunend materiaal",
+                },
+            },
             createMaterialSuccess: "Ondersteunend materiaal aangemaakt",
             createMaterialError: "Fout bij aanmaken ondersteunend materiaal",
             updateMaterialSuccess: "Ondersteunend materiaal bijgewerkt",
@@ -2823,46 +2949,446 @@ const dutchTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Status",
-                id: "ID",
-                applicantId: "ID Aanvrager",
-                verificationType: "Verificatietype",
-                createdAt: "Aangemaakt op",
-                updatedAt: "Bijgewerkt op",
+                id: "Aanvraag-ID",
+                applicantId: "ID aanvrager",
+                verificationType: "Verificatie",
+                createdAt: "Aangevraagd",
                 verified_by: "Geverifieerd door",
+                voter: "Kiezer",
+                what: "Wat er is gebeurd",
+                post: "Post",
+                when: "Wanneer",
             },
-            approvalRequest: "Goedkeuringsverzoek",
-            taskInformation: "Taakinformatie",
-            ok: "Ok",
-            title: "Kiezers",
-            subtitle: "Overeenkomende kiezers zoeken",
-            approve: {
-                body: "Weet u zeker dat u deze kiezer wilt goedkeuren? Deze actie kan niet ongedaan worden gemaakt.",
+            status: {
+                PENDING: "Te beoordelen",
+                ACCEPTED: "Goedgekeurd",
+                REJECTED: "Afgewezen",
             },
-            reject: {
-                label: "Aanvraag Afkeuren",
-                confirm:
-                    "Weet u zeker dat u deze kiezer wilt afkeuren? Deze actie kan niet ongedaan worden gemaakt.",
-                rejectReason: "Reden van Afkeuring",
-                message: "Schrijf hier de reden van afkeuring",
-                messageRequired: "Een afkeuringsbericht is vereist voor de optie 'Andere'.",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Ontbrekende Gegevens",
-                    "no-matching-voter": "Geen Overeenkomende Kiezer",
-                    "voter-already-approved": "Reeds Goedgekeurd",
-                    "other": "Andere",
+            verification: {
+                AUTOMATIC: "Automatisch",
+                MANUAL: "Handmatig",
+            },
+            time: {
+                minutes_one: "{{count}} minuut",
+                minutes_other: "{{count}} minuten",
+                hours_one: "{{count}} uur",
+                hours_other: "{{count}} uur",
+                days_one: "{{count}} dag",
+                days_other: "{{count}} dagen",
+            },
+            summary: {
+                join: "{{head}} en {{last}}",
+                differs_one: "{{fields}} wijkt af van het register",
+                differs_other: "{{fields}} wijken af van het register",
+                typedByHand:
+                    "Gegevens met de hand getypt, niet gelezen van een gescand identiteitsbewijs",
+                needsFaceToFace: "Controle in een persoonlijk gesprek nodig",
+                scanVerified: "Gescand identiteitsbewijs geverifieerd",
+                noVoter: "Geen kiezer gevonden in het register",
+                allMatch: "Alle gegevens komen overeen met het register",
+                needsReview: "Wacht op de beslissing van een persoon",
+                approvedBy: "Goedgekeurd door {{name}}",
+                approvedAuto: "Automatisch goedgekeurd",
+                rejectedBy: "Afgewezen door {{name}}",
+                rejectedAuto: "Automatisch afgewezen",
+            },
+            list: {
+                title: "Goedkeuringen",
+                subtitle:
+                    "Inschrijvingen waarover de regels niet zelf kunnen beslissen, wachten hier op een persoon.",
+                search: "Zoeken",
+                review: "Inschrijving beoordelen",
+                openRecord: "Inschrijving openen",
+                seeRule: "De regel bekijken die besliste",
+                unnamed: "Aanvrager zonder naam",
+                waiting: "Wacht al {{time}}",
+                applied: "Aangevraagd op {{date}}",
+                empty: {
+                    title: "Hier staat niets",
+                    text: "Inschrijvingen met deze status verschijnen hier. Probeer een andere zoekopdracht of status.",
                 },
             },
+            flow: {
+                stepsLabel: "Stappen van de beoordeling",
+                steps: {
+                    identity: "De identiteit controleren",
+                    voter: "De kiezer zoeken",
+                    decide: "Beslissen",
+                },
+                continue: "Doorgaan",
+                backToList: "Terug naar Goedkeuringen",
+                identity: {
+                    details: "Gegevens op de inschrijving",
+                    confirm:
+                        "Ik heb het identiteitsbewijs van de kiezer persoonlijk of via een videogesprek gecontroleerd, en het komt overeen met deze inschrijving.",
+                    checked: "Controle in een persoonlijk gesprek bevestigd",
+                    notChecked: "Controle in een persoonlijk gesprek nog niet bevestigd",
+                },
+                voter: {
+                    none: "Geen van deze is de kiezer",
+                    noneHint:
+                        "De inschrijving kan dan alleen worden afgewezen, omdat er geen overeenkomende kiezer is.",
+                    noneChosen: "Geen van deze is de kiezer",
+                    notChosen: "Nog geen kiezer gekozen",
+                },
+                decide: {
+                    approve: "Goedkeuren",
+                    reject: "Afwijzen",
+                    approveText:
+                        "Koppel deze inschrijving aan {{voter}} in het register. De kiezer krijgt bericht per e-mail of sms en kan inloggen om te stemmen zodra de stemming opent.",
+                    rejectText:
+                        "De kiezer krijgt te horen waarom. Dit kan niet ongedaan worden gemaakt.",
+                    chooseVoter: "Kies in stap 2 de overeenkomende kiezer om goed te keuren.",
+                    noVoter:
+                        "U hebt geen overeenkomende kiezer gevonden, dus deze inschrijving kan alleen worden afgewezen.",
+                    enrolled: "De gekozen kiezer is al ingeschreven.",
+                    faceToFace:
+                        "Bevestig in stap 1 de controle in een persoonlijk gesprek om goed te keuren.",
+                },
+            },
+            review: {
+                loadError: "De inschrijving kon niet worden geladen.",
+                applied: "Aangevraagd op {{date}}",
+                waiting: "Wacht al {{time}}",
+                whyTitle: "Waarom hier een persoon voor nodig is",
+                decisionTitle: "Hoe hierover is beslist",
+                rule: "Regel {{rule}} van matrixversie {{version}}",
+                ruleLast: "Laatste regel van matrixversie {{version}}",
+                seeRule: "De regel bekijken",
+                why: {
+                    typedByHand:
+                        "De kiezer heeft zijn gegevens met de hand getypt in plaats van een identiteitsbewijs te scannen. Zulke inschrijvingen worden nooit automatisch goedgekeurd: een ambtenaar bevestigt eerst wie de kiezer is.",
+                    differs_one:
+                        "Eén gegeven komt niet overeen met het register: {{details}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    differs_other:
+                        "{{count}} gegevens komen niet overeen met het register: {{details}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    differsFields_one:
+                        "Eén gegeven komt niet overeen met het register: {{fields}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    differsFields_other:
+                        "{{count}} gegevens komen niet overeen met het register: {{fields}}. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    difference:
+                        "bij {{field}} staat “{{enrollment}}” op de inschrijving en “{{registry}}” in het register",
+                    noVoter:
+                        "Geen kiezer in het register heeft deze gegevens. De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    severalVoters:
+                        "Meer dan één kiezer in het register past bij deze inschrijving. Een persoon kiest de juiste.",
+                    pending:
+                        "De goedkeuringsregels vragen een persoon om deze inschrijving te controleren.",
+                    unknown: "Deze inschrijving wacht op de beslissing van een persoon.",
+                    approvedAuto:
+                        "De goedkeuringsregels hebben deze inschrijving automatisch goedgekeurd. Alle controles die ze vereisen zijn geslaagd.",
+                    approvedBy: "{{name}} heeft deze inschrijving goedgekeurd op {{date}}.",
+                    rejectedAuto:
+                        "De goedkeuringsregels hebben deze inschrijving automatisch afgewezen: {{reason}}.",
+                    rejectedBy:
+                        "{{name}} heeft deze inschrijving afgewezen op {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "We hebben gezocht naar kiezers met dezelfde gegevens: {{fields}}. Kies de kiezer bij wie deze inschrijving hoort.",
+                registrySearching:
+                    "Dit zijn de kiezers in het register die bij uw zoekopdracht passen. Kies de kiezer bij wie deze inschrijving hoort.",
+                registrySearch: "Niet in de lijst? Zoek in het register op naam of e-mailadres",
+                registryLoading: "Bezig met zoeken in het register",
+                registryError: "Er kon niet in het register worden gezocht.",
+                noCandidates:
+                    "Geen kiezer in het register komt overeen. Probeer te zoeken op naam of e-mailadres.",
+                candidates: "Kiezers in het register",
+                alreadyEnrolled: "Al ingeschreven",
+                bestMatch: "Beste overeenkomst",
+                detailsMatch: "{{count}} van {{total}} gegevens komen overeen",
+                compareTitle: "Vergeleken met {{name}} in het register",
+                col: {
+                    detail: "Gegeven",
+                    enrollment: "Op de inschrijving",
+                    registry: "In het register",
+                    result: "Resultaat",
+                },
+                same: "Gelijk",
+                differs: "Anders",
+                compareNote: "Bij namen tellen hoofdletters, accenten en koppeltekens niet mee.",
+                compareJoint:
+                    "Bij rijbewijzen en zeemansboekjes worden voornaam en tweede naam samen vergeleken.",
+                applicationId: "Aanvraag-ID",
+                copy: "Kopiëren",
+                copied: "Gekopieerd",
+                approve: "Inschrijving goedkeuren",
+                approveDialog: {
+                    title: "{{name}} goedkeuren?",
+                    body: "Hiermee wordt de inschrijving gekoppeld aan de kiezer uit het register hieronder. De kiezer krijgt bericht per e-mail of sms en kan inloggen om te stemmen zodra de stemming opent.",
+                    checked:
+                        "U hebt het identiteitsbewijs van de kiezer in een persoonlijk gesprek gecontroleerd.",
+                    irreversible: "Dit kan niet ongedaan worden gemaakt.",
+                    confirm: "Goedkeuren",
+                },
+                reject: "Inschrijving afwijzen",
+            },
+            idCheck: {
+                title: "Controle van het identiteitsbewijs",
+                method: {
+                    VERIFIED: "Gescand identiteitsbewijs geverifieerd",
+                    MANUAL_ENTRY: "Met de hand getypt",
+                    UNKNOWN: "Niet gemeld",
+                },
+                verified:
+                    "Het inschrijfproces heeft het identiteitsbewijs van de kiezer geverifieerd",
+                typedByHand: "De kiezer heeft zijn gegevens met de hand getypt",
+                unknown: "Het inschrijfproces heeft niet gemeld hoe de identiteit is gecontroleerd",
+                faceToFaceTitle:
+                    "Controleer de kiezer in een persoonlijk gesprek voordat u goedkeurt",
+                faceToFaceText:
+                    "Spreek de kiezer persoonlijk of via een videogesprek en vergelijk het identiteitsbewijs met de gegevens op deze pagina.",
+            },
+            reject: {
+                rejectReason: "Reden van afwijzing",
+                message: "Bericht aan de kiezer",
+                messageRequired: "Schrijf een bericht voor de kiezer als de reden Anders is.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Ontbrekende gegevens",
+                    "no-matching-voter": "Geen overeenkomende kiezer",
+                    "voter-already-approved": "Al goedgekeurd",
+                    "other": "Anders",
+                },
+                hint: {
+                    "insufficient-information": "Er ontbreken gegevens of ze zijn onleesbaar.",
+                    "no-matching-voter": "De persoon staat niet in het kiezersregister.",
+                    "voter-already-approved": "Deze kiezer is al ingeschreven.",
+                    "other": "Schrijf uw eigen bericht.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "We konden u niet inschrijven omdat een deel van uw gegevens ontbreekt of onleesbaar is. Schrijf u opnieuw in met volledige gegevens.",
+                    "no-matching-voter":
+                        "We konden in het register geen kiezer vinden die bij uw gegevens past. Controleer uw gegevens en schrijf u opnieuw in, of neem contact op met uw verkiezingskantoor.",
+                    "voter-already-approved":
+                        "U bent al ingeschreven. U kunt inloggen om te stemmen zodra de stemming opent.",
+                },
+                previewTitle: "De kiezer ziet",
+            },
             notifications: {
-                approveError: "Fout bij goedkeuren kiezer",
-                approveSuccess: "Kiezer goedgekeurd",
-                rejectError: "Fout bij afkeuren kiezer",
-                rejectSuccess: "Kiezer afgekeurd",
-                VoterApprovedAlready: "Kiezer is reeds goedgekeurd.",
+                approveError: "De inschrijving kon niet worden goedgekeurd",
+                approveSuccess: "{{name}} goedgekeurd. De kiezer heeft bericht gekregen.",
+                rejectError: "De inschrijving kon niet worden afgewezen",
+                rejectSuccess: "{{name}} afgewezen. De kiezer heeft bericht gekregen.",
+                VoterApprovedAlready: "Deze kiezer is al ingeschreven.",
             },
             export: {
-                success: "Export applicaties succesvol voltooid",
-                error: "Fout bij exporteren applicaties",
+                success: "Export van aanvragen succesvol voltooid",
+                error: "Fout bij het exporteren van aanvragen",
+            },
+            matrix: {
+                button: "Goedkeuringsmatrix",
+                title: "Goedkeuringsmatrix",
+                back: "Goedkeuringen",
+                subtitle:
+                    "Regels bepalen wat er met elke inschrijving gebeurt. De eerste regel die van toepassing is, beslist.",
+                versionChip: "Versie {{version}}",
+                savedBy: "Opgeslagen op {{date}} door {{user}}",
+                builtIn: "Ingebouwde regels, in gebruik totdat een versie is opgeslagen",
+                unsaved: "Niet-opgeslagen wijzigingen",
+                viewOnly: "Alleen bekijken",
+                readOnlyTitle: "U kunt de regels bekijken, maar niet wijzigen",
+                readOnlyText:
+                    "Vraag een beheerder met de machtiging approval-matrix-write om wijzigingen aan te brengen.",
+                loadError: "De goedkeuringsmatrix kon niet worden geladen.",
+                compared: "Wat we vergelijken",
+                comparedHelp:
+                    "Elke inschrijving wordt vergeleken met de kiezer die in het register is gevonden. Bij namen tellen hoofdletters, accenten en koppeltekens niet mee; bij rijbewijzen en zeemansboekjes worden voornaam en tweede naam samen vergeleken.",
+                addCompared: "Nog een gegeven vergelijken",
+                rules: "Regels",
+                rulesHelp:
+                    "Regels worden van boven naar beneden gecontroleerd. De eerste die van toepassing is, beslist; als er geen van toepassing is, geldt de laatste regel.",
+                when: "Wanneer",
+                then: "Dan",
+                otherwise: "Anders",
+                noneApply: "Geen van de bovenstaande regels is van toepassing",
+                andWord: "en",
+                and: " en ",
+                appliesToExample: "Van toepassing op uw voorbeeld",
+                cameFrom: "Besliste over de inschrijving waar u vandaan komt",
+                voterIsTold: "De kiezer krijgt te horen: “{{reason}}”.",
+                sentence: "Als geldt: {{when}}, dan {{outcome}}.",
+                sentenceOtherwise:
+                    "Als geen van de bovenstaande regels van toepassing is, {{outcome}}.",
+                sentenceEmpty:
+                    "Voeg een voorwaarde toe om aan te geven wanneer deze regel van toepassing is.",
+                addRule: "Regel toevoegen",
+                discard: "Wijzigingen verwerpen",
+                actions: {
+                    edit: "Regel {{number}} bewerken",
+                    editOtherwise: "De laatste regel bewerken",
+                    moveUp: "Regel {{number}} omhoog verplaatsen",
+                    moveDown: "Regel {{number}} omlaag verplaatsen",
+                    delete: "Regel {{number}} verwijderen",
+                },
+                saveBar: {
+                    title: "U hebt niet-opgeslagen wijzigingen",
+                    fix_one: "Corrigeer 1 regel voordat u opslaat",
+                    fix_other: "Corrigeer {{count}} regels voordat u opslaat",
+                    more: "+{{count}} meer",
+                },
+                test: "Een voorbeeld proberen",
+                testHelp:
+                    "Beschrijf een inschrijving om te zien welke regel erover beslist. Uw niet-opgeslagen wijzigingen tellen mee.",
+                testDetails: "Vergeleken gegevens",
+                applies: "Regel {{number}} is van toepassing",
+                otherwiseApplies: "De laatste regel is van toepassing",
+                testError: "Het voorbeeld kon niet worden geprobeerd.",
+                testInvalid: "Corrigeer deze regels om een voorbeeld te proberen:",
+                ruleError: "Regel {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Een getypte identiteit wordt nooit automatisch goedgekeurd, dus dit gaat naar een persoon.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Een kiezer die al is ingeschreven wordt nooit opnieuw goedgekeurd.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "Niemand wordt goedgekeurd zonder kiezer in het register.",
+                    OTHERWISE_NOT_ACCEPTED: "De laatste regel keurt nooit goed.",
+                },
+                dialog: {
+                    editTitle: "Regel {{number}} bewerken",
+                    newTitle: "Nieuwe regel",
+                    otherwiseTitle: "De laatste regel bewerken",
+                    summary: "In het kort",
+                    whenHelp:
+                        "Deze moeten allemaal waar zijn. Laat een voorwaarde weg als die er niet toe doet.",
+                    otherwiseHelp: "Als geen van de bovenstaande regels van toepassing is",
+                    addCondition: "Voorwaarde toevoegen",
+                    remove: "“{{condition}}” verwijderen",
+                    identity: "Identiteitscontrole",
+                    voterFound: "Kiezer in het register",
+                    alreadyEnrolled: "Al ingeschreven",
+                    validId: "Type identiteitsbewijs",
+                    differing: "Gegevens die afwijken",
+                    decision: "Beslissing",
+                    reason: "Wat de kiezer te horen krijgt",
+                    voterSees: "De kiezer ziet",
+                    apply: "Toepassen",
+                    close: "Sluiten",
+                    yes: "Ja",
+                    no: "Nee",
+                    notReported: "Niet gemeld",
+                },
+                identity: {
+                    VERIFIED: "Geverifieerd met gescand identiteitsbewijs",
+                    MANUAL_ENTRY: "Met de hand getypt",
+                },
+                differing: {
+                    none: "Geen",
+                    exactly_1: "Precies 1",
+                    at_most_1: "Hoogstens 1",
+                    exactly_2: "Precies 2",
+                    at_most_2: "Hoogstens 2",
+                    at_least_3: "3 of meer",
+                },
+                fieldMatch: {
+                    MATCHES: "Gelijk",
+                    DIFFERS: "Anders",
+                },
+                decisions: {
+                    ACCEPTED: "Automatisch goedkeuren",
+                    PENDING: "Naar een persoon sturen",
+                    REJECTED: "Afwijzen",
+                },
+                outcomeShort: {
+                    ACCEPTED: "automatisch goedkeuren",
+                    PENDING: "naar een persoon sturen",
+                    REJECTED: "afwijzen",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "De kiezer wordt ingeschreven zonder dat iemand ernaar kijkt.",
+                    PENDING:
+                        "Een ambtenaar beslist, en de kiezer krijgt te horen dat de inschrijving wordt beoordeeld.",
+                    REJECTED: "De kiezer krijgt te horen waarom, en kan zich opnieuw inschrijven.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "wordt de inschrijving automatisch goedgekeurd",
+                    PENDING: "wordt de inschrijving naar een persoon gestuurd",
+                    REJECTED: "wordt de inschrijving afgewezen",
+                },
+                reasons: {
+                    NO_VOTER: "Geen overeenkomende kiezer",
+                    ALREADY_APPROVED: "Al goedgekeurd",
+                    INSUFFICIENT_INFORMATION: "Ontbrekende gegevens",
+                    IDENTITY_NOT_VERIFIED: "Identiteit niet geverifieerd",
+                    OTHER: "Anders",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "We konden in het register geen kiezer vinden die bij uw gegevens past. Controleer uw gegevens en schrijf u opnieuw in, of neem contact op met uw verkiezingskantoor.",
+                    ALREADY_APPROVED:
+                        "U bent al ingeschreven. U kunt inloggen om te stemmen zodra de stemming opent.",
+                    INSUFFICIENT_INFORMATION:
+                        "We konden u niet inschrijven omdat een deel van uw gegevens ontbreekt of onleesbaar is. Schrijf u opnieuw in met volledige gegevens.",
+                    IDENTITY_NOT_VERIFIED:
+                        "We konden uw identiteit niet automatisch verifiëren, dus een verkiezingsambtenaar zal uw inschrijving beoordelen.",
+                    OTHER: "Een verkiezingsambtenaar schrijft dit bericht bij het nemen van de beslissing.",
+                },
+                conditions: {
+                    any: "Nog geen voorwaarden",
+                    identity: {
+                        VERIFIED: "Identiteit geverifieerd met gescand identiteitsbewijs",
+                        MANUAL_ENTRY: "Identiteit met de hand getypt",
+                    },
+                    voterFound: {
+                        true: "Kiezer gevonden in het register",
+                        false: "Geen kiezer gevonden in het register",
+                    },
+                    alreadyEnrolled: {
+                        true: "Al ingeschreven",
+                        false: "Nog niet ingeschreven",
+                    },
+                    validId: "Identiteitsbewijs: {{id}}",
+                    differing: {
+                        none: "Alle gegevens komen overeen",
+                        exactly_1: "Precies 1 gegeven wijkt af",
+                        at_most_1: "Hoogstens 1 gegeven wijkt af",
+                        exactly_2: "Precies 2 gegevens wijken af",
+                        at_most_2: "Hoogstens 2 gegevens wijken af",
+                        at_least_3: "3 of meer gegevens wijken af",
+                    },
+                    field: {
+                        MATCHES: "{{field}} komt overeen",
+                        DIFFERS: "{{field}} wijkt af",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Inschrijvingen waarvan de identiteit met de hand is getypt kunnen niet automatisch worden goedgekeurd.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Een kiezer die al is ingeschreven kan niet opnieuw worden goedgekeurd.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Een inschrijving kan niet worden goedgekeurd zonder kiezer in het register.",
+                    OTHERWISE_ACCEPTS:
+                        "De laatste regel kan inschrijvingen naar een persoon sturen of afwijzen, maar niet goedkeuren.",
+                    MISSING_REASON: "Kies wat de kiezer te horen krijgt.",
+                    UNEXPECTED_REASON: "Een goedkeuring heeft geen reden.",
+                    NO_COMPARED_FIELDS:
+                        "Kies ten minste één gegeven om met het register te vergelijken.",
+                    DUPLICATE_COMPARED_FIELD: "Een vergeleken gegeven komt twee keer voor.",
+                    UNKNOWN_FIELD: "Een regel gebruikt een gegeven dat niet wordt vergeleken.",
+                    NO_CONDITIONS:
+                        "Voeg ten minste één voorwaarde toe. Alleen de laatste regel geldt voor al het andere.",
+                },
+                change: {
+                    added: "Regel {{number}} toegevoegd",
+                    decision: "Regel {{number}}: {{from}} → {{to}}",
+                    edited: "Regel {{number}} gewijzigd",
+                    removed: "Een regel is verwijderd ({{text}})",
+                    moved: "De volgorde van de regels is gewijzigd",
+                    otherwise: "De laatste regel is gewijzigd",
+                    compared: "De vergeleken gegevens zijn gewijzigd",
+                },
+                save: {
+                    button: "Opslaan als versie {{version}}",
+                    title: "Opslaan als versie {{version}}?",
+                    body: "Over nieuwe inschrijvingen wordt vanaf nu met deze regels beslist. Inschrijvingen waarover al is beslist behouden hun beslissing.",
+                    changes: "Wat er is gewijzigd",
+                    log: "De nieuwe versie wordt vastgelegd in het verkiezingslogboek.",
+                    confirm: "Versie {{version}} opslaan",
+                    success: "Opgeslagen als versie {{version}}",
+                    error: "De goedkeuringsmatrix kon niet worden opgeslagen",
+                },
             },
         },
         monitoring: {
@@ -4099,6 +4625,384 @@ const dutchTranslation: TranslationType = {
                 redo: "Uw sleutelfragment is bijgedragen zonder uw handtekening, die deze verkiezing nu vereist. Draag het opnieuw bij en onderteken het.",
                 notTaken:
                     "De ceremonie accepteert dit sleutelfragment niet meer. Sleep uw sleutelfragmentbestand opnieuw hierheen.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Ondertekende sluitingstijd",
+                deadline: "{{election}}: {{time}} · geautoriseerd door configuratie {{code}}.",
+                explanation:
+                    "Deze ondertekende sluitingstijd blijft bindend als het bewerkbare schema wordt gewijzigd of verwijderd. De planner sluit de geautoriseerde kanalen die nog open zijn.",
+                reached:
+                    "Deze ondertekende sluitingstijd is verstreken. Controleer de huidige stemstatus en het auditlog; de verwerking is nog niet geregistreerd.",
+                processed: "Ondertekende sluitingstijd verwerkt om {{time}}.",
+                signedAt: "Ondertekende sluitingstijd: {{time}}.",
+                channels: "Kanalen die nog onder deze sluitingstijd vallen: {{channels}}.",
+                result: "Raadpleeg de stemstatus en het auditlog voor de daadwerkelijke wijzigingen en het volledige resultaat.",
+                unavailable:
+                    "Ondertekende sluitingstijden konden niet worden geladen. Controleer het gepubliceerde schema en het auditlog.",
+            },
+            picker: {
+                noMatch:
+                    "Geen tijdzone gevonden. Typ een stad, land, zone, afkorting of verschuiving.",
+            },
+            input: {
+                timezone: "Tijdzone",
+                scheduledAt: "Gepland op",
+                meetingStart: "Begin van de vergadering",
+                cronZone: "De planning loopt in de primaire tijdzone van het evenement, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} is geen van de geconfigureerde tijdzones van het evenement. Kies er een.",
+            },
+            schedule: {
+                allElections: "Alle verkiezingen",
+                outcome: "Uitkomst",
+                noOffset: "Geen tijdzoneverschuiving: wordt nooit uitgevoerd",
+                unpublished: "Nog niet gepubliceerd",
+                notPublished:
+                    "Er is nog niets gepubliceerd: kiezers zien de planning na de eerste publicatie.",
+                unpublishedChanges_one:
+                    "{{count}} gepland evenement is gewijzigd sinds de laatste publicatie. Kiezers zien het nadat u publiceert.",
+                unpublishedChanges_other:
+                    "{{count}} geplande evenementen zijn gewijzigd sinds de laatste publicatie. Kiezers zien ze nadat u publiceert.",
+                offsetless_one:
+                    "{{count}} gepland tijdstip heeft geen tijdzoneverschuiving en wordt dus nooit uitgevoerd. Bewerk het om de tijdzone in te stellen.",
+                offsetless_other:
+                    "{{count}} geplande tijdstippen hebben geen tijdzoneverschuiving en worden dus nooit uitgevoerd. Bewerk ze om hun tijdzone in te stellen.",
+                outcomeChange:
+                    "Opslaan wijzigt wat deze geplande overgang doet: {{before}} → {{after}}.",
+                outcomeNew: "Na opslaan doet deze geplande overgang het volgende: {{after}}.",
+                outcomeElections: "{{count}} van {{total}} verkiezingen",
+                exportError: "De planning kon niet worden geëxporteerd.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} geplande rij wordt geweigerd ({{transitions}} verkiezingsovergangen).",
+                    refused_other:
+                        "{{count}} geplande rijen worden geweigerd ({{transitions}} verkiezingsovergangen).",
+                    runsUnsigned_one:
+                        "{{count}} geplande sluiting wordt zonder handtekeningen uitgevoerd ({{transitions}} verkiezingsovergangen).",
+                    runsUnsigned_other:
+                        "{{count}} geplande sluitingen worden zonder handtekeningen uitgevoerd ({{transitions}} verkiezingsovergangen).",
+                    review: "Bekijken",
+                    showAll: "Alles tonen",
+                    showing: {
+                        refused:
+                            "De {{count}} geplande rijen die worden geweigerd ({{transitions}} verkiezingsovergangen).",
+                        runsUnsigned:
+                            "De {{count}} geplande sluitingen die zonder handtekeningen worden uitgevoerd ({{transitions}} verkiezingsovergangen).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Een update van de tijdzonedatabase verschuift {{count}} toekomstig gepland tijdstip. Er verandert niets totdat u het toepast.",
+                    title_other:
+                        "Een update van de tijdzonedatabase verschuift {{count}} toekomstige geplande tijdstippen. Er verandert niets totdat u ze toepast.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Toepassen",
+                    applied_one: "{{count}} gepland tijdstip bijgewerkt.",
+                    applied_other: "{{count}} geplande tijdstippen bijgewerkt.",
+                    error: "De geplande tijdstippen konden niet worden bijgewerkt.",
+                },
+                outcomeChangeElections_one: "Opslaan wijzigt de uitkomst bij {{count}} verkiezing:",
+                outcomeChangeElections_other:
+                    "Opslaan wijzigt de uitkomst bij {{count}} verkiezingen:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "Een verplicht rapport in deze ondertekende configuratie blijft verplicht als de huidige instelling van de post wordt gewijzigd naar niet verplicht.",
+                title: "Wat deze goedkeuring toestaat",
+                schedule: "Geplande openingen en sluitingen",
+                noSchedule:
+                    "Geen geplande openingen of sluitingen: de ondertekenaars openen en sluiten de stemming.",
+                opens: "Opent {{time}}",
+                closes: "Sluit {{time}}",
+                settings: "Instellingen",
+                unsignedClose: "Geplande sluiting zonder handtekeningen: {{value}}",
+                initialization: "Initialisatie: {{value}}",
+                firstConfiguration:
+                    "Dit is de eerste goedgekeurde configuratie: er is niets om mee te vergelijken.",
+                sameAsPrevious:
+                    "De instellingen zijn dezelfde als in de vorige goedgekeurde configuratie.",
+                rule: {
+                    openNeeds_one: "Openen vereist {{count}} handtekening",
+                    openNeeds_other: "Openen vereist {{count}} handtekeningen",
+                    openNoSignatures: "Openen vereist geen handtekeningen",
+                    closeNeeds_one: "Sluiten vereist {{count}} handtekening",
+                    closeNeeds_other: "Sluiten vereist {{count}} handtekeningen",
+                    closeNoSignatures: "Sluiten vereist geen handtekeningen",
+                    openSetting: "Stemming openen",
+                    closeSetting: "Stemming sluiten",
+                    signatures_one: "{{count}} handtekening",
+                    signatures_other: "{{count}} handtekeningen",
+                    none: "geen handtekeningen",
+                },
+                diff: {
+                    tightens: "Strenger: {{setting}} {{before}} → {{after}}",
+                    loosens: "Soepeler: {{setting}} {{before}} → {{after}}",
+                    mixed: "Wijzigt: {{setting}} {{before}} → {{after}} (op het ene punt strenger, op het andere soepeler)",
+                },
+                comparedWith:
+                    "Vergeleken met de vorige goedgekeurde configuratie, goedkeuring {{code}}:",
+                channels: "Stemkanalen per verkiezing",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "geen",
+            },
+            publish: {
+                openedAuthorized:
+                    "Stemming volgens planning geopend om {{time}}, toegestaan door configuratiegoedkeuring {{code}} (ondertekend door {{names}}).",
+                closedAuthorized:
+                    "Stemming volgens planning gesloten om {{time}}, toegestaan door configuratiegoedkeuring {{code}} (ondertekend door {{names}}).",
+                closedUnsigned:
+                    "Stemming volgens planning gesloten om {{time}}. Geen sluitingshandtekeningen: de planning heeft de stemming op de deadline gesloten.",
+                authorizedBy: "Toegestaan door",
+                cancelledRequest:
+                    "Verzoek {{code}} had {{n}} van {{k}} handtekeningen en is geannuleerd.",
+                openedRefused: "De geplande opening van {{time}} is geweigerd.",
+                closedRefused: "De geplande sluiting van {{time}} is geweigerd.",
+                openedNoSignaturesNeeded:
+                    "De stemming is volgens planning geopend ({{time}}); er waren geen handtekeningen nodig.",
+                closedNoSignaturesNeeded:
+                    "De stemming is volgens planning gesloten ({{time}}); er waren geen handtekeningen nodig.",
+                openedNothingToChange:
+                    "Om {{time}} had de geplande opening niets te openen: de kanalen waren al open.",
+                closedNothingToChange:
+                    "Om {{time}} had de geplande sluiting niets te sluiten: de kanalen waren al gesloten.",
+            },
+            import: {
+                title: "Planning importeren",
+                subtitle:
+                    "Eén rij per evenement en verkiezing, in lokale tijd. Laat de tijdzone leeg om de tijdzone van de verkiezing te gebruiken.",
+                chooseFile: "Kies een CSV-bestand",
+                template: "Sjabloon downloaden",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} evenementen klaar voor {{posts}} verkiezingen.",
+                needsAttention_one:
+                    "{{ok}} evenementen klaar voor {{posts}} verkiezingen. {{count}} rij vereist aandacht; corrigeer het bestand en upload het opnieuw.",
+                needsAttention_other:
+                    "{{ok}} evenementen klaar voor {{posts}} verkiezingen. {{count}} rijen vereisen aandacht; corrigeer het bestand en upload het opnieuw.",
+                preview: "Te importeren rijen",
+                row: "Rij",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…en nog {{count}} rijen",
+                imported: "Planning geïmporteerd: {{created}} aangemaakt, {{updated}} bijgewerkt.",
+                uploadError: "Het bestand kon niet worden gecontroleerd. Upload het opnieuw.",
+                importError: "De planning kon niet worden geïmporteerd.",
+                error: {
+                    unknownElection: "Geen enkele verkiezing heeft de alias {{election}}.",
+                    unknownEventType: "{{type}} is geen type gepland evenement.",
+                    invalidTimeZone: "{{zone}} is geen tijdzone.",
+                    invalidDateTime: "De datum en tijd moeten de vorm YYYY-MM-DDTHH:MM hebben.",
+                    invalidVotingChannels:
+                        "De stemkanalen zijn onbekend, of openen online en vervroegd stemmen tegelijk.",
+                    dstGap: "{{dateTime}} bestaat niet in {{city}} omdat de klok vooruit gaat. Vul een tijd in die bestaat.",
+                    duplicate: "Een andere rij plant hetzelfde evenement voor deze verkiezing.",
+                    other: "Deze rij kan niet worden geïmporteerd ({{code}}).",
+                    ambiguousElection: "Meer dan één verkiezing heeft de alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Taal, datum en tijd",
+                dateAndTime: "Datum en tijd",
+                configured: "Geconfigureerde tijdzones",
+                configuredHelp:
+                    "{{count}} tijdzones. Verkiezingen kiezen hun tijdzone uit deze lijst; typ een stad of land om er een toe te voegen.",
+                moreZones: "+{{count}}",
+                primary: "Primaire tijdzone",
+                primaryHelp:
+                    "Gebruikt voor planningen van het hele evenement, rapporten en verkiezingen zonder eigen tijdzone.",
+                primaryInUse:
+                    "{{zone}} is de primaire tijdzone. Kies eerst een andere primaire tijdzone.",
+                inUse: "{{zone}} wordt gebruikt door {{names}}. Wijzig eerst die verkiezingen.",
+                logs: "Tijden in logboeken en logboekexports",
+                logsPrimary: "Primaire tijdzone ({{abbr}})",
+                logsElection: "De tijdzone van de verkiezing van elke rij",
+                logsHelp: "Rijen zonder verkiezing gebruiken de primaire tijdzone.",
+                electionZone: "Tijdzone",
+                electionPrimary: "Primair voor het evenement: {{zone}}",
+                electionZoneHelp:
+                    "Planningen, kiezersschermen en rapporten van deze verkiezing gebruiken deze tijdzone, ook voor elk gebied eronder. Leeg gebruikt de primaire tijdzone van het evenement.",
+                electionUnconfigured:
+                    "Het evenement configureert deze tijdzone niet meer, dus de verkiezing gebruikt de primaire tijdzone, {{zone}}. Kies een van de geconfigureerde tijdzones.",
+                electionUnconfiguredSave:
+                    "Kies een van de geconfigureerde tijdzones van het evenement.",
+            },
+            policies: {
+                accordion: "Levenscyclus van de stemming",
+                intro: "Deze instellingen maken deel uit van de configuratie van het verkiezingsevenement: de configuratiegoedkeuring ondertekent ze, en geplande openingen en sluitingen volgen de strengste van de huidige en de gepubliceerde instellingen.",
+                nothingPublished:
+                    "Nog niets gepubliceerd: tot de eerste publicatie gebruiken geplande openingen en sluitingen de standaardwaarden (per verkiezing, weigeren).",
+                publishedValue: "Gepubliceerde configuratie: {{value}}",
+                changedSincePublished:
+                    "Gewijzigd sinds de gepubliceerde configuratie: geplande openingen en sluitingen volgen de strengste van de twee tot de volgende goedgekeurde publicatie.",
+                scope: {
+                    title: "Initialisatie voordat de stemming opent",
+                    post: {
+                        label: "Per verkiezing",
+                        help: "Een verkiezing opent zodra ze is geïnitialiseerd.",
+                    },
+                    event: {
+                        label: "Hele evenement",
+                        help: "Geen enkele verkiezing opent totdat elke verkiezing is geïnitialiseerd.",
+                        warning:
+                            "Eén verkiezing die niet is geïnitialiseerd, houdt alle verkiezingen gesloten, ook op hun geplande opening.",
+                    },
+                    postAndCountry: {
+                        label: "Per verkiezing en land",
+                        help: "Een verkiezing opent zodra elk land (gebied) eronder is geïnitialiseerd.",
+                        warning:
+                            "Een verkiezing blijft gesloten, ook op haar geplande opening, totdat elk land eronder is geïnitialiseerd; elk land wordt met een eigen rapport geïnitialiseerd.",
+                    },
+                },
+                close: {
+                    title: "Geplande sluiting zonder handtekeningen",
+                    help: "Wanneer het sluiten van de stemming handtekeningen vereist en een geplande sluiting niet in de ondertekende configuratie staat.",
+                    refuse: {
+                        label: "Weigeren",
+                        help: "De sluiting wordt niet uitgevoerd; de ondertekenaars van de verkiezing sluiten de stemming met hun handtekeningen.",
+                    },
+                    runAsSystem: {
+                        label: "Uitvoeren als systeem",
+                        help: "De stemming sluit op de deadline en wordt geregistreerd als gesloten door de planning, zonder handtekeningen.",
+                        warning:
+                            "Geplande sluitingen buiten de ondertekende configuratie sluiten de stemming zonder handtekening van wie dan ook. Het logboek en de documenten vermelden dit.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "Geen enkele geplande overgang wijzigt van uitkomst.",
+                    outcomes_one:
+                        "{{count}} geplande overgang wijzigt van uitkomst. Bekijk deze in Geplande Gebeurtenissen.",
+                    outcomes_other:
+                        "{{count}} geplande overgangen wijzigen van uitkomst. Bekijk ze in Geplande Gebeurtenissen.",
+                },
+                saveError:
+                    "De instellingen voor de levenscyclus van de stemming konden niet worden opgeslagen.",
+                publishedPerTarget: "Gepubliceerde configuratie, per doel: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} doel)",
+                publishedCount_other: "{{value}} ({{count}} doelen)",
+                savedWithoutPolicies:
+                    "Het verkiezingsevenement is opgeslagen, maar de instellingen van de stemlevenscyclus niet: {{reason}}. Sla ze opnieuw op.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Wacht op initialisatie",
+                runs: "Wordt uitgevoerd",
+                runsUnsigned: "Wordt zonder handtekeningen uitgevoerd",
+                refused: "Wordt geweigerd",
+            },
+            note: {
+                waitingForInitialization: "Wacht op initialisatie",
+                authorized: "Toegestaan door configuratie {{code}}",
+                noSignaturesNeeded: "Geen handtekeningen nodig",
+                closesUnsigned: "Sluit zonder handtekeningen",
+                refused: {
+                    initialization: "De vereiste initialisatie is niet voltooid",
+                    votingClose: "Stemmen kan niet openen na de sluitingstijd",
+                    needsSignatures: "Heeft de handtekeningen van de ondertekenaars nodig",
+                    covered: "Niet in de ondertekende configuratie",
+                    unsignedClose: "Een sluiting zonder handtekeningen wordt geweigerd",
+                    stricterCopy: "Gewijzigd sinds de gepubliceerde configuratie, die nog beslist",
+                    defaults: "Nog niets gepubliceerd: de standaardwaarden gelden",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Waarom?",
+                title: {
+                    waitingForInitialization: "Waarom op initialisatie wordt gewacht",
+                    runs: "Waarom deze wordt uitgevoerd",
+                    runsUnsigned: "Waarom deze zonder handtekeningen wordt uitgevoerd",
+                    refused: "Waarom deze wordt geweigerd",
+                },
+                checks: "Controles",
+                check: "Controle",
+                current: "Huidige instellingen",
+                published: "Gepubliceerde configuratie",
+                verdict: "Oordeel",
+                allows: "Staat toe",
+                blocks: "Blokkeert",
+                deciding: "Beslissende controle",
+                nextStep: "Volgende stap:",
+                signedBy: "Ondertekend door {{names}}",
+            },
+            question: {
+                initialization: "Is de vereiste initialisatie voltooid?",
+                votingClose: "Respecteert deze opening de sluitingstijd van het stemmen?",
+                needsSignatures: "Vereist deze actie handtekeningen?",
+                covered: "Staat precies deze planning in de ondertekende configuratie?",
+                unsignedClose: "Wat gebeurt er met een sluiting zonder handtekeningen?",
+                stricterCopy:
+                    "Verschillen de huidige en de gepubliceerde instellingen? Welke beslist?",
+                defaults: "Is er al iets gepubliceerd?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "De initialisaties die de huidige en gepubliceerde instellingen vereisen, moeten beide voltooid zijn.",
+                },
+                votingClose: {
+                    passed: "Stemmen sluit om {{closes_at}}; deze opening kan niet op of na die sluitingstijd worden uitgevoerd.",
+                },
+                needsSignatures: {
+                    yes: "Ja, {{signatures}} handtekeningen",
+                    yes_one: "Ja, {{count}} handtekening",
+                    yes_other: "Ja, {{count}} handtekeningen",
+                    no: "Nee",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "De ondertekende configuratie {{code}} gebruikt de eigen opening {{scheduled_event_id}} van deze post. De opening voor het hele evenement is niet van toepassing.",
+                    yes: "Ja: goedkeuring {{code}}, ongewijzigd",
+                    changed: "Nee: gewijzigd sinds goedkeuring {{code}}",
+                    changedBy:
+                        "Nee: bewerkt op {{edited_at}} door {{edited_by}}, na goedkeuring {{code}}",
+                    notInApproval: "Nee: goedkeuring {{code}} bevat dit niet",
+                    noApproval: "Nog geen goedgekeurde configuratie",
+                    channelsChanged:
+                        "Nee: de stemkanalen van de verkiezing zijn gewijzigd sinds goedkeuring {{code}}",
+                    alreadyFired:
+                        "Nee: deze overgang van goedkeuring {{code}} is al uitgevoerd op {{fired_at}}; opnieuw uitvoeren vereist handtekeningen",
+                    late: "Nee: het is meer dan 15 minuten na {{scheduled_date}} (goedkeuring {{code}}); nu uitvoeren vereist handtekeningen",
+                },
+                unsignedClose: {
+                    refuse: "Weigeren",
+                    runAsSystem: "Uitvoeren als systeem",
+                },
+                stricterCopy: {
+                    same: "Beide zijn hetzelfde",
+                    currentStricter: "De huidige instellingen zijn strenger: nu toegepast",
+                    currentLooser:
+                        "De huidige instellingen zijn soepeler: ze gelden na de volgende goedgekeurde publicatie",
+                    combined: "Elk is strenger in één waarde: beide gelden",
+                },
+                defaults: {
+                    published: "Gepubliceerd op {{published_at}}",
+                    nothingPublished: "Niets gepubliceerd: de standaardwaarden gelden",
+                    noSnapshot:
+                        "Gepubliceerd op {{published_at}}, voordat publicaties deze instellingen bewaarden: de standaardwaarden gelden",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Voltooi de vereiste initialisatie. De planner probeert het opnieuw voordat het stemmen sluit.",
+                closed: "Deze opening wordt niet uitgevoerd nadat het stemmen sluit.",
+                none: "Geen actie nodig.",
+                publishAndApprove: "Publiceer de configuratie en keur deze goed.",
+                requireConfigurationApproval:
+                    "Laat Configuratie goedkeuren handtekeningen vereisen, publiceer daarna de configuratie en keur deze goed.",
+                askSignersToOpen:
+                    "Vraag de ondertekenaars van de verkiezing om de stemming te openen.",
+                askSignersToClose:
+                    "Vraag de ondertekenaars van de verkiezing om de stemming te sluiten.",
+            },
+            applies: {
+                tightens: "Geldt nu voor handmatige en geplande acties.",
+                loosens:
+                    "Geldt nu voor handmatige acties; voor geplande openingen en sluitingen na de volgende goedgekeurde publicatie.",
+                tightensAndLoosens:
+                    "Het strengere deel geldt nu voor handmatige en geplande acties; het soepelere deel geldt nu voor handmatige acties, en voor geplande openingen en sluitingen na de volgende goedgekeurde publicatie.",
             },
         },
     },

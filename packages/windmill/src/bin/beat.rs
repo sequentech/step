@@ -17,6 +17,10 @@ use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
 use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
+use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
+use windmill::tasks::recompute_schedule_instants::{
+    recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
+};
 use windmill::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_snapshots, scheduled_fan_out,
 };
@@ -115,6 +119,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().staff_crl_interval)),
                 args = (),
             },
+            recompute_schedule_instants::NAME => {
+                recompute_schedule_instants,
+                schedule = DeltaSchedule::new(Duration::from_secs(RECOMPUTE_INTERVAL_SECONDS)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -124,10 +133,12 @@ async fn main() -> Result<()> {
             electoral_log_batch_dispatcher::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             refresh_monitoring_snapshots::NAME => &Queue::Beat.queue_name(&slug),
             migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
+            migrate_registration_flows::NAME => &Queue::Short.queue_name(&slug),
             post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
             refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
+            recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.
@@ -141,6 +152,9 @@ async fn main() -> Result<()> {
     // Tenant realms made before a release get its new permissions once,
     // whenever beat starts; the migration skips the roles a realm has.
     beat.schedule_task(migrate_realm_permissions::new(), RunOnce);
+    // Event realms made before the per-Post enrollment check get it in their
+    // registration form, once whenever beat starts (VOTE-LIFECYCLE).
+    beat.schedule_task(migrate_registration_flows::new(), RunOnce);
 
     set_is_app_active(true);
     beat.start().await?;

@@ -176,13 +176,13 @@ const AuditScreen: React.FC = () => {
                 </Dialog>
                 <Stepper selected={4} warning={true} />
             </Box>
-            <StyledTitle className="screen-title" variant="h4" component="h1" fontSize="24px">
+            <StyledTitle className="screen-title" variant="h4" component="h1" fontSize="1.5rem">
                 <Box className="screen-title-text">{t("auditScreen.title")}</Box>
                 <IconButton
                     buttonClassName="screen-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
+                    fontSize="1rem"
                     onClick={() => setOpenStep1Help(true)}
                     ariaLabel={t("a11y.helpAbout", {topic: t("auditScreen.title")})}
                 />
@@ -210,14 +210,14 @@ const AuditScreen: React.FC = () => {
                 variant="h5"
                 component="h2"
                 fontWeight="bold"
-                fontSize="18px"
+                fontSize="1.125rem"
             >
                 <Box className="audit-download-title-text">{t("auditScreen.step1Title")}</Box>
                 <IconButton
                     buttonClassName="audit-download-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
+                    fontSize="1rem"
                     onClick={() => setOpenStep1Help(true)}
                     ariaLabel={t("a11y.helpAbout", {topic: t("auditScreen.step1Title")})}
                 />
@@ -265,7 +265,7 @@ const AuditScreen: React.FC = () => {
                 variant="h5"
                 component="h2"
                 fontWeight="bold"
-                fontSize="18px"
+                fontSize="1.125rem"
             >
                 <Box className="audit-verification-title-text">{t("auditScreen.step2Title")}</Box>
             </StyledTitle>

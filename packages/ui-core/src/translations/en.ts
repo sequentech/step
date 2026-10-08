@@ -21,6 +21,7 @@ const englishTranslation = {
         },
         a11y: {
             closeDialog: "Close dialog",
+            languageSelector: "Language: {{language}}",
             dismissMessage: "Dismiss message",
             ballotIdHelp: "About your Ballot ID",
             loading: "Loading",
@@ -33,6 +34,48 @@ const englishTranslation = {
             selectList: "Select the whole list",
             preferenceLabel: "Preference",
             writeInFor: "Write-in candidate name",
+        },
+        accessibility: {
+            button: "Accessibility",
+            title: "Accessibility settings",
+            description: "Change how this site looks on this device.",
+            textSize: {
+                label: "Text size",
+                default: "Default",
+                large: "Large",
+                larger: "Larger",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Default",
+                high: "High contrast",
+            },
+            textSpacing: {
+                label: "Text spacing",
+                default: "Default",
+                wide: "Wide",
+            },
+            motion: {
+                label: "Motion",
+                default: "Default",
+                reduced: "Reduced",
+            },
+            reset: "Reset settings",
+            close: "Close",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Settings reset",
+        },
+        audioInstructions: {
+            label: "Audio instructions",
+            play: "Listen to the instructions",
+            pause: "Pause the instructions",
+            resume: "Resume the instructions",
+            stop: "Stop the instructions",
+            showTranscript: "Read the instructions",
+            hideTranscript: "Hide the instructions",
+            playing: "Playing the instructions",
+            paused: "Instructions paused",
+            stopped: "Instructions stopped",
         },
         candidate: {
             moreInformationLink: "More information",
@@ -127,6 +170,8 @@ const englishTranslation = {
                     "Invalid ballot configuration: the contest defines {{count}} explicitly invalid candidates, but only one is allowed.",
                 multipleExplicitBlankCandidates:
                     "Invalid ballot configuration: the contest defines {{count}} explicit blank candidates, but only one is allowed.",
+                invalidSlateConfiguration:
+                    "Invalid ballot configuration: the slates are not valid ({{reason}}).",
             },
         },
         ballotHash: "Your Ballot ID: {{ballotId}}",
@@ -461,6 +506,16 @@ const englishTranslation = {
                         text: "No importable archive — this zip has a plan but not the archive the Admin Portal imports, so the census and the files it names are not in it.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Ballot design without a key",
+                        text: "Ballot design without a key — {{kind}} {{id}} has no name or external id, so its ballot designs can't be recognized after an import.",
+                    },
+                    "unreadable-style": {
+                        lead: "Ballot style unreadable",
+                        text: "Ballot style unreadable — the platform's ballot style could not be read to compute its design digest: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Election and event disagree",
@@ -656,6 +711,152 @@ const englishTranslation = {
                         text: "Passwords without a seed — the seed is what makes a rebuild produce the same passwords rather than new ones.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Already imported",
+                        text: "Already imported — revision {{revision}} of this configuration was imported before; import a newer revision instead.",
+                    },
+                    "approval-invalid": {
+                        lead: "Approval doesn't count",
+                        text: "Approval doesn't count — the approval by {{name}} could not be verified: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "Same person approved twice",
+                        text: "Same person approved twice — {{name}} approved more than once, and counts once.",
+                    },
+                    "approver-key-usage": {
+                        lead: "Approver can't sign",
+                        text: "Approver can't sign — an approver's certificate is not made for signing.",
+                    },
+                    "bad-signature": {
+                        lead: "Signature doesn't match",
+                        text: "Signature doesn't match — the package's signature does not verify, so it was changed after signing or signed by another key: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "Content digest doesn't match",
+                        text: "Content digest doesn't match — the manifest says {{expected}} and its content hashes to {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "File name used twice",
+                        text: "File name used twice — '{{file}}' appears twice in {{archive}}, so two readers could take different files.",
+                    },
+                    "file-changed": {
+                        lead: "Changed after signing",
+                        text: "Changed after signing — {{file}} has SHA-256 {{actual}}, and the manifest says {{expected}}. Nothing in the package was read.",
+                    },
+                    "file-extra": {
+                        lead: "File not in the manifest",
+                        text: "File not in the manifest — {{file}} is in the package but was not signed. Nothing in the package was read.",
+                    },
+                    "file-missing": {
+                        lead: "Signed file missing",
+                        text: "Signed file missing — {{file}} is in the manifest and not in the package. Nothing in the package was read.",
+                    },
+                    "invalid-time": {
+                        lead: "Not a time",
+                        text: "Not a time — '{{value}}' in the manifest is not a date and time.",
+                    },
+                    "member-too-large": {
+                        lead: "File too large",
+                        text: "File too large — '{{file}}' in {{archive}} expands to more than the {{limit}} bytes a file may.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Nested too deep",
+                        text: "Nested too deep — '{{file}}' is inside more zips than the {{limit}} a file may be nested in.",
+                    },
+                    "no-importable": {
+                        lead: "Nothing to import",
+                        text: "Nothing to import — the package has no official_election_setup.zip, the archive the importer reads.",
+                    },
+                    "report-template-changed": {
+                        lead: "Report template changed",
+                        text: "Report template changed — the {{report}} report's template is not the approved one: its digest is {{actual}}, and the signed configuration says {{expected}}.",
+                    },
+                    "report-template-missing": {
+                        lead: "Report template missing",
+                        text: "Report template missing — the {{report}} report is drawn with template '{{template}}', which isn't in the configuration, so its design can't be signed.",
+                    },
+                    "report-unreadable": {
+                        lead: "Report can't be signed",
+                        text: "Report can't be signed — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Approver's certificate revoked",
+                        text: "Approver's certificate revoked — an approver's certificate has been revoked, so the approval doesn't count.",
+                    },
+                    "revoked-signer": {
+                        lead: "Signing key revoked",
+                        text: "Signing key revoked — the key that signed this package has been revoked, and its packages are refused.",
+                    },
+                    "rollback": {
+                        lead: "Not a newer revision",
+                        text: "Not a newer revision — revision {{revision}} is not newer than revision {{last}}, the last one imported.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "Signed in the future",
+                        text: "Signed in the future — the package says it was signed at {{at}}, and it is now {{now}}.",
+                    },
+                    "signer-key-usage": {
+                        lead: "Signing key can't sign",
+                        text: "Signing key can't sign — the certificate of the key that signed this package is not made for signing.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Too few approvals",
+                        text: "Too few approvals — {{count}} valid approvals from different people, and {{required}} are needed.",
+                    },
+                    "too-large": {
+                        lead: "Package too large",
+                        text: "Package too large — it expands to more than the {{limit}} bytes a package may: '{{file}}' in {{archive}} is past them.",
+                    },
+                    "too-many-members": {
+                        lead: "Too many files",
+                        text: "Too many files — {{archive}} holds more files than the {{limit}} a package may hold.",
+                    },
+                    "unhashable-content": {
+                        lead: "Content can't be hashed",
+                        text: "Content can't be hashed — the configuration's content could not be written to be hashed: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Unknown manifest format",
+                        text: "Unknown manifest format — the manifest is in format '{{format}}', which this version can't read.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Signer's certificates unreadable",
+                        text: "Signer's certificates unreadable — the package's certificate chain could not be read: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifest unreadable",
+                        text: "Manifest unreadable — the package's manifest could not be read: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Revocation list unreadable",
+                        text: "Revocation list unreadable — a revocation list could not be read, so it can't be applied: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Trusted certificates unreadable",
+                        text: "Trusted certificates unreadable — the {{setting}} setting could not be read: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Archive unreadable",
+                        text: "Archive unreadable — {{archive}} could not be read as a zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Package not signed",
+                        text: "Package not signed — it has no {{missing}}, and this installation only imports signed packages.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Approver not trusted",
+                        text: "Approver not trusted — an approver's certificate is not trusted: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Signer not trusted",
+                        text: "Signer not trusted — the key that signed this package is not one this installation trusts: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Manifest can't be written",
+                        text: "Manifest can't be written — the manifest could not be written: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "Not an election plan",
@@ -668,6 +869,24 @@ const englishTranslation = {
                     "unreadable": {
                         lead: "Plan unreadable",
                         text: "Plan unreadable — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Report set twice",
+                        text: "Report set twice — the {{report}} report is set more than once for the same election.",
+                    },
+                    "no-copies": {
+                        lead: "No copies",
+                        text: "No copies — the {{report}} report is set to print no copies. Set at least one.",
+                    },
+                    "unknown-election": {
+                        lead: "Unknown election",
+                        text: "Unknown election — the {{report}} report is about election '{{election}}', which this plan doesn't have.",
+                    },
+                    "unsupported-format": {
+                        lead: "Format not available",
+                        text: "Format not available — the {{report}} report can't be generated as {{format}}.",
                     },
                 },
                 schedule: {
@@ -785,6 +1004,24 @@ const englishTranslation = {
                     },
                 },
             },
+        },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · primary",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · my time",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "On this device: {{dateTime}}",
+            gap: "{{dateTime}} does not exist in {{city}} because clocks go forward. It will run at the time shown.",
+            overlap: "{{dateTime}} happens twice in {{city}}. The first one is used.",
         },
     },
 }
