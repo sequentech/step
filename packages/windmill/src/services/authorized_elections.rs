@@ -218,6 +218,8 @@ mod tests {
     const ELECTION_A: &str = "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
     const ELECTION_B: &str = "7a2b3c4d-5e6f-4a7b-9c8d-1e2f3a4b5c6d";
     const ELECTION_C: &str = "8b3c4d5e-6f7a-4b8c-ad9e-2f3a4b5c6d7e";
+    const EXTERNAL_ID: &str = "GIAMBI30-3-31";
+    const OTHER_EXTERNAL_ID: &str = "GTELEC31+GCIBER30-1-01";
 
     fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
         ElectionHead {
@@ -231,24 +233,25 @@ mod tests {
     #[test]
     fn elections_are_stored_by_external_id_or_by_id_without_one() {
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
             election(ELECTION_B, None),
             election(ELECTION_C, Some("")),
         ]);
 
-        assert_eq!(elections.resolve("GIAMBI30-3-31"), Ok("GIAMBI30-3-31"));
-        assert_eq!(elections.resolve(ELECTION_A), Ok("GIAMBI30-3-31"));
+        assert_eq!(elections.resolve(EXTERNAL_ID), Ok(EXTERNAL_ID));
+        assert_eq!(elections.resolve(ELECTION_A), Ok(EXTERNAL_ID));
         assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
         assert_eq!(elections.resolve(ELECTION_C), Ok(ELECTION_C));
-        assert_eq!(elections.stored_value(ELECTION_A), Some("GIAMBI30-3-31"));
+        assert_eq!(elections.stored_value(ELECTION_A), Some(EXTERNAL_ID));
         assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_B));
     }
 
     #[test]
     fn values_matching_no_election_are_not_resolved() {
-        let elections = AuthorizedElectionIds::new(&[election(ELECTION_A, Some("GIAMBI30-3-31"))]);
+        let elections = AuthorizedElectionIds::new(&[election(ELECTION_A, Some(EXTERNAL_ID))]);
 
-        for value in [ELECTION_B, "giambi30-3-31", ""] {
+        let lowercase = EXTERNAL_ID.to_lowercase();
+        for value in [ELECTION_B, &lowercase, ""] {
             assert_eq!(
                 elections.resolve(value),
                 Err(UnresolvedElection::NoElection)
@@ -260,33 +263,37 @@ mod tests {
     /// leaves the voter unrestricted.
     #[test]
     fn external_ids_that_do_not_fit_in_a_cell_are_stored_by_id() {
+        let two_values = format!("{EXTERNAL_ID}|{OTHER_EXTERNAL_ID}");
+        let leading_space = format!(" {EXTERNAL_ID}");
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("GIAMBI30-3-31|GIAMBI30-3-32")),
+            election(ELECTION_A, Some(&two_values)),
             election(ELECTION_B, Some(" ")),
-            election(ELECTION_C, Some(" GIAMBI30-3-31")),
+            election(ELECTION_C, Some(&leading_space)),
         ]);
 
-        assert_eq!(
-            elections.resolve("GIAMBI30-3-31|GIAMBI30-3-32"),
-            Ok(ELECTION_A)
-        );
+        assert_eq!(elections.resolve(&two_values), Ok(ELECTION_A));
         assert_eq!(elections.resolve(" "), Ok(ELECTION_B));
         assert_eq!(elections.resolve(ELECTION_C), Ok(ELECTION_C));
         assert_eq!(elections.stored_value(ELECTION_C), Some(ELECTION_C));
     }
 
     /// Import rejects values that start with a double quote, which export
-    /// writes for values that name no election.
+    /// writes for values that do not name a single election.
     #[test]
     fn external_ids_starting_with_a_double_quote_are_stored_by_id() {
+        let leading_quote = format!("\"{EXTERNAL_ID}");
+        let trailing_quote = format!("{EXTERNAL_ID}\"");
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("\"GIAMBI30-3-31")),
-            election(ELECTION_B, Some("GIAMBI30-3-31\"")),
+            election(ELECTION_A, Some(&leading_quote)),
+            election(ELECTION_B, Some(&trailing_quote)),
         ]);
 
-        assert_eq!(elections.resolve("\"GIAMBI30-3-31"), Ok(ELECTION_A));
+        assert_eq!(elections.resolve(&leading_quote), Ok(ELECTION_A));
         assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_A));
-        assert_eq!(elections.stored_value(ELECTION_B), Some("GIAMBI30-3-31\""));
+        assert_eq!(
+            elections.stored_value(ELECTION_B),
+            Some(trailing_quote.as_str())
+        );
     }
 
     /// A spreadsheet would take them for formulas.
@@ -320,14 +327,14 @@ mod tests {
     #[test]
     fn elections_sharing_an_external_id_are_stored_by_id() {
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
         ]);
 
         assert_eq!(elections.resolve(ELECTION_A), Ok(ELECTION_A));
         assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
         assert_eq!(
-            elections.resolve("GIAMBI30-3-31"),
+            elections.resolve(EXTERNAL_ID),
             Err(UnresolvedElection::SeveralElections)
         );
     }
@@ -336,13 +343,13 @@ mod tests {
     fn an_external_id_equal_to_another_elections_id_names_its_own_election() {
         let elections = AuthorizedElectionIds::new(&[
             election(ELECTION_A, Some(ELECTION_B)),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
         ]);
 
         assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
         assert_eq!(elections.resolve(ELECTION_A), Ok(ELECTION_B));
         assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_B));
-        assert_eq!(elections.resolve("GIAMBI30-3-31"), Ok("GIAMBI30-3-31"));
+        assert_eq!(elections.resolve(EXTERNAL_ID), Ok(EXTERNAL_ID));
     }
 
     /// As in the token mapper, no value is left to name the other election.
@@ -362,14 +369,15 @@ mod tests {
     /// Its external ID cannot be stored, and its ID names the other election.
     #[test]
     fn an_election_with_no_value_that_can_be_stored_is_not_resolved() {
+        let formula = format!("={EXTERNAL_ID}");
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("=GIAMBI30-3-31")),
+            election(ELECTION_A, Some(&formula)),
             election(ELECTION_B, Some(ELECTION_A)),
         ]);
 
         assert_eq!(elections.stored_value(ELECTION_A), None);
         assert_eq!(
-            elections.resolve("=GIAMBI30-3-31"),
+            elections.resolve(&formula),
             Err(UnresolvedElection::NoStorableValue)
         );
         assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_A));
@@ -386,12 +394,12 @@ mod tests {
             (exported_area.to_string(), ELECTION_C.to_string()),
         ]);
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
             election(ELECTION_B, None),
         ])
         .with_replaced_ids(&replaced_ids);
 
-        assert_eq!(elections.resolve(exported_a), Ok("GIAMBI30-3-31"));
+        assert_eq!(elections.resolve(exported_a), Ok(EXTERNAL_ID));
         assert_eq!(elections.resolve(exported_b), Ok(ELECTION_B));
         assert_eq!(
             elections.resolve(exported_area),
@@ -438,7 +446,7 @@ mod tests {
     #[test]
     fn the_census_matches_the_external_id_and_the_id() {
         let census = census_values_by_election(&[
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
             election(ELECTION_B, None),
             election(ELECTION_C, Some("")),
         ]);
@@ -448,7 +456,7 @@ mod tests {
             HashMap::from([
                 (
                     ELECTION_A.to_string(),
-                    vec!["GIAMBI30-3-31".to_string(), ELECTION_A.to_string()]
+                    vec![EXTERNAL_ID.to_string(), ELECTION_A.to_string()]
                 ),
                 (ELECTION_B.to_string(), vec![ELECTION_B.to_string()]),
                 (ELECTION_C.to_string(), vec![ELECTION_C.to_string()]),
@@ -462,14 +470,14 @@ mod tests {
     fn the_census_does_not_match_an_id_another_election_has_as_external_id() {
         let census = census_values_by_election(&[
             election(ELECTION_A, Some(ELECTION_B)),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
         ]);
 
         assert_eq!(
             census[ELECTION_A],
             vec![ELECTION_B.to_string(), ELECTION_A.to_string()]
         );
-        assert_eq!(census[ELECTION_B], vec!["GIAMBI30-3-31".to_string()]);
+        assert_eq!(census[ELECTION_B], vec![EXTERNAL_ID.to_string()]);
     }
 
     /// No value restricts a voter to the other election, so its census matches
@@ -493,17 +501,17 @@ mod tests {
     #[test]
     fn the_census_of_elections_sharing_an_external_id_matches_it() {
         let census = census_values_by_election(&[
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
         ]);
 
         assert_eq!(
             census[ELECTION_A],
-            vec!["GIAMBI30-3-31".to_string(), ELECTION_A.to_string()]
+            vec![EXTERNAL_ID.to_string(), ELECTION_A.to_string()]
         );
         assert_eq!(
             census[ELECTION_B],
-            vec!["GIAMBI30-3-31".to_string(), ELECTION_B.to_string()]
+            vec![EXTERNAL_ID.to_string(), ELECTION_B.to_string()]
         );
     }
 }
