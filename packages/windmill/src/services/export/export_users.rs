@@ -125,18 +125,22 @@ fn get_headers(
 /// Writes the voter's authorized elections the way import reads them. Values
 /// that do not name a single election are kept in double quotes, so that
 /// importing them into any election event fails, rather than leaving the voter
-/// unrestricted or giving them other elections.
+/// unrestricted or giving them other elections. A tenant's users, which have no
+/// `authorized_elections` to resolve against, are written as they are, as
+/// import stores them.
 fn get_authorized_election_ids(
     user: &User,
     authorized_elections: Option<&AuthorizedElectionIds>,
 ) -> String {
+    let user_values = user.get_authorized_election_ids().unwrap_or_default();
+    let Some(authorized_elections) = authorized_elections else {
+        return user_values.join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR);
+    };
     let mut values: Vec<String> = Vec::new();
-    for value in user.get_authorized_election_ids().unwrap_or_default() {
-        let stored_value =
-            authorized_elections.and_then(|elections| elections.resolve(&value).ok());
-        let value = match stored_value {
-            Some(stored_value) => stored_value.to_string(),
-            None => quoted(&value),
+    for value in user_values {
+        let value = match authorized_elections.resolve(&value) {
+            Ok(stored_value) => stored_value.to_string(),
+            Err(_) => quoted(&value),
         };
         if !values.contains(&value) {
             values.push(value);
@@ -623,6 +627,25 @@ mod tests {
         assert_eq!(
             exported_authorized_election_ids(&elections(), &voter("unrestricted", &[])),
             ""
+        );
+    }
+
+    /// A tenant's users are imported without an election event, which stores
+    /// their values as they are, so quoting them would change them on every
+    /// export and import.
+    #[test]
+    fn tenant_users_export_authorized_elections_as_they_are() {
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        let user = voter("admin", &[EXTERNAL_ID, ELECTION_A]);
+
+        let cells: HashMap<String, String> = get_headers(&None, &attributes)
+            .into_iter()
+            .zip(get_user_record(&None, None, &None, &user, &attributes))
+            .collect();
+
+        assert_eq!(
+            cells[AUTHORIZED_ELECTION_IDS_NAME],
+            format!("{EXTERNAL_ID}|{ELECTION_A}")
         );
     }
 
