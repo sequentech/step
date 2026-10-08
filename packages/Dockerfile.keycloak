@@ -114,7 +114,7 @@ COPY --from=scripts ./dev /build/repo/scripts/dev
 WORKDIR /build/repo
 RUN python3 -m scripts.dev.keycloak prepare --runtime built
 
-FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad AS builder
+FROM quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc AS builder
 ARG OID4VP_VERSION
 
 # The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
@@ -165,7 +165,7 @@ COPY --chown=keycloak:keycloak --from=themes-build /build/repo/.cache/keycloak-u
 
 RUN /opt/keycloak/bin/kc.sh build
 
-FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad
+FROM quay.io/keycloak/keycloak:26.8.0@sha256:b0f60d489d51c5d113390bdf5461d4c06e6051be026c05549f2e1e10ec352bcc
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
