@@ -42,7 +42,7 @@ let boundaries: ReturnType<typeof eventDataBoundaries>
 
 // The edit view provides the record and the save; like EditBase, the save applies the
 // button's transform before writing.
-function Fixture({transform, saved, saveError}: Scenario) {
+function Fixture({transform, saved, saveError, neverOpened, sealAtClose}: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
     const save: SaveHandler<RaRecord> = async (values, options) => {
         const data = options?.transform ? await options.transform(values) : values
@@ -58,7 +58,7 @@ function Fixture({transform, saved, saveError}: Scenario) {
         >
             <WidgetsContextProvider>
                 <ResourceContextProvider value="sequent_backend_election_event">
-                    <RecordContextProvider value={eventDataEvent()}>
+                    <RecordContextProvider value={eventDataEvent(false, neverOpened, sealAtClose)}>
                         <SaveContextProvider
                             value={{save, saving: false, mutationMode: "pessimistic"}}
                         >
@@ -313,6 +313,10 @@ export const SaveTheEvent: Story = {
                 }),
             },
         })
+        // An event without a seal policy is saved without one (VOTE-FREEZE).
+        expect(
+            (values as {presentation: Record<string, unknown>}).presentation.ballot_box_seal_policy
+        ).toBeUndefined()
         const custom = boundaries.graphql.calls.filter(({name}) => name === "SetCustomUrls")
         expect(custom.map(({variables}) => variables.key)).toEqual(["login", "enrollment", "saml"])
         expect(custom[0].variables).toMatchObject({election_id: EVENT_ID, dns_prefix: ""})
@@ -479,5 +483,83 @@ export const LifecycleRadioAlignment: Story = {
                 Math.abs(text.getBoundingClientRect().top - icon.getBoundingClientRect().top)
             ).toBeLessThan(5)
         }
+    },
+}
+
+const sealPolicy = () => field("ballotBoxSealPolicy.policyLabel")
+
+/** VOTE-FREEZE: before voting opens, the ballot box seal policy can be chosen. */
+export const BallotBoxSealPolicyBeforeVoting: Story = {
+    args: {neverOpened: true},
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const select = within(canvasElement).getByRole("combobox", {name: sealPolicy()})
+        await choose(canvasElement, sealPolicy(), "Seal at close")
+        await expect(
+            within(canvasElement).getByText(
+                /When voting closes, the ballot box of each area is sealed.*It cannot be changed after voting has opened\./
+            )
+        ).toBeVisible()
+    },
+}
+
+/** VOTE-FREEZE: once voting has opened, the policy is read-only, as the database requires. */
+export const BallotBoxSealPolicyLockedAfterVoting: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const select = within(canvasElement).getByRole("combobox", {name: sealPolicy()})
+        await expect(select).toHaveTextContent("Do not seal")
+        // The helper says it is locked now, and where voting opened.
+        await expect(
+            await within(canvasElement).findByText(/Locked: voting has opened in /)
+        ).toBeVisible()
+        // Read-only: it doesn't open its options.
+        await userEvent.click(select)
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        expect(within(document.body).queryByRole("listbox")).toBeNull()
+    },
+}
+
+/**
+ * VOTE-FREEZE (R7 S4): on a seal-at-close event where voting has opened, the
+ * settings the seal relies on are locked and say why; an ordinary save
+ * doesn't write values the event doesn't have, so the database doesn't
+ * refuse it.
+ */
+export const SealSettingsLockedAfterVoting: Story = {
+    args: {sealAtClose: true},
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        // An ordinary edit first, while the general section is open.
+        await editDescription(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(
+                canvas.getAllByText(/With Seal at close, the seal relies on this setting\./)
+            ).toHaveLength(3)
+        )
+        for (const label of [
+            field("contestEncryptionPolicy.policyLabel"),
+            field("weightedVotingPolicy.policyLabel"),
+            field("delegatedVotingPolicy.policyLabel"),
+        ]) {
+            await userEvent.click(canvas.getByRole("combobox", {name: label}))
+            await new Promise((resolve) => setTimeout(resolve, 200))
+            expect(within(document.body).queryByRole("listbox")).toBeNull()
+        }
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        const presentation = (values as {presentation: Record<string, unknown>}).presentation
+        // The fixture event has no contest encryption or weighted voting policy: none is added.
+        // (undefined is left out when the presentation is written as JSON)
+        expect(presentation.contest_encryption_policy).toBeUndefined()
+        expect(presentation.weighted_voting_policy).toBeUndefined()
+        expect(presentation.delegated_voting_policy).toBe("disabled")
     },
 }

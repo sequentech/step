@@ -37,7 +37,19 @@ const message = (kind: string, details: unknown) =>
 interface Scenario {
     kind: string
     details: unknown
+    /** The statement body's values, for the ballot box seal entries. */
+    values?: unknown[]
 }
+
+const sealMessage = (kind: string, values: unknown[]) =>
+    logMessage({
+        message: JSON.stringify({
+            statement: {
+                head: {kind, description: "Ballot box of Madrid Post, Spain"},
+                body: {[kind]: values},
+            },
+        }),
+    })
 
 const meta = {
     title: "Admin/Logs/StatementExplanation",
@@ -50,8 +62,11 @@ const meta = {
             after: explanation("refused"),
         },
     },
-    render: ({kind, details}: Scenario) => (
-        <StatementExplanation kind={kind} message={message(kind, details)} />
+    render: ({kind, details, values}: Scenario) => (
+        <StatementExplanation
+            kind={kind}
+            message={values ? sealMessage(kind, values) : message(kind, details)}
+        />
     ),
 } satisfies WidgetMeta<Scenario>
 export default meta
@@ -95,5 +110,48 @@ export const NoExplanation: Story = {
     args: {kind: "SigningActionExecuted", details: {action: "OpenVoting"}},
     play: async ({canvasElement}) => {
         expect(within(canvasElement).queryByRole("listitem")).toBeNull()
+    },
+}
+
+const HASH = `ef187f0b${"3c".repeat(56)}22a65e5b`
+
+/** VOTE-FREEZE: a seal entry shows its hash, counts and Close voting request. */
+export const BallotBoxSealed: Story = {
+    args: {
+        kind: "BallotBoxSealed",
+        values: [null, "spain", HASH, 1342, 1340, "7f3a91c2-0de0-4b5e-9c1a-2b3c4d5e6f70"],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByText(`Seal hash: ${HASH}`)).toBeVisible()
+        await expect(canvas.getByText("1340 of 1342 ballots counted.")).toBeVisible()
+    },
+}
+
+/** VOTE-FREEZE: a failed seal says why, and that the box stays locked. */
+export const BallotBoxSealFailed: Story = {
+    args: {
+        kind: "BallotBoxSealFailed",
+        values: [null, "andorra", "a ballot does not match its Ballot ID"],
+    },
+    play: async ({canvasElement}) => {
+        await expect(
+            within(canvasElement).getByText(
+                "The ballot box stays locked and is not sealed: an incident."
+            )
+        ).toBeVisible()
+    },
+}
+
+/** VOTE-FREEZE: the tally's check of a box against its seal. */
+export const TallyBallotBoxRejected: Story = {
+    args: {
+        kind: "TallyBallotBoxRejected",
+        values: [null, "spain", "1 sealed ballot is missing", "ts-1"],
+    },
+    play: async ({canvasElement}) => {
+        await expect(
+            within(canvasElement).getByText("What differs: 1 sealed ballot is missing")
+        ).toBeVisible()
     },
 }

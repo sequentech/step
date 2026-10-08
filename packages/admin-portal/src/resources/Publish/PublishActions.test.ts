@@ -15,8 +15,15 @@ jest.mock("react-admin", () => ({
     }: React.ButtonHTMLAttributes<HTMLButtonElement> & {label: string}) =>
         require("react").createElement("button", props, label, children),
     useRecordContext: () => ({}),
+    useGetList: () => ({data: undefined}),
 }))
-jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
+jest.mock("@apollo/client", () => ({
+    gql: (parts: TemplateStringsArray) => parts.join(""),
+    useQuery: () => ({data: undefined}),
+}))
+jest.mock("react-i18next", () => ({
+    useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
+}))
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["tenant"]}))
 jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isAuthorized: () => true, isGoldUser: () => true}),
@@ -47,6 +54,7 @@ jest.mock(
 jest.mock("@sequentech/ui-core", () => ({
     ...require("../../../../ui-core/src/types/CoreTypes"),
     ...require("../../../../ui-core/src/types/ElectionPresentation"),
+    ...require("../../../../ui-core/src/types/ElectionEventPresentation"),
 }))
 jest.mock("./PublishExport", () => ({__esModule: true, default: () => null}))
 

@@ -158,3 +158,20 @@ export const requestTitle = (t: TFunction, data: ISigningPanelData): string =>
 
 export const actionObject = (t: TFunction, action: SigningAction): string =>
     t(`signing.actions.${action}.object`)
+
+/**
+ * What an action does. Close voting at an event that seals its ballot boxes
+ * at close (VOTE-FREEZE) says that it seals them.
+ */
+export const actionDescription = (
+    t: TFunction,
+    action: SigningAction,
+    sealsBallots?: boolean
+): string =>
+    t(
+        `signing.actions.${action}.${
+            sealsBallots && action === SigningAction.CloseVoting
+                ? "descriptionSealed"
+                : "description"
+        }`
+    )

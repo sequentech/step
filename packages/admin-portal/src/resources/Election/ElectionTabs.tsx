@@ -17,6 +17,7 @@ import {v4 as uuidv4} from "uuid"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
+import {BallotBoxesCard} from "@/components/dashboard/election/BallotBoxesCard"
 import {MonitoringDashboardTab} from "@/components/monitoring/MonitoringDashboardTab"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
@@ -56,6 +57,12 @@ const DashboardTab: React.FC = () => {
                 electionId={record?.id}
                 lock={lock}
                 legacy={<DashboardElection />}
+            />
+            {/* Shown in both monitoring modes, under the dashboard. */}
+            <BallotBoxesCard
+                electionEventId={record?.election_event_id}
+                electionId={record?.id}
+                election={record}
             />
         </Suspense>
     )

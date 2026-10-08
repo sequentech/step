@@ -20,7 +20,7 @@ import {
     memoryStorage,
     signedInAs,
 } from "@/components/signing/__stories__/fixtures"
-import type {ISigningApi, ISigningPanelData} from "@/lib/signing/api"
+import type {ISigningApi, ISigningClosingBallotBox, ISigningPanelData} from "@/lib/signing/api"
 import {SigningAction, SigningRequestStatus} from "@/lib/signing/types"
 import {IPermissions} from "@/types/keycloak"
 import {ClosedVotingCard} from "./ClosedVotingCard"
@@ -33,6 +33,10 @@ interface Scenario {
     seals: Array<Record<string, unknown>>
     /** A result stored before `seals` existed: `seal: null` and no `seals`. */
     legacy?: boolean
+    /** The event seals at close (VOTE-FREEZE): the panel says so. */
+    sealsBallots?: boolean
+    /** The Post's ballot boxes as the seal table has them now. */
+    ballotBoxes?: ISigningClosingBallotBox[]
 }
 
 const SPAIN_SHA512 = "3f9a".repeat(32)
@@ -45,15 +49,26 @@ let api: ReturnType<typeof fakeApi>
 let signers: typeof MEMBERS
 
 /** A close voting request signed by its first `required` members, as the server keeps its result. */
-async function closing({required, status, seals, legacy}: Scenario): Promise<ISigningPanelData> {
+async function closing({
+    required,
+    status,
+    seals,
+    legacy,
+    sealsBallots,
+    ballotBoxes,
+}: Scenario): Promise<ISigningPanelData> {
     signers = MEMBERS.slice(0, required)
-    const panel = await makePanel({
-        action: SigningAction.CloseVoting,
-        status,
-        required,
-        signed: signers,
-        subject: {channels: ["ONLINE"]},
-    })
+    const panel = {
+        ...(await makePanel({
+            action: SigningAction.CloseVoting,
+            status,
+            required,
+            signed: signers,
+            subject: {channels: ["ONLINE"]},
+        })),
+        ...(sealsBallots ? {seals_ballots: true} : {}),
+        ...(ballotBoxes ? {ballot_boxes: ballotBoxes} : {}),
+    }
     if (status !== SigningRequestStatus.Executed) return panel
     return {
         ...panel,
@@ -131,7 +146,7 @@ export const ClosedWithTheClosingSignatures: Story = {
         await expect(
             within(document.body).getByRole("heading", {name: `Closing · ${POST} · Spain`})
         ).toBeVisible()
-        // The action's description claims no seal: nothing seals until VOTE-FREEZE.
+        // At an event that doesn't seal, the description claims no seal.
         await expect(
             within(document.body).getByText(
                 "Started in Publish with Stop voting. Closes voting at the Post; the closing signatures are kept in its record."
@@ -197,6 +212,95 @@ export const SealedByVoteFreeze: Story = {
         )
         // The algorithm comes from the seals, never a fixed one.
         expect(view.queryByText(/SHA-256/)).toBeNull()
+    },
+}
+
+const SPAIN_BOX: ISigningClosingBallotBox = {
+    area_id: "11111111-1111-4111-8111-111111111111",
+    area_name: "Spain",
+    status: "published",
+    grace_deadline: "2028-05-12T11:16:00Z",
+    sealed_at: "2028-05-12T11:16:30Z",
+    ballots: 1356,
+    hash_algorithm: "SHA-512",
+    seal_hash: SPAIN_SHA512,
+}
+const PORTUGAL_BOX: ISigningClosingBallotBox = {
+    ...SPAIN_BOX,
+    area_id: "22222222-2222-4222-8222-222222222222",
+    area_name: "Portugal",
+    status: "pending",
+    sealed_at: null,
+    ballots: null,
+    seal_hash: null,
+}
+
+/**
+ * VOTE-FREEZE: the boxes are sealed after the close commits (here, after a
+ * grace period), so the card reads them as they stand now, one per country.
+ */
+export const SealingAfterTheClose: Story = {
+    args: {sealsBallots: true, ballotBoxes: [SPAIN_BOX, PORTUGAL_BOX]},
+    play: async ({args}) => {
+        const view = await card()
+        // Not every box is sealed yet.
+        await expect(view.getByRole("heading", {name: /^Voting closed at .*\.$/})).toBeVisible()
+        expect(view.queryByText(/Ballots sealed/)).toBeNull()
+        const spain = within(view.getByRole("table", {name: "Spain"}))
+        expect(rowValue(spain, "Status")).toBe("Sealed")
+        expect(rowValue(spain, "Ballots in the seal")).toBe((1356).toLocaleString())
+        expect(rowValue(spain, "Seal SHA-512")).toBe("3f9a3f9a…3f9a3f9a")
+        const portugal = within(view.getByRole("table", {name: "Portugal"}))
+        expect(rowValue(portugal, "Status")).toMatch(/^Sealing at /)
+        expect(portugal.queryByRole("rowheader", {name: "Ballots in the seal"})).toBeNull()
+        expect(portugal.queryByRole("rowheader", {name: /^Seal /})).toBeNull()
+        expect(rowValue(view, "Closing signatures in the seal record")).toBe(
+            `${args.required}, signing code ${CODE}`
+        )
+        // The action's description says what closing does at this event.
+        await expect(
+            within(document.body).getByText(
+                /Once every channel is closed, its ballot boxes are sealed/
+            )
+        ).toBeVisible()
+    },
+}
+
+/** VOTE-FREEZE: a box past its deadline is sealed on the sealer's next run, not at a time gone by. */
+export const SealingDue: Story = {
+    args: {
+        sealsBallots: true,
+        ballotBoxes: [{...PORTUGAL_BOX, grace_deadline: "2020-01-01T00:00:00Z"}],
+    },
+    play: async () => {
+        const view = await card()
+        const portugal = within(view.getByRole("table", {name: "Portugal"}))
+        expect(rowValue(portugal, "Status")).toBe("Sealing now")
+    },
+}
+
+/** VOTE-FREEZE: every box of the Post is sealed. */
+export const BallotBoxesSealed: Story = {
+    args: {
+        sealsBallots: true,
+        ballotBoxes: [
+            SPAIN_BOX,
+            {
+                ...PORTUGAL_BOX,
+                status: "sealed",
+                sealed_at: "2028-05-12T11:16:40Z",
+                ballots: 412,
+                seal_hash: PORTUGAL_SHA512,
+            },
+        ],
+    },
+    play: async () => {
+        const view = await card()
+        await expect(view.getByRole("heading", {name: /Ballots sealed\.$/})).toBeVisible()
+        const portugal = within(view.getByRole("table", {name: "Portugal"}))
+        expect(rowValue(portugal, "Status")).toBe("Sealed, publishing")
+        expect(rowValue(portugal, "Ballots in the seal")).toBe((412).toLocaleString())
+        expect(rowValue(portugal, "Seal SHA-512")).toBe("c0d7c0d7…c0d7c0d7")
     },
 }
 

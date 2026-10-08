@@ -267,6 +267,12 @@ const spanishTranslation: TranslationType = {
                 deciding: "Comprobación decisiva: {{check}}. {{value}}",
                 authorizedBy: "Autorizado por la configuración {{code}}.",
                 nextStep: "Siguiente paso: {{step}}",
+                reason: {
+                    "ballot-box-seal-policy":
+                        "Kept closed: with Seal at close, voting that has closed stays closed.",
+                    "never-opened-kept-open":
+                        "Nothing to close on schedule: the Post never opened, so it stays as it is.",
+                },
             },
             actions: {
                 csv: "Exportar en CSV",
@@ -277,6 +283,18 @@ const spanishTranslation: TranslationType = {
             },
             iam: {
                 title: "Bitácora de Base de Datos de IAM",
+            },
+            ballotBoxSeal: {
+                sealHash: "Seal hash: {{hash}}",
+                counted: "{{counted}} of {{inBox}} ballots counted.",
+                closeRequest: "Closed by the Close voting request {{request}}.",
+                noCloseRequest:
+                    "Closed without a Close voting request (Stop Voting or the scheduled close).",
+                failedReason: "Why: {{reason}}",
+                failedLocked: "The ballot box stays locked and is not sealed: an incident.",
+                verifiedCounted: "{{counted}} ballots counted from the seal.",
+                tallySession: "Tally session {{session}}.",
+                differs: "What differs: {{differs}}",
             },
         },
         tasksScreen: {
@@ -492,6 +510,101 @@ const spanishTranslation: TranslationType = {
             voterLoginURL: "URL de inicio de sesión de votantes",
             voterEnrollURL: "URL de inscripción de votantes",
             voterEnrollKioskURL: "Kiosk URL de inscripción de votantes",
+            ballotBoxes: {
+                loadError:
+                    "The ballot boxes' seals could not be read. Reload the page, or check the connection to the server.",
+                title: "Ballot boxes",
+                sealing:
+                    "Voting closed at {{closed}}. The ballot boxes are sealed when the grace period ends, at {{deadline}}.",
+                sealed: "Voting closed at {{closed}}. The ballot boxes are sealed: no ballot can be added, changed or deleted.",
+                failed: "Voting closed at {{closed}}. A ballot box could not be sealed: it stays locked, and the incident is in the logs.",
+                closedBySignatures:
+                    "Closed by {{names}} with their certificates, signing code {{code}}.",
+                closedByUser: "Closed by {{username}}.",
+                closedBySchedule: "Closed by the scheduled close of polls.",
+                column: {
+                    area: "Area",
+                    status: "Status",
+                    inTheBox: "In the box",
+                    counted: "Counted",
+                    sealedAt: "Sealed",
+                    sealHash: "Seal hash",
+                    record: "Seal record",
+                },
+                status: {
+                    open: "Open",
+                    sealing: "Sealing at {{time}}",
+                    publishing: "Sealed, publishing",
+                    sealed: "Sealed",
+                    failed: "Not sealed: incident",
+                    due: "Sealing now",
+                    overdue: "Sealing overdue",
+                },
+                help: {
+                    publishing:
+                        "The ballot box is locked. Its entry on the bulletin board is being posted again.",
+                    counted:
+                        "Ballots that count: each voter's latest ballot. The others were replaced by the voter's later ballot.",
+                },
+                copyHash: "Copy seal hash",
+                copied: "Seal hash copied",
+                copyError: "Could not copy the seal hash",
+                notYet: "Not yet",
+                openRecord: "Open the seal record of {{area}}",
+                beforeClose: "The ballot box of each area is sealed when voting closes.",
+                notStarted:
+                    "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
+                openOn: "Voting is open on {{channels}}. The ballot box of each area is sealed when voting closes.",
+                paused: "Voting is paused. The ballot box of each area is sealed when voting closes.",
+                holding_one:
+                    "{{channels}} is enabled and not closed: stop it to seal the ballot boxes.",
+                holding_other:
+                    "{{channels}} are enabled and not closed: stop them to seal the ballot boxes.",
+                sealingNow: "Voting closed at {{closed}}. The ballot boxes are being sealed.",
+                sealingPastGrace:
+                    "Voting closed at {{closed}}. The grace period ended at {{deadline}}; the ballot boxes are being sealed.",
+                why: {
+                    due: "Being sealed: this takes up to a minute.",
+                    channelOpen:
+                        "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
+                    datafixVotes_one:
+                        "{{count}} vote is in progress in Datafix: the ballot box is sealed once it is resolved.",
+                    datafixVotes_other:
+                        "{{count}} votes are in progress in Datafix: the ballot box is sealed once they are resolved.",
+                    stale: "Last tried at {{time}}: the sealer may not be running. Check Beat and the seal worker.",
+                    notTried:
+                        "Not tried yet: the sealer may not be running. Check Beat and the seal worker.",
+                    errorCategory: {
+                        board: "The last attempt couldn't reach the bulletin board; it is retried every minute.",
+                        census: "The last attempt couldn't read the voter list; it is retried every minute.",
+                        keystore:
+                            "The last attempt couldn't get the signing key; it is retried every minute.",
+                        storage:
+                            "The last attempt couldn't upload the seal record to the public file storage; it is retried every minute.",
+                        settings:
+                            "The last attempt couldn't read the election's settings; it is retried every minute.",
+                        other: "The last attempt failed; it is retried every minute. The service log has the details.",
+                        ballots:
+                            "The last attempt found a ballot that can't be read yet or is still in progress; it is retried every minute.",
+                        database:
+                            "The last attempt couldn't complete in the database; it is retried every minute.",
+                    },
+                },
+                failure: {
+                    ballotIdMismatch: "A ballot does not match its Ballot ID.",
+                    missingContent: "A ballot has no content or no Ballot ID.",
+                    unreadable: "A ballot can't be read.",
+                    inProgress: "A ballot is still in progress.",
+                    alreadyOnBoard: "A seal for this ballot box is already on the bulletin board.",
+                    noBoard: "The election event has no bulletin board.",
+                },
+                incident: {
+                    title_one: "{{count}} ballot box could not be sealed",
+                    title_other: "{{count}} ballot boxes could not be sealed",
+                    body: "This is an incident: each of these ballot boxes stays locked and can't be tallied. Follow the runbook for a failed seal.",
+                    line: "{{election}}, {{area}}: {{reason}}",
+                },
+            },
             ipAddress: {
                 emptyState: "Aún no hay votos.",
                 title: "IP Addresses",
@@ -646,6 +759,27 @@ const spanishTranslation: TranslationType = {
                         "locked-down": "Confinado",
                         "not-locked-down": "No Confinado",
                     },
+                },
+                ballotBoxSealPolicy: {
+                    policyLabel: "Ballot Box Seal Policy",
+                    helperText:
+                        "When voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again.",
+                    locked: "It cannot be changed after voting has opened.",
+                    options: {
+                        "seal-at-close": "Seal at close",
+                        "do-not-seal": "Do not seal",
+                    },
+                    checking: "Checking whether voting has opened…",
+                    lockedUnknown:
+                        "Locked: the elections could not be read, so whether voting has opened is unknown.",
+                    lockedOpened: "Locked: voting has opened in {{names}}.",
+                    lockedEvent: "Locked: voting has opened in this election event.",
+                    refused: "The Ballot Box Seal Policy can't be changed after voting has opened.",
+                    settingLocked: "With Seal at close, the seal relies on this setting.",
+                    settingRefused:
+                        "This setting can't be changed after voting has opened: with Seal at close, the seal relies on it.",
+                    boardRefused:
+                        "The election event's bulletin board can't change after voting has opened: with Seal at close, the seals are posted to it.",
                 },
                 decodedBallots: {
                     policyLabel:
@@ -1902,6 +2036,8 @@ const spanishTranslation: TranslationType = {
                         archive: "¿Está seguro de que desea archivar este elemento?",
                         unarchive: "¿Está seguro de que desea desarchivar este elemento?",
                         delete: "¿Está seguro de que desea eliminar este elemento?",
+                        sealsUnknown:
+                            "The ballot box seals could not be checked: if it has sealed ballot boxes, the delete is refused.",
                     },
                     notification: {
                         success: {
@@ -1914,6 +2050,12 @@ const spanishTranslation: TranslationType = {
                             archive: "Error al intentar archivar este elemento",
                             unarchive: "Error al intentar desarchivar este elemento",
                             delete: "Error al intentar eliminar este elemento",
+                            deleteSealedElection:
+                                "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead.",
+                            deleteSealedEvent:
+                                "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.",
+                            deleteMaybeSealed:
+                                "Error while trying to delete this item. If it has sealed ballot boxes, it can't be deleted.",
                         },
                     },
                 },
@@ -2340,12 +2482,36 @@ const spanishTranslation: TranslationType = {
             generalInfoTitle: "Información General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            ballotBoxes: {
+                unavailable: "Seals unavailable",
+                sealed: "{{sealed}} of {{total}} sealed",
+                publishing: "Sealed, {{published}} of {{total}} on the bulletin board",
+                sealing: "Sealing at {{time}}",
+                notSealed: "Not sealed",
+                help: "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
+                failed: "Not sealed: incident",
+                overdue: "Sealing overdue",
+                blocked: "{{name}}: {{reason}}",
+                reason: {
+                    "not-sealed": "voting hasn't closed, so its ballot boxes have no seals yet",
+                    "sealing": "its ballot boxes are sealed when the grace period ends",
+                    "overdue":
+                        "its ballot boxes are past their deadline and not sealed yet (see its Dashboard)",
+                    "publishing": "some of its seals are still being posted to the bulletin board",
+                    "failed": "a ballot box could not be sealed, an incident (see its Dashboard)",
+                    "unavailable": "its ballot box seals could not be read",
+                },
+            },
             eligibility: {
+                ballotBoxesUnavailable:
+                    "The ballot boxes' seals of a selected election could not be read, so it can't be tallied yet. Reload the page to try again.",
                 selectElection: "Selecciona al menos una elección.",
                 publishElection: "Publica cada elección seleccionada antes de crear su recuento.",
                 tallyDisallowed: "El recuento está deshabilitado para una elección seleccionada.",
                 endVoting:
                     "Finaliza la votación en cada elección seleccionada y detén sus canales activos antes de crear el recuento.",
+                sealBallotBoxes:
+                    "An election can be tallied once every ballot box is sealed and its seal is on the bulletin board.",
             },
             createTallySuccess: "Recuento creado",
             createTallyError: "Error creando recuento",
@@ -2407,6 +2573,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             table: {
+                ballotBoxes: "Ballot boxes",
                 elections: "Elecciones",
                 selected: "Seleccionadas",
                 status: "Estado",
@@ -2554,6 +2721,13 @@ const spanishTranslation: TranslationType = {
             forbidden: {
                 header: "No es posible Publicar hasta que la Ceremonia de Llaves haya terminado.",
             },
+            skippedElections: {
+                dismiss: "Dismiss",
+                title: "Some elections stay closed",
+                ballotBoxSealPolicy:
+                    "{{name}} stays closed: its voting has closed and Seal at close makes closing final.",
+                other: "{{name}} was left as it was ({{reason}}).",
+            },
             dialog: {
                 title: "Confirmar Acción",
                 info: "Has hecho clic en una acción sensible, por lo que necesitamos que la confirmes para poder continuar.",
@@ -2563,6 +2737,20 @@ const spanishTranslation: TranslationType = {
                     "Está a punto de comenzar el período de votación. ¿Está seguro de que desea continuar?",
                 stopInfo:
                     "Está a punto de detener el período de votación. ¿Está seguro de que desea continuar?",
+                stopSeal:
+                    "You are about to stop voting in {{name}}. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                stopSealEvent:
+                    "You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?",
+                stopSealNeverOpened:
+                    "{{channels}} never opened and can't open once the ballot boxes are sealed.",
+                startSealNote:
+                    "With Seal at close, closed voting stays closed: elections whose voting has closed won't open.",
+                channel: {
+                    ONLINE: "Online",
+                    KIOSK: "Kiosk",
+                    EARLY_VOTING: "Early voting",
+                    TELEPHONE: "Telephone",
+                },
                 kioskStopInfo:
                     "Estás a punto de detener el período de votación en el quiosco. ¿Estás seguro de que deseas continuar?",
                 pauseInfo:
@@ -2579,6 +2767,43 @@ const spanishTranslation: TranslationType = {
                 diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
                 confirmation:
                     "La acción que estás a punto de realizar es sensible y requiere confirmación. Por favor, introduce tu contraseña para continuar con {{action}}.",
+                stopSealNotYet:
+                    "You are about to stop voting period. {{holding}} Are you sure you want to continue?",
+                sealHolding_one:
+                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} is still enabled and not closed.",
+                sealHolding_other:
+                    "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
+                stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
+                stopNeverOpened_other:
+                    "{{channels}} never opened: stopping them means they won't open.",
+                stopSealGrace_one:
+                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealGrace_other:
+                    "You are about to stop voting in {{name}}. Its ballot boxes are sealed when the grace period ends, {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealEventGrace_one:
+                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minute later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealEventGrace_other:
+                    "You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to {{count}} minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. Are you sure you want to continue?",
+                stopSealEventSome:
+                    "You are about to stop voting in every election. {{sealed}} {{holding}} Are you sure you want to continue?",
+                sealedNowPart:
+                    "The ballot boxes of {{names}} are then sealed: no ballot can be added, changed or deleted, and voting cannot start again there.",
+                sealedGracePart_one:
+                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minute later.",
+                sealedGracePart_other:
+                    "The ballot boxes of {{names}} are sealed when their grace period ends, up to {{count}} minutes later.",
+                holdingEventPart_one:
+                    "{{names}} keeps another channel enabled and not closed: its ballot boxes are sealed once that channel is closed.",
+                holdingEventPart_other:
+                    "{{names}} keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed.",
+                startSealNoteList: "With Seal at close, closed voting stays closed: {{items}}.",
+                startKeptChannels_one: "{{post}}: {{channels}} stays closed",
+                startKeptChannels_other: "{{post}}: {{channels}} stay closed",
+                startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
+                stopNeverOpenedPosts_one:
+                    "{{names}} never opened: stopping closes it and seals its empty ballot boxes.",
+                stopNeverOpenedPosts_other:
+                    "{{names}} never opened: stopping closes them and seals their empty ballot boxes.",
             },
             label: {
                 current: "Actual",
@@ -2590,6 +2815,14 @@ const spanishTranslation: TranslationType = {
                 generated: "Papeleta generada",
                 published: "Papeleta publicada",
                 change_status: "Votación cambiada de estado",
+            },
+            sealRefusals: {
+                startAgain:
+                    "Voting can't start again: with Seal at close, voting that has closed stays closed and its ballot boxes are sealed.",
+                startDisabled:
+                    "Start Voting isn't available: this election's ballot boxes are sealed or being sealed, and with Seal at close closed voting stays closed.",
+                closedIsFinal:
+                    "Closed voting can't change: with Seal at close, closed voting stays closed.",
             },
         },
         emailEditor: {
@@ -3579,6 +3812,8 @@ const spanishTranslation: TranslationType = {
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
                         "Se inicia en Publicar con Detener votación. Cierra la votación en el $t(signing.terms.post); las firmas de cierre se conservan en su acta.",
+                    descriptionSealed:
+                        "Se inicia en Publicar con Detener votación. Cierra la votación en el $t(signing.terms.post). Cuando todos los canales están cerrados, sus urnas se sellan, tras el periodo de gracia si lo hay: no se puede añadir, cambiar ni borrar ninguna papeleta, y la votación no puede volver a empezar. Las firmas de cierre se conservan en su acta.",
                 },
                 "generate-election-returns": {
                     label: "Generar actas electorales",

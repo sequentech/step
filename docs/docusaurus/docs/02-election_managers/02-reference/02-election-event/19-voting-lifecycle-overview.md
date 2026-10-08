@@ -18,6 +18,7 @@ the recorded result at each deadline.
 | Generate the dated initialization document | [Initialization Report](../../01-tutorials/11-admin_portal_tutorials_initialization-report.md) |
 | Operate registration windows and migrate existing realms | [Per-Post enrollment windows](../../../07-developers/06-keycloak/enrollment_windows.md) |
 | Deploy the event-timezone migration and review transmission changes | [Event timezones migration](../../../07-developers/11-updates/event-time-zones-migration.md) |
+| Seal each ballot box at close, and run the tally gate | [Ballot box seal](./20-ballot-box-seal.md) and its [runbook](../../01-tutorials/22-admin_portal_tutorials_ballot-box-seal-runbook.md) |
 | Inspect signing execution, persistence and audit delivery | [Signing architecture](../../../07-developers/14-signing/01-signing-architecture.md) and [API](../../../07-developers/14-signing/02-signing-api.md) |
 
 Defaults preserve imported older data where fields are optional. Legacy reads

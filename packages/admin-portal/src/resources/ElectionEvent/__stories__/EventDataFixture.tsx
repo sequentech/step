@@ -5,11 +5,12 @@
 // Boundaries of the election event's Data tab: the event, its tenant and
 // elections, and the Keycloak and results website services the save updates.
 import {GraphQLError} from "graphql"
-import {ElectionsOrder} from "@sequentech/ui-core"
+import {EBallotBoxSealPolicy, ElectionsOrder} from "@sequentech/ui-core"
 import {EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {electionRecord, eventRecord, storyId, tenantRecord} from "@/__stories__/fixtures"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
 import type {RealmPasswordPolicy} from "@/queries/RealmPasswordPolicy"
+import {EStoryWorkflow} from "../../../../../ui-essentials/.storybook/globals"
 
 export const SECOND_ELECTION_ID = storyId(4, 2)
 
@@ -36,6 +37,10 @@ export interface EventDataScenario {
     customOrder: boolean
     /** Whether reading the realm attributes fails. */
     realmAttributesFail: boolean
+    /** Voting has never opened in the event, so the ballot box seal policy can still change. */
+    neverOpened?: boolean
+    /** The event seals its ballot boxes at close (VOTE-FREEZE). */
+    sealAtClose?: boolean
 }
 
 export const eventDataArgs: EventDataScenario = {
@@ -44,25 +49,35 @@ export const eventDataArgs: EventDataScenario = {
     realmAttributesFail: false,
 }
 
-export const eventDataEvent = (customOrder = false) => {
-    const event = eventRecord()
-    return customOrder
-        ? eventRecord(undefined, {
-              presentation: {...event.presentation, elections_order: ElectionsOrder.CUSTOM},
-          })
-        : event
+export const eventDataEvent = (customOrder = false, neverOpened = false, sealAtClose = false) => {
+    const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
+    const event = eventRecord(workflow)
+    return eventRecord(workflow, {
+        presentation: {
+            ...event.presentation,
+            ...(customOrder ? {elections_order: ElectionsOrder.CUSTOM} : {}),
+            ...(sealAtClose ? {ballot_box_seal_policy: EBallotBoxSealPolicy.SEAL_AT_CLOSE} : {}),
+        },
+    })
 }
 
-export function eventDataBoundaries({reads, customOrder, realmAttributesFail}: EventDataScenario) {
+export function eventDataBoundaries({
+    reads,
+    customOrder,
+    realmAttributesFail,
+    neverOpened = false,
+    sealAtClose = false,
+}: EventDataScenario) {
+    const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
     const data = resourceBoundary(
         {
-            sequent_backend_election_event: [eventDataEvent(customOrder)],
+            sequent_backend_election_event: [eventDataEvent(customOrder, neverOpened, sealAtClose)],
             sequent_backend_tenant: [tenantRecord],
             sequent_backend_election: [
-                electionRecord(undefined, {
+                electionRecord(workflow, {
                     presentation: {...electionRecord().presentation, sort_order: 5},
                 }),
-                electionRecord(undefined, {
+                electionRecord(workflow, {
                     id: SECOND_ELECTION_ID,
                     presentation: {...electionRecord().presentation, sort_order: 2},
                 }),

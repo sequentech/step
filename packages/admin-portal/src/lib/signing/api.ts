@@ -113,6 +113,27 @@ export interface ISigningPanelData extends ISigningRequestPanel {
      * prints it; times are shown in the browser's when absent.
      */
     time_zone?: string | null
+    /** A Close voting request at an event with Seal at close: closing seals the Post's ballot boxes. */
+    seals_ballots?: boolean
+    /** Such a request's ballot boxes as they stand now, one per country; none until the Post closes. */
+    ballot_boxes?: ISigningClosingBallotBox[] | null
+}
+
+/**
+ * One ballot box of a Close voting request's Post (VOTE-FREEZE), as the seal
+ * table has it now: boxes are sealed after the close, and after the grace
+ * period when there is one, so the request's stored result can't name them.
+ */
+export interface ISigningClosingBallotBox {
+    area_id: string
+    area_name: string
+    status: "pending" | "sealed" | "published" | "failed"
+    /** When the box is sealed: the close plus the grace period. */
+    grace_deadline: string
+    sealed_at?: string | null
+    ballots?: number | null
+    hash_algorithm: string
+    seal_hash?: string | null
 }
 
 export interface ISigningApi {

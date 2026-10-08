@@ -115,6 +115,9 @@ Configure advanced system behaviors for this Election Event.
   - **Single Contests**: Encrypt contests individually.
   - **Multiple Contests**: Encrypt multiple contests together to enable ballot-level audit.
 - **Lockdown Status**: When enabled, no changes can be made to this Election Event. This action is irreversible.
+- **Ballot Box Seal Policy**:
+  - **Do not seal** (default): voting closes as before.
+  - **Seal at close**: when voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again. It cannot be changed after voting has opened. See [Ballot box seal](./20-ballot-box-seal.md).
 - **Voting Portal Countdown Policy**:
   - Define the session timeout duration in seconds.
   - Configure the countdown warning and logout alert thresholds.
