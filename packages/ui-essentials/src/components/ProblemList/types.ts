@@ -37,6 +37,11 @@ export type ProblemCode =
     | "unreadable"
     | "incompatible_version"
     | "integrity_mismatch"
+    | "unsigned"
+    | "bad_signature"
+    | "untrusted_signer"
+    | "not_approved"
+    | "rollback"
     | (string & {})
 
 export interface Problem {

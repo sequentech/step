@@ -188,7 +188,7 @@ pub async fn voter_files(
     area: &str,
     elections: &[String],
 ) -> Result<Value> {
-    list_voter_files(
+    let mut result = list_voter_files(
         &PgPublicationRows { transaction: tx },
         &S3PublicationStorage {
             endpoint: S3Endpoint::Public,
@@ -198,7 +198,24 @@ pub async fn voter_files(
         area,
         elections,
     )
-    .await
+    .await?;
+    // Only metadata for files actually authorized and visible in this area.
+    let visible: Vec<String> = result["files"]
+        .as_array()
+        .context("Published voter files are not an array")?
+        .iter()
+        .filter_map(|file| file["election_id"].as_str().map(str::to_owned))
+        .collect();
+    let closes =
+        crate::postgres::election::get_display_voting_closes(tx, tenant, event, &visible).await?;
+    if let Some(files) = result["files"].as_array_mut() {
+        for file in files {
+            if let Some(close) = file["election_id"].as_str().and_then(|id| closes.get(id)) {
+                file["signed_close"] = serde_json::to_value(close)?;
+            }
+        }
+    }
+    Ok(result)
 }
 
 async fn list_voter_files(

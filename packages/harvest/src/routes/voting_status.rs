@@ -6,6 +6,7 @@ use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::{
     caller, signing_required, waiting, Guarded,
 };
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -26,6 +27,36 @@ use windmill::services::signing::guard::SigningRequestSummary;
 use windmill::services::{election_event_status, voting_status};
 use windmill::tasks::signing_log_outbox::kick_signing_log_outbox;
 
+fn voting_response_error((status, message): (Status, String)) -> JsonError {
+    let code = if status == Status::BadRequest {
+        ErrorCode::VotingStatusValidation
+    } else if status == Status::Forbidden || status == Status::Unauthorized {
+        ErrorCode::Unauthorized
+    } else {
+        tracing::error!("Voting status request failed: {message}");
+        return ErrorResponse::new(
+            status,
+            "Could not update voting status.",
+            ErrorCode::InternalServerError,
+        );
+    };
+    ErrorResponse::new(status, &message, code)
+}
+
+fn voting_service_error(error: anyhow::Error) -> (Status, String) {
+    if let Some(refusal) =
+        error.downcast_ref::<election_event_status::VotingTransitionError>()
+    {
+        (Status::BadRequest, refusal.to_string())
+    } else {
+        tracing::error!("Voting status operation failed: {error:?}");
+        (
+            Status::InternalServerError,
+            "Could not update voting status.".into(),
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateEventVotingStatusInput {
     pub election_event_id: String,
@@ -44,6 +75,16 @@ pub async fn update_event_status(
     body: Json<UpdateEventVotingStatusInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
+) -> Result<Json<UpdateEventVotingStatusOutput>, Guarded<JsonError>> {
+    update_event_status_response(body, claims, services)
+        .await
+        .map_err(|error| error.map_route(voting_response_error))
+}
+
+async fn update_event_status_response(
+    body: Json<UpdateEventVotingStatusInput>,
+    claims: JwtClaims,
+    services: &HarvestServices,
 ) -> Result<Json<UpdateEventVotingStatusOutput>, Guarded<(Status, String)>> {
     // Check if the user has the required "Gold" role
     if !has_gold_permission(&claims) {
@@ -102,7 +143,7 @@ pub async fn update_event_status(
         &input.voting_channels,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(voting_service_error)?;
 
     let _commit = hasura_transaction
         .commit()
@@ -129,6 +170,16 @@ pub async fn update_election_status(
     body: Json<voting_status::UpdateElectionVotingStatusInput>,
     claims: JwtClaims,
     services: &State<HarvestServices>,
+) -> Result<Json<UpdateElectionVotingStatusOutput>, Guarded<JsonError>> {
+    update_election_status_response(body, claims, services)
+        .await
+        .map_err(|error| error.map_route(voting_response_error))
+}
+
+async fn update_election_status_response(
+    body: Json<voting_status::UpdateElectionVotingStatusInput>,
+    claims: JwtClaims,
+    services: &HarvestServices,
 ) -> Result<Json<UpdateElectionVotingStatusOutput>, Guarded<(Status, String)>> {
     // Check if the user has the required "Gold" role
     if !has_gold_permission(&claims) {
@@ -195,7 +246,7 @@ pub async fn update_election_status(
         &input.voting_channels,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(voting_service_error)?;
 
     let _commit = hasura_transaction
         .commit()

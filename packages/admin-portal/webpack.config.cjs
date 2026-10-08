@@ -149,6 +149,9 @@ module.exports = function (env, argv) {
                 ),
             }),
         ],
+        watchOptions: {
+            ignored: /node_modules/,
+        },
         devServer: {
             static: [
                 {directory: path.resolve(__dirname, "dist")},

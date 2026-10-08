@@ -892,12 +892,6 @@ pub fn poll_state(voting_status: Option<&str>, initialized: bool) -> PostState {
     }
 }
 
-/// Zone-aware formatting needs a zone the settings name; one the database
-/// does not know counts in UTC.
-pub fn zone_of(settings: &Settings) -> Tz {
-    settings.time_zone.parse().unwrap_or(Tz::UTC)
-}
-
 #[cfg(test)]
 #[path = "producers_tests.rs"]
 mod producers_tests;

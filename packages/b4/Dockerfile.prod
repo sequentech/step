@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
 COPY ./harvest ./harvest
 COPY ./strand ./strand
@@ -82,15 +82,15 @@ COPY ./.cargo ./.cargo
 COPY --from=vendor / /vendor/
 RUN if [ -d /vendor/vendor-cache ]; then \
         mkdir -p .cargo && \
-        sed 's|^directory = .*|directory = "/vendor/vendor-cache"|' \
-            /vendor/vendor-cache/config.toml >> .cargo/config.toml && \
+        { echo; sed 's|^directory = .*|directory = "/vendor/vendor-cache"|' \
+            /vendor/vendor-cache/config.toml; } >> .cargo/config.toml && \
         printf '\n[net]\noffline = true\n' >> .cargo/config.toml && \
         echo "offline build: using vendored crates from /vendor/vendor-cache"; \
     fi
 
 # build projects
-WORKDIR /app/b3
-RUN cargo build --features=server --release --locked
+WORKDIR /app/b4
+RUN cargo build --release --locked --bin b4 --features native
 
 
 
@@ -135,9 +135,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/server /usr/bin/b3
+COPY --from=builder /app/target/release/b4 /usr/bin/b4
 
 # init index db
 RUN mkdir /tmp/cache
 
-ENTRYPOINT ["/usr/bin/b3"]
+ENTRYPOINT ["/usr/bin/b4"]

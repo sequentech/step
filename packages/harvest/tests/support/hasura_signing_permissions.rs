@@ -225,8 +225,16 @@ fn each_signer_reads_the_requests_of_their_action() {
         ] {
             let permission =
                 &grants(&tables[table], "select_permissions")[&role];
-            let expected: BTreeSet<String> =
+            let mut expected: BTreeSet<String> =
                 expected.iter().map(|column| column.to_string()).collect();
+            if table == "signing_request"
+                && action == SigningAction::ApproveConfiguration
+            {
+                // Configuration signers inspect the lifecycle snapshot and
+                // compare requests for the same scope in the approval panel.
+                expected
+                    .extend(["scope_key".to_string(), "subject".to_string()]);
+            }
             assert_eq!(columns(permission), expected, "{role} on {table}");
             // Counting is all a reader may aggregate, and a signer no more.
             assert_eq!(

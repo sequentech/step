@@ -39,7 +39,7 @@ BROAD_QUERY = """
 # projection's configuration-write validation and duplicate-endpoint rejection.
 DIRECT_QUERY = """
     SELECT election.presentation, election.status, election.voting_channels,
-           period.start_date, period.end_date
+           period.start_date, period.end_date, '{}'::jsonb AS signed_close_dates
     FROM sequent_backend.election election
     LEFT JOIN LATERAL (
         SELECT

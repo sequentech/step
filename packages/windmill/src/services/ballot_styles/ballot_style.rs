@@ -357,6 +357,13 @@ async fn generate_election_event_ballot_styles(
         .map(|keys_ceremony: KeysCeremony| (keys_ceremony.id.clone(), keys_ceremony.clone()))
         .collect();
 
+    super::slates::validate_elections_slates(
+        &ballot_publication.election_ids.clone().unwrap_or_default(),
+        &elections_map,
+        &contests_map.values().cloned().collect::<Vec<Contest>>(),
+        &candidates_map.values().cloned().collect::<Vec<Candidate>>(),
+    )?;
+
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
 

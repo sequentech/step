@@ -58,7 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 #TODO: Copy only necessary files
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
 COPY ./harvest ./harvest
 COPY ./strand ./strand
@@ -87,8 +87,8 @@ COPY ./.cargo ./.cargo
 COPY --from=vendor / /vendor/
 RUN if [ -d /vendor/vendor-cache ]; then \
         mkdir -p .cargo && \
-        sed 's|^directory = .*|directory = "/vendor/vendor-cache"|' \
-            /vendor/vendor-cache/config.toml >> .cargo/config.toml && \
+        { echo; sed 's|^directory = .*|directory = "/vendor/vendor-cache"|' \
+            /vendor/vendor-cache/config.toml; } >> .cargo/config.toml && \
         printf '\n[net]\noffline = true\n' >> .cargo/config.toml && \
         echo "offline build: using vendored crates from /vendor/vendor-cache"; \
     fi

@@ -892,7 +892,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                 </WizardStyles.AccordionDetails>
             </Accordion>
 
-            <Logs logs={selectedTallySessionData?.logs} />
+            <Logs logs={selectedTallySessionData?.logs} event={record} />
 
             <WizardStyles.FooterContainer>
                 <WizardStyles.StyledFooter>

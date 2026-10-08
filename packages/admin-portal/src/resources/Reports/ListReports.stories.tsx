@@ -19,7 +19,7 @@ import {
     type RecordedDownload,
 } from "@/__stories__/downloads"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
-import {STORY_IDS, storyId} from "@/__stories__/fixtures"
+import {STORY_IDS, eventRecord, storyId} from "@/__stories__/fixtures"
 import {SigningProvider} from "@/components/signing/SigningProvider"
 import {REQUEST_ID, CODE, fakeApi, makePanel} from "@/components/signing/__stories__/fixtures"
 import {
@@ -187,6 +187,7 @@ const meta = {
                           ...(args.signing ? [electionReturns] : []),
                       ]
                     : [],
+                sequent_backend_election_event: [eventRecord()],
                 sequent_backend_template: TEMPLATES,
                 sequent_backend_area: [],
                 sequent_backend_election: ELECTIONS,

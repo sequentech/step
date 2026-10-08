@@ -14,7 +14,9 @@ use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
-use windmill::services::reports::activity_log::ReportFormat;
+use windmill::services::reports::activity_log::{
+    ActivityLogExportOptions, ReportFormat,
+};
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
 
@@ -22,6 +24,15 @@ use windmill::types::tasks::ETasksExecution;
 pub struct ExportElectionEventInput {
     election_event_id: String,
     format: String,
+    /// The first minute to export (RFC 3339 instant), inclusive.
+    #[serde(default)]
+    created_from: Option<String>,
+    /// The last minute to export (RFC 3339 instant), inclusive.
+    #[serde(default)]
+    created_to: Option<String>,
+    /// The IANA zone the times are shown in; the log zone when absent.
+    #[serde(default)]
+    time_zone: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,6 +64,16 @@ pub async fn export_election_event_logs_route(
         )
     })?;
     info!("{:?}", report_fmt);
+    let options = ActivityLogExportOptions {
+        created_from: body.created_from.clone(),
+        created_to: body.created_to.clone(),
+        time_zone: body.time_zone.clone(),
+    };
+    // Refuse a bad range or zone now rather than in the task.
+    options
+        .range()
+        .and_then(|_| options.zone())
+        .map_err(|error| (Status::BadRequest, format!("{error:?}")))?;
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let election_event_id = body.election_event_id.clone();
 
@@ -88,6 +109,7 @@ pub async fn export_election_event_logs_route(
                 report_fmt,
                 None,
                 task_execution.clone(),
+                Some(options),
             ),
         )
         .await

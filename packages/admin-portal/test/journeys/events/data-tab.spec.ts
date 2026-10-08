@@ -99,6 +99,8 @@ const SAVED_PRESENTATION_DEFAULTS = {
     voting_portal_datetime_format: "legacy-gb-24h",
     voter_signing_policy: "no-signature",
     voter_certificate_policy: "disabled",
+    voter_accessibility_settings_policy: "disabled",
+    audio_instructions_policy: "disabled",
 }
 
 async function save(page: Page, portal: AdminPortal) {
@@ -246,6 +248,12 @@ test("exports an encrypted archive, tracks its task and reveals the generated pa
     await expect(page.getByText("SUCCESS", {exact: true})).toBeVisible()
 })
 
+async function expandSection(page: Page, name: string) {
+    const summary = page.getByRole("button", {name, exact: true})
+    if ((await summary.getAttribute("aria-expanded")) !== "true") await summary.click()
+    await expect(summary).toHaveAttribute("aria-expanded", "true")
+}
+
 async function choose(page: Page, combobox: RegExp, option: string) {
     await page.getByRole("combobox", {name: combobox}).click()
     await page.getByRole("option", {name: option, exact: true}).click()
@@ -270,7 +278,7 @@ test("saves ballot design, channel, language and advanced policy choices in one 
     await page.getByRole("button", {name: "Voting Channels Allowed", exact: true}).click()
     await page.getByRole("switch", {name: "Kiosk"}).check()
     await page.getByRole("radio", {name: "Enabled"}).check()
-    await page.getByRole("button", {name: "Language", exact: true}).click()
+    await page.getByRole("button", {name: "Language, Date and Time", exact: true}).click()
     await choose(page, /^Language Detection Policy/, "Force Default")
     await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
     await choose(page, /^Contest encryption policy/, "Multiple Contests")
@@ -278,7 +286,9 @@ test("saves ballot design, channel, language and advanced policy choices in one 
     await choose(page, /^Keys\/Tally Ceremonies Policy/, "Allow Automatic Ceremonies")
     await choose(page, /^Weighted Voting Policy/, "Weighted Voting for Areas")
     await choose(page, /^Delegated Voting Policy/, "Enabled")
+    await page.getByRole("button", {name: "Language, Date and Time", exact: true}).click()
     await choose(page, /^Voting Portal date & time format/, "ISO Local (yyyy-MM-dd HH:mm)")
+    await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
     await choose(page, /^Voting Portal Countdown policy/, "Countdown with alert")
     const countdown = page.getByRole("spinbutton", {
         name: "time in seconds before expiration to show countdown",
@@ -422,10 +432,11 @@ test("flags conflicting weighted voting and an invalid custom date format before
 }) => {
     editableEvent(portal)
     await openEvent(page, portal)
-    await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+    await expandSection(page, "Advanced Configurations")
     await choose(page, /^Weighted Voting Policy/, "Weighted Voting for Voters")
     await choose(page, /^Delegated Voting Policy/, "Enabled")
     await choose(page, /^Include decoded ballots/, "Include")
+    await expandSection(page, "Language, Date and Time")
     await choose(page, /^Voting Portal date & time format/, "Custom format")
     const custom = page.getByRole("textbox", {name: "Custom date & time format"})
     await custom.fill("every tuesday")
@@ -433,6 +444,7 @@ test("flags conflicting weighted voting and an invalid custom date format before
     await expect(
         page.getByText("The form is not valid. Please check for errors", {exact: true})
     ).toBeVisible()
+    await expandSection(page, "Advanced Configurations")
     await expect(
         page.getByText("Weighted Voting for Voters cannot be combined with Delegated Voting", {
             exact: true,
@@ -444,6 +456,7 @@ test("flags conflicting weighted voting and an invalid custom date format before
             {exact: true}
         )
     ).toBeVisible()
+    await expandSection(page, "Language, Date and Time")
     await expect(
         page.getByText("Invalid format. Use at least one of the tokens yyyy, MM, dd, HH, mm, ss.", {
             exact: true,
@@ -452,7 +465,9 @@ test("flags conflicting weighted voting and an invalid custom date format before
     expect(portal.graphql.callsTo("SetCustomUrls")).toHaveLength(0)
     expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
 
+    await expandSection(page, "Advanced Configurations")
     await choose(page, /^Weighted Voting Policy/, "Disabled Weighted Voting")
+    await expandSection(page, "Language, Date and Time")
     await custom.fill("dd.MM.yyyy HH:mm")
     const update = await save(page, portal)
     const presentation = (update._set as {presentation: Row}).presentation
@@ -480,7 +495,7 @@ test("edits the name of each enabled language and changes the default language",
     const name = page.getByRole("textbox", {name: "Name", exact: true})
     await expect(name).toHaveValue("Elección del consejo")
     await name.fill("Consejo 2026")
-    await page.getByRole("button", {name: "Language", exact: true}).click()
+    await page.getByRole("button", {name: "Language, Date and Time", exact: true}).click()
     const languages = page
         .getByRole("region")
         .filter({has: page.getByRole("switch", {name: "Spanish"})})
@@ -912,8 +927,9 @@ test.describe("Google Meet links", () => {
             "Council election - Meeting"
         )
         // One hour after the fixed clock, in the UTC test time zone.
-        await expect(dialog.getByLabel("Start Date")).toHaveValue("2026-01-15")
-        await expect(dialog.getByLabel("Start Time")).toHaveValue("13:00")
+        await expect(dialog.getByRole("textbox", {name: "Meeting start", exact: true})).toHaveValue(
+            "2026-01-15T13:00"
+        )
         await dialog.getByRole("textbox", {name: /^Description/}).fill("Trustee briefing")
         await dialog.getByRole("spinbutton", {name: /^Duration/}).fill("90")
         await dialog

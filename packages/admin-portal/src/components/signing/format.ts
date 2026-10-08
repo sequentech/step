@@ -4,17 +4,14 @@
 
 import {useMemo} from "react"
 import {useTranslation} from "react-i18next"
+import {formatDateTimeZone} from "@sequentech/ui-core"
 import type {TFunction} from "i18next"
 import type {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {colonHex} from "@/lib/signing/der"
 import {DocumentKind, SigningAction} from "@/lib/signing/types"
 import type {ISigningPanelData} from "@/lib/signing/api"
-
-const parse = (value: string | Date | null | undefined): Date | null => {
-    if (!value) return null
-    const date = value instanceof Date ? value : new Date(value)
-    return Number.isNaN(date.getTime()) ? null : date
-}
+import {toDate as parse} from "@/lib/timezones/zonedFormat"
+import {useZonedFormat} from "@/hooks/useZonedFormat"
 
 const formatter = (
     locale: string,
@@ -29,19 +26,25 @@ const formatter = (
     }
 }
 
-/** "19:11 GMT+8": 24-hour time with the zone, as signers compare times. */
+/** A 24-hour time with the localized zone label, as signers compare times. */
 export const formatTime = (
     value: string | Date | null | undefined,
     locale: string,
-    timeZone?: string | null
+    timeZone: string,
+    t: TFunction
 ): string => {
     const date = parse(value)
     return date
-        ? formatter(
-              locale,
-              {hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZoneName: "short"},
-              timeZone
-          ).format(date)
+        ? formatDateTimeZone(date, timeZone, {
+              t,
+              lang: locale,
+              formatDateTime: (instant, zone) =>
+                  formatter(
+                      locale,
+                      {hour: "2-digit", minute: "2-digit", hourCycle: "h23"},
+                      zone
+                  ).format(instant),
+          })
         : ""
 }
 
@@ -59,42 +62,50 @@ export const formatDate = (
         : ""
 }
 
-/** "May 8, 2028, 18:00 GMT+8": the date and the 24-hour time with the zone. */
+/** The date and 24-hour time with a localized timezone label. */
 export const formatDateTime = (
     value: string | Date | null | undefined,
     locale: string,
-    timeZone?: string | null
+    timeZone: string,
+    t: TFunction
 ): string => {
     const date = parse(value)
     return date
-        ? formatter(
-              locale,
-              {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hourCycle: "h23",
-                  timeZoneName: "short",
-              },
-              timeZone
-          ).format(date)
+        ? formatDateTimeZone(date, timeZone, {
+              t,
+              lang: locale,
+              formatDateTime: (instant, zone) =>
+                  formatter(
+                      locale,
+                      {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hourCycle: "h23",
+                      },
+                      zone
+                  ).format(instant),
+          })
         : ""
 }
 
 /** Times and dates in the election event's zone (the panel's `time_zone`), else the browser's. */
 export const useSigningFormat = (timeZone?: string | null) => {
-    const {i18n} = useTranslation()
+    const {t, i18n} = useTranslation()
     const locale = i18n.language
+    const zoned = useZonedFormat(timeZone)
     return useMemo(
         () => ({
-            time: (value: string | Date | null | undefined) => formatTime(value, locale, timeZone),
+            ...zoned,
+            time: (value: string | Date | null | undefined) =>
+                formatTime(value, locale, zoned.zone, t),
             date: (value: string | Date | null | undefined) => formatDate(value, locale, timeZone),
             dateTime: (value: string | Date | null | undefined) =>
-                formatDateTime(value, locale, timeZone),
+                formatDateTime(value, locale, zoned.zone, t),
         }),
-        [locale, timeZone]
+        [zoned, locale, timeZone, t]
     )
 }
 

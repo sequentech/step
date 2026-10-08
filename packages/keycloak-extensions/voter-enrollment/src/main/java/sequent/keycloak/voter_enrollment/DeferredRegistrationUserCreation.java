@@ -403,7 +403,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       // Check if the password field is blank.
       if (Validation.isBlank(password)) {
         errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
-      } else if (!formMode.equals(FormMode.LOGIN.getValue()) && !password.equals(passwordConfirm)) {
+      } else if (requiresPasswordConfirmation(formMode) && !password.equals(passwordConfirm)) {
         // In registration mode, check if the password and confirmation match.
         context.error(PASSWORD_NOT_MATCHED);
         errors.add(
@@ -475,7 +475,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     log.infov(
         "validate: formMode={0} vs FormMode.LOGIN.getValue()={1}",
         formMode, FormMode.LOGIN.getValue());
-    if (formMode.equals(FormMode.LOGIN.getValue())) {
+    if (FormMode.LOGIN.getValue().equals(formMode)) {
       if (user != null) {
         log.info("validate: setting authenticated user " + user.getUsername());
         context.getAuthenticationSession().setAuthenticatedUser(user);
@@ -532,6 +532,12 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
   static boolean shouldValidatePasswordCreationPolicy(String formMode) {
     return !FormMode.LOGIN.getValue().equals(formMode);
+  }
+
+  // The register template only renders the password confirmation field when the
+  // form mode is set and isn't LOGIN.
+  static boolean requiresPasswordConfirmation(String formMode) {
+    return formMode != null && !FormMode.LOGIN.getValue().equals(formMode);
   }
 
   private void reportValidationError(
@@ -751,7 +757,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     Map<String, String> configMap = config.getConfig();
     final String formMode = configMap.get(FORM_MODE);
 
-    if (!formMode.equals(FormMode.LOGIN.getValue())) {
+    if (!FormMode.LOGIN.getValue().equals(formMode)) {
       checkNotOtherUserAuthenticating(context);
     }
 

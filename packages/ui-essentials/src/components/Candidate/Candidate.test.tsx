@@ -64,6 +64,22 @@ describe("a candidate a voter can choose", () => {
         expect(screen.getByText("Steward, Local 12")).toBeInTheDocument()
     })
 
+    it("shows its slate under the name and names every control with both", () => {
+        show({isSelectable: true, subtitle: "Independent Voices"})
+
+        expect(screen.getByText("Independent Voices")).toHaveClass("candidate-subtitle")
+        expect(
+            screen.getByRole("checkbox", {name: "Alice Okonjo Independent Voices"})
+        ).toBeInTheDocument()
+    })
+
+    it("draws no slate line and keeps the name as the label without one", () => {
+        const {container} = show({isSelectable: true})
+
+        expect(container.querySelector(".candidate-subtitle")).toBeNull()
+        expect(screen.getByRole("checkbox", {name: "Alice Okonjo"})).toBeInTheDocument()
+    })
+
     it("reports a tick to whoever owns the selection", async () => {
         const setChecked = jest.fn()
         show({isSelectable: true, setChecked})

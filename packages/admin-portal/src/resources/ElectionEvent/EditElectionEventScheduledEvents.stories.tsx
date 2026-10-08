@@ -40,6 +40,7 @@ const meta = {
     args: {electionEventId: EVENT_ID},
     beforeEach: async () => {
         data = recordsOrPending()
+
         graphql = graphqlBoundary(answerOrPending(), {schema: true})
         await graphql.ready
     },

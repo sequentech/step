@@ -16,6 +16,7 @@ use tracing::instrument;
 
 use crate::messages::statement::Statement;
 use crate::messages::statement::StatementBody;
+use crate::messages::statement::StatementEventType;
 use crate::messages::statement::StatementHead;
 
 use super::newtypes::*;
@@ -246,15 +247,26 @@ impl Message {
         )
     }
 
+    /// `configuration` is the signed configuration the event was imported
+    /// from, with the designs this publication published; `None` for an
+    /// event that was not imported from a package.
     pub fn election_published_message(
         event: EventIdString,
         election: ElectionIdString,
         ballot_pub_id: BallotPublicationIdString,
+        configuration: Option<PublishedConfiguration>,
         sd: &SigningData,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<Self> {
-        let body = StatementBody::ElectionPublish(election.clone(), ballot_pub_id);
+        let body = match configuration {
+            Some(configuration) => StatementBody::ElectionPublishWithConfiguration(
+                election.clone(),
+                ballot_pub_id,
+                configuration,
+            ),
+            None => StatementBody::ElectionPublish(election.clone(), ballot_pub_id),
+        };
         Self::from_body(event, body, sd, user_id, username, election.0, None, None)
     }
 
@@ -449,6 +461,61 @@ impl Message {
         username: Option<String>,
     ) -> Result<Self> {
         let body = StatementBody::MonitoringConfigChanged(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    pub fn configuration_package_message(
+        event: EventIdString,
+        details: ConfigurationPackageDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ConfigurationPackage(event.clone(), details);
+        Self::from_body(event, body, sd, user_id, username, None, None, None)
+    }
+
+    /// The hash manifest of a generated report. The entry is the user's
+    /// when one asked for the report, and the system's otherwise.
+    pub fn report_generated_message(
+        event: EventIdString,
+        details: ReportGeneratedDetails,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ReportGenerated(event.clone(), details);
+        let event_type = match (&user_id, &username) {
+            (None, None) => StatementEventType::SYSTEM,
+            _ => StatementEventType::USER,
+        };
+        let head = StatementHead {
+            event_type,
+            ..StatementHead::from_body(event, &body)
+        };
+        Message::sign(
+            Statement::new(head, body),
+            None,
+            &sd.sender_sk,
+            &sd.sender_name,
+            &sd.system_sk,
+            user_id,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
+    pub fn approval_matrix_updated_message(
+        event: EventIdString,
+        version: ApprovalMatrixVersion,
+        digest: ApprovalMatrixDigestString,
+        sd: &SigningData,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Self> {
+        let body = StatementBody::ApprovalMatrixUpdated(event.clone(), version, digest);
         Self::from_body(event, body, sd, user_id, username, None, None, None)
     }
 

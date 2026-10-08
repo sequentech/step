@@ -8,8 +8,6 @@ use chrono::{
     TimeZone as ChronoTimeZone, Utc,
 };
 
-pub const PHILIPPINO_TIMEZONE: TimeZone = TimeZone::Offset(8);
-
 pub fn get_system_timezone() -> TimeZone {
     let now = Local::now();
     let offset = now.offset();
@@ -22,10 +20,10 @@ pub fn get_system_timezone() -> TimeZone {
     }
 }
 
+/// Now, as an RFC 3339 instant in UTC. Reports print it in the event's or
+/// election's zone (`datetime_zone`); the server's clock zone never shows.
 pub fn get_date_and_time() -> String {
-    let current_date_time = Local::now();
-    let printed_datetime = current_date_time.to_rfc3339();
-    printed_datetime
+    Utc::now().to_rfc3339()
 }
 
 pub fn generate_timestamp(
@@ -83,6 +81,14 @@ pub fn verify_date_format_ymd(date_str: &str) -> Result<DateTime<Utc>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_printed_date_and_time_is_a_utc_instant_whatever_the_server_zone() {
+        let printed = get_date_and_time();
+
+        assert!(printed.ends_with("+00:00"), "{printed}");
+        assert!(DateTime::parse_from_rfc3339(&printed).is_ok());
+    }
 
     #[test]
     fn test_generate_timestamp_default() {

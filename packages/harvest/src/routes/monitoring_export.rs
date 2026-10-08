@@ -7,8 +7,8 @@
 //! `export_monitoring_data` task writes the document.
 //!
 //! `from` and `to` are instants: RFC 3339 with an offset, any offset; the
-//! portal turns the local times it shows into instants with the settings'
-//! time zone. A time without an offset names no instant and is refused.
+//! portal turns the local times it shows into instants with the event's
+//! primary timezone. A time without an offset names no instant and is refused.
 //! The dashboard and widget are looked up in the configuration the dashboard
 //! draws the run with ([`config_at_snapshot`]): the live one unless the
 //! settings changed since the run was counted. The request names that
