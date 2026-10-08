@@ -50,15 +50,21 @@ event.
 Column names may only contain letters, digits, `.`, `_` and `-`, and two names that differ only in
 case or in those three characters are rejected as duplicates.
 
+Spreadsheets run a cell that starts with `=`, `+`, `-`, `@` or their full-width forms, a tab or a
+line break as a formula. Export writes a `'` before such a value, so that they show it as text, and
+import removes it from every column but `password`. A spreadsheet that saves the file may drop the
+`'`: import still reads the value, but the spreadsheet runs it when it opens that file again. To
+import a value that starts with `'` followed by one of those characters, write another `'` before
+it.
+
 In `authorized-election-ids`, name each election by its external ID, or by its ID if it has no
 external ID. An election's ID is also accepted when it has an external ID, and the external ID is
 stored instead. An election is named and stored by its ID when another election shares its external
 ID, or when the external ID starts or ends with a space, contains `|` or starts with `"`. It is also
 stored by its ID when its external ID is longer than 255 characters, the most a voter attribute
-holds, or starts with `=`, `+`, `-` or `@`, which spreadsheets read as a formula. If an election's
-ID is another election's external ID, that value names the other election, as in the token mapper,
-so the first one can only be named and stored by its own external ID, and not at all if it has none
-or if it would be stored by its ID. A blank cell leaves the voter unrestricted: they can vote in the
+holds. If an election's ID is another election's external ID, that value names the other election,
+as in the token mapper, so the first one can only be named and stored by its own external ID, and
+not at all if it has none or if it would be stored by its ID. A blank cell leaves the voter unrestricted: they can vote in the
 elections of their area. A value that names no election in the election event, or more than one, or
 an election that cannot be stored, or that starts with `"`, is rejected, with its row and the value,
 and nothing is imported.

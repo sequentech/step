@@ -5,6 +5,7 @@
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
 use crate::services::authorized_elections::AuthorizedElectionIds;
+use crate::services::csv_cell::unescape_formula;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
 use crate::services::electoral_log::{
@@ -154,6 +155,16 @@ pub(crate) fn imported_fields(record: &StringRecord, imported_columns: &[bool]) 
         .zip(imported_columns)
         .filter_map(|(field, imported)| imported.then_some(field))
         .collect()
+}
+
+/// The value `cell` holds in `column`, without the `'` export puts before a
+/// formula. Export never writes passwords, so one is imported as written.
+pub(crate) fn imported_value<'a>(column: &str, cell: &'a str) -> &'a str {
+    if column == PASSWORD_COL_NAME {
+        cell
+    } else {
+        unescape_formula(cell)
+    }
 }
 
 fn sanitize_db_key(key: &String) -> String {
@@ -866,6 +877,7 @@ pub async fn import_users_file(
         let mut num_of_iterations = *PBKDF2_ITERATIONS;
         let mut password: Option<String> = None;
         for (data, column_name) in record.iter().zip(voters_table_input_columns_names.iter()) {
+            let data = imported_value(column_name, data);
             let mut processed_data = match column_name.as_str() {
                     column_name if column_name == AREA_ID_ATTR_NAME && !is_admin => {
                         match areas_map
@@ -1125,6 +1137,17 @@ mod tests {
             imported_fields(&record, &imported_columns),
             StringRecord::from(vec!["voter", EXTERNAL_ID])
         );
+    }
+
+    /// Export never writes passwords, so one is imported as written.
+    #[test]
+    fn formulas_are_read_back_in_every_column_but_password() {
+        assert_eq!(imported_value("first_name", "'=1+1"), "=1+1");
+        assert_eq!(
+            imported_value(AUTHORIZED_ELECTION_IDS_NAME, "'-1|=1+1"),
+            "-1|=1+1"
+        );
+        assert_eq!(imported_value(PASSWORD_COL_NAME, "'=1+1"), "'=1+1");
     }
 
     #[test]
