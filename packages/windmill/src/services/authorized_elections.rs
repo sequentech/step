@@ -20,18 +20,41 @@ fn external_id(election: &ElectionHead) -> Option<&str> {
         .filter(|external_id| !external_id.is_empty())
 }
 
+/// Starts the values export writes for stored values that name no election
+/// and that a voters CSV cell would not read back as they are. Import rejects
+/// them.
+const QUOTE: char = '"';
+
+/// A spreadsheet takes a cell that starts with one of these for a formula.
+const FORMULA_PREFIXES: [char; 4] = ['=', '+', '-', '@'];
+
 /// Whether `value` reads back unchanged from a voters CSV cell, whose values
-/// are separated by `|` and trimmed.
-pub(crate) fn fits_in_a_cell(value: &str) -> bool {
+/// are separated by `|` and trimmed, without a spreadsheet taking it for a
+/// formula or import for a quoted value.
+fn fits_in_a_cell(value: &str) -> bool {
     !value.is_empty()
         && value.trim() == value
         && !value.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
+        && !value.starts_with(QUOTE)
+        && !value.starts_with(FORMULA_PREFIXES)
+}
+
+/// How export writes a stored value that names no election, so that importing
+/// it fails: as it is, or in double quotes if a voters CSV cell would not read
+/// it back unchanged.
+pub(crate) fn unresolved_cell_value(value: String) -> String {
+    if fits_in_a_cell(&value) {
+        value
+    } else {
+        format!("{QUOTE}{}{QUOTE}", value.escape_debug())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnresolvedElection {
     NoElection,
     SeveralElections,
+    Quoted,
 }
 
 impl fmt::Display for UnresolvedElection {
@@ -42,6 +65,9 @@ impl fmt::Display for UnresolvedElection {
             }
             UnresolvedElection::SeveralElections => {
                 "more than one election in this election event has that external ID or ID"
+            }
+            UnresolvedElection::Quoted => {
+                "a value that starts with a double quote names no election"
             }
         })
     }
@@ -122,6 +148,16 @@ impl AuthorizedElectionIds {
             Some([_, _, ..]) => Err(UnresolvedElection::SeveralElections),
             _ => Err(UnresolvedElection::NoElection),
         }
+    }
+
+    /// The value stored for the election that `reference`, read from a voters
+    /// CSV cell, names. A reference that starts with a double quote names none,
+    /// as export quotes values that name no election.
+    pub fn resolve_imported(&self, reference: &str) -> Result<&str, UnresolvedElection> {
+        if reference.starts_with(QUOTE) {
+            return Err(UnresolvedElection::Quoted);
+        }
+        self.resolve(reference)
     }
 
     /// The value stored for the election with ID `election_id`.
@@ -227,6 +263,31 @@ mod tests {
         assert_eq!(elections.resolve(" "), Ok(ELECTION_B));
         assert_eq!(elections.resolve(ELECTION_C), Ok(ELECTION_C));
         assert_eq!(elections.stored_value(ELECTION_C), Some(ELECTION_C));
+    }
+
+    /// Import rejects values that start with a double quote, which export
+    /// writes for values that name no election.
+    #[test]
+    fn external_ids_starting_with_a_double_quote_are_stored_by_id() {
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some("\"GIAMBI30-3-31")),
+            election(ELECTION_B, Some("GIAMBI30-3-31\"")),
+        ]);
+
+        assert_eq!(elections.resolve("\"GIAMBI30-3-31"), Ok(ELECTION_A));
+        assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_A));
+        assert_eq!(elections.stored_value(ELECTION_B), Some("GIAMBI30-3-31\""));
+    }
+
+    /// A spreadsheet would take them for formulas.
+    #[test]
+    fn external_ids_starting_like_a_formula_are_stored_by_id() {
+        for external_id in ["=1+1", "+34", "-1", "@SUM(A1)"] {
+            let elections = AuthorizedElectionIds::new(&[election(ELECTION_A, Some(external_id))]);
+
+            assert_eq!(elections.resolve(external_id), Ok(ELECTION_A));
+            assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_A));
+        }
     }
 
     /// The token mapper resolves a shared external ID to none of them.

@@ -53,16 +53,18 @@ case or in those three characters are rejected as duplicates.
 In `authorized-election-ids`, name each election by its external ID, or by its ID if it has no
 external ID. An election's ID is also accepted when it has an external ID, and the external ID is
 stored instead. An election is named and stored by its ID when another election shares its external
-ID, or when the external ID starts or ends with a space or contains `|`. A blank cell leaves the
-voter unrestricted: they can vote in the elections of their area. A value that names no election in
-the election event, or more than one, is rejected, with its row and the value, and nothing is
-imported.
+ID, or when the external ID starts or ends with a space, contains `|` or starts with `"`. It is also
+stored by its ID when its external ID starts with `=`, `+`, `-` or `@`, which spreadsheets read as a
+formula. A blank cell leaves the voter unrestricted: they can vote in the elections of their area. A
+value that names no election in the election event, or more than one, or that starts with `"`, is
+rejected, with its row and the value, and nothing is imported.
 
 Export writes `authorized-election-ids` the same way, and adds one column per election, named
-`election__` followed by the value that names the election, holding when the voter last voted in
-it. Import ignores these columns. A stored value that names no election, or more than one, is
-exported unchanged, so that importing it fails instead of giving the voter other elections. It is
-put in double quotes if it is blank, starts or ends with a space, or contains `|`.
+`election__` followed by the value that names the election, holding when the voter last voted in it.
+Import ignores these columns. A stored value that names no election, or more than one, is exported
+unchanged, so that importing it fails instead of giving the voter other elections. It is put in
+double quotes if it is blank, starts or ends with a space, contains `|`, or starts with `"`, `=`,
+`+`, `-` or `@`.
 
 When an election event export is imported, its elections get new IDs. Voters whose
 `authorized-election-ids` name elections by the IDs they had in the exported event keep those

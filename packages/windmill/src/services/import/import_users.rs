@@ -108,12 +108,14 @@ pub(crate) fn resolve_authorized_election_ids(
     let mut values: Vec<&str> = Vec::new();
     for reference in cell.split(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR) {
         let reference = reference.trim();
-        let value = elections.resolve(reference).map_err(|unresolved| {
-            anyhow!(
-                "Invalid `{AUTHORIZED_ELECTION_IDS_NAME}` value {reference:?} on row {row}: \
+        let value = elections
+            .resolve_imported(reference)
+            .map_err(|unresolved| {
+                anyhow!(
+                    "Invalid `{AUTHORIZED_ELECTION_IDS_NAME}` value {reference:?} on row {row}: \
                  {unresolved}"
-            )
-        })?;
+                )
+            })?;
         if !values.contains(&value) {
             values.push(value);
         }
@@ -1175,8 +1177,8 @@ mod tests {
         }
     }
 
-    /// The token mapper would resolve the shared external ID to only one of
-    /// them, so they can only be named by ID.
+    /// The token mapper resolves the shared external ID to none of them, so
+    /// they can only be named by ID.
     #[test]
     fn authorized_elections_naming_several_elections_are_rejected() {
         let elections = AuthorizedElectionIds::new(&[
@@ -1195,6 +1197,38 @@ mod tests {
             resolve_authorized_election_ids(&format!("{ELECTION_A}|{ELECTION_B}"), 3, &elections)
                 .expect("each ID names one election"),
             format!("{ELECTION_A}|{ELECTION_B}")
+        );
+    }
+
+    /// Export writes values that name no election in double quotes when a cell
+    /// would not read them back as they are, so they must not import, even
+    /// where elections have external IDs with double quotes.
+    #[test]
+    fn authorized_elections_starting_with_a_double_quote_are_rejected() {
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some("\"GIAMBI30-3-31")),
+            election(ELECTION_B, Some("GTELEC31+GCIBER30-1-01\"")),
+        ]);
+
+        let message = resolve_authorized_election_ids(
+            "\"GIAMBI30-3-31|GTELEC31+GCIBER30-1-01\"",
+            5,
+            &elections,
+        )
+        .expect_err("a value starting with a double quote names no election")
+        .to_string();
+        assert!(
+            message.contains(r#""\"GIAMBI30-3-31" on row 5: "#) && message.contains("double quote"),
+            "error must name the value, the row and the reason, got: {message}"
+        );
+        assert_eq!(
+            resolve_authorized_election_ids(
+                &format!("{ELECTION_A}|GTELEC31+GCIBER30-1-01\""),
+                5,
+                &elections
+            )
+            .expect("each value names one election"),
+            format!("{ELECTION_A}|GTELEC31+GCIBER30-1-01\"")
         );
     }
 
