@@ -1572,6 +1572,7 @@ const catalanTranslation: TranslationType = {
                 "task-export": "Exportar Tasques",
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
+                "approval-matrix-write": "Editar la Matriu d'Aprovació",
                 "logs-export": "Exportar Registres",
                 "election-event-logs-columns":
                     "Columnes dels Registres de l'Esdeveniment Electoral",
@@ -2961,46 +2962,435 @@ const catalanTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Estat",
-                id: "ID",
-                applicantId: "ID del Sol·licitant",
-                verificationType: "Tipus de Verificació",
-                createdAt: "Creat El",
-                updatedAt: "Actualitzat El",
-                verified_by: "Verificat Per",
+                id: "ID de la sol·licitud",
+                applicantId: "ID del sol·licitant",
+                verificationType: "Verificació",
+                createdAt: "Sol·licitada",
+                verified_by: "Verificada per",
+                voter: "Votant",
+                what: "Què ha passat",
+                post: "Lloc",
+                when: "Quan",
             },
-            approvalRequest: "Sol·licitud d'Aprovació",
-            taskInformation: "Informació de la tasca",
-            ok: "D'acord",
-            title: "Votants",
-            subtitle: "Cercar votants coincidents",
-            approve: {
-                body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
+            status: {
+                PENDING: "Pendent de revisió",
+                ACCEPTED: "Aprovada",
+                REJECTED: "Rebutjada",
             },
-            reject: {
-                label: "Rebutja la sol·licitud",
-                confirm:
-                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
-                message: "Escriviu aquí el motiu del rebuig",
-                rejectReason: "Motiu del rebuig",
-                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Votant Non Trouvé",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+            verification: {
+                AUTOMATIC: "Automàtica",
+                MANUAL: "Manual",
+            },
+            time: {
+                minutes_one: "{{count}} minut",
+                minutes_other: "{{count}} minuts",
+                hours_one: "{{count}} hora",
+                hours_other: "{{count}} hores",
+                days_one: "{{count}} dia",
+                days_other: "{{count}} dies",
+            },
+            summary: {
+                join: "{{head}} i {{last}}",
+                differs_one: "{{fields}} no coincideix amb el registre",
+                differs_other: "{{fields}} no coincideixen amb el registre",
+                typedByHand: "Dades escrites a mà, no llegides d'un document escanejat",
+                needsFaceToFace: "Cal una comprovació cara a cara",
+                scanVerified: "Document escanejat i verificat",
+                noVoter: "No s'ha trobat cap votant al registre",
+                allMatch: "Totes les dades coincideixen amb el registre",
+                needsReview: "A l'espera que una persona decideixi",
+                approvedBy: "Aprovada per {{name}}",
+                approvedAuto: "Aprovada automàticament",
+                rejectedBy: "Rebutjada per {{name}}",
+                rejectedAuto: "Rebutjada automàticament",
+            },
+            list: {
+                title: "Aprovacions",
+                subtitle:
+                    "Les inscripcions que les regles no poden decidir soles esperen aquí una persona.",
+                search: "Cerca",
+                review: "Revisa la inscripció",
+                openRecord: "Obre la inscripció",
+                seeRule: "Mostra la regla que va decidir",
+                unnamed: "Sol·licitant sense nom",
+                waiting: "Fa {{time}} que espera",
+                applied: "Sol·licitada el {{date}}",
+                empty: {
+                    title: "Aquí no hi ha res",
+                    text: "Les inscripcions amb aquest estat apareixeran aquí. Proveu una altra cerca o un altre estat.",
                 },
             },
+            flow: {
+                stepsLabel: "Passos de la revisió",
+                steps: {
+                    identity: "Comprova la identitat",
+                    voter: "Cerca el votant",
+                    decide: "Decideix",
+                },
+                continue: "Continua",
+                backToList: "Torna a Aprovacions",
+                identity: {
+                    details: "Dades de la inscripció",
+                    confirm:
+                        "He comprovat el document d'identitat del votant en persona o per videotrucada, i coincideix amb aquesta inscripció.",
+                    checked: "Comprovació cara a cara confirmada",
+                    notChecked: "Comprovació cara a cara encara sense confirmar",
+                },
+                voter: {
+                    none: "Cap d'aquests és el votant",
+                    noneHint:
+                        "En aquest cas la inscripció només es pot rebutjar, perquè no hi ha cap votant coincident.",
+                    noneChosen: "Cap d'aquests és el votant",
+                    notChosen: "Encara no s'ha triat cap votant",
+                },
+                decide: {
+                    approve: "Aprova",
+                    reject: "Rebutja",
+                    approveText:
+                        "Vincula aquesta inscripció amb {{voter}} al registre. S'avisa el votant per correu electrònic o SMS i podrà iniciar la sessió per votar quan s'obri la votació.",
+                    rejectText: "Es diu al votant el motiu. Això no es pot desfer.",
+                    chooseVoter: "Trieu el votant coincident al pas 2 per aprovar.",
+                    noVoter:
+                        "No heu trobat cap votant coincident, de manera que aquesta inscripció només es pot rebutjar.",
+                    enrolled: "El votant triat ja està inscrit.",
+                    faceToFace: "Confirmeu la comprovació cara a cara al pas 1 per aprovar.",
+                },
+            },
+            review: {
+                loadError: "No s'ha pogut carregar la inscripció.",
+                applied: "Sol·licitada el {{date}}",
+                waiting: "Fa {{time}} que espera",
+                whyTitle: "Per què cal una persona",
+                decisionTitle: "Com es va decidir",
+                rule: "Regla {{rule}} de la versió {{version}} de la matriu",
+                ruleLast: "Última regla de la versió {{version}} de la matriu",
+                seeRule: "Mostra la regla",
+                why: {
+                    typedByHand:
+                        "El votant va escriure les seves dades a mà en lloc d'escanejar un document d'identitat. Aquestes inscripcions mai s'aproven automàticament: abans, un funcionari confirma qui és.",
+                    differs_one:
+                        "Una dada no coincideix amb el registre: {{details}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    differs_other:
+                        "{{count}} dades no coincideixen amb el registre: {{details}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    differsFields_one:
+                        "Una dada no coincideix amb el registre: {{fields}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    differsFields_other:
+                        "{{count}} dades no coincideixen amb el registre: {{fields}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    difference:
+                        "a {{field}}, la inscripció diu “{{enrollment}}” i el registre diu “{{registry}}”",
+                    noVoter:
+                        "Cap votant del registre té aquestes dades. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    severalVoters:
+                        "Més d'un votant del registre encaixa amb aquesta inscripció. Una persona tria el correcte.",
+                    pending:
+                        "Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    unknown: "Aquesta inscripció està a l'espera que una persona decideixi.",
+                    approvedAuto:
+                        "Les regles d'aprovació van aprovar aquesta inscripció automàticament. Es van superar totes les comprovacions que exigeixen.",
+                    approvedBy: "{{name}} va aprovar aquesta inscripció el {{date}}.",
+                    rejectedAuto:
+                        "Les regles d'aprovació van rebutjar aquesta inscripció automàticament: {{reason}}.",
+                    rejectedBy: "{{name}} va rebutjar aquesta inscripció el {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "Hem cercat votants amb les mateixes dades: {{fields}}. Trieu aquell a qui pertany aquesta inscripció.",
+                registrySearching:
+                    "Aquests són els votants del registre que coincideixen amb la vostra cerca. Trieu aquell a qui pertany aquesta inscripció.",
+                registrySearch:
+                    "No és a la llista? Cerqueu al registre per nom o correu electrònic",
+                registryLoading: "S'està cercant al registre",
+                registryError: "No s'ha pogut cercar al registre.",
+                noCandidates:
+                    "Cap votant del registre coincideix. Proveu de cercar per nom o correu electrònic.",
+                candidates: "Votants del registre",
+                alreadyEnrolled: "Ja inscrit",
+                bestMatch: "Millor coincidència",
+                detailsMatch: "Coincideixen {{count}} de {{total}} dades",
+                compareTitle: "Comparació amb {{name}} al registre",
+                col: {
+                    detail: "Dada",
+                    enrollment: "A la inscripció",
+                    registry: "Al registre",
+                    result: "Resultat",
+                },
+                same: "Igual",
+                differs: "Diferent",
+                compareNote: "En els noms no es tenen en compte majúscules, accents ni guionets.",
+                compareJoint:
+                    "Per a permisos de conduir i llibretes de mariner, el nom i el segon nom es comparen junts.",
+                applicationId: "ID de la sol·licitud",
+                copy: "Copia",
+                copied: "Copiat",
+                approve: "Aprova la inscripció",
+                approveDialog: {
+                    title: "Voleu aprovar {{name}}?",
+                    body: "Això vincula la inscripció amb el votant del registre que apareix a sota. S'avisa el votant per correu electrònic o SMS i podrà iniciar la sessió per votar quan s'obri la votació.",
+                    checked: "Heu comprovat el document d'identitat del votant cara a cara.",
+                    irreversible: "Això no es pot desfer.",
+                    confirm: "Aprova",
+                },
+                reject: "Rebutja la inscripció",
+            },
+            idCheck: {
+                title: "Comprovació del document",
+                method: {
+                    VERIFIED: "Document escanejat i verificat",
+                    MANUAL_ENTRY: "Escrit a mà",
+                    UNKNOWN: "No indicat",
+                },
+                verified: "El procés d'inscripció va verificar el document d'identitat del votant",
+                typedByHand: "El votant va escriure les seves dades a mà",
+                unknown: "El procés d'inscripció no va indicar com es va comprovar la identitat",
+                faceToFaceTitle: "Comproveu-ne la identitat cara a cara abans d'aprovar",
+                faceToFaceText:
+                    "Reuniu-vos amb el votant en persona o per videotrucada i compareu el seu document d'identitat amb les dades d'aquesta pàgina.",
+            },
+            reject: {
+                rejectReason: "Motiu del rebuig",
+                message: "Missatge per al votant",
+                messageRequired: "Escriviu un missatge per al votant quan el motiu sigui Altre.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Dades insuficients",
+                    "no-matching-voter": "Votant no trobat",
+                    "voter-already-approved": "Ja aprovat",
+                    "other": "Altre",
+                },
+                hint: {
+                    "insufficient-information": "Falten dades o no es poden llegir.",
+                    "no-matching-voter": "La persona no és al registre de votants.",
+                    "voter-already-approved": "Aquest votant ja està inscrit.",
+                    "other": "Escriviu el vostre propi missatge.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "No us hem pogut inscriure perquè falten algunes de les vostres dades o no es poden llegir. Torneu a inscriure-us amb les dades completes.",
+                    "no-matching-voter":
+                        "No hem trobat al registre cap votant que coincideixi amb les vostres dades. Reviseu les dades i torneu a inscriure-us, o poseu-vos en contacte amb la vostra oficina electoral.",
+                    "voter-already-approved":
+                        "Ja esteu inscrit. Podreu iniciar la sessió per votar quan s'obri la votació.",
+                },
+                previewTitle: "El votant veurà",
+            },
             notifications: {
-                approveError: "Error en aprovar el votant",
-                approveSuccess: "Votant aprovat",
-                rejectError: "Error en rebutjar el votant",
-                rejectSuccess: "Votant rebutjat",
-                VoterApprovedAlready: "El votant ja està aprovat.",
+                approveError: "No s'ha pogut aprovar la inscripció",
+                approveSuccess: "Inscripció de {{name}} aprovada. S'ha avisat el votant.",
+                rejectError: "No s'ha pogut rebutjar la inscripció",
+                rejectSuccess: "Inscripció de {{name}} rebutjada. S'ha avisat el votant.",
+                VoterApprovedAlready: "Aquest votant ja està inscrit.",
             },
             export: {
-                success: "L'exportació d'aplicacions s'ha completat amb èxit",
-                error: "Error en exportar les aplicacions",
+                success: "L'exportació de sol·licituds s'ha completat amb èxit",
+                error: "Error en exportar les sol·licituds",
+            },
+            matrix: {
+                button: "Matriu d'aprovació",
+                title: "Matriu d'aprovació",
+                back: "Aprovacions",
+                subtitle:
+                    "Les regles decideixen què passa amb cada inscripció. Decideix la primera regla que es compleix.",
+                versionChip: "Versió {{version}}",
+                savedBy: "Desada el {{date}} per {{user}}",
+                builtIn: "Regles integrades, en ús fins que es desi una versió",
+                unsaved: "Canvis sense desar",
+                viewOnly: "Només lectura",
+                readOnlyTitle: "Podeu veure les regles, però no canviar-les",
+                readOnlyText:
+                    "Demaneu a un administrador que tingui el permís approval-matrix-write que faci els canvis.",
+                loadError: "No s'ha pogut carregar la matriu d'aprovació.",
+                compared: "Què comparem",
+                comparedHelp:
+                    "Cada inscripció es compara amb el votant trobat al registre. En els noms no es tenen en compte majúscules, accents ni guionets; per a permisos de conduir i llibretes de mariner, el nom i el segon nom es comparen junts.",
+                addCompared: "Compara una altra dada",
+                rules: "Regles",
+                rulesHelp:
+                    "Les regles es comproven des de dalt. Decideix la primera que es compleix; si no se'n compleix cap, s'aplica l'última regla.",
+                when: "Quan",
+                then: "Aleshores",
+                otherwise: "Altrament",
+                noneApply: "No s'aplica cap de les regles anteriors",
+                andWord: "i",
+                and: " i ",
+                appliesToExample: "S'aplica al vostre exemple",
+                cameFrom: "Va decidir la inscripció des de la qual heu arribat",
+                voterIsTold: "Al votant se li diu: “{{reason}}”.",
+                sentence: "Quan {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Si no s'aplica cap de les regles anteriors, {{outcome}}.",
+                sentenceEmpty: "Afegiu una condició per indicar quan s'aplica aquesta regla.",
+                addRule: "Afegeix una regla",
+                discard: "Descarta els canvis",
+                actions: {
+                    edit: "Edita la regla {{number}}",
+                    editOtherwise: "Edita l'última regla",
+                    moveUp: "Puja la regla {{number}}",
+                    moveDown: "Baixa la regla {{number}}",
+                    delete: "Elimina la regla {{number}}",
+                },
+                saveBar: {
+                    title: "Teniu canvis sense desar",
+                    fix_one: "Corregiu 1 regla abans de desar",
+                    fix_other: "Corregiu {{count}} regles abans de desar",
+                    more: "+{{count}} més",
+                },
+                test: "Prova un exemple",
+                testHelp:
+                    "Descriviu una inscripció per veure quina regla la decideix. Els canvis sense desar també compten.",
+                testDetails: "Dades comparades",
+                applies: "S'aplica la regla {{number}}",
+                otherwiseApplies: "S'aplica l'última regla",
+                testError: "No s'ha pogut provar l'exemple.",
+                testInvalid: "Corregiu aquestes regles per provar un exemple:",
+                ruleError: "Regla {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Una identitat escrita a mà mai s'aprova automàticament, de manera que això s'envia a una persona.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Un votant que ja està inscrit mai s'aprova de nou.",
+                    NO_VOTER_NOT_ACCEPTED: "No s'aprova ningú sense un votant al registre.",
+                    OTHERWISE_NOT_ACCEPTED: "L'última regla mai aprova.",
+                },
+                dialog: {
+                    editTitle: "Edita la regla {{number}}",
+                    newTitle: "Regla nova",
+                    otherwiseTitle: "Edita l'última regla",
+                    summary: "En resum",
+                    whenHelp: "S'han de complir totes. Ometeu una condició quan no importi.",
+                    otherwiseHelp: "Si no s'aplica cap de les regles anteriors",
+                    addCondition: "Afegeix una condició",
+                    remove: "Treu “{{condition}}”",
+                    identity: "Comprovació d'identitat",
+                    voterFound: "Votant al registre",
+                    alreadyEnrolled: "Ja inscrit",
+                    validId: "Tipus de document",
+                    differing: "Dades que difereixen",
+                    decision: "Decisió",
+                    reason: "Què es diu al votant",
+                    voterSees: "El votant veu",
+                    apply: "Aplica",
+                    close: "Tanca",
+                    yes: "Sí",
+                    no: "No",
+                    notReported: "No indicat",
+                },
+                identity: {
+                    VERIFIED: "Verificada amb document escanejat",
+                    MANUAL_ENTRY: "Escrita a mà",
+                },
+                differing: {
+                    none: "Cap",
+                    exactly_1: "Exactament 1",
+                    at_most_1: "Com a màxim 1",
+                    exactly_2: "Exactament 2",
+                    at_most_2: "Com a màxim 2",
+                    at_least_3: "3 o més",
+                },
+                fieldMatch: {
+                    MATCHES: "Igual",
+                    DIFFERS: "Diferent",
+                },
+                decisions: {
+                    ACCEPTED: "Aprova automàticament",
+                    PENDING: "Envia a una persona",
+                    REJECTED: "Rebutja",
+                },
+                outcomeShort: {
+                    ACCEPTED: "aprovar automàticament",
+                    PENDING: "enviar a una persona",
+                    REJECTED: "rebutjar",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "El votant queda inscrit sense que ningú ho revisi.",
+                    PENDING:
+                        "Decideix un funcionari, i al votant se li diu que la seva inscripció està en revisió.",
+                    REJECTED: "Al votant se li diu el motiu, i pot tornar a inscriure's.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "s'aprova la inscripció automàticament",
+                    PENDING: "s'envia la inscripció a una persona",
+                    REJECTED: "es rebutja la inscripció",
+                },
+                reasons: {
+                    NO_VOTER: "Votant no trobat",
+                    ALREADY_APPROVED: "Ja aprovat",
+                    INSUFFICIENT_INFORMATION: "Dades insuficients",
+                    IDENTITY_NOT_VERIFIED: "Identitat no verificada",
+                    OTHER: "Altre",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "No hem trobat al registre cap votant que coincideixi amb les vostres dades. Reviseu les dades i torneu a inscriure-us, o poseu-vos en contacte amb la vostra oficina electoral.",
+                    ALREADY_APPROVED:
+                        "Ja esteu inscrit. Podreu iniciar la sessió per votar quan s'obri la votació.",
+                    INSUFFICIENT_INFORMATION:
+                        "No us hem pogut inscriure perquè falten algunes de les vostres dades o no es poden llegir. Torneu a inscriure-us amb les dades completes.",
+                    IDENTITY_NOT_VERIFIED:
+                        "No hem pogut verificar la vostra identitat automàticament, de manera que un funcionari electoral revisarà la vostra inscripció.",
+                    OTHER: "Un funcionari electoral escriu aquest missatge quan decideix.",
+                },
+                conditions: {
+                    any: "Encara no hi ha condicions",
+                    identity: {
+                        VERIFIED: "Identitat verificada amb document escanejat",
+                        MANUAL_ENTRY: "Identitat escrita a mà",
+                    },
+                    voterFound: {
+                        true: "Votant trobat al registre",
+                        false: "Cap votant trobat al registre",
+                    },
+                    alreadyEnrolled: {
+                        true: "Ja inscrit",
+                        false: "Encara no inscrit",
+                    },
+                    validId: "Document: {{id}}",
+                    differing: {
+                        none: "Totes les dades coincideixen",
+                        exactly_1: "Exactament 1 dada difereix",
+                        at_most_1: "Com a màxim 1 dada difereix",
+                        exactly_2: "Exactament 2 dades difereixen",
+                        at_most_2: "Com a màxim 2 dades difereixen",
+                        at_least_3: "3 o més dades difereixen",
+                    },
+                    field: {
+                        MATCHES: "{{field}} coincideix",
+                        DIFFERS: "{{field}} difereix",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Les inscripcions amb la identitat escrita a mà no es poden aprovar automàticament.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un votant que ja està inscrit no es pot aprovar de nou.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "No es pot aprovar una inscripció sense un votant al registre.",
+                    OTHERWISE_ACCEPTS:
+                        "L'última regla pot enviar inscripcions a una persona o rebutjar-les, però no aprovar-les.",
+                    MISSING_REASON: "Trieu què es diu al votant.",
+                    UNEXPECTED_REASON: "Una aprovació no té motiu.",
+                    NO_COMPARED_FIELDS: "Trieu almenys una dada per comparar amb el registre.",
+                    DUPLICATE_COMPARED_FIELD: "Hi ha una dada comparada repetida.",
+                    UNKNOWN_FIELD: "Una regla fa servir una dada que no es compara.",
+                    NO_CONDITIONS:
+                        "Afegiu almenys una condició. Només l'última regla s'aplica a tota la resta.",
+                },
+                change: {
+                    added: "Regla {{number}} afegida",
+                    decision: "Regla {{number}}: {{from}} → {{to}}",
+                    edited: "Regla {{number}} modificada",
+                    removed: "S'ha eliminat una regla ({{text}})",
+                    moved: "S'han reordenat les regles",
+                    otherwise: "L'última regla ha canviat",
+                    compared: "Les dades comparades han canviat",
+                },
+                save: {
+                    button: "Desa com a versió {{version}}",
+                    title: "Voleu desar com a versió {{version}}?",
+                    body: "A partir d'ara, les noves inscripcions es decideixen amb aquestes regles. Les inscripcions ja decidides conserven la seva decisió.",
+                    changes: "Què ha canviat",
+                    log: "La nova versió queda anotada a la bitàcola electoral.",
+                    confirm: "Desa la versió {{version}}",
+                    success: "Desada com a versió {{version}}",
+                    error: "No s'ha pogut desar la matriu d'aprovació",
+                },
             },
         },
         monitoring: {

@@ -1561,6 +1561,7 @@ const basqueTranslation: TranslationType = {
                 "task-export": "Esportatu Atazak",
                 "application-read": "Irakurri Aplikazioa",
                 "application-write": "Editatu Aplikazioa",
+                "approval-matrix-write": "Editatu Onarpen Matrizea",
                 "logs-export": "Esportatu Egunkariak",
                 "election-event-logs-columns": "Hauteskunde Gertaera Egunkarien Zutabeak",
                 "election-events-logs-filters": "Hauteskunde Gertaera Egunkarien Iragazkiak",
@@ -2939,46 +2940,439 @@ const basqueTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Egoera",
-                id: "IDa",
-                applicantId: "Eskaera Egilearen IDa",
-                verificationType: "Egiaztapen Mota",
-                createdAt: "Sortua:",
-                updatedAt: "Eguneratua:",
-                verified_by: "Egiaztatua:",
+                id: "Eskaeraren IDa",
+                applicantId: "Eskatzailearen IDa",
+                verificationType: "Egiaztapena",
+                createdAt: "Eskatua",
+                verified_by: "Egiaztatzailea",
+                voter: "Bozkatzailea",
+                what: "Zer gertatu den",
+                post: "Postua",
+                when: "Noiz",
             },
-            approvalRequest: "Onespen Eskaria",
-            taskInformation: "Ataza Informazioa",
-            ok: "Ados",
-            title: "Bozkatzaileak",
-            subtitle: "Aurkitu bat datozen bozkatzaileak",
-            approve: {
-                body: "Ziur zaude bozkatzaile hau onartu nahi duzula? Ekintza hau ezin da alderantzikatu.",
+            status: {
+                PENDING: "Berrikusteko",
+                ACCEPTED: "Onartua",
+                REJECTED: "Baztertua",
             },
-            reject: {
-                label: "Baztertu Eskaera",
-                confirm:
-                    "Ziur zaude bozkatzaile hau baztertu nahi duzula? Ekintza hau ezin da alderantzikatu.",
-                rejectReason: "Baztertze Arrazoia",
-                message: "Idatzi hemen baztertze arrazoia",
-                messageRequired: "'Bestelako' aukerarako baztertze mezu bat beharrezkoa da.",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Datu Falta",
-                    "no-matching-voter": "Ez dago Bat Datorren Bozkatzailerik",
-                    "voter-already-approved": "Jadanik Onartua",
-                    "other": "Bestelakoa",
+            verification: {
+                AUTOMATIC: "Automatikoa",
+                MANUAL: "Eskuzkoa",
+            },
+            time: {
+                minutes_one: "minutu {{count}}",
+                minutes_other: "{{count}} minutu",
+                hours_one: "ordu {{count}}",
+                hours_other: "{{count}} ordu",
+                days_one: "egun {{count}}",
+                days_other: "{{count}} egun",
+            },
+            summary: {
+                join: "{{head}} eta {{last}}",
+                differs_one: "{{fields}} ez dator bat erregistroarekin",
+                differs_other: "{{fields}} ez datoz bat erregistroarekin",
+                typedByHand:
+                    "Datuak eskuz idatzita daude, ez dira eskaneatutako agiri batetik irakurri",
+                needsFaceToFace: "Aurrez aurreko egiaztapena behar du",
+                scanVerified: "Eskaneatutako agiria egiaztatuta",
+                noVoter: "Ez da bozkatzailerik aurkitu erregistroan",
+                allMatch: "Datu guztiak bat datoz erregistroarekin",
+                needsReview: "Pertsona batek erabaki zain",
+                approvedBy: "Onartzailea: {{name}}",
+                approvedAuto: "Automatikoki onartua",
+                rejectedBy: "Baztertzailea: {{name}}",
+                rejectedAuto: "Automatikoki baztertua",
+            },
+            list: {
+                title: "Onarpenak",
+                subtitle:
+                    "Arauek beren kabuz erabaki ezin dituzten izen-emateak hemen daude pertsona baten zain.",
+                search: "Bilatu",
+                review: "Berrikusi izen-ematea",
+                openRecord: "Ireki izen-ematea",
+                seeRule: "Ikusi erabaki zuen araua",
+                unnamed: "Izenik gabeko eskatzailea",
+                waiting: "Zain: {{time}}",
+                applied: "Eskaera-data: {{date}}",
+                empty: {
+                    title: "Ez dago ezer hemen",
+                    text: "Egoera hau duten izen-emateak hemen agertuko dira. Saiatu beste bilaketa edo egoera batekin.",
                 },
             },
+            flow: {
+                stepsLabel: "Berrikuspenaren urratsak",
+                steps: {
+                    identity: "Egiaztatu identitatea",
+                    voter: "Bilatu bozkatzailea",
+                    decide: "Erabaki",
+                },
+                continue: "Jarraitu",
+                backToList: "Itzuli Onarpenetara",
+                identity: {
+                    details: "Izen-emateko datuak",
+                    confirm:
+                        "Bozkatzailearen identifikazio agiria aurrez aurre edo bideo-deiz egiaztatu dut, eta bat dator izen-emate honekin.",
+                    checked: "Aurrez aurreko egiaztapena berretsita",
+                    notChecked: "Aurrez aurreko egiaztapena oraindik berretsi gabe",
+                },
+                voter: {
+                    none: "Hauetako bat ere ez da bozkatzailea",
+                    noneHint:
+                        "Orduan izen-ematea baztertu baino ezin da egin, bat datorren bozkatzailerik ez dagoelako.",
+                    noneChosen: "Hauetako bat ere ez da bozkatzailea",
+                    notChosen: "Oraindik ez da bozkatzailerik aukeratu",
+                },
+                decide: {
+                    approve: "Onartu",
+                    reject: "Baztertu",
+                    approveText:
+                        "Lotu izen-emate hau erregistroko bozkatzaile honekin: {{voter}}. Bozkatzaileari posta elektronikoz edo SMS bidez jakinarazten zaio, eta bozketa irekitzen denean saioa hasi ahal izango du botoa emateko.",
+                    rejectText: "Bozkatzaileari arrazoia esaten zaio. Hau ezin da desegin.",
+                    chooseVoter: "Onartzeko, aukeratu bat datorren bozkatzailea 2. urratsean.",
+                    noVoter:
+                        "Ez duzu bat datorren bozkatzailerik aurkitu, beraz izen-emate hau baztertu baino ezin da egin.",
+                    enrolled: "Aukeratutako bozkatzaileak dagoeneko izena emanda du.",
+                    faceToFace: "Onartzeko, berretsi aurrez aurreko egiaztapena 1. urratsean.",
+                },
+            },
+            review: {
+                loadError: "Ezin izan da izen-ematea kargatu.",
+                applied: "Eskaera-data: {{date}}",
+                waiting: "Zain: {{time}}",
+                whyTitle: "Zergatik behar den pertsona bat",
+                decisionTitle: "Nola erabaki zen",
+                rule: "Matrizearen {{version}}. bertsioko {{rule}}. araua",
+                ruleLast: "Matrizearen {{version}}. bertsioko azken araua",
+                seeRule: "Ikusi araua",
+                why: {
+                    typedByHand:
+                        "Bozkatzaileak bere datuak eskuz idatzi ditu, identifikazio agiri bat eskaneatu beharrean. Horrelako izen-emateak ez dira inoiz automatikoki onartzen: lehenik funtzionario batek berresten du nor den.",
+                    differs_one:
+                        "Datu bat ez dator bat erregistroarekin: {{details}}. Onarpen-arauek pertsona batek izen-emate hau egiaztatzea eskatzen dute.",
+                    differs_other:
+                        "{{count}} datu ez datoz bat erregistroarekin: {{details}}. Onarpen-arauek pertsona batek izen-emate hau egiaztatzea eskatzen dute.",
+                    differsFields_one:
+                        "Datu bat ez dator bat erregistroarekin: {{fields}}. Onarpen-arauek pertsona batek izen-emate hau egiaztatzea eskatzen dute.",
+                    differsFields_other:
+                        "{{count}} datu ez datoz bat erregistroarekin: {{fields}}. Onarpen-arauek pertsona batek izen-emate hau egiaztatzea eskatzen dute.",
+                    difference:
+                        "{{field}}: izen-ematean “{{enrollment}}” dago eta erregistroan “{{registry}}”",
+                    noVoter:
+                        "Erregistroko bozkatzaile batek ere ez ditu datu hauek. Onarpen-arauek pertsona batek izen-emate hau egiaztatzea eskatzen dute.",
+                    severalVoters:
+                        "Erregistroko bozkatzaile bat baino gehiago dator bat izen-emate honekin. Pertsona batek aukeratzen du zuzena.",
+                    pending:
+                        "Onarpen-arauek pertsona batek izen-emate hau egiaztatzea eskatzen dute.",
+                    unknown: "Izen-emate hau pertsona batek erabaki zain dago.",
+                    approvedAuto:
+                        "Onarpen-arauek automatikoki onartu dute izen-emate hau. Eskatzen dituzten egiaztapen guztiak gainditu dira.",
+                    approvedBy: "{{name}} erabiltzaileak onartu du izen-emate hau. Data: {{date}}.",
+                    rejectedAuto:
+                        "Onarpen-arauek automatikoki baztertu dute izen-emate hau: {{reason}}.",
+                    rejectedBy:
+                        "{{name}} erabiltzaileak baztertu du izen-emate hau. Data: {{date}}. Arrazoia: {{reason}}.",
+                },
+                registryHelp:
+                    "Datu berdinak dituzten bozkatzaileak bilatu ditugu: {{fields}}. Aukeratu izen-emate hau norena den.",
+                registrySearching:
+                    "Hauek dira zure bilaketarekin bat datozen erregistroko bozkatzaileak. Aukeratu izen-emate hau norena den.",
+                registrySearch:
+                    "Ez dago zerrendan? Bilatu erregistroan izenaren edo helbide elektronikoaren arabera",
+                registryLoading: "Erregistroan bilatzen",
+                registryError: "Ezin izan da erregistroan bilatu.",
+                noCandidates:
+                    "Erregistroko bozkatzaile bat ere ez dator bat. Saiatu izenaren edo helbide elektronikoaren arabera bilatzen.",
+                candidates: "Erregistroko bozkatzaileak",
+                alreadyEnrolled: "Dagoeneko izena emanda",
+                bestMatch: "Bat-etortze onena",
+                detailsMatch: "{{total}} datutik {{count}} bat datoz",
+                compareTitle: "Erregistroko {{name}} bozkatzailearekin alderatuta",
+                col: {
+                    detail: "Datua",
+                    enrollment: "Izen-ematean",
+                    registry: "Erregistroan",
+                    result: "Emaitza",
+                },
+                same: "Berdina",
+                differs: "Desberdina",
+                compareNote:
+                    "Izenetan ez dira kontuan hartzen maiuskulak, azentuak eta marratxoak.",
+                compareJoint:
+                    "Gidabaimenetan eta itsasgizon-liburuetan, izena eta bigarren izena batera alderatzen dira.",
+                applicationId: "Eskaeraren IDa",
+                copy: "Kopiatu",
+                copied: "Kopiatuta",
+                approve: "Onartu izen-ematea",
+                approveDialog: {
+                    title: "{{name}} onartu?",
+                    body: "Honek izen-ematea beheko erregistroko bozkatzailearekin lotzen du. Bozkatzaileari posta elektronikoz edo SMS bidez jakinarazten zaio, eta bozketa irekitzen denean saioa hasi ahal izango du botoa emateko.",
+                    checked: "Bozkatzailearen identifikazio agiria aurrez aurre egiaztatu duzu.",
+                    irreversible: "Hau ezin da desegin.",
+                    confirm: "Onartu",
+                },
+                reject: "Baztertu izen-ematea",
+            },
+            idCheck: {
+                title: "Agiriaren egiaztapena",
+                method: {
+                    VERIFIED: "Eskaneatutako agiria egiaztatuta",
+                    MANUAL_ENTRY: "Eskuz idatzita",
+                    UNKNOWN: "Ez da adierazi",
+                },
+                verified: "Izen-emate prozesuak bozkatzailearen identifikazio agiria egiaztatu du",
+                typedByHand: "Bozkatzaileak bere datuak eskuz idatzi ditu",
+                unknown: "Izen-emate prozesuak ez du adierazi identitatea nola egiaztatu den",
+                faceToFaceTitle: "Egiaztatu bozkatzailea aurrez aurre onartu aurretik",
+                faceToFaceText:
+                    "Elkartu bozkatzailearekin aurrez aurre edo bideo-deiz, eta alderatu haren identifikazio agiria orri honetako datuekin.",
+            },
+            reject: {
+                rejectReason: "Baztertzeko arrazoia",
+                message: "Bozkatzailearentzako mezua",
+                messageRequired: "Idatzi mezu bat bozkatzailearentzat arrazoia Bestelakoa denean.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Datuak falta dira",
+                    "no-matching-voter": "Ez dago bat datorren bozkatzailerik",
+                    "voter-already-approved": "Dagoeneko onartua",
+                    "other": "Bestelakoa",
+                },
+                hint: {
+                    "insufficient-information": "Datuak falta dira edo ezin dira irakurri.",
+                    "no-matching-voter": "Pertsona ez dago bozkatzaileen erregistroan.",
+                    "voter-already-approved": "Bozkatzaile honek dagoeneko izena emanda du.",
+                    "other": "Idatzi zure mezua.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Ezin izan dugu zure izen-ematea egin, zure datu batzuk falta direlako edo ezin direlako irakurri. Eman izena berriro datu osoekin.",
+                    "no-matching-voter":
+                        "Ez dugu erregistroan zure datuekin bat datorren bozkatzailerik aurkitu. Egiaztatu zure datuak eta eman izena berriro, edo jarri harremanetan zure hauteskunde-bulegoarekin.",
+                    "voter-already-approved":
+                        "Dagoeneko izena emanda duzu. Bozketa irekitzen denean saioa hasi ahal izango duzu botoa emateko.",
+                },
+                previewTitle: "Bozkatzaileak hau ikusiko du",
+            },
             notifications: {
-                approveError: "Errorea bozkatzailea onartzean",
-                approveSuccess: "Bozkatzailea onartua",
-                rejectError: "Errorea bozkatzailea baztertzean",
-                rejectSuccess: "Bozkatzailea baztertua",
-                VoterApprovedAlready: "Bozkatzailea jadanik onartua dago.",
+                approveError: "Ezin izan da izen-ematea onartu",
+                approveSuccess: "{{name}}: onartua. Bozkatzaileari jakinarazi zaio.",
+                rejectError: "Ezin izan da izen-ematea baztertu",
+                rejectSuccess: "{{name}}: baztertua. Bozkatzaileari jakinarazi zaio.",
+                VoterApprovedAlready: "Bozkatzaile honek dagoeneko izena emanda du.",
             },
             export: {
-                success: "Aplikazioen esportazioa arrakastaz amaitua",
-                error: "Errorea aplikazioak esportatzerakoan",
+                success: "Eskaeren esportazioa ondo amaitu da",
+                error: "Errorea eskaerak esportatzean",
+            },
+            matrix: {
+                button: "Onarpen matrizea",
+                title: "Onarpen matrizea",
+                back: "Onarpenak",
+                subtitle:
+                    "Arauek erabakitzen dute izen-emate bakoitzarekin zer gertatzen den. Betetzen den lehen arauak erabakitzen du.",
+                versionChip: "{{version}}. bertsioa",
+                savedBy: "{{user}} erabiltzaileak gordea, {{date}}",
+                builtIn: "Arau integratuak, bertsio bat gorde arte erabiltzen dira",
+                unsaved: "Gorde gabeko aldaketak",
+                viewOnly: "Ikusteko soilik",
+                readOnlyTitle: "Arauak ikus ditzakezu, baina ezin dituzu aldatu",
+                readOnlyText:
+                    "Eskatu approval-matrix-write baimena duen administratzaile bati aldaketak egiteko.",
+                loadError: "Ezin izan da onarpen matrizea kargatu.",
+                compared: "Zer alderatzen dugun",
+                comparedHelp:
+                    "Izen-emate bakoitza erregistroan aurkitutako bozkatzailearekin alderatzen da. Izenetan ez dira kontuan hartzen maiuskulak, azentuak eta marratxoak; gidabaimenetan eta itsasgizon-liburuetan, izena eta bigarren izena batera alderatzen dira.",
+                addCompared: "Alderatu beste datu bat",
+                rules: "Arauak",
+                rulesHelp:
+                    "Arauak goitik behera egiaztatzen dira. Betetzen den lehenak erabakitzen du; bat ere betetzen ez bada, azken araua aplikatzen da.",
+                when: "Noiz",
+                then: "Orduan",
+                otherwise: "Bestela",
+                noneApply: "Goiko arauetako bat ere ez da aplikatzen",
+                andWord: "eta",
+                and: " eta ",
+                appliesToExample: "Zure adibideari aplikatzen zaio",
+                cameFrom: "Zatozen izen-ematea erabaki zuen",
+                voterIsTold: "Bozkatzaileari hau esaten zaio: “{{reason}}”.",
+                sentence: "Baldintza hauek betetzen direnean: {{when}}; {{outcome}}.",
+                sentenceOtherwise: "Goiko arauetako bat ere aplikatzen ez bada, {{outcome}}.",
+                sentenceEmpty: "Gehitu baldintza bat arau hau noiz aplikatzen den adierazteko.",
+                addRule: "Gehitu araua",
+                discard: "Baztertu aldaketak",
+                actions: {
+                    edit: "Editatu {{number}}. araua",
+                    editOtherwise: "Editatu azken araua",
+                    moveUp: "Igo {{number}}. araua",
+                    moveDown: "Jaitsi {{number}}. araua",
+                    delete: "Ezabatu {{number}}. araua",
+                },
+                saveBar: {
+                    title: "Gorde gabeko aldaketak dituzu",
+                    fix_one: "Zuzendu arau 1 gorde aurretik",
+                    fix_other: "Zuzendu {{count}} arau gorde aurretik",
+                    more: "+{{count}} gehiago",
+                },
+                test: "Probatu adibide bat",
+                testHelp:
+                    "Deskribatu izen-emate bat zein arauk erabakitzen duen ikusteko. Gorde gabeko aldaketak ere kontuan hartzen dira.",
+                testDetails: "Alderatutako datuak",
+                applies: "{{number}}. araua aplikatzen da",
+                otherwiseApplies: "Azken araua aplikatzen da",
+                testError: "Ezin izan da adibidea probatu.",
+                testInvalid: "Zuzendu arau hauek adibide bat probatzeko:",
+                ruleError: "{{number}}. araua: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Eskuz idatzitako identitatea ez da inoiz automatikoki onartzen, beraz hau pertsona bati bidaltzen zaio.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Dagoeneko izena emanda duen bozkatzailea ez da inoiz berriro onartzen.",
+                    NO_VOTER_NOT_ACCEPTED: "Ez da inor onartzen erregistroan bozkatzailerik gabe.",
+                    OTHERWISE_NOT_ACCEPTED: "Azken arauak ez du inoiz onartzen.",
+                },
+                dialog: {
+                    editTitle: "Editatu {{number}}. araua",
+                    newTitle: "Arau berria",
+                    otherwiseTitle: "Editatu azken araua",
+                    summary: "Laburbilduz",
+                    whenHelp:
+                        "Hauek guztiak bete behar dira. Utzi baldintza bat kanpoan garrantzirik ez duenean.",
+                    otherwiseHelp: "Goiko arauetako bat ere aplikatzen ez bada",
+                    addCondition: "Gehitu baldintza",
+                    remove: "Kendu “{{condition}}”",
+                    identity: "Identitatearen egiaztapena",
+                    voterFound: "Bozkatzailea erregistroan",
+                    alreadyEnrolled: "Dagoeneko izena emanda",
+                    validId: "Agiri mota",
+                    differing: "Desberdinak diren datuak",
+                    decision: "Erabakia",
+                    reason: "Bozkatzaileari zer esaten zaion",
+                    voterSees: "Bozkatzaileak hau ikusten du",
+                    apply: "Aplikatu",
+                    close: "Itxi",
+                    yes: "Bai",
+                    no: "Ez",
+                    notReported: "Ez da adierazi",
+                },
+                identity: {
+                    VERIFIED: "Eskaneatutako agiriarekin egiaztatua",
+                    MANUAL_ENTRY: "Eskuz idatzia",
+                },
+                differing: {
+                    none: "Bat ere ez",
+                    exactly_1: "Zehazki 1",
+                    at_most_1: "Gehienez 1",
+                    exactly_2: "Zehazki 2",
+                    at_most_2: "Gehienez 2",
+                    at_least_3: "3 edo gehiago",
+                },
+                fieldMatch: {
+                    MATCHES: "Berdina",
+                    DIFFERS: "Desberdina",
+                },
+                decisions: {
+                    ACCEPTED: "Onartu automatikoki",
+                    PENDING: "Bidali pertsona bati",
+                    REJECTED: "Baztertu",
+                },
+                outcomeShort: {
+                    ACCEPTED: "automatikoki onartu",
+                    PENDING: "pertsona bati bidali",
+                    REJECTED: "baztertu",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "Bozkatzaileak izena emanda geratzen da, inork begiratu gabe.",
+                    PENDING:
+                        "Funtzionario batek erabakitzen du, eta bozkatzaileari esaten zaio izen-ematea berrikusten ari direla.",
+                    REJECTED: "Bozkatzaileari arrazoia esaten zaio, eta berriro eman dezake izena.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "izen-ematea automatikoki onartzen da",
+                    PENDING: "izen-ematea pertsona bati bidaltzen zaio",
+                    REJECTED: "izen-ematea baztertzen da",
+                },
+                reasons: {
+                    NO_VOTER: "Ez dago bat datorren bozkatzailerik",
+                    ALREADY_APPROVED: "Dagoeneko onartua",
+                    INSUFFICIENT_INFORMATION: "Datuak falta dira",
+                    IDENTITY_NOT_VERIFIED: "Identitatea ez dago egiaztatuta",
+                    OTHER: "Bestelakoa",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Ez dugu erregistroan zure datuekin bat datorren bozkatzailerik aurkitu. Egiaztatu zure datuak eta eman izena berriro, edo jarri harremanetan zure hauteskunde-bulegoarekin.",
+                    ALREADY_APPROVED:
+                        "Dagoeneko izena emanda duzu. Bozketa irekitzen denean saioa hasi ahal izango duzu botoa emateko.",
+                    INSUFFICIENT_INFORMATION:
+                        "Ezin izan dugu zure izen-ematea egin, zure datu batzuk falta direlako edo ezin direlako irakurri. Eman izena berriro datu osoekin.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Ezin izan dugu zure identitatea automatikoki egiaztatu, beraz hauteskunde-funtzionario batek berrikusiko du zure izen-ematea.",
+                    OTHER: "Hauteskunde-funtzionario batek idazten du mezu hau erabakitzen duenean.",
+                },
+                conditions: {
+                    any: "Oraindik ez dago baldintzarik",
+                    identity: {
+                        VERIFIED: "Identitatea eskaneatutako agiriarekin egiaztatuta",
+                        MANUAL_ENTRY: "Identitatea eskuz idatzita",
+                    },
+                    voterFound: {
+                        true: "Bozkatzailea erregistroan aurkitu da",
+                        false: "Ez da bozkatzailerik aurkitu erregistroan",
+                    },
+                    alreadyEnrolled: {
+                        true: "Dagoeneko izena emanda",
+                        false: "Oraindik izena eman gabe",
+                    },
+                    validId: "Agiria: {{id}}",
+                    differing: {
+                        none: "Datu guztiak bat datoz",
+                        exactly_1: "Zehazki datu 1 desberdina da",
+                        at_most_1: "Gehienez datu 1 desberdina da",
+                        exactly_2: "Zehazki 2 datu desberdinak dira",
+                        at_most_2: "Gehienez 2 datu desberdinak dira",
+                        at_least_3: "3 datu edo gehiago desberdinak dira",
+                    },
+                    field: {
+                        MATCHES: "{{field}} bat dator",
+                        DIFFERS: "{{field}} desberdina da",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Identitatea eskuz idatzita duten izen-emateak ezin dira automatikoki onartu.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Dagoeneko izena emanda duen bozkatzailea ezin da berriro onartu.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Izen-emate bat ezin da onartu erregistroan bozkatzailerik gabe.",
+                    OTHERWISE_ACCEPTS:
+                        "Azken arauak izen-emateak pertsona bati bidali edo baztertu ditzake, baina ez onartu.",
+                    MISSING_REASON: "Aukeratu bozkatzaileari zer esaten zaion.",
+                    UNEXPECTED_REASON: "Onarpen batek ez du arrazoirik.",
+                    NO_COMPARED_FIELDS: "Aukeratu gutxienez datu bat erregistroarekin alderatzeko.",
+                    DUPLICATE_COMPARED_FIELD: "Alderatutako datu bat errepikatuta dago.",
+                    UNKNOWN_FIELD: "Arau batek alderatzen ez den datu bat erabiltzen du.",
+                    NO_CONDITIONS:
+                        "Gehitu gutxienez baldintza bat. Azken araua bakarrik aplikatzen zaio gainerako guztiari.",
+                },
+                change: {
+                    added: "{{number}}. araua gehitu da",
+                    decision: "{{number}}. araua: {{from}} → {{to}}",
+                    edited: "{{number}}. araua aldatu da",
+                    removed: "Arau bat kendu da ({{text}})",
+                    moved: "Arauen ordena aldatu da",
+                    otherwise: "Azken araua aldatu da",
+                    compared: "Alderatutako datuak aldatu dira",
+                },
+                save: {
+                    button: "Gorde {{version}}. bertsio gisa",
+                    title: "{{version}}. bertsio gisa gorde?",
+                    body: "Hemendik aurrera izen-emate berriak arau hauekin erabakitzen dira. Dagoeneko erabakitako izen-emateek beren erabakia mantentzen dute.",
+                    changes: "Zer aldatu den",
+                    log: "Bertsio berria hauteskunde-egunkarian jasotzen da.",
+                    confirm: "Gorde {{version}}. bertsioa",
+                    success: "{{version}}. bertsio gisa gorde da",
+                    error: "Ezin izan da onarpen matrizea gorde",
+                },
             },
         },
         monitoring: {

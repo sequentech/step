@@ -1573,6 +1573,7 @@ const frenchTranslation: TranslationType = {
                 "task-export": "Exporter les Tâches",
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
+                "approval-matrix-write": "Modifier la Matrice d'Approbation",
                 "logs-export": "Exporter les Journaux",
                 "election-event-logs-columns": "Colonnes des Journaux de l'Événement Électoral",
                 "election-events-logs-filters": "Filtres des Journaux de l'Événement Électoral",
@@ -2968,46 +2969,443 @@ const frenchTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Statut",
-                id: "ID",
-                applicantId: "ID du Demandeur",
-                verificationType: "Type de Vérification",
-                createdAt: "Créé Le",
-                updatedAt: "Mis à Jour Le",
-                verified_by: "Vérifié Par",
+                id: "ID de la demande",
+                applicantId: "ID du demandeur",
+                verificationType: "Vérification",
+                createdAt: "Demandée",
+                verified_by: "Vérifiée par",
+                voter: "Électeur",
+                what: "Ce qui s'est passé",
+                post: "Poste",
+                when: "Quand",
             },
-            approvalRequest: "Informations d'approbation",
-            taskInformation: "Informations sur la tâche",
-            ok: "D'accord",
-            title: "Électeurs",
-            subtitle: "Rechercher des électeurs correspondants",
-            approve: {
-                body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
+            status: {
+                PENDING: "À examiner",
+                ACCEPTED: "Approuvée",
+                REJECTED: "Rejetée",
             },
-            reject: {
-                label: "Rejeter la demande",
-                confirm:
-                    "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
-                message: "Écrivez ici la raison du rejet",
-                rejectReason: "Raison du rejet",
-                messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Électeur Non Correspondant",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+            verification: {
+                AUTOMATIC: "Automatique",
+                MANUAL: "Manuelle",
+            },
+            time: {
+                minutes_one: "{{count}} minute",
+                minutes_other: "{{count}} minutes",
+                hours_one: "{{count}} heure",
+                hours_other: "{{count}} heures",
+                days_one: "{{count}} jour",
+                days_other: "{{count}} jours",
+            },
+            summary: {
+                join: "{{head}} et {{last}}",
+                differs_one: "{{fields}} ne correspond pas au registre",
+                differs_other: "{{fields}} ne correspondent pas au registre",
+                typedByHand: "Données saisies à la main, non lues sur une pièce d'identité scannée",
+                needsFaceToFace: "Nécessite une vérification en face à face",
+                scanVerified: "Pièce d'identité scannée et vérifiée",
+                noVoter: "Aucun électeur trouvé dans le registre",
+                allMatch: "Toutes les données correspondent au registre",
+                needsReview: "En attente de la décision d'une personne",
+                approvedBy: "Approuvée par {{name}}",
+                approvedAuto: "Approuvée automatiquement",
+                rejectedBy: "Rejetée par {{name}}",
+                rejectedAuto: "Rejetée automatiquement",
+            },
+            list: {
+                title: "Approbations",
+                subtitle:
+                    "Les inscriptions que les règles ne peuvent pas décider seules attendent ici une personne.",
+                search: "Rechercher",
+                review: "Examiner l'inscription",
+                openRecord: "Ouvrir l'inscription",
+                seeRule: "Voir la règle qui a décidé",
+                unnamed: "Demandeur sans nom",
+                waiting: "En attente depuis {{time}}",
+                applied: "Demandée le {{date}}",
+                empty: {
+                    title: "Rien ici",
+                    text: "Les inscriptions ayant ce statut apparaîtront ici. Essayez une autre recherche ou un autre statut.",
                 },
             },
+            flow: {
+                stepsLabel: "Étapes de l'examen",
+                steps: {
+                    identity: "Vérifier l'identité",
+                    voter: "Trouver l'électeur",
+                    decide: "Décider",
+                },
+                continue: "Continuer",
+                backToList: "Retour aux Approbations",
+                identity: {
+                    details: "Données de l'inscription",
+                    confirm:
+                        "J'ai vérifié la pièce d'identité de l'électeur en personne ou par appel vidéo, et elle correspond à cette inscription.",
+                    checked: "Vérification en face à face confirmée",
+                    notChecked: "Vérification en face à face pas encore confirmée",
+                },
+                voter: {
+                    none: "Aucun de ceux-ci n'est l'électeur",
+                    noneHint:
+                        "L'inscription ne peut alors qu'être rejetée, faute d'électeur correspondant.",
+                    noneChosen: "Aucun de ceux-ci n'est l'électeur",
+                    notChosen: "Aucun électeur choisi pour l'instant",
+                },
+                decide: {
+                    approve: "Approuver",
+                    reject: "Rejeter",
+                    approveText:
+                        "Associe cette inscription à {{voter}} dans le registre. L'électeur est prévenu par e-mail ou SMS et pourra se connecter pour voter à l'ouverture du vote.",
+                    rejectText:
+                        "Le motif est communiqué à l'électeur. Cette action est irréversible.",
+                    chooseVoter: "Choisissez l'électeur correspondant à l'étape 2 pour approuver.",
+                    noVoter:
+                        "Vous n'avez trouvé aucun électeur correspondant : cette inscription ne peut donc qu'être rejetée.",
+                    enrolled: "L'électeur choisi est déjà inscrit.",
+                    faceToFace:
+                        "Confirmez la vérification en face à face à l'étape 1 pour approuver.",
+                },
+            },
+            review: {
+                loadError: "L'inscription n'a pas pu être chargée.",
+                applied: "Demandée le {{date}}",
+                waiting: "En attente depuis {{time}}",
+                whyTitle: "Pourquoi une personne doit intervenir",
+                decisionTitle: "Comment la décision a été prise",
+                rule: "Règle {{rule}} de la version {{version}} de la matrice",
+                ruleLast: "Dernière règle de la version {{version}} de la matrice",
+                seeRule: "Voir la règle",
+                why: {
+                    typedByHand:
+                        "L'électeur a saisi ses données à la main au lieu de scanner une pièce d'identité. Ces inscriptions ne sont jamais approuvées automatiquement : un agent confirme d'abord son identité.",
+                    differs_one:
+                        "Une donnée ne correspond pas au registre : {{details}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    differs_other:
+                        "{{count}} données ne correspondent pas au registre : {{details}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    differsFields_one:
+                        "Une donnée ne correspond pas au registre : {{fields}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    differsFields_other:
+                        "{{count}} données ne correspondent pas au registre : {{fields}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    difference:
+                        "pour {{field}}, l'inscription indique “{{enrollment}}” et le registre indique “{{registry}}”",
+                    noVoter:
+                        "Aucun électeur du registre n'a ces données. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    severalVoters:
+                        "Plusieurs électeurs du registre correspondent à cette inscription. Une personne choisit le bon.",
+                    pending:
+                        "Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    unknown: "Cette inscription attend la décision d'une personne.",
+                    approvedAuto:
+                        "Les règles d'approbation ont approuvé cette inscription automatiquement. Toutes les vérifications qu'elles exigent ont réussi.",
+                    approvedBy: "{{name}} a approuvé cette inscription le {{date}}.",
+                    rejectedAuto:
+                        "Les règles d'approbation ont rejeté cette inscription automatiquement : {{reason}}.",
+                    rejectedBy: "{{name}} a rejeté cette inscription le {{date}} : {{reason}}.",
+                },
+                registryHelp:
+                    "Nous avons cherché les électeurs ayant les mêmes données : {{fields}}. Choisissez celui à qui appartient cette inscription.",
+                registrySearching:
+                    "Voici les électeurs du registre qui correspondent à votre recherche. Choisissez celui à qui appartient cette inscription.",
+                registrySearch: "Absent de la liste ? Cherchez dans le registre par nom ou e-mail",
+                registryLoading: "Recherche dans le registre",
+                registryError: "La recherche dans le registre a échoué.",
+                noCandidates:
+                    "Aucun électeur du registre ne correspond. Essayez de chercher par nom ou e-mail.",
+                candidates: "Électeurs du registre",
+                alreadyEnrolled: "Déjà inscrit",
+                bestMatch: "Meilleure correspondance",
+                detailsMatch: "{{count}} données sur {{total}} correspondent",
+                compareTitle: "Comparaison avec {{name}} dans le registre",
+                col: {
+                    detail: "Donnée",
+                    enrollment: "Dans l'inscription",
+                    registry: "Dans le registre",
+                    result: "Résultat",
+                },
+                same: "Identique",
+                differs: "Différent",
+                compareNote:
+                    "Pour les noms, la casse, les accents et les traits d'union sont ignorés.",
+                compareJoint:
+                    "Pour les permis de conduire et les livrets de marin, le prénom et le deuxième prénom sont comparés ensemble.",
+                applicationId: "ID de la demande",
+                copy: "Copier",
+                copied: "Copié",
+                approve: "Approuver l'inscription",
+                approveDialog: {
+                    title: "Approuver {{name}} ?",
+                    body: "L'inscription sera associée à l'électeur du registre ci-dessous. L'électeur est prévenu par e-mail ou SMS et pourra se connecter pour voter à l'ouverture du vote.",
+                    checked: "Vous avez vérifié la pièce d'identité de l'électeur en face à face.",
+                    irreversible: "Cette action est irréversible.",
+                    confirm: "Approuver",
+                },
+                reject: "Rejeter l'inscription",
+            },
+            idCheck: {
+                title: "Vérification de la pièce d'identité",
+                method: {
+                    VERIFIED: "Pièce d'identité scannée et vérifiée",
+                    MANUAL_ENTRY: "Saisie à la main",
+                    UNKNOWN: "Non indiqué",
+                },
+                verified: "Le parcours d'inscription a vérifié la pièce d'identité de l'électeur",
+                typedByHand: "L'électeur a saisi ses données à la main",
+                unknown:
+                    "Le parcours d'inscription n'a pas indiqué comment l'identité a été vérifiée",
+                faceToFaceTitle: "Vérifiez son identité en face à face avant d'approuver",
+                faceToFaceText:
+                    "Rencontrez l'électeur en personne ou par appel vidéo et comparez sa pièce d'identité avec les données de cette page.",
+            },
+            reject: {
+                rejectReason: "Motif du rejet",
+                message: "Message à l'électeur",
+                messageRequired: "Écrivez un message pour l'électeur lorsque le motif est Autre.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données manquantes",
+                    "no-matching-voter": "Aucun électeur correspondant",
+                    "voter-already-approved": "Déjà approuvé",
+                    "other": "Autre",
+                },
+                hint: {
+                    "insufficient-information": "Des données manquent ou sont illisibles.",
+                    "no-matching-voter":
+                        "La personne ne figure pas dans le registre des électeurs.",
+                    "voter-already-approved": "Cet électeur est déjà inscrit.",
+                    "other": "Écrivez votre propre message.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Nous n'avons pas pu vous inscrire, car certaines de vos données manquent ou sont illisibles. Veuillez vous inscrire à nouveau avec des données complètes.",
+                    "no-matching-voter":
+                        "Nous n'avons trouvé dans le registre aucun électeur correspondant à vos données. Vérifiez vos données et inscrivez-vous à nouveau, ou contactez votre bureau électoral.",
+                    "voter-already-approved":
+                        "Vous êtes déjà inscrit. Vous pourrez vous connecter pour voter à l'ouverture du vote.",
+                },
+                previewTitle: "L'électeur verra",
+            },
             notifications: {
-                approveError: "Erreur lors de l'approbation de l'électeur",
-                approveSuccess: "Électeur approuvé",
-                rejectError: "Erreur lors du rejet de l'électeur",
-                rejectSuccess: "Électeur rejeté",
-                VoterApprovedAlready: "L'électeur est déjà approuvé.",
+                approveError: "L'inscription n'a pas pu être approuvée",
+                approveSuccess: "Inscription de {{name}} approuvée. L'électeur a été prévenu.",
+                rejectError: "L'inscription n'a pas pu être rejetée",
+                rejectSuccess: "Inscription de {{name}} rejetée. L'électeur a été prévenu.",
+                VoterApprovedAlready: "Cet électeur est déjà inscrit.",
             },
             export: {
-                success: "L'exportation des applications a été réalisée avec succès",
-                error: "Erreur lors de l'exportation des applications",
+                success: "L'exportation des demandes s'est terminée avec succès",
+                error: "Erreur lors de l'exportation des demandes",
+            },
+            matrix: {
+                button: "Matrice d'approbation",
+                title: "Matrice d'approbation",
+                back: "Approbations",
+                subtitle:
+                    "Les règles décident du sort de chaque inscription. La première règle qui s'applique décide.",
+                versionChip: "Version {{version}}",
+                savedBy: "Enregistrée le {{date}} par {{user}}",
+                builtIn: "Règles intégrées, utilisées jusqu'à l'enregistrement d'une version",
+                unsaved: "Modifications non enregistrées",
+                viewOnly: "Lecture seule",
+                readOnlyTitle: "Vous pouvez voir les règles, mais pas les modifier",
+                readOnlyText:
+                    "Demandez à un administrateur disposant de la permission approval-matrix-write de faire les modifications.",
+                loadError: "La matrice d'approbation n'a pas pu être chargée.",
+                compared: "Ce que nous comparons",
+                comparedHelp:
+                    "Chaque inscription est comparée avec l'électeur trouvé dans le registre. Pour les noms, la casse, les accents et les traits d'union sont ignorés ; pour les permis de conduire et les livrets de marin, le prénom et le deuxième prénom sont comparés ensemble.",
+                addCompared: "Comparer une autre donnée",
+                rules: "Règles",
+                rulesHelp:
+                    "Les règles sont vérifiées à partir du haut. La première qui s'applique décide ; si aucune ne s'applique, la dernière règle s'applique.",
+                when: "Quand",
+                then: "Alors",
+                otherwise: "Sinon",
+                noneApply: "Aucune des règles ci-dessus ne s'applique",
+                andWord: "et",
+                and: " et ",
+                appliesToExample: "S'applique à votre exemple",
+                cameFrom: "A décidé l'inscription d'où vous venez",
+                voterIsTold: "L'électeur reçoit ce message : “{{reason}}”.",
+                sentence: "Quand {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Si aucune des règles ci-dessus ne s'applique, {{outcome}}.",
+                sentenceEmpty: "Ajoutez une condition pour indiquer quand cette règle s'applique.",
+                addRule: "Ajouter une règle",
+                discard: "Annuler les modifications",
+                actions: {
+                    edit: "Modifier la règle {{number}}",
+                    editOtherwise: "Modifier la dernière règle",
+                    moveUp: "Monter la règle {{number}}",
+                    moveDown: "Descendre la règle {{number}}",
+                    delete: "Supprimer la règle {{number}}",
+                },
+                saveBar: {
+                    title: "Vous avez des modifications non enregistrées",
+                    fix_one: "Corrigez 1 règle avant d'enregistrer",
+                    fix_other: "Corrigez {{count}} règles avant d'enregistrer",
+                    more: "+{{count}} de plus",
+                },
+                test: "Essayer un exemple",
+                testHelp:
+                    "Décrivez une inscription pour voir quelle règle en décide. Vos modifications non enregistrées comptent.",
+                testDetails: "Données comparées",
+                applies: "La règle {{number}} s'applique",
+                otherwiseApplies: "La dernière règle s'applique",
+                testError: "L'exemple n'a pas pu être essayé.",
+                testInvalid: "Corrigez ces règles pour essayer un exemple :",
+                ruleError: "Règle {{number}} : {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Une identité saisie à la main n'est jamais approuvée automatiquement : ce cas est donc envoyé à une personne.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Un électeur déjà inscrit n'est jamais approuvé de nouveau.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "Personne n'est approuvé sans électeur dans le registre.",
+                    OTHERWISE_NOT_ACCEPTED: "La dernière règle n'approuve jamais.",
+                },
+                dialog: {
+                    editTitle: "Modifier la règle {{number}}",
+                    newTitle: "Nouvelle règle",
+                    otherwiseTitle: "Modifier la dernière règle",
+                    summary: "En bref",
+                    whenHelp:
+                        "Toutes doivent être vraies. Laissez une condition de côté quand elle n'a pas d'importance.",
+                    otherwiseHelp: "Si aucune des règles ci-dessus ne s'applique",
+                    addCondition: "Ajouter une condition",
+                    remove: "Retirer “{{condition}}”",
+                    identity: "Vérification d'identité",
+                    voterFound: "Électeur dans le registre",
+                    alreadyEnrolled: "Déjà inscrit",
+                    validId: "Type de pièce d'identité",
+                    differing: "Données qui diffèrent",
+                    decision: "Décision",
+                    reason: "Ce qui est dit à l'électeur",
+                    voterSees: "L'électeur voit",
+                    apply: "Appliquer",
+                    close: "Fermer",
+                    yes: "Oui",
+                    no: "Non",
+                    notReported: "Non indiqué",
+                },
+                identity: {
+                    VERIFIED: "Vérifiée par pièce d'identité scannée",
+                    MANUAL_ENTRY: "Saisie à la main",
+                },
+                differing: {
+                    none: "Aucune",
+                    exactly_1: "Exactement 1",
+                    at_most_1: "Au plus 1",
+                    exactly_2: "Exactement 2",
+                    at_most_2: "Au plus 2",
+                    at_least_3: "3 ou plus",
+                },
+                fieldMatch: {
+                    MATCHES: "Identique",
+                    DIFFERS: "Différent",
+                },
+                decisions: {
+                    ACCEPTED: "Approuver automatiquement",
+                    PENDING: "Envoyer à une personne",
+                    REJECTED: "Rejeter",
+                },
+                outcomeShort: {
+                    ACCEPTED: "approuver automatiquement",
+                    PENDING: "envoyer à une personne",
+                    REJECTED: "rejeter",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "L'électeur est inscrit sans que personne n'examine la demande.",
+                    PENDING:
+                        "Un agent décide, et l'électeur est informé que son inscription est en cours d'examen.",
+                    REJECTED:
+                        "Le motif est communiqué à l'électeur, qui peut s'inscrire à nouveau.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "l'inscription est approuvée automatiquement",
+                    PENDING: "l'inscription est envoyée à une personne",
+                    REJECTED: "l'inscription est rejetée",
+                },
+                reasons: {
+                    NO_VOTER: "Aucun électeur correspondant",
+                    ALREADY_APPROVED: "Déjà approuvé",
+                    INSUFFICIENT_INFORMATION: "Données manquantes",
+                    IDENTITY_NOT_VERIFIED: "Identité non vérifiée",
+                    OTHER: "Autre",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Nous n'avons trouvé dans le registre aucun électeur correspondant à vos données. Vérifiez vos données et inscrivez-vous à nouveau, ou contactez votre bureau électoral.",
+                    ALREADY_APPROVED:
+                        "Vous êtes déjà inscrit. Vous pourrez vous connecter pour voter à l'ouverture du vote.",
+                    INSUFFICIENT_INFORMATION:
+                        "Nous n'avons pas pu vous inscrire, car certaines de vos données manquent ou sont illisibles. Veuillez vous inscrire à nouveau avec des données complètes.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Nous n'avons pas pu vérifier votre identité automatiquement : un agent électoral examinera donc votre inscription.",
+                    OTHER: "Un agent électoral écrit ce message au moment de décider.",
+                },
+                conditions: {
+                    any: "Aucune condition pour l'instant",
+                    identity: {
+                        VERIFIED: "Identité vérifiée par pièce d'identité scannée",
+                        MANUAL_ENTRY: "Identité saisie à la main",
+                    },
+                    voterFound: {
+                        true: "Électeur trouvé dans le registre",
+                        false: "Aucun électeur trouvé dans le registre",
+                    },
+                    alreadyEnrolled: {
+                        true: "Déjà inscrit",
+                        false: "Pas encore inscrit",
+                    },
+                    validId: "Pièce d'identité : {{id}}",
+                    differing: {
+                        none: "Toutes les données correspondent",
+                        exactly_1: "Exactement 1 donnée diffère",
+                        at_most_1: "Au plus 1 donnée diffère",
+                        exactly_2: "Exactement 2 données diffèrent",
+                        at_most_2: "Au plus 2 données diffèrent",
+                        at_least_3: "3 données ou plus diffèrent",
+                    },
+                    field: {
+                        MATCHES: "{{field}} correspond",
+                        DIFFERS: "{{field}} diffère",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Les inscriptions dont l'identité a été saisie à la main ne peuvent pas être approuvées automatiquement.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un électeur déjà inscrit ne peut pas être approuvé de nouveau.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Une inscription ne peut pas être approuvée sans électeur dans le registre.",
+                    OTHERWISE_ACCEPTS:
+                        "La dernière règle peut envoyer les inscriptions à une personne ou les rejeter, mais pas les approuver.",
+                    MISSING_REASON: "Choisissez ce qui est dit à l'électeur.",
+                    UNEXPECTED_REASON: "Une approbation n'a pas de motif.",
+                    NO_COMPARED_FIELDS:
+                        "Choisissez au moins une donnée à comparer avec le registre.",
+                    DUPLICATE_COMPARED_FIELD: "Une donnée comparée est répétée.",
+                    UNKNOWN_FIELD: "Une règle utilise une donnée qui n'est pas comparée.",
+                    NO_CONDITIONS:
+                        "Ajoutez au moins une condition. Seule la dernière règle s'applique à tout le reste.",
+                },
+                change: {
+                    added: "Règle {{number}} ajoutée",
+                    decision: "Règle {{number}} : {{from}} → {{to}}",
+                    edited: "Règle {{number}} modifiée",
+                    removed: "Une règle a été supprimée ({{text}})",
+                    moved: "Les règles ont été réordonnées",
+                    otherwise: "La dernière règle a changé",
+                    compared: "Les données comparées ont changé",
+                },
+                save: {
+                    button: "Enregistrer comme version {{version}}",
+                    title: "Enregistrer comme version {{version}} ?",
+                    body: "Les nouvelles inscriptions sont désormais décidées avec ces règles. Les inscriptions déjà décidées conservent leur décision.",
+                    changes: "Ce qui a changé",
+                    log: "La nouvelle version est consignée dans le journal électoral.",
+                    confirm: "Enregistrer la version {{version}}",
+                    success: "Enregistrée comme version {{version}}",
+                    error: "La matrice d'approbation n'a pas pu être enregistrée",
+                },
             },
         },
         monitoring: {

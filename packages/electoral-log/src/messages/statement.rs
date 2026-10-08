@@ -322,6 +322,15 @@ impl StatementHead {
                 description: report_generated_description(details),
                 ..default_head
             },
+            StatementBody::ApprovalMatrixUpdated(_, version, digest) => StatementHead {
+                kind: StatementType::ApprovalMatrixUpdated,
+                event_type: StatementEventType::USER,
+                description: format!(
+                    "Enrollment approval matrix version {} saved (SHA-256 {}).",
+                    version.0, digest.0
+                ),
+                ..default_head
+            },
             StatementBody::Signing(entry) => StatementHead {
                 kind: entry.kind.statement_type(),
                 event_type: entry.event_type.clone(),
@@ -566,6 +575,13 @@ pub enum StatementBody {
     /// The hash manifest a report's generation wrote, for an event imported
     /// from a signed configuration package.
     ReportGenerated(EventIdString, ReportGeneratedDetails),
+    /// Records a new version of an election event's enrollment approval
+    /// matrix. The digest binds the entry to the saved version.
+    ApprovalMatrixUpdated(
+        EventIdString,
+        ApprovalMatrixVersion,
+        ApprovalMatrixDigestString,
+    ),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -625,6 +641,7 @@ pub enum StatementType {
     LockdownChanged,
     ConfigurationPackageImported,
     ReportGenerated,
+    ApprovalMatrixUpdated,
 }
 
 #[derive(
@@ -676,6 +693,10 @@ mod monitoring_config_tests;
 #[cfg(test)]
 #[path = "../../tests/support/statement_signing_tests.rs"]
 mod signing_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/statement_approval_matrix_tests.rs"]
+mod approval_matrix_tests;
 
 #[cfg(test)]
 #[path = "../../tests/support/statement_election_initialized_tests.rs"]

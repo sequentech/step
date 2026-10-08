@@ -34,6 +34,7 @@
 /election-event/top-votes-by-ip
 /election/stats
 /encrypt-report
+/evaluate-approval-matrix
 /export-application
 /export-ballot-publication
 /export-certificate-authority
@@ -54,6 +55,7 @@
 /generate-report
 /generate-template
 /generate-voter-information-letter
+/get-approval-matrix
 /get-ballot-files-urls
 /get-ballot-publication-changes
 /get-custom-url
@@ -118,6 +120,7 @@
 /review-tally-sheet
 /review-tally-sheet-import
 /revoke-results-publication
+/save-approval-matrix
 /scheduled-event
 /set-custom-url
 /set-role-permission

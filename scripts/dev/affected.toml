@@ -84,7 +84,7 @@ summary = "GitHub workflows and composite actions; a workflow selects the checks
 [units.scripts-dev]
 summary = "step-dev developer commands and the selection model"
 # The signing organization and janitor preset tests read these.
-test_inputs = ["packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
+test_inputs = ["packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
 
 [units.scripts-coverage]
 summary = "Coverage runners and reporters"
@@ -131,8 +131,9 @@ summary = "The beyond submodule, validated in its own repository"
 test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
 
 [units.windmill]
-# The signing configuration tests read the organization fixtures.
-test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
+# The signing configuration tests read the organization fixtures, and the
+# approval matrix tests the janitor presets.
+test_inputs = ["hasura/migrations/backend-db/**", "packages/windmill/external-bin/janitor/templates/*/approvalMatrix.json", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
 
 [units.sequent-core]
 # The permission tests read the realm templates.

@@ -29,7 +29,7 @@ const OTHER_TENANT_ID: &str = "tenant-b";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 153;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 156;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 

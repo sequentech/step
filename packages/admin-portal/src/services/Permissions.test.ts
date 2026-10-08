@@ -22,6 +22,9 @@ it.each([
     ["MonitoringRenderWidget", IPermissions.MONITORING_VIEW],
     ["MonitoringExport", IPermissions.MONITORING_VIEW],
     ["MonitoringSaveConfig", IPermissions.MONITORING_CONFIGURE],
+    ["GetApprovalMatrix", IPermissions.APPLICATION_READ],
+    ["EvaluateApprovalMatrix", IPermissions.APPLICATION_READ],
+    ["SaveApprovalMatrix", IPermissions.APPROVAL_MATRIX_WRITE],
 ])("requires the role for %s in both modes", (name, role) => {
     expect(getOperationRole(operation(name))).toBe(role)
     expect(getOperationRole(operation(name), true)).toBe(role)

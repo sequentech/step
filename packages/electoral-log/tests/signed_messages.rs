@@ -790,3 +790,40 @@ fn the_publication_of_a_signed_configuration_is_one_election_publish_entry() -> 
     assert!(changed.verify(&public).is_err());
     Ok(())
 }
+
+#[test]
+fn an_approval_matrix_version_is_an_event_wide_signed_record() -> Result<()> {
+    let (data, public) = signer()?;
+    let digest = ApprovalMatrixDigestString("ab".repeat(32));
+    let message = Message::approval_matrix_updated_message(
+        event(),
+        ApprovalMatrixVersion(2),
+        digest.clone(),
+        &data,
+        actor(),
+        actor(),
+    )?;
+    assert_record(&message, &public, "ApprovalMatrixUpdated", None)?;
+    assert_eq!(message.user_id, actor());
+    assert_eq!(message.username, actor());
+    assert!(matches!(
+        message.statement.head.event_type,
+        StatementEventType::USER
+    ));
+    assert_eq!(
+        message.statement.head.description,
+        format!(
+            "Enrollment approval matrix version 2 saved (SHA-256 {}).",
+            digest.0
+        )
+    );
+    match &message.statement.body {
+        StatementBody::ApprovalMatrixUpdated(event_id, version, signed) => {
+            assert_eq!(event_id, &event());
+            assert_eq!(version, &ApprovalMatrixVersion(2));
+            assert_eq!(signed, &digest);
+        }
+        other => panic!("unexpected body {other:?}"),
+    }
+    Ok(())
+}
