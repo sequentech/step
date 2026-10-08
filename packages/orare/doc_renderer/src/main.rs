@@ -48,6 +48,7 @@ cfg_if::cfg_if! {
                         bucket.clone(),
                         "application/pdf".to_string(),
                         None,
+                        None,
                     ).await
                         .map_err(|err| format!("could not upload PDF to S3: {:?}", err))?;
                 }
@@ -79,5 +80,20 @@ cfg_if::cfg_if! {
         fn main() {
             compile_error!("Either feature \"openwhisk\" or \"aws_lambda\" has to be provided");
         }
+    }
+}
+
+#[cfg(all(test, feature = "aws_lambda", not(feature = "openwhisk")))]
+mod aws_contracts {
+    use super::*;
+    #[tokio::test]
+    async fn aws_rejects_raw_mode_before_contacting_storage() {
+        let error = render_pdf(Input::Raw {
+            html: "<p>synthetic</p>".into(),
+            pdf_options: None,
+        })
+        .await
+        .unwrap_err();
+        assert!(error.contains("unsupported mode for an AWS Lambda build"));
     }
 }
