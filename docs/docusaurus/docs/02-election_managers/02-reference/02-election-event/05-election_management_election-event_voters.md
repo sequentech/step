@@ -44,6 +44,7 @@ event.
 | `password` | A password for the voter. |
 | `hashed_password`, `password_salt`, `num_of_iterations` | Instead of `password`, a base64 PBKDF2-SHA256 hash and its salt. `num_of_iterations` is 27500 if missing. |
 | `group_name` | The voter's group; `voter` if missing. |
+| `tenant-id` | Ignored: voters belong to the tenant they are imported into. |
 | `vote-weight`, `delegate-vote-to` | See the weighted and delegated voting policies under **Data > Advanced Configuration**. |
 | Any other column | Stored as the voter attribute of the same name, unless the name starts with `election__`: export adds those columns, one per election, and import ignores them. |
 
@@ -53,11 +54,12 @@ attribute, except those that import would not read back:
 
 - One named like a column with another meaning, such as `password` or `group_name`, which would set
   the voter's password or group.
-- One named like an account field that import fills itself, such as `not_before`, or starting with
-  `election__`, which import ignores.
+- One that import fills itself, such as `tenant-id` or the account field `not_before`, or whose name
+  starts with `election__`, which import ignores.
 - One that import would reject the file over: an attribute whose name has other characters, is a
   misspelling of `vote-weight`, or differs only in case or in `.`, `_` and `-` from the name of an
-  account column or of an earlier attribute.
+  account column or of another attribute. Of two such attributes, export writes the one that other
+  components read, such as `authorized-election-ids`, and otherwise the first.
 
 Spreadsheets run a cell that starts with `=`, `+`, `-`, `@` or their full-width forms, a tab or a
 line break as a formula. Export writes a `'` before such a value, so that they show it as text, and
