@@ -59,9 +59,10 @@ const GROUP_COL_NAME: &str = "group_name";
 const AREA_NAME_COL_NAME: &str = "area_name";
 pub const ELECTION_COL_PREFIX: &str = "election__";
 pub(crate) const INTERNAL_USER_ID_COL_NAME: &str = "sequent_internal_user_id";
-/// Columns import reads as something other than the voter attribute of the same
-/// name.
-pub(crate) const RESERVED_COL_NAMES: [&str; 7] = [
+/// Columns import does not read as the voter attribute of the same name: it
+/// reads them as something else or, for `tenant-id`, gives the voter the tenant
+/// it imports them into instead.
+pub(crate) const RESERVED_COL_NAMES: [&str; 8] = [
     HASHED_PASSWORD_COL_NAME,
     SALT_COL_NAME,
     PASSWORD_COL_NAME,
@@ -69,6 +70,7 @@ pub(crate) const RESERVED_COL_NAMES: [&str; 7] = [
     NUMBER_OF_ITERATIONS_COL_NAME,
     EMAIL_VERIFIED_COL_NAME,
     INTERNAL_USER_ID_COL_NAME,
+    TENANT_ID_ATTR_NAME,
 ];
 /// The `user_entity` columns import fills. It does not read a column named like
 /// one as a voter attribute.
@@ -333,7 +335,10 @@ pub(crate) fn get_copy_from_query(
         quoted_table_name,
         processed_column_names
             .iter()
-            .map(|name| format!("{} VARCHAR", sanitize_db_key(&name.to_string())))
+            .map(|name| format!(
+                "{} VARCHAR",
+                escape_sql_identifier(&temp_table_column(name))
+            ))
             .collect::<Vec<String>>()
             .join(", ")
     );
@@ -462,36 +467,29 @@ fn get_insert_user_query(
         })
         .collect::<Vec<String>>();
 
-    // Build a single INSERT query for all user_attribute elements
-    let user_attribute_query = if !user_attributes.is_empty() {
-        let values_subquery = user_attributes
-                .iter()
-                .map(|attr| {
-                    let sanitized_attr = sanitize_db_key(attr);
-                    format!(
-                        r#"
-                        SELECT
-                            gen_random_uuid(),
-                            nu.id,
-                            '{attr}',
-                            unnest(string_to_array(v.{sanitized_attr}, '{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}'))
-                        FROM
-                            {voters_table} v
-                        JOIN
-                            new_user nu ON
-                                nu.id = v.{INTERNAL_USER_ID_COL_NAME}
-                        "#
-                    )
-                })
-                .collect::<Vec<String>>()
-                .join(" UNION ALL ");
-
-        format!(
+    // Build a single INSERT query for all user_attribute elements, the voter's
+    // tenant among them
+    let values_subquery = user_attributes
+        .iter()
+        .map(|attr| {
+            let column = escape_sql_identifier(&temp_table_column(attr));
+            format!(
+                r#"
+                SELECT
+                    gen_random_uuid(),
+                    nu.id,
+                    '{attr}',
+                    unnest(string_to_array(v.{column}, '{MULTIVALUE_USER_ATTRIBUTE_SEPARATOR}'))
+                FROM
+                    {voters_table} v
+                JOIN
+                    new_user nu ON
+                        nu.id = v.{INTERNAL_USER_ID_COL_NAME}
+                "#
+            )
+        })
+        .chain(std::iter::once(format!(
             r#"
-                INSERT
-                INTO user_attribute (id, user_id, name, value)
-                {values_subquery}
-                UNION ALL
                 SELECT
                     gen_random_uuid(),
                     nu.id,
@@ -499,11 +497,17 @@ fn get_insert_user_query(
                     '{tenant_id}'
                 FROM
                     new_user nu
-                "#,
-        )
-    } else {
-        String::new()
-    };
+                "#
+        )))
+        .collect::<Vec<String>>()
+        .join(" UNION ALL ");
+    let user_attribute_query = format!(
+        r#"
+                INSERT
+                INTO user_attribute (id, user_id, name, value)
+                {values_subquery}
+                "#
+    );
 
     let group_name = if voters_table_columns.iter().any(|s| s == GROUP_COL_NAME) {
         format!("v.{GROUP_COL_NAME}")
@@ -1046,6 +1050,72 @@ mod tests {
     use super::*;
     use crate::services::election::ElectionHead;
     use csv::StringRecord;
+
+    const TENANT_ID: &str = "3c5b8d2e-7f1a-4b6c-9d0e-1f2a3b4c5d6e";
+    const REALM_ID: &str = "4d6c9e3f-8a2b-4c7d-8e1f-2a3b4c5d6e7f";
+
+    /// The query that inserts the voters of a file whose processed columns are
+    /// `columns` into a realm that does not allow duplicate emails.
+    fn insert_user_query(columns: &[&str]) -> String {
+        get_insert_user_query(
+            TENANT_ID.to_string(),
+            REALM_ID.to_string(),
+            "temp_voters_1".to_string(),
+            &columns.iter().map(|column| column.to_string()).collect(),
+            false,
+        )
+        .expect("query builds")
+    }
+
+    /// Voters get the tenant they are imported into, and only that one, also
+    /// from a file with a `tenant-id` column or with no attribute columns.
+    #[test]
+    fn voters_get_the_tenant_they_are_imported_into() {
+        for columns in [
+            vec![
+                USERNAME_COL_NAME,
+                TENANT_ID_ATTR_NAME,
+                INTERNAL_USER_ID_COL_NAME,
+            ],
+            vec![USERNAME_COL_NAME, INTERNAL_USER_ID_COL_NAME],
+        ] {
+            let query = insert_user_query(&columns);
+
+            assert_eq!(
+                query.matches(&format!("'{TENANT_ID_ATTR_NAME}'")).count(),
+                1,
+                "{query}"
+            );
+            assert!(query.contains(&format!("'{TENANT_ID}'")), "{query}");
+            assert!(!query.contains("v.tenant_id"), "{query}");
+        }
+    }
+
+    /// A name that starts with a digit or is an SQL keyword is only valid as a
+    /// quoted identifier, so import quotes the columns of its table.
+    #[test]
+    fn columns_named_like_numbers_or_keywords_are_quoted() {
+        let headers = StringRecord::from(vec!["username", "123", "Order"]);
+        let (_, create_table_query, _, _, processed_columns, _) =
+            get_copy_from_query(&headers).expect("query builds");
+        let processed_columns = processed_columns
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let insert_query = insert_user_query(&processed_columns);
+
+        assert!(
+            create_table_query.contains(r#""123" VARCHAR"#),
+            "{create_table_query}"
+        );
+        assert!(
+            create_table_query.contains(r#""order" VARCHAR"#),
+            "{create_table_query}"
+        );
+        assert!(insert_query.contains(r#"v."123""#), "{insert_query}");
+        assert!(insert_query.contains(r#"v."order""#), "{insert_query}");
+        assert!(insert_query.contains("'Order'"), "{insert_query}");
+    }
 
     /// The import writes `user_attribute.name` straight from these lists and the
     /// ballot dump reads the attribute by name, so the column has to survive
