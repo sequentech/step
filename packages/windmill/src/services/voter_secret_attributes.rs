@@ -41,7 +41,7 @@ const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-cha
 /// The first and last name are included: they live in Keycloak's top-level
 /// user fields, which every voter-level output copies verbatim. So is
 /// `password`, a column the voters import reads as the voter's password.
-pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 19] = [
+pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 21] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",
@@ -57,7 +57,9 @@ pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 19] = [
     "permission_labels",
     "sequent.read-only.id-card-number-validated",
     "sequent.read-only.mobile-number",
+    "support-materials-acknowledged",
     "tenant-id",
+    "trustee",
     "username",
     "vote-weight",
     "voted-channel",
@@ -499,6 +501,7 @@ fn encrypt_secret_attribute_map_with_key(
 mod tests {
     use super::*;
     use crate::services::users::DELEGATE_TO_ATTR_NAME;
+    use sequent_core::types::keycloak::SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME;
     use strand::symm::gen_key;
 
     #[test]
@@ -747,6 +750,24 @@ mod tests {
     fn delegate_vote_to_cannot_be_secret() {
         let config =
             SecretAttributeConfig::from_profile(&[secret_attribute(DELEGATE_TO_ATTR_NAME)]);
+        assert!(config.validated_names().is_err());
+    }
+
+    /// Windmill writes the support materials a voter acknowledged straight to
+    /// Keycloak, unencrypted, and reads them back by name.
+    #[test]
+    fn support_materials_acknowledgment_cannot_be_secret() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute(
+            SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME,
+        )]);
+        assert!(config.validated_names().is_err());
+    }
+
+    /// Windmill reads the trustee an administrator acts as from their token,
+    /// which Keycloak fills with this attribute as stored.
+    #[test]
+    fn trustee_cannot_be_secret() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("trustee")]);
         assert!(config.validated_names().is_err());
     }
 
