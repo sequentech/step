@@ -1,0 +1,74 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.docs.category.Election Managers": {
+    "message": "Gestores electorales",
+    "description": "The label for category Election Managers in sidebar docs"
+  },
+  "sidebar.docs.category.Procedures": {
+    "message": "Procedimientos",
+    "description": "The label for category Procedures in sidebar docs"
+  },
+  "sidebar.docs.category.Reference": {
+    "message": "Referencia",
+    "description": "The label for category Reference in sidebar docs"
+  },
+  "sidebar.docs.category.Voters": {
+    "message": "Votantes",
+    "description": "The label for category Voters in sidebar docs"
+  },
+  "sidebar.docs.category.Tutorials": {
+    "message": "Tutoriales",
+    "description": "The label for category Tutorials in sidebar docs"
+  },
+  "sidebar.docs.category.Election Auditors": {
+    "message": "Auditores electorales",
+    "description": "The label for category Election Auditors in sidebar docs"
+  },
+  "sidebar.docs.category.Developers": {
+    "message": "Developers",
+    "description": "The label for category Developers in sidebar docs"
+  },
+  "sidebar.docs.category.Admin Portal": {
+    "message": "Admin Portal",
+    "description": "The label for category Admin Portal in sidebar docs"
+  },
+  "sidebar.docs.category.Voting Portal": {
+    "message": "Voting Portal",
+    "description": "The label for category Voting Portal in sidebar docs"
+  },
+  "sidebar.docs.category.Keycloak": {
+    "message": "Keycloak",
+    "description": "The label for category Keycloak in sidebar docs"
+  },
+  "sidebar.docs.category.Velvet": {
+    "message": "Velvet",
+    "description": "The label for category Velvet in sidebar docs"
+  },
+  "sidebar.docs.category.Windmill": {
+    "message": "Windmill",
+    "description": "The label for category Windmill in sidebar docs"
+  },
+  "sidebar.docs.category.Braid": {
+    "message": "Braid",
+    "description": "The label for category Braid in sidebar docs"
+  },
+  "sidebar.docs.category.Tally Deep Dive": {
+    "message": "Tally Deep Dive",
+    "description": "The label for category Tally Deep Dive in sidebar docs"
+  },
+  "sidebar.docs.category.Cryptography and Security": {
+    "message": "Cryptography and Security",
+    "description": "The label for category Cryptography and Security in sidebar docs"
+  },
+  "sidebar.docs.category.Cryptography": {
+    "message": "Cryptography",
+    "description": "The label for category Cryptography in sidebar docs"
+  },
+  "sidebar.docs.category.Security": {
+    "message": "Security",
+    "description": "The label for category Security in sidebar docs"
+  }
+}
