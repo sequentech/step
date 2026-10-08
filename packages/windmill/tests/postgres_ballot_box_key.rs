@@ -15,14 +15,17 @@ use sequent_core::types::hasura::core::ElectionEvent;
 use serde_json::{json, Value};
 use std::sync::Once;
 use uuid::Uuid;
+use windmill::postgres::cast_vote::insert_cast_vote;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::ballot_box_key::{
     ballot_box_key_for_publication, get_ballot_box_secret_path, get_ballot_box_signing_key,
     get_or_create_ballot_box_signing_key, published_key, receipts_policy,
 };
 use windmill::services::ballot_checks::{
-    ballot_id_match, get_checks_period, locate_ballot, BallotIdMatch, LocateBallotStatus,
+    ballot_id_match, get_checks_period, locate_ballot, BallotIdMatch, LocateBallotOutput,
+    LocateBallotStatus,
 };
+use windmill::services::cast_votes::CastVoteStatus;
 use windmill::services::receive_ballot::must_be_received;
 
 const SIGNED_RECEIPTS: &str = "signed-by-ballot-box";
@@ -89,8 +92,8 @@ impl Event {
         .unwrap();
         tx.execute(
             "INSERT INTO sequent_backend.election
-                 (id, tenant_id, election_event_id, voting_channels)
-             VALUES ($1, $2, $3, $4)",
+                 (id, tenant_id, election_event_id, voting_channels, num_allowed_revotes)
+             VALUES ($1, $2, $3, $4, 5)",
             &[
                 &fixture.election,
                 &fixture.tenant,
@@ -140,19 +143,63 @@ impl Event {
     }
 
     async fn locate(&self, tx: &Transaction<'_>, ballot_id: &str) -> LocateBallotStatus {
+        self.locate_as(tx, &Uuid::new_v4(), "voter", ballot_id)
+            .await
+            .status
+    }
+
+    async fn locate_as(
+        &self,
+        tx: &Transaction<'_>,
+        area: &Uuid,
+        voter_id: &str,
+        ballot_id: &str,
+    ) -> LocateBallotOutput {
         locate_ballot(
             tx,
             &self.tenant.to_string(),
             &self.event.to_string(),
             &self.election.to_string(),
-            &Uuid::new_v4().to_string(),
-            "voter",
+            &area.to_string(),
+            voter_id,
             ballot_id,
             now(),
         )
         .await
         .unwrap()
-        .status
+    }
+
+    /// An area of the event with the voter's cast ballots in it.
+    async fn cast(&self, tx: &Transaction<'_>, voter_id: &str, ballot_ids: &[&str]) -> Uuid {
+        let area = Uuid::new_v4();
+        tx.execute(
+            "INSERT INTO sequent_backend.area (id, tenant_id, election_event_id, name)
+             VALUES ($1, $2, $3, $4)",
+            &[&area, &self.tenant, &self.event, &format!("area-{area}")],
+        )
+        .await
+        .unwrap();
+        for ballot_id in ballot_ids {
+            insert_cast_vote(
+                tx,
+                &self.tenant,
+                &self.event,
+                &self.election,
+                &area,
+                &format!("ciphertext of {ballot_id}"),
+                voter_id,
+                ballot_id,
+                &[0; 64],
+                &None,
+                &None,
+                VotingStatusChannel::ONLINE,
+                CastVoteStatus::Valid,
+                None,
+            )
+            .await
+            .unwrap();
+        }
+        area
     }
 }
 
@@ -382,6 +429,47 @@ async fn a_ballot_the_voter_did_not_cast_is_not_found_and_nothing_is_looked_up_a
     )
     .await;
     assert!(unknown_election.is_err());
+}
+
+#[tokio::test]
+async fn a_voter_finds_their_own_cast_ballot_and_never_another_voters() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Event::create(
+        &tx,
+        Some(json!({"receipts": {
+            "checks_period_policy": "until-date",
+            "checks_available_until": "2028-04-09T00:00:00Z",
+        }})),
+        Board::Missing,
+        Some(json!({"telephone": true})),
+    )
+    .await;
+    let area = f.cast(&tx, "voter", &["0abc12", "0abc34", "ffff00"]).await;
+
+    let found = f.locate_as(&tx, &area, "voter", " FFFF00 ").await;
+    assert_eq!(found.status, LocateBallotStatus::Found);
+    assert_eq!(found.ballot_id.as_deref(), Some("ffff00"));
+    assert_eq!(found.content.as_deref(), Some("ciphertext of ffff00"));
+    assert!(found.cast_at.is_some());
+    assert_eq!(
+        found.checks_available_until.as_deref(),
+        Some("2028-04-09T00:00:00+00:00")
+    );
+
+    // By telephone the first four characters are read out: two ballots share
+    // these, so neither is shown.
+    let ambiguous = f.locate_as(&tx, &area, "voter", "0abc").await;
+    assert_eq!(ambiguous.status, LocateBallotStatus::Ambiguous);
+    assert_eq!(ambiguous.content, None);
+    let by_prefix = f.locate_as(&tx, &area, "voter", "ffff").await;
+    assert_eq!(by_prefix.ballot_id.as_deref(), Some("ffff00"));
+
+    for (area, voter) in [(area, "another-voter"), (Uuid::new_v4(), "voter")] {
+        let hidden = f.locate_as(&tx, &area, voter, "ffff00").await;
+        assert_eq!(hidden.status, LocateBallotStatus::NotFound);
+        assert_eq!(hidden.content, None);
+    }
 }
 
 #[test]
