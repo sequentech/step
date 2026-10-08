@@ -218,5 +218,9 @@
   "sidebar.docs.category.Users and Roles": {
     "message": "Usuarios y roles",
     "description": "The label for category 'Users and Roles' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Tutorials": {
+    "message": "Tutoriales",
+    "description": "The label for category 'Tutorials' in sidebar 'docs'"
   }
 }

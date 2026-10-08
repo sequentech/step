@@ -120,7 +120,13 @@ function serve() {
 }
 
 async function loadPage(page, url) {
-  await page.goto(url, {waitUntil: 'networkidle0'});
+  // A slow page load in CI should not fail the whole PDF: try once more.
+  try {
+    await page.goto(url, {waitUntil: 'networkidle0', timeout: 60000});
+  } catch (err) {
+    console.warn(`  Retrying ${url}: ${err.message}`);
+    await page.goto(url, {waitUntil: 'networkidle0', timeout: 60000});
+  }
   // Load lazy images and let Mermaid finish rendering its diagrams.
   await page.evaluate(async () => {
     document.documentElement.setAttribute('data-theme', 'light');
