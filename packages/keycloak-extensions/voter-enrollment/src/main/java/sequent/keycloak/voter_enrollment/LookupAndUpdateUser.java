@@ -61,6 +61,7 @@ import org.keycloak.protocol.oidc.OIDCLoginProtocol;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
+import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
@@ -80,10 +81,26 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UPDATE_ATTRIBUTES = "update-attributes";
+
+  /**
+   * Auth note an identity verification step sets to say how the applicant's identity was
+   * established: VERIFIED or MANUAL_ENTRY. The approval matrix decides with it.
+   */
+  public static final String IDENTITY_METHOD = "identity-method";
+
   public static final String AUTO_LOGIN = "auto-login";
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public static final String AUTO_2FA = "auto-2fa";
+  public static final String NO_MATCHING_VOTER_POLICY = "no-matching-voter-policy";
+
+  /** Hours an election officer has to review a PENDING application; blank shows no reply-by. */
+  public static final String REPLY_BY_HOURS = "reply-by-hours";
+
+  /** The review page's reply-by time (registration-manual-finish.ftl). */
+  public static final String REPLY_BY_PAGE_ATTRIBUTE = "enrollmentReplyBy";
+
+  private static final String ENROLLMENT_REPLY_BY = "enrollmentReplyBy";
 
   public static final String VERIFICATION_COMPLETED = "verificationCompleted";
   public static final String VERIFICATION_STATUS = "verificationStatus";
@@ -95,6 +112,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     INSUFFICIENT_INFORMATION,
     NO_VOTER,
     ALREADY_APPROVED,
+    IDENTITY_NOT_VERIFIED,
     OTHER,
     NO_REASON_GIVEN;
 
@@ -178,6 +196,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               .form()
               .setAttribute("rejectReason", rejectionReason)
               .setAttribute("mismatchedFields", mismatchedFields)
+              .setAttribute(
+                  REPLY_BY_PAGE_ATTRIBUTE,
+                  "PENDING".equals(verificationStatus) ? replyByPage(context) : null)
+              .setAttribute(
+                  EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+                  EnrollmentWindows.dateTimeZoneMessageKey(
+                      context.getRealm(), context.getSession().getContext().resolveLocale(null)))
               .createForm(template);
       context.challenge(form);
 
@@ -219,6 +244,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
+    String identityMethod = context.getAuthenticationSession().getAuthNote(IDENTITY_METHOD);
+    if (identityMethod != null) {
+      annotationsMap.put(IDENTITY_METHOD, identityMethod);
+    }
+    annotationsMap.put(
+        NO_MATCHING_VOTER_POLICY,
+        NoMatchingVoterPolicy.fromConfig(config.getConfig().get(NO_MATCHING_VOTER_POLICY)).name());
 
     MessageCourier messageCourier =
         MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
@@ -380,6 +412,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   .form()
                   .setAttribute("rejectReason", rejectionReason)
                   .setAttribute("mismatchedFields", mismatchedFields)
+                  .setAttribute(REPLY_BY_PAGE_ATTRIBUTE, replyByPage(context))
+                  .setAttribute(
+                      EnrollmentWindows.DATE_TIME_ZONE_MESSAGE_ATTRIBUTE,
+                      EnrollmentWindows.dateTimeZoneMessageKey(
+                          context.getRealm(),
+                          context.getSession().getContext().resolveLocale(null)))
                   .createForm("registration-manual-finish.ftl");
           context.challenge(form);
           context.getEvent().success();
@@ -896,6 +934,28 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     return "Looks up and optionally updates a user based on attributes stored in authentication notes.";
   }
 
+  /**
+   * The reply-by time the review page shows for a PENDING application, in the Post's zone
+   * (VOTE-LIFECYCLE §8): computed once per enrollment from {@value #REPLY_BY_HOURS} and kept in the
+   * authentication session. {@code null} when no reply-by time is configured.
+   */
+  private static Map<String, String> replyByPage(AuthenticationFlowContext context) {
+    AuthenticationSessionModel session = context.getAuthenticationSession();
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    String hours = config == null ? null : config.getConfig().get(REPLY_BY_HOURS);
+    Instant replyBy =
+        EnrollmentWindows.replyBy(session.getAuthNote(ENROLLMENT_REPLY_BY), hours, Instant.now());
+    if (replyBy == null) {
+      return null;
+    }
+    session.setAuthNote(ENROLLMENT_REPLY_BY, replyBy.toString());
+    String post = session.getAuthNote(EnrollmentWindows.POST_FIELD);
+    EnrollmentWindows.Window window =
+        post == null ? null : EnrollmentWindows.read(context.getRealm()).lookup(post);
+    Locale locale = context.getSession().getContext().resolveLocale(null);
+    return EnrollmentWindows.replyByPage(replyBy, window, post, locale);
+  }
+
   @Override
   public List<ProviderConfigProperty> getConfigProperties() {
     ProviderConfigProperty messageCourier =
@@ -912,6 +972,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             MessageCourier.EMAIL.name(),
             MessageCourier.NONE.name(),
             MessageCourier.CHOSEN.name()));
+
+    ProviderConfigProperty noMatchingVoterPolicy =
+        new ProviderConfigProperty(
+            NO_MATCHING_VOTER_POLICY,
+            "No matching voter",
+            "What an enrollment whose identity matches no voter of the census becomes: REJECT"
+                + " rejects it, PENDING_APPROVAL leaves it pending in the election event's"
+                + " Approvals, for an election manager to review.",
+            ProviderConfigProperty.LIST_TYPE,
+            NoMatchingVoterPolicy.REJECT.name());
+    noMatchingVoterPolicy.setOptions(
+        Arrays.stream(NoMatchingVoterPolicy.values()).map(Enum::name).toList());
 
     // Define configuration properties
     return List.of(
@@ -951,7 +1023,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             "If enabled will configure the users 2FA to use the Email or SMS provided during registration.",
             ProviderConfigProperty.BOOLEAN_TYPE,
             false),
-        messageCourier);
+        new ProviderConfigProperty(
+            REPLY_BY_HOURS,
+            "Reply-by hours",
+            "Hours an election officer has to review an application that needs manual verification."
+                + " The review page shows the reply-by time in the Post's zone. Leave blank to show"
+                + " none.",
+            ProviderConfigProperty.STRING_TYPE,
+            ""),
+        messageCourier,
+        noMatchingVoterPolicy);
   }
 
   @Override

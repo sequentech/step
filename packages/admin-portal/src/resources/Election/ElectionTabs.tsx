@@ -4,6 +4,7 @@
 
 import React, {Suspense, useContext, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
+import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
 import {
     useGetOne,
     useRecordContext,
@@ -225,6 +226,7 @@ export const ElectionTabs: React.FC = () => {
     // Build tabs with stable references
     const tabs = useMemo(() => {
         const result: Array<{
+            id?: string
             label: string
             component: React.FC
             action?: (index: number) => void
@@ -253,11 +255,9 @@ export const ElectionTabs: React.FC = () => {
 
         if (showPublish) {
             result.push({
+                id: "publish",
                 label: t("electionScreen.tabs.publish"),
                 component: PublishTab,
-                action: (index: number) => {
-                    localStorage.setItem("electionPublishTabIndex", index.toString())
-                },
             })
         }
 
@@ -310,7 +310,10 @@ export const ElectionTabs: React.FC = () => {
             />
             <Box sx={{bgcolor: "background.paper"}}>
                 <RecordContextProvider value={electionRecord}>
-                    <Tabs elements={tabs} />
+                    {/* The election's screens show their times in its zone. */}
+                    <EventTimeZoneProvider event={electionEvent} election={electionRecord}>
+                        <Tabs elements={tabs} />
+                    </EventTimeZoneProvider>
                 </RecordContextProvider>
             </Box>
         </Box>

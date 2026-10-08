@@ -59,6 +59,8 @@ import {
     EVoterSigningPolicy,
     EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
+    EVoterAccessibilitySettingsPolicy,
+    EAudioInstructionsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventAutomaticRecountPolicy,
@@ -77,8 +79,11 @@ import {
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
+    REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
     ESupportMaterialsPolicy,
     getEffectiveSupportMaterialsPolicy,
+    type ILifecyclePolicies,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -107,7 +112,7 @@ import {getAuthUrl} from "@/services/UrlGeneration"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CustomUrlsStyle} from "@/components/styles/CustomUrlsStyle"
 import {StatusChip} from "@/components/StatusChip"
-import {JsonEditor, UpdateFunction} from "json-edit-react"
+import {JsonEditor, UpdateFunction, type NodeData} from "json-edit-react"
 import {CustomFilter} from "@/types/filters"
 import {SET_VOTER_AOTHENTICATION} from "@/queries/SetVoterAuthentication"
 import {
@@ -122,6 +127,16 @@ import {
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {
+    EventTimeZoneSettings,
+    type IElectionZone,
+} from "@/components/timezones/EventTimeZoneSettings"
+import {VotingLifecycleSettings} from "@/components/election-event/VotingLifecycleSettings"
+import {policiesOf} from "@/components/election-event/lifecyclePolicyChange"
+import {SAVE_LIFECYCLE_POLICIES, type SaveLifecyclePoliciesData} from "@/queries/Lifecycle"
+import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
+import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
+import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,
     ConfigureResultsWebsitePolicyVariables,
@@ -134,7 +149,12 @@ export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     resultsWebsitePolicy?: IResultsWebsitePolicy
 } & Sequent_Backend_Election_Event
 
-const EventSaveButton: React.FC<SaveButtonProps> = (props) => {
+const EventSaveButton: React.FC<
+    SaveButtonProps & {
+        /** Runs after the event's update succeeded. */
+        onSaved?: () => Promise<void>
+    }
+> = ({onSaved, ...props}) => {
     const context = useSaveContext()
     const notify = useNotify()
     return (
@@ -142,8 +162,28 @@ const EventSaveButton: React.FC<SaveButtonProps> = (props) => {
             value={{
                 ...context,
                 save: async (...args: Parameters<NonNullable<typeof context.save>>) => {
+                    const [data, callbacks] = args
+                    let failed = false
                     try {
-                        return await context.save?.(...args)
+                        const errors = await context.save?.(data, {
+                            ...callbacks,
+                            // React-admin doesn't say when the update failed: this does.
+                            onError: (error: unknown, ...rest: Array<unknown>) => {
+                                failed = true
+                                if (callbacks?.onError) {
+                                    ;(callbacks.onError as (...a: Array<unknown>) => void)(
+                                        error,
+                                        ...rest
+                                    )
+                                } else {
+                                    notify(error instanceof Error ? error.message : String(error), {
+                                        type: "error",
+                                    })
+                                }
+                            },
+                        })
+                        if (!failed && !errors) await onSaved?.()
+                        return errors
                     } catch (error) {
                         notify(error instanceof Error ? error.message : String(error), {
                             type: "error",
@@ -372,6 +412,10 @@ export const EditElectionEventDataForm: React.FC<{
             },
         }
     )
+    const [saveLifecyclePolicies] = useMutation<SaveLifecyclePoliciesData>(
+        SAVE_LIFECYCLE_POLICIES,
+        {context: {headers: {"x-hasura-role": IPermissions.ELECTION_EVENT_WRITE}}}
+    )
     const [configureResultsWebsitePolicy] = useMutation<
         ConfigureResultsWebsitePolicyData,
         ConfigureResultsWebsitePolicyVariables
@@ -396,6 +440,17 @@ export const EditElectionEventDataForm: React.FC<{
         },
         pagination: {page: 1, perPage: 9999},
     })
+    const aliasRenderer = useAliasRenderer()
+    // Which configured zone each election uses: a zone in use can't be removed.
+    const electionZones = useMemo<Array<IElectionZone>>(
+        () =>
+            (elections ?? []).map((election) => ({
+                id: election.id,
+                name: aliasRenderer(election),
+                zone: (election.presentation as IElectionPresentation | undefined)?.timezone,
+            })),
+        [elections, aliasRenderer]
+    )
 
     const [votingSettings] = useState<TVotingSetting>({
         online: tenant?.voting_channels?.online || true,
@@ -709,6 +764,22 @@ export const EditElectionEventDataForm: React.FC<{
         }))
     }
 
+    const voterAccessibilitySettingsPolicyChoices = (): Array<
+        EnumChoice<EVoterAccessibilitySettingsPolicy>
+    > => {
+        return Object.values(EVoterAccessibilitySettingsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterAccessibilitySettingsPolicy.options.${value}`),
+        }))
+    }
+
+    const audioInstructionsPolicyChoices = (): Array<EnumChoice<EAudioInstructionsPolicy>> => {
+        return Object.values(EAudioInstructionsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.audioInstructionsPolicy.options.${value}`),
+        }))
+    }
+
     const handleImportCandidates = async (documentId: string, sha256: string) => {
         setOpenImportCandidates(false)
         const currWidget = addWidget(ETasksExecution.IMPORT_CANDIDATES, undefined)
@@ -931,9 +1002,20 @@ export const EditElectionEventDataForm: React.FC<{
         }, {})
     }
 
+    const serverOwnedRealmAttributes = ["enrollment_windows", "enrollment_registration_restore"]
+    const restrictRealmAttribute = ({path}: NodeData) =>
+        path.length === 0 || serverOwnedRealmAttributes.includes(String(path[0]))
+
     const updateRealmAttributesDraft = ({newData}: UpdateFunctionProps) => {
         try {
-            setRealmAttributes(normalizeRealmAttributes(newData))
+            const next = normalizeRealmAttributes(newData)
+            const loaded = realmAttributesData?.get_realm_attributes?.attributes ?? {}
+            for (const key of serverOwnedRealmAttributes) {
+                if (next[key] !== loaded[key]) {
+                    throw new Error(`Realm attribute ${key} is managed by enrollment scheduling`)
+                }
+            }
+            setRealmAttributes(next)
             setRealmAttributesError(undefined)
             setRealmAttributesDirty(true)
             setActivateSave(true)
@@ -1092,7 +1174,11 @@ export const EditElectionEventDataForm: React.FC<{
             await manageRealmAttributes({
                 variables: {
                     election_event_id: recordId,
-                    attributes: normalizeRealmAttributes(realmAttributes),
+                    attributes: Object.fromEntries(
+                        Object.entries(normalizeRealmAttributes(realmAttributes)).filter(
+                            ([key]) => !serverOwnedRealmAttributes.includes(key)
+                        )
+                    ),
                 },
             })
             if (canReadRealmAttributes) {
@@ -1134,6 +1220,45 @@ export const EditElectionEventDataForm: React.FC<{
         })
     }
 
+    // Lifecycle policies are saved through their own action, which logs the change
+    // and recomputes what scheduled openings and closings will do (design §5c).
+    // Lifecycle policies are saved through their own action, which logs the change and
+    // recomputes what scheduled openings and closings will do (design §5c), and only
+    // after the event's update succeeded: the update keeps the saved policies.
+    const pendingPolicies = useRef<{policies: ILifecyclePolicies; recordId: string} | null>(null)
+    const savedPolicies = () =>
+        (record?.presentation as IElectionEventPresentation | undefined)?.lifecycle_policies
+    const handleSaveLifecyclePolicies = async () => {
+        const pending = pendingPolicies.current
+        pendingPolicies.current = null
+        if (!pending) return
+        try {
+            const {data} = await saveLifecyclePolicies({
+                variables: {electionEventId: pending.recordId, policies: pending.policies},
+            })
+            const result = data?.save_lifecycle_policies
+            if (!result) throw new Error(t("lifecycle.policies.saveError"))
+            notify(
+                [
+                    result.applies_message_key ? t(result.applies_message_key) : null,
+                    t("lifecycle.policies.onSave.outcomes", {count: result.changes.length}),
+                ]
+                    .filter(Boolean)
+                    .join(" "),
+                {type: "info"}
+            )
+        } catch (error) {
+            notify(
+                t("lifecycle.policies.savedWithoutPolicies", {
+                    reason:
+                        getGraphQLActionErrorReason(error) ??
+                        (error instanceof Error ? error.message : String(error)),
+                }),
+                {type: "error", multiLine: true}
+            )
+        }
+    }
+
     const onSave = async (values: Sequent_Backend_Election_Event_Extended) => {
         const recordId = values.id?.toString() ?? record?.id?.toString()
         if (!recordId) {
@@ -1163,6 +1288,16 @@ export const EditElectionEventDataForm: React.FC<{
         }
 
         await handleConfigureResultsWebsitePolicy(values.resultsWebsitePolicy, recordId)
+        const edited = policiesOf(
+            (values.presentation as IElectionEventPresentation | undefined)?.lifecycle_policies
+        )
+        const saved = policiesOf(savedPolicies())
+        pendingPolicies.current =
+            canEdit &&
+            (edited.initialization_scope !== saved.initialization_scope ||
+                edited.unsigned_scheduled_close !== saved.unsigned_scheduled_close)
+                ? {policies: edited, recordId}
+                : null
         if (canEdit) {
             const passwordPolicyUpdated = await passwordPolicyRef.current?.save()
             if (passwordPolicyUpdated === false) {
@@ -1175,6 +1310,7 @@ export const EditElectionEventDataForm: React.FC<{
             ...values,
             presentation: {
                 ...values.presentation,
+                lifecycle_policies: savedPolicies(),
                 ...(canConfigureResultsWebsite && values.resultsWebsitePolicy
                     ? {results_website: JSON.stringify(values.resultsWebsitePolicy)}
                     : {}),
@@ -1221,6 +1357,7 @@ export const EditElectionEventDataForm: React.FC<{
                                 type="button"
                                 transform={saveTransform}
                                 alwaysEnable={activateSave}
+                                onSaved={handleSaveLifecyclePolicies}
                             />
                         )}
                     </Toolbar>
@@ -1270,32 +1407,127 @@ export const EditElectionEventDataForm: React.FC<{
                     >
                         <ElectionHeaderStyles.Wrapper>
                             <ElectionHeaderStyles.Title>
-                                {t("electionEventScreen.edit.language")}
+                                {t("lifecycle.settings.accordion")}
                             </ElectionHeaderStyles.Title>
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <ElectionStyles.AccordionContainer>
-                            <ElectionStyles.AccordionWrapper>
-                                <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
-                                    <SettingsLanguageSelector languageSettings={languageSettings} />
-                                    <SelectInput
-                                        source={
-                                            "presentation.language_conf.language_detection_policy"
-                                        }
-                                        choices={languageDetectionPolicyOptions()}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.languageDetectionPolicy.policyLabel"
-                                            )
-                                        )}
-                                        defaultValue={getDefaultLanguageDetectionPolicy()}
-                                        emptyText={undefined}
-                                        validate={required()}
-                                    />
-                                </Box>
-                            </ElectionStyles.AccordionWrapper>
-                        </ElectionStyles.AccordionContainer>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 3,
+                                width: "100%",
+                                minWidth: 0,
+                            }}
+                        >
+                            <Box sx={{width: "100%", maxWidth: 372}}>
+                                <SettingsLanguageSelector
+                                    languageSettings={languageSettings}
+                                    canEdit={canEdit}
+                                />
+                            </Box>
+                            <SelectInput
+                                fullWidth
+                                source={"presentation.language_conf.language_detection_policy"}
+                                choices={languageDetectionPolicyOptions()}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.languageDetectionPolicy.policyLabel"
+                                    )
+                                )}
+                                defaultValue={getDefaultLanguageDetectionPolicy()}
+                                emptyText={undefined}
+                                validate={required()}
+                            />
+                            <EventTimeZoneSettings elections={electionZones} disabled={!canEdit} />
+                            <SelectInput
+                                fullWidth
+                                source={"presentation.voting_portal_datetime_format"}
+                                choices={votingPortalDateTimeFormatChoices()}
+                                label={String(
+                                    t(
+                                        "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
+                                    )
+                                )}
+                                helperText={String(
+                                    t(
+                                        "electionEventScreen.field.votingPortalDateTimeFormat.helperText"
+                                    )
+                                )}
+                                defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
+                                format={dateTimePolicyToSelectValue}
+                                parse={selectValueToDateTimePolicy}
+                                emptyText={undefined}
+                                validate={required()}
+                                slotProps={{
+                                    input: {error: false},
+                                    inputLabel: {error: false},
+                                    formHelperText: {error: false},
+                                }}
+                                sx={{marginBottom: "1.5em"}}
+                            />
+                            <FormDataConsumer>
+                                {({formData}) =>
+                                    isCustomVotingPortalDateTimeFormat(
+                                        formData?.presentation?.voting_portal_datetime_format
+                                    ) ? (
+                                        <TextInput
+                                            fullWidth
+                                            source={
+                                                "presentation.voting_portal_datetime_format.custom"
+                                            }
+                                            label={String(
+                                                t(
+                                                    "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
+                                                )
+                                            )}
+                                            helperText={String(
+                                                t(
+                                                    "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
+                                                )
+                                            )}
+                                            sx={{marginBottom: "1.5em"}}
+                                        />
+                                    ) : null
+                                }
+                            </FormDataConsumer>
+                            <CustomDateTimeFormatInvalidNotifier
+                                checkRef={checkCustomDateTimeFormatRef}
+                            />
+                        </Box>
+                    </AccordionDetails>
+                </Accordion>
+
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-voting-lifecycle"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-voting-lifecycle"
+                                ? ""
+                                : "election-event-data-voting-lifecycle"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-voting-lifecycle" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("lifecycle.policies.accordion")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <VotingLifecycleSettings
+                            electionEventId={record?.id ?? ""}
+                            saved={
+                                (record?.presentation as IElectionEventPresentation | undefined)
+                                    ?.lifecycle_policies
+                            }
+                            disabled={!canEdit}
+                        />
                     </AccordionDetails>
                 </Accordion>
 
@@ -1342,6 +1574,40 @@ export const EditElectionEventDataForm: React.FC<{
                             defaultValue={EShowCastVoteLogsPolicy.HIDE_LOGS_TAB}
                             label={String(
                                 t("electionEventScreen.field.showCastVoteLogs.policyLabel")
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.voter_accessibility_settings_policy"
+                            choices={voterAccessibilitySettingsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EVoterAccessibilitySettingsPolicy.DISABLED}
+                            onChange={(e) =>
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
+                                    e.target.value as EVoterAccessibilitySettingsPolicy
+                                )
+                            }
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.voterAccessibilitySettingsPolicy.policyLabel"
+                                )
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.audio_instructions_policy"
+                            choices={audioInstructionsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EAudioInstructionsPolicy.DISABLED}
+                            onChange={(e) =>
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
+                                    e.target.value as EAudioInstructionsPolicy
+                                )
+                            }
+                            label={String(
+                                t("electionEventScreen.field.audioInstructionsPolicy.policyLabel")
                             )}
                         />
                         <FormDataConsumer>
@@ -1582,6 +1848,12 @@ export const EditElectionEventDataForm: React.FC<{
                             ) : canEditRealmAttributes ? (
                                 <JsonEditor
                                     data={realmAttributes}
+                                    restrictEdit={restrictRealmAttribute}
+                                    restrictDelete={restrictRealmAttribute}
+                                    restrictDrag={restrictRealmAttribute}
+                                    restrictAdd={({path}) =>
+                                        serverOwnedRealmAttributes.includes(String(path[0]))
+                                    }
                                     onUpdate={(data) =>
                                         updateRealmAttributesDraft(data as UpdateFunctionProps)
                                     }
@@ -1704,6 +1976,13 @@ export const EditElectionEventDataForm: React.FC<{
                         />
                         <SelectInput
                             source={"presentation.locked_down"}
+                            SelectProps={{readOnly: true}}
+                            helperText={String(
+                                t("electionEventScreen.field.lockdownState.helperText", {
+                                    defaultValue:
+                                        "Schedule a start or end of the lockdown period to change this state.",
+                                })
+                            )}
                             choices={lockdownStateChoices()}
                             label={String(t("electionEventScreen.field.lockdownState.policyLabel"))}
                             defaultValue={EElectionEventLockedDown.NOT_LOCKED_DOWN}
@@ -1764,54 +2043,6 @@ export const EditElectionEventDataForm: React.FC<{
                         >
                             {t("electionEventScreen.field.countDownPolicyOptions.sectionTitle")}
                         </Typography>
-                        <SelectInput
-                            source={"presentation.voting_portal_datetime_format"}
-                            choices={votingPortalDateTimeFormatChoices()}
-                            label={String(
-                                t(
-                                    "electionEventScreen.field.votingPortalDateTimeFormat.policyLabel"
-                                )
-                            )}
-                            helperText={String(
-                                t("electionEventScreen.field.votingPortalDateTimeFormat.helperText")
-                            )}
-                            defaultValue={EVotingPortalDateTimeFormat.LEGACY_GB_24H}
-                            format={dateTimePolicyToSelectValue}
-                            parse={selectValueToDateTimePolicy}
-                            emptyText={undefined}
-                            validate={required()}
-                            slotProps={{
-                                input: {error: false},
-                                inputLabel: {error: false},
-                                formHelperText: {error: false},
-                            }}
-                            sx={{marginBottom: "1.5em"}}
-                        />
-                        <FormDataConsumer>
-                            {({formData}) =>
-                                isCustomVotingPortalDateTimeFormat(
-                                    formData?.presentation?.voting_portal_datetime_format
-                                ) ? (
-                                    <TextInput
-                                        source={"presentation.voting_portal_datetime_format.custom"}
-                                        label={String(
-                                            t(
-                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.label"
-                                            )
-                                        )}
-                                        helperText={String(
-                                            t(
-                                                "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.helperText"
-                                            )
-                                        )}
-                                        sx={{marginBottom: "1.5em"}}
-                                    />
-                                ) : null
-                            }
-                        </FormDataConsumer>
-                        <CustomDateTimeFormatInvalidNotifier
-                            checkRef={checkCustomDateTimeFormatRef}
-                        />
                         <SelectInput
                             source={`presentation.voting_portal_countdown_policy.policy`}
                             choices={votingPortalCountDownPolicies()}
@@ -1974,6 +2205,9 @@ export const EditElectionEventDataForm: React.FC<{
                 <GoogleMeetLinkGenerator
                     open={openGoogleMeet}
                     onClose={() => setOpenGoogleMeet(false)}
+                    timeZones={timeZoneContextOf(
+                        record?.presentation as IElectionEventPresentation | undefined
+                    )}
                     electionEventName={
                         (record?.presentation as IElectionEventPresentation | undefined)?.i18n?.en
                             ?.name ||

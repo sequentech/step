@@ -822,6 +822,31 @@ fn effective_voting_channel_for_status(
     }
 }
 
+/// Non-online signed deadlines remain binding while the scheduler is delayed.
+/// Existing grace policy applies only to ONLINE; other channels stop at the instant.
+fn check_signed_channel_deadline(
+    now: DateTime<Local>,
+    channel: VotingStatusChannel,
+    signed_close: Option<&str>,
+) -> Result<(), CastVoteError> {
+    if channel == VotingStatusChannel::ONLINE {
+        return Ok(()); // The authoritative ONLINE bound is merged into dates.end_date.
+    }
+    if let Some(signed_close) = signed_close {
+        let close = ISO8601::to_date(signed_close).map_err(|error| {
+            CastVoteError::CheckStatusInternalFailed(format!(
+                "Invalid signed closing date: {error}"
+            ))
+        })?;
+        if now >= close {
+            return Err(CastVoteError::CheckStatusFailed(
+                "The signed closing deadline for this voting channel has passed".to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Applies the existing vote-acceptance policy after `check_status` has loaded
 /// the election state. The requested channel continues to drive status, date,
 /// and grace-period checks; the effective channel is derived only after the
@@ -1006,6 +1031,7 @@ async fn check_status(
         status,
         voting_channels,
         dates,
+        signed_close_dates,
     } = get_cast_vote_configuration(
         hasura_transaction,
         tenant_id,
@@ -1036,6 +1062,23 @@ async fn check_status(
         return Err(CastVoteError::VotingChannelNotEnabled(format!(
             "Voting Channel {voting_channel:?} is not enabled in the election"
         )));
+    }
+
+    check_signed_channel_deadline(
+        now,
+        voting_channel,
+        signed_close_dates.get(&voting_channel).map(String::as_str),
+    )?;
+    let effective_channel =
+        effective_voting_channel_for_status(voting_channel, is_early_voting_area, &election_status);
+    if effective_channel != voting_channel {
+        check_signed_channel_deadline(
+            now,
+            effective_channel,
+            signed_close_dates
+                .get(&effective_channel)
+                .map(String::as_str),
+        )?;
     }
 
     check_status_with_loaded_election(

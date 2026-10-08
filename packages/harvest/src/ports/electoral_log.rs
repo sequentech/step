@@ -25,6 +25,16 @@ pub struct PhoneBlacklistEntryLog<'a> {
     pub phone_e164: String,
 }
 
+/// The admin and the version of a saved approval matrix.
+pub struct ApprovalMatrixLog<'a> {
+    pub tenant_id: &'a str,
+    pub election_event_id: &'a str,
+    pub user_id: &'a str,
+    pub username: Option<String>,
+    pub version: u32,
+    pub sha256: String,
+}
+
 /// The electoral-log entries route handlers post before the action they
 /// record takes effect.
 #[rocket::async_trait]
@@ -43,5 +53,12 @@ pub trait ElectoralLogs: Send + Sync {
         &self,
         transaction: &Transaction<'_>,
         entry: PhoneBlacklistEntryLog<'_>,
+    ) -> anyhow::Result<()>;
+
+    /// Posted on the transaction that writes the version.
+    async fn approval_matrix_updated(
+        &self,
+        transaction: &Transaction<'_>,
+        entry: ApprovalMatrixLog<'_>,
     ) -> anyhow::Result<()>;
 }

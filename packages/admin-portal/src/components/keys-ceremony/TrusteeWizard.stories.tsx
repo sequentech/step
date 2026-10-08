@@ -16,6 +16,7 @@ import {dataBoundary} from "@/__stories__/dataBoundary"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import type {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
+import {sha256} from "./__stories__/KeyShareSigningFixture"
 import {TrusteeWizard} from "./TrusteeWizard"
 
 const KEYS_ID = "44444444-4444-4444-8444-444444444444"
@@ -218,7 +219,12 @@ export const ValidBackupIsVerified: Story = {
         expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled()
         expect(boundary.calls[1]).toEqual({
             name: "CheckPrivateKey",
-            variables: {electionEventId: EVENT_ID, keysCeremonyId: KEYS_ID, privateKeyBase64: KEY},
+            variables: {
+                electionEventId: EVENT_ID,
+                keysCeremonyId: KEYS_ID,
+                privateKeyBase64: KEY,
+                keyShareSha256: await sha256(KEY),
+            },
             headers: {},
         })
     },

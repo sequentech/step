@@ -5,6 +5,7 @@
 //! Rules of the tally ceremony: which status changes are allowed, when enough
 //! trustees have restored their keys, and when a session can be recounted.
 
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use anyhow::{anyhow, Result};
 use sequent_core::types::ceremonies::{
     TallyCeremonyStatus, TallyElection, TallyElectionStatus, TallyExecutionStatus, TallyTrustee,
@@ -105,18 +106,22 @@ pub fn check_key_restore_status(current: &TallyExecutionStatus) -> Result<()> {
     Ok(())
 }
 
-/// The trustee named `trustee_name`, who must still be waiting to restore
-/// their key.
-pub fn waiting_trustee<'a>(
+/// The trustee named `trustee_name` who may restore their key now: one
+/// still waiting, or, when the rule makes trustees sign, one who restored
+/// it unsigned before.
+pub fn restoring_trustee<'a>(
     status: &'a TallyCeremonyStatus,
     trustee_name: &str,
+    signatures: &TrusteeSignatures,
 ) -> Result<&'a TallyTrustee> {
     let trustee = status
         .trustees
         .iter()
         .find(|trustee| trustee.name == trustee_name)
         .ok_or_else(|| anyhow!("Trustee not part of the keys ceremony or has invalid state"))?;
-    if trustee.status != TallyTrusteeStatus::WAITING {
+    let redo =
+        trustee.status == TallyTrusteeStatus::KEY_RESTORED && signatures.may_redo(trustee_name);
+    if trustee.status != TallyTrusteeStatus::WAITING && !redo {
         return Err(anyhow!("Unexpected trustee status {}", trustee.status));
     }
     Ok(trustee)
@@ -137,9 +142,21 @@ pub fn restore_trustee_key(
     status
 }
 
-/// Whether enough trustees restored their key for the session to connect.
-pub fn reaches_key_threshold(status: &TallyCeremonyStatus, threshold: i64) -> bool {
-    restored_trustee_count(status) as i64 >= threshold
+/// Whether enough trustees restored their key for the session to connect;
+/// when the rule makes trustees sign, only signed restores count.
+pub fn reaches_key_threshold(
+    status: &TallyCeremonyStatus,
+    threshold: i64,
+    signatures: &TrusteeSignatures,
+) -> bool {
+    status
+        .trustees
+        .iter()
+        .filter(|trustee| {
+            trustee.status == TallyTrusteeStatus::KEY_RESTORED && signatures.counts(&trustee.name)
+        })
+        .count() as i64
+        >= threshold
 }
 
 /// Only a session that completed successfully can be recounted.
@@ -303,14 +320,21 @@ mod tests {
             ("alice", TallyTrusteeStatus::KEY_RESTORED),
             ("bob", TallyTrusteeStatus::WAITING),
         ]);
-        assert_eq!(waiting_trustee(&status, "bob").unwrap().name, "bob");
+        assert_eq!(
+            restoring_trustee(&status, "bob", &TrusteeSignatures::NotNeeded)
+                .unwrap()
+                .name,
+            "bob"
+        );
     }
 
     #[test]
     fn a_trustee_outside_the_ceremony_cannot_restore_a_key() {
         let status = ceremony_status(&[("alice", TallyTrusteeStatus::WAITING)]);
         assert_eq!(
-            waiting_trustee(&status, "mallory").unwrap_err().to_string(),
+            restoring_trustee(&status, "mallory", &TrusteeSignatures::NotNeeded)
+                .unwrap_err()
+                .to_string(),
             "Trustee not part of the keys ceremony or has invalid state"
         );
     }
@@ -319,7 +343,9 @@ mod tests {
     fn a_trustee_cannot_restore_their_key_twice() {
         let status = ceremony_status(&[("alice", TallyTrusteeStatus::KEY_RESTORED)]);
         assert_eq!(
-            waiting_trustee(&status, "alice").unwrap_err().to_string(),
+            restoring_trustee(&status, "alice", &TrusteeSignatures::NotNeeded)
+                .unwrap_err()
+                .to_string(),
             "Unexpected trustee status KEY_RESTORED"
         );
     }
@@ -354,9 +380,64 @@ mod tests {
             ("alice", TallyTrusteeStatus::KEY_RESTORED),
             ("bob", TallyTrusteeStatus::KEY_RESTORED),
         ]);
-        assert!(!reaches_key_threshold(&one, 2));
-        assert!(reaches_key_threshold(&two, 2));
-        assert!(reaches_key_threshold(&two, 1));
+        let any = TrusteeSignatures::NotNeeded;
+        assert!(!reaches_key_threshold(&one, 2, &any));
+        assert!(reaches_key_threshold(&two, 2, &any));
+        assert!(reaches_key_threshold(&two, 1, &any));
+    }
+
+    #[test]
+    fn with_signatures_needed_only_signed_restores_reach_the_threshold() {
+        let two = ceremony_status(&[
+            ("alice", TallyTrusteeStatus::KEY_RESTORED),
+            ("bob", TallyTrusteeStatus::KEY_RESTORED),
+        ]);
+        let only_bob = TrusteeSignatures::Needed {
+            signed: Default::default(),
+            signing: Some("bob".into()),
+        };
+        assert!(!reaches_key_threshold(&two, 2, &only_bob));
+        assert!(reaches_key_threshold(&two, 1, &only_bob));
+    }
+
+    #[test]
+    fn with_signatures_needed_an_unsigned_restore_is_redone_signed_once() {
+        let status = ceremony_status(&[
+            ("alice", TallyTrusteeStatus::KEY_RESTORED),
+            ("bob", TallyTrusteeStatus::WAITING),
+        ]);
+        let none_signed = TrusteeSignatures::Needed {
+            signed: Default::default(),
+            signing: Some("alice".into()),
+        };
+        assert_eq!(
+            restoring_trustee(&status, "alice", &none_signed)
+                .unwrap()
+                .name,
+            "alice"
+        );
+        let alice_signed = TrusteeSignatures::Needed {
+            signed: ["alice".to_string()].into(),
+            signing: None,
+        };
+        assert_eq!(
+            restoring_trustee(&status, "alice", &alice_signed)
+                .unwrap_err()
+                .to_string(),
+            "Unexpected trustee status KEY_RESTORED"
+        );
+        assert_eq!(
+            restoring_trustee(&status, "alice", &TrusteeSignatures::NotNeeded)
+                .unwrap_err()
+                .to_string(),
+            "Unexpected trustee status KEY_RESTORED"
+        );
+        assert_eq!(
+            restoring_trustee(&status, "bob", &TrusteeSignatures::NotNeeded)
+                .unwrap()
+                .name,
+            "bob"
+        );
     }
 
     #[test]

@@ -283,6 +283,7 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
         deliveryState,
         senderLabel,
     } = kcContext
+    const {codeRequest, codeRequests} = kcContext
     const {msg, msgStr} = i18n
     const flow = isOtl ? "otl" : "auth"
     const length = Number(codeLength ?? DEFAULT_CODE_LENGTH)
@@ -424,6 +425,16 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
         (channel === MessageChannel.WhatsApp || channel === MessageChannel.Viber) &&
         !unconfirmed &&
         !failed
+    // Several codes in a row: says which one this is, so the next doesn't look like a retry.
+    const counted = codeRequest !== undefined && codeRequests !== undefined && codeRequests > 1
+    const codeLabel = {
+        text: msgStr("messageOtp.auth.codeProgress", String(codeRequest), String(codeRequests)),
+        lang: messageLanguage(kcContext, i18n, "messageOtp.auth.codeProgress"),
+    }
+    const codeNote =
+        codeRequest === codeRequests
+            ? {key: "messageOtp.auth.codeLast" as const, args: [] as string[]}
+            : {key: "messageOtp.auth.codeNext" as const, args: [String(codeRequests)]}
 
     return (
         <Template
@@ -433,6 +444,12 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
             classes={classes}
             displayInfo={ttl !== undefined}
             headerNode={msg(`messageOtp.${flow}.title`)}
+            {...(counted
+                ? {
+                      eyebrow: codeLabel,
+                      progress: {step: codeRequest, total: codeRequests, label: codeLabel},
+                  }
+                : {})}
             infoNode={
                 <Typography
                     id="otp-validity"
@@ -444,6 +461,15 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
             }
         >
             {deliveryLine}
+            {counted && (
+                <Typography
+                    id="otp-progress"
+                    className="auth-lead"
+                    lang={messageLanguage(kcContext, i18n, codeNote.key)}
+                >
+                    {msgStr(codeNote.key, ...codeNote.args)}
+                </Typography>
+            )}
             {appInstruction ? (
                 <Typography
                     id="otp-instructions"
@@ -554,17 +580,19 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
                             </Box>
                         </Box>
                         <input type="hidden" id="code" name="code" value={digits.join("")} />
-                        <Button
-                            id="kc-form-submit"
-                            type="submit"
-                            variant="contained"
-                            fullWidth
-                            ref={submit}
-                            className="auth-submit"
-                            endIcon={<ArrowIcon />}
-                        >
-                            {msgStr("doSubmit")}
-                        </Button>
+                        <Box className="auth-actions">
+                            <Button
+                                id="kc-form-submit"
+                                type="submit"
+                                variant="contained"
+                                fullWidth
+                                ref={submit}
+                                className="auth-submit"
+                                endIcon={<ArrowIcon />}
+                            >
+                                {msgStr("doSubmit")}
+                            </Button>
+                        </Box>
                     </>
                 )}
                 <Button

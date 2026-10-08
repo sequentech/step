@@ -8,7 +8,6 @@ import {
     SimpleForm,
     useNotify,
     Toolbar,
-    DateTimeInput,
     Identifier,
     useGetList,
     useGetOne,
@@ -68,6 +67,12 @@ import {
     missingChannelContent,
     templatesForChannelSelection,
 } from "./sendTemplatePayload"
+import {
+    ZonedDateTimeInput,
+    type IStoredZonedDateTime,
+} from "@/components/timezones/ZonedDateTimeInput"
+import {useTimeZoneContext} from "@/components/timezones/useTimeZoneContext"
+import {useTimeZoneService} from "@/components/timezones/timeZoneService"
 
 export enum AudienceSelection {
     ALL_USERS = "ALL_USERS",
@@ -105,7 +110,8 @@ interface ITemplate {
     alias?: string
     schedule: {
         now: boolean
-        date?: Date
+        /** The time as entered: the instant, its wall time and zone. */
+        zoned?: IStoredZonedDateTime | null
     }
     i18n: {
         [lang_code: string]: ISendContent
@@ -154,6 +160,9 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const [errors, setErrors] = useState<String | null>(null)
     const [createScheduledEvent] = useMutation<CreateScheduledEventMutation>(CREATE_SCHEDULED_EVENT)
     const [showProgress, setShowProgress] = useState(false)
+    // A time is entered in the event's primary zone, else the viewer's.
+    const zones = useTimeZoneContext(electionEventId)
+    const timeZones = useTimeZoneService()
 
     const [template, setTemplate] = useState<ITemplate>({
         audience: {
@@ -164,7 +173,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         communication_method: ITemplateMethod.EMAIL,
         schedule: {
             now: true,
-            date: undefined,
+            zoned: undefined,
         },
         i18n: {
             en: {
@@ -215,7 +224,9 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
             channelSelection: formData.channel_selection,
             communicationMethod: formData.communication_method,
             scheduleNow: formData.schedule.now,
-            scheduleDate: formData.schedule.date,
+            scheduleDate: formData.schedule.zoned?.scheduled_date ?? undefined,
+            scheduleLocal: formData.schedule.zoned?.local ?? undefined,
+            scheduleTimezone: formData.schedule.zoned?.timezone ?? undefined,
             alias: formData.alias,
             content: formData.i18n["en"],
             secretAttributeNames: getReferencedSecretAttributeNames(
@@ -226,7 +237,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     }
 
     const onSubmit: SubmitHandler<FieldValues> = async (formData) => {
-        const scheduleDate = (formData as Partial<ITemplate>).schedule?.date
+        const zoned = (formData as Partial<ITemplate>).schedule?.zoned
         setErrors(null)
         setShowProgress(true)
         try {
@@ -238,7 +249,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                     cronConfig: undefined,
                     eventPayload: getPayload({
                         ...template,
-                        schedule: {now: template.schedule.now, date: scheduleDate},
+                        schedule: {now: template.schedule.now, zoned},
                     }),
                 },
             })
@@ -338,8 +349,8 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
 
     const setEmail = (newEmail: IEmail) => updateContent({email: newEmail})
 
-    const validateDate = (value: unknown) => {
-        if (!template.schedule.now && !value) {
+    const validateDate = (value: IStoredZonedDateTime | null | undefined) => {
+        if (!template.schedule.now && !value?.scheduled_date) {
             return t("sendCommunication.chooseDate")
         }
     }
@@ -427,12 +438,14 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 />
                             }
                         />
-                        <DateTimeInput
+                        <ZonedDateTimeInput
                             validate={validateDate}
                             disabled={template.schedule.now}
-                            source="schedule.date"
+                            source="schedule.zoned"
                             label={String(t("sendCommunication.dateInput"))}
-                            parse={(value) => new Date(value).toISOString()}
+                            defaultZone={electionEventId ? zones.primary : timeZones.myTimeZone}
+                            zones={electionEventId ? zones.configured : undefined}
+                            primary={electionEventId ? zones.primary : undefined}
                         />
                     </AccordionDetails>
                 </FormStyles.AccordionExpanded>

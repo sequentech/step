@@ -24,6 +24,7 @@ use strum::VariantNames;
 
 use super::problem::{Code, Problem, Report};
 use super::schema::ImportElectionEventSchema;
+use crate::signing::{MAX_EXPIRES_MINUTES, MAX_SIGNATURES};
 use crate::types::ceremonies::CountingAlgType;
 
 /// Every value `CountingAlgType` accepts, from the enum itself.
@@ -158,13 +159,76 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_how_voting_works(bundle, &mut report);
     check_voting_channels(bundle, &mut report);
     check_ivr_prompts(bundle, &mut report);
+    check_slates(bundle, &mut report);
     check_images(bundle, &mut report);
     check_support_materials(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
     check_permission_labels(bundle, &mut report);
     check_unique_ids(bundle, &mut report);
+    check_signing(bundle, &mut report);
 
     report
+}
+
+/// Whether the event's signing rules can be saved as written: one rule per
+/// action, between one and [`MAX_SIGNATURES`] signatures, and an expiry of
+/// a minute to [`MAX_EXPIRES_MINUTES`] or none. Refused here, the bundle
+/// never reaches the database, and the browser preview says why.
+fn check_signing(bundle: &ImportElectionEventSchema, report: &mut Report) {
+    let Some(rules) = bundle.signing_rules.as_ref() else {
+        return;
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    for (index, rule) in rules.iter().enumerate() {
+        let at = format!("signing_rules[{index}]");
+        if !seen.insert(rule.action.to_string()) {
+            report.push(
+                Problem::error(
+                    Code::DuplicateId,
+                    format!("{at}.action"),
+                    format!(
+                        "{} has more than one signing rule; keep one",
+                        rule.action
+                    ),
+                )
+                .id("signing.duplicate-action")
+                .detail("action", rule.action),
+            );
+        }
+        if !(1..=MAX_SIGNATURES).contains(&rule.signatures) {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("{at}.signatures"),
+                    format!(
+                        "a signing rule needs between 1 and {MAX_SIGNATURES} \
+                         signatures, not {}",
+                        rule.signatures
+                    ),
+                )
+                .id("signing.signatures-out-of-range")
+                .detail("action", rule.action)
+                .detail("min", 1)
+                .detail("max", MAX_SIGNATURES),
+            );
+        }
+        if rule.expires_minutes.is_some_and(|minutes| {
+            !(1..=MAX_EXPIRES_MINUTES).contains(&minutes)
+        }) {
+            report.push(
+                Problem::error(
+                    Code::InvalidValue,
+                    format!("{at}.expires_minutes"),
+                    format!(
+                        "a signing request expires after 1 to \
+                         {MAX_EXPIRES_MINUTES} minutes, or never (null)"
+                    ),
+                )
+                .id("signing.expiry-out-of-range")
+                .detail("action", rule.action),
+            );
+        }
+    }
 }
 
 /// Whether the telephone call the event describes can be placed at all.
@@ -213,6 +277,27 @@ fn check_ivr_prompts(bundle: &ImportElectionEventSchema, report: &mut Report) {
         &languages,
     ) {
         report.push(missing.problem("election_event.annotations.ivr:prompts"));
+    }
+}
+
+/// Whether each election's slates name candidates the bundle actually has.
+///
+/// The importer regenerates every identifier in the bundle, the ones inside
+/// the slate configuration included, so slates that resolve here still resolve
+/// once imported. Ones that do not would only fail later, at publication.
+fn check_slates(bundle: &ImportElectionEventSchema, report: &mut Report) {
+    for (index, election) in bundle.elections.iter().enumerate() {
+        for problem in super::slates::check_election(
+            election,
+            &bundle.contests,
+            &bundle.candidates,
+            &format!(
+                "elections[{index}].annotations.{}",
+                super::slates::SLATES_ANNOTATION
+            ),
+        ) {
+            report.push(problem.about(election.external_id.as_deref()));
+        }
     }
 }
 
@@ -1729,9 +1814,8 @@ fn check_unique_ids(bundle: &ImportElectionEventSchema, report: &mut Report) {
 
 /// Whether a string is shaped like a hyphenated UUID.
 ///
-/// Deliberately not `Uuid::parse_str`: that crate is only enabled by the
-/// `keycloak` feature here, and pulling it into `default_features` would put
-/// `getrandom` in the WASM build to check a string's shape.
+/// Deliberately a shape check rather than `Uuid::parse_str`, which also
+/// accepts the simple, braced and URN forms.
 fn looks_like_uuid(value: &str) -> bool {
     let groups: Vec<&str> = value.split('-').collect();
     groups.len() == 5

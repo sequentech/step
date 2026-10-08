@@ -63,3 +63,5 @@ sha2 = "0.10"
 
 [dev-dependencies]
 keycloak = "24.0"
+# The test PKI of the signing certificate routes.
+openssl = "0.10"

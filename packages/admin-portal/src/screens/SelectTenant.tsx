@@ -201,7 +201,11 @@ export const SelectTenant = () => {
 
     useEffect(() => {
         if (globalSettings) {
-            getDefaultTenant() // Redirect to the app if already authenticated
+            void getDefaultTenant().catch(() => {
+                // Optional branding must not interrupt normal tenant selection or login.
+                setLogoImg(SequentLogo)
+                setCss("")
+            })
         }
     }, [globalSettings])
 

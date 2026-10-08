@@ -21,10 +21,13 @@ use super::{
     signatures::{
         check_certificate_cas, ecdsa_sign_data, get_p12_cert, get_p12_fingerprint, get_pk12_id,
     },
+    signed_transmission_package::{lock_transmission_data, transmission_zone},
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
 };
 use crate::postgres::election_event::update_election_event_annotations;
+use crate::services::reports::generation::ReportRequester;
+use crate::services::signing::actions::transmission::upload_signature_refusal;
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
@@ -47,15 +50,13 @@ use crate::{
     types::miru_plugin::{MiruDocument, MiruDocumentIds, MiruSbeiUser, MiruSignature},
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{Local, Utc};
+use chrono::Utc;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use reqwest::multipart;
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
-    services::date::ISO8601,
     types::hasura::core::{ElectionEvent, Trustee},
-    util::date_time::PHILIPPINO_TIMEZONE,
 };
 use sequent_core::{
     services::translations::Name,
@@ -64,6 +65,7 @@ use sequent_core::{
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
+use uuid::Uuid;
 
 #[instrument(skip_all, err)]
 async fn update_election_event_sbei_users(
@@ -275,9 +277,7 @@ pub async fn upload_transmission_package_signature_service(
         .with_context(|| "Error acquiring hasura transaction")?;
 
     // get time
-    let time_zone = PHILIPPINO_TIMEZONE;
     let now_utc = Utc::now();
-    let now_local = now_utc.with_timezone(&Local);
 
     // get event and annotations
     let election_event =
@@ -286,6 +286,10 @@ pub async fn upload_transmission_package_signature_service(
             .with_context(|| "Error fetching election event")?;
 
     let election_event_annotations = election_event.get_annotations()?;
+    // The package is dated in the event's primary zone.
+    let zone =
+        transmission_zone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
+    let now_local = now_utc.with_timezone(&zone.zone);
 
     // get election and annotations
     let Some(election) = get_election_by_id(
@@ -327,21 +331,16 @@ pub async fn upload_transmission_package_signature_service(
         ));
     };
 
-    let tally_session = get_tally_session_by_id(
+    // The packages as they stand under the tally session's row lock.
+    let locked = lock_transmission_data(
         &hasura_transaction,
         tenant_id,
         &election_event.id,
         tally_session_id,
     )
-    .await
-    .with_context(|| "Error fetching tally session")?;
-    let transmission_data = tally_session.get_annotations()?;
-    let tally_annotations_js = tally_session
-        .annotations
-        .clone()
-        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
-
-    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
+    .await?;
+    let transmission_data = locked.packages;
+    let tally_annotations = locked.annotations;
 
     let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -349,6 +348,18 @@ pub async fn upload_transmission_package_signature_service(
         info!("transmission package not found, skipping");
         return Ok(());
     };
+    // A package signed through its signing request takes no uploaded signature.
+    if let Some(refusal) = upload_signature_refusal(
+        &hasura_transaction,
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event.id)
+            .with_context(|| "Error parsing the election event id")?,
+        &transmission_area_election,
+    )
+    .await?
+    {
+        return Err(anyhow::Error::new(refusal));
+    }
     let Some(miru_document) = get_latest_miru_document(&transmission_area_election.documents)
     else {
         info!("transmission package document not found, skipping");
@@ -461,11 +472,13 @@ pub async fn upload_transmission_package_signature_service(
         &election_event_annotations,
         &election_event.id,
         tenant_id,
-        time_zone.clone(),
+        zone.offset,
         now_utc.clone(),
         new_acm_signatures,
         &new_transmission_package_data.logs,
         &election_annotations,
+        &miru_document.transaction_id,
+        &ReportRequester::named(Some(username.to_string())),
     )
     .await?;
 
@@ -482,7 +495,7 @@ pub async fn upload_transmission_package_signature_service(
         },
         transaction_id: first_document.transaction_id.clone(),
         servers_sent_to: vec![],
-        created_at: ISO8601::to_string(&now_local),
+        created_at: now_local.to_rfc3339(),
         signatures: new_miru_signatures,
     });
     update_transmission_package_annotations(

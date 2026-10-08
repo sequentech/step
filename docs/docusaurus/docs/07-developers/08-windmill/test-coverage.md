@@ -58,6 +58,17 @@ Service fixtures are needed for cloud transports and complete authenticated
 election workflows; these need dedicated service fixtures, not production
 rewrites or tests that only exercise derives.
 
+`postgres_scheduling.rs` checks that stopped schedules accept only future
+re-arming, archived events cannot execute queued lifecycle tasks, and workers
+re-read a schedule after a concurrent editor commits. The concurrency fixture
+observes PostgreSQL's row-lock wait before committing the edit.
+
+`postgres_initialization_recovery.rs` uses its own migrated fixture database
+because the periodic sweep visits all events. It injects an outbox failure,
+checks that another event still stages its entries, then removes the failure
+and verifies retry and idempotence without another tally. The signing execution
+sweep runs this recovery every minute before retrying signing executions.
+
 ## Ports and adapters
 
 Windmill separates business rules from the systems it talks to, so the rules

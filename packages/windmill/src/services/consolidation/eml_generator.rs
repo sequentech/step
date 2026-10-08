@@ -497,15 +497,14 @@ impl ValidateAnnotations for core::Area {
                 )
             })?;
 
-        let threshold = find_miru_annotation(MIRU_AREA_THRESHOLD, &annotations)
-            .with_context(|| {
+        let threshold = parse_area_threshold(
+            &find_miru_annotation(MIRU_AREA_THRESHOLD, &annotations).with_context(|| {
                 format!(
                     "Missing area annotation: '{}:{}'",
                     MIRU_PLUGIN_PREPEND, MIRU_AREA_THRESHOLD
                 )
-            })?
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse threshold"))?;
+            })?,
+        )?;
 
         let ccs_servers_js = find_miru_annotation(MIRU_AREA_CCS_SERVERS, &annotations)
             .with_context(|| {
@@ -573,10 +572,10 @@ impl ValidateAnnotations for core::Area {
         let station_name = find_miru_annotation_opt(MIRU_AREA_STATION_NAME, &annotations)?
             .unwrap_or("-".to_string());
 
-        let threshold = find_miru_annotation_opt(MIRU_AREA_THRESHOLD, &annotations)?
-            .unwrap_or("0".to_string())
-            .parse::<i64>()
-            .with_context(|| anyhow!("Can't parse threshold"))?;
+        let threshold = parse_area_threshold(
+            &find_miru_annotation_opt(MIRU_AREA_THRESHOLD, &annotations)?
+                .unwrap_or("0".to_string()),
+        )?;
 
         let ccs_servers_js =
             find_miru_annotation_opt(MIRU_AREA_CCS_SERVERS, &annotations)?.unwrap_or_default();
@@ -796,6 +795,14 @@ impl ValidateAnnotations for Candidate {
 }
 
 #[instrument]
+/// A Post's `miru:area-threshold`: the signatures its transmission package
+/// needs (-1: no minimum). The one reading of it, shared by the package and
+/// the import's mapping to the transmit-results rule.
+pub fn parse_area_threshold(text: &str) -> Result<i64> {
+    text.parse::<i64>()
+        .with_context(|| anyhow!("Can't parse threshold"))
+}
+
 pub fn prepend_miru_annotation(data: &str) -> String {
     format!("{}:{}", MIRU_PLUGIN_PREPEND, data)
 }

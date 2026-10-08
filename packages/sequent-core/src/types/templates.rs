@@ -237,6 +237,10 @@ pub struct SendTemplateBody {
     pub report_options: Option<ReportOptions>,
     #[serde(default)]
     pub secret_attribute_names: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schedule_local: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schedule_timezone: Option<String>,
 }
 
 /// Struct for the DEFAULT extra_config JSON file.
@@ -259,4 +263,32 @@ pub struct CommunicationTemplatesExtraConfig {
 pub struct ReportOptions {
     pub max_items_per_report: Option<usize>,
     pub max_threads: Option<usize>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SendTemplateBody;
+
+    const LEGACY_BODY: &str = r#"{"audience_selection":"SELECTED","audience_voter_ids":["voter-1"],"communication_method":"EMAIL","schedule_now":false,"schedule_date":"2028-04-08T18:15:00Z","email":null,"sms":null,"document":null,"name":null,"alias":null,"pdf_options":null,"report_options":null,"secret_attribute_names":[]}"#;
+
+    #[test]
+    fn send_template_legacy_payload_keeps_its_wire_bytes() {
+        let body: SendTemplateBody = serde_json::from_str(LEGACY_BODY).unwrap();
+        assert_eq!(serde_json::to_string(&body).unwrap(), LEGACY_BODY);
+    }
+
+    #[test]
+    fn send_template_zoned_schedule_survives_typed_task_serialization() {
+        let mut input: serde_json::Value =
+            serde_json::from_str(LEGACY_BODY).unwrap();
+        input["schedule_local"] = serde_json::json!("2028-04-09T00:00");
+        input["schedule_timezone"] = serde_json::json!("Asia/Kathmandu");
+        // Harvest deserializes the incoming payload before Celery serializes
+        // this typed body again; metadata must survive that boundary.
+        let body: SendTemplateBody = serde_json::from_value(input).unwrap();
+        let queued = serde_json::to_value(body).unwrap();
+        assert_eq!(queued["schedule_local"], "2028-04-09T00:00");
+        assert_eq!(queued["schedule_timezone"], "Asia/Kathmandu");
+        assert_eq!(queued["schedule_date"], "2028-04-08T18:15:00Z");
+    }
 }

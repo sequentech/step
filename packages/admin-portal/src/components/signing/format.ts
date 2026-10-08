@@ -1,0 +1,160 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+import {useMemo} from "react"
+import {useTranslation} from "react-i18next"
+import {formatDateTimeZone} from "@sequentech/ui-core"
+import type {TFunction} from "i18next"
+import type {Sequent_Backend_Tenant} from "@/gql/graphql"
+import {colonHex} from "@/lib/signing/der"
+import {DocumentKind, SigningAction} from "@/lib/signing/types"
+import type {ISigningPanelData} from "@/lib/signing/api"
+import {toDate as parse} from "@/lib/timezones/zonedFormat"
+import {useZonedFormat} from "@/hooks/useZonedFormat"
+
+const formatter = (
+    locale: string,
+    options: Intl.DateTimeFormatOptions,
+    timeZone: string | null | undefined
+): Intl.DateTimeFormat => {
+    try {
+        return new Intl.DateTimeFormat(locale, {...options, timeZone: timeZone || undefined})
+    } catch {
+        // An unknown zone name: the browser's own zone.
+        return new Intl.DateTimeFormat(locale, options)
+    }
+}
+
+/** A 24-hour time with the localized zone label, as signers compare times. */
+export const formatTime = (
+    value: string | Date | null | undefined,
+    locale: string,
+    timeZone: string,
+    t: TFunction
+): string => {
+    const date = parse(value)
+    return date
+        ? formatDateTimeZone(date, timeZone, {
+              t,
+              lang: locale,
+              formatDateTime: (instant, zone) =>
+                  formatter(
+                      locale,
+                      {hour: "2-digit", minute: "2-digit", hourCycle: "h23"},
+                      zone
+                  ).format(instant),
+          })
+        : ""
+}
+
+/** "Jan 11, 2030" in English. */
+export const formatDate = (
+    value: string | Date | null | undefined,
+    locale: string,
+    timeZone?: string | null
+): string => {
+    const date = parse(value)
+    return date
+        ? formatter(locale, {day: "numeric", month: "short", year: "numeric"}, timeZone).format(
+              date
+          )
+        : ""
+}
+
+/** The date and 24-hour time with a localized timezone label. */
+export const formatDateTime = (
+    value: string | Date | null | undefined,
+    locale: string,
+    timeZone: string,
+    t: TFunction
+): string => {
+    const date = parse(value)
+    return date
+        ? formatDateTimeZone(date, timeZone, {
+              t,
+              lang: locale,
+              formatDateTime: (instant, zone) =>
+                  formatter(
+                      locale,
+                      {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hourCycle: "h23",
+                      },
+                      zone
+                  ).format(instant),
+          })
+        : ""
+}
+
+/** Times and dates in the election event's zone (the panel's `time_zone`), else the browser's. */
+export const useSigningFormat = (timeZone?: string | null) => {
+    const {t, i18n} = useTranslation()
+    const locale = i18n.language
+    const zoned = useZonedFormat(timeZone)
+    return useMemo(
+        () => ({
+            ...zoned,
+            time: (value: string | Date | null | undefined) =>
+                formatTime(value, locale, zoned.zone, t),
+            date: (value: string | Date | null | undefined) => formatDate(value, locale, timeZone),
+            dateTime: (value: string | Date | null | undefined) =>
+                formatDateTime(value, locale, zoned.zone, t),
+        }),
+        [zoned, locale, timeZone, t]
+    )
+}
+
+/**
+ * The organization's name in copy: the tenant's display name
+ * (`settings.display_name`), else its slug, which the menu shows.
+ */
+export const organizationName = (
+    tenant: Sequent_Backend_Tenant | null | undefined
+): string | null => {
+    const displayName = (tenant?.settings as {display_name?: unknown} | null | undefined)
+        ?.display_name
+    if (typeof displayName === "string" && displayName.trim()) {
+        return displayName.trim()
+    }
+    return tenant?.slug || null
+}
+
+/** "Jose R. Dela Cruz and Ana P. Reyes". */
+export const formatList = (names: string[], locale: string): string =>
+    new Intl.ListFormat(locale, {style: "long", type: "conjunction"}).format(names)
+
+/** "7f3a91c2…0de04b": enough of a SHA-256 to compare by eye. */
+export const shortHash = (lowerHex: string): string =>
+    lowerHex.length > 16 ? `${lowerHex.slice(0, 8)}…${lowerHex.slice(-6)}` : lowerHex
+
+/** "F7:08:0F:24:0A:58:E1:B6…D6:FE:78". */
+export const shortFingerprint = (lowerHex: string): string => {
+    const full = colonHex(lowerHex)
+    return full.length > 36 ? `${full.slice(0, 23)}…${full.slice(-8)}` : full
+}
+
+export const documentTypeLabel = (kind: DocumentKind): string =>
+    kind === DocumentKind.Eml ? "EML" : "PDF"
+
+/** The action's short name; a configuration version's with its number. */
+const actionTitle = (t: TFunction, data: ISigningPanelData): string =>
+    data.request.action === SigningAction.ApproveConfiguration && data.request.config_revision
+        ? t("signing.panel.configurationVersion", {version: data.request.config_revision})
+        : t(`signing.actions.${data.request.action}.short`)
+
+/**
+ * "Election returns · Madrid PE · Spain": the action, then the Post and the
+ * country; "Configuration version 18" for the version a request publishes.
+ */
+export const requestTitle = (t: TFunction, data: ISigningPanelData): string =>
+    [actionTitle(t, data), data.election_name, data.area_name]
+        .filter((part): part is string => !!part)
+        .join(" · ")
+
+export const actionObject = (t: TFunction, action: SigningAction): string =>
+    t(`signing.actions.${action}.object`)

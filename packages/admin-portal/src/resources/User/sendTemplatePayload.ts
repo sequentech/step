@@ -25,7 +25,11 @@ export interface ISendTemplateState<Audience extends string, VoterId> {
     channelSelection: EChannelSelection
     communicationMethod: ITemplateMethod
     scheduleNow: boolean
-    scheduleDate?: Date
+    /** RFC 3339 instant. */
+    scheduleDate?: string
+    /** Wall time and IANA zone entered alongside the instant. */
+    scheduleLocal?: string
+    scheduleTimezone?: string
     /** Alias of the chosen template: the key its approved template is bound under. */
     alias?: string
     content: ISendContent
@@ -38,7 +42,11 @@ export interface ISendTemplatePayload<Audience extends string, VoterId> extends 
     channel_selection: EChannelSelection
     communication_method?: ITemplateMethod
     schedule_now: boolean
-    schedule_date?: Date
+    /** RFC 3339 instant. */
+    schedule_date?: string
+    /** Wall time and IANA zone entered alongside the notification instant. */
+    schedule_local?: string
+    schedule_timezone?: string
     alias?: string
     secret_attribute_names: string[]
 }
@@ -96,6 +104,8 @@ export const buildSendTemplatePayload = <Audience extends string, VoterId>(
         communication_method: single ? state.communicationMethod : undefined,
         schedule_now: state.scheduleNow,
         schedule_date: state.scheduleDate,
+        schedule_local: state.scheduleLocal,
+        schedule_timezone: state.scheduleTimezone,
         ...(state.alias ? {alias: state.alias} : {}),
         ...(single ? contentFor(content, state.communicationMethod) : content),
         secret_attribute_names: state.secretAttributeNames,

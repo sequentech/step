@@ -1,18 +1,22 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::ballot::VoterCertificatePolicy;
+use crate::ballot::{
+    AudioInstructionsPolicy, VoterAccessibilitySettingsPolicy,
+    VoterCertificatePolicy,
+};
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
     CredentialFieldPosition, CredentialInputPolicy, LoginValidationPolicy,
     MAX_CREDENTIAL_PATTERN_GROUPS, MAX_CREDENTIAL_PATTERN_GROUP_SIZE,
-    MAX_CREDENTIAL_PATTERN_TOTAL_SIZE, REALM_ATTR_CREDENTIAL_FIELD_POSITION,
-    REALM_ATTR_CREDENTIAL_INPUT_PATTERN,
+    MAX_CREDENTIAL_PATTERN_TOTAL_SIZE, REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
+    REALM_ATTR_CREDENTIAL_FIELD_POSITION, REALM_ATTR_CREDENTIAL_INPUT_PATTERN,
     REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER,
     REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_LOGIN_VALIDATION_POLICY,
     REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ENABLED,
     REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
+    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN,
     SMARTLINK_SHARED_SECRET_MAX_LEN,
 };
@@ -202,6 +206,16 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
         }
         REALM_ATTR_VOTER_CERTIFICATE_POLICY => {
             if VoterCertificatePolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY => {
+            if VoterAccessibilitySettingsPolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY => {
+            if AudioInstructionsPolicy::from_str(value).is_err() {
                 bail!("Invalid value {value:?} for realm attribute {key}");
             }
         }
@@ -466,6 +480,34 @@ mod tests {
             ("smart-link-timeout-secs", "-90"),
             ("smart-link-clock-skew-secs", "1.5"),
             ("voter-certificate-policy", "sometimes"),
+        ] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(key, value)]))
+                    .is_err(),
+                "expected {key}={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_voter_accessibility_policies() {
+        for (key, value) in [
+            ("voter-accessibility-settings-policy", "disabled"),
+            ("voter-accessibility-settings-policy", "enabled"),
+            ("audio-instructions-policy", "disabled"),
+            ("audio-instructions-policy", "recorded"),
+            ("audio-instructions-policy", "recorded-or-synthesized"),
+        ] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(key, value)])).is_ok(),
+                "expected {key}={value:?} to be accepted"
+            );
+        }
+        for (key, value) in [
+            ("voter-accessibility-settings-policy", "sometimes"),
+            ("voter-accessibility-settings-policy", "ENABLED"),
+            ("audio-instructions-policy", "enabled"),
+            ("audio-instructions-policy", "autoplay"),
         ] {
             assert!(
                 validate_realm_attributes(&attributes(&[(key, value)]))

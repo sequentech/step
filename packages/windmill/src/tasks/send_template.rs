@@ -9,6 +9,9 @@ use crate::services::election_event_statistics::update_election_event_statistics
 use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
+use crate::services::reports::template_time::{
+    insert_template_time_variables, NotificationTimeContext,
+};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
 use crate::services::voter_secret_attributes::{
     decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
@@ -706,6 +709,15 @@ pub async fn send_template(
         .await
         .with_context(|| "Error listing elections by area")?,
     };
+    // Each voter's election, its opening and close, and the zones (design §7).
+    let time_context = match election_event {
+        Some(ref election_event) => {
+            NotificationTimeContext::load(&hasura_transaction, &tenant_id, election_event)
+                .await
+                .with_context(|| "Error loading the notification times")?
+        }
+        None => NotificationTimeContext::default(),
+    };
 
     loop {
         let hasura_transaction = hasura_db_client
@@ -803,12 +815,17 @@ pub async fn send_template(
             ) else {
                 continue;
             };
-            let variables = get_variables(
+            let mut variables = get_variables(
                 &render_user,
                 election_event.clone(),
                 tenant_id.clone(),
                 AuthAction::Login,
             )?;
+            insert_template_time_variables(
+                &mut variables,
+                time_context
+                    .variables_for(first_attribute(user, AREA_ID_ATTR_NAME).map(String::as_str)),
+            );
             let contents = match render_contents(&body, &variables) {
                 Ok(contents) => contents,
                 Err(error) => {
@@ -925,6 +942,7 @@ pub async fn send_template_email_or_sms(
     email_sender: &EmailSender,
     sms_sender: &SmsSender,
     communication_method: Option<TemplateMethod>,
+    time_context: &NotificationTimeContext,
 ) -> Result<()> {
     event!(
         Level::INFO,
@@ -933,7 +951,7 @@ pub async fn send_template_email_or_sms(
         email = user.email,
     );
     let admin_id = admin_id_opt.unwrap_or("".into());
-    let variables: Map<String, Value> = get_variables(
+    let mut variables: Map<String, Value> = get_variables(
         user,
         election_event.clone(),
         tenant_id.to_string(),
@@ -945,6 +963,10 @@ pub async fn send_template_email_or_sms(
             .get(AREA_ID_ATTR_NAME)
             .and_then(|area_id| area_id.first().cloned())
     });
+    insert_template_time_variables(
+        &mut variables,
+        time_context.variables_for(user_area_id.as_deref()),
+    );
 
     match communication_method {
         Some(TemplateMethod::EMAIL) => {

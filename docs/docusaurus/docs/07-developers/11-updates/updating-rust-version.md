@@ -92,8 +92,8 @@ Update the `FROM rust:X.Y.Z` line in **all** Dockerfiles:
 - **`packages/harvest/Dockerfile`**
 - **`packages/harvest/Dockerfile.prod`**
 - **`packages/harvest/Dockerfile.prod-vstl-dependencies`**
-- **`packages/b3/Dockerfile.prod`**
-- **`packages/b3/Dockerfile.prod-vstl-dependencies`**
+- **`packages/b4/Dockerfile.prod`**
+- **`packages/b4/Dockerfile.prod-vstl-dependencies`**
 - **`packages/e2e/src/mock_server/Dockerfile.prod`**
 - **`packages/loadtesting/Dockerfile`**
 - **`packages/Dockerfile.immudb-init-vstl-dependencies`**
@@ -330,8 +330,8 @@ Here's the complete list of files that need updating:
 - `packages/harvest/Dockerfile`
 - `packages/harvest/Dockerfile.prod`
 - `packages/harvest/Dockerfile.prod-vstl-dependencies`
-- `packages/b3/Dockerfile.prod`
-- `packages/b3/Dockerfile.prod-vstl-dependencies`
+- `packages/b4/Dockerfile.prod`
+- `packages/b4/Dockerfile.prod-vstl-dependencies`
 - `packages/e2e/src/mock_server/Dockerfile.prod`
 - `packages/loadtesting/Dockerfile`
 - `packages/Dockerfile.immudb-init-vstl-dependencies`

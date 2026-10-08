@@ -9,6 +9,12 @@ import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {PgAuditTable, type PgAuditRow} from "@/gql/graphql"
 import {PgAuditList} from "./PgAuditList"
+import {i18n, browserTimeZone} from "@sequentech/ui-core"
+import {formatZoned} from "@/lib/timezones/zonedFormat"
+
+/** A time as the screen shows it outside an event's screens: labelled, in the viewer's zone. */
+const shownTime = (value: string, seconds = true) =>
+    formatZoned(value, browserTimeZone(), {t: i18n.t.bind(i18n), lang: i18n.language, seconds})
 
 interface Scenario {
     auditTable: PgAuditTable
@@ -90,7 +96,7 @@ const readResources = () =>
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const row = await auditRow(canvasElement, "UPDATE sequent_backend.election")
-        await expect(within(row).getByText("Thu, 15 Jan 2026 12:00:00 GMT")).toBeVisible()
+        await expect(within(row).getByText(shownTime("2026-01-15T12:00:00Z"))).toBeVisible()
         await expect(within(row).getByText("session-0001")).toBeVisible()
         // The audit type, class and database columns start hidden.
         expect(within(row).queryByText("WRITE")).not.toBeInTheDocument()

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyTrustee, TallyTrusteeStatus};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -11,12 +12,19 @@ pub enum TrusteeSelection {
     Ready(Vec<String>),
 }
 
-pub fn eligible_trustees(trustees: Vec<TallyTrustee>, policy: CeremoniesPolicy) -> Vec<String> {
+/// The trustees a tally may use: every one with automated ceremonies,
+/// else those who restored their key, signed when the rule makes them sign.
+pub fn eligible_trustees(
+    trustees: Vec<TallyTrustee>,
+    policy: CeremoniesPolicy,
+    signatures: &TrusteeSignatures,
+) -> Vec<String> {
     trustees
         .into_iter()
         .filter(|trustee| {
             policy == CeremoniesPolicy::AUTOMATED_CEREMONIES
-                || trustee.status == TallyTrusteeStatus::KEY_RESTORED
+                || (trustee.status == TallyTrusteeStatus::KEY_RESTORED
+                    && signatures.counts(&trustee.name))
         })
         .map(|trustee| trustee.name)
         .collect()

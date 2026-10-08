@@ -68,3 +68,78 @@ intended roles by hand.
 
 See [Monitoring](../../02-election-event/02-election_management_election-event_monitoring.md) for what
 each permission shows and allows.
+
+## Approval Matrix Permission
+
+The **Approvals** tab of an election event shows its enrollment approval matrix to everyone who can
+see the tab (`application-read`), who can also try enrollments in its test panel.
+
+| Permission | Allows |
+|---|---|
+| `approval-matrix-write` | Save a new version of the election event's approval matrix. |
+
+New tenant realms grant it to the `admin` group, in the default tenant realm template and in the
+COMELEC template. Existing realms are not changed; grant it to the intended roles by hand.
+
+See [Approvals](../../02-election-event/14-election_management_election-event_approvals.md) for the
+matrix and its rules.
+
+## Signature Permissions
+
+The **Signatures** tab of an election event decides which protected actions need the signatures of
+several people. Each part of it has its own permission, and signing each action has another.
+
+| Permission | Allows |
+|---|---|
+| `election-event-signatures-tab` | Show the Signatures tab. It also needs at least one read permission below. |
+| `signing-rules-read` | See the Protected actions sub-tab. |
+| `signing-rules-write` | Edit the protected actions' rules. |
+| `signing-certificates-read` | See the Certificates sub-tab. |
+| `signing-issuers-write` | Import and remove trusted issuers. |
+| `signing-checks-write` | Change the certificate checks. |
+| `signing-certificates-register` | Register a certificate to a person. |
+| `signing-certificates-revoke` | Revoke a registered certificate. |
+| `signing-requests-read` | See the Requests sub-tab. Users limited by permission labels see their Posts' requests. |
+| `signing-requests-cancel` | Cancel someone else's waiting request. The person who started a request can always cancel it. |
+| `signing-requests-export` | Export the requests as CSV. |
+| `sign-<action>` | Sign that action: `sign-initialize-voting`, `sign-open-voting`, `sign-close-voting`, `sign-generate-election-returns`, `sign-generate-reports`, `sign-transmit-results`, `sign-approve-voter`, `sign-approve-configuration`, `sign-key-ceremony` and `sign-tally-key`. |
+
+Changing who can sign an action takes `role-write`, from the rule drawer or here. With `role-write`
+but without `user-permission-write`, a user can turn only the `sign-<action>` permissions on or off; the
+other permissions in the role's grid stay read-only for them. Changing any other permission still takes
+both. Signers need no permission on the tab.
+
+Turning a `sign-<action>` permission on or off for a role, creating a role that has one, and deleting a
+role that holds one are written to the Logs of each election event that has a rule for that action. A
+change that changes nothing (setting a permission the role already has) is not written. Some changes to
+who can sign are not written to the Logs yet (a known gap):
+
+- adding a user to a role, or removing them;
+- granting a `sign-<action>` permission through a subgroup or a composite role. People who hold it that
+  way can still sign, like those whose role holds it directly.
+
+The platform's own permissions, these included, can't be deleted from **Users and Roles**.
+
+New tenant realms get all of these permissions, held by the `admin` group. The janitor's client
+template also has a sample preset: a **Configuration Manager** group (`configuration-manager`) with the
+Protected actions, a **Security Officer** group (`security-officer`) with the Certificates, an **OFOV**
+group (`ofov`) with the Requests, and an **Auditor** group (`auditor`) that reads all three. SBEIs can
+sign the voting, results and voter approval actions, and trustees their key steps. The four groups also
+get `election-event-read`, to reach an election event, and `election-read` and `area-read`, so that the tab
+names Posts and countries; they don't get the general `admin-user` role. The Configuration Manager also gets
+`role-read`, for the list of roles the rule editor picks signers from. So that the Security Officer can
+change who signs, the preset also gives it `users-menu`, `role-read`,
+`user-permission-read` and `role-write`, which open Users and Roles and change only the sign
+permissions. It also gets `user-read`, because registering a certificate picks the person from the
+tenant's users. The preset is a sample, still to be confirmed; adjust it to the organization's own
+roles.
+
+Existing tenant realms get the permissions, with their labels, when Windmill's scheduler (beat) starts
+after an upgrade, retrying for about 15 minutes if Keycloak isn't reachable yet;
+`step-cli step migrate-realm-permissions` does the same by hand. Only the permissions
+are added: no role receives them. Assign them to roles in **Users and Roles** > **Roles**.
+
+[Signature permissions](../../02-election-event/16-signatures/06-election_management_election-event_signatures_permissions.md)
+lists each of these permissions with its label in Users and Roles, and the sample preset's
+groups and rules; [Signatures](../../02-election-event/16-signatures/01-election_management_election-event_signatures.md)
+describes the tab.

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {eventRecord} from "@/__stories__/fixtures"
 import React, {useContext} from "react"
 import type {StoryObj} from "@storybook/react"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -15,6 +16,11 @@ import {
 import {dataBoundary} from "@/__stories__/dataBoundary"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {SigningProvider} from "@/components/signing/SigningProvider"
+import {fakeApi, makePanel} from "@/components/signing/__stories__/fixtures"
+import type {ISigningApi} from "@/lib/signing/api"
+import {SigningAction} from "@/lib/signing/types"
+import englishTranslation from "@/translations/en"
 import {Publish} from "./Publish"
 import {EPublishType} from "./EPublishType"
 
@@ -22,6 +28,7 @@ const ELECTION_ID = "33333333-3333-4333-8333-333333333333"
 const PUBLICATION_ID = "88888888-8888-4888-8888-888888888888"
 const TASK_ID = "99999999-9999-4999-8999-999999999999"
 const FIXED_TIME = "2026-01-15T12:00:00Z"
+const REQUEST_ID = "55555555-5555-4555-8555-555555555555"
 const permissions = [
     "publish-read",
     "publish-write",
@@ -29,30 +36,80 @@ const permissions = [
     "publish-changes",
     "election-event-publish-back-button",
 ]
+/** What starting, stopping and initializing voting at a Post also need. */
+const votingPermissions = [
+    "election-state-write",
+    "publish-start-voting",
+    "publish-stop-voting",
+    "admin-ceremony",
+]
 interface Scenario {
     election: boolean
     large: boolean
     generationFails: boolean
     taskFails: boolean
     publicationFails: boolean
+    /** The protected action this story's routes answer a signing request for, if any. */
+    signing: SigningAction | null
+    /** The Post's online voting status. */
+    votingStatus: "NOT_STARTED" | "OPEN"
+    /** The story starts or stops voting and initializes the Post. */
+    voting: boolean
 }
 let boundary: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof dataBoundary>
 let completeTask: () => void
 let generationFails = false
 let publicationFails = false
-const record = {
+let signingApi: ReturnType<typeof fakeApi>
+const record = (votingStatus: Scenario["votingStatus"]) => ({
     id: EVENT_ID,
     tenant_id: TENANT_ID,
-    status: {voting_status: "NOT_STARTED"},
+    status: {voting_status: votingStatus},
     voting_channels: {online: true},
     presentation: {},
-}
-const electionRecord = {...record, id: ELECTION_ID, election_event_id: EVENT_ID}
+})
+const electionRecord = (votingStatus: Scenario["votingStatus"]) => ({
+    ...record(votingStatus),
+    id: ELECTION_ID,
+    election_event_id: EVENT_ID,
+    // The Post's policy asks for its initialization report, which Publish starts.
+    presentation: {initialization_report_policy: "required"},
+})
 
-function Fixture({election}: Scenario) {
+/** The configuration version a publication's request publishes. */
+const CONFIGURATION_VERSION = "18"
+
+/** What each protected action's request signs in these stories. */
+const SUBJECTS: Partial<Record<SigningAction, Record<string, unknown>>> = {
+    [SigningAction.ApproveConfiguration]: {
+        ballot_publication_id: PUBLICATION_ID,
+        ballots_and_contests: "changed",
+        digest: "5e2c19d0a4b1c7e3f9d2a8b6c4e0f1a3b5d7c9e1f3a5b7d9c1e3f5a7b9d77a4a",
+        scheduled_events: 2,
+        signing_rules: ["transmit-results=1>2"],
+    },
+    [SigningAction.CloseVoting]: {channels: ["ONLINE"], from: ["ONLINE=OPEN"]},
+    [SigningAction.InitializeVoting]: {publication_id: PUBLICATION_ID},
+}
+
+/** A route's answer while the action waits for signatures. */
+const waiting = (action: SigningAction | null, current: SigningAction) =>
+    action === current
+        ? {
+              signing_request: {
+                  id: REQUEST_ID,
+                  code: "7F3A-91C2",
+                  required: 2,
+                  expires_at: "2099-05-12T11:30:00Z",
+              },
+          }
+        : {}
+
+function Fixture({election, voting, votingStatus}: Scenario) {
     const auth = useContext(AuthContext)
     const settings = useContext(SettingsContext)
+    const granted = voting ? [...permissions, ...votingPermissions] : permissions
     return (
         <AdminStoryProvider boundary={boundary} dataProvider={data.provider}>
             <AuthContext.Provider
@@ -64,7 +121,7 @@ function Fixture({election}: Scenario) {
                     isAuthorized: (_super, tenant, permission) =>
                         tenant === TENANT_ID &&
                         (Array.isArray(permission) ? permission : [permission]).every((p) =>
-                            permissions.includes(p)
+                            granted.includes(p)
                         ),
                 }}
             >
@@ -74,14 +131,18 @@ function Fixture({election}: Scenario) {
                         globalSettings: {...settings.globalSettings, QUERY_POLL_INTERVAL_MS: 50},
                     }}
                 >
-                    <RecordContextProvider value={election ? electionRecord : record}>
-                        <main>
-                            <Publish
-                                electionEventId={EVENT_ID}
-                                electionId={election ? ELECTION_ID : undefined}
-                                type={election ? EPublishType.Election : EPublishType.Event}
-                            />
-                        </main>
+                    <RecordContextProvider
+                        value={election ? electionRecord(votingStatus) : record(votingStatus)}
+                    >
+                        <SigningProvider api={signingApi as ISigningApi}>
+                            <main>
+                                <Publish
+                                    electionEventId={EVENT_ID}
+                                    electionId={election ? ELECTION_ID : undefined}
+                                    type={election ? EPublishType.Election : EPublishType.Event}
+                                />
+                            </main>
+                        </SigningProvider>
                     </RecordContextProvider>
                 </SettingsContext.Provider>
             </AuthContext.Provider>
@@ -98,14 +159,28 @@ const meta = {
         generationFails: false,
         taskFails: false,
         publicationFails: false,
+        signing: null,
+        votingStatus: "NOT_STARTED",
+        voting: false,
     },
-    beforeEach: ({args}) => {
+    beforeEach: async ({args}) => {
+        const panel = await makePanel({
+            action: args.signing ?? SigningAction.ApproveConfiguration,
+            subject: SUBJECTS[args.signing ?? SigningAction.ApproveConfiguration],
+            required: 2,
+        })
+        signingApi = fakeApi(
+            panel.request.action === SigningAction.ApproveConfiguration
+                ? {...panel, request: {...panel.request, config_revision: CONFIGURATION_VERSION}}
+                : panel
+        )
         sessionStorage.removeItem("pendingPublishAction")
         generationFails = args.generationFails
         publicationFails = args.publicationFails
         let taskReady = false
-        let generated = false
-        let published = false
+        // Starting, stopping and initializing voting come after a publication.
+        let generated = args.voting
+        let published = args.voting
         completeTask = () => {
             taskReady = true
         }
@@ -118,88 +193,134 @@ const meta = {
             published_at: published ? FIXED_TIME : null,
             created_at: "2026-01-15T11:00:00Z",
         })
-        boundary = graphqlBoundary({
-            GenerateBallotPublication: () => {
-                if (generationFails) throw new Error("Synthetic publication generation unavailable")
-                return {
-                    data: {
-                        generate_ballot_publication: {
-                            ballot_publication_id: PUBLICATION_ID,
-                            task_execution: {id: TASK_ID, execution_status: "STARTED", logs: []},
-                        },
-                    },
-                }
-            },
-            GetTaskById: () => {
-                if (taskReady && !args.taskFails) generated = true
-                return {
-                    data: {
-                        sequent_backend_tasks_execution: [
-                            {
-                                id: TASK_ID,
-                                tenant_id: TENANT_ID,
-                                election_event_id: EVENT_ID,
-                                execution_status: taskReady
-                                    ? args.taskFails
-                                        ? "FAILED"
-                                        : "SUCCESS"
-                                    : "STARTED",
-                                type: "GENERATE_BALLOT_PUBLICATION",
-                                start_at: FIXED_TIME,
-                                end_at: taskReady ? FIXED_TIME : null,
-                                logs: args.taskFails
-                                    ? [{log_text: "Synthetic ballot exceeded maximum size"}]
-                                    : [],
-                                annotations: {},
-                                executed_by_user: null,
+        boundary = graphqlBoundary(
+            {
+                GetScheduledOutcomes: () => ({
+                    data: {get_scheduled_outcomes: {outcomes: [], retained_closes: []}},
+                }),
+                GetLifecycleSnapshots: () => ({data: {get_lifecycle_snapshots: {snapshots: []}}}),
+                // A configuration approval's panel compares with the previous approval: none yet.
+                GetConfigurationApprovals: () => ({data: {current: null, approvals: []}}),
+                GenerateBallotPublication: () => {
+                    if (generationFails)
+                        throw new Error("Synthetic publication generation unavailable")
+                    return {
+                        data: {
+                            generate_ballot_publication: {
+                                ballot_publication_id: PUBLICATION_ID,
+                                task_execution: {
+                                    id: TASK_ID,
+                                    execution_status: "STARTED",
+                                    logs: [],
+                                },
                             },
-                        ],
-                    },
-                }
-            },
-            GetBallotPublicationChange: ({variables}) => ({
-                data: {
-                    get_ballot_publication_changes: {
-                        previous: {
-                            ballot_publication_id: "previous-publication",
-                            ballot_styles: [{id: "previous-style", ballot_eml: "Previous council"}],
                         },
-                        current: {
-                            ballot_publication_id: PUBLICATION_ID,
-                            ballot_styles: args.large
-                                ? Array.from(
-                                      {
-                                          length:
-                                              typeof variables.limit === "number"
-                                                  ? variables.limit
-                                                  : 60,
-                                      },
-                                      (_, index) => ({
-                                          id: `style-${String(index).padStart(3, "0")}`,
-                                          tenant_id: TENANT_ID,
-                                          election_event_id: EVENT_ID,
-                                          election_id: ELECTION_ID,
-                                          ballot_eml: `Publication marker ${String(index).padStart(3, "0")}`,
-                                          ballot_signature: null,
-                                          annotations: {},
-                                          labels: {},
-                                          created_at: FIXED_TIME,
-                                          last_updated_at: FIXED_TIME,
-                                      })
-                                  )
-                                : [{id: "revised-style", ballot_eml: "Revised council"}],
-                        },
-                    },
+                    }
                 },
-            }),
-            PublishBallot: () => {
-                if (publicationFails) throw new Error("Synthetic publication write failed")
-                published = true
-                return {data: {publish_ballot: {ballot_publication_id: PUBLICATION_ID}}}
+                GetTaskById: () => {
+                    if (taskReady && !args.taskFails) generated = true
+                    return {
+                        data: {
+                            sequent_backend_tasks_execution: [
+                                {
+                                    id: TASK_ID,
+                                    tenant_id: TENANT_ID,
+                                    election_event_id: EVENT_ID,
+                                    execution_status: taskReady
+                                        ? args.taskFails
+                                            ? "FAILED"
+                                            : "SUCCESS"
+                                        : "STARTED",
+                                    type: "GENERATE_BALLOT_PUBLICATION",
+                                    start_at: FIXED_TIME,
+                                    end_at: taskReady ? FIXED_TIME : null,
+                                    logs: args.taskFails
+                                        ? [{log_text: "Synthetic ballot exceeded maximum size"}]
+                                        : [],
+                                    annotations: {},
+                                    executed_by_user: "admin",
+                                },
+                            ],
+                        },
+                    }
+                },
+                GetBallotPublicationChange: ({variables}) => ({
+                    data: {
+                        get_ballot_publication_changes: {
+                            previous: {
+                                ballot_publication_id: "previous-publication",
+                                ballot_styles: [
+                                    {id: "previous-style", ballot_eml: "Previous council"},
+                                ],
+                            },
+                            current: {
+                                ballot_publication_id: PUBLICATION_ID,
+                                ballot_styles: args.large
+                                    ? Array.from(
+                                          {
+                                              length:
+                                                  typeof variables.limit === "number"
+                                                      ? variables.limit
+                                                      : 60,
+                                          },
+                                          (_, index) => ({
+                                              id: `style-${String(index).padStart(3, "0")}`,
+                                              tenant_id: TENANT_ID,
+                                              election_event_id: EVENT_ID,
+                                              election_id: ELECTION_ID,
+                                              ballot_eml: `Publication marker ${String(index).padStart(3, "0")}`,
+                                              ballot_signature: null,
+                                              annotations: {},
+                                              labels: {},
+                                              created_at: FIXED_TIME,
+                                              last_updated_at: FIXED_TIME,
+                                          })
+                                      )
+                                    : [{id: "revised-style", ballot_eml: "Revised council"}],
+                            },
+                        },
+                    },
+                }),
+                PublishBallot: () => {
+                    if (publicationFails) throw new Error("Synthetic publication write failed")
+                    const answer = waiting(args.signing, SigningAction.ApproveConfiguration)
+                    published = !answer.signing_request
+                    return {
+                        data: {publish_ballot: {ballot_publication_id: PUBLICATION_ID, ...answer}},
+                    }
+                },
+                UpdateElectionVotingStatus: () => ({
+                    data: {
+                        update_election_voting_status: {
+                            election_id: ELECTION_ID,
+                            ...waiting(args.signing, SigningAction.CloseVoting),
+                        },
+                    },
+                }),
+                CreateTallyCeremony: () => {
+                    const answer = waiting(args.signing, SigningAction.InitializeVoting)
+                    return {
+                        data: {
+                            create_tally_ceremony: {
+                                tally_session_id: answer.signing_request ? null : TASK_ID,
+                                ...answer,
+                            },
+                        },
+                    }
+                },
             },
-        })
+            {schema: true}
+        )
         data = dataBoundary({
             getList: async <RecordType extends RaRecord>(resource: string) => {
+                // The election's fired scheduled transitions and the event's zones: none here.
+                if (
+                    resource === "sequent_backend_area" ||
+                    resource === "sequent_backend_scheduled_event" ||
+                    resource === "sequent_backend_election"
+                ) {
+                    return {data: [] as RecordType[], total: 0}
+                }
                 if (resource !== "sequent_backend_ballot_publication") {
                     data.unexpected.push(resource)
                     throw new Error(`Unexpected list ${resource}`)
@@ -213,6 +334,12 @@ const meta = {
                 resource: string,
                 {id}: {id: string | number}
             ) => {
+                if (resource === "sequent_backend_election_event" && id === EVENT_ID) {
+                    return {data: eventRecord() as unknown as RecordType}
+                }
+                if (resource === "sequent_backend_election" && id === ELECTION_ID) {
+                    return {data: electionRecord(args.votingStatus) as unknown as RecordType}
+                }
                 if (resource !== "sequent_backend_ballot_publication" || id !== PUBLICATION_ID) {
                     data.unexpected.push(`${resource}/${id}`)
                     throw new Error("Unexpected publication record")
@@ -267,7 +394,9 @@ export const EventGenerationAndPublication: Story = {
             ballotPublicationId: PUBLICATION_ID,
         })
         await expect(await canvas.findByText(PUBLICATION_ID)).toBeVisible()
-        await expect(await canvas.findByText(FIXED_TIME, {exact: false})).toBeVisible()
+        await expect(
+            await canvas.findByText("Jan 15, 2026, 12:00:00 PM UTC", {exact: false})
+        ).toBeVisible()
     },
 }
 
@@ -298,7 +427,12 @@ export const ElectionGenerationKeepsBothScopeIds: Story = {
         expect(
             boundary.calls.find(({name}) => name === "GenerateBallotPublication")!.variables
         ).toEqual({electionEventId: EVENT_ID, electionId: ELECTION_ID})
-        expect(data.calls.filter(({method}) => method === "getList")[0].args[1]).toMatchObject({
+        expect(
+            data.calls.filter(
+                ({method, args}) =>
+                    method === "getList" && args[0] === "sequent_backend_ballot_publication"
+            )[0].args[1]
+        ).toMatchObject({
             filter: {election_event_id: EVENT_ID, election_id: ELECTION_ID},
         })
         expect(boundary.calls.filter(({name}) => name === "PublishBallot")).toEqual([])
@@ -416,5 +550,155 @@ export const LargeDiffRequiresConfirmationBeforeFetchingAllStyles: Story = {
             expect(canvas.queryByText(/Publication marker 059/)).not.toBeInTheDocument()
         )
         expect(boundary.calls.filter(({name}) => name === "PublishBallot")).toEqual([])
+    },
+}
+
+/** The signing panel the provider opened, once it loaded the request. */
+async function signingPanel() {
+    await waitFor(() => expect(signingApi.getRequest).toHaveBeenCalled())
+    const drawer = await waitFor(() => {
+        const paper = document.querySelector(".MuiDrawer-paper") as HTMLElement | null
+        expect(paper).not.toBeNull()
+        return paper as HTMLElement
+    })
+    await waitFor(() => expect(drawer).toBeVisible())
+    return within(drawer)
+}
+
+async function confirm() {
+    const dialog = within(await within(document.body).findByRole("dialog"))
+    await userEvent.click(dialog.getByRole("button", {name: "Confirm"}))
+}
+
+/** Publishing a configuration version opens its request with the changes it signs. */
+export const PublishingWaitsForSignatures: Story = {
+    args: {signing: SigningAction.ApproveConfiguration},
+    play: async ({canvasElement}) => {
+        const canvas = await generate(canvasElement)
+        await userEvent.click(canvas.getAllByRole("button", {name: "Publish Changes"}).at(-1)!)
+        const panel = await signingPanel()
+        const subject = SUBJECTS[SigningAction.ApproveConfiguration]!
+        const row = (label: string) =>
+            panel.getByRole("rowheader", {name: label}).nextElementSibling?.textContent
+        // The version it publishes, and what changes in it (draft Other staff 2).
+        await expect(
+            panel.getByText(`Configuration version ${CONFIGURATION_VERSION}`, {exact: false})
+        ).toBeVisible()
+        await expect(panel.getByRole("heading", {name: "Changes in this version"})).toBeVisible()
+        // Codes in the organization's words: each rule after and before.
+        const words = englishTranslation.translations.signing
+        expect(row("Signing rules")).toBe(
+            `${words.actions["transmit-results"].label}: needs 2 (was 1)`
+        )
+        expect(row("Ballots and contests")).toBe(words.values.ballots_and_contests.changed)
+        expect(row("New scheduled events")).toBe(String(subject.scheduled_events))
+        expect(row("Configuration SHA-256")).toBe(subject.digest)
+        expect(signingApi.getRequest).toHaveBeenCalledWith(REQUEST_ID)
+        // Nothing is published while it waits.
+        expect(within(document.body).queryByText("Ballot published")).toBeNull()
+        expect(boundary.calls.filter(({name}) => name === "PublishBallot")).toHaveLength(1)
+    },
+}
+
+async function stopOnlineVoting(canvasElement: HTMLElement) {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole("button", {name: "Stop Voting"}))
+    await userEvent.click(
+        await within(document.body).findByRole("menuitem", {name: "Stop Online Voting"})
+    )
+    await confirm()
+    await waitFor(() =>
+        expect(
+            boundary.calls.filter(({name}) => name === "UpdateElectionVotingStatus")
+        ).toHaveLength(1)
+    )
+    expect(
+        boundary.calls.find(({name}) => name === "UpdateElectionVotingStatus")!.variables
+    ).toEqual({
+        votingStatus: "CLOSED",
+        electionId: ELECTION_ID,
+        electionEventId: EVENT_ID,
+        votingChannel: ["ONLINE"],
+    })
+    return canvas
+}
+
+/** Closing a Post opens its request instead of closing it. */
+export const ClosingAPostWaitsForSignatures: Story = {
+    args: {election: true, voting: true, votingStatus: "OPEN", signing: SigningAction.CloseVoting},
+    play: async ({canvasElement}) => {
+        const canvas = await stopOnlineVoting(canvasElement)
+        const panel = await signingPanel()
+        expect(
+            panel.getByRole("rowheader", {name: "Channels"}).nextElementSibling?.textContent
+        ).toBe(englishTranslation.translations.signing.values.channels.ONLINE)
+        expect(within(document.body).queryByText("Election status changed")).toBeNull()
+        // The stop button is not left loading: nothing changed yet.
+        await waitFor(() =>
+            expect(canvas.getByRole("button", {name: "Stop Voting", hidden: true})).toBeEnabled()
+        )
+    },
+}
+
+/** With the rule off, closing a Post closes it as before. */
+export const ClosingAPostWithoutSignatures: Story = {
+    args: {election: true, voting: true, votingStatus: "OPEN"},
+    play: async ({canvasElement}) => {
+        await stopOnlineVoting(canvasElement)
+        const message = await within(document.body).findByText("Election status changed")
+        await waitFor(() => expect(message).toBeVisible())
+        expect(signingApi.getRequest).not.toHaveBeenCalled()
+        expect(document.querySelector(".MuiDrawer-paper")).toBeNull()
+    },
+}
+
+async function initialize(canvasElement: HTMLElement) {
+    const canvas = within(canvasElement)
+    await userEvent.click(
+        await canvas.findByRole("button", {name: "Generate Initialization Report"})
+    )
+    await confirm()
+    await waitFor(() =>
+        expect(boundary.calls.filter(({name}) => name === "CreateTallyCeremony")).toHaveLength(1)
+    )
+    expect(boundary.calls.find(({name}) => name === "CreateTallyCeremony")!.variables).toEqual({
+        election_event_id: EVENT_ID,
+        election_ids: [ELECTION_ID],
+        tally_type: "INITIALIZATION_REPORT",
+    })
+}
+
+/** Initializing a Post (its initialization report) opens its request. */
+export const InitializingAPostWaitsForSignatures: Story = {
+    args: {election: true, voting: true, signing: SigningAction.InitializeVoting},
+    play: async ({canvasElement}) => {
+        await initialize(canvasElement)
+        const panel = await signingPanel()
+        expect(
+            panel.getByRole("rowheader", {name: "Ballot publication"}).nextElementSibling
+                ?.textContent
+        ).toBe(PUBLICATION_ID)
+        expect(within(document.body).queryByText("Tally created")).toBeNull()
+    },
+}
+
+/** With the rule off, initializing creates the initialization report tally at once. */
+export const InitializingAPostWithoutSignatures: Story = {
+    args: {election: true, voting: true},
+    play: async ({canvasElement}) => {
+        await initialize(canvasElement)
+        const message = await within(document.body).findByText("Tally created")
+        await waitFor(() => expect(message).toBeVisible())
+        expect(signingApi.getRequest).not.toHaveBeenCalled()
+    },
+}
+
+/** The event's Publish has no initialization: that is a Post's. */
+export const EventLevelHasNoInitialization: Story = {
+    args: {voting: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByRole("button", {name: "Stop Voting"})).toBeVisible()
+        expect(canvas.queryByRole("button", {name: "Generate Initialization Report"})).toBeNull()
     },
 }

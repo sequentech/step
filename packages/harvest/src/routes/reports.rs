@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::routes::signing::{signing_failure, SigningReply};
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
+use crate::services::signing_http::SigningError as SigningFailure;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -19,6 +21,10 @@ use windmill::services::electoral_log::{
     ElectoralLogAdminContext, VoterSecretAttributeAction,
     VoterSecretAttributeAudit,
 };
+use windmill::services::signing::actions::reports::{
+    held_report_requests, reads_report_requests, HeldReportRequest,
+};
+use windmill::services::signing::{SigningCaller, SigningError};
 
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
@@ -339,6 +345,22 @@ pub async fn generate_report(
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
         })?;
+    if input.report_mode == GenerateReportMode::REAL {
+        if let Some(refusal) = signed_generation_refusal(
+            &hasura_transaction,
+            &report,
+            &report_type,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading the report's signing rule: {error:?}"),
+            )
+        })? {
+            return Err(refusal);
+        }
+    }
     let declared_secret_names =
         windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names(
             &hasura_transaction,
@@ -414,6 +436,7 @@ pub async fn generate_report(
             Some(executer_username),
             None,
             may_read_secret_attributes,
+            Some(SigningCaller::from_claims(&claims)),
         ))
         .await
         .map_err(|e| {
@@ -504,3 +527,114 @@ pub async fn encrypt_report_route(
 #[cfg(test)]
 #[path = "../../tests/support/report_routes.rs"]
 mod route_tests;
+
+/// Why a real report can't be generated here while its action needs
+/// signatures: the election returns and the initialization report are
+/// produced and signed by the tally, and a held report is a Post's.
+async fn signed_generation_refusal(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    report: &windmill::postgres::reports::Report,
+    report_type: &ReportType,
+) -> anyhow::Result<Option<(Status, String)>> {
+    use windmill::services::signing::guard::effective_rule;
+    use windmill::services::signing::pdf::{
+        report_signing_action, tally_signing_action,
+    };
+    let required = |action| async move {
+        let tenant_id = Uuid::parse_str(&report.tenant_id)?;
+        let election_event_id = Uuid::parse_str(&report.election_event_id)?;
+        anyhow::Ok(
+            effective_rule(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                action,
+            )
+            .await?
+            .is_required(),
+        )
+    };
+    if let Some(action) = tally_signing_action(report_type) {
+        if required(action).await? {
+            return Ok(Some((
+                Status::Conflict,
+                "This report needs signatures: the tally produces it for each Post, to be signed there."
+                    .into(),
+            )));
+        }
+    }
+    if let Some(action) = report_signing_action(report_type) {
+        if report.election_id.is_none() && required(action).await? {
+            return Ok(Some((
+                Status::BadRequest,
+                "This report needs signatures: generate it for a Post.".into(),
+            )));
+        }
+    }
+    Ok(None)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HeldReportRequestsInput {
+    election_event_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HeldReportRequestsOutput {
+    requests: Vec<HeldReportRequest>,
+}
+
+/// Safe request links for Reports and Tally, and the tally of a released
+/// report. The tenant, action permissions and Post labels are enforced by
+/// the same authenticated caller as the request panel.
+#[instrument(skip(claims, services, body))]
+#[post("/signing-reports/requests", format = "json", data = "<body>")]
+pub async fn signing_held_report_requests(
+    claims: JwtClaims,
+    services: &State<HarvestServices>,
+    body: Json<HeldReportRequestsInput>,
+) -> SigningReply<HeldReportRequestsOutput> {
+    crate::services::signing_http::authorize_403(
+        &claims,
+        Some(claims.hasura_claims.tenant_id.clone()),
+        vec![],
+    )?;
+    let caller = SigningCaller::from_claims(&claims);
+    if !reads_report_requests(&caller) {
+        return Err(signing_failure(SigningError::Forbidden(
+            "Reading it needs a report or signing request permission.".into(),
+        )));
+    }
+    let tenant_id =
+        Uuid::parse_str(&claims.hasura_claims.tenant_id).map_err(|_| {
+            SigningFailure::new(
+                Status::Unauthorized,
+                crate::services::signing_http::SigningErrorCode::Unauthorized,
+                "The token's tenant is not a UUID.",
+            )
+        })?;
+    let election_event_id =
+        Uuid::parse_str(&body.election_event_id).map_err(|_| {
+            SigningFailure::invalid("election_event_id is not a UUID")
+        })?;
+    let mut client = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(SigningFailure::internal)?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(SigningFailure::internal)?;
+    let requests = held_report_requests(
+        &transaction,
+        &caller,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(signing_failure)?;
+    Ok(Json(HeldReportRequestsOutput { requests }))
+}

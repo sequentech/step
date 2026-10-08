@@ -25,7 +25,7 @@ strum_macros = "0.27"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 graphql_client = "0.14"
 rayon = "1.5"
-sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports", "default_features", "election_config_xlsx", "election_config_archive"] }
+sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports", "default_features", "election_config_xlsx", "election_config_archive", "election_config_signing"] }
 windmill = { path="../windmill" }
 strand = { path="../strand" }
 immudb-rs = { path="../immudb-rs" }
@@ -56,3 +56,5 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tempfile = "3"
+# builds the test certificates of the verify-package tests
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "ring", "pem", "x509-parser"] }

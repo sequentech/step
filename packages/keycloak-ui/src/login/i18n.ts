@@ -4,6 +4,8 @@
 import {i18nBuilder} from "keycloakify/login"
 import type {ThemeName} from "../kc.gen"
 import type {KcContext} from "./KcContext"
+import {enrollmentEnglish, enrollmentSpanish} from "./enrollment/messages"
+import {scanovateEnglish, scanovateSpanish} from "./scanovate/messages"
 
 const englishMessages = {
     loginAccountTitle: {
@@ -19,6 +21,10 @@ const englishMessages = {
     "system.hash": "Hash:",
     invalidCredentialsMessage: "The details you entered are incorrect.",
     "messageOtp.auth.address": "We sent a code to {0}.",
+    "messageOtp.auth.codeProgress": "Code {0} of {1}",
+    "messageOtp.auth.codeNext":
+        "You’ll get {0} codes, one after the other. After this one, we’ll send you the next.",
+    "messageOtp.auth.codeLast": "Your previous code was accepted. This is the last one.",
     "messageOtp.auth.title": "Enter your verification code",
     "messageOtp.auth.instructionBoth":
         "Enter the code we sent to your mobile device via sms or email.",
@@ -90,6 +96,8 @@ const englishMessages = {
         "Another voter already uses this contact. Contact administrator.",
     "resetAppOtp.auth.error.invalidCountry":
         "Invalid country code for phone number. Contact administrator.",
+    ...scanovateEnglish,
+    ...enrollmentEnglish,
 } as const
 
 // Keycloakify resolves messages in the browser: keys that the server-side
@@ -113,6 +121,10 @@ const {useI18n, ofTypeI18n} = i18nBuilder
             "system.hash": "Hash:",
             invalidCredentialsMessage: "Los datos introducidos no son correctos.",
             "messageOtp.auth.address": "Enviamos un código a {0}.",
+            "messageOtp.auth.codeProgress": "Código {0} de {1}",
+            "messageOtp.auth.codeNext":
+                "Recibirá {0} códigos, uno tras otro. Después de este, le enviaremos el siguiente.",
+            "messageOtp.auth.codeLast": "Su código anterior fue aceptado. Este es el último.",
             "messageOtp.auth.title": "Ingrese su código de verificación",
             "messageOtp.auth.instructionBoth":
                 "Ingrese el código que le enviamos a su dispositivo móvil por SMS o a su email.",
@@ -190,22 +202,21 @@ const {useI18n, ofTypeI18n} = i18nBuilder
                 "Otro votante ya usa este contacto. Contacte al administrador.",
             "resetAppOtp.auth.error.invalidCountry":
                 "Código de país no válido para el número de teléfono. Contacte al administrador.",
+            ...scanovateSpanish,
+            ...enrollmentSpanish,
         },
     })
     .build()
 
 type I18n = typeof ofTypeI18n
+type MessageKey = keyof typeof englishMessages
 
-export {useI18n, type I18n}
+export {useI18n, type I18n, type MessageKey}
 
 // Keycloakify falls back to our English custom messages outside en/es. Server
 // translations take precedence; identify only exact English defaults, never
 // guess the language of a realm's custom text.
-export function messageLanguage(
-    kcContext: KcContext,
-    i18n: I18n,
-    key: keyof typeof englishMessages
-): string {
+export function messageLanguage(kcContext: KcContext, i18n: I18n, key: MessageKey): string {
     const current = i18n.currentLanguage.languageTag
     const server = kcContext["x-keycloakify"].messages[key]
     if (server === undefined) {
@@ -222,4 +233,18 @@ export function messageLanguage(
         return "en"
     }
     return current
+}
+
+export function isMessageKey(key: string): key is MessageKey {
+    return Object.prototype.hasOwnProperty.call(englishMessages, key)
+}
+
+// For keys chosen at run time: a document type, a stored attribute or a server error.
+export function dynamicMessageLanguage(kcContext: KcContext, i18n: I18n, key: string): string {
+    if (isMessageKey(key)) {
+        return messageLanguage(kcContext, i18n, key)
+    }
+    return kcContext["x-keycloakify"].messages[key] === undefined
+        ? "en"
+        : i18n.currentLanguage.languageTag
 }

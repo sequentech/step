@@ -565,7 +565,8 @@ pub enum BuiltinTheme {
     Vivid,
 }
 
-/// How this event's voters map onto dimensions, and the event's time zone.
+/// How this event's voters map onto dimensions. The event's time zone is
+/// its presentation's (`sequent_core::time_zones`), not a setting.
 ///
 /// Configuration rather than code because deployments store these facts in
 /// different places: one keeps a voter's country as `Country/Embassy` in a
@@ -574,9 +575,6 @@ pub enum BuiltinTheme {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
-    /// IANA name. Buckets and export ranges are in this zone.
-    pub time_zone: String,
-
     /// Where the region and country of a voter or Post are read. The Post is
     /// the election itself.
     pub scope: ScopeSettings,

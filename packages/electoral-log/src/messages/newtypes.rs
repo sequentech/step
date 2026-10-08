@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use strand::hash::{Hash, HashWrapper};
 use strum_macros::Display;
 
+use crate::messages::statement::{StatementEventType, StatementLogType, StatementType};
+
 #[derive(
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
@@ -303,6 +305,19 @@ pub struct ResultsPublicationDetails {
     pub contest_ids: Vec<ContestIdString>,
 }
 
+/// The version of an election event's enrollment approval matrix.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ApprovalMatrixVersion(pub u32);
+
+/// Lowercase hex SHA-256 of an approval matrix's JSON, which binds the
+/// entry to the saved version.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ApprovalMatrixDigestString(pub String);
+
 /// A monitoring configuration document's kind, as sequent-core names it:
 /// `widget`, `dashboard`, `theme` or `settings`.
 #[derive(
@@ -408,6 +423,66 @@ pub struct MonitoringConfigRevisionRef {
     pub digest: Option<MonitoringConfigDigestString>,
 }
 
+/// What happened to a signed configuration package.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub enum ConfigurationPackageAction {
+    /// Verified and imported into the election event.
+    Imported,
+}
+
+/// One ballot design a configuration package approved.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationDesignDigest {
+    pub area: String,
+    pub election: String,
+    pub sha256: String,
+}
+
+/// A signed configuration package's revision and manifest digest, and the
+/// digest of each design it approved.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ConfigurationPackageDetails {
+    pub action: ConfigurationPackageAction,
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    pub design_digests: Vec<ConfigurationDesignDigest>,
+}
+
+/// The hash manifest a report's generation wrote, and the signed
+/// configuration it names.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct ReportGeneratedDetails {
+    pub report_type: String,
+    /// The stored `report-manifest.json`. A tally keeps the manifests of
+    /// its folders beside their files instead, and names none.
+    pub document_id: Option<String>,
+    pub report_manifest_sha256: String,
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+}
+
+/// The signed configuration whose ballots a publication published: its
+/// revision and manifest digest, and the digest of each design published.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct PublishedConfiguration {
+    pub external_id: String,
+    pub revision: u64,
+    pub manifest_sha256: String,
+    pub design_digests: Vec<ConfigurationDesignDigest>,
+}
+
 /// One change to an election event's monitoring configuration: a save, a
 /// reset to a preset, or a switch of the Dashboard tab's mode.
 #[derive(
@@ -424,4 +499,115 @@ pub struct MonitoringConfigChangeDetails {
     pub generation: u64,
     /// The revisions written, in the order they were stored.
     pub revisions: Vec<MonitoringConfigRevisionRef>,
+}
+
+/// The step of signing a protected action that an entry records. Each kind
+/// is also a [`StatementType`] of the same name.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Deserialize,
+    Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Display,
+)]
+pub enum SigningStatementKind {
+    SigningRequestCreated,
+    SigningCertificateOpenFailed,
+    SigningRequestSigned,
+    SigningSignatureRefused,
+    SigningCertificateRegistered,
+    SigningHandover,
+    SigningRequestCancelled,
+    SigningRequestExpired,
+    SigningRequestCompleted,
+    SigningActionExecuted,
+    SigningRuleChanged,
+    SigningPermissionChanged,
+    SigningIssuerChanged,
+    SigningChecksChanged,
+    SigningCertificateRevoked,
+    SigningRequestsExported,
+    /// A scheduled lifecycle window (readiness test, final testing, test
+    /// voting) opened or closed for a Post (VOTE-LIFECYCLE). Not a signing
+    /// step: it uses the same transactional outbox.
+    LifecycleWindowChanged,
+    /// Scheduled instants recomputed after a tz database update were
+    /// applied (VOTE-LIFECYCLE).
+    ScheduleRecomputeApplied,
+    /// An admin imported the schedule from a CSV file (VOTE-LIFECYCLE).
+    /// Not a signing step, but staged through the same outbox so the entry
+    /// commits with the import.
+    ScheduleImported,
+    /// A write changed what a scheduled opening or closing of voting will do
+    /// (VOTE-LIFECYCLE): before and after, each with its explanation.
+    ScheduledOutcomeChanged,
+    /// A country of a Post (or a Post without countries) was initialized
+    /// (VOTE-LIFECYCLE). Staged through the same outbox as the signing
+    /// steps, so it is posted once, in order.
+    ElectionInitialized,
+    /// An election event was locked down, or its lockdown lifted
+    /// (VOTE-LIFECYCLE). Staged through the same outbox as the signing
+    /// steps, so it is posted once, in order.
+    LockdownChanged,
+}
+
+impl SigningStatementKind {
+    pub fn statement_type(&self) -> StatementType {
+        match self {
+            Self::SigningRequestCreated => StatementType::SigningRequestCreated,
+            Self::SigningCertificateOpenFailed => StatementType::SigningCertificateOpenFailed,
+            Self::SigningRequestSigned => StatementType::SigningRequestSigned,
+            Self::SigningSignatureRefused => StatementType::SigningSignatureRefused,
+            Self::SigningCertificateRegistered => StatementType::SigningCertificateRegistered,
+            Self::SigningHandover => StatementType::SigningHandover,
+            Self::SigningRequestCancelled => StatementType::SigningRequestCancelled,
+            Self::SigningRequestExpired => StatementType::SigningRequestExpired,
+            Self::SigningRequestCompleted => StatementType::SigningRequestCompleted,
+            Self::SigningActionExecuted => StatementType::SigningActionExecuted,
+            Self::SigningRuleChanged => StatementType::SigningRuleChanged,
+            Self::SigningPermissionChanged => StatementType::SigningPermissionChanged,
+            Self::SigningIssuerChanged => StatementType::SigningIssuerChanged,
+            Self::SigningChecksChanged => StatementType::SigningChecksChanged,
+            Self::SigningCertificateRevoked => StatementType::SigningCertificateRevoked,
+            Self::SigningRequestsExported => StatementType::SigningRequestsExported,
+            Self::LifecycleWindowChanged => StatementType::LifecycleWindowChanged,
+            Self::ScheduleRecomputeApplied => StatementType::ScheduleRecomputeApplied,
+            Self::ScheduleImported => StatementType::ScheduleImported,
+            Self::ScheduledOutcomeChanged => StatementType::ScheduledOutcomeChanged,
+            Self::ElectionInitialized => StatementType::ElectionInitialized,
+            Self::LockdownChanged => StatementType::LockdownChanged,
+        }
+    }
+}
+
+/// One entry of a signing step. Every step writes two entries of the same
+/// kind: USER, attributed to the person who took it, and SYSTEM (ERROR for
+/// a failure or a refusal), with what the system checked or did. Unlike
+/// every other body, the caller sets the head's event type, log type and
+/// description.
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct SigningLogEntry {
+    pub kind: SigningStatementKind,
+    pub event_type: StatementEventType,
+    pub log_type: StatementLogType,
+    /// A short English sentence for the Logs tab's Description column, such
+    /// as "Started signing request 7F3A-91C2".
+    pub description: String,
+    /// The step's details as JSON: the Post and country, the action, the
+    /// request and its code, and for signatures the certificate and the
+    /// signature.
+    pub details_json: String,
+    /// The step's id (`signing_log_outbox.step_id`, a lowercase hyphenated
+    /// UUID), shared by its USER and SYSTEM entries. It links the pair on the
+    /// board, and the worker dedupes on (step_id, event_type) before posting,
+    /// so a retry never posts an entry twice.
+    pub step_id: String,
 }

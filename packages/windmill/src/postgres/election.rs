@@ -858,6 +858,9 @@ pub struct CastVoteConfiguration {
     pub status: Option<Value>,
     pub voting_channels: Option<Value>,
     pub dates: sequent_core::ballot::VotingPeriodDates,
+    /// Immutable signed deadlines per channel, independent of scheduler availability.
+    pub signed_close_dates:
+        std::collections::HashMap<sequent_core::ballot::VotingStatusChannel, String>,
 }
 
 /// Read current policy and its transactionally maintained schedule projection.
@@ -885,9 +888,56 @@ pub async fn get_cast_vote_configuration(
         presentation: row.try_get("presentation")?,
         status: row.try_get("status")?,
         voting_channels: row.try_get("voting_channels")?,
+        signed_close_dates: serde_json::from_value(row.try_get::<_, Value>("signed_close_dates")?)
+            .context("The maintained signed voting deadlines do not read")?,
         dates: sequent_core::ballot::VotingPeriodDates {
             start_date: row.try_get("start_date")?,
             end_date: row.try_get("end_date")?,
         },
     })
+}
+
+/// Current display cap derived from retained signing evidence and any stricter
+/// live close. Missing legacy source zones use the published primary on reads.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DisplayVotingClose {
+    /// Null explicitly means there is no authorized configured deadline.
+    pub scheduled_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+}
+
+/// One batch for explicitly selected Posts; callers keep their existing voter
+/// authorization. This supplements display context without changing signed EML.
+pub async fn get_display_voting_closes(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+    election_ids: &[String],
+) -> Result<std::collections::HashMap<String, DisplayVotingClose>> {
+    let election_ids = election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<Result<Vec<_>>>()?;
+    let rows = transaction
+        .query(
+            include_str!("sql/display_voting_closes.sql"),
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(event_id)?,
+                &election_ids,
+            ],
+        )
+        .await?;
+    rows.into_iter()
+        .map(|row| {
+            Ok((
+                row.try_get("election_id")?,
+                DisplayVotingClose {
+                    scheduled_at: row.try_get("scheduled_at")?,
+                    timezone: row.try_get("timezone")?,
+                },
+            ))
+        })
+        .collect()
 }

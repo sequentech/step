@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {ComponentType, useCallback, useContext, useEffect, useState} from "react"
+import React, {ComponentType, useCallback, useContext, useEffect, useRef, useState} from "react"
 import {Box} from "@mui/material"
 import {useMutation, useQuery} from "@apollo/client"
 import {useTranslation} from "react-i18next"
@@ -56,7 +56,16 @@ import {convertToNumber} from "@/lib/helpers"
 import {EditPreview} from "./EditPreview"
 import FormDialog from "@/components/FormDialog"
 import {EPublishActions} from "@/types/publishActions"
+import {FiredTransitions} from "./FiredTransitions"
 import {getGraphQLActionErrorMessage} from "@/services/graphqlActionError"
+import {CREATE_TALLY_CEREMONY} from "@/queries/CreateTallyCeremony"
+import {CreateTallyCeremonyMutation} from "@/gql/graphql"
+import {ETallyType} from "@/types/ceremonies"
+import {useSignedAction} from "@/hooks/useSignedAction"
+import {GET_LIFECYCLE_SNAPSHOTS, type GetLifecycleSnapshotsData} from "@/queries/Lifecycle"
+import {initializesPerCountry, effectiveInitializationReportPolicy} from "./initializationCountries"
+import {InitializationCountryDialog} from "./InitializationCountryDialog"
+import type {IElectionEventPresentation} from "@sequentech/ui-core"
 
 enum ViewMode {
     Edit,
@@ -114,8 +123,51 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         )
         const [updateStatusEvent, {error: updateStatusEventError}] =
             useMutation<UpdateEventVotingStatusOutput>(UPDATE_EVENT_VOTING_STATUS)
-        const [updateStatusElection] = useMutation<UpdateElectionVotingStatusOutput>(
-            UPDATE_ELECTION_VOTING_STATUS
+        const [updateStatusElection] = useMutation<{
+            update_election_voting_status?: UpdateElectionVotingStatusOutput | null
+        }>(UPDATE_ELECTION_VOTING_STATUS)
+        const [createTallyCeremony] =
+            useMutation<CreateTallyCeremonyMutation>(CREATE_TALLY_CEREMONY)
+        // A protected action answers its signing request while it waits for signatures.
+        const openSigning = useSignedAction()
+        const [initializing, setInitializing] = useState(false)
+        const initializationInFlight = useRef(false)
+        const [chooseInitializationCountry, setChooseInitializationCountry] = useState(false)
+        const {
+            data: initializationEvent,
+            isPending: initializationEventLoading,
+            error: initializationEventError,
+            refetch: refetchInitializationEvent,
+        } = useGetOne<Sequent_Backend_Election_Event>(
+            "sequent_backend_election_event",
+            {id: electionEventId},
+            {enabled: !!electionId}
+        )
+        const {
+            data: initializationSnapshots,
+            loading: initializationSnapshotsLoading,
+            error: initializationSnapshotsError,
+            refetch: refetchInitializationSnapshots,
+        } = useQuery<GetLifecycleSnapshotsData>(GET_LIFECYCLE_SNAPSHOTS, {
+            variables: {electionEventId},
+            skip: !electionId,
+            fetchPolicy: "network-only",
+        })
+        const currentInitializationScope = (
+            initializationEvent?.presentation as IElectionEventPresentation | null
+        )?.lifecycle_policies?.initialization_scope
+        const perCountryInitialization =
+            !!electionId &&
+            initializesPerCountry(
+                currentInitializationScope,
+                initializationSnapshots?.get_lifecycle_snapshots?.snapshots ?? [],
+                electionId
+            )
+
+        const initializationReportPolicy = effectiveInitializationReportPolicy(
+            electionPresentation?.initialization_report_policy ?? undefined,
+            initializationSnapshots?.get_lifecycle_snapshots?.snapshots ?? [],
+            electionId ?? ""
         )
 
         const {data: ballotPublication, refetch} = useGetOne<Sequent_Backend_Ballot_Publication>(
@@ -150,6 +202,11 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         ballotPublicationId,
                     },
                 })
+
+                if (openSigning(data?.publish_ballot, {onChange: () => refetch()})) {
+                    handleSetPublishStatus(PublishStatus.Generated)
+                    return
+                }
 
                 if (data?.publish_ballot?.ballot_publication_id) {
                     setBallotPublicationId(data?.publish_ballot?.ballot_publication_id)
@@ -273,7 +330,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         ) => {
             try {
                 setChangingStatus(true)
-                await updateStatusElection({
+                const {data} = await updateStatusElection({
                     variables: {
                         votingStatus,
                         electionId,
@@ -281,6 +338,19 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         votingChannel,
                     },
                 })
+                if (
+                    openSigning(data?.update_election_voting_status, {
+                        onChange: () => refresh(),
+                    })
+                ) {
+                    // Nothing changed yet: the status changes once enough people sign.
+                    const current = (record?.status as IElectionStatus | undefined)?.voting_status
+                    handleSetPublishStatus(
+                        current ? MAP_ELECTION_EVENT_STATUS_PUBLISH[current] : PublishStatus.Void
+                    )
+                    setChangingStatus(false)
+                    return
+                }
                 // No matter the channel, we need to update the general publish status.
                 // That´s used to control the loading icon in the buttons for the transitions.
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[votingStatus])
@@ -292,7 +362,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
             } catch (e) {
                 setChangingStatus(false)
-                notify(t("publish.dialog.error_status"), {
+                notify(getGraphQLActionErrorMessage(e) ?? t("publish.dialog.error_status"), {
                     type: "error",
                 })
             }
@@ -320,9 +390,84 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
             } catch (e) {
                 setChangingStatus(false)
-                notify(t("publish.dialog.error_status"), {
+                notify(getGraphQLActionErrorMessage(e) ?? t("publish.dialog.error_status"), {
                     type: "error",
                 })
+            }
+        }
+
+        /** Initializes voting at the Post: its initialization report tally (A2). */
+        const generateInitialization = async (areaIds?: string[]): Promise<boolean> => {
+            if (!electionId || initializationInFlight.current) return false
+            initializationInFlight.current = true
+            setInitializing(true)
+            try {
+                const {data} = await createTallyCeremony({
+                    variables: {
+                        election_event_id: electionEventId,
+                        election_ids: [electionId],
+                        tally_type: ETallyType.INITIALIZATION_REPORT,
+                        ...(areaIds ? {area_ids: areaIds} : {}),
+                    },
+                })
+                if (
+                    !data?.create_tally_ceremony?.tally_session_id &&
+                    !data?.create_tally_ceremony?.signing_request
+                ) {
+                    throw new Error(t("tally.createTallyError"))
+                }
+                if (!openSigning(data.create_tally_ceremony, {onChange: () => refresh()})) {
+                    notify(t("tally.createTallySuccess"), {type: "success"})
+                    refresh()
+                }
+                return true
+            } catch (e) {
+                notify(getGraphQLActionErrorMessage(e) ?? t("tally.createTallyError"), {
+                    type: "error",
+                })
+                return false
+            } finally {
+                initializationInFlight.current = false
+                setInitializing(false)
+            }
+        }
+
+        const onInitialize = async () => {
+            if (!electionId || initializing) return
+            if (!initializationEvent || initializationEventError || initializationSnapshotsError) {
+                notify(
+                    t("publish.initialization.policyError", {
+                        defaultValue:
+                            "Could not load the current and published initialization policies. Reload and try again.",
+                    }),
+                    {type: "error"}
+                )
+                return
+            }
+            try {
+                const [{data}, current] = await Promise.all([
+                    refetchInitializationSnapshots(),
+                    refetchInitializationEvent(),
+                ])
+                if (!data?.get_lifecycle_snapshots || !current.data || current.error)
+                    throw new Error("Missing initialization policies")
+                const scope = (current.data.presentation as IElectionEventPresentation | null)
+                    ?.lifecycle_policies?.initialization_scope
+                if (
+                    initializesPerCountry(scope, data.get_lifecycle_snapshots.snapshots, electionId)
+                ) {
+                    setChooseInitializationCountry(true)
+                } else {
+                    await generateInitialization()
+                }
+            } catch (error) {
+                notify(
+                    t("publish.initialization.policyError", {
+                        defaultValue:
+                            "Could not load the current and published initialization policies. Reload and try again.",
+                    }),
+                    {type: "error"}
+                )
             }
         }
 
@@ -499,6 +644,21 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
 
         return (
             <Box sx={{flexGrow: 2, flexShrink: 0}}>
+                {chooseInitializationCountry && electionId ? (
+                    <InitializationCountryDialog
+                        electionEventId={electionEventId}
+                        electionId={electionId}
+                        busy={initializing}
+                        snapshots={
+                            initializationSnapshots?.get_lifecycle_snapshots?.snapshots ?? []
+                        }
+                        onClose={() => setChooseInitializationCountry(false)}
+                        onGenerate={generateInitialization}
+                    />
+                ) : null}
+                {viewMode === ViewMode.List && type === EPublishType.Election && electionId ? (
+                    <FiredTransitions electionEventId={electionEventId} electionId={electionId} />
+                ) : null}
                 {viewMode === ViewMode.List && (
                     <PublishList
                         status={publishStatus}
@@ -515,6 +675,14 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         electionId={electionId}
                         onGenerate={onGenerate}
                         onChangeStatus={onChangeStatus}
+                        onInitialize={type === EPublishType.Election ? onInitialize : undefined}
+                        initializing={
+                            initializing ||
+                            initializationEventLoading ||
+                            initializationSnapshotsLoading
+                        }
+                        perCountryInitialization={perCountryInitialization}
+                        initializationReportPolicy={initializationReportPolicy}
                         electionEventId={electionEventId}
                         setBallotPublicationId={(id: Identifier) => {
                             setViewMode(ViewMode.View)

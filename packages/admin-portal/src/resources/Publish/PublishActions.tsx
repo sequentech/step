@@ -5,7 +5,14 @@
 import React, {useContext, useEffect, useState} from "react"
 import {styled} from "@mui/material/styles"
 import {CircularProgress, Typography, Menu, MenuItem} from "@mui/material"
-import {Publish, RotateLeft, PlayCircle, PauseCircle, StopCircle} from "@mui/icons-material"
+import {
+    Publish,
+    RotateLeft,
+    PlayCircle,
+    PauseCircle,
+    StopCircle,
+    PlaylistAddCheck,
+} from "@mui/icons-material"
 import {useTranslation} from "react-i18next"
 import {Dialog} from "@sequentech/ui-essentials"
 import {Button, FilterButton, SelectColumnsButton, useRecordContext, Identifier} from "react-admin"
@@ -76,14 +83,19 @@ export type PublishActionsProps = {
     onPublish?: () => void
     onGenerate: () => void
     onChangeStatus?: (status: ElectionEventStatus, votingChannel?: VotingStatusChannel[]) => void
+    /** Initializes voting at the Post (its initialization report); election level only. */
+    onInitialize?: () => void
+    initializing?: boolean
+    perCountryInitialization?: boolean
+    initializationReportPolicy?: EInitializeReportPolicy
     type: EPublishActionsType.List | EPublishActionsType.Generate
 }
 
 export const PublishActions: React.FC<PublishActionsProps> = ({
     ballotPublicationId,
-    publishType,
     type,
     status,
+    publishType,
     kioskModeEnabled,
     onlineModeEnabled,
     earlyVotingEnabled,
@@ -94,6 +106,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     onGenerate,
     onPublish = () => null,
     onChangeStatus = () => null,
+    onInitialize,
+    initializing = false,
+    perCountryInitialization = false,
+    initializationReportPolicy,
     data,
 }) => {
     const {t} = useTranslation()
@@ -109,6 +125,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         tenantId,
         IPermissions.ELECTION_STATE_WRITE
     )
+    const requiredInitialization =
+        (initializationReportPolicy ?? record?.presentation?.initialization_report_policy) ===
+        EInitializeReportPolicy.REQUIRED
+    // The trusted published requirement also controls ceremony availability.
+    const canInitialize =
+        publishType === EPublishType.Election &&
+        !!onInitialize &&
+        requiredInitialization &&
+        authContext.isAuthorized(true, tenantId, IPermissions.ADMIN_CEREMONY)
     // const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [showDialog, setShowDialog] = useState(false)
     const [dialogText, setDialogText] = useState("")
@@ -190,15 +215,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         action: EPublishActions,
         voting_channels?: VotingStatusChannel[]
     ) => {
-        if (publishType === EPublishType.Event) {
-            const electionEventPublishTabIndex = localStorage.getItem(
-                "electionEventPublishTabIndex"
-            )
-            baseUrl.searchParams.set("tabIndex", electionEventPublishTabIndex ?? "8")
-        } else {
-            const electionPublishTabIndex = localStorage.getItem("electionPublishTabIndex")
-            baseUrl.searchParams.set("tabIndex", electionPublishTabIndex ?? "4")
-        }
+        // The event and election tabs select Publish by id; its position depends on permissions.
+        baseUrl.searchParams.set("tabId", "publish")
         sessionStorage.setItem(action, "true")
         if (
             voting_channels &&
@@ -253,6 +271,18 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             }
         })
     }
+
+    /** Initializing voting asks for confirmation, then creates the initialization report. */
+    const handleInitialize = () => {
+        openDialog(t("publish.dialog.initializationInfo"))
+        setCurrentCallback(() => async () => onInitialize?.())
+    }
+
+    const isInitializeDisabled = (): boolean =>
+        changingStatus ||
+        initializing ||
+        (!!record?.initialization_report_generated && !perCountryInitialization) ||
+        (electionStatus?.voting_status ?? EVotingStatus.NOT_STARTED) !== EVotingStatus.NOT_STARTED
 
     /**
      * Specific Handler for "Publish Changes" Button: Incorporates
@@ -389,10 +419,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     }
 
     const initializationReportNotGenerated = (): boolean => {
-        return (
-            record?.presentation?.initialization_report_policy ===
-                EInitializeReportPolicy.REQUIRED && !record?.initialization_report_generated
-        )
+        return requiredInitialization && !record?.initialization_report_generated
     }
 
     // Encapsulated original disabled logic for each main action button
@@ -462,6 +489,20 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                         <>
                             {showPublishColumns ? <SelectColumnsButton /> : null}
                             {showPublishFilters ? <FilterButton /> : null}
+                            {canInitialize && (
+                                <StyledStatusButton
+                                    onClick={handleInitialize}
+                                    className={"initializeVoting"}
+                                    label={String(t("publish.action.generateInitializationReport"))}
+                                    disabled={isInitializeDisabled()}
+                                >
+                                    {initializing ? (
+                                        <CircularProgress size={16} />
+                                    ) : (
+                                        <PlaylistAddCheck width={24} />
+                                    )}
+                                </StyledStatusButton>
+                            )}
                             {canChangeStatus && canPublishStartVoting && (
                                 <>
                                     <StyledStatusButton

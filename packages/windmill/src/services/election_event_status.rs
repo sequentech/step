@@ -1,11 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::{get_election_by_id, get_elections, update_election_voting_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
-use anyhow::{anyhow, Context, Result};
+use crate::postgres::trusted_write;
+use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::*;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -13,7 +14,16 @@ use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use serde_json::value::Value;
 use tracing::{event, info, instrument, warn, Level};
 
+use super::initialization_scope::{
+    initialization_refusal_for, initialization_refusals, name_list, post_display_name,
+};
 use super::voting_status::update_board_on_status_change;
+
+/// A policy or state transition refusal safe for action clients to display.
+/// Storage and external-service errors retain their ordinary internal error type.
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+pub struct VotingTransitionError(String);
 
 pub fn get_election_event_status(status_json_opt: Option<Value>) -> Option<ElectionEventStatus> {
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
@@ -41,7 +51,7 @@ pub async fn update_event_voting_status(
     new_status: &VotingStatus,
     channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<ElectionEvent> {
-    update_event_voting_status_impl(
+    Ok(update_event_voting_status_impl(
         hasura_transaction,
         tenant_id,
         user_id,
@@ -50,8 +60,11 @@ pub async fn update_event_voting_status(
         new_status,
         channels,
         VotingStatusUpdateSource::Manual,
+        &HashSet::new(),
+        None,
     )
-    .await
+    .await?
+    .0)
 }
 
 #[instrument(err)]
@@ -63,8 +76,11 @@ pub async fn update_scheduled_event_voting_status(
     election_event_id: &str,
     new_status: &VotingStatus,
     channels: &Option<Vec<VotingStatusChannel>>,
+    // Posts with a scheduled row of their own for this change: that row
+    // decides for them (VOTE-LIFECYCLE §5).
+    own_rows: &HashSet<String>,
 ) -> Result<ElectionEvent> {
-    update_event_voting_status_impl(
+    Ok(update_event_voting_status_impl(
         hasura_transaction,
         tenant_id,
         user_id,
@@ -73,8 +89,41 @@ pub async fn update_scheduled_event_voting_status(
         new_status,
         channels,
         VotingStatusUpdateSource::Scheduled,
+        own_rows,
+        None,
     )
-    .await
+    .await?
+    .0)
+}
+
+/// A scheduled event-wide change restricted to the Posts in `only` (all
+/// when `None`). Returns the Posts it would have opened but that wait for
+/// their initialization at the event's scope (VOTE-LIFECYCLE §9), with
+/// their display names and why.
+#[instrument(err)]
+pub async fn update_scheduled_event_voting_status_for(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    new_status: &VotingStatus,
+    channels: &Option<Vec<VotingStatusChannel>>,
+    own_rows: &HashSet<String>,
+    only: Option<&HashSet<String>>,
+) -> Result<BTreeMap<String, (String, TransitionRefusal)>> {
+    Ok(update_event_voting_status_impl(
+        hasura_transaction,
+        tenant_id,
+        None,
+        None,
+        election_event_id,
+        new_status,
+        channels,
+        VotingStatusUpdateSource::Scheduled,
+        own_rows,
+        only,
+    )
+    .await?
+    .1)
 }
 
 #[instrument(err)]
@@ -87,7 +136,11 @@ async fn update_event_voting_status_impl(
     new_status: &VotingStatus,
     channels: &Option<Vec<VotingStatusChannel>>,
     source: VotingStatusUpdateSource,
-) -> Result<ElectionEvent> {
+    // Posts with a scheduled row of their own for this change (B, §5).
+    own_rows: &HashSet<String>,
+    // Posts an event-wide opening still waits for (I, §9); all when `None`.
+    only: Option<&HashSet<String>>,
+) -> Result<(ElectionEvent, BTreeMap<String, (String, TransitionRefusal)>)> {
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -159,12 +212,24 @@ async fn update_event_voting_status_impl(
 
     if election_event.is_archived {
         info!("Election event is archived, skipping");
-        return Ok(election_event);
+        return Ok((election_event, BTreeMap::new()));
     }
+
+    // Posts that can't open yet with respect to their initialization at the
+    // event's scope (design §9). A scheduled opening skips them; a manual
+    // one is refused while one of them would open.
+    let opening_refusals = if *new_status == VotingStatus::OPEN {
+        initialization_refusals(hasura_transaction, &election_event, &elections).await?
+    } else {
+        Default::default()
+    };
 
     let configured: HashMap<String, VotingChannels> = elections
         .iter()
-        .filter(|_| source == VotingStatusUpdateSource::Scheduled)
+        .filter(|election| {
+            source == VotingStatusUpdateSource::Scheduled && !own_rows.contains(&election.id)
+        })
+        .filter(|election| only.map_or(true, |only| only.contains(&election.id)))
         .map(|election| {
             let channels = election
                 .voting_channels
@@ -175,6 +240,35 @@ async fn update_event_voting_status_impl(
             Ok((election.id.clone(), channels))
         })
         .collect::<Result<_>>()?;
+    // A scheduled opening skips the Posts that would open but can't yet.
+    let language = election_event.get_default_language();
+    let skipped: BTreeMap<String, (String, TransitionRefusal)> = elections
+        .iter()
+        .filter_map(|election| {
+            let refusal = opening_refusals.get(&election.id)?;
+            let election_channels = configured.get(&election.id)?;
+            let status = elections_status.get(&election.id)?;
+            channels
+                .iter()
+                .any(|channel| {
+                    channel.channel_from(election_channels) == Some(true)
+                        && scheduled_transition_applies(
+                            &status.status_by_channel(*channel),
+                            new_status,
+                        )
+                })
+                .then(|| {
+                    (
+                        election.id.clone(),
+                        (post_display_name(election, &language), refusal.clone()),
+                    )
+                })
+        })
+        .collect();
+    let configured: HashMap<String, VotingChannels> = configured
+        .into_iter()
+        .filter(|(election_id, _)| !opening_refusals.contains_key(election_id))
+        .collect();
 
     for channel in channels {
         if source == VotingStatusUpdateSource::Scheduled {
@@ -229,17 +323,33 @@ async fn update_event_voting_status_impl(
         };
 
         if !expected_next_status.contains(&new_status) {
-            return Err(anyhow!(
+            return Err(VotingTransitionError(format!(
             "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
-        ));
+        )).into());
         }
 
         if channel == VotingStatusChannel::EARLY_VOTING
             && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
         {
-            return Err(anyhow!(
-                "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
-            ));
+            return Err(VotingTransitionError(
+                "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.".into(),
+            ).into());
+        }
+
+        let blocked: Vec<String> = opening_refusals
+            .iter()
+            .filter(|(election_id, _)| {
+                elections_status
+                    .get(*election_id)
+                    .map(|election_status| election_status.status_by_channel(channel))
+                    != Some(VotingStatus::OPEN)
+            })
+            .map(|(election_id, refusal)| {
+                refusal.message(election_id, new_status, &current_voting_status)
+            })
+            .collect();
+        if !blocked.is_empty() {
+            return Err(VotingTransitionError(blocked.join("; ")).into());
         }
 
         status.close_early_voting_if_online_status_change(channel, new_status.clone());
@@ -272,13 +382,48 @@ async fn update_event_voting_status_impl(
         .with_context(|| "Error updating electoral board on status change")?;
     }
 
-    for election in &elections {
-        let election_status = elections_status.get(&election.id);
+    save_event_voting_status(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &elections,
+        &elections_status,
+        &status,
+    )
+    .await?;
+
+    Ok((election_event, skipped))
+}
+
+/// Writes an event-wide voting status change, past its checks and logs:
+/// every election's status and the event's, as the server's own write.
+#[instrument(skip_all, err)]
+pub async fn save_event_voting_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    elections: &[sequent_core::types::hasura::core::Election],
+    elections_status: &HashMap<String, ElectionStatus>,
+    status: &ElectionEventStatus,
+) -> Result<()> {
+    // Check the complete map before marking the transaction or writing any row.
+    for election in elections {
+        anyhow::ensure!(
+            elections_status.contains_key(&election.id),
+            "Missing voting status for election {}",
+            election.id
+        );
+    }
+    trusted_write(hasura_transaction).await?;
+    for election in elections {
+        let election_status = elections_status
+            .get(&election.id)
+            .with_context(|| format!("Missing voting status for election {}", election.id))?;
 
         update_election_voting_status(
-            &hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
             &election.id,
             serde_json::to_value(&election_status).with_context(|| "Error parsing status")?,
         )
@@ -287,15 +432,14 @@ async fn update_event_voting_status_impl(
     }
 
     update_election_event_status(
-        &hasura_transaction,
-        &&tenant_id,
+        hasura_transaction,
+        tenant_id,
         election_event_id,
-        serde_json::to_value(&status).with_context(|| "Error parsing status")?,
+        serde_json::to_value(status).with_context(|| "Error parsing status")?,
     )
     .await
     .with_context(|| "Error updating election event status")?;
-
-    Ok(election_event)
+    Ok(())
 }
 
 #[instrument(err)]
@@ -342,61 +486,26 @@ pub async fn update_election_voting_status_impl(
         return Ok(());
     }
 
-    let election_presentation = election.get_presentation().unwrap_or_default();
-
-    if VotingStatus::CLOSED == new_status
-        && VotingPeriodEnd::DISALLOWED
-            == election_presentation
-                .voting_period_end
-                .clone()
-                .unwrap_or_default()
-    {
-        return Err(anyhow!(
-            "election {:?} has the voting period end disallowed",
-            election_id,
-        ));
+    if let Some(refusal) = voting_transition_refusal(&election, &status, channel, &new_status) {
+        return Err(VotingTransitionError(refusal.message(
+            &election_id,
+            &new_status,
+            &current_voting_status,
+        ))
+        .into());
     }
 
-    if new_status == VotingStatus::OPEN
-        && election_presentation
-            .initialization_report_policy
-            .unwrap_or(EInitializeReportPolicy::default())
-            == EInitializeReportPolicy::REQUIRED
-        && !election.initialization_report_generated.unwrap_or(false)
-    {
-        return Err(anyhow!(
-            "election {:?} initialization report must be generated before opening the election",
-            election_id,
-        ));
-    }
-
-    let expected_next_status = match current_voting_status {
-        VotingStatus::NOT_STARTED => {
-            vec![VotingStatus::OPEN]
+    if new_status == VotingStatus::OPEN {
+        if let Some(refusal) =
+            initialization_refusal_for(hasura_transaction, &election_event, &election).await?
+        {
+            return Err(VotingTransitionError(refusal.message(
+                &election_id,
+                &new_status,
+                &current_voting_status,
+            ))
+            .into());
         }
-        VotingStatus::OPEN => {
-            vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
-        }
-        VotingStatus::PAUSED => {
-            vec![VotingStatus::CLOSED, VotingStatus::OPEN]
-        }
-        VotingStatus::CLOSED => {
-            vec![VotingStatus::OPEN]
-        }
-    };
-
-    if !expected_next_status.contains(&new_status) {
-        return Err(anyhow!(
-            "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
-        ));
-    }
-
-    if channel == VotingStatusChannel::EARLY_VOTING
-        && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
-    {
-        return Err(anyhow!(
-            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
-        ));
     }
 
     status.close_early_voting_if_online_status_change(channel, new_status.clone());
@@ -404,6 +513,8 @@ pub async fn update_election_voting_status_impl(
 
     let status_js = serde_json::to_value(&status).with_context(|| "Error parsing status")?;
 
+    // The voting status changes here, past the checks above.
+    trusted_write(hasura_transaction).await?;
     update_election_voting_status(
         &hasura_transaction,
         &tenant_id,
@@ -432,6 +543,142 @@ pub async fn update_election_voting_status_impl(
     Ok(())
 }
 
+/// Why a channel of a Post can't change to a voting status now.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransitionRefusal {
+    /// The Post doesn't let voting end.
+    VotingPeriodEndDisallowed,
+    /// Opening needs the initialization report first.
+    InitializationReportRequired,
+    /// The status can't follow the current one.
+    UnexpectedNextStatus(Vec<VotingStatus>),
+    /// Early voting can't start once online voting has.
+    EarlyVotingAfterOnline,
+    /// The initialization scope is the event: other Posts that require
+    /// their initialization report aren't initialized yet.
+    EventNotInitialized {
+        /// The Post that can't open.
+        post: String,
+        election_ids: Vec<String>,
+        names: Vec<String>,
+    },
+    /// The initialization scope is the Post and its countries: some
+    /// countries of the Post aren't initialized yet.
+    CountriesNotInitialized {
+        /// The Post that can't open.
+        post: String,
+        area_ids: Vec<String>,
+        names: Vec<String>,
+    },
+}
+
+impl TransitionRefusal {
+    /// A stable code for the refusal.
+    pub fn code(&self) -> &'static str {
+        match self {
+            TransitionRefusal::VotingPeriodEndDisallowed => "voting-period-end-disallowed",
+            TransitionRefusal::InitializationReportRequired => "initialization-report-required",
+            TransitionRefusal::UnexpectedNextStatus(_) => "unexpected-next-status",
+            TransitionRefusal::EarlyVotingAfterOnline => "early-voting-after-online",
+            TransitionRefusal::EventNotInitialized { .. } => "event-not-initialized",
+            TransitionRefusal::CountriesNotInitialized { .. } => "countries-not-initialized",
+        }
+    }
+
+    /// The message the status change has always failed with.
+    pub fn message(
+        &self,
+        election_id: &str,
+        new_status: &VotingStatus,
+        current: &VotingStatus,
+    ) -> String {
+        match self {
+            TransitionRefusal::VotingPeriodEndDisallowed => {
+                format!("election {election_id:?} has the voting period end disallowed")
+            }
+            TransitionRefusal::InitializationReportRequired => format!(
+                "election {election_id:?} initialization report must be generated before opening the election"
+            ),
+            TransitionRefusal::UnexpectedNextStatus(expected) => format!(
+                "Unexpected next status {new_status:?}, expected {expected:?}, current {current:?}"
+            ),
+            TransitionRefusal::EarlyVotingAfterOnline => "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.".to_string(),
+            TransitionRefusal::EventNotInitialized { post, names, .. } => format!(
+                "Post {post:?} can't open yet: with the initialization scope \"event\", no Post opens until every Post whose initialization report is required is initialized. Not initialized yet: {}.",
+                name_list(names)
+            ),
+            TransitionRefusal::CountriesNotInitialized { post, names, .. } => format!(
+                "Post {post:?} can't open yet: with the initialization scope \"Post and country\", a Post whose initialization report is required opens once every country under it is initialized. Not initialized yet: {}.",
+                name_list(names)
+            ),
+        }
+    }
+}
+
+/// Whether `channel` of `election`, whose status is `status`, can't change to
+/// `new_status`; `None` when it can. A change to the current status is no
+/// change and is not refused.
+pub fn voting_transition_refusal(
+    election: &sequent_core::types::hasura::core::Election,
+    status: &ElectionStatus,
+    channel: VotingStatusChannel,
+    new_status: &VotingStatus,
+) -> Option<TransitionRefusal> {
+    let current_voting_status = status.status_by_channel(channel);
+    if *new_status == current_voting_status {
+        return None;
+    }
+    let election_presentation = election.get_presentation().unwrap_or_default();
+
+    if VotingStatus::CLOSED == *new_status
+        && VotingPeriodEnd::DISALLOWED
+            == election_presentation
+                .voting_period_end
+                .clone()
+                .unwrap_or_default()
+    {
+        return Some(TransitionRefusal::VotingPeriodEndDisallowed);
+    }
+
+    if *new_status == VotingStatus::OPEN
+        && election_presentation
+            .initialization_report_policy
+            .unwrap_or(EInitializeReportPolicy::default())
+            == EInitializeReportPolicy::REQUIRED
+        && !election.initialization_report_generated.unwrap_or(false)
+    {
+        return Some(TransitionRefusal::InitializationReportRequired);
+    }
+
+    let expected_next_status = match current_voting_status {
+        VotingStatus::NOT_STARTED => {
+            vec![VotingStatus::OPEN]
+        }
+        VotingStatus::OPEN => {
+            vec![VotingStatus::PAUSED, VotingStatus::CLOSED]
+        }
+        VotingStatus::PAUSED => {
+            vec![VotingStatus::CLOSED, VotingStatus::OPEN]
+        }
+        VotingStatus::CLOSED => {
+            vec![VotingStatus::OPEN]
+        }
+    };
+
+    if !expected_next_status.contains(new_status) {
+        return Some(TransitionRefusal::UnexpectedNextStatus(
+            expected_next_status,
+        ));
+    }
+
+    if channel == VotingStatusChannel::EARLY_VOTING
+        && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
+    {
+        return Some(TransitionRefusal::EarlyVotingAfterOnline);
+    }
+    None
+}
+
 /// Scheduled changes never reopen closed voting: a start opens channels that
 /// never started or are paused, and an end closes open or paused channels.
 pub fn scheduled_transition_applies(current: &VotingStatus, new_status: &VotingStatus) -> bool {
@@ -456,9 +703,9 @@ fn apply_scheduled_event_channel(
         && *new_status == VotingStatus::OPEN
         && event_status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
     {
-        return Err(anyhow!(
-            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.",
-        ));
+        return Err(VotingTransitionError(
+            "It is not allowed to start EARLY_VOTING channel because ONLINE channel was already started in the past.".into(),
+        ).into());
     }
 
     let mut changed = Vec::new();

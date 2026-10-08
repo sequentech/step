@@ -47,6 +47,16 @@ pub mod plugins_wit;
 pub mod serialization;
 #[cfg(feature = "default_features")]
 pub mod services;
+
+/// Signing protected actions with staff certificates: the contracts shared by
+/// the server and the browser. Gated by `default_features`, which brings `sha2`.
+#[cfg(feature = "default_features")]
+pub mod signing;
+
+/// Which timezone applies where (VOTE-LIFECYCLE); zone names only.
+#[cfg(feature = "default_features")]
+pub mod time_zones;
+
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 

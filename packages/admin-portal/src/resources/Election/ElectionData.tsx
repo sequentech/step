@@ -10,6 +10,12 @@ import {ITemplateMethod, IRECEIPTS} from "@/types/templates"
 import {Sequent_Backend_Election} from "@/gql/graphql"
 import {ContestsOrder, IContestPresentation, IElectionPresentation} from "@sequentech/ui-core"
 import {serializeIvrEntityAnnotations} from "@/utils/ivr"
+import {
+    SLATES_FORM_FIELD,
+    formatSlatesProblems,
+    slatesProblemsFromError,
+    writeSlatesConfiguration,
+} from "@/utils/slates"
 
 export const EditElectionData: React.FC = () => {
     const [update] = useUpdate()
@@ -92,7 +98,22 @@ export const EditElectionData: React.FC = () => {
             data?.presentation?.i18n[Object.keys(data.presentation.i18n)[0]].description ||
             ""
         data.description = fromPresentationDescription
-        data.annotations = serializeIvrEntityAnnotations(data.annotations)
+        try {
+            data.annotations = writeSlatesConfiguration(
+                serializeIvrEntityAnnotations(data.annotations),
+                data[SLATES_FORM_FIELD]
+            )
+        } catch (error) {
+            const problems = slatesProblemsFromError(error)
+            const message = problems
+                ? formatSlatesProblems(problems)
+                : error instanceof Error
+                  ? error.message
+                  : String(error)
+            notify(message, {type: "error"})
+            throw error
+        }
+        delete data[SLATES_FORM_FIELD]
 
         return {
             ...data,

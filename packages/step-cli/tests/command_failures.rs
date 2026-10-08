@@ -84,3 +84,71 @@ fn a_failed_voter_generation_reports_the_error_but_exits_zero() {
     assert!(output.stdout.is_empty());
     assert_eq!(fs::read_dir(working_directory.path()).unwrap().count(), 0);
 }
+
+/// The realm permission migration fails, naming the database it can't reach,
+/// and exits non-zero, so a deployment script notices.
+#[test]
+fn an_unreachable_database_fails_the_realm_permission_migration() {
+    // A port nothing listens on: bind it, read it, close it.
+    let port = TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "migrate-realm-permissions"])
+        .env("HASURA_DB__HOST", "127.0.0.1")
+        .env("HASURA_DB__PORT", port.to_string())
+        .env("HASURA_DB__USER", "synthetic")
+        .env("HASURA_DB__PASSWORD", "synthetic")
+        .env("HASURA_DB__DBNAME", "synthetic")
+        .env_remove("KEYCLOAK_URL")
+        .output()
+        .unwrap();
+    // Pinned as found: Windmill's database pool panics on an unreachable
+    // server instead of returning an error, so the exit code is a panic's.
+    assert_eq!(output.status.code(), Some(101));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Hasura DB"), "{stderr}");
+    assert!(stderr.contains("error connecting to server"), "{stderr}");
+}
+
+#[test]
+fn invalid_database_configuration_refuses_the_registration_flow_migration() {
+    let database_peer = TcpListener::bind("127.0.0.1:0").unwrap();
+    database_peer.set_nonblocking(true).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "migrate-registration-flows"])
+        .env("HASURA_DB__HOST", "127.0.0.1")
+        .env("HASURA_DB__PORT", "not-a-port")
+        .env("HASURA_DB__USER", "synthetic")
+        .env("HASURA_DB__PASSWORD", "synthetic")
+        .env("HASURA_DB__DBNAME", "synthetic")
+        .env("KEYCLOAK_DB__HOST", "127.0.0.1")
+        .env(
+            "KEYCLOAK_DB__PORT",
+            database_peer.local_addr().unwrap().port().to_string(),
+        )
+        .env("KEYCLOAK_DB__USER", "synthetic")
+        .env("KEYCLOAK_DB__PASSWORD", "synthetic")
+        .env("KEYCLOAK_DB__DBNAME", "synthetic")
+        .env("LOW_SQL_LIMIT", "1000")
+        .env("DEFAULT_SQL_LIMIT", "20")
+        .env("DEFAULT_SQL_BATCH_SIZE", "1000")
+        .env_remove("KEYCLOAK_URL")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("Invalid migration database configuration"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("hasura_db.port"), "{stderr}");
+    assert!(!stderr.contains("panicked"), "{stderr}");
+    assert_eq!(
+        database_peer.accept().unwrap_err().kind(),
+        std::io::ErrorKind::WouldBlock
+    );
+}

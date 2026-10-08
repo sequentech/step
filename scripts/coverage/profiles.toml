@@ -8,9 +8,9 @@ minimum_lines = 95
 
 [profiles.sequent-core]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
+features = ["default_features", "keycloak", "areas", "reports", "election_config_xlsx", "election_config_templates", "election_config_archive", "election_config_signing", "monitoring"]
 limitations = [
-    "Native library and integration tests; matches the existing Rust CI feature selection, including the election_config workbook, template and archive gates and the monitoring gate.",
+    "Native library and integration tests; matches the existing Rust CI feature selection, including reports and timezone rendering, the election_config workbook, template and archive gates and the monitoring gate.",
     "Native application features are exercised by sequent-core-native; the browser test job executes WASM exports separately.",
     "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
@@ -20,12 +20,17 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
 [profiles.sequent-core.excluded_files]
+"src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
+"src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
 "src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
 "src/election_config/build_tests.rs" = "Standalone unit-test module under cfg(test); the bundle builder remains measured."
+"src/election_config/design_tests.rs" = "Standalone unit-test module under cfg(test); the ballot design digest remains measured."
 "src/election_config/ivr_tests.rs" = "Standalone unit-test module under cfg(test); the telephone prompt rule remains measured."
+"src/election_config/manifest_tests.rs" = "Standalone unit-test module under cfg(test); the configuration manifest remains measured."
 "src/election_config/open_tests.rs" = "Standalone unit-test module under cfg(test); the bundle reader remains measured."
+"src/election_config/package_verify_tests.rs" = "Standalone unit-test module under cfg(test); the package verification remains measured."
 "src/election_config/password_tests.rs" = "Standalone unit-test module under cfg(test); the password policy remains measured."
 "src/election_config/plan_from_event_tests.rs" = "Standalone unit-test module under cfg(test); the event-to-plan conversion remains measured."
 "src/election_config/plan_from_workbook_tests.rs" = "Standalone unit-test module under cfg(test); the workbook-to-plan conversion remains measured."
@@ -33,6 +38,10 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/preset_doc_tests.rs" = "Standalone unit-test module under cfg(test); the preset documentation remains measured."
 "src/election_config/preview_tests.rs" = "Standalone unit-test module under cfg(test); the ballot preview remains measured."
 "src/election_config/profile_tests.rs" = "Standalone unit-test module under cfg(test); the client profile remains measured."
+"src/election_config/slates/coverage_tests.rs" = "Standalone unit-test module under cfg(test); the slate coverage remains measured."
+"src/election_config/slates/election_tests.rs" = "Standalone unit-test module under cfg(test); the election slate checks remain measured."
+"src/election_config/slates/selection_tests.rs" = "Standalone unit-test module under cfg(test); the slate selection remains measured."
+"src/election_config/slates/tests.rs" = "Standalone unit-test module under cfg(test); the slate parser and validator remain measured."
 "src/election_config/time_tests.rs" = "Standalone unit-test module under cfg(test); the schedule time checker remains measured."
 "src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
 "src/election_config/xlsx_write_tests.rs" = "Standalone unit-test module under cfg(test); the workbook writer remains measured."
@@ -52,10 +61,14 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
+"src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
+"src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
 [profiles.sequent-core.scope_exceptions]
+"src/types/scheduled_outcome.rs" = "Data declarations and derive-generated API traits only; JSON compatibility is tested in time_zones_tests. No explicit executable bodies; the reporter rejects this exception if measured code appears."
 "src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
 "src/ballot_verifier.rs" = "Imports only; no executable implementation."
 "src/election_config/mod.rs" = "Module declarations and re-exports."
@@ -67,13 +80,14 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/serialization/mod.rs" = "Serialization module declarations only."
 "src/services/mod.rs" = "Service module declarations only."
 "src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
+"src/signing/mod.rs" = "Module declarations and re-exports."
 "src/types/mod.rs" = "Type module declarations only."
 "src/types/hasura/mod.rs" = "Hasura module declarations only."
 "src/util/mod.rs" = "Utility module declarations only."
 
 [profiles.sequent-core-native]
 package = "sequent-core"
-features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive", "monitoring"]
+features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit", "election_config_xlsx", "election_config_templates", "election_config_archive", "election_config_signing", "monitoring"]
 limitations = [
     "Enabled native application features, including SQLite, reports, S3, health probes, logging, signature adapters, generated plugin bindings and monitoring.",
     "Synthetic in-memory SQLite and owned HTTP/PostgreSQL fixtures; native inline test code remains counted.",
@@ -85,12 +99,17 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
 [profiles.sequent-core-native.excluded_files]
+"src/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone selection, lifecycle defaults and public policy wire contracts remain measured."
+"src/services/reports_time_zones_tests.rs" = "Standalone unit-test module under cfg(test); report timezone rendering remains measured."
 "src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
 "src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
 "src/election_config/architect_tests.rs" = "Standalone unit-test module under cfg(test); the election blueprint planner remains measured."
 "src/election_config/build_tests.rs" = "Standalone unit-test module under cfg(test); the bundle builder remains measured."
+"src/election_config/design_tests.rs" = "Standalone unit-test module under cfg(test); the ballot design digest remains measured."
 "src/election_config/ivr_tests.rs" = "Standalone unit-test module under cfg(test); the telephone prompt rule remains measured."
+"src/election_config/manifest_tests.rs" = "Standalone unit-test module under cfg(test); the configuration manifest remains measured."
 "src/election_config/open_tests.rs" = "Standalone unit-test module under cfg(test); the bundle reader remains measured."
+"src/election_config/package_verify_tests.rs" = "Standalone unit-test module under cfg(test); the package verification remains measured."
 "src/election_config/password_tests.rs" = "Standalone unit-test module under cfg(test); the password policy remains measured."
 "src/election_config/plan_from_event_tests.rs" = "Standalone unit-test module under cfg(test); the event-to-plan conversion remains measured."
 "src/election_config/plan_from_workbook_tests.rs" = "Standalone unit-test module under cfg(test); the workbook-to-plan conversion remains measured."
@@ -98,6 +117,10 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/election_config/preset_doc_tests.rs" = "Standalone unit-test module under cfg(test); the preset documentation remains measured."
 "src/election_config/preview_tests.rs" = "Standalone unit-test module under cfg(test); the ballot preview remains measured."
 "src/election_config/profile_tests.rs" = "Standalone unit-test module under cfg(test); the client profile remains measured."
+"src/election_config/slates/coverage_tests.rs" = "Standalone unit-test module under cfg(test); the slate coverage remains measured."
+"src/election_config/slates/election_tests.rs" = "Standalone unit-test module under cfg(test); the election slate checks remain measured."
+"src/election_config/slates/selection_tests.rs" = "Standalone unit-test module under cfg(test); the slate selection remains measured."
+"src/election_config/slates/tests.rs" = "Standalone unit-test module under cfg(test); the slate parser and validator remain measured."
 "src/election_config/time_tests.rs" = "Standalone unit-test module under cfg(test); the schedule time checker remains measured."
 "src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
 "src/election_config/xlsx_write_tests.rs" = "Standalone unit-test module under cfg(test); the workbook writer remains measured."
@@ -117,10 +140,14 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/monitoring/sources_tests.rs" = "Standalone unit-test module under cfg(test); the data source catalogue remains measured."
 "src/monitoring/voter_tests.rs" = "Standalone unit-test module under cfg(test); the voter-facing view remains measured."
 "src/types/permissions_tests.rs" = "Standalone unit-test module under cfg(test); the permission names remain measured."
+"src/signing/canonical_tests.rs" = "Standalone unit-test module under cfg(test); the canonical payload remains measured."
+"src/signing/code_tests.rs" = "Standalone unit-test module under cfg(test); the signing code remains measured."
+"src/signing/types_tests.rs" = "Standalone unit-test module under cfg(test); the signing types remain measured."
 
 # These files have no measured executable bodies. If one gains executable code,
 # the reporter rejects the exception instead of hiding its new implementation.
 [profiles.sequent-core-native.scope_exceptions]
+"src/types/scheduled_outcome.rs" = "Data declarations and derive-generated API traits only; JSON compatibility is tested in time_zones_tests. No explicit executable bodies; the reporter rejects this exception if measured code appears."
 "src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
 "src/ballot_verifier.rs" = "Imports only; no executable implementation."
 "src/election_config/mod.rs" = "Module declarations and re-exports."
@@ -132,6 +159,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/serialization/mod.rs" = "Serialization module declarations only."
 "src/services/mod.rs" = "Service module declarations only."
 "src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
+"src/signing/mod.rs" = "Module declarations and re-exports."
 "src/types/mod.rs" = "Type module declarations only."
 "src/types/hasura/mod.rs" = "Hasura module declarations only."
 "src/util/mod.rs" = "Utility module declarations only."
@@ -238,7 +266,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/services/authorization.rs" = "Imports and re-exports of Sequent Core authorization; no handwritten executable methods."
 "src/types/mod.rs" = "Module declarations only."
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
-"src/routes/manual_verification_pdf.rs" = "Not declared in routes/mod.rs or mounted in main.rs, so this source is not part of the native binary. No runtime coverage claim is made for it."
 
 # The route tests' database server comes from the ambient HASURA_DB__* and
 # KEYCLOAK_DB__* settings, as in the ordinary test job; only the host is fixed.
@@ -286,7 +313,23 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/services/monitoring/export_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring export remains measured."
 "src/services/monitoring/producers_tests.rs" = "Standalone unit-test module under cfg(test); the monitoring snapshot producers remain measured."
 "src/services/results_publication_lifecycle_tests.rs" = "Standalone results publication lifecycle test module; no production code."
+"src/services/realm_localization_tests.rs" = "Standalone unit-test module under cfg(test); realm localization and translation loading remain measured."
+"src/services/time_zones_tests.rs" = "Standalone unit-test module under cfg(test); timezone validation and deadline resolution remain measured."
+"src/services/election_dates_tests.rs" = "Standalone unit-test module under cfg(test); voting dates and common-close resolution remain measured."
+"src/services/enrollment_windows_tests.rs" = "Standalone unit-test module under cfg(test); enrollment window resolution remains measured."
+"src/services/initialization_record_tests.rs" = "Standalone unit-test module under cfg(test); initialization recording remains measured."
+"src/services/initialization_schedule_tests.rs" = "Standalone unit-test module under cfg(test); initialization schedule resolution remains measured."
+"src/services/initialization_scope_tests.rs" = "Standalone unit-test module under cfg(test); initialization scope and refusal checks remain measured."
+"src/services/schedule_csv_tests.rs" = "Standalone unit-test module under cfg(test); schedule calendar parsing remains measured."
+"src/tasks/scheduled_events_tests.rs" = "Standalone unit-test module under cfg(test); scheduled-event dispatch remains measured."
 "src/tasks/refresh_monitoring_snapshot_tests.rs" = "Standalone unit-test module under cfg(test); the snapshot refresh task remains measured."
+"src/services/signing/log_tests.rs" = "Standalone unit-test module under cfg(test); the signing log outbox worker remains measured."
+"src/tasks/signing_log_outbox_tests.rs" = "Standalone unit-test module under cfg(test); the signing log outbox task remains measured."
+"src/services/signing/actions/actions_tests.rs" = "Standalone unit-test module under cfg(test); the protected actions' integrations remain measured."
+"src/services/scheduled_outcome_tests.rs" = "Standalone unit-test module under cfg(test); the scheduled outcomes remain measured."
+"src/services/application_matrix_tests.rs" = "Standalone unit-test module under cfg(test); the enrollment decision remains measured."
+"src/services/approval_matrix/evaluate_tests.rs" = "Standalone unit-test module under cfg(test); the approval matrix evaluation remains measured."
+"src/services/approval_matrix/model_tests.rs" = "Standalone unit-test module under cfg(test); the approval matrix model and its validation remain measured."
 
 [profiles.windmill.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
@@ -300,7 +343,6 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/ports/publication_files.rs" = "Trait declarations only; their implementations are measured in src/adapters."
 "src/ports/results_publication.rs" = "Trait declarations only; their implementations are measured in src/adapters."
 "src/ports/results_publication_lifecycle.rs" = "Trait declarations for results publication lifecycle ports."
-"src/ports/tally_ceremony.rs" = "Trait, plain struct and type alias declarations only; the trait implementations are measured in src/adapters."
 "src/ports/tally_execution.rs" = "Tally execution ports and value declarations only; production adapters and orchestration remain measured."
 "src/postgres/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ballot_styles/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
@@ -317,6 +359,7 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/services/plugins_manager/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/providers/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/reports/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/signing/mod.rs" = "Module declarations and re-exports only; the signing services remain in the source inventory."
 "src/services/tally_sheet_import/errors.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
 "src/services/tally_sheet_import/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/tally_sheets/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."

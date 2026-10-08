@@ -29,6 +29,12 @@ manifest = "packages/wbraid/Cargo.toml"
 prefix = "wbraid/"
 target_dir = "packages/wbraid/rust-local-target"
 
+# In-browser capture analysis; its own workspace so tract cannot move the platform lockfile.
+[[workspaces]]
+kind = "cargo"
+manifest = "packages/id-capture/Cargo.toml"
+target_dir = "packages/id-capture/rust-local-target"
+
 # Units ------------------------------------------------------------------------
 # Areas are units that are not workspace packages. Tables named after a package
 # add edges and inputs that its manifest does not declare. `inputs` affect the
@@ -77,6 +83,8 @@ summary = "GitHub workflows and composite actions; a workflow selects the checks
 
 [units.scripts-dev]
 summary = "step-dev developer commands and the selection model"
+# The signing organization and janitor preset tests read these.
+test_inputs = ["packages/windmill/external-bin/janitor/signing_preset.py", "packages/windmill/external-bin/janitor/approval_matrix_preset.py", "packages/windmill/external-bin/janitor/templates/COMELEC/**", "packages/windmill/external-bin/janitor/templates/association/**", "scripts/e2e/journeys/fixtures.py", "packages/voting-load/fixtures/election.json"]
 
 [units.scripts-coverage]
 summary = "Coverage runners and reporters"
@@ -120,10 +128,16 @@ summary = "Dormant source fragment without a manifest"
 summary = "The beyond submodule, validated in its own repository"
 
 [units.harvest]
-test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh"]
+test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
 
 [units.windmill]
-test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh"]
+# The signing configuration tests read the organization fixtures, and the
+# approval matrix tests the janitor presets.
+test_inputs = ["hasura/migrations/backend-db/**", "packages/windmill/external-bin/janitor/templates/*/approvalMatrix.json", ".devcontainer/postgresql/init.sh", "packages/admin-portal/src/translations/en.ts", ".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "scripts/dev/scenario/signing-organizations/**"]
+
+[units.sequent-core]
+# The permission tests read the realm templates.
+test_inputs = [".devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", "packages/windmill/external-bin/janitor/templates/COMELEC/keycloakAdmin.hbs"]
 
 [units.velvet]
 test_inputs = [".devcontainer/minio/public-assets/**"]
@@ -131,6 +145,10 @@ test_inputs = [".devcontainer/minio/public-assets/**"]
 [units.ui-test-kit]
 # Reads each portal's graphql.schema.json and serves their production builds.
 test_inputs = ["packages/*/graphql.schema.json"]
+
+[units.admin-portal]
+# The signing journeys read the organization fixtures and the sample signing preset.
+test_inputs = ["scripts/dev/scenario/signing-organizations/**", "packages/windmill/external-bin/janitor/templates/COMELEC/signing.json"]
 
 # Paths ------------------------------------------------------------------------
 # Ordered: the first matching rule claims the path. `broad` selects every check.
@@ -237,7 +255,7 @@ globs = [
 units = ["docker-images"]
 
 [[paths]]
-globs = ["scripts/dev/**"]
+globs = ["scripts/dev/**", "scripts/gen-tz-defaults.mjs"]
 units = ["scripts-dev"]
 
 [[paths]]
@@ -268,6 +286,11 @@ units = ["scripts-misc"]
 [[paths]]
 globs = ["packages/test-support/**"]
 units = ["test-support"]
+
+# Writes the synthetic signing certificates the admin portal tests read.
+[[paths]]
+globs = ["scripts/signing/**"]
+units = ["admin-portal"]
 
 # The authentication theme bundles the existing portal font assets.
 [[paths]]

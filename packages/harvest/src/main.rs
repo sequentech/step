@@ -37,6 +37,14 @@ mod error_contracts;
 #[path = "../tests/support/route_services.rs"]
 mod route_services;
 
+#[cfg(test)]
+#[path = "../tests/support/signing_action_routes.rs"]
+mod signing_action_routes;
+
+#[cfg(test)]
+#[path = "../tests/support/hasura_signing_permissions.rs"]
+mod hasura_signing_permissions;
+
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
@@ -145,6 +153,9 @@ fn build_application_with(
                 routes::permissions::get_permissions,
                 routes::permissions::set_role_permission,
                 routes::permissions::delete_role_permission,
+                routes::approval_matrix::get_approval_matrix,
+                routes::approval_matrix::evaluate_approval_matrix,
+                routes::approval_matrix::save_approval_matrix,
                 routes::phone_blacklist::create_phone_blacklist_entry,
                 routes::phone_blacklist::delete_phone_blacklist_entry,
                 routes::messaging::send_message,
@@ -170,6 +181,7 @@ fn build_application_with(
                 routes::keys_ceremony::list_keys_ceremonies,
                 routes::tally_ceremony::create_tally_ceremony,
                 routes::tally_ceremony::restore_private_key,
+                routes::keys_ceremony::key_share_signature_status,
                 routes::tally_ceremony::submit_tally_resolution,
                 routes::voting_status::update_event_status,
                 routes::voting_status::update_election_status,
@@ -211,6 +223,7 @@ fn build_application_with(
                 routes::reports::render_document_pdf,
                 routes::reports::generate_template,
                 routes::reports::generate_report,
+                routes::manual_verification_pdf::get_manual_verification_pdf,
                 routes::reports::encrypt_report_route,
                 routes::results_publication::configure_results_website_policy,
                 routes::results_publication::publish_results_website,
@@ -237,6 +250,31 @@ fn build_application_with(
                 routes::delete_certificate_authority::delete_certificate_authority_route,
                 routes::export_certificate_authority::export_certificate_authority_route,
                 routes::get_certificate_authorities_pem::get_cas_pem,
+                routes::signing::get_signing_request,
+                routes::signing::approve_signing_request,
+                routes::signing::report_signing_open_failure,
+                routes::signing::handover_signing_request,
+                routes::signing::cancel_signing_request,
+                routes::signing::export_signing_requests,
+                routes::signing::save_signing_rule,
+                routes::signing::signing_rule_capacity,
+                routes::signing::signing_event_info,
+                routes::reports::signing_held_report_requests,
+                routes::signing_certificates::import_signing_issuers,
+                routes::signing_certificates::remove_signing_issuer,
+                routes::signing_certificates::put_signing_checks,
+                routes::signing_certificates::register_staff_certificate_route,
+                routes::signing_certificates::revoke_staff_certificate_route,
+                routes::signing_certificates::check_signing_certificate,
+                routes::signing::prepare_signing_pdf,
+                routes::election_dates::apply_schedule_recompute,
+                routes::schedule_import::preview_schedule_import,
+                routes::schedule_import::import_schedule,
+                routes::schedule_import::export_schedule,
+                routes::scheduled_outcomes::get_scheduled_outcomes,
+                routes::scheduled_outcomes::preview_scheduled_outcome_change,
+                routes::scheduled_outcomes::save_lifecycle_policies_route,
+                routes::scheduled_outcomes::get_lifecycle_snapshots,
             ],
         )
         .mount("/", routes![routes::plugins::plugin_routes])

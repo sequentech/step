@@ -53,6 +53,56 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#assign structuredCredentialLogin = loginMode && passwordRequired && ['structured', 'pattern']?seq_contains(realm.attributes['credential-input-policy']!'standard')>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredentialLogin && credentialFieldError>
+<#--  Per-Post enrollment windows (enrollment-window-check form action). Every text is a message
+      key with {0} arguments, so the event realm's localization can override it.  -->
+<#assign hasEnrollmentWindows = (enrollmentWindows!)?has_content>
+<#--  The zone's name: the timezones.name.<zone> text when there is one, else the CLDR long name
+      the form action computed for that time.  -->
+<#function enrollmentZoneName zone fallback>
+    <#local key = "timezones.name." + zone>
+    <#local name = msg(key)>
+    <#return (name == key)?then(fallback, name)>
+</#function>
+<#function enrollmentDateTimeZone dateTime zone fallback>
+    <#local zoneName = enrollmentZoneName(zone, fallback)>
+    <#local combinedKey = enrollmentTimezoneMessageKey!"timezones.voterDateTimeZone">
+    <#local probe = msg(combinedKey, "__dateTime__", "__zoneName__")>
+    <#if !probe?contains("__dateTime__") || !probe?contains("__zoneName__")>
+        <#global invalidEnrollmentTimezoneText = true>
+        <#return msg("timezones.defaultVoterDateTimeZone", dateTime, zoneName)>
+    </#if>
+    <#return msg(combinedKey, dateTime, zoneName)>
+</#function>
+<#--  One notice per Post, after the embassy field; enrollment-window.js shows the chosen Post's
+      notice and holds Continue back unless its state is "open". The server refuses anyway.  -->
+<#macro enrollmentNotices>
+    <#--  The opening shows in the Post's zone, the common close in the event's primary zone.  -->
+    <#list enrollmentWindows as window>
+        <#if window.state == "open">
+            <#if window.closes??>
+                <#local text = msg("enrollment.openUntil", window.closes, enrollmentZoneName(window.closeZone, window.closesZoneName))>
+            <#else>
+                <#local text = "">
+            </#if>
+        <#elseif window.state == "before" && window.opens?? && window.closes??>
+            <#local text = msg("enrollment.opensOn", window.embassy,
+                enrollmentDateTimeZone(window.opens, window.zone, window.opensZoneName),
+                enrollmentDateTimeZone(window.closes, window.closeZone, window.closesZoneName))>
+        <#elseif window.state == "before" && window.opens??>
+            <#local text = msg("enrollment.opensOnWithoutClose", window.embassy,
+                enrollmentDateTimeZone(window.opens, window.zone, window.opensZoneName))>
+        <#elseif window.state == "not-configured">
+            <#local text = msg("enrollment.postNotConfigured", window.embassy)>
+        <#else>
+            <#local text = msg("enrollment.postNotOpen", window.embassy)>
+        </#if>
+        <div class="enrollment-window-notice enrollment-window-notice--${window.state}" role="status"
+             data-enrollment-embassy="${window.embassy}" data-enrollment-state="${window.state}" hidden>${text}</div>
+    </#list>
+    <#if invalidEnrollmentTimezoneText!false>
+        <script>console.warn("Invalid timezone text: using the enrollment default.");</script>
+    </#if>
+</#macro>
 <#macro credentialFields>
     <div class="${properties.kcFormGroupClass!}">
         <div class="${properties.kcLabelWrapperClass!}">
@@ -165,6 +215,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <#if callback = "afterField" && passwordRequired && !credentialFirst && attribute.name == passwordAnchorName>
                     <@credentialFields/>
                 </#if>
+                <#if callback = "afterField" && hasEnrollmentWindows && attribute.name == "embassy">
+                    <@enrollmentNotices/>
+                </#if>
             </@userProfileCommons.userProfileFormFields>
 
             <@messagingChannelChoice.render/>
@@ -206,6 +259,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
         <@telInputWidget.assets/>
         <@selectFilterWidget.assets/>
+        <#if hasEnrollmentWindows>
+            <script type="text/javascript" src="${url.resourcesPath}/js/enrollment-window.js"></script>
+        </#if>
 
         <#--  Password strength  -->
         <#--  https://github.com/dropbox/zxcvbn  -->

@@ -11,6 +11,10 @@ import argparse
 import os
 import logging
 from pybars import Compiler
+
+import approval_matrix_preset
+import signing_preset
+import lifecycle_preset
 import openpyxl
 import copy
 import csv
@@ -20,7 +24,7 @@ import shutil
 import hashlib
 import pyzipper
 from pathlib import Path
-from patch import parse_table_sheet, parse_parameters, patch_json_with_excel
+from patch import parse_table_sheet, parse_parameters, patch_json_with_excel, apply_schedule_time_zones, canonical_zone
 import re
 
 IS_DEBUG = False
@@ -549,7 +553,8 @@ def create_tenant_files(excel_data, base_config):
     tenant_configuration_compiled = compiler.compile(tenant_configurations)
     tenant_configuration_context = {
         "UUID": base_config["tenant_id"],
-        "current_timestamp": current_timestamp
+        "current_timestamp": current_timestamp,
+        **signing_preset.tenant_context(client_tenant)
     }
     tenant_configurations_str = json.loads(tenant_configuration_compiled(tenant_configuration_context))
 
@@ -672,27 +677,8 @@ def process_excel_users(users, csv_data):
             "|".join(user_data["permission_labels"]),
             user_data["password"],
             user_data["group_name"],
-            user_data["trustee"]
-        ])
-
-def process_sbei_users(sbei_users, csv_data):
-    users_map = {}
-    for user in sbei_users:
-        username = user["username"]
-        users_map[username] = user
-    
-    for key_username in users_map.keys():
-        # deduplicate permission labels
-        permission_labels = list(set(users_map[key_username]["permission_label"]))
-        trustee_id = users_map[key_username]["trustee_id"]
-        csv_data.append([
-            True,
-            key_username,
-            key_username,
-            "|".join(permission_labels),
-            key_username,
-            "trustee" if key_username.startswith("trustee") else "sbei",
-            trustee_id,
+            user_data["trustee"],
+            ""
         ])
 
 def create_permissions_file(data):
@@ -721,17 +707,17 @@ def create_permissions_file(data):
     return csv_content
 
 
-def create_admins_file(sbei_users, excel_data_users):
+def create_admins_file(sbei_users, excel_data_users, preset):
     # Data to be written to the CSV file
     print("excel_data_users", excel_data_users)
     csv_data = [
         [
-            "enabled","first_name","username","permission_labels","password","group_name","trustee"
-            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin
+            "enabled","first_name","username","permission_labels","password","group_name","trustee","title"
+            #true,Eduardo,admin2,BANGKOK|DHAKA,admin2,admin,,
         ]
     ]
     process_excel_users(excel_data_users, csv_data)
-    process_sbei_users(sbei_users, csv_data)
+    csv_data.extend(signing_preset.sbei_admin_rows(sbei_users, preset))
 
 
     # Name of the output CSV file
@@ -787,6 +773,8 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
+DEFAULT_SCANOVATE_MIN_BIOMETRIC_SCORE = 0.67
+
 def gen_keycloak_context(excel_data, areas_dict):
     print(f"generating keycloak context")
     country_set = set()
@@ -809,23 +797,32 @@ def gen_keycloak_context(excel_data, areas_dict):
         "country_list": ",".join(sorted_country_list),
     }
 
-    key_mappings = {
-        "philis_id_inetum_min_value_documental_score": "keycloak_inetum_min_value_philis_id_documental_score",
-        "philis_id_inetum_min_value_facial_score": "keycloak_inetum_min_value_philis_id_facial_score",
-        "seaman_book_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_seaman_book_val_campos_criticos_score",
-        "seaman_book_inetum_min_value_facial_score": "keycloak_inetum_min_value_seaman_book_facial_score",
-        "passport_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_passport_val_campos_criticos_score",
-        "passport_inetum_min_value_facial_score": "keycloak_inetum_min_value_passport_facial_score",
-        "driver_license_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_driver_license_val_campos_criticos_score",
-        "driver_license_inetum_min_value_facial_score": "keycloak_inetum_min_value_driver_license_facial_score",
-        "ibp_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_ibp_val_campos_criticos_score",
-        "ibp_inetum_min_value_facial_score": "keycloak_inetum_min_value_ibp_facial_score",
-    }
-
     keycloak_settings_dict = {row["key"]: row["value"] for row in keycloak_settings}
 
-    for context_key, settings_key in key_mappings.items():
-        keycloak_context[context_key] = int(keycloak_settings_dict.get(settings_key, 50))
+    # Minimum Face Match similarity between the voter's live face and their ID,
+    # from 0.0 to 1.0, per document type
+    score_mappings = {
+        "philis_id_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_philis_id",
+        "seaman_book_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_seaman_book",
+        "passport_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_passport",
+        "driver_license_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_driver_license",
+        "ibp_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_ibp",
+    }
+    for context_key, settings_key in score_mappings.items():
+        keycloak_context[context_key] = float(
+            keycloak_settings_dict.get(settings_key, DEFAULT_SCANOVATE_MIN_BIOMETRIC_SCORE)
+        )
+
+    # These values are rendered inside JSON strings, so they are escaped
+    string_mappings = {
+        "scanovate_ocr_url": ("keycloak_scanovate_ocr_url", ""),
+        "scanovate_liveness_url": ("keycloak_scanovate_liveness_url", ""),
+        "scanovate_liveness_secret": ("keycloak_scanovate_liveness_secret", ""),
+        "scanovate_face_match_url": ("keycloak_scanovate_face_match_url", ""),
+    }
+    for context_key, (settings_key, default) in string_mappings.items():
+        value = str(keycloak_settings_dict.get(settings_key, default))
+        keycloak_context[context_key] = json.dumps(value)[1:-1]
     return keycloak_context
 
 def load_sqlite_query(script_dir):
@@ -1083,6 +1080,15 @@ def gen_tree(excel_data, miru_data, results, multiply_factor):
 
     return elections_object, areas
 
+def schedule_date_cell(value):
+    """
+    The ScheduledEvents `date` cell as text: a date cell (a datetime) is a
+    wall time; `apply_schedule_time_zones` turns it into the instant.
+    """
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
 def replace_placeholder_database(excel_data, election_event_id, miru_data, results, multiply_factor):
     election_tree, areas_dict = gen_tree(excel_data, miru_data, results, multiply_factor)
     keycloak_context = gen_keycloak_context(excel_data, areas_dict)
@@ -1123,7 +1129,12 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
         }
 
         print(f"rendering election {election['election_name']}")
-        elections.append(json.loads(election_compiled(election_context)))
+        election_json = json.loads(election_compiled(election_context))
+        # The Posts sheet's `timezone`: the Post's zone, one of the event's
+        # configured zones.
+        if election.get("timezone"):
+            election_json["presentation"]["timezone"] = canonical_zone(election["timezone"])
+        elections.append(election_json)
 
         for scheduled_event in election["scheduled_events"]:
             scheduled_event_id = generate_uuid()
@@ -1134,7 +1145,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
                 "election_id": election_context["UUID"],
                 "election_alias": scheduled_event["election_alias"],
                 "event_processor": scheduled_event["type"],
-                "scheduled_date": scheduled_event["date"],
+                "scheduled_date": schedule_date_cell(scheduled_event["date"]),
+                "timezone": scheduled_event.get("timezone"),
                 "current_timestamp": current_timestamp
             }
             print(f"rendering scheduled event {scheduled_event_context['election_alias']} {scheduled_event_context['event_processor']}")
@@ -1263,7 +1275,8 @@ def replace_placeholder_database(excel_data, election_event_id, miru_data, resul
             "election_id": None,
             "election_alias": scheduled_event["election_alias"],
             "event_processor": scheduled_event["type"],
-            "scheduled_date": scheduled_event["date"],
+            "scheduled_date": schedule_date_cell(scheduled_event["date"]),
+            "timezone": scheduled_event.get("timezone"),
             "current_timestamp": current_timestamp
         }
         print(f"rendering scheduled event {scheduled_event_context['event_processor']}")
@@ -1318,6 +1331,7 @@ def parse_posts(sheet):
             "^description$",
             "^permission_label$",
             "^trustees$",
+            "^timezone$",
         ]
     )
     return data
@@ -1368,7 +1382,8 @@ def parse_scheduled_events(sheet):
         allowed_keys=[
             "^election_alias$",
             "^type$",
-            "^date$"
+            "^date$",
+            "^timezone$"
         ]
     )
     return data
@@ -1608,6 +1623,7 @@ parser.add_argument('excel', type=str, help='Excel config (with .xlsx extension)
 parser.add_argument('--voters', type=str, metavar='VOTERS_FILE_PATH', help='Create a voters file if this flag is set')
 parser.add_argument('--only-voters', type=str, metavar='VOTERS_FILE_PATH', help='Only create a voters file if this flag is set')
 parser.add_argument('--multiply-elections', type=int, default=1, help='Multiply the number of elections created by this factor')
+parser.add_argument('--approval-matrix', type=str, metavar='APPROVAL_MATRIX_PATH', default=approval_matrix_preset.DEFAULT_PATH, help='Enrollment approval matrix saved as version 1 of the election event')
 
 
 # Step 3: Parse the arguments
@@ -1678,6 +1694,14 @@ try:
     
     with open('templates/COMELEC/keycloakAdmin.hbs', 'r') as file:
         keycloak_admin_template = file.read()
+
+    # The tenant's signing preset: the event's signing rules and certificate
+    # checks, and the titles of the SBEI accounts.
+    preset = signing_preset.load('templates/COMELEC/signing.json')
+    client_tenant = signing_preset.load('templates/COMELEC/tenant.json')
+    approval_matrix = approval_matrix_preset.load(args.approval_matrix)
+    # The client's timezones, lifecycle policies and each Post's timezone.
+    lifecycle = lifecycle_preset.load('templates/COMELEC/lifecycle.json')
     
 
     logging.info("Loaded all templates successfully.")
@@ -1694,7 +1718,7 @@ multiply_factor = args.multiply_elections
 results = load_sqlite_query(script_dir)
 election_event, election_event_id, sbei_users = generate_election_event(excel_data, base_context, miru_data, results)
 create_tenant_files(excel_data, base_config)
-create_admins_file(sbei_users, excel_data["users"])
+create_admins_file(sbei_users, excel_data["users"], preset)
 
 areas, candidates, contests, area_contests, elections, keycloak, scheduled_events, reports = replace_placeholder_database(excel_data, election_event_id, miru_data, results, multiply_factor)
 keycloak = patch_keycloak(keycloak, base_config)
@@ -1711,8 +1735,14 @@ final_json = {
     "scheduled_events": scheduled_events,
     "reports": reports
 }
+signing_preset.add_to_bundle(final_json, preset)
+approval_matrix_preset.add_to_bundle(final_json, approval_matrix)
+lifecycle_preset.apply_event(final_json["election_event"], lifecycle)
+lifecycle_preset.apply_posts(final_json["elections"], lifecycle)
 
 patch_json_with_excel(excel_data, final_json, "event")
+# Dates in local time become instants once the event's timezones are final.
+apply_schedule_time_zones(final_json)
 
 scheduled_events = final_json["scheduled_events"]
 reports = final_json["reports"]

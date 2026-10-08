@@ -11,6 +11,7 @@ use super::{
         error_sending_logs_to_ccs_log, error_sending_transmission_package_to_ccs_log,
         send_logs_to_ccs_log, send_transmission_package_to_ccs_log,
     },
+    signed_transmission_package::lock_transmission_data,
     transmission_package::create_transmission_package,
     zip::unzip_file,
 };
@@ -23,6 +24,8 @@ use crate::{
     services::{
         database::get_hasura_pool,
         documents::{get_document_as_temp_file, upload_and_return_document},
+        signing::actions::transmission::{transmission_send_check, TransmissionRefusal},
+        time_zones::event_time_zone,
     },
     types::miru_plugin::{
         MiruCcsServer, MiruDocument, MiruServerDocument, MiruServerDocumentStatus,
@@ -30,7 +33,7 @@ use crate::{
     },
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{Local, Utc};
+use chrono::Utc;
 use deadpool_postgres::Client as DbClient;
 use reqwest::multipart;
 use sequent_core::services::translations::Name;
@@ -38,7 +41,6 @@ use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 use sequent_core::{
     ballot::Annotations,
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
-    services::date::ISO8601,
     types::{
         ceremonies::Log,
         hasura::core::{ElectionEvent, TallySession},
@@ -48,6 +50,7 @@ use std::io::{Read, Seek};
 use std::{cmp::Ordering, path::Path};
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
+use uuid::Uuid;
 
 const SEND_ELECTION_RESULTS_API_PATH: &str = "/api/receiver/v1/acm/election-results";
 
@@ -109,25 +112,133 @@ async fn send_package_to_ccs_server(
     Ok(())
 }
 
-#[instrument(skip_all)]
-pub fn get_latest_miru_document(input_documents: &Vec<MiruDocument>) -> Option<MiruDocument> {
-    let mut documents = input_documents.clone();
-    documents.sort_by(|a, b| {
-        let Ok(a_date) = ISO8601::to_date(&a.created_at) else {
-            return Ordering::Equal;
-        };
-        let Ok(b_date) = ISO8601::to_date(&b.created_at) else {
-            return Ordering::Equal;
-        };
-        if a_date > b_date {
-            Ordering::Less
-        } else if a_date < b_date {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    });
-    documents.first().cloned()
+/// A send refused because the package has fewer signatures than it needs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransmissionSignaturesShort {
+    pub signatures: usize,
+    pub threshold: i64,
+}
+
+impl std::fmt::Display for TransmissionSignaturesShort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The transmission package has {} of the {} signatures it needs; it can't be sent yet",
+            self.signatures, self.threshold
+        )
+    }
+}
+
+impl std::error::Error for TransmissionSignaturesShort {}
+
+/// Whether the package's latest document has the signatures its stored
+/// threshold asks for (the 2025 check). A threshold of -1 asks for none.
+pub fn check_transmission_signatures(
+    package: &MiruTransmissionPackageData,
+) -> std::result::Result<(), TransmissionSignaturesShort> {
+    check_transmission_signatures_against(package, package.threshold)
+}
+
+/// Whether the package's latest document has `threshold` signatures; -1
+/// asks for none, and a package without a document has none.
+pub fn check_transmission_signatures_against(
+    package: &MiruTransmissionPackageData,
+    threshold: i64,
+) -> std::result::Result<(), TransmissionSignaturesShort> {
+    let signatures = get_latest_miru_document(&package.documents)
+        .map_or(0, |document| document.signatures.len());
+    if threshold > -1 && (signatures as i64) < threshold {
+        return Err(TransmissionSignaturesShort {
+            signatures,
+            threshold,
+        });
+    }
+    Ok(())
+}
+
+/// Why a send can't be queued.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SendRefusal {
+    /// There is no such tally session in the event.
+    NoTallySession,
+    Refused(TransmissionRefusal),
+}
+
+/// Why the package of a Post and country can't be sent, for the send route
+/// to answer before it queues the send. `None` when it can go, or there is
+/// no package to check.
+#[instrument(err)]
+pub async fn signed_transmission_refusal(
+    tenant_id: &str,
+    election_id: &str,
+    area_id: &str,
+    tally_session_id: &str,
+) -> Result<Option<SendRefusal>> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+    let election_event =
+        get_election_event_by_election_area(&hasura_transaction, tenant_id, election_id, area_id)
+            .await
+            .with_context(|| "Error fetching election event")?;
+    let Ok(tally_session_uuid) = Uuid::parse_str(tally_session_id) else {
+        return Ok(Some(SendRefusal::NoTallySession));
+    };
+    let exists = hasura_transaction
+        .query_opt(
+            "SELECT 1 FROM sequent_backend.tally_session
+             WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
+            &[
+                &Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
+                &Uuid::parse_str(&election_event.id)
+                    .with_context(|| "Error parsing the election event id")?,
+                &tally_session_uuid,
+            ],
+        )
+        .await?
+        .is_some();
+    if !exists {
+        return Ok(Some(SendRefusal::NoTallySession));
+    }
+    let tally_session = get_tally_session_by_id(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        tally_session_id,
+    )
+    .await
+    .with_context(|| "Error fetching tally session")?;
+    let Some(package) = tally_session
+        .get_annotations()
+        .unwrap_or_default()
+        .into_iter()
+        .find(|package| package.area_id == area_id && package.election_id == election_id)
+    else {
+        return Ok(None);
+    };
+    Ok(transmission_send_check(
+        &hasura_transaction,
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event.id)
+            .with_context(|| "Error parsing the election event id")?,
+        &package,
+    )
+    .await?
+    .err()
+    .map(SendRefusal::Refused))
+}
+
+/// The package's latest document: the last one written. Documents are
+/// only ever appended, so their order is the order they were made in,
+/// whatever clock the workers that made them had.
+pub fn get_latest_miru_document(input_documents: &[MiruDocument]) -> Option<MiruDocument> {
+    input_documents.last().cloned()
 }
 
 async fn update_miru_document(
@@ -148,23 +259,16 @@ async fn update_miru_document(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    let tally_session = get_tally_session_by_id(
+    // Under the tally session's row lock, from the packages as they stand.
+    let locked = lock_transmission_data(
         &hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
     )
-    .await
-    .with_context(|| "Error fetching tally session")?;
-
-    let tally_annotations_js = tally_session
-        .annotations
-        .clone()
-        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
-
-    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
-
-    let transmission_data = tally_session.get_annotations()?;
+    .await?;
+    let tally_annotations = locked.annotations;
+    let transmission_data = locked.packages;
 
     let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -225,35 +329,16 @@ async fn record_new_log(
         .await
         .with_context(|| "Error acquiring hasura transaction")?;
 
-    let tally_session = get_tally_session_by_id(
+    // Under the tally session's row lock, from the packages as they stand.
+    let locked = lock_transmission_data(
         &hasura_transaction,
         tenant_id,
         election_event_id,
         tally_session_id,
     )
-    .await
-    .with_context(|| "Error fetching tally session")?;
-
-    let tally_annotations_js = tally_session
-        .annotations
-        .clone()
-        .ok_or_else(|| anyhow!("Missing tally session annotations"))?;
-
-    let tally_annotations: Annotations = deserialize_value(tally_annotations_js)?;
-
-    let transmission_data: MiruTallySessionData =
-        find_miru_annotation(MIRU_TALLY_SESSION_DATA, &tally_annotations)
-            .with_context(|| {
-                format!(
-                    "Missing tally session annotation: '{}:{}'",
-                    MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA
-                )
-            })
-            .map(|tally_session_data_js| {
-                deserialize_str(&tally_session_data_js).map_err(|err| anyhow!("{}", err))
-            })
-            .flatten()
-            .unwrap_or(vec![]);
+    .await?;
+    let tally_annotations = locked.annotations;
+    let transmission_data = locked.packages;
 
     let Some(transmission_area_election) = transmission_data.clone().into_iter().find(|data| {
         data.area_id == area_id.to_string() && data.election_id == election_id.to_string()
@@ -339,6 +424,17 @@ pub async fn send_transmission_package_service(
     let area_name = area.name.clone().unwrap_or("".into());
     let area_annotations = area.get_annotations()?;
 
+    // One send of a package at a time: a second waits here, then reads
+    // what the first one sent (each server's outcome commits as it goes).
+    hasura_transaction
+        .execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&format!(
+                "transmission-send:{tenant_id}:{tally_session_id}:{election_id}:{area_id}"
+            )],
+        )
+        .await
+        .with_context(|| "Error waiting for another send of the package")?;
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
         tenant_id,
@@ -390,16 +486,25 @@ pub async fn send_transmission_package_service(
         .map(|value| value.name.clone())
         .collect();
 
-    if transmission_area_election.threshold > -1
-        && (miru_document.signatures.len() as i64) < transmission_area_election.threshold
-    {
-        info!(
-            "Can't send to servers as number of signatures {} is less than threshold {}",
-            miru_document.signatures.len(),
-            transmission_area_election.threshold
-        );
-        return Ok(());
-    }
+    // A package that needs signatures goes once its signing request ran,
+    // with the request's signatures; otherwise with the Post's 2025 minimum.
+    transmission_send_check(
+        &hasura_transaction,
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event.id)
+            .with_context(|| "Error parsing the election event id")?,
+        &transmission_area_election,
+    )
+    .await?
+    .map_err(anyhow::Error::new)?;
+    // The log lines and send times are in the event's primary zone.
+    let zone = event_time_zone(
+        &hasura_transaction,
+        Uuid::parse_str(tenant_id).with_context(|| "Error parsing the tenant id")?,
+        Uuid::parse_str(&election_event.id)
+            .with_context(|| "Error parsing the election event id")?,
+    )
+    .await?;
 
     for ccs_server in &transmission_area_election.servers {
         if servers_sent_to.contains(&ccs_server.name) {
@@ -415,7 +520,7 @@ pub async fn send_transmission_package_service(
         let election_name = election.get_name(&election.get_default_language());
         match send_package_to_ccs_server(&second_zip_path, ccs_server, false).await {
             Ok(_) => {
-                let time_now = Local::now();
+                let time_now = Utc::now().with_timezone(&zone);
                 let new_log = send_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
@@ -433,7 +538,7 @@ pub async fn send_transmission_package_service(
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
-                    sent_at: ISO8601::to_string(&time_now),
+                    sent_at: time_now.to_rfc3339(),
                     status: MiruServerDocumentStatus::SUCCESS,
                 });
                 record_new_log(
@@ -449,7 +554,7 @@ pub async fn send_transmission_package_service(
             }
             Err(err) => {
                 let error_str = format!("{}", err);
-                let time_now = Local::now();
+                let time_now = Utc::now().with_timezone(&zone);
                 let new_log = error_sending_transmission_package_to_ccs_log(
                     &time_now,
                     election_id,
@@ -468,7 +573,7 @@ pub async fn send_transmission_package_service(
                 );
                 new_miru_document.servers_sent_to.push(MiruServerDocument {
                     name: ccs_server.name.clone(),
-                    sent_at: ISO8601::to_string(&time_now),
+                    sent_at: time_now.to_rfc3339(),
                     status: MiruServerDocumentStatus::ERROR,
                 });
                 record_new_log(
@@ -490,7 +595,7 @@ pub async fn send_transmission_package_service(
             match send_package_to_ccs_server(&logs_zip_path, ccs_server, true).await {
                 Ok(_) => {
                     let new_log = send_logs_to_ccs_log(
-                        &Local::now(),
+                        &Utc::now().with_timezone(&zone),
                         election_id,
                         &election_name,
                         area_id,
@@ -512,7 +617,7 @@ pub async fn send_transmission_package_service(
                 Err(err) => {
                     let error_str = format!("{}", err);
                     let new_log = error_sending_logs_to_ccs_log(
-                        &Local::now(),
+                        &Utc::now().with_timezone(&zone),
                         election_id,
                         &election_name,
                         area_id,

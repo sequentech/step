@@ -48,6 +48,15 @@ export interface IMiruTransmissionPackageData {
     documents: Array<IMiruDocument>
     logs: Array<ILog>
     threshold: number
+    /** The signing request the package waits for, when the transmit-results rule needs signatures. */
+    signing_request?: IMiruSigningRequest | null
+}
+
+/** A transmission package's signing request. */
+export interface IMiruSigningRequest {
+    id: string
+    code: string
+    required: number
 }
 
 // MiruTallySessionData type alias

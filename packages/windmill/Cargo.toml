@@ -18,8 +18,8 @@ path = "external-bin/generate_logs.rs"
 [features]
 rabbitmq-tests = []
 default = ["fips_full"]
-fips_core = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
-fips_full = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
+fips_core = ["dep:postgres-openssl", "dep:ecies"]
+fips_full = ["dep:postgres-openssl", "dep:ecies"]
 
 [dependencies]
 rocket = { version = "0.5", features = ["json"] }
@@ -87,7 +87,7 @@ b4 = { path = "../b4", features = ["client"] }
 electoral-log = { path = "../electoral-log" }
 strand = { path = "../strand" }
 messaging = { path = "../messaging" }
-sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "plugins_wit", "sqlite", "monitoring"] }
+sequent-core = { path = "../sequent-core", features = ["reports", "s3", "keycloak", "log", "probe", "areas", "default_features", "plugins_wit", "sqlite", "monitoring", "election_config_signing"] }
 velvet = { path = "../velvet" }
 
 
@@ -105,7 +105,11 @@ postgres-openssl = { version = "0.5", optional = true }
 # OpenSSL needs to be configured to operate in FIPS mode
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10", optional = true }
+# Also verifies signing certificates and CMS signatures (services::signing).
+openssl = "0.10"
+# Parses the CMS SignedData of PDF signatures (services::signing).
+cms = "0.2.3"
+der = { version = "0.7", features = ["alloc", "oid"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 ecies = { version = "0.2.7", optional = true }

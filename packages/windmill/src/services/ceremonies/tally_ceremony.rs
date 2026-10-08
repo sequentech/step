@@ -10,13 +10,14 @@ use crate::adapters::tally_ceremony::{
 use crate::domain::tally_ceremony::{
     check_key_restore_status, check_status_change, check_trustee_quorum, is_recount_eligible,
     reaches_key_threshold, recount_elections_status, restore_trustee_key, restored_trustee_count,
-    tally_executer, tally_execution_status, waiting_trustee, EXECUTER_USERNAME_ANNOTATION,
+    restoring_trustee, tally_executer, tally_execution_status, EXECUTER_USERNAME_ANNOTATION,
     EXECUTER_USER_ID_ANNOTATION,
 };
 use crate::domain::tally_creation::{
     check_weighted_voting_ballot_styles, check_weighted_voting_policies,
     check_weighted_voting_tally_sheets, WeightedVotingStage,
 };
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use crate::ports::clock::IdGenerator;
 use crate::ports::tally_ceremony::{
     DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
@@ -32,6 +33,8 @@ use crate::services::ceremonies::serialize_logs::{
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
+use crate::services::initialization_record::INITIALIZATION_AREA_IDS_ANNOTATION;
+use crate::services::initialization_scope::check_initialization_area_filter;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::newtypes::BatchNumber;
@@ -330,6 +333,10 @@ pub struct TallyCreation<'a> {
     pub tally_type: String,
     pub permission_labels: &'a Vec<String>,
     pub username: String,
+    /// The countries an initialization report covers, when it is generated
+    /// country by country (initialization scope POST_AND_COUNTRY); `None`
+    /// covers the whole Posts.
+    pub area_ids: Option<Vec<String>>,
 }
 
 #[instrument(err, skip(transaction))]
@@ -343,6 +350,7 @@ pub async fn create_tally_ceremony(
     tally_type: String,
     permission_labels: &Vec<String>,
     username: String,
+    area_ids: Option<Vec<String>>,
 ) -> Result<String> {
     create_tally_ceremony_with(
         &PgTallyCreationReader::new(transaction),
@@ -360,6 +368,7 @@ pub async fn create_tally_ceremony(
             tally_type,
             permission_labels,
             username,
+            area_ids,
         },
     )
     .await
@@ -384,6 +393,7 @@ pub async fn create_tally_ceremony_with(
         tally_type,
         permission_labels,
         username,
+        area_ids: area_filter,
     } = request;
     let TallyEventSnapshot {
         election_event,
@@ -396,7 +406,7 @@ pub async fn create_tally_ceremony_with(
         .await?;
     let parsed_tally_type = TallyType::try_from(tally_type.as_str())
         .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
-    validate_tally_elections(&all_elections, &election_ids, parsed_tally_type)?;
+    validate_tally_elections(&all_elections, &election_ids, parsed_tally_type.clone())?;
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
@@ -515,13 +525,94 @@ pub async fn create_tally_ceremony_with(
         "relevant_area_contests {:?}",
         relevant_area_contests
     );
-    let area_ids: Vec<String> = relevant_area_contests
+    let mut area_ids: Vec<String> = relevant_area_contests
         .iter()
         .map(|area_contest| area_contest.area_id.clone())
         .collect::<HashSet<String>>()
         .iter()
         .map(|val| val.clone())
         .collect();
+
+    // Initialization reports must actually cover retained published countries,
+    // even after editable current area-contest links have been removed.
+    if parsed_tally_type == TallyType::INITIALIZATION_REPORT {
+        for post in &election_ids {
+            if let Some(countries) = reader
+                .initialization_countries(
+                    &tenant_id,
+                    &election_event_id,
+                    uuid::Uuid::parse_str(post)?,
+                )
+                .await?
+            {
+                for country in &countries {
+                    if area_filter
+                        .as_ref()
+                        .map(|filter| filter.contains(country))
+                        .unwrap_or(true)
+                        && !published_ballot_styles
+                            .iter()
+                            .any(|style| style.election_id == *post && style.area_id == *country)
+                    {
+                        return Err(TallyValidationError::new(format!("Initialization country {country} has no generated ballot style; generate and approve a new publication")).into());
+                    }
+                }
+                area_ids.extend(countries);
+            }
+        }
+        area_ids.sort();
+        area_ids.dedup();
+    }
+
+    // A country-by-country initialization covers only the chosen countries.
+    let mut published_ballot_styles = published_ballot_styles;
+    if let Some(filter) = &area_filter {
+        let post = election_ids
+            .first()
+            .context("Country initialization requires one Post")?;
+        let scopes = reader
+            .initialization_scopes(&tenant_id, &election_event_id, uuid::Uuid::parse_str(post)?)
+            .await?;
+        // The Post's countries: its areas where voters vote (a ballot style).
+        let countries = area_ids
+            .iter()
+            .filter(|area_id| {
+                published_ballot_styles
+                    .iter()
+                    .any(|ballot_style| ballot_style.area_id == **area_id)
+            })
+            .cloned()
+            .collect();
+        check_initialization_area_filter(
+            parsed_tally_type.clone(),
+            &election_ids,
+            &scopes,
+            &countries,
+            filter,
+        )?;
+        area_ids.retain(|area_id| filter.contains(area_id));
+        published_ballot_styles.retain(|ballot_style| filter.contains(&ballot_style.area_id));
+    }
+
+    let initialization_country_coverage = if parsed_tally_type == TallyType::INITIALIZATION_REPORT {
+        Some(
+            election_ids
+                .iter()
+                .map(|post| {
+                    let countries: std::collections::BTreeSet<String> = published_ballot_styles
+                        .iter()
+                        .filter(|style| {
+                            style.election_id == *post && area_ids.contains(&style.area_id)
+                        })
+                        .map(|style| style.area_id.clone())
+                        .collect();
+                    (post.clone(), countries.into_iter().collect())
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
 
     let keys_ceremony =
         find_keys_ceremony_with(keys_ceremonies, &tenant_id, &election_event_id, &elections)
@@ -531,10 +622,13 @@ pub async fn create_tally_ceremony_with(
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
     let tally_session_id: String = ids.new_id().to_string();
 
-    let annotations: Value = json!({
+    let mut annotations: Value = json!({
         EXECUTER_USERNAME_ANNOTATION: username,
         EXECUTER_USER_ID_ANNOTATION: user_id,
     });
+    if let Some(filter) = &area_filter {
+        annotations[INITIALIZATION_AREA_IDS_ANNOTATION] = json!(filter);
+    }
 
     let keys_ceremony_policy = keys_ceremony.policy();
 
@@ -558,6 +652,7 @@ pub async fn create_tally_ceremony_with(
                 tally_type: tally_type.clone(),
                 annotations,
                 permission_labels: tally_permission_labels,
+                initialization_country_coverage,
             },
         )
         .await?;
@@ -738,9 +833,11 @@ pub struct TrusteeKeyRestore<'a> {
     pub election_event_id: &'a str,
     pub tally_session_id: &'a str,
     pub private_key_base64: &'a str,
+    /// Which restores count, when the rule makes trustees sign.
+    pub signatures: &'a TrusteeSignatures,
 }
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(transaction, claims, private_key_base64, signatures))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
     claims: &JwtClaims,
@@ -748,6 +845,7 @@ pub async fn set_private_key(
     election_event_id: &str,
     tally_session_id: &str,
     private_key_base64: &str,
+    signatures: &TrusteeSignatures,
 ) -> Result<bool> {
     set_private_key_with(
         &PgTallySessions::new(transaction),
@@ -761,28 +859,35 @@ pub async fn set_private_key(
             election_event_id,
             tally_session_id,
             private_key_base64,
+            signatures,
         },
     )
     .await
 }
 
-/// Returns `false`, writing nothing, if the key is not the one the trustee
-/// stored on the board in the keys ceremony.
-pub async fn set_private_key_with(
+/// What restoring a trustee's key reads before it writes anything.
+struct KeyRestore {
+    trustee_name: String,
+    tally_session: TallySession,
+    tally_session_execution: TallySessionExecution,
+    tally_ceremony_status: TallyCeremonyStatus,
+    keys_ceremony: KeysCeremony,
+    found_trustee: TallyTrustee,
+    encrypted_private_key: String,
+}
+
+/// Reads the session, its last execution and the trustee's stored key,
+/// failing when the trustee can't restore their key now.
+async fn read_key_restore(
     sessions: &impl TallySessions,
     keys_ceremonies: &impl KeysCeremonyReader,
     private_keys: &impl TrusteePrivateKeys,
-    election_events: &impl ElectionEventReader,
-    audit: &impl TallyCeremonyAudit,
-    request: TrusteeKeyRestore<'_>,
-) -> Result<bool> {
-    let TrusteeKeyRestore {
-        claims,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-        private_key_base64,
-    } = request;
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    signatures: &TrusteeSignatures,
+) -> Result<KeyRestore> {
     let tally_session = sessions
         .get(tenant_id, election_event_id, tally_session_id)
         .await?;
@@ -821,12 +926,112 @@ pub async fn set_private_key_with(
         .await?;
 
     let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
-    let found_trustee = waiting_trustee(&tally_ceremony_status, &trustee_name)?.clone();
+    let found_trustee =
+        restoring_trustee(&tally_ceremony_status, &trustee_name, signatures)?.clone();
 
     // get the encrypted private key
     let encrypted_private_key = private_keys
         .encrypted_private_key(tenant_id, election_event_id, &trustee_name, &keys_ceremony)
         .await?;
+
+    Ok(KeyRestore {
+        trustee_name,
+        tally_session,
+        tally_session_execution,
+        tally_ceremony_status,
+        keys_ceremony,
+        found_trustee,
+        encrypted_private_key,
+    })
+}
+
+/// Whether the key share is the one the trustee would restore, compared as
+/// [`set_private_key_with`] compares it, recording nothing. Fails as the
+/// restore fails when the trustee can't restore their key now.
+pub async fn trustee_key_share_matches_with(
+    sessions: &impl TallySessions,
+    keys_ceremonies: &impl KeysCeremonyReader,
+    private_keys: &impl TrusteePrivateKeys,
+    request: TrusteeKeyRestore<'_>,
+) -> Result<bool> {
+    let restore = read_key_restore(
+        sessions,
+        keys_ceremonies,
+        private_keys,
+        request.claims,
+        request.tenant_id,
+        request.election_event_id,
+        request.tally_session_id,
+        request.signatures,
+    )
+    .await?;
+    Ok(restore.encrypted_private_key == request.private_key_base64)
+}
+
+/// [`trustee_key_share_matches_with`] on the database and the board.
+#[instrument(err, skip(transaction, claims, private_key_base64, signatures))]
+pub async fn key_share_matches(
+    transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    private_key_base64: &str,
+    signatures: &TrusteeSignatures,
+) -> Result<bool> {
+    trustee_key_share_matches_with(
+        &PgTallySessions::new(transaction),
+        &PgKeysCeremonies::new(transaction),
+        &BoardTrusteePrivateKeys::new(transaction),
+        TrusteeKeyRestore {
+            claims,
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            private_key_base64,
+            signatures,
+        },
+    )
+    .await
+}
+
+/// Returns `false`, writing nothing, if the key is not the one the trustee
+/// stored on the board in the keys ceremony.
+pub async fn set_private_key_with(
+    sessions: &impl TallySessions,
+    keys_ceremonies: &impl KeysCeremonyReader,
+    private_keys: &impl TrusteePrivateKeys,
+    election_events: &impl ElectionEventReader,
+    audit: &impl TallyCeremonyAudit,
+    request: TrusteeKeyRestore<'_>,
+) -> Result<bool> {
+    let TrusteeKeyRestore {
+        claims,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        private_key_base64,
+        signatures,
+    } = request;
+    let KeyRestore {
+        trustee_name,
+        tally_session,
+        tally_session_execution,
+        tally_ceremony_status,
+        keys_ceremony,
+        found_trustee,
+        encrypted_private_key,
+    } = read_key_restore(
+        sessions,
+        keys_ceremonies,
+        private_keys,
+        claims,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        signatures,
+    )
+    .await?;
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
@@ -845,7 +1050,7 @@ pub async fn set_private_key_with(
         .await?;
 
     // enough trustees connected, so change tally execution status to connected
-    if reaches_key_threshold(&new_status, keys_ceremony.threshold) {
+    if reaches_key_threshold(&new_status, keys_ceremony.threshold, signatures) {
         sessions
             .set_status(
                 tenant_id,
@@ -856,7 +1061,6 @@ pub async fn set_private_key_with(
             )
             .await?;
     }
-    println!("after update status");
     // get the election event
     let election_event = election_events.get(tenant_id, election_event_id).await?;
 

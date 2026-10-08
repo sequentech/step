@@ -92,6 +92,35 @@ pub struct ImportElectionEventSchema {
     /// `engineering/how-a-support-material-travels-in-a-bundle`.
     pub support_materials: Option<Vec<SupportMaterial>>,
 
+    /// How the event signs its protected actions, one rule per action.
+    ///
+    /// Absent (older bundles, or an event that never saved a rule): nothing is
+    /// imported and every action keeps its default. Written only when there
+    /// is something to write, so an export of an event without rules is what
+    /// it always was. A rule without `expires_minutes` expires after the
+    /// default hour; an explicit null never expires.
+    ///
+    /// A rule for an action the platform does not know refuses the whole
+    /// bundle at parse time; out-of-range counts and expiries, and an action
+    /// with two rules, are refused by validation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_rules: Option<Vec<crate::signing::SigningRule>>,
+
+    /// The event's staff-certificate checks. Absent: the defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_checks: Option<crate::signing::SigningChecks>,
+
+    /// The event's enrollment approval matrix: the fields compared with the
+    /// registry, the ordered rules and the last rule.
+    ///
+    /// Absent (older bundles, or an event that never saved one): nothing is
+    /// imported and enrollment uses the built-in matrix. Present: the import
+    /// saves it as the event's version 1. `Value` because the rule model
+    /// belongs to the service that evaluates it, which refuses a matrix it
+    /// can't read or that breaks an invariant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approval_matrix: Option<Value>,
+
     /// The platform version that wrote the bundle.
     ///
     /// Defaults to the first version that recorded one, so bundles predating the
@@ -193,5 +222,95 @@ mod tests {
         let parsed: ImportElectionEventSchema =
             serde_json::from_str(MINIMAL).unwrap();
         assert_eq!(parsed.tenant_id, "9384db41-1b21-4b93-a6aa-edfc007136d8");
+    }
+
+    #[test]
+    fn a_bundle_without_signing_configuration_imports_none_and_writes_none() {
+        // Older bundles carry neither field; an export of an event without
+        // signing configuration must not grow them either.
+        let parsed: ImportElectionEventSchema =
+            serde_json::from_str(MINIMAL).unwrap();
+        assert!(parsed.signing_rules.is_none());
+        assert!(parsed.signing_checks.is_none());
+        let written = serde_json::to_value(&parsed).unwrap();
+        assert!(written.get("signing_rules").is_none());
+        assert!(written.get("signing_checks").is_none());
+    }
+
+    #[test]
+    fn signing_rules_and_checks_round_trip_with_their_import_defaults() {
+        use crate::signing::{
+            CertificatePostBinding, CertificateRegistration,
+            CrlUnavailablePolicy, RequesterSigning, RevocationCheck,
+            SigningAction, SigningRequirement,
+        };
+        let mut tree: serde_json::Value =
+            serde_json::from_str(MINIMAL).unwrap();
+        tree["signing_rules"] = serde_json::json!([
+            // No expiry written: the default hour.
+            {"action": "open-voting", "requirement": "required",
+             "signatures": 2, "requester_signing": "allowed"},
+            // An explicit null: no limit.
+            {"action": "approve-voter", "requirement": "required",
+             "signatures": 1, "requester_signing": "not-allowed",
+             "expires_minutes": null, "revision": 4}
+        ]);
+        // No revision written: 0.
+        tree["signing_checks"] = serde_json::json!({
+            "revocation_check": "dont-check",
+            "crl_unavailable": "accept-unchecked",
+            "registration": "security-officer-only",
+            "post_binding": "any-post"
+        });
+        let parsed: ImportElectionEventSchema =
+            serde_json::from_value(tree).unwrap();
+
+        let rules = parsed.signing_rules.clone().unwrap();
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].action, SigningAction::OpenVoting);
+        assert_eq!(rules[0].requirement, SigningRequirement::Required);
+        assert_eq!(rules[0].signatures, 2);
+        assert_eq!(rules[0].requester_signing, RequesterSigning::Allowed);
+        assert_eq!(rules[0].expires_minutes, Some(60));
+        assert_eq!(rules[1].action, SigningAction::ApproveVoter);
+        assert_eq!(rules[1].expires_minutes, None);
+        assert_eq!(rules[1].revision, 4);
+
+        let checks = parsed.signing_checks.clone().unwrap();
+        assert_eq!(checks.revocation_check, RevocationCheck::DontCheck);
+        assert_eq!(
+            checks.crl_unavailable,
+            CrlUnavailablePolicy::AcceptUnchecked
+        );
+        assert_eq!(
+            checks.registration,
+            CertificateRegistration::SecurityOfficerOnly
+        );
+        assert_eq!(checks.post_binding, CertificatePostBinding::AnyPost);
+        assert_eq!(checks.revision, 0);
+
+        // Written back, the defaults are explicit and read the same again.
+        let written = serde_json::to_value(&parsed).unwrap();
+        assert_eq!(written["signing_rules"][0]["expires_minutes"], 60);
+        assert!(written["signing_rules"][1]["expires_minutes"].is_null());
+        let reread: ImportElectionEventSchema =
+            serde_json::from_value(written).unwrap();
+        assert_eq!(reread.signing_rules, parsed.signing_rules);
+        assert_eq!(reread.signing_checks, parsed.signing_checks);
+    }
+
+    #[test]
+    fn an_unknown_signing_action_refuses_the_bundle() {
+        // A rule for an action the platform does not have must not be dropped
+        // quietly: the event would import without a quorum its author set.
+        let mut tree: serde_json::Value =
+            serde_json::from_str(MINIMAL).unwrap();
+        tree["signing_rules"] = serde_json::json!([
+            {"action": "open-the-doors", "requirement": "required",
+             "signatures": 2, "requester_signing": "allowed"}
+        ]);
+        let parsed: Result<ImportElectionEventSchema, _> =
+            serde_json::from_value(tree);
+        assert!(parsed.is_err());
     }
 }

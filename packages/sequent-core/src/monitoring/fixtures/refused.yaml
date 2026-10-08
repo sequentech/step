@@ -241,7 +241,6 @@
   code: forbidden_value
   path: scope.region.election_annotation
   yaml: |
-    time_zone: UTC
     scope:
       region: {election_annotation: "https://example.org/region"}
       country: {voter_attribute: country}

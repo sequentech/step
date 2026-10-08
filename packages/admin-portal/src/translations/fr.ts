@@ -213,6 +213,51 @@ const frenchTranslation: TranslationType = {
             exportdialog: {
                 description:
                     "Veuillez confirmer que vous souhaitez exécuter cette action, cela pourrait prendre un certain temps.",
+                title: "Exporter les journaux",
+                from: "Du",
+                to: "Au",
+                timeZone: "Fuseau horaire",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Chaque ligne conserve son heure en UTC (ISO 8601) et en {{abbr}}, avec le nom du fuseau horaire. La plage de dates inclut les deux bornes, en {{abbr}}.",
+                zoneNotePdf:
+                    "Le PDF affiche chaque heure en {{abbr}}. La plage de dates inclut les deux bornes, en {{abbr}}.",
+                rowZones: "Le fuseau horaire de l'élection de chaque ligne",
+                zoneNoteRows:
+                    "Chaque ligne conserve son heure en UTC (ISO 8601) et dans le fuseau horaire de son élection, avec le nom du fuseau horaire. La plage de dates inclut les deux bornes, en {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "Le PDF affiche chaque heure dans le fuseau horaire de son élection. La plage de dates inclut les deux bornes, en {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Créé du",
+                createdTo: "au",
+                statementTimestampFrom: "Horodatage de la déclaration du",
+                statementTimestampTo: "Horodatage de la déclaration au",
+                timeZone: "Fuseau horaire",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "En attente d’initialisation",
+                    "runs": "s'exécute",
+                    "runs-unsigned": "s'exécute sans signatures",
+                    "refused": "est refusée",
+                },
+                check: {
+                    "initialization": "L’initialisation requise est incomplète",
+                    "voting-close": "Le vote ne peut pas ouvrir après sa date limite de clôture",
+                    "needs-signatures": "signatures requises",
+                    "covered": "dans la configuration signée",
+                    "unsigned-close": "fermeture sans signatures",
+                    "stricter-copy": "paramètres actuels ou publiés",
+                    "defaults": "rien n'est encore publié",
+                },
+                changed: "Désormais {{after}} (avant : {{before}}).",
+                result: "Résultat : {{outcome}}.",
+                deciding: "Vérification décisive : {{check}}. {{value}}",
+                authorizedBy: "Autorisée par la configuration {{code}}.",
+                nextStep: "Étape suivante : {{step}}",
             },
             column: {
                 id: "ID",
@@ -303,6 +348,7 @@ const frenchTranslation: TranslationType = {
                 taskTitle: "Tâche: {{title}}",
                 viewTask: "Voir Tâche",
                 downloadDocument: "Télécharger le Fichier",
+                downloadHashManifest: "Manifeste des empreintes",
             },
             exportTasksExecution: {
                 success: "L'exportation s'est terminée avec succès",
@@ -341,6 +387,9 @@ const frenchTranslation: TranslationType = {
                 helpLinks: "Liens d'Aide",
                 logoUrl: "URL du Logo",
                 css: "CSS Personnalisé",
+                displayName: "Nom affiché",
+                displayNameHelp:
+                    "Le nom de l'organisation dans les messages qui la mentionnent. Vide : le nom court du locataire.",
             },
             errors: {
                 invalidHelpLinks: "Format des Liens d'Aide invalide",
@@ -499,6 +548,7 @@ const frenchTranslation: TranslationType = {
                     duplicateKey: "Un remplacement avec cette clé et cette portée existe déjà.",
                     invalidDateTimeFormat:
                         "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "Ce texte doit conserver {{placeholders}}.",
                 },
                 common: {
                     title: "Localisation",
@@ -516,6 +566,7 @@ const frenchTranslation: TranslationType = {
                     ballotVerifier: "Vérificateur de bulletins",
                     resultsPortal: "Portail des résultats",
                     adminPortal: "Portail d'administration",
+                    templates: "Rapports et messages",
                 },
             },
             field: {
@@ -578,6 +629,23 @@ const frenchTranslation: TranslationType = {
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Paramètres d'accessibilité de l'électeur",
+                    options: {
+                        disabled: "Masquer les paramètres d'accessibilité",
+                        enabled:
+                            "Proposer la taille du texte, le contraste, l'espacement et les animations",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instructions audio",
+                    options: {
+                        "disabled": "Pas d'instructions audio",
+                        "recorded": "Enregistrements téléversés uniquement",
+                        "recorded-or-synthesized":
+                            "Enregistrements téléversés, ou la voix du navigateur à défaut",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Afficher les logs de vote",
                     options: {
@@ -587,6 +655,8 @@ const frenchTranslation: TranslationType = {
                 },
                 lockdownState: {
                     policyLabel: "État de Confinement",
+                    helperText:
+                        "Programmez le début ou la fin de la période de verrouillage pour modifier cet état.",
                     options: {
                         "locked-down": "Confiné",
                         "not-locked-down": "Non Confiné",
@@ -1045,6 +1115,21 @@ const frenchTranslation: TranslationType = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Listes",
+                configuration: "Configuration des listes (JSON)",
+                helper: "Listes nommées et les candidats que chacune présente dans chaque scrutin. Laissez vide pour une élection sans listes.",
+                loading:
+                    "Les scrutins et les candidats de l'élection sont encore en cours de chargement. Réessayez dans un instant.",
+                mobileCandidateLists: {
+                    label: "Listes de candidats sur mobile",
+                    helper: "État initial de la liste de candidats de chaque liste sur mobile. L'électeur peut toujours l'ouvrir ou la fermer.",
+                    options: {
+                        collapsed: "Repliées",
+                        expanded: "Dépliées",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Politique de titre de l'écran d'accueil",
                 options: {
@@ -1318,6 +1403,28 @@ const frenchTranslation: TranslationType = {
                 "admin-dashboard-view": "Vue du Tableau de Bord d'Administration",
                 "monitoring-view": "Voir les Tableaux de Bord de Suivi",
                 "monitoring-configure": "Configurer les Tableaux de Bord de Suivi",
+                "election-event-signatures-tab": "Onglet Signatures de l'Événement Électoral",
+                "signing-rules-read": "Signatures : voir les actions protégées",
+                "signing-rules-write": "Signatures : modifier les actions protégées",
+                "signing-certificates-read": "Signatures : voir les certificats",
+                "signing-issuers-write":
+                    "Signatures : importer et supprimer des émetteurs de confiance",
+                "signing-checks-write": "Signatures : modifier les vérifications des certificats",
+                "signing-certificates-register": "Signatures : enregistrer des certificats",
+                "signing-certificates-revoke": "Signatures : révoquer des certificats",
+                "signing-requests-read": "Signatures : voir les demandes",
+                "signing-requests-cancel": "Signatures : annuler des demandes",
+                "signing-requests-export": "Signatures : exporter les demandes",
+                "sign-initialize-voting": "Signer : initialiser le vote",
+                "sign-open-voting": "Signer : ouvrir le vote",
+                "sign-close-voting": "Signer : clôturer le vote",
+                "sign-generate-election-returns": "Signer : générer les procès-verbaux électoraux",
+                "sign-generate-reports": "Signer : générer d'autres rapports électoraux",
+                "sign-transmit-results": "Signer : transmettre les résultats",
+                "sign-approve-voter": "Signer : approuver manuellement un électeur",
+                "sign-approve-configuration": "Signer : approuver une version de configuration",
+                "sign-key-ceremony": "Signer : confirmer un fragment de clé",
+                "sign-tally-key": "Signer : apporter un fragment de clé",
                 "application-export": "Exportation d'Applications",
                 "application-import": "Importation d'Applications",
                 "tenant-create": "Créer Locataire",
@@ -1463,6 +1570,7 @@ const frenchTranslation: TranslationType = {
                 "task-export": "Exporter les Tâches",
                 "application-read": "Lire l'Application",
                 "application-write": "Modifier l'Application",
+                "approval-matrix-write": "Modifier la Matrice d'Approbation",
                 "logs-export": "Exporter les Journaux",
                 "election-event-logs-columns": "Colonnes des Journaux de l'Événement Électoral",
                 "election-events-logs-filters": "Filtres des Journaux de l'Événement Électoral",
@@ -1583,6 +1691,22 @@ const frenchTranslation: TranslationType = {
                 START_LOCKDOWN_PERIOD: "Début de la période de blocage des données du recensement",
                 END_LOCKDOWN_PERIOD: "Fin de la période de blocage des données du recensement",
                 ALLOW_TALLY: "Autoriser le décompte",
+                START_READINESS_TEST: "Démarrer le test de préparation électorale",
+                END_READINESS_TEST: "Terminer le test de préparation électorale",
+                START_FINAL_TESTING: "Démarrer les tests finaux et le verrouillage",
+                END_FINAL_TESTING: "Terminer les tests finaux et le verrouillage",
+                START_TEST_VOTING: "Démarrer le vote de test",
+                END_TEST_VOTING: "Terminer le vote de test",
+            },
+            warning: {
+                votingWindowDays:
+                    "La période de vote de {{election}} couvre {{days}} jours locaux (du {{start_local}} au {{end_local}}, {{time_zone}}) ; la règle en demande {{expected}}.",
+                finalTestingLeadTime:
+                    "Les tests finaux de {{election}} commencent le {{final_testing_local}}, moins de {{minimum_days}} jours avant l'ouverture du vote le {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "Le vote de {{election}} se clôture au moment de son ouverture ou avant ({{start_local}} à {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "Le dernier jour de vote de {{election}} compte {{hours}} heures, moins de {{minimum_hours}} : le vote se clôture le {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Élection",
@@ -1923,6 +2047,7 @@ const frenchTranslation: TranslationType = {
                 "warn-only-in-review": "Avertir en Révision",
                 "warn": "Avertir",
                 "warn-and-alert": "Avertir et Alerter",
+                "warn-and-confirm-in-review": "Avertir et Confirmer en Révision",
             },
             invalidVotePolicy: {
                 "label": "Politique de vote invalide",
@@ -2196,6 +2321,9 @@ const frenchTranslation: TranslationType = {
                             confirm: "Envoyer le Paquet de Transmission",
                             cancel: "Fermer",
                         },
+
+                        disabled:
+                            "Les signatures requises manquent ou le paquet de transmission a déjà été envoyé à toutes les destinations.",
                     },
                     regenerate: {
                         title: "Régénérer",
@@ -2232,11 +2360,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 signatures: {
-                    title: "Signatures SBEI",
+                    title: "Signatures",
                     description:
-                        "Les SBEI peuvent signer le Paquet de Transmission. Le tableau ci-dessous montre l'état de signature de chacun des membres du SBEI.",
+                        "Les membres peuvent signer le paquet de transmission. Le tableau indique le statut de signature de chaque membre.",
                     table: {
-                        trusteeName: "Nom du Fiduciaire",
+                        trusteeName: "Membre",
                         signed: "A Signé",
                     },
                     status: "{{signed}} sur {{total}} Ont Signé",
@@ -2426,6 +2554,15 @@ const frenchTranslation: TranslationType = {
                 "Exporter les résultats de toutes les zones au format {{format}} pour '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Générez le rapport pour tout le poste ou pour un pays. Le vote reste bloqué tant que toutes les initialisations requises par pays et pour l’événement entier ne sont pas terminées.",
+                countriesError: "Impossible de charger les pays admissibles. Fermez et réessayez.",
+                noCountries:
+                    "Ce poste n’a aucun pays admissible avec des modèles de bulletin actifs. Vérifiez ses zones et sa publication avant l’initialisation.",
+                country: "Pays",
+                entirePost: "Poste entier",
+            },
             preview: {
                 publicationAreas: "Sélectionnez la zone pour l'aperçu",
                 action: "Aperçu",
@@ -2750,6 +2887,23 @@ const frenchTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instructions audio pour l'écran",
+                languageLabel: "Langue de l'enregistrement",
+                none: "Pas des instructions audio",
+                helperText:
+                    "Les électeurs entendent ce fichier lorsqu'ils demandent les instructions sur cet écran.",
+                screens: {
+                    "election-chooser": "Liste des élections",
+                    "start": "Début",
+                    "ballot": "Bulletin",
+                    "review": "Vérification",
+                    "confirmation": "Confirmation",
+                    "audit": "Audit",
+                    "ballot-locator": "Localisateur de bulletins",
+                    "support-materials": "Documents d'aide",
+                },
+            },
             createMaterialSuccess: "Matériel de support créé",
             createMaterialError: "Erreur lors de la création du matériel de support",
             updateMaterialSuccess: "Matériel de support mis à jour",
@@ -2821,46 +2975,443 @@ const frenchTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Statut",
-                id: "ID",
-                applicantId: "ID du Demandeur",
-                verificationType: "Type de Vérification",
-                createdAt: "Créé Le",
-                updatedAt: "Mis à Jour Le",
-                verified_by: "Vérifié Par",
+                id: "ID de la demande",
+                applicantId: "ID du demandeur",
+                verificationType: "Vérification",
+                createdAt: "Demandée",
+                verified_by: "Vérifiée par",
+                voter: "Électeur",
+                what: "Ce qui s'est passé",
+                post: "Poste",
+                when: "Quand",
             },
-            approvalRequest: "Informations d'approbation",
-            taskInformation: "Informations sur la tâche",
-            ok: "D'accord",
-            title: "Électeurs",
-            subtitle: "Rechercher des électeurs correspondants",
-            approve: {
-                body: "Êtes-vous sûr de vouloir approuver cet électeur ? Cette action est irréversible.",
+            status: {
+                PENDING: "À examiner",
+                ACCEPTED: "Approuvée",
+                REJECTED: "Rejetée",
             },
-            reject: {
-                label: "Rejeter la demande",
-                confirm:
-                    "Êtes-vous sûr de vouloir rejeter cet électeur ? Cette action est irréversible.",
-                message: "Écrivez ici la raison du rejet",
-                rejectReason: "Raison du rejet",
-                messageRequired: "Un message de rejet est requis pour l'option 'Autre'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Électeur Non Correspondant",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+            verification: {
+                AUTOMATIC: "Automatique",
+                MANUAL: "Manuelle",
+            },
+            time: {
+                minutes_one: "{{count}} minute",
+                minutes_other: "{{count}} minutes",
+                hours_one: "{{count}} heure",
+                hours_other: "{{count}} heures",
+                days_one: "{{count}} jour",
+                days_other: "{{count}} jours",
+            },
+            summary: {
+                join: "{{head}} et {{last}}",
+                differs_one: "{{fields}} ne correspond pas au registre",
+                differs_other: "{{fields}} ne correspondent pas au registre",
+                typedByHand: "Données saisies à la main, non lues sur une pièce d'identité scannée",
+                needsFaceToFace: "Nécessite une vérification en face à face",
+                scanVerified: "Pièce d'identité scannée et vérifiée",
+                noVoter: "Aucun électeur trouvé dans le registre",
+                allMatch: "Toutes les données correspondent au registre",
+                needsReview: "En attente de la décision d'une personne",
+                approvedBy: "Approuvée par {{name}}",
+                approvedAuto: "Approuvée automatiquement",
+                rejectedBy: "Rejetée par {{name}}",
+                rejectedAuto: "Rejetée automatiquement",
+            },
+            list: {
+                title: "Approbations",
+                subtitle:
+                    "Les inscriptions que les règles ne peuvent pas décider seules attendent ici une personne.",
+                search: "Rechercher",
+                review: "Examiner l'inscription",
+                openRecord: "Ouvrir l'inscription",
+                seeRule: "Voir la règle qui a décidé",
+                unnamed: "Demandeur sans nom",
+                waiting: "En attente depuis {{time}}",
+                applied: "Demandée le {{date}}",
+                empty: {
+                    title: "Rien ici",
+                    text: "Les inscriptions ayant ce statut apparaîtront ici. Essayez une autre recherche ou un autre statut.",
                 },
             },
+            flow: {
+                stepsLabel: "Étapes de l'examen",
+                steps: {
+                    identity: "Vérifier l'identité",
+                    voter: "Trouver l'électeur",
+                    decide: "Décider",
+                },
+                continue: "Continuer",
+                backToList: "Retour aux Approbations",
+                identity: {
+                    details: "Données de l'inscription",
+                    confirm:
+                        "J'ai vérifié la pièce d'identité de l'électeur en personne ou par appel vidéo, et elle correspond à cette inscription.",
+                    checked: "Vérification en face à face confirmée",
+                    notChecked: "Vérification en face à face pas encore confirmée",
+                },
+                voter: {
+                    none: "Aucun de ceux-ci n'est l'électeur",
+                    noneHint:
+                        "L'inscription ne peut alors qu'être rejetée, faute d'électeur correspondant.",
+                    noneChosen: "Aucun de ceux-ci n'est l'électeur",
+                    notChosen: "Aucun électeur choisi pour l'instant",
+                },
+                decide: {
+                    approve: "Approuver",
+                    reject: "Rejeter",
+                    approveText:
+                        "Associe cette inscription à {{voter}} dans le registre. L'électeur est prévenu par e-mail ou SMS et pourra se connecter pour voter à l'ouverture du vote.",
+                    rejectText:
+                        "Le motif est communiqué à l'électeur. Cette action est irréversible.",
+                    chooseVoter: "Choisissez l'électeur correspondant à l'étape 2 pour approuver.",
+                    noVoter:
+                        "Vous n'avez trouvé aucun électeur correspondant : cette inscription ne peut donc qu'être rejetée.",
+                    enrolled: "L'électeur choisi est déjà inscrit.",
+                    faceToFace:
+                        "Confirmez la vérification en face à face à l'étape 1 pour approuver.",
+                },
+            },
+            review: {
+                loadError: "L'inscription n'a pas pu être chargée.",
+                applied: "Demandée le {{date}}",
+                waiting: "En attente depuis {{time}}",
+                whyTitle: "Pourquoi une personne doit intervenir",
+                decisionTitle: "Comment la décision a été prise",
+                rule: "Règle {{rule}} de la version {{version}} de la matrice",
+                ruleLast: "Dernière règle de la version {{version}} de la matrice",
+                seeRule: "Voir la règle",
+                why: {
+                    typedByHand:
+                        "L'électeur a saisi ses données à la main au lieu de scanner une pièce d'identité. Ces inscriptions ne sont jamais approuvées automatiquement : un agent confirme d'abord son identité.",
+                    differs_one:
+                        "Une donnée ne correspond pas au registre : {{details}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    differs_other:
+                        "{{count}} données ne correspondent pas au registre : {{details}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    differsFields_one:
+                        "Une donnée ne correspond pas au registre : {{fields}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    differsFields_other:
+                        "{{count}} données ne correspondent pas au registre : {{fields}}. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    difference:
+                        "pour {{field}}, l'inscription indique “{{enrollment}}” et le registre indique “{{registry}}”",
+                    noVoter:
+                        "Aucun électeur du registre n'a ces données. Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    severalVoters:
+                        "Plusieurs électeurs du registre correspondent à cette inscription. Une personne choisit le bon.",
+                    pending:
+                        "Les règles d'approbation demandent qu'une personne examine cette inscription.",
+                    unknown: "Cette inscription attend la décision d'une personne.",
+                    approvedAuto:
+                        "Les règles d'approbation ont approuvé cette inscription automatiquement. Toutes les vérifications qu'elles exigent ont réussi.",
+                    approvedBy: "{{name}} a approuvé cette inscription le {{date}}.",
+                    rejectedAuto:
+                        "Les règles d'approbation ont rejeté cette inscription automatiquement : {{reason}}.",
+                    rejectedBy: "{{name}} a rejeté cette inscription le {{date}} : {{reason}}.",
+                },
+                registryHelp:
+                    "Nous avons cherché les électeurs ayant les mêmes données : {{fields}}. Choisissez celui à qui appartient cette inscription.",
+                registrySearching:
+                    "Voici les électeurs du registre qui correspondent à votre recherche. Choisissez celui à qui appartient cette inscription.",
+                registrySearch: "Absent de la liste ? Cherchez dans le registre par nom ou e-mail",
+                registryLoading: "Recherche dans le registre",
+                registryError: "La recherche dans le registre a échoué.",
+                noCandidates:
+                    "Aucun électeur du registre ne correspond. Essayez de chercher par nom ou e-mail.",
+                candidates: "Électeurs du registre",
+                alreadyEnrolled: "Déjà inscrit",
+                bestMatch: "Meilleure correspondance",
+                detailsMatch: "{{count}} données sur {{total}} correspondent",
+                compareTitle: "Comparaison avec {{name}} dans le registre",
+                col: {
+                    detail: "Donnée",
+                    enrollment: "Dans l'inscription",
+                    registry: "Dans le registre",
+                    result: "Résultat",
+                },
+                same: "Identique",
+                differs: "Différent",
+                compareNote:
+                    "Pour les noms, la casse, les accents et les traits d'union sont ignorés.",
+                compareJoint:
+                    "Pour les permis de conduire et les livrets de marin, le prénom et le deuxième prénom sont comparés ensemble.",
+                applicationId: "ID de la demande",
+                copy: "Copier",
+                copied: "Copié",
+                approve: "Approuver l'inscription",
+                approveDialog: {
+                    title: "Approuver {{name}} ?",
+                    body: "L'inscription sera associée à l'électeur du registre ci-dessous. L'électeur est prévenu par e-mail ou SMS et pourra se connecter pour voter à l'ouverture du vote.",
+                    checked: "Vous avez vérifié la pièce d'identité de l'électeur en face à face.",
+                    irreversible: "Cette action est irréversible.",
+                    confirm: "Approuver",
+                },
+                reject: "Rejeter l'inscription",
+            },
+            idCheck: {
+                title: "Vérification de la pièce d'identité",
+                method: {
+                    VERIFIED: "Pièce d'identité scannée et vérifiée",
+                    MANUAL_ENTRY: "Saisie à la main",
+                    UNKNOWN: "Non indiqué",
+                },
+                verified: "Le parcours d'inscription a vérifié la pièce d'identité de l'électeur",
+                typedByHand: "L'électeur a saisi ses données à la main",
+                unknown:
+                    "Le parcours d'inscription n'a pas indiqué comment l'identité a été vérifiée",
+                faceToFaceTitle: "Vérifiez son identité en face à face avant d'approuver",
+                faceToFaceText:
+                    "Rencontrez l'électeur en personne ou par appel vidéo et comparez sa pièce d'identité avec les données de cette page.",
+            },
+            reject: {
+                rejectReason: "Motif du rejet",
+                message: "Message à l'électeur",
+                messageRequired: "Écrivez un message pour l'électeur lorsque le motif est Autre.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Données manquantes",
+                    "no-matching-voter": "Aucun électeur correspondant",
+                    "voter-already-approved": "Déjà approuvé",
+                    "other": "Autre",
+                },
+                hint: {
+                    "insufficient-information": "Des données manquent ou sont illisibles.",
+                    "no-matching-voter":
+                        "La personne ne figure pas dans le registre des électeurs.",
+                    "voter-already-approved": "Cet électeur est déjà inscrit.",
+                    "other": "Écrivez votre propre message.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Nous n'avons pas pu vous inscrire, car certaines de vos données manquent ou sont illisibles. Veuillez vous inscrire à nouveau avec des données complètes.",
+                    "no-matching-voter":
+                        "Nous n'avons trouvé dans le registre aucun électeur correspondant à vos données. Vérifiez vos données et inscrivez-vous à nouveau, ou contactez votre bureau électoral.",
+                    "voter-already-approved":
+                        "Vous êtes déjà inscrit. Vous pourrez vous connecter pour voter à l'ouverture du vote.",
+                },
+                previewTitle: "L'électeur verra",
+            },
             notifications: {
-                approveError: "Erreur lors de l'approbation de l'électeur",
-                approveSuccess: "Électeur approuvé",
-                rejectError: "Erreur lors du rejet de l'électeur",
-                rejectSuccess: "Électeur rejeté",
-                VoterApprovedAlready: "L'électeur est déjà approuvé.",
+                approveError: "L'inscription n'a pas pu être approuvée",
+                approveSuccess: "Inscription de {{name}} approuvée. L'électeur a été prévenu.",
+                rejectError: "L'inscription n'a pas pu être rejetée",
+                rejectSuccess: "Inscription de {{name}} rejetée. L'électeur a été prévenu.",
+                VoterApprovedAlready: "Cet électeur est déjà inscrit.",
             },
             export: {
-                success: "L'exportation des applications a été réalisée avec succès",
-                error: "Erreur lors de l'exportation des applications",
+                success: "L'exportation des demandes s'est terminée avec succès",
+                error: "Erreur lors de l'exportation des demandes",
+            },
+            matrix: {
+                button: "Matrice d'approbation",
+                title: "Matrice d'approbation",
+                back: "Approbations",
+                subtitle:
+                    "Les règles décident du sort de chaque inscription. La première règle qui s'applique décide.",
+                versionChip: "Version {{version}}",
+                savedBy: "Enregistrée le {{date}} par {{user}}",
+                builtIn: "Règles intégrées, utilisées jusqu'à l'enregistrement d'une version",
+                unsaved: "Modifications non enregistrées",
+                viewOnly: "Lecture seule",
+                readOnlyTitle: "Vous pouvez voir les règles, mais pas les modifier",
+                readOnlyText:
+                    "Demandez à un administrateur disposant de la permission approval-matrix-write de faire les modifications.",
+                loadError: "La matrice d'approbation n'a pas pu être chargée.",
+                compared: "Ce que nous comparons",
+                comparedHelp:
+                    "Chaque inscription est comparée avec l'électeur trouvé dans le registre. Pour les noms, la casse, les accents et les traits d'union sont ignorés ; pour les permis de conduire et les livrets de marin, le prénom et le deuxième prénom sont comparés ensemble.",
+                addCompared: "Comparer une autre donnée",
+                rules: "Règles",
+                rulesHelp:
+                    "Les règles sont vérifiées à partir du haut. La première qui s'applique décide ; si aucune ne s'applique, la dernière règle s'applique.",
+                when: "Quand",
+                then: "Alors",
+                otherwise: "Sinon",
+                noneApply: "Aucune des règles ci-dessus ne s'applique",
+                andWord: "et",
+                and: " et ",
+                appliesToExample: "S'applique à votre exemple",
+                cameFrom: "A décidé l'inscription d'où vous venez",
+                voterIsTold: "L'électeur reçoit ce message : “{{reason}}”.",
+                sentence: "Quand {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Si aucune des règles ci-dessus ne s'applique, {{outcome}}.",
+                sentenceEmpty: "Ajoutez une condition pour indiquer quand cette règle s'applique.",
+                addRule: "Ajouter une règle",
+                discard: "Annuler les modifications",
+                actions: {
+                    edit: "Modifier la règle {{number}}",
+                    editOtherwise: "Modifier la dernière règle",
+                    moveUp: "Monter la règle {{number}}",
+                    moveDown: "Descendre la règle {{number}}",
+                    delete: "Supprimer la règle {{number}}",
+                },
+                saveBar: {
+                    title: "Vous avez des modifications non enregistrées",
+                    fix_one: "Corrigez 1 règle avant d'enregistrer",
+                    fix_other: "Corrigez {{count}} règles avant d'enregistrer",
+                    more: "+{{count}} de plus",
+                },
+                test: "Essayer un exemple",
+                testHelp:
+                    "Décrivez une inscription pour voir quelle règle en décide. Vos modifications non enregistrées comptent.",
+                testDetails: "Données comparées",
+                applies: "La règle {{number}} s'applique",
+                otherwiseApplies: "La dernière règle s'applique",
+                testError: "L'exemple n'a pas pu être essayé.",
+                testInvalid: "Corrigez ces règles pour essayer un exemple :",
+                ruleError: "Règle {{number}} : {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Une identité saisie à la main n'est jamais approuvée automatiquement : ce cas est donc envoyé à une personne.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Un électeur déjà inscrit n'est jamais approuvé de nouveau.",
+                    NO_VOTER_NOT_ACCEPTED:
+                        "Personne n'est approuvé sans électeur dans le registre.",
+                    OTHERWISE_NOT_ACCEPTED: "La dernière règle n'approuve jamais.",
+                },
+                dialog: {
+                    editTitle: "Modifier la règle {{number}}",
+                    newTitle: "Nouvelle règle",
+                    otherwiseTitle: "Modifier la dernière règle",
+                    summary: "En bref",
+                    whenHelp:
+                        "Toutes doivent être vraies. Laissez une condition de côté quand elle n'a pas d'importance.",
+                    otherwiseHelp: "Si aucune des règles ci-dessus ne s'applique",
+                    addCondition: "Ajouter une condition",
+                    remove: "Retirer “{{condition}}”",
+                    identity: "Vérification d'identité",
+                    voterFound: "Électeur dans le registre",
+                    alreadyEnrolled: "Déjà inscrit",
+                    validId: "Type de pièce d'identité",
+                    differing: "Données qui diffèrent",
+                    decision: "Décision",
+                    reason: "Ce qui est dit à l'électeur",
+                    voterSees: "L'électeur voit",
+                    apply: "Appliquer",
+                    close: "Fermer",
+                    yes: "Oui",
+                    no: "Non",
+                    notReported: "Non indiqué",
+                },
+                identity: {
+                    VERIFIED: "Vérifiée par pièce d'identité scannée",
+                    MANUAL_ENTRY: "Saisie à la main",
+                },
+                differing: {
+                    none: "Aucune",
+                    exactly_1: "Exactement 1",
+                    at_most_1: "Au plus 1",
+                    exactly_2: "Exactement 2",
+                    at_most_2: "Au plus 2",
+                    at_least_3: "3 ou plus",
+                },
+                fieldMatch: {
+                    MATCHES: "Identique",
+                    DIFFERS: "Différent",
+                },
+                decisions: {
+                    ACCEPTED: "Approuver automatiquement",
+                    PENDING: "Envoyer à une personne",
+                    REJECTED: "Rejeter",
+                },
+                outcomeShort: {
+                    ACCEPTED: "approuver automatiquement",
+                    PENDING: "envoyer à une personne",
+                    REJECTED: "rejeter",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "L'électeur est inscrit sans que personne n'examine la demande.",
+                    PENDING:
+                        "Un agent décide, et l'électeur est informé que son inscription est en cours d'examen.",
+                    REJECTED:
+                        "Le motif est communiqué à l'électeur, qui peut s'inscrire à nouveau.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "l'inscription est approuvée automatiquement",
+                    PENDING: "l'inscription est envoyée à une personne",
+                    REJECTED: "l'inscription est rejetée",
+                },
+                reasons: {
+                    NO_VOTER: "Aucun électeur correspondant",
+                    ALREADY_APPROVED: "Déjà approuvé",
+                    INSUFFICIENT_INFORMATION: "Données manquantes",
+                    IDENTITY_NOT_VERIFIED: "Identité non vérifiée",
+                    OTHER: "Autre",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Nous n'avons trouvé dans le registre aucun électeur correspondant à vos données. Vérifiez vos données et inscrivez-vous à nouveau, ou contactez votre bureau électoral.",
+                    ALREADY_APPROVED:
+                        "Vous êtes déjà inscrit. Vous pourrez vous connecter pour voter à l'ouverture du vote.",
+                    INSUFFICIENT_INFORMATION:
+                        "Nous n'avons pas pu vous inscrire, car certaines de vos données manquent ou sont illisibles. Veuillez vous inscrire à nouveau avec des données complètes.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Nous n'avons pas pu vérifier votre identité automatiquement : un agent électoral examinera donc votre inscription.",
+                    OTHER: "Un agent électoral écrit ce message au moment de décider.",
+                },
+                conditions: {
+                    any: "Aucune condition pour l'instant",
+                    identity: {
+                        VERIFIED: "Identité vérifiée par pièce d'identité scannée",
+                        MANUAL_ENTRY: "Identité saisie à la main",
+                    },
+                    voterFound: {
+                        true: "Électeur trouvé dans le registre",
+                        false: "Aucun électeur trouvé dans le registre",
+                    },
+                    alreadyEnrolled: {
+                        true: "Déjà inscrit",
+                        false: "Pas encore inscrit",
+                    },
+                    validId: "Pièce d'identité : {{id}}",
+                    differing: {
+                        none: "Toutes les données correspondent",
+                        exactly_1: "Exactement 1 donnée diffère",
+                        at_most_1: "Au plus 1 donnée diffère",
+                        exactly_2: "Exactement 2 données diffèrent",
+                        at_most_2: "Au plus 2 données diffèrent",
+                        at_least_3: "3 données ou plus diffèrent",
+                    },
+                    field: {
+                        MATCHES: "{{field}} correspond",
+                        DIFFERS: "{{field}} diffère",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Les inscriptions dont l'identité a été saisie à la main ne peuvent pas être approuvées automatiquement.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un électeur déjà inscrit ne peut pas être approuvé de nouveau.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Une inscription ne peut pas être approuvée sans électeur dans le registre.",
+                    OTHERWISE_ACCEPTS:
+                        "La dernière règle peut envoyer les inscriptions à une personne ou les rejeter, mais pas les approuver.",
+                    MISSING_REASON: "Choisissez ce qui est dit à l'électeur.",
+                    UNEXPECTED_REASON: "Une approbation n'a pas de motif.",
+                    NO_COMPARED_FIELDS:
+                        "Choisissez au moins une donnée à comparer avec le registre.",
+                    DUPLICATE_COMPARED_FIELD: "Une donnée comparée est répétée.",
+                    UNKNOWN_FIELD: "Une règle utilise une donnée qui n'est pas comparée.",
+                    NO_CONDITIONS:
+                        "Ajoutez au moins une condition. Seule la dernière règle s'applique à tout le reste.",
+                },
+                change: {
+                    added: "Règle {{number}} ajoutée",
+                    decision: "Règle {{number}} : {{from}} → {{to}}",
+                    edited: "Règle {{number}} modifiée",
+                    removed: "Une règle a été supprimée ({{text}})",
+                    moved: "Les règles ont été réordonnées",
+                    otherwise: "La dernière règle a changé",
+                    compared: "Les données comparées ont changé",
+                },
+                save: {
+                    button: "Enregistrer comme version {{version}}",
+                    title: "Enregistrer comme version {{version}} ?",
+                    body: "Les nouvelles inscriptions sont désormais décidées avec ces règles. Les inscriptions déjà décidées conservent leur décision.",
+                    changes: "Ce qui a changé",
+                    log: "La nouvelle version est consignée dans le journal électoral.",
+                    confirm: "Enregistrer la version {{version}}",
+                    success: "Enregistrée comme version {{version}}",
+                    error: "La matrice d'approbation n'a pas pu être enregistrée",
+                },
             },
         },
         monitoring: {
@@ -3442,6 +3993,1036 @@ const frenchTranslation: TranslationType = {
             confirmDelete: "Supprimer l'autorité de certification",
             confirmDeleteDescription:
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
+        },
+        signing: {
+            terms: {
+                post: "Poste",
+                posts: "Postes",
+            },
+            tab: {
+                title: "Signatures",
+                intro: "Les actions protégées ne s'exécutent qu'une fois signées par suffisamment de personnes autorisées avec leurs certificats numériques. Chaque signature est vérifiée auprès des émetteurs de confiance et consignée dans le journal.",
+                protectedActions: "Actions protégées",
+                certificates: "Certificats",
+                requests: "Demandes",
+            },
+            loadError:
+                "Les paramètres de signature n'ont pas pu être chargés. Rechargez la page pour réessayer.",
+            errors: {
+                automatedCeremonies:
+                    "Cet événement utilise des cérémonies de clés automatiques. Les dépositaires ne réalisent pas ces étapes, leurs signatures ne peuvent donc pas être exigées. Pour exiger leurs signatures, utilisez des cérémonies de clés manuelles.",
+                forbidden: "Vous n'avez pas l'autorisation d'effectuer cette modification.",
+                invalid: "Le serveur a refusé ces valeurs. Vérifiez-les et réessayez.",
+                conflict:
+                    "Quelqu'un d'autre l'a modifié entre-temps. Rechargez la page et réessayez.",
+                lockedDown:
+                    "L'événement électoral est verrouillé : les règles de signature ne changent que par une nouvelle version de configuration.",
+                notFound: "Cet élément n'existe plus. Rechargez la page.",
+            },
+            readOnly: {
+                chip: "Lecture seule",
+                rules: "Lecture seule. Modifier les règles de signature nécessite l'autorisation « Signatures : modifier les actions protégées ».",
+                whoCanSign:
+                    "Rôles disposant de l'autorisation « Signer : {{action}} » dans Utilisateurs et Rôles. Les modifier nécessite l'autorisation de modifier les rôles.",
+            },
+            groups: {
+                "voting": "Vote",
+                "results-and-reports": "Résultats et rapports",
+                "enrollment": "Inscription",
+                "configuration-and-keys": "Configuration et clés",
+            },
+            actions: {
+                "initialize-voting": {
+                    label: "Initialiser le vote",
+                    short: "Initialisation",
+                    permissionName: "initialiser le vote",
+                    object: "initialisation du vote",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée dans Publier. Initialise le $t(signing.terms.post) et génère son Rapport d'Initialisation.",
+                },
+                "open-voting": {
+                    label: "Ouvrir le vote",
+                    short: "Ouverture",
+                    permissionName: "ouvrir le vote",
+                    object: "ouverture du vote",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée dans Publier avec Commencer la période de vote. Ouvre le vote au $t(signing.terms.post).",
+                },
+                "close-voting": {
+                    label: "Clôturer le vote",
+                    short: "Clôture",
+                    permissionName: "clôturer le vote",
+                    object: "clôture du vote",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée dans Publier avec Arrêter la période de vote. Clôture le vote au $t(signing.terms.post) ; les signatures de clôture sont conservées dans son procès-verbal.",
+                },
+                "generate-election-returns": {
+                    label: "Générer les procès-verbaux électoraux",
+                    short: "Procès-verbaux électoraux",
+                    permissionName: "générer les procès-verbaux électoraux",
+                    object: "procès-verbaux électoraux",
+                    appliesTo: "Chaque $t(signing.terms.post) et pays",
+                    description:
+                        "Lancée par le dépouillement, une demande par $t(signing.terms.post) et pays. Libère les procès-verbaux signés pour impression et transmission.",
+                },
+                "generate-reports": {
+                    label: "Générer d'autres rapports électoraux",
+                    short: "Rapport",
+                    permissionName: "générer d'autres rapports électoraux",
+                    object: "rapport",
+                    appliesTo: "Chaque $t(signing.terms.post)",
+                    description:
+                        "Lancée par le dépouillement pour le Rapport d'Initialisation et dans Rapports pour le rapport de participation. Libère le rapport signé.",
+                },
+                "transmit-results": {
+                    label: "Transmettre les résultats",
+                    short: "Transmission",
+                    permissionName: "transmettre les résultats",
+                    object: "paquet de résultats",
+                    appliesTo: "Chaque $t(signing.terms.post) et pays",
+                    description:
+                        "Lancée dans Comptage, Transmission. Construit le paquet de résultats signé pour ses destinations ; les signatures remplissent sa liste de signatures.",
+                },
+                "approve-voter": {
+                    label: "Approuver manuellement un électeur",
+                    short: "Approbation d'électeur",
+                    permissionName: "approuver manuellement un électeur",
+                    object: "approbation d'électeur",
+                    appliesTo: "Le $t(signing.terms.post) de l'électeur",
+                    description:
+                        "Lancée dans Approvals. Approuve l'électeur et lui délivre ses identifiants.",
+                },
+                "approve-configuration": {
+                    label: "Approuver une version de configuration",
+                    short: "Version de configuration",
+                    permissionName: "approuver une version de configuration",
+                    object: "version de configuration",
+                    appliesTo: "L'événement électoral",
+                    description: "Lancée dans Publier. Publie la version de configuration.",
+                },
+                "key-ceremony": {
+                    label: "Confirmer un fragment de clé (cérémonie des clés)",
+                    short: "Fragment de clé",
+                    permissionName: "confirmer un fragment de clé",
+                    object: "fragment de clé",
+                    appliesTo: "Chaque autorité",
+                    description:
+                        "Lancée dans Clés par chaque autorité. Consigne la signature de l'autorité auprès de la cérémonie et du tableau d'affichage.",
+                },
+                "tally-key": {
+                    label: "Apporter un fragment de clé (dépouillement)",
+                    short: "Apport de fragment de clé",
+                    permissionName: "apporter un fragment de clé",
+                    object: "apport de fragment de clé",
+                    appliesTo: "Chaque autorité",
+                    description:
+                        "Lancée dans Comptage par chaque autorité. Consigne l'apport de l'autorité.",
+                },
+            },
+            protectedActions: {
+                intro: "Chaque signature est réalisée avec le certificat numérique du jeton de sécurité du signataire.",
+                columns: {
+                    action: "Action",
+                    appliesTo: "S'applique à",
+                    whoCanSign: "Qui peut signer",
+                    signaturesNeeded: "Signatures requises",
+                    requestExpires: "Expiration de la demande",
+                    waiting: "En attente",
+                },
+                off: "Désactivée",
+                eachTrustee: "Chaque autorité",
+                footerVersion:
+                    "Les règles de signature font partie de la version de configuration {{version}} de cet événement.",
+                footerFirstVersion:
+                    "Les règles de signature feront partie de la première version de configuration de cet événement lors de sa publication.",
+                footerChanged: "Dernière modification : {{date}}.",
+                footerChangedBy: "Dernière modification : {{date}}, par {{name}}.",
+                lockedDown:
+                    "L'événement électoral est verrouillé : ses règles de signature appartiennent à sa version de configuration et ne changent donc que par une nouvelle version de configuration.",
+                edit: "Modifier {{action}}",
+                view: "Voir {{action}}",
+                waitingCount_one: "{{count}} demande en attente",
+                waitingCount_other: "{{count}} demandes en attente",
+                capacityError:
+                    "Impossible de charger qui peut signer : le nombre de signatures ne peut donc pas être vérifié par rapport aux $t(signing.terms.posts).",
+            },
+            expiry: {
+                "30": "30 minutes",
+                "60": "1 heure",
+                "120": "2 heures",
+                "1440": "24 heures",
+                "none": "Sans limite",
+                "other": "{{count}} minutes",
+            },
+            rule: {
+                needsSignatures: "Requiert des signatures",
+                whoCanSign: "Qui peut signer",
+                whoCanSignHelp:
+                    "Ces rôles reçoivent l'autorisation « Signer : {{action}} » dans Utilisateurs et Rôles, pour tous les événements électoraux. Les signataires doivent aussi avoir accès au $t(signing.terms.post).",
+                signaturesNeeded: "Signatures requises",
+                signaturesNeededHelp:
+                    "Chaque signataire utilise son certificat numérique. Chaque $t(signing.terms.post) compte au moins {{n}} personnes pouvant signer.",
+                signaturesNeededShortHelp: "Chaque signataire utilise son certificat numérique.",
+                requesterSigning: "La personne qui la lance peut aussi signer",
+                expiresAfter: "Une demande expire après",
+                trusteesSign: "Les autorités signent cette étape",
+                trusteesHelp:
+                    "Chaque autorité signe sa propre étape avec son certificat numérique. La cérémonie des clés détermine combien d'autorités y participent.",
+                footer: "Les modifications sont consignées dans le journal de l'événement électoral et font partie de la prochaine version de configuration.",
+                cancel: "Annuler",
+                save: "Enregistrer",
+                saved: "La règle de signature a été enregistrée.",
+                savedShort_one:
+                    "La règle de signature a été enregistrée. {{posts}} ne peut pas encore atteindre ce nombre : ajoutez-y un signataire.",
+                savedShort_other:
+                    "La règle de signature a été enregistrée. {{posts}} ne peuvent pas encore atteindre ce nombre : ajoutez-y des signataires.",
+                checkedOnSave:
+                    "Le nombre est vérifié par rapport aux nouveaux rôles lors de l'enregistrement.",
+                savedRequesterShort:
+                    "La règle de signature a été enregistrée. Certains $t(signing.terms.posts) ne peuvent pas atteindre ce nombre sans la personne qui lance une demande.",
+                saveError:
+                    "La règle de signature n'a pas pu être enregistrée. Quelqu'un l'a peut-être modifiée entre-temps ; rechargez et réessayez.",
+            },
+            validation: {
+                atLeastOne: "Au moins 1.",
+                tooMany:
+                    "Aucun $t(signing.terms.post) ne compte {{n}} personnes pouvant signer. Le maximum est {{max}}.",
+                tooManyEvent:
+                    "Seules {{max}} personnes peuvent signer ceci. Choisissez au plus {{max}}.",
+                atMost: "Au plus {{max}}.",
+                shortPosts_one:
+                    "{{posts}} ne compte que {{n}} personnes pouvant signer et ne peut donc pas atteindre {{required}} signatures. Ajoutez-y un signataire ou réduisez le nombre.",
+                requesterShort_one:
+                    "Sans la personne qui la lance, {{posts}} ne compte que {{n}} personnes pouvant signer et ne peut donc pas atteindre {{required}} signatures.",
+                requesterShort_other:
+                    "Sans la personne qui la lance, {{posts}} ne comptent que {{n}} personnes pouvant signer et ne peuvent donc pas atteindre {{required}} signatures.",
+                shortPosts_other:
+                    "{{posts}} ne comptent que {{n}} personnes pouvant signer et ne peuvent donc pas atteindre {{required}} signatures. Ajoutez-y un signataire ou réduisez le nombre.",
+            },
+            pendingRequests_one:
+                "{{count}} demande attend des signatures selon la règle actuelle. L'enregistrement l'annule ; la personne qui l'a lancée devra recommencer.",
+            pendingRequests_other:
+                "{{count}} demandes attendent des signatures selon la règle actuelle. L'enregistrement les annule ; les personnes qui les ont lancées devront recommencer.",
+            certificates: {
+                issuersIntro:
+                    "Les certificats du personnel doivent remonter à l'un d'eux. Ils sont distincts des certificats avec lesquels les électeurs se connectent.",
+                checkRevocation: "Vérifier les listes de révocation",
+                crlUnavailable: {
+                    "label": "Lorsqu'une liste ne peut pas être téléchargée",
+                    "refuse": "Ne pas accepter les signatures",
+                    "accept-unchecked": "Accepter et marquer la signature comme non vérifiée",
+                },
+                registration: {
+                    "label": "Enregistrement d'un certificat au nom d'une personne",
+                    "on-first-use": "Lorsque son titulaire signe avec pour la première fois",
+                    "security-officer-only":
+                        "Uniquement lorsqu'une personne autorisée à enregistrer des certificats l'enregistre",
+                },
+                onePost: "Un certificat ne signe que pour un seul $t(signing.terms.post)",
+                issuers: "Émetteurs de confiance",
+                import: "Importer des certificats d'émetteurs",
+                importHelp:
+                    "Choisissez un fichier PEM ou CER contenant le certificat de l'émetteur. Un fichier PEM peut contenir plusieurs certificats.",
+                chooseFile: "Choisir un fichier de certificat",
+                fileError: "Le fichier n'a pas pu être lu.",
+                imported:
+                    "{{imported}} certificats d'émetteurs importés ; {{skipped}} étaient déjà de confiance.",
+                importedWithErrors:
+                    "{{imported}} certificats d'émetteurs importés, {{skipped}} déjà de confiance. Refusés : {{errors}}",
+                importError: "Les certificats d'émetteurs n'ont pas pu être importés.",
+                deleteIssuer: "Supprimer {{name}}",
+                deleteIssuerConfirm:
+                    "Supprimer {{name}} des émetteurs de confiance ? Les certificats qu'il a émis ne pourront plus signer.",
+                deleteError: "L'émetteur n'a pas pu être supprimé.",
+                noIssuers:
+                    "Aucun émetteur de confiance pour l'instant. Le personnel ne peut pas signer tant qu'aucun n'est importé.",
+                root: "Racine",
+                intermediate: "Intermédiaire",
+                columns: {
+                    issuer: "Émetteur",
+                    type: "Type",
+                    issuedBy: "Émis par",
+                    validUntil: "Valide jusqu'au",
+                    sha256: "SHA-256",
+                    person: "Personne",
+                    post: "$t(signing.terms.post)",
+                    certificate: "Certificat",
+                    registered: "Enregistré",
+                    status: "Statut",
+                },
+                checks: "Vérifications",
+                checksSaved: "Les vérifications des certificats ont été enregistrées.",
+                checksError: "Les vérifications des certificats n'ont pas pu être enregistrées.",
+                crlSchedule: "Téléchargées depuis chaque émetteur toutes les heures.",
+                crlUpdated: "{{url}} : mise à jour {{time}}",
+                crlFailed: "{{url}} : téléchargement impossible (dernier essai {{time}})",
+                registeredTitle: "Certificats enregistrés",
+                search: "Rechercher des personnes, des certificats ou des $t(signing.terms.posts)",
+                status: "Statut",
+                statusAll: "Tous",
+                statuses: {
+                    "active": "Actif",
+                    "expires-soon": "Expire bientôt",
+                    "expired": "Expiré",
+                    "revoked": "Révoqué",
+                },
+                revokedOn: "Révoqué le {{date}}",
+                allPosts: "Tous",
+                noCertificates: "Aucun certificat enregistré.",
+                registeredHow: {
+                    "first-use": "À la première signature",
+                    "security-officer": "Enregistré par un administrateur",
+                },
+                register: "Enregistrer un certificat",
+                registerSubmit: "Enregistrer",
+                registerDone: "Le certificat a été enregistré.",
+                registerError: "Le certificat n'a pas pu être enregistré.",
+                person: "Personne",
+                personSearchHelp:
+                    "Saisissez une partie d'un nom d'utilisateur pour trouver la personne.",
+                registeredBy: "Par {{name}}",
+                registerRefused:
+                    "Ce certificat ne peut pas être enregistré : vérifiez qu'il a été émis par un émetteur de confiance, qu'il est valide aujourd'hui et qu'il est destiné à la signature.",
+                registeredToOther:
+                    "Ce certificat est enregistré au nom de {{name}}. Si ce compte appartient aussi à {{name}}, associez-le comme son second compte.",
+                linkAccount: "Associer comme second compte de la même personne",
+                alreadyRegistered: "Ce certificat est déjà enregistré au nom de cette personne.",
+                pem: "Certificat (PEM)",
+                revoke: "Révoquer",
+                revokeOf: "Révoquer le certificat de {{name}}",
+                revokeTitle: "Révoquer le certificat de {{name}}",
+                revokeHelp:
+                    "Un certificat révoqué ne peut plus signer. Les signatures qu'il a déjà produites restent valables.",
+                revokeReason: "Motif",
+                revokeDone: "Le certificat a été révoqué.",
+                revokeError: "Le certificat n'a pas pu être révoqué.",
+            },
+            requests: {
+                exportCsv: "Exporter en CSV",
+                exportError: "Les demandes n'ont pas pu être exportées.",
+                exportFileName: "signing-requests.csv",
+                status: "Statut",
+                statusAll: "Toutes",
+                statusCount: "{{status}} · {{count}} sur {{total}}",
+                expires: "Expire {{time}}",
+                lastSignatureBy: "{{name}}, {{time}}",
+                empty: "Aucune demande de signature pour l'instant.",
+                columns: {
+                    request: "Demande",
+                    status: "Statut",
+                    started: "Lancée",
+                    by: "Par",
+                    lastSignature: "Dernière signature",
+                    code: "Code",
+                },
+            },
+            reports: {
+                postRequired:
+                    "Sélectionnez un poste pour générer ce rapport lorsque des signatures sont requises.",
+                generateNotice:
+                    "{{post}} : le document est généré maintenant. Il pourra être imprimé et transmis une fois signé par {{n}} personnes.",
+            },
+            status: {
+                waiting: "En attente",
+                completed: "Signée",
+                executed: "Terminée",
+                cancelled: "Annulée",
+                expired: "Expirée",
+                failed: "Échouée",
+            },
+            cancelReasons: {
+                "by-requester": "La personne qui l'a lancée l'a annulée",
+                "by-operator": "Un opérateur l'a annulée",
+                "rule-changed": "La règle de signature de l'action a changé",
+                "payload-changed": "Ce qu'elle signe a changé",
+                "superseded": "Une demande plus récente l'a remplacée",
+                "certificate-revoked": "Un certificat qui l'a signée a été révoqué",
+            },
+            panel: {
+                rulePost:
+                    "Requiert {{n}} signatures des signataires de {{post}}, chacune avec son certificat numérique.",
+                ruleEvent:
+                    "Requiert {{n}} signatures, chacune avec le certificat numérique du signataire.",
+                signingCode: "Code de signature",
+                signers: "Signataires",
+                sign: "Signer",
+                handover: "Le membre suivant se connecte",
+                cancel: "Annuler la demande",
+                signedAt: "Signé {{time}}",
+                notSigned: "Non signé",
+                certificate: "Certificat {{name}}",
+                you: "(vous)",
+                expiresAt: "Expire à {{time}}",
+                progress: "{{count}} sur {{total}}",
+                openDocument: "Ouvrir le document",
+                configurationVersion: "Version de configuration {{version}}",
+                configurationChanges: "Modifications de cette version",
+            },
+            dialog: {
+                title: "Signature : {{object}}",
+                steps: {
+                    check: "Vérifier",
+                    certificate: "Certificat",
+                    signed: "Signé",
+                },
+                localNote:
+                    "La signature a lieu dans ce navigateur. Votre fichier de certificat, sa clé privée et son mot de passe ne sont jamais envoyés. Seuls votre signature et votre certificat public sont transmis au serveur.",
+                check: {
+                    signingAs: "Vous signez en tant que {{name}}",
+                    titlePost: "{{title}}, {{post}}",
+                    sameCode: "Toutes les personnes qui signent voient le même code.",
+                    confirmDocument: "J'ai vérifié ce que je signe : {{object}}",
+                },
+                certificate: {
+                    intro: "Insérez votre jeton de sécurité et choisissez votre fichier de certificat.",
+                    password: "Mot de passe du certificat",
+                    open: "Ouvrir le certificat",
+                    chooseAnother: "Choisir un autre fichier",
+                },
+                checks: {
+                    "passed": {
+                        "trusted-issuer": "Émis par un émetteur de confiance ({{root}})",
+                        "valid-now": "Valide aujourd'hui",
+                        "signing-key-usage": "Destiné à la signature",
+                        "not-revoked": "Non révoqué (listes mises à jour {{time}})",
+                        "registered": "Enregistré à votre nom le {{date}}",
+                        "registered-to-other": "Non enregistré au nom d'une autre personne",
+                        "already-signed": "Pas encore utilisé pour cette demande",
+                        "post-binding": "Enregistré pour ce $t(signing.terms.post)",
+                        "signature": "La signature couvre cette demande",
+                    },
+                    "failed": {
+                        "trusted-issuer": "Non émis par un émetteur de confiance",
+                        "valid-now": "Non valide aujourd'hui",
+                        "signing-key-usage": "Non destiné à la signature",
+                        "not-revoked":
+                            "Révoqué, ou aucune liste de révocation à jour pour le vérifier",
+                        "registered": "Non enregistré à votre nom",
+                        "registered-to-other": "Enregistré au nom de {{name}}",
+                        "already-signed": "Déjà utilisé pour cette demande",
+                        "post-binding": "Enregistré pour un autre $t(signing.terms.post)",
+                        "signature": "La signature ne couvre pas cette demande",
+                    },
+                    "first-use": "Première utilisation : il sera enregistré à votre nom",
+                },
+                problems: {
+                    wrongPassword: "Mot de passe incorrect. Vérifiez-le et réessayez.",
+                    notForYou:
+                        "Ce certificat ne peut pas signer pour vous. Utilisez le certificat de votre propre jeton de sécurité.",
+                    issuerNotAccepted:
+                        "Utilisez le certificat que {{organization}} a enregistré pour vous. Les certificats d'autres émetteurs ne sont pas acceptés.",
+                    cancelled:
+                        "Cette demande a été annulée : {{reason}}. Les signatures données pour elle ne comptent plus. Relancez-la pour signer la version actuelle.",
+                },
+                signed: {
+                    title: "Signé",
+                    withCertificate: "avec le certificat de {{name}}",
+                    count: "{{n}} signatures sur {{total}}.",
+                    allIn: "Les {{total}} signatures sont réunies.",
+                    next: "Prochains signataires : {{names}}.",
+                },
+                handover:
+                    "Vous allez être déconnecté. Le membre suivant se connecte sur cet ordinateur et revient à cette demande pour signer. La demande reste ouverte jusqu'à {{time}}.",
+                sign: "Signer",
+                back: "Retour",
+                cancel: "Annuler",
+            },
+            widget: {
+                continue: "Continuer",
+                done: "Terminé",
+                close: "Fermer",
+                retry: "Réessayer",
+                loading: "Chargement de la demande…",
+                loadError: "La demande n'a pas pu être chargée.",
+                chooseFile: "Choisir le fichier de certificat",
+                fileInput: "Fichier de certificat",
+                fileSize: "{{size}} Ko",
+                showPassword: "Afficher le mot de passe",
+                hidePassword: "Masquer le mot de passe",
+                opening: "Ouverture du certificat…",
+                checking: "Vérification du certificat…",
+                signing: "Signature en cours…",
+                certificateCard: "Émis par {{issuer}} · valide jusqu'au {{date}} · {{algorithm}}",
+                fingerprint: "SHA-256 {{fingerprint}}",
+                algorithms: {
+                    "rsa-pkcs1-sha256": "RSA",
+                    "ecdsa-p256-sha256": "EC P-256",
+                },
+                document: "{{type}} · SHA-256 {{hash}}",
+                documentPages: "{{type}} · {{pages}} pages · SHA-256 {{hash}}",
+                checksTitle: "Vérifications du certificat",
+                untrustedIssuer:
+                    "{{issuer}} n'est pas un émetteur de confiance pour cet événement électoral",
+                registeredToSomeoneElse: "Enregistré au nom d'une autre personne",
+                checkPassedNoDetail: {
+                    "trusted-issuer": "Émis par un émetteur de confiance",
+                    "not-revoked": "Non révoqué",
+                },
+                organization: "votre organisation",
+                cantSign: "Ce certificat ne peut pas signer cette demande.",
+                checkError: "Le certificat n'a pas pu être vérifié. Réessayez.",
+                fileErrors: {
+                    UNREADABLE_FILE:
+                        "Ce fichier n'est pas un fichier de certificat (.p12 ou .pfx), ou il est endommagé.",
+                    UNSUPPORTED_ENCRYPTION:
+                        "Ce navigateur ne peut pas ouvrir le chiffrement utilisé par ce fichier.",
+                    NO_PRIVATE_KEY:
+                        "Ce fichier ne contient pas de clé privée. Choisissez le fichier de certificat de votre jeton de sécurité.",
+                    NO_CERTIFICATE: "Ce fichier ne contient aucun certificat.",
+                    UNSUPPORTED_KEY:
+                        "Le type de clé de ce certificat n'est pas pris en charge. Utilisez un certificat RSA ou EC P-256.",
+                    KEY_CERTIFICATE_MISMATCH:
+                        "Le certificat de ce fichier ne correspond pas à sa clé.",
+                },
+                openError: "Le certificat n'a pas pu être ouvert. Réessayez.",
+                signError: "La signature n'a pas pu être envoyée. Réessayez.",
+                refused: "Le serveur a refusé la signature.",
+                stale: "Le document a changé pendant que vous signiez. Signez à nouveau.",
+                mismatch:
+                    "Ce qui serait signé ne correspond pas à cette demande. Fermez la fenêtre et rouvrez la demande.",
+                documentMismatch: "Le document ne correspond pas à celui que signe cette demande.",
+                documentError: "Le document n'a pas pu être téléchargé. Réessayez.",
+                alreadySigned: "Vous avez déjà signé cette demande.",
+                closed: {
+                    changed:
+                        "Cette demande a changé après son ouverture. Fermez cette fenêtre et vérifiez-la à nouveau avant de signer.",
+                    allSigned: "Cette demande a déjà toutes ses signatures.",
+                },
+                chooseCertificate: "Certificat de signature",
+                renderError:
+                    "La demande de signature n'a pas pu être affichée. Fermez-la et rouvrez-la.",
+                signedAt: "{{time}}",
+                panel: {
+                    completedAt: "Signée à {{time}}",
+                    expired:
+                        "Cette demande a expiré. Les signatures données pour elle ne comptent plus. Relancez-la pour signer.",
+                    failed: "Toutes les signatures sont réunies, mais l'action a échoué. Le journal contient les détails.",
+                    details: "Détails",
+                    close: "Fermer le panneau de la demande",
+                },
+                cancelDialog: {
+                    title: "Annuler cette demande ?",
+                    body: "Les signatures données pour elle ne comptent plus. La personne qui l'a lancée devra recommencer.",
+                    reason: "Motif (facultatif)",
+                    confirm: "Annuler la demande",
+                    back: "La conserver",
+                    error: "La demande n'a pas pu être annulée. Réessayez.",
+                },
+                handoverDialog: {
+                    title: "Le membre suivant se connecte",
+                    noExpiry:
+                        "Vous allez être déconnecté. Le membre suivant se connecte sur cet ordinateur et revient à cette demande pour signer.",
+                    confirm: "Se déconnecter",
+                    back: "Rester connecté",
+                    error: "Le relais n'a pas pu être enregistré. Réessayez.",
+                },
+            },
+            details: {
+                keys_ceremony_id: "Cérémonie",
+                tally_session_id: "Session de dépouillement",
+                trustee_id: "Autorité",
+                key_share_sha256: "SHA-256 du fragment de clé",
+                channel: "Canal",
+                channels: "Canaux",
+                publication_id: "Publication des bulletins",
+                ballot_publication_id: "Publication des bulletins",
+                digest: "SHA-256 de la configuration",
+                signing_rules: "Règles de signature",
+                scheduled_events: "Nouveaux événements programmés",
+                ballots_and_contests: "Bulletins et concours",
+                application_id: "Demande d'inscription",
+                applicant_registry_id: "Compte du registre",
+                decision: "Décision",
+                submitted_at: "Soumise",
+                reason: "Pourquoi une personne est nécessaire",
+                registry_record: "Fiche du registre",
+                status: "Statut de la demande d'inscription",
+                from: "Statut précédent",
+            },
+            closed: {
+                pending: "Toutes les signatures sont réunies. Le vote se clôture dans un instant.",
+                title: "Le vote a été clôturé à {{time}}.",
+                titleSealed: "Le vote a été clôturé à {{time}}. Bulletins scellés.",
+                record: "Procès-verbal de scellement",
+                ballots: "Bulletins dans le scellé",
+                sealHash: "{{algorithm}} du scellé",
+                signedBy: "Signé par",
+                signatures: "Signatures de clôture dans le procès-verbal de scellement",
+                signaturesValue_one: "{{count}}, code de signature {{code}}",
+                signaturesValue_other: "{{count}}, code de signature {{code}}",
+                signers: "Signé par les membres",
+            },
+            values: {
+                ballots_and_contests: {
+                    "first-version": "Première version",
+                    "no-changes": "Aucun changement",
+                    "changed": "Modifiés",
+                },
+                signing_rules: {
+                    "initialize-voting": "$t(signing.actions.initialize-voting.label)",
+                    "open-voting": "$t(signing.actions.open-voting.label)",
+                    "close-voting": "$t(signing.actions.close-voting.label)",
+                    "generate-election-returns":
+                        "$t(signing.actions.generate-election-returns.label)",
+                    "generate-reports": "$t(signing.actions.generate-reports.label)",
+                    "transmit-results": "$t(signing.actions.transmit-results.label)",
+                    "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "approve-configuration": "$t(signing.actions.approve-configuration.label)",
+                    "key-ceremony": "$t(signing.actions.key-ceremony.label)",
+                    "tally-key": "$t(signing.actions.tally-key.label)",
+                },
+                channels: {
+                    ONLINE: "En ligne",
+                    KIOSK: "Kiosque",
+                    EARLY_VOTING: "Vote anticipé",
+                    TELEPHONE: "Téléphone",
+                },
+                statuses: {
+                    NOT_STARTED: "Non commencé",
+                    OPEN: "Ouvert",
+                    PAUSED: "En pause",
+                    CLOSED: "Fermé",
+                },
+                channelStatus: "{{channel}}: {{status}}",
+                ruleChange: "{{action}} : {{rule}}",
+                ruleChangeFrom: "{{action}} : {{rule}} (avant {{was}})",
+                ruleNeeds: "requiert {{n}}",
+                ruleOff: "désactivée",
+                decision: {
+                    approve: "Approuver",
+                },
+            },
+            results: {
+                signatures: "Signatures",
+                needs: "Requiert {{n}}",
+                off: "Désactivée",
+                openRequest: "Ouvrir la demande de signature",
+                downloadSigned: "Télécharger le PDF signé",
+                print: "Imprimer",
+                transmit: "Transmettre les résultats",
+                sendTo: "Envoyer à {{count}} destinations",
+                awaiting: "{{item}} : en attente de signatures",
+                transmission: {
+                    title: "Signatures",
+                    description:
+                        "Chaque signataire signe les résultats du paquet avec son certificat numérique, dans ce navigateur. Le paquet peut être envoyé une fois signé par {{n}} personnes.",
+                    waiting:
+                        "Le paquet peut être envoyé une fois que sa demande de signature a toutes ses signatures.",
+                    signed: "Le paquet porte toutes ses signatures et peut être envoyé.",
+                    ended: "La demande de signature de ce paquet est terminée. Recréez le paquet pour le signer.",
+                },
+            },
+            waiting: {
+                title: "En attente de ma signature",
+                buttonCount_one: "En attente de ma signature : {{count}} demande à signer",
+                buttonCount_other: "En attente de ma signature : {{count}} demandes à signer",
+                intro: "Les demandes qui attendent les signatures des actions que vous pouvez signer, dans vos $t(signing.terms.posts).",
+                close: "Fermer la liste",
+                empty: "Rien n'attend votre signature.",
+                loadError: "Les demandes en attente de signatures n'ont pas pu être chargées.",
+                signedByYou: "Signée par vous",
+            },
+            notes: {
+                afterApproval: "Après l'approbation",
+                afterApprovalValue:
+                    "Les identifiants de l'électeur sont délivrés et lui sont envoyés",
+                keyShare: "Votre fragment de clé",
+                keyShareChecked: "Vérifié : c'est votre fragment de clé pour cette cérémonie",
+                recordedIn: "Consigné dans",
+                recordedInCeremony: "La cérémonie des clés et le tableau d'affichage",
+                recordedInTally: "La session de dépouillement",
+            },
+            keyShare: {
+                signing:
+                    "Signez votre fragment de clé dans le panneau de signature. Il est consigné une fois signé.",
+                record: "Consigner mon fragment de clé",
+                failed: "Votre fragment de clé signé n'a pas pu être consigné : {{error}}",
+                dropAgain:
+                    "Déposez à nouveau votre fichier de fragment de clé pour consigner votre fragment de clé signé.",
+                redo: "Votre fragment de clé a été apporté sans votre signature, que cette élection exige désormais. Apportez-le à nouveau et signez-le.",
+                notTaken:
+                    "La cérémonie n'accepte plus ce fragment de clé. Déposez à nouveau votre fichier de fragment de clé.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Échéance de clôture signée",
+                deadline: "{{election}} : {{time}} · autorisée par la configuration {{code}}.",
+                explanation:
+                    "Cette échéance signée reste contraignante même si le calendrier modifiable est changé ou supprimé. Le planificateur ferme les canaux autorisés encore ouverts.",
+                reached:
+                    "Cette échéance signée est passée. Vérifiez l’état actuel du vote et le journal d’audit ; son traitement n’a pas encore été enregistré.",
+                processed: "Échéance de clôture signée traitée à {{time}}.",
+                signedAt: "Échéance signée : {{time}}.",
+                channels: "Canaux encore couverts par cette échéance : {{channels}}.",
+                result: "Consultez l’état du vote et le journal d’audit pour connaître les changements réels et le résultat complet.",
+                unavailable:
+                    "Impossible de charger les échéances de clôture signées. Vérifiez le calendrier publié et le journal d’audit.",
+            },
+            picker: {
+                noMatch:
+                    "Aucun fuseau horaire ne correspond. Saisissez une ville, un pays, une zone, une abréviation ou un décalage.",
+            },
+            input: {
+                timezone: "Fuseau horaire",
+                scheduledAt: "Prévu le",
+                meetingStart: "Début de la réunion",
+                cronZone:
+                    "La planification s'exécute dans le fuseau horaire principal de l'événement, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} ne fait pas partie des fuseaux horaires configurés de l'événement. Choisissez-en un.",
+            },
+            schedule: {
+                allElections: "Toutes les élections",
+                outcome: "Résultat",
+                noOffset: "Pas de décalage horaire : ne s'exécute jamais",
+                unpublished: "Pas encore publié",
+                notPublished:
+                    "Rien n'est encore publié : les électeurs voient le calendrier après la première publication.",
+                unpublishedChanges_one:
+                    "{{count}} événement planifié a changé depuis la dernière publication. Les électeurs le voient après votre publication.",
+                unpublishedChanges_other:
+                    "{{count}} événements planifiés ont changé depuis la dernière publication. Les électeurs les voient après votre publication.",
+                offsetless_one:
+                    "{{count}} horaire planifié n'a pas de décalage horaire et ne s'exécute donc jamais. Modifiez-le pour définir son fuseau horaire.",
+                offsetless_other:
+                    "{{count}} horaires planifiés n'ont pas de décalage horaire et ne s'exécutent donc jamais. Modifiez-les pour définir leur fuseau horaire.",
+                outcomeChange:
+                    "L'enregistrement modifie l'effet de cette transition planifiée : {{before}} → {{after}}.",
+                outcomeNew: "Une fois enregistrée, cette transition planifiée : {{after}}.",
+                outcomeElections: "{{count}} élections sur {{total}}",
+                exportError: "Le calendrier n'a pas pu être exporté.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} ligne planifiée sera refusée ({{transitions}} transitions d'élections).",
+                    refused_other:
+                        "{{count}} lignes planifiées seront refusées ({{transitions}} transitions d'élections).",
+                    runsUnsigned_one:
+                        "{{count}} clôture planifiée s'exécutera sans signatures ({{transitions}} transitions d'élections).",
+                    runsUnsigned_other:
+                        "{{count}} clôtures planifiées s'exécuteront sans signatures ({{transitions}} transitions d'élections).",
+                    review: "Examiner",
+                    showAll: "Tout afficher",
+                    showing: {
+                        refused:
+                            "Affichage des {{count}} lignes planifiées qui seront refusées ({{transitions}} transitions d'élections).",
+                        runsUnsigned:
+                            "Affichage des {{count}} clôtures planifiées qui s'exécuteront sans signatures ({{transitions}} transitions d'élections).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "Une mise à jour de la base de données des fuseaux horaires déplace {{count}} horaire planifié à venir. Rien ne change tant que vous ne l'appliquez pas.",
+                    title_other:
+                        "Une mise à jour de la base de données des fuseaux horaires déplace {{count}} horaires planifiés à venir. Rien ne change tant que vous ne les appliquez pas.",
+                    change: "{{type}} : {{before}} → {{after}}",
+                    apply: "Appliquer",
+                    applied_one: "{{count}} horaire planifié mis à jour.",
+                    applied_other: "{{count}} horaires planifiés mis à jour.",
+                    error: "Les horaires planifiés n'ont pas pu être mis à jour.",
+                },
+                outcomeChangeElections_one:
+                    "Enregistrer change le résultat pour {{count}} élection :",
+                outcomeChangeElections_other:
+                    "Enregistrer change le résultat pour {{count}} élections :",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}} : {{value}}",
+                initializationRetained:
+                    "Un rapport obligatoire dans cette configuration signée reste obligatoire si le paramètre actuel du poste devient non obligatoire.",
+                title: "Ce que cette approbation autorise",
+                schedule: "Ouvertures et clôtures planifiées",
+                noSchedule:
+                    "Aucune ouverture ni clôture planifiée : les signataires ouvrent et clôturent le vote.",
+                opens: "Ouverture : {{time}}",
+                closes: "Clôture : {{time}}",
+                settings: "Paramètres",
+                unsignedClose: "Clôture planifiée sans signatures : {{value}}",
+                initialization: "Initialisation : {{value}}",
+                firstConfiguration: "C'est la première configuration approuvée : rien à comparer.",
+                sameAsPrevious:
+                    "Les paramètres sont identiques à ceux de la configuration approuvée précédente.",
+                rule: {
+                    openNeeds_one: "L'ouverture nécessite {{count}} signature",
+                    openNeeds_other: "L'ouverture nécessite {{count}} signatures",
+                    openNoSignatures: "L'ouverture ne nécessite aucune signature",
+                    closeNeeds_one: "La clôture nécessite {{count}} signature",
+                    closeNeeds_other: "La clôture nécessite {{count}} signatures",
+                    closeNoSignatures: "La clôture ne nécessite aucune signature",
+                    openSetting: "Ouverture du vote",
+                    closeSetting: "Clôture du vote",
+                    signatures_one: "{{count}} signature",
+                    signatures_other: "{{count}} signatures",
+                    none: "aucune signature",
+                },
+                diff: {
+                    tightens: "Renforce : {{setting}} {{before}} → {{after}}",
+                    loosens: "Assouplit : {{setting}} {{before}} → {{after}}",
+                    mixed: "Modifie : {{setting}} {{before}} → {{after}} (plus strict sur un point, plus souple sur un autre)",
+                },
+                comparedWith:
+                    "Par rapport à la configuration approuvée précédente, approbation {{code}} :",
+                channels: "Canaux de vote par élection",
+                channelsOf: "{{election}} : {{channels}}",
+                noChannels: "aucun",
+            },
+            publish: {
+                openedAuthorized:
+                    "Vote ouvert comme prévu à {{time}}, autorisé par l'approbation de configuration {{code}} (signée par {{names}}).",
+                closedAuthorized:
+                    "Vote clôturé comme prévu à {{time}}, autorisé par l'approbation de configuration {{code}} (signée par {{names}}).",
+                closedUnsigned:
+                    "Vote clôturé comme prévu à {{time}}. Aucune signature de clôture : le calendrier a clôturé le vote à son échéance.",
+                authorizedBy: "Autorisé par",
+                cancelledRequest:
+                    "La demande {{code}} avait {{n}} signatures sur {{k}} et a été annulée.",
+                openedRefused: "L'ouverture planifiée du {{time}} a été refusée.",
+                closedRefused: "La clôture planifiée du {{time}} a été refusée.",
+                openedNoSignaturesNeeded:
+                    "Le vote s'est ouvert comme prévu ({{time}}) ; aucune signature n'était nécessaire.",
+                closedNoSignaturesNeeded:
+                    "Le vote s'est clôturé comme prévu ({{time}}) ; aucune signature n'était nécessaire.",
+                openedNothingToChange:
+                    "À {{time}}, l'ouverture planifiée n'avait rien à ouvrir : ses canaux étaient déjà ouverts.",
+                closedNothingToChange:
+                    "À {{time}}, la clôture planifiée n'avait rien à clôturer : ses canaux étaient déjà fermés.",
+            },
+            import: {
+                title: "Importer le calendrier",
+                subtitle:
+                    "Une ligne par événement et par élection, en heure locale. Laissez le fuseau horaire vide pour utiliser celui de l'élection.",
+                chooseFile: "Choisir un fichier CSV",
+                template: "Télécharger le modèle",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} événements prêts pour {{posts}} élections.",
+                needsAttention_one:
+                    "{{ok}} événements prêts pour {{posts}} élections. {{count}} ligne nécessite votre attention ; corrigez le fichier et téléversez-le à nouveau.",
+                needsAttention_other:
+                    "{{ok}} événements prêts pour {{posts}} élections. {{count}} lignes nécessitent votre attention ; corrigez le fichier et téléversez-le à nouveau.",
+                preview: "Lignes à importer",
+                row: "Ligne",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…et {{count}} lignes de plus",
+                imported: "Calendrier importé : {{created}} créés, {{updated}} mis à jour.",
+                uploadError: "Le fichier n'a pas pu être vérifié. Téléversez-le à nouveau.",
+                importError: "Le calendrier n'a pas pu être importé.",
+                error: {
+                    unknownElection: "Aucune élection n'a l'alias {{election}}.",
+                    unknownEventType: "{{type}} n'est pas un type d'événement planifié.",
+                    invalidTimeZone: "{{zone}} n'est pas un fuseau horaire.",
+                    invalidDateTime: "La date et l'heure doivent être au format YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "Les canaux de vote sont inconnus, ou ouvrent ensemble le vote en ligne et le vote anticipé.",
+                    dstGap: "{{dateTime}} n'existe pas à {{city}} car les horloges avancent. Indiquez une heure qui existe.",
+                    duplicate: "Une autre ligne planifie le même événement pour cette élection.",
+                    other: "Cette ligne ne peut pas être importée ({{code}}).",
+                    ambiguousElection: "Plusieurs élections ont l'alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Langue, date et heure",
+                dateAndTime: "Date et heure",
+                configured: "Fuseaux horaires configurés",
+                configuredHelp:
+                    "{{count}} fuseaux horaires. Les élections choisissent le leur dans cette liste ; saisissez une ville ou un pays pour en ajouter un.",
+                moreZones: "+{{count}}",
+                primary: "Fuseau horaire principal",
+                primaryHelp:
+                    "Utilisé pour les planifications de tout l'événement, les rapports et les élections sans fuseau horaire propre.",
+                primaryInUse:
+                    "{{zone}} est le fuseau horaire principal. Choisissez d'abord un autre fuseau horaire principal.",
+                inUse: "{{zone}} est utilisé par {{names}}. Modifiez d'abord ces élections.",
+                logs: "Heures dans les journaux et leurs exports",
+                logsPrimary: "Fuseau horaire principal ({{abbr}})",
+                logsElection: "Le fuseau horaire de l'élection de chaque ligne",
+                logsHelp: "Les lignes sans élection utilisent le fuseau horaire principal.",
+                electionZone: "Fuseau horaire",
+                electionPrimary: "Principal de l'événement : {{zone}}",
+                electionZoneHelp:
+                    "Les planifications, les écrans des électeurs et les rapports de cette élection utilisent ce fuseau horaire, y compris pour toutes ses zones. Vide, le fuseau horaire principal de l'événement s'applique.",
+                electionUnconfigured:
+                    "L'événement ne configure plus ce fuseau horaire : l'élection utilise donc le fuseau horaire principal, {{zone}}. Choisissez l'un des fuseaux horaires configurés.",
+                electionUnconfiguredSave:
+                    "Choisissez l'un des fuseaux horaires configurés de l'événement.",
+            },
+            policies: {
+                accordion: "Cycle de vie du vote",
+                intro: "Ces paramètres font partie de la configuration de l'événement électoral : l'approbation de configuration les signe, et les ouvertures et clôtures planifiées suivent le plus strict des paramètres actuels et publiés.",
+                nothingPublished:
+                    "Rien n'est encore publié : jusqu'à la première publication, les ouvertures et clôtures planifiées utilisent les valeurs par défaut (par élection, refuser).",
+                publishedValue: "Configuration publiée : {{value}}",
+                changedSincePublished:
+                    "Modifié depuis la configuration publiée : les ouvertures et clôtures planifiées suivent la plus stricte des deux jusqu'à la prochaine publication approuvée.",
+                scope: {
+                    title: "Initialisation avant l'ouverture du vote",
+                    post: {
+                        label: "Par élection",
+                        help: "Une élection s'ouvre dès qu'elle est initialisée.",
+                    },
+                    event: {
+                        label: "Événement entier",
+                        help: "Aucune élection ne s'ouvre tant que toutes les élections ne sont pas initialisées.",
+                        warning:
+                            "Une seule élection non initialisée maintient toutes les élections fermées, y compris à leur ouverture planifiée.",
+                    },
+                    postAndCountry: {
+                        label: "Par élection et par pays",
+                        help: "Une élection s'ouvre dès que chaque pays (zone) qui en dépend est initialisé.",
+                        warning:
+                            "Une élection reste fermée, même à son ouverture planifiée, tant que chaque pays qui en dépend n'est pas initialisé ; chaque pays est initialisé avec son propre rapport.",
+                    },
+                },
+                close: {
+                    title: "Clôture planifiée sans signatures",
+                    help: "Lorsque la clôture du vote nécessite des signatures et qu'une clôture planifiée ne figure pas dans la configuration signée.",
+                    refuse: {
+                        label: "Refuser",
+                        help: "La clôture ne s'exécute pas ; les signataires de l'élection clôturent le vote avec leurs signatures.",
+                    },
+                    runAsSystem: {
+                        label: "Exécuter en tant que système",
+                        help: "Le vote est clôturé à l'échéance, enregistré comme clôturé par le calendrier sans signatures.",
+                        warning:
+                            "Les clôtures planifiées hors de la configuration signée clôturent le vote sans la signature de quiconque. Le journal et les documents l'indiquent.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "Aucune transition planifiée ne change de résultat.",
+                    outcomes_one:
+                        "{{count}} transition planifiée change de résultat. Examinez-la dans Événements Planifiés.",
+                    outcomes_other:
+                        "{{count}} transitions planifiées changent de résultat. Examinez-les dans Événements Planifiés.",
+                },
+                saveError: "Les paramètres du cycle de vie du vote n'ont pas pu être enregistrés.",
+                publishedPerTarget: "Configuration publiée, par cible : {{values}}",
+                publishedCount_one: "{{value}} ({{count}} cible)",
+                publishedCount_other: "{{value}} ({{count}} cibles)",
+                savedWithoutPolicies:
+                    "L'événement électoral a été enregistré, mais pas les paramètres du cycle de vote : {{reason}}. Enregistrez-les à nouveau.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "En attente d’initialisation",
+                runs: "S'exécutera",
+                runsUnsigned: "S'exécutera sans signatures",
+                refused: "Sera refusée",
+            },
+            note: {
+                waitingForInitialization: "En attente d’initialisation",
+                authorized: "Autorisée par la configuration {{code}}",
+                noSignaturesNeeded: "Aucune signature nécessaire",
+                closesUnsigned: "Clôture sans signatures",
+                refused: {
+                    initialization: "L’initialisation requise est incomplète",
+                    votingClose: "Le vote ne peut pas ouvrir après sa date limite de clôture",
+                    needsSignatures: "Nécessite les signatures des signataires",
+                    covered: "Absent de la configuration signée",
+                    unsignedClose: "Une clôture sans signatures est refusée",
+                    stricterCopy: "Modifié depuis la configuration publiée, qui décide encore",
+                    defaults: "Rien n'est encore publié : les valeurs par défaut s'appliquent",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Pourquoi ?",
+                title: {
+                    waitingForInitialization: "Pourquoi l’initialisation est attendue",
+                    runs: "Pourquoi elle s'exécutera",
+                    runsUnsigned: "Pourquoi elle s'exécutera sans signatures",
+                    refused: "Pourquoi elle sera refusée",
+                },
+                checks: "Vérifications",
+                check: "Vérification",
+                current: "Paramètres actuels",
+                published: "Configuration publiée",
+                verdict: "Verdict",
+                allows: "Autorise",
+                blocks: "Bloque",
+                deciding: "Vérification décisive",
+                nextStep: "Prochaine étape :",
+                signedBy: "Signée par {{names}}",
+            },
+            question: {
+                initialization: "L’initialisation requise est-elle terminée ?",
+                votingClose: "Cette ouverture respecte-t-elle la date limite de clôture du vote ?",
+                needsSignatures: "Cette action nécessite-t-elle des signatures ?",
+                covered: "Ce calendrier exact figure-t-il dans la configuration signée ?",
+                unsignedClose: "Que se passe-t-il pour une clôture sans signatures ?",
+                stricterCopy:
+                    "Les paramètres actuels et publiés diffèrent-ils ? Lesquels décident ?",
+                defaults: "Quelque chose est-il déjà publié ?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Les initialisations exigées par les paramètres actuels et publiés doivent toutes être terminées.",
+                },
+                votingClose: {
+                    passed: "Le vote ferme à {{closes_at}} ; cette ouverture ne peut pas être exécutée à cette échéance ou après.",
+                },
+                needsSignatures: {
+                    yes: "Oui, {{signatures}} signatures",
+                    yes_one: "Oui, {{count}} signature",
+                    yes_other: "Oui, {{count}} signatures",
+                    no: "Non",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "La configuration signée {{code}} utilise l’ouverture propre à ce poste, {{scheduled_event_id}}. L’ouverture de l’événement entier ne s’applique pas.",
+                    yes: "Oui : approbation {{code}}, inchangée",
+                    changed: "Non : modifiée depuis l'approbation {{code}}",
+                    changedBy:
+                        "Non : modifiée le {{edited_at}} par {{edited_by}}, après l'approbation {{code}}",
+                    notInApproval: "Non : l'approbation {{code}} ne l'inclut pas",
+                    noApproval: "Aucune configuration approuvée pour l'instant",
+                    channelsChanged:
+                        "Non : les canaux de vote de l'élection ont changé depuis l'approbation {{code}}",
+                    alreadyFired:
+                        "Non : cette transition de l'approbation {{code}} a déjà eu lieu le {{fired_at}} ; la relancer nécessite des signatures",
+                    late: "Non : plus de 15 minutes se sont écoulées depuis {{scheduled_date}} (approbation {{code}}) ; l'exécuter maintenant nécessite des signatures",
+                },
+                unsignedClose: {
+                    refuse: "Refuser",
+                    runAsSystem: "Exécuter en tant que système",
+                },
+                stricterCopy: {
+                    same: "Ils sont identiques",
+                    currentStricter:
+                        "Les paramètres actuels sont plus stricts : appliqués dès maintenant",
+                    currentLooser:
+                        "Les paramètres actuels sont plus souples : ils s'appliquent après la prochaine publication approuvée",
+                    combined: "Chacun est plus strict sur une valeur : les deux s'appliquent",
+                },
+                defaults: {
+                    published: "Publié le {{published_at}}",
+                    nothingPublished: "Rien n'est publié : les valeurs par défaut s'appliquent",
+                    noSnapshot:
+                        "Publié le {{published_at}}, avant que les publications ne conservent ces paramètres : les valeurs par défaut s'appliquent",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Terminez l’initialisation requise. Le planificateur réessaiera avant la clôture du vote.",
+                closed: "Cette ouverture ne sera pas exécutée après la clôture du vote.",
+                none: "Aucune action nécessaire.",
+                publishAndApprove: "Publiez et approuvez la configuration.",
+                requireConfigurationApproval:
+                    "Faites en sorte que Approuver la configuration nécessite des signatures, puis publiez et approuvez la configuration.",
+                askSignersToOpen: "Demandez aux signataires de l'élection d'ouvrir le vote.",
+                askSignersToClose: "Demandez aux signataires de l'élection de clôturer le vote.",
+            },
+            applies: {
+                tightens: "S'applique dès maintenant aux actions manuelles et planifiées.",
+                loosens:
+                    "S'applique dès maintenant aux actions manuelles ; aux ouvertures et clôtures planifiées après la prochaine publication approuvée.",
+                tightensAndLoosens:
+                    "Sa partie plus stricte s'applique dès maintenant aux actions manuelles et planifiées ; sa partie plus souple s'applique dès maintenant aux actions manuelles, et aux ouvertures et clôtures planifiées après la prochaine publication approuvée.",
+            },
         },
         messagingEvent: {
             tab: "Messagerie",

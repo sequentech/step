@@ -20,6 +20,28 @@ import {answerOrPending, readsOf, recordsOrPending} from "./__stories__/Election
 import {jsonEditorDefects} from "./__stories__/IvrFixture"
 import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFixture"
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
+import {SigningProvider} from "@/components/signing/SigningProvider"
+import {idleSigningApi} from "./Signatures/__stories__/SignaturesFixture"
+// The tabs load their widgets lazily, and a cold dev server can take longer to
+// serve one than a story may wait: load them with the stories instead.
+import "@/components/dashboard/election-event/Dashboard"
+import "@/components/monitoring/MonitoringDashboardTab"
+import "./EditElectionEventData"
+import "./EditElectionEventTextData"
+import "./EditElectionEventUsers"
+import "./EditElectionEventAreas"
+import "./EditElectionEventKeys"
+import "./Signatures/EditElectionEventSignatures"
+import "./EditElectionEventCAs"
+import "./EditElectionEventIvr"
+import "./EditElectionEventTally"
+import "../TallySheetImport/TallySheetImports"
+import "@/resources/Publish/Publish"
+import "./ElectoralLog"
+import "./EditElectionEventTasks"
+import "./EditElectionEventScheduledEvents"
+import "./EditElectionEventApprovals"
+import "../Reports/EditReportsTab"
 
 interface Scenario {
     /** Whether the event is locked down, which hides its editing tabs. */
@@ -31,9 +53,12 @@ interface Scenario {
      * route's query, so its edit forms find no cached record.
      */
     uncached?: boolean
+    /** Replaces the permissions global's roles, for a story about one permission. */
+    roles?: string[]
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
+const signingApi = idleSigningApi()
 let data: ReturnType<typeof recordsOrPending>
 
 /** An event with telephone voting and voter certificates, which show the IVR and CA tabs. */
@@ -51,27 +76,31 @@ const tabsEvent = (lockedDown: boolean) => {
     })
 }
 
-function Fixture({uncached}: Pick<Scenario, "uncached">) {
+function Fixture({uncached, roles}: Pick<Scenario, "uncached" | "roles">) {
     const {permissions, tenant} = useStoryGlobals()
     return (
         <AdminStoryProvider
             boundary={graphql}
             dataProvider={data.provider}
             role={permissions}
+            roles={roles}
             tenant={tenant}
         >
-            {/* As in the event's route, whose cached record the tabs' edit forms reuse. */}
-            <ResourceContextProvider value="sequent_backend_election_event">
-                {uncached ? (
-                    <RecordContextProvider value={tabsEvent(false)}>
-                        <ElectionEventTabs />
-                    </RecordContextProvider>
-                ) : (
-                    <ShowBase>
-                        <ElectionEventTabs />
-                    </ShowBase>
-                )}
-            </ResourceContextProvider>
+            {/* The portal mounts the signing widget around every screen. */}
+            <SigningProvider api={signingApi}>
+                {/* As in the event's route, whose cached record the tabs' edit forms reuse. */}
+                <ResourceContextProvider value="sequent_backend_election_event">
+                    {uncached ? (
+                        <RecordContextProvider value={tabsEvent(false)}>
+                            <ElectionEventTabs />
+                        </RecordContextProvider>
+                    ) : (
+                        <ShowBase>
+                            <ElectionEventTabs />
+                        </ShowBase>
+                    )}
+                </ResourceContextProvider>
+            </SigningProvider>
         </AdminStoryProvider>
     )
 }
@@ -96,11 +125,17 @@ const meta = {
                 ? {}
                 : {sequent_backend_election_event: [tabsEvent(args.lockedDown)]}
         )
-        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {schema: true})
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()), {
+            schema: true,
+            // The header's list for signers: the schema has no signing types yet.
+            unvalidated: ["GetWaitingSigningRequests", "SigningEventInfo"],
+        })
         // The dashboard builds the voting portal addresses with sequent-core.
         await Promise.all([graphql.ready, initCore()])
     },
-    render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} uncached={args.uncached} />,
+    render: (args, {globals}) => (
+        <Fixture key={JSON.stringify(globals)} uncached={args.uncached} roles={args.roles} />
+    ),
 } satisfies WidgetMeta<Scenario>
 export default meta
 type Story = StoryObj<Scenario>
@@ -114,6 +149,7 @@ const ADMIN_TABS = [
     "Messaging",
     "Areas",
     "Keys",
+    "Signatures",
     "Certificates",
     "Tally",
     "Tally sheet imports",
@@ -220,6 +256,7 @@ export const LockedDownEvent: Story = {
             "Dashboard",
             "IVR",
             "Voters",
+            "Signatures",
             "Certificates",
             "Logs",
             "Reports",
@@ -263,7 +300,39 @@ export const TallySheetImportLink: Story = {
     },
 }
 
+/**
+ * Publish's re-authentication returns with `tabId=publish`: the tab is found by
+ * id, not position, with the IVR, Signatures and CAs tabs before it.
+ */
+export const PublishLinkedById: Story = {
+    parameters: {
+        router: {
+            path: "/sequent_backend_election_event/:id/*",
+            initialEntries: [`/sequent_backend_election_event/${EVENT_ID}?tabId=publish`],
+        },
+        widgets: ["PublishTab"],
+    },
+    play: async ({canvasElement}) => {
+        const names = await tabNames(canvasElement)
+        expect(names).toEqual(expect.arrayContaining(["IVR", "Signatures", "Certificates"]))
+        const tab = await within(canvasElement).findByRole("tab", {name: "Publish"})
+        await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"))
+    },
+}
+
+/**
+ * The generated schema has no signing tables or actions yet: stories that open
+ * the Signatures tab answer without validating its operations against it.
+ */
+const withoutSchema: Pick<Story, "beforeEach"> = {
+    beforeEach: () => {
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()))
+    },
+}
+
 export const Data: Story = {
+    // The Voting lifecycle section's snapshot query isn't in the generated schema yet.
+    ...withoutSchema,
     parameters: {widgets: ["DataTab"]},
     play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
 }
@@ -332,6 +401,67 @@ export const Keys: Story = {
         reads: ["getList sequent_backend_keys_ceremony"],
         operations: ["TrusteeNames"],
     }),
+}
+
+export const Signatures: Story = {
+    ...withoutSchema,
+    parameters: {widgets: ["SignaturesTab"]},
+    play: tabPlay("Signatures", {
+        text: i18n.t("signing.tab.intro"),
+        operations: ["GetSigningRules", "GetSigningRuleCapacities"],
+    }),
+}
+
+export const SignaturesNeedAReadPermission: Story = {
+    args: {roles: ["election-event-signatures-tab", "election-event-logs-tab"]},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        expect(await tabNames(canvasElement)).toEqual(["Logs"])
+    },
+}
+
+export const SignaturesWithOneReadPermission: Story = {
+    ...withoutSchema,
+    args: {
+        roles: [
+            "election-event-signatures-tab",
+            "signing-requests-read",
+            "election-event-logs-tab",
+        ],
+    },
+    parameters: {widgets: ["SignaturesTab"]},
+    play: async ({canvasElement}) => {
+        const [eventTabs] = await within(canvasElement).findAllByRole("tablist")
+        await waitFor(() =>
+            expect(
+                within(eventTabs)
+                    .getAllByRole("tab")
+                    .map((tab) => tab.textContent)
+            ).toEqual(["Signatures", "Logs"])
+        )
+        // Only the sub-tab of the permission the role holds.
+        await expect(
+            await within(canvasElement).findByRole("tab", {name: i18n.t("signing.tab.requests")})
+        ).toBeVisible()
+    },
+}
+
+/**
+ * A signer without the Signatures tab (an SBEI) reaches the requests waiting
+ * for their signature from the app header; the page itself keeps just its tabs.
+ */
+export const SignerWithoutTheSignaturesTab: Story = {
+    args: {roles: ["sign-close-voting", "election-event-logs-tab"]},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        expect(await tabNames(canvasElement)).toEqual(["Logs"])
+        expect(
+            within(canvasElement).queryByRole("button", {
+                name: i18n.t("signing.waiting.buttonCount", {count: 0}),
+            })
+        ).toBeNull()
+        expect(graphql.calls.filter(({name}) => name === "GetWaitingSigningRequests")).toEqual([])
+    },
 }
 
 export const Certificates: Story = {

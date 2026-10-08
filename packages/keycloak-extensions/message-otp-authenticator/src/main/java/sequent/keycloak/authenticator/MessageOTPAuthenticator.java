@@ -592,6 +592,7 @@ public class MessageOTPAuthenticator
       boolean codeJustSent) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    Optional<CodeProgress> codeProgress = CodeProgress.of(context);
     form.setAttribute("realm", context.getRealm())
         .setAttribute("courier", messageCourier)
         .setAttribute("isOtl", "true".equals(configMap.get(Utils.ONE_TIME_LINK)))
@@ -602,7 +603,9 @@ public class MessageOTPAuthenticator
                 messageCourier, deferredUser, config, authSession, context.getUser()))
         .setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
         .setAttribute("codeJustSent", codeJustSent)
-        .setAttribute("codeLength", configMap.get(Utils.CODE_LENGTH));
+        .setAttribute("codeLength", configMap.get(Utils.CODE_LENGTH))
+        .setAttribute("codeRequest", codeProgress.map(CodeProgress::request).orElse(null))
+        .setAttribute("codeRequests", codeProgress.map(CodeProgress::requests).orElse(null));
     if (messageCourier == Utils.MessageCourier.CHOSEN) {
       ChannelChoice choice =
           channelChoice(
