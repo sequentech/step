@@ -213,7 +213,7 @@ cannot:
 - `username`, `email`, `first_name`, `last_name`, `password`, `dateOfBirth`, `area-id`, and
   `tenant-id`
 - `authorized-election-ids`, `authorized-to-election-alias`, and `permission_labels`
-- `vote-weight`, `voted-channel`, and `disable-comment`
+- `vote-weight`, `delegate-vote-to`, `voted-channel`, and `disable-comment`
 - `sequent.read-only.id-card-number-validated` and `sequent.read-only.mobile-number`
 
 Step reads the secret-attribute configuration through a short cache, so a change to the

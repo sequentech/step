@@ -41,11 +41,12 @@ const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-cha
 /// The first and last name are included: they live in Keycloak's top-level
 /// user fields, which every voter-level output copies verbatim. So is
 /// `password`, a column the voters import reads as the voter's password.
-pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 18] = [
+pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 19] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",
     "dateOfBirth",
+    "delegate-vote-to",
     "disable-comment",
     "email",
     "firstName",
@@ -497,6 +498,7 @@ fn encrypt_secret_attribute_map_with_key(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::users::DELEGATE_TO_ATTR_NAME;
     use strand::symm::gen_key;
 
     #[test]
@@ -736,6 +738,16 @@ mod tests {
         let config = SecretAttributeConfig::from_profile(&[secret_attribute("password")]);
         assert!(config.validated_names().is_err());
         assert!(config.redacted_names().contains("password"));
+    }
+
+    /// The tally counts a voter's delegators by matching their
+    /// `delegate-vote-to` against the voter's username, which a ciphertext
+    /// never matches.
+    #[test]
+    fn delegate_vote_to_cannot_be_secret() {
+        let config =
+            SecretAttributeConfig::from_profile(&[secret_attribute(DELEGATE_TO_ATTR_NAME)]);
+        assert!(config.validated_names().is_err());
     }
 
     #[test]
