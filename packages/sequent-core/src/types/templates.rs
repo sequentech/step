@@ -102,6 +102,14 @@ pub enum ChannelSelection {
     VOTER_PREFERENCE,
 }
 
+impl ChannelSelection {
+    /// Left out of the wire format, so payloads from before the choice
+    /// existed keep their bytes.
+    fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
 /// Content for WhatsApp, Viber and Messenger.
 ///
 /// WhatsApp and Viber send provider-approved templates: `message` is the
@@ -218,17 +226,17 @@ pub struct SendTemplateBody {
     pub schedule_date: Option<String>,
     pub email: Option<EmailConfig>,
     pub sms: Option<SmsConfig>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub whatsapp: Option<InstantMessageConfig>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub viber: Option<InstantMessageConfig>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub messenger: Option<InstantMessageConfig>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "ChannelSelection::is_default")]
     pub channel_selection: ChannelSelection,
     /// Identifies the send across its retries, so a voter already reached
     /// is not messaged again. Set by the task itself.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub send_id: Option<String>,
     pub document: Option<String>,
     pub name: Option<String>,
@@ -275,6 +283,20 @@ mod tests {
     fn send_template_legacy_payload_keeps_its_wire_bytes() {
         let body: SendTemplateBody = serde_json::from_str(LEGACY_BODY).unwrap();
         assert_eq!(serde_json::to_string(&body).unwrap(), LEGACY_BODY);
+    }
+
+    #[test]
+    fn send_template_channel_choice_survives_typed_task_serialization() {
+        let mut input: serde_json::Value =
+            serde_json::from_str(LEGACY_BODY).unwrap();
+        input["channel_selection"] = serde_json::json!("VOTER_PREFERENCE");
+        input["send_id"] = serde_json::json!("send-1");
+        input["whatsapp"] = serde_json::json!({"message": "Hi"});
+        let body: SendTemplateBody = serde_json::from_value(input).unwrap();
+        let queued = serde_json::to_value(body).unwrap();
+        assert_eq!(queued["channel_selection"], "VOTER_PREFERENCE");
+        assert_eq!(queued["send_id"], "send-1");
+        assert_eq!(queued["whatsapp"]["message"], "Hi");
     }
 
     #[test]
