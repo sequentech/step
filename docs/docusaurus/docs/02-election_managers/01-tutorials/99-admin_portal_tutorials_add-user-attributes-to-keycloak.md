@@ -210,7 +210,8 @@ Before enabling the annotation:
 Only custom voter attributes can be secret. The following identity and operational attributes
 cannot:
 
-- `username`, `email`, `first_name`, `last_name`, `dateOfBirth`, `area-id`, and `tenant-id`
+- `username`, `email`, `first_name`, `last_name`, `password`, `dateOfBirth`, `area-id`, and
+  `tenant-id`
 - `authorized-election-ids`, `authorized-to-election-alias`, and `permission_labels`
 - `vote-weight`, `voted-channel`, and `disable-comment`
 - `sequent.read-only.id-card-number-validated` and `sequent.read-only.mobile-number`
