@@ -30,6 +30,17 @@ def python_metrics(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def frontend_metrics(report: dict[str, Any]) -> dict[str, Any]:
+    """Keep every Istanbul metric separate and ignore rounded percentages."""
+    totals = report["total"]
+    metrics = {
+        name: {"covered": totals[name]["covered"], "count": totals[name]["total"]}
+        for name in ("lines", "statements", "functions", "branches")
+    }
+    compare(metrics, metrics)
+    return metrics
+
+
 def rust_metrics(report: dict[str, Any]) -> dict[str, Any]:
     """An unmet local 95% target is still a usable, completed measurement."""
     if report.get("status") != "measured" or report.get("tests_passed", 0) <= 0:
