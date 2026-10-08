@@ -5960,6 +5960,8 @@ dependencies = [
  "sequent-core",
  "serde",
  "serde_json",
+ "wasmtime",
+ "wasmtime-wasi",
  "wit-bindgen-rt",
 ]
 
