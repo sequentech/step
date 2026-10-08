@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas_by_id;
-use crate::services::authorized_elections::{fits_in_a_cell, AuthorizedElectionIds};
+use crate::services::authorized_elections::{unresolved_cell_value, AuthorizedElectionIds};
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::import::import_users::ELECTION_COL_PREFIX;
@@ -130,8 +130,7 @@ fn get_authorized_election_ids(
             authorized_elections.and_then(|elections| elections.resolve(&value).ok());
         let value = match stored_value {
             Some(stored_value) => stored_value.to_string(),
-            None if fits_in_a_cell(&value) => value,
-            None => format!("{value:?}"),
+            None => unresolved_cell_value(value),
         };
         if !values.contains(&value) {
             values.push(value);
@@ -579,13 +578,24 @@ mod tests {
     }
 
     /// Written as they are, the cell would read them back as other values, or
-    /// as a blank one that leaves the voter unrestricted.
+    /// as a blank one that leaves the voter unrestricted. Quoted, they must not
+    /// import into any election event, even one with external IDs that start or
+    /// end with a double quote.
     #[test]
     fn authorized_elections_naming_no_election_that_do_not_fit_in_a_cell_are_quoted() {
-        let elections = AuthorizedElectionIds::new(&elections());
+        let importing_elections = [
+            AuthorizedElectionIds::new(&elections()),
+            AuthorizedElectionIds::new(&[
+                election(ELECTION_A, Some("\"\"")),
+                election(ELECTION_B, Some("\" GIAMBI30-3-31 \"")),
+                election(ELECTION_C, Some("\"GIAMBI30-3-31")),
+                election(ELECTION_D, Some("GTELEC31+GCIBER30-1-01\"")),
+            ]),
+        ];
         for (stored, exported) in [
             ("", r#""""#),
             (" GIAMBI30-3-31 ", r#"" GIAMBI30-3-31 ""#),
+            ("=1+1", r#""=1+1""#),
             (
                 "GIAMBI30-3-31|GTELEC31+GCIBER30-1-01",
                 r#""GIAMBI30-3-31|GTELEC31+GCIBER30-1-01""#,
@@ -594,10 +604,12 @@ mod tests {
             let cell = exported_authorized_election_ids(&voter("stale", &[stored]));
 
             assert_eq!(cell, exported);
-            assert!(
-                resolve_authorized_election_ids(&cell, 2, &elections).is_err(),
-                "{cell:?} must not import"
-            );
+            for elections in &importing_elections {
+                assert!(
+                    resolve_authorized_election_ids(&cell, 2, elections).is_err(),
+                    "{cell:?} must not import"
+                );
+            }
         }
     }
 
