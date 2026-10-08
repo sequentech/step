@@ -46,6 +46,8 @@ pub(crate) fn quoted(value: &str) -> String {
     format!("{QUOTE}{}{QUOTE}", value.escape_debug())
 }
 
+/// Why an `authorized-election-ids` value does not resolve to a value that can
+/// be stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnresolvedElection {
     NoElection,
@@ -55,6 +57,7 @@ pub enum UnresolvedElection {
 }
 
 impl fmt::Display for UnresolvedElection {
+    /// The reason import gives when it rejects the value.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             UnresolvedElection::NoElection => {
@@ -86,6 +89,9 @@ pub struct AuthorizedElectionIds {
 }
 
 impl AuthorizedElectionIds {
+    /// Resolves values among an election event's `elections`, each named by its
+    /// external ID, if it has one, and by its ID, unless that is another
+    /// election's external ID.
     pub fn new(elections: &[ElectionHead]) -> Self {
         let mut elections_named: HashMap<String, Vec<String>> = HashMap::new();
         for election in elections {
@@ -217,6 +223,8 @@ mod tests {
     const EXTERNAL_ID: &str = "GIAMBI30-3-31";
     const OTHER_EXTERNAL_ID: &str = "GTELEC31+GCIBER30-1-01";
 
+    /// An election with what resolving values reads from it: its ID and
+    /// external ID.
     fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
         ElectionHead {
             id: id.to_string(),
@@ -226,6 +234,7 @@ mod tests {
         }
     }
 
+    /// An empty external ID counts as none, as in the token mapper.
     #[test]
     fn elections_are_stored_by_external_id_or_by_id_without_one() {
         let elections = AuthorizedElectionIds::new(&[
@@ -242,6 +251,8 @@ mod tests {
         assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_B));
     }
 
+    /// The token mapper matches values exactly, so one that differs in case
+    /// names no election, nor does an empty one or another event's election ID.
     #[test]
     fn values_matching_no_election_are_not_resolved() {
         let elections = AuthorizedElectionIds::new(&[election(ELECTION_A, Some(EXTERNAL_ID))]);
@@ -334,6 +345,7 @@ mod tests {
         );
     }
 
+    /// The token mapper looks values up among external IDs first.
     #[test]
     fn an_external_id_equal_to_another_elections_id_names_its_own_election() {
         let elections = AuthorizedElectionIds::new(&[
@@ -378,6 +390,8 @@ mod tests {
         assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_A));
     }
 
+    /// Voters exported with an election event name its elections by the IDs
+    /// they had there. A replaced ID that was not an election's names none.
     #[test]
     fn ids_replaced_by_an_event_import_resolve_to_the_imported_elections() {
         let exported_a = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a";
@@ -438,6 +452,8 @@ mod tests {
         }
     }
 
+    /// The token mapper resolves both to the election, and voters imported
+    /// before the fix kept the IDs they were given.
     #[test]
     fn the_census_matches_the_external_id_and_the_id() {
         let census = census_values_by_election(&[

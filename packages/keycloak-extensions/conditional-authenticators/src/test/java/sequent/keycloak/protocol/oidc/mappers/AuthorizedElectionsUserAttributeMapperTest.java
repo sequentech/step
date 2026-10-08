@@ -45,15 +45,18 @@ class AuthorizedElectionsUserAttributeMapperTest {
     assertEquals("150017", hasuraClaims.get("x-hasura-election-event-id"));
   }
 
+  /** Reads {@code elections} as the mapper reads the elections Hasura returns. */
   private static AuthorizedElectionsUserAttributeMapper.Elections elections(String elections)
       throws Exception {
     return AuthorizedElectionsUserAttributeMapper.elections(new ObjectMapper().readTree(elections));
   }
 
+  /** The election ID that each value names among {@code elections}. */
   private static Map<String, String> electionIdsByKey(String elections) throws Exception {
     return elections(elections).idsByKey();
   }
 
+  /** Voter imports used to store IDs. An empty external ID counts as none. */
   @Test
   void electionIdsByKey_keysElectionsByExternalIdOrIdWithoutOne_andById() throws Exception {
     assertEquals(
@@ -70,6 +73,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
             """));
   }
 
+  /** A shared external ID cannot tell its elections apart. */
   @Test
   void electionIdsByKey_keysElectionsWhoseExternalIdIsRepeatedOnlyById() throws Exception {
     assertEquals(
@@ -85,6 +89,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
             """));
   }
 
+  /** The value is looked up among external IDs first, where it names several elections. */
   @Test
   void electionIdsByKey_doesNotKeyAnElectionByAnIdThatOthersShareAsExternalId() throws Exception {
     assertEquals(
@@ -99,6 +104,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
             """));
   }
 
+  /** As the voters import and the tally census do. */
   @Test
   void electionIdsByKey_givesAnExternalIdPrecedenceOverAnEqualId() throws Exception {
     assertEquals(
@@ -113,6 +119,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
             """));
   }
 
+  /** Whatever the order Hasura returns the elections in. */
   @Test
   void electionIdsByKey_givesAnExternalIdPrecedenceOverTheIdOfAnElectionWithoutOne()
       throws Exception {
@@ -137,6 +144,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
             """));
   }
 
+  /** Users without authorized elections may vote in every election, even one no value names. */
   @Test
   void elections_keepsEveryElectionId() throws Exception {
     assertEquals(
@@ -149,6 +157,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
             .ids());
   }
 
+  /** Areas name their elections by ID, even one that is another election's external ID. */
   @Test
   void idsAmong_keepsTheElectionsOfTheEventWithoutRepeats() throws Exception {
     AuthorizedElectionsUserAttributeMapper.Elections elections =
@@ -163,6 +172,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
         elections.idsAmong(List.of("election-2", "election-3", "election-2", "election-1")));
   }
 
+  /** The user keeps the elections their other values name. */
   @Test
   void toElectionIds_dropsAnExternalIdThatSeveralElectionsShare() throws Exception {
     assertEquals(
@@ -176,6 +186,7 @@ class AuthorizedElectionsUserAttributeMapperTest {
                 """)));
   }
 
+  /** Such as the values the voters export writes in double quotes. */
   @Test
   void toElectionIds_dropsValuesThatNameNoElectionAndRepeats() {
     assertEquals(

@@ -61,6 +61,7 @@ mod tests {
         "\u{ff1d}1+1",
     ];
 
+    /// Import reads back the values export was given.
     #[test]
     fn formulas_are_written_after_a_quote_and_read_back() {
         for formula in FORMULAS {
@@ -79,6 +80,8 @@ mod tests {
         }
     }
 
+    /// Including the `-` export writes for a voter without an area, and values
+    /// with a quote that is not before a formula.
     #[test]
     fn other_values_are_written_as_they_are() {
         for value in ["Ana", "", "-", "GIAMBI30-3-31", "a=b", "'text", "'-"] {
