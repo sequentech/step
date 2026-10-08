@@ -64,6 +64,7 @@ pub(crate) fn unresolved_cell_value(value: String) -> String {
 pub enum UnresolvedElection {
     NoElection,
     SeveralElections,
+    NoStorableValue,
     Quoted,
 }
 
@@ -75,6 +76,10 @@ impl fmt::Display for UnresolvedElection {
             }
             UnresolvedElection::SeveralElections => {
                 "more than one election in this election event has that external ID or ID"
+            }
+            UnresolvedElection::NoStorableValue => {
+                "the election it names can be stored neither by its external ID nor by its \
+                 ID, which another election has as external ID"
             }
             UnresolvedElection::Quoted => {
                 "a value that starts with a double quote names no election"
@@ -159,7 +164,7 @@ impl AuthorizedElectionIds {
         match self.elections_named.get(reference).map(Vec::as_slice) {
             Some([id]) => self
                 .stored_value(id)
-                .ok_or(UnresolvedElection::SeveralElections),
+                .ok_or(UnresolvedElection::NoStorableValue),
             Some([_, _, ..]) => Err(UnresolvedElection::SeveralElections),
             _ => Err(UnresolvedElection::NoElection),
         }
@@ -362,6 +367,22 @@ mod tests {
         assert_eq!(elections.resolve(ELECTION_A), Ok(ELECTION_B));
         assert_eq!(elections.resolve(ELECTION_B), Ok(ELECTION_B));
         assert_eq!(elections.stored_value(ELECTION_B), None);
+    }
+
+    /// Its external ID cannot be stored, and its ID names the other election.
+    #[test]
+    fn an_election_with_no_value_that_can_be_stored_is_not_resolved() {
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some("=GIAMBI30-3-31")),
+            election(ELECTION_B, Some(ELECTION_A)),
+        ]);
+
+        assert_eq!(elections.stored_value(ELECTION_A), None);
+        assert_eq!(
+            elections.resolve("=GIAMBI30-3-31"),
+            Err(UnresolvedElection::NoStorableValue)
+        );
+        assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_A));
     }
 
     #[test]
