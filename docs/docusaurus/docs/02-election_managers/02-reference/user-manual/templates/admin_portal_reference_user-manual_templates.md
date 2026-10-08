@@ -29,6 +29,16 @@ The system will automatically use the created template when generating documents
 
 You can also use this template when manually [creating reports](../../../01-tutorials/18-reports_and_templates.md) in the Reports tab.
 
+## Voter Variables
+
+Communications and reports that render one voter at a time, such as the voter information letter
+and the manual verification report, receive the voter as `user`: `user.first_name`,
+`user.last_name`, `user.username`, `user.email`, and every user attribute as `user.<attribute>`.
+For example, a letter can print `{{user.ward}}` or a mailing address stored in custom attributes
+without any extra configuration. Use the `concat`, `format_pattern` and `upper` helpers to print
+fields that some voters leave empty. See [Voter variables](../../02-election-event/13-02-election_management_election-event_templates.md#voter-variables)
+for the full list of variables and helpers.
+
 ## Secret Voter Variables
 
 A communication or true per-voter report can use fields configured with `sequent.secret=true`.

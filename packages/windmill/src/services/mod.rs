@@ -64,5 +64,6 @@ pub mod transmission;
 pub mod users;
 pub mod vault;
 pub mod voter_secret_attributes;
+pub mod voter_template_variables;
 pub mod voting_status;
 pub mod weight_batches;
