@@ -156,6 +156,7 @@ const tagalogTranslation: TranslationType = {
             firstLine: "I-drag at i-drop ang mga file o",
             browse: "Mag-browse",
             format: "Suportadong format: txt",
+            importError: "Hindi ma-import ang file na ito. Pakisubukang muli.",
         },
         selectElection: {
             electionWebsite: "Website ng Balota",

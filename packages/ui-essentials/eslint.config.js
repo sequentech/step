@@ -14,6 +14,7 @@ export default [
         ignores: [
             "node_modules/**",
             "dist/**",
+            "coverage/**",
             "target/**",
             "pkg/**",
             "build/**",
@@ -24,7 +25,7 @@ export default [
         ],
     },
     {
-        files: ["**/*.{js,jsx,ts,tsx}"],
+        files: ["**/*.{js,jsx,ts,tsx,mts}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",

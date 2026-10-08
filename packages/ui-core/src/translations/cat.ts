@@ -153,6 +153,7 @@ const catalanTranslation: TranslationType = {
             firstLine: "Arrossega i deixa anar fitxers o",
             browse: "Carrega fitxer",
             format: "Formats suportats: txt",
+            importError: "No s’ha pogut importar aquest fitxer. Torneu-ho a provar.",
         },
         selectElection: {
             electionWebsite: "Lloc web electoral",

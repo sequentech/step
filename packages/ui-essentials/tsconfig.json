@@ -27,6 +27,7 @@
       "@root/*": ["./src/*"]
     }
   },
+  "exclude": ["node_modules", "dist", "tests", "src/**/*.test.ts", "src/**/*.test.tsx"],
   "include": [
     "src"
   ]

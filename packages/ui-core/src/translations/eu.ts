@@ -153,6 +153,7 @@ const basqueTranslation: TranslationType = {
             firstLine: "Arrastatu eta jaregin fitxategiak edo",
             browse: "Arakatu",
             format: "Onartutako formatua: txt",
+            importError: "Ezin izan da fitxategi hau inportatu. Saiatu berriro.",
         },
         selectElection: {
             electionWebsite: "Txartelaren Webgunea",
