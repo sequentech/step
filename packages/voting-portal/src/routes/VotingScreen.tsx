@@ -53,6 +53,7 @@ import {AuthContext} from "../providers/AuthContextProvider"
 import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
+import {orderContestsForVoter, paginateContests} from "../services/ContestsOrder"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {useBallotStyleSlates} from "../hooks/useBallotStyleSlates"
 import {SlateSelectionChooser} from "../components/SlateChooser/SlateSelectionChooser"
@@ -484,12 +485,8 @@ const VotingScreen: React.FC = () => {
 
     useEffect(() => {
         let minMaxGlobal = false
-        let contestsPages = new Map<String, IContest[]>()
-        let contests = [...(ballotStyle?.ballot_eml.contests ?? [])].sort(
-            (a, b) =>
-                (a.presentation?.sort_order ?? Infinity) - (b.presentation?.sort_order ?? Infinity)
-        )
-        for (let contest of contests ?? []) {
+        const contests = ballotStyle ? orderContestsForVoter(ballotStyle) : []
+        for (let contest of contests) {
             let countVotes = 0
             let selection = selectionState?.find((s) => s.contest_id === contest.id)
             for (let choice of selection?.choices ?? []) {
@@ -499,16 +496,8 @@ const VotingScreen: React.FC = () => {
             }
             let outOfRange = countVotes < contest.min_votes || countVotes > contest.max_votes
             minMaxGlobal = minMaxGlobal || outOfRange
-
-            // Calculate contests pagination using the pagination_policy string identifier
-            const contestPageName = contest.presentation?.pagination_policy || ""
-            if (!contestsPages.has(contestPageName)) {
-                contestsPages.set(contestPageName, [])
-            }
-            contestsPages.get(contestPageName)!.push(contest)
         }
-        const contestsAsArrays = Array.from(contestsPages.values())
-        setContestsPerPage(contestsAsArrays)
+        setContestsPerPage(paginateContests(contests))
 
         setDisableNext((state) => ({
             ...state,

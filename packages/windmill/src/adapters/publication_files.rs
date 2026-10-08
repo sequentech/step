@@ -153,6 +153,22 @@ impl PublicationObjects for S3PublicationObjects {
         Ok(())
     }
 
+    async fn get_json(&self, key: &str) -> Result<Value> {
+        let stored = self
+            .client
+            .get_object()
+            .bucket(&self.bucket)
+            .key(key)
+            .send()
+            .await
+            .context("Cannot read ballot publication object")?
+            .body
+            .collect()
+            .await?
+            .into_bytes();
+        serde_json::from_slice(&stored).context("Ballot publication object is not JSON")
+    }
+
     async fn presign_get(&self, key: &str, expires_in: Duration) -> Result<String> {
         let signed = self
             .client
@@ -361,6 +377,32 @@ mod tests {
             error.to_string(),
             "Ballot publication object verification failed"
         );
+    }
+
+    #[tokio::test]
+    async fn a_stored_object_is_read_as_json() {
+        let (endpoint, requests) = fake_s3(Store::Keeps).await;
+        let value = json!({"id": "event", "presentation": {"css": ".a {}"}});
+        put(&endpoint, &value).await.unwrap();
+        assert_eq!(objects(&endpoint).get_json(KEY).await.unwrap(), value);
+        let requests = requests.lock().unwrap();
+        let read = requests.last().expect("a read");
+        assert_eq!(
+            (read.method.as_str(), read.object_path()),
+            ("GET", OBJECT_PATH)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_missing_or_malformed_object_cannot_be_read() {
+        let (endpoint, _) = fake_s3(Store::Loses).await;
+        let error = objects(&endpoint).get_json(KEY).await.unwrap_err();
+        assert_eq!(error.to_string(), "Cannot read ballot publication object");
+
+        // Nothing was stored, so the stand-in answers with an empty body.
+        let (endpoint, _) = fake_s3(Store::Keeps).await;
+        let error = objects(&endpoint).get_json(KEY).await.unwrap_err();
+        assert_eq!(error.to_string(), "Ballot publication object is not JSON");
     }
 
     #[tokio::test]
