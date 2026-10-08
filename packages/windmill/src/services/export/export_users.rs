@@ -7,7 +7,9 @@ use crate::services::authorized_elections::{quoted, AuthorizedElectionIds};
 use crate::services::csv_cell::escape_formula;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
-use crate::services::import::import_users::{ELECTION_COL_PREFIX, RESERVED_COL_NAMES};
+use crate::services::import::import_users::{
+    is_election_column, ELECTION_COL_PREFIX, RESERVED_COL_NAMES,
+};
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
 use crate::services::voter_secret_attributes::{
@@ -71,11 +73,11 @@ pub enum ExportBody {
 }
 
 /// Whether export writes the profile attribute `name` in a column of its own.
-/// Not when an account column has that name, nor when import reads the column
-/// as something else, such as the voter's password: the attribute would come
-/// back as that.
+/// Not when an account column has that name, nor when import would not read
+/// the column back as the attribute: it reads some as the voter's password or
+/// group, and ignores those starting with `election__`.
 fn is_exported_attribute(name: &str) -> bool {
-    !USER_FIELDS.contains(&name) && !RESERVED_COL_NAMES.contains(&name)
+    !USER_FIELDS.contains(&name) && !RESERVED_COL_NAMES.contains(&name) && !is_election_column(name)
 }
 
 /// The columns of a voters CSV: the account's, one per profile attribute, and,
@@ -461,8 +463,7 @@ pub async fn export_users_file(
 mod tests {
     use super::*;
     use crate::services::import::import_users::{
-        imported_fields, imported_value, is_election_column, resolve_authorized_election_ids,
-        HEADER_RE,
+        imported_fields, imported_value, resolve_authorized_election_ids, HEADER_RE,
     };
 
     /// A single-valued profile attribute named `name`.
@@ -651,13 +652,15 @@ mod tests {
         );
     }
 
-    /// Import reads these columns as the voter's password and group, so the
-    /// attributes would come back as those instead.
+    /// Import reads `password` and `group_name` as the voter's password and
+    /// group, and ignores columns starting with `election__`, so these
+    /// attributes would not come back.
     #[test]
     fn attributes_named_like_columns_import_reserves_are_not_exported() {
         let attributes = vec![
             attribute("password"),
             attribute("group_name"),
+            attribute("election__notes"),
             attribute("mobile-number"),
         ];
         let user = User {
@@ -665,6 +668,7 @@ mod tests {
             attributes: Some(HashMap::from([
                 ("password".to_string(), vec!["=1+1".to_string()]),
                 ("group_name".to_string(), vec!["admins".to_string()]),
+                ("election__notes".to_string(), vec!["notes".to_string()]),
                 ("mobile-number".to_string(), vec!["600000000".to_string()]),
             ])),
             ..Default::default()
@@ -673,6 +677,7 @@ mod tests {
         let cells = exported_cells(&elections(), &attributes, &user);
         assert!(!cells.contains_key("password"));
         assert!(!cells.contains_key("group_name"));
+        assert!(!cells.contains_key("election__notes"));
         assert_eq!(cells["mobile-number"], "600000000");
     }
 
