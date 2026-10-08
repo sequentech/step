@@ -6,7 +6,9 @@ use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
 use b3::messages::artifact::{DkgPublicKey, Plaintexts};
 use b3::messages::message::Message;
+use b3::messages::statement::Statement;
 use log::{error, info};
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use strand::context::Ctx;
 
@@ -62,6 +64,27 @@ impl<C: Ctx> VectorSession<C> {
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.trustee._get_dkg_public_key_nohash()
+    }
+    /// Trustees whose signatures on this local board match every field of its
+    /// published `batch` plaintexts statement except the timestamp.
+    pub(crate) fn plaintexts_signers(&self, batch: BatchNumber) -> HashSet<TrusteePosition> {
+        let entries = self.trustee.local_board.get_statement_entries();
+        let plaintexts = entries.iter().find_map(|entry| match entry.value.1 {
+            Statement::Plaintexts(_, cfg_h, b, h, df_hs, c_h, pk_h) if b == batch => {
+                Some((cfg_h, b, h, df_hs, c_h, pk_h))
+            }
+            _ => None,
+        });
+        entries
+            .iter()
+            .filter(|entry| match entry.value.1 {
+                Statement::PlaintextsSigned(_, cfg_h, b, h, df_hs, c_h, pk_h) => {
+                    Some((cfg_h, b, h, df_hs, c_h, pk_h)) == plaintexts
+                }
+                _ => false,
+            })
+            .map(|entry| entry.key.signer_position)
+            .collect()
     }
 }
 
