@@ -57,8 +57,8 @@ If you find an error, correct it in the election event. Then start again at step
 
 ## 3. Publish the ballot
 
-1. On the **Changes to be Published** page, click **Publish Changes**.
-2. Confirm the action.
+1. On the **Changes to be Published** page, click **Publish Changes**. The admin portal publishes
+   immediately, without a confirmation window.
 
 **Expected result:** the message "Ballot published" shows. The **Publish History** list shows
 the new publication.
