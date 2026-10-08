@@ -135,7 +135,8 @@ async fn run(args: &Cli) -> Result<()> {
     let store_root = std::env::current_dir().unwrap().join("message_store");
     braid::util::ensure_directory(store_root.clone())?;
 
-    let store_root = std::env::current_dir().unwrap().join("message_store");
+    braid::probe::setup_probe(args.b3_url.clone(), store_root.clone()).await;
+    info!("braid probe setup complete");
 
     let trustee_name = std::env::var("TRUSTEE_NAME").unwrap_or(
         args.trustee_config
