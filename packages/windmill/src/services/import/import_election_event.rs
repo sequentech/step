@@ -1646,3 +1646,66 @@ mod publication_import_mapping_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod voters_import_mapping_tests {
+    use super::*;
+    use crate::services::authorized_elections::AuthorizedElectionIds;
+    use crate::services::election::ElectionHead;
+
+    /// Import replaces the exported tenant and event IDs wherever they appear,
+    /// so an election whose external ID was one of them gets the new one, and
+    /// voters exported with the old one must still name that election.
+    #[test]
+    fn voters_name_an_election_whose_external_id_was_a_replaced_id() {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let new_tenant = Uuid::new_v4().to_string();
+        let new_event = Uuid::new_v4().to_string();
+        let election = |external_id: &str| {
+            serde_json::json!({
+                "id": Uuid::new_v4().to_string(), "tenant_id": tenant,
+                "election_event_id": event, "external_id": external_id
+            })
+        };
+        let input = serde_json::json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA"
+            },
+            "elections": [election(&event), election(&tenant)],
+            "contests": [], "candidates": [], "areas": [],
+            "area_contests": [], "reports": []
+        });
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        let (imported, replaced_ids) = replace_ids(
+            &input.to_string(),
+            &original,
+            Some(new_event.clone()),
+            new_tenant.clone(),
+        )
+        .unwrap();
+
+        let elections: Vec<ElectionHead> = imported
+            .elections
+            .into_iter()
+            .map(|election| ElectionHead {
+                id: election.id,
+                name: "-".to_string(),
+                alias: None,
+                external_id: election.external_id,
+            })
+            .collect();
+        let authorized_elections =
+            AuthorizedElectionIds::new(&elections).with_replaced_ids(&replaced_ids);
+        assert_eq!(
+            authorized_elections.resolve_imported(&event),
+            Ok(new_event.as_str())
+        );
+        assert_eq!(
+            authorized_elections.resolve_imported(&tenant),
+            Ok(new_tenant.as_str())
+        );
+    }
+}
