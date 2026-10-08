@@ -90,6 +90,9 @@ fn get_registry<'reg>() -> Handlebars<'reg> {
     reg.register_helper("next", Box::new(next));
     reg.register_helper("eq", Box::new(eq));
     reg.register_helper("is_some", Box::new(is_some));
+    reg.register_helper("concat", Box::new(concat));
+    reg.register_helper("format_pattern", Box::new(format_pattern));
+    reg.register_helper("upper", Box::new(upper));
     reg
 }
 
@@ -119,6 +122,84 @@ pub fn render_template(
     // render handlebars template
     reg.render(template_name, &json!(variables_map))
 }
+
+/// Fills each `placeholder` in `pattern` with the next character of `value`
+/// and copies every other pattern character as is. Returns `None` unless
+/// `value` has exactly one character per placeholder.
+pub fn fill_pattern(
+    mut value: impl Iterator<Item = char>,
+    pattern: &str,
+    placeholder: char,
+) -> Option<String> {
+    let mut formatted = String::with_capacity(pattern.len());
+    for token in pattern.chars() {
+        if token == placeholder {
+            formatted.push(value.next()?);
+        } else {
+            formatted.push(token);
+        }
+    }
+    value.next().is_none().then_some(formatted)
+}
+
+/// The trimmed text of a scalar template value, or `None` when the value is
+/// missing, null, blank or not a scalar.
+fn template_text(value: &Value) -> Option<String> {
+    let text = match value {
+        Value::String(text) => text.trim().to_string(),
+        Value::Number(number) => number.to_string(),
+        Value::Bool(flag) => flag.to_string(),
+        Value::Null | Value::Array(_) | Value::Object(_) => return None,
+    };
+    (!text.is_empty()).then_some(text)
+}
+
+fn collect_template_text(value: &Value, parts: &mut Vec<String>) {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .for_each(|item| collect_template_text(item, parts)),
+        _ => parts.extend(template_text(value)),
+    }
+}
+
+// Typed parameters would make these helpers fail on a missing value, so they
+// read their raw arguments and never return an error.
+handlebars_helper!(concat: |*args, **kwargs| {
+    let separator = kwargs
+        .get("sep")
+        .and_then(|separator| separator.as_str())
+        .unwrap_or(" ");
+    let mut parts = Vec::new();
+    for value in args {
+        collect_template_text(value, &mut parts);
+    }
+    parts.join(separator).trim().to_string()
+});
+
+handlebars_helper!(format_pattern: |*args| {
+    let value = args
+        .first()
+        .and_then(|value| template_text(value))
+        .unwrap_or_default();
+    let pattern = args
+        .get(1)
+        .and_then(|pattern| pattern.as_str())
+        .unwrap_or_default();
+    fill_pattern(
+        value.chars().filter(|character| !character.is_whitespace()),
+        pattern,
+        '#',
+    )
+    .unwrap_or(value)
+});
+
+handlebars_helper!(upper: |*args| {
+    args.first()
+        .and_then(|value| template_text(value))
+        .unwrap_or_default()
+        .to_uppercase()
+});
 
 pub fn helper_wrapper_or<'a>(
     func: Box<dyn HelperDef + Send + Sync + 'a>,
@@ -856,7 +937,7 @@ impl HelperDef for is_some {
 
 #[cfg(test)]
 mod tests {
-    use super::render_template_text;
+    use super::{fill_pattern, render_template_text};
     use serde_json::{json, Map};
 
     #[test]
@@ -885,5 +966,191 @@ mod tests {
         assert!(
             render_template_text("{{url_encode value}}", variables).is_err()
         );
+    }
+
+    fn render(template: &str, variables: serde_json::Value) -> String {
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("variables must be a JSON object");
+        };
+        render_template_text(template, variables)
+            .expect("template should render")
+    }
+
+    #[test]
+    fn concat_joins_present_values_with_a_space() {
+        assert_eq!(
+            render(
+                "{{concat first middle last}}",
+                json!({"first": "Jane", "middle": "Q", "last": "Doe"}),
+            ),
+            "Jane Q Doe"
+        );
+    }
+
+    #[test]
+    fn concat_skips_missing_null_empty_and_blank_values() {
+        assert_eq!(
+            render(
+                "[{{concat first missing nothing empty blank last}}]",
+                json!({
+                    "first": "Jane",
+                    "nothing": null,
+                    "empty": "",
+                    "blank": "   ",
+                    "last": "Doe",
+                }),
+            ),
+            "[Jane Doe]"
+        );
+    }
+
+    #[test]
+    fn concat_trims_each_value() {
+        assert_eq!(
+            render(
+                "[{{concat first last sep=\",\"}}]",
+                json!({"first": "  Jane ", "last": "\tDoe\n"}),
+            ),
+            "[Jane,Doe]"
+        );
+    }
+
+    #[test]
+    fn concat_uses_a_custom_separator_only_between_present_values() {
+        assert_eq!(
+            render(
+                "[{{concat unit missing city province sep=\", \"}}]",
+                json!({"unit": "", "city": "Denbigh", "province": "ON"}),
+            ),
+            "[Denbigh, ON]"
+        );
+    }
+
+    #[test]
+    fn concat_flattens_arrays_and_skips_their_empty_items() {
+        assert_eq!(
+            render(
+                "{{concat user.attributes.names last}}",
+                json!({
+                    "user": {"attributes": {"names": ["Jane", "", null, " Q "]}},
+                    "last": "Doe",
+                }),
+            ),
+            "Jane Q Doe"
+        );
+    }
+
+    #[test]
+    fn concat_renders_numbers_and_literals() {
+        assert_eq!(
+            render("{{concat number \"Main St\" 7}}", json!({"number": 1234}),),
+            "1234 Main St 7"
+        );
+    }
+
+    #[test]
+    fn concat_renders_nothing_when_every_value_is_missing() {
+        assert_eq!(
+            render(
+                "[{{concat missing nothing blank sep=\", \"}}]",
+                json!({"nothing": null, "blank": " "}),
+            ),
+            "[]"
+        );
+        assert_eq!(render("[{{concat}}]", json!({})), "[]");
+    }
+
+    #[test]
+    fn format_pattern_fills_each_placeholder_with_the_next_character() {
+        assert_eq!(
+            render(
+                "{{format_pattern code \"### ###\"}}",
+                json!({"code": "K0H1L0"}),
+            ),
+            "K0H 1L0"
+        );
+    }
+
+    #[test]
+    fn format_pattern_ignores_spaces_in_the_value() {
+        assert_eq!(
+            render(
+                "{{format_pattern code \"### ###\"}}",
+                json!({"code": " K0H 1L0 "}),
+            ),
+            "K0H 1L0"
+        );
+    }
+
+    #[test]
+    fn format_pattern_returns_the_trimmed_value_when_counts_differ() {
+        assert_eq!(
+            render(
+                "[{{format_pattern code \"### ###\"}}]",
+                json!({"code": " 90210 "}),
+            ),
+            "[90210]"
+        );
+        assert_eq!(
+            render(
+                "[{{format_pattern code \"### ###\"}}]",
+                json!({"code": "K0H1L0X"}),
+            ),
+            "[K0H1L0X]"
+        );
+    }
+
+    #[test]
+    fn format_pattern_renders_nothing_for_missing_values() {
+        assert_eq!(
+            render(
+                "[{{format_pattern missing \"### ###\"}}{{format_pattern nothing \"### ###\"}}]",
+                json!({"nothing": null}),
+            ),
+            "[]"
+        );
+    }
+
+    #[test]
+    fn upper_uppercases_values_and_renders_nothing_for_missing_ones() {
+        assert_eq!(
+            render(
+                "[{{upper country}}][{{upper missing}}]",
+                json!({"country": "Ca"}),
+            ),
+            "[CA][]"
+        );
+    }
+
+    #[test]
+    fn helpers_compose_as_subexpressions() {
+        let template = "{{concat user.corr_city user.corr_province (format_pattern user.corr_postal_code \"### ###\") (upper user.corr_country_name)}}";
+
+        assert_eq!(
+            render(
+                template,
+                json!({"user": {
+                    "corr_city": "Denbigh",
+                    "corr_province": "ON",
+                    "corr_postal_code": "K0H1L0",
+                    "corr_country_name": "Ca",
+                }}),
+            ),
+            "Denbigh ON K0H 1L0 CA"
+        );
+        assert_eq!(
+            render(template, json!({"user": {"corr_city": "Denbigh"}})),
+            "Denbigh"
+        );
+    }
+
+    #[test]
+    fn fill_pattern_treats_other_pattern_characters_as_literals() {
+        assert_eq!(
+            fill_pattern("12345678".chars(), "dddd-dddd", 'd'),
+            Some("1234-5678".to_string())
+        );
+        assert_eq!(fill_pattern("123".chars(), "dddd", 'd'), None);
+        assert_eq!(fill_pattern("12345".chars(), "dddd", 'd'), None);
     }
 }

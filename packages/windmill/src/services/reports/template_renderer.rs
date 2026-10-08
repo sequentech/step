@@ -16,8 +16,9 @@ use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
 use crate::services::voter_secret_attributes::{
-    decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
+    decrypt_user_attributes, get_secret_attribute_config,
 };
+use crate::services::voter_template_variables::voter_template_variables;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -212,36 +213,40 @@ pub trait TemplateRenderer: Debug {
     }
 
     /// Add the canonical `user` variable object for a true per-voter report.
-    /// Stored ciphertext is never added to the rendering map: undeclared
-    /// fields are absent and declared fields are decrypted only here.
+    /// Non-secret attributes are always included. Stored ciphertext is never
+    /// added to the rendering map: undeclared secret attributes are absent and
+    /// declared ones are decrypted only here.
     #[instrument(err, skip_all)]
-    async fn inject_voter_secret_variables(
+    async fn inject_voter_variables(
         &self,
         user_data_map: &mut Map<String, Value>,
         declared_names: &HashSet<String>,
         may_read_secret_attributes: bool,
     ) -> Result<()> {
-        if declared_names.is_empty() {
-            return Ok(());
-        }
-        if !may_read_secret_attributes {
+        if !declared_names.is_empty() && !may_read_secret_attributes {
             return Err(anyhow!(
                 "Generating this voter report requires voter-secret-attribute-read"
             ));
         }
-        let voter_id = self.get_voter_id().ok_or_else(|| {
-            anyhow!("Encrypted voter attributes are only supported by per-voter reports")
-        })?;
+        let Some(voter_id) = self.get_voter_id() else {
+            if declared_names.is_empty() {
+                return Ok(());
+            }
+            return Err(anyhow!(
+                "Encrypted voter attributes are only supported by per-voter reports"
+            ));
+        };
         let tenant_id = self.get_tenant_id();
         let election_event_id = self.get_election_event_id();
         let realm = get_event_realm(&tenant_id, &election_event_id);
-        let configured_names = get_secret_attribute_config(&tenant_id, &election_event_id)
+        let secret_config = get_secret_attribute_config(&tenant_id, &election_event_id)
             .await
-            .context("Error reading the secret-attribute configuration for voter report")?
-            .validated_names()?;
-        let client = KeycloakAdminClient::new()
-            .await
-            .context("Error initializing Keycloak client for voter report")?;
+            .context("Error reading the secret-attribute configuration for voter report")?;
+        let configured_names = if declared_names.is_empty() {
+            secret_config.redacted_names().clone()
+        } else {
+            secret_config.validated_names()?
+        };
         if let Some(name) = declared_names
             .iter()
             .find(|name| !configured_names.contains(*name))
@@ -250,28 +255,22 @@ pub trait TemplateRenderer: Debug {
                 "Report declares `{name}`, which is not configured as an encrypted voter attribute"
             ));
         }
+        let client = KeycloakAdminClient::new()
+            .await
+            .context("Error initializing Keycloak client for voter report")?;
 
         let mut voter = client
             .get_user(&realm, &voter_id)
             .await
             .context("Error reading voter for voter report")?;
-        decrypt_user_attributes(&mut voter, &tenant_id, &election_event_id, declared_names).await?;
-        strip_undeclared_secret_attributes(&mut voter, &configured_names, declared_names);
-        let attributes = voter.attributes.unwrap_or_default();
-        let mut user_variables = Map::new();
-        user_variables.insert("first_name".to_string(), json!(voter.first_name));
-        user_variables.insert("last_name".to_string(), json!(voter.last_name));
-        user_variables.insert("username".to_string(), json!(voter.username));
-        user_variables.insert("email".to_string(), json!(voter.email));
-        for (name, values) in &attributes {
-            if let Some(value) = values.first() {
-                user_variables
-                    .entry(name.clone())
-                    .or_insert_with(|| json!(value));
-            }
+        if !declared_names.is_empty() {
+            decrypt_user_attributes(&mut voter, &tenant_id, &election_event_id, declared_names)
+                .await?;
         }
-        user_variables.insert("attributes".to_string(), json!(attributes));
-        user_data_map.insert("user".to_string(), Value::Object(user_variables));
+        user_data_map.insert(
+            "user".to_string(),
+            voter_template_variables(&voter, &configured_names, declared_names),
+        );
         Ok(())
     }
 
@@ -449,7 +448,7 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
         if generate_mode == GenerateReportMode::REAL {
-            self.inject_voter_secret_variables(
+            self.inject_voter_variables(
                 &mut user_data_map,
                 declared_secret_names,
                 may_read_secret_attributes,
@@ -516,7 +515,7 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
         if generate_mode == GenerateReportMode::REAL {
-            self.inject_voter_secret_variables(
+            self.inject_voter_variables(
                 &mut user_data_map,
                 declared_secret_names,
                 may_read_secret_attributes,
