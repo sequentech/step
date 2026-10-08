@@ -1056,6 +1056,8 @@ mod tests {
     const ELECTION_A: &str = "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
     const ELECTION_B: &str = "7a2b3c4d-5e6f-4a7b-9c8d-1e2f3a4b5c6d";
     const ELECTION_C: &str = "8b3c4d5e-6f7a-4b8c-ad9e-2f3a4b5c6d7e";
+    const EXTERNAL_ID: &str = "GIAMBI30-3-31";
+    const OTHER_EXTERNAL_ID: &str = "GTELEC31+GCIBER30-1-01";
 
     fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
         ElectionHead {
@@ -1068,8 +1070,8 @@ mod tests {
 
     fn authorized_elections() -> AuthorizedElectionIds {
         AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("GTELEC31+GCIBER30-1-01")),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(OTHER_EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
             election(ELECTION_C, None),
         ])
     }
@@ -1078,20 +1080,15 @@ mod tests {
     /// after external IDs, and after: neither is a valid or unique header.
     #[test]
     fn election_columns_are_not_imported() {
+        let election_column = format!("election__{OTHER_EXTERNAL_ID}");
         let headers = StringRecord::from(vec![
             "username",
             "election__-",
             AUTHORIZED_ELECTION_IDS_NAME,
             "election__-",
-            "election__GTELEC31+GCIBER30-1-01",
+            election_column.as_str(),
         ]);
-        let record = StringRecord::from(vec![
-            "voter",
-            "2025-01-01T00:00:00Z",
-            "GIAMBI30-3-31",
-            "",
-            "",
-        ]);
+        let record = StringRecord::from(vec!["voter", "2025-01-01T00:00:00Z", EXTERNAL_ID, "", ""]);
         let imported_columns = headers
             .iter()
             .map(|header| !is_election_column(header))
@@ -1106,14 +1103,14 @@ mod tests {
         get_copy_from_query(&headers).expect("the remaining headers import");
         assert_eq!(
             imported_fields(&record, &imported_columns),
-            StringRecord::from(vec!["voter", "GIAMBI30-3-31"])
+            StringRecord::from(vec!["voter", EXTERNAL_ID])
         );
     }
 
     #[test]
     fn authorized_elections_are_stored_by_external_id_or_id_without_one() {
         let stored = resolve_authorized_election_ids(
-            &format!(" GIAMBI30-3-31 |{ELECTION_A}|{ELECTION_C}"),
+            &format!(" {EXTERNAL_ID} |{ELECTION_A}|{ELECTION_C}"),
             2,
             &authorized_elections(),
         )
@@ -1121,20 +1118,20 @@ mod tests {
 
         assert_eq!(
             stored,
-            format!("GIAMBI30-3-31|GTELEC31+GCIBER30-1-01|{ELECTION_C}")
+            format!("{EXTERNAL_ID}|{OTHER_EXTERNAL_ID}|{ELECTION_C}")
         );
     }
 
     #[test]
     fn an_election_named_twice_is_stored_once() {
         let stored = resolve_authorized_election_ids(
-            &format!("GIAMBI30-3-31|{ELECTION_B}"),
+            &format!("{EXTERNAL_ID}|{ELECTION_B}"),
             2,
             &authorized_elections(),
         )
         .expect("every value names an election");
 
-        assert_eq!(stored, "GIAMBI30-3-31");
+        assert_eq!(stored, EXTERNAL_ID);
     }
 
     /// A blank cell leaves the voter unrestricted, so it must not turn into a
@@ -1152,15 +1149,17 @@ mod tests {
 
     #[test]
     fn authorized_elections_matching_no_election_are_rejected_naming_row_and_value() {
+        let lowercase = EXTERNAL_ID.to_lowercase();
+        let unknown_id = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a";
         for (cell, value) in [
-            ("GIAMBI30-3-31|giambi30-3-31", "\"giambi30-3-31\""),
-            ("GIAMBI30-3-31|", "\"\""),
             (
-                "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a",
-                "\"1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a\"",
+                format!("{EXTERNAL_ID}|{lowercase}"),
+                format!("\"{lowercase}\""),
             ),
+            (format!("{EXTERNAL_ID}|"), "\"\"".to_string()),
+            (unknown_id.to_string(), format!("\"{unknown_id}\"")),
         ] {
-            let message = resolve_authorized_election_ids(cell, 4, &authorized_elections())
+            let message = resolve_authorized_election_ids(&cell, 4, &authorized_elections())
                 .expect_err(&format!("{cell:?} must be rejected"))
                 .to_string();
             assert!(
@@ -1172,7 +1171,7 @@ mod tests {
                 "error must name the row, got: {message}"
             );
             assert!(
-                message.contains(value),
+                message.contains(&value),
                 "error must name the value {value}, got: {message}"
             );
         }
@@ -1183,15 +1182,17 @@ mod tests {
     #[test]
     fn authorized_elections_naming_several_elections_are_rejected() {
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("GIAMBI30-3-31")),
-            election(ELECTION_B, Some("GIAMBI30-3-31")),
+            election(ELECTION_A, Some(EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
         ]);
 
-        let message = resolve_authorized_election_ids("GIAMBI30-3-31", 3, &elections)
+        let message = resolve_authorized_election_ids(EXTERNAL_ID, 3, &elections)
             .expect_err("the external ID names two elections")
             .to_string();
         assert!(
-            message.contains("\"GIAMBI30-3-31\" on row 3: more than one election"),
+            message.contains(&format!(
+                "\"{EXTERNAL_ID}\" on row 3: more than one election"
+            )),
             "error must name the value, the row and the reason, got: {message}"
         );
         assert_eq!(
@@ -1201,35 +1202,37 @@ mod tests {
         );
     }
 
-    /// Export writes values that name no election in double quotes when a cell
-    /// would not read them back as they are, so they must not import, even
-    /// where elections have external IDs with double quotes.
+    /// Export writes values that do not name a single election in double
+    /// quotes, so they must not import, even where elections have external IDs
+    /// with double quotes.
     #[test]
     fn authorized_elections_starting_with_a_double_quote_are_rejected() {
+        let trailing_quote = format!("{OTHER_EXTERNAL_ID}\"");
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some("\"GIAMBI30-3-31")),
-            election(ELECTION_B, Some("GTELEC31+GCIBER30-1-01\"")),
+            election(ELECTION_A, Some(&format!("\"{EXTERNAL_ID}"))),
+            election(ELECTION_B, Some(&trailing_quote)),
         ]);
 
         let message = resolve_authorized_election_ids(
-            "\"GIAMBI30-3-31|GTELEC31+GCIBER30-1-01\"",
+            &format!("\"{EXTERNAL_ID}|{trailing_quote}"),
             5,
             &elections,
         )
         .expect_err("a value starting with a double quote names no election")
         .to_string();
         assert!(
-            message.contains(r#""\"GIAMBI30-3-31" on row 5: "#) && message.contains("double quote"),
+            message.contains(&format!(r#""\"{EXTERNAL_ID}" on row 5: "#))
+                && message.contains("double quote"),
             "error must name the value, the row and the reason, got: {message}"
         );
         assert_eq!(
             resolve_authorized_election_ids(
-                &format!("{ELECTION_A}|GTELEC31+GCIBER30-1-01\""),
+                &format!("{ELECTION_A}|{trailing_quote}"),
                 5,
                 &elections
             )
             .expect("each value names one election"),
-            format!("{ELECTION_A}|GTELEC31+GCIBER30-1-01\"")
+            format!("{ELECTION_A}|{trailing_quote}")
         );
     }
 
