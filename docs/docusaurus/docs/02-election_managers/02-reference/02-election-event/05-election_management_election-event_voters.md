@@ -66,9 +66,9 @@ unchanged, so that importing it fails instead of giving the voter other election
 double quotes if it is blank, starts or ends with a space, contains `|`, or starts with `"`, `=`,
 `+`, `-` or `@`.
 
-When an election event export is imported, its elections get new IDs. Voters whose
-`authorized-election-ids` name elections by the IDs they had in the exported event keep those
-elections.
+When an election event export is imported, its elections get new IDs, and so do external IDs shaped
+like an ID. Voters whose `authorized-election-ids` name elections by the values they had in the
+exported event keep those elections.
 
 ---
 
