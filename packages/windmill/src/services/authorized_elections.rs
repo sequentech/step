@@ -134,7 +134,9 @@ impl AuthorizedElectionIds {
 
     /// Also resolves the values an election event import replaced, given as a
     /// map from the exported value to the imported one, as the imported one.
-    /// The import replaces every value shaped like an ID, external IDs too.
+    /// The import replaces every value shaped like an ID, external IDs too. The
+    /// voters were exported with the event, so a replaced value names what its
+    /// replacement names even if an election here has it as external ID.
     pub fn with_replaced_ids(mut self, replaced_ids: &HashMap<String, String>) -> Self {
         let replaced: Vec<(String, Vec<String>)> = replaced_ids
             .iter()
@@ -144,9 +146,7 @@ impl AuthorizedElectionIds {
             })
             .collect();
         for (old_value, election_ids) in replaced {
-            self.elections_named
-                .entry(old_value)
-                .or_insert(election_ids);
+            self.elections_named.insert(old_value, election_ids);
         }
         self
     }
@@ -454,6 +454,21 @@ mod tests {
                 "{exported} must resolve as {imported}"
             );
         }
+    }
+
+    /// The voters were exported with the event, so a value names what it named
+    /// there.
+    #[test]
+    fn replaced_values_name_the_elections_they_named_in_the_exported_event() {
+        let exported_a = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a";
+        let replaced_ids = HashMap::from([(exported_a.to_string(), ELECTION_A.to_string())]);
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, None),
+            election(ELECTION_B, Some(exported_a)),
+        ])
+        .with_replaced_ids(&replaced_ids);
+
+        assert_eq!(elections.resolve(exported_a), Ok(ELECTION_A));
     }
 
     /// The token mapper resolves both to the election, and voters imported
