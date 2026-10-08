@@ -28,6 +28,10 @@ const QUOTE: char = '"';
 /// A spreadsheet takes a cell that starts with one of these for a formula.
 const FORMULA_PREFIXES: [char; 4] = ['=', '+', '-', '@'];
 
+/// Keycloak keeps attribute values in `user_attribute.value`, a 255-character
+/// column, which the voters import writes and the tally census reads.
+const MAX_ATTRIBUTE_VALUE_CHARS: usize = 255;
+
 /// Whether `value` reads back unchanged from a voters CSV cell, whose values
 /// are separated by `|` and trimmed, without a spreadsheet taking it for a
 /// formula or import for a quoted value.
@@ -37,6 +41,12 @@ fn fits_in_a_cell(value: &str) -> bool {
         && !value.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
         && !value.starts_with(QUOTE)
         && !value.starts_with(FORMULA_PREFIXES)
+}
+
+/// Whether `value` can be stored as an `authorized-election-ids` value and
+/// written to a voters CSV cell.
+fn can_be_stored(value: &str) -> bool {
+    value.chars().count() <= MAX_ATTRIBUTE_VALUE_CHARS && fits_in_a_cell(value)
 }
 
 /// How export writes a stored value that names no election, so that importing
@@ -75,8 +85,7 @@ impl fmt::Display for UnresolvedElection {
 
 /// Resolves `authorized-election-ids` values as the token mapper does, to the
 /// value stored for the election each one names: its external ID, unless
-/// another election shares it or it does not fit in a voters CSV cell, and
-/// otherwise its ID.
+/// another election shares it or it cannot be stored, and otherwise its ID.
 #[derive(Debug, Default)]
 pub struct AuthorizedElectionIds {
     /// The IDs of the elections each value names.
@@ -115,7 +124,7 @@ impl AuthorizedElectionIds {
                     .external_id
                     .iter()
                     .chain([&election.id])
-                    .find(|value| fits_in_a_cell(value) && names_alone(value.as_str(), election))
+                    .find(|value| can_be_stored(value) && names_alone(value.as_str(), election))
                     .cloned();
                 (election.id.clone(), value)
             })
@@ -294,6 +303,22 @@ mod tests {
             assert_eq!(elections.resolve(external_id), Ok(ELECTION_A));
             assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_A));
         }
+    }
+
+    /// The voters import writes each value to a Keycloak attribute, which
+    /// holds 255 characters, however many bytes they take.
+    #[test]
+    fn external_ids_longer_than_an_attribute_value_are_stored_by_id() {
+        let longest = "é".repeat(MAX_ATTRIBUTE_VALUE_CHARS);
+        let too_long = format!("{longest}1");
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some(&longest)),
+            election(ELECTION_B, Some(&too_long)),
+        ]);
+
+        assert_eq!(elections.stored_value(ELECTION_A), Some(longest.as_str()));
+        assert_eq!(elections.resolve(&too_long), Ok(ELECTION_B));
+        assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_B));
     }
 
     /// The token mapper resolves a shared external ID to none of them.
