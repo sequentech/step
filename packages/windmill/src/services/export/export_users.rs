@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas_by_id;
-use crate::services::authorized_elections::{unresolved_cell_value, AuthorizedElectionIds};
+use crate::services::authorized_elections::{quoted, AuthorizedElectionIds};
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::import::import_users::ELECTION_COL_PREFIX;
@@ -103,9 +103,12 @@ fn get_headers(
                 some_elections
                     .iter()
                     .map(|election| {
-                        let name = authorized_elections
-                            .stored_value(&election.id)
-                            .unwrap_or(&election.id);
+                        let name = match authorized_elections.stored_value(&election.id) {
+                            Some(stored_value) => stored_value.to_string(),
+                            // Its ID is another election's external ID, and
+                            // names that election.
+                            None => quoted(&election.id),
+                        };
                         format!("{ELECTION_COL_PREFIX}{name}")
                     })
                     .collect::<Vec<String>>()
@@ -130,7 +133,7 @@ fn get_authorized_election_ids(
             authorized_elections.and_then(|elections| elections.resolve(&value).ok());
         let value = match stored_value {
             Some(stored_value) => stored_value.to_string(),
-            None => unresolved_cell_value(&value),
+            None => quoted(&value),
         };
         if !values.contains(&value) {
             values.push(value);
@@ -499,6 +502,31 @@ mod tests {
                 "election__GIAMBI30-3-31".to_string(),
                 format!("election__{ELECTION_C}"),
                 format!("election__{ELECTION_D}"),
+            ]
+        );
+    }
+
+    /// Its ID is the other election's external ID, and names that election.
+    #[test]
+    fn the_column_of_an_election_with_no_stored_value_is_named_by_its_quoted_id() {
+        let headers = get_headers(
+            &Some(vec![
+                election(ELECTION_A, Some(ELECTION_B)),
+                election(ELECTION_B, None),
+            ]),
+            &vec![],
+        );
+        let election_headers = headers
+            .iter()
+            .filter(|header| is_election_column(header))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            election_headers,
+            vec![
+                format!("election__{ELECTION_B}"),
+                format!("election__\"{ELECTION_B}\""),
             ]
         );
     }
