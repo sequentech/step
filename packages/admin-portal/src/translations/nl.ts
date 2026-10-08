@@ -560,6 +560,7 @@ const dutchTranslation: TranslationType = {
                 recordRestricted:
                     "Beperkt: vraag het aan een beheerder die documenten mag downloaden.",
                 recordError: "Het zegelrecord kon niet worden gedownload. Probeer het opnieuw.",
+                recordMissing: "Het document van het zegelrecord ontbreekt: meld het als incident.",
                 beforeClose: "De stembus van elk gebied wordt verzegeld wanneer de stemming sluit.",
                 notStarted:
                     "De stemming is nog niet geopend. De stembus van elk gebied wordt verzegeld wanneer de stemming sluit.",
@@ -578,7 +579,7 @@ const dutchTranslation: TranslationType = {
                     channelOpen:
                         "{{channel}} is nog ingeschakeld en niet gesloten: stop dit kanaal om de stembus te verzegelen.",
                     channelNotEnabled:
-                        "{{channel}} is open maar niet ingeschakeld voor deze verkiezing: schakel het opnieuw in en stop het om de stembus te verzegelen.",
+                        "{{channel}} is niet gesloten en niet ingeschakeld voor deze verkiezing: stop het om de stembus te verzegelen.",
                     channelHasBallots:
                         "{{channel}} heeft stembiljetten in deze stembus en is niet gesloten: stop dit kanaal om de stembus te verzegelen.",
                     datafixVotes_one:
@@ -2807,9 +2808,11 @@ const dutchTranslation: TranslationType = {
                 sealHolding_other:
                     "Met Verzegelen bij sluiting worden de stembussen verzegeld zodra elk ingeschakeld kanaal is gesloten: {{channels}} zijn nog ingeschakeld en niet gesloten.",
                 sealNotEnabled:
-                    "{{channel}} is open maar niet ingeschakeld voor deze verkiezing: schakel het opnieuw in en stop het om de stembussen te verzegelen.",
+                    "{{channel}} is niet gesloten en niet ingeschakeld voor deze verkiezing: stop het om de stembussen te verzegelen.",
                 sealNotEnabledPost:
-                    "In {{post}} is {{channel}} open maar niet ingeschakeld: schakel het daar opnieuw in en stop het om de stembussen te verzegelen.",
+                    "In {{post}} is {{channel}} niet gesloten en niet ingeschakeld: stop het daar om de stembussen te verzegelen.",
+                sealNoChannel:
+                    "Er is geen kanaal ingeschakeld voor deze verkiezing en er is er geen geopend, dus de stembussen worden niet verzegeld.",
                 stopNeverOpened_one:
                     "{{channels}} is nooit geopend: door het te stoppen gaat het niet meer open.",
                 stopNeverOpened_other:
@@ -2834,6 +2837,10 @@ const dutchTranslation: TranslationType = {
                     "{{names}} houdt een ander kanaal ingeschakeld en niet gesloten: de stembussen worden verzegeld zodra dat kanaal is gesloten.",
                 holdingEventPart_other:
                     "{{names}} houden een ander kanaal ingeschakeld en niet gesloten: hun stembussen worden verzegeld zodra die kanalen zijn gesloten.",
+                noChannelEventPart_one:
+                    "{{names}} schakelt geen kanaal in en er is er daar geen geopend: de stembussen worden niet verzegeld.",
+                noChannelEventPart_other:
+                    "{{names}} schakelen geen kanaal in en er is er daar geen geopend: hun stembussen worden niet verzegeld.",
                 startSealNoteList:
                     "Met Verzegelen bij sluiting blijft een gesloten stemming gesloten: {{items}}.",
                 startKeptChannels_one: "{{post}}: {{channels}} blijft gesloten",

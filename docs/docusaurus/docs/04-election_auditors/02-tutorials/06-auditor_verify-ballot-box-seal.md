@@ -326,11 +326,14 @@ The record pairs each Ballot ID with how it counts, its weight and its channel.
 Compare it with what other sources already show.
 
 **What the electoral log already shows.** Each `CastVote` entry of the
-electoral log carries the voter's pseudonym: a hash of the voter's ID
-(`hash_voter_id`), the same for every ballot of that voter. Anyone who can read
-the log can therefore link a voter's ballots, see that the voter voted again,
-and, with a Ballot ID from a receipt, find that voter's other ballots. Revoting
-is visible there, with or without the seal record.
+electoral log carries the voter's pseudonym, the ballot's **channel** (Online,
+Kiosk, Early Voting or Telephone), and the voter's **IP address** and
+**country**. The pseudonym is an unsalted hash of the voter's ID
+(`hash_voter_id`), the same for every ballot of that voter, so anyone who knows
+a voter's ID can find that voter's entries. Anyone who can read the log can
+link a voter's ballots, see that the voter voted again, and, with a Ballot ID
+from a receipt, find that voter's other ballots. Revoting and channels are
+visible there, with or without the seal record.
 
 **What the ballot locator shows.** When the event's `show_cast_vote_logs`
 setting is **ShowLogsTab**, the voting portal's ballot locator lists every
@@ -341,12 +344,11 @@ to that election, for example during voting.
 
 - whether it was counted as **not eligible** (the census at the seal);
 - its **weight**, which in weighted or delegated voting may identify a voter;
-- its **channel** (Online, Kiosk, Early Voting or Telephone);
 - with the **Public** policy only: access **without signing in**, to anyone
   with the event's IDs, and **after the close**, for as long as the file is
   kept.
 
 **Restricted** (the default) keeps the record to the people who receive it from
 the organizers. Organizations that rely on revoting against coercion, or on the
-secrecy of weights or channels, should choose **Restricted** and decide whom to
+secrecy of eligibility or weights, should choose **Restricted** and decide whom to
 give the records to; the log and the locator setting need the same care.

@@ -560,6 +560,8 @@ const spanishTranslation: TranslationType = {
                 recordRestricted:
                     "Restringida: pídala a un administrador que pueda descargar documentos.",
                 recordError: "No se pudo descargar el acta de sellado. Inténtelo de nuevo.",
+                recordMissing:
+                    "Falta el documento del acta de sellado: notifíquelo como incidencia.",
                 beforeClose: "La urna de cada área se sella cuando se cierra la votación.",
                 notStarted:
                     "La votación aún no se ha abierto. La urna de cada área se sella cuando se cierra la votación.",
@@ -577,7 +579,7 @@ const spanishTranslation: TranslationType = {
                     channelOpen:
                         "El canal {{channel}} sigue habilitado y sin cerrar: deténgalo para sellar la urna.",
                     channelNotEnabled:
-                        "El canal {{channel}} está abierto pero no está habilitado en esta elección: vuelva a habilitarlo y deténgalo para sellar la urna.",
+                        "El canal {{channel}} no está cerrado ni habilitado en esta elección: deténgalo para sellar la urna.",
                     channelHasBallots:
                         "El canal {{channel}} tiene papeletas en esta urna y no está cerrado: deténgalo para sellar la urna.",
                     datafixVotes_one:
@@ -2802,9 +2804,11 @@ const spanishTranslation: TranslationType = {
                 sealHolding_other:
                     "Con Sellar al cierre, sus urnas se sellan cuando todos los canales habilitados están cerrados: los canales {{channels}} siguen habilitados y sin cerrar.",
                 sealNotEnabled:
-                    "El canal {{channel}} está abierto pero no está habilitado en esta elección: vuelva a habilitarlo y deténgalo para sellar las urnas.",
+                    "El canal {{channel}} no está cerrado ni habilitado en esta elección: deténgalo para sellar las urnas.",
                 sealNotEnabledPost:
-                    "En {{post}}, el canal {{channel}} está abierto pero no está habilitado: vuelva a habilitarlo en esa elección y deténgalo para sellar sus urnas.",
+                    "En {{post}}, el canal {{channel}} no está cerrado ni habilitado: deténgalo en esa elección para sellar sus urnas.",
+                sealNoChannel:
+                    "Ningún canal está habilitado en esta elección y ninguno ha estado abierto, así que sus urnas no se sellan.",
                 stopNeverOpened_one:
                     "El canal {{channels}} nunca se abrió: al detenerlo, ya no se abrirá.",
                 stopNeverOpened_other:
@@ -2829,6 +2833,10 @@ const spanishTranslation: TranslationType = {
                     "{{names}} mantiene otro canal habilitado y sin cerrar: sus urnas se sellan cuando ese canal se cierre.",
                 holdingEventPart_other:
                     "{{names}} mantienen otro canal habilitado y sin cerrar: sus urnas se sellan cuando esos canales se cierren.",
+                noChannelEventPart_one:
+                    "{{names}} no habilita ningún canal y ninguno ha estado abierto: sus urnas no se sellan.",
+                noChannelEventPart_other:
+                    "{{names}} no habilitan ningún canal y ninguno ha estado abierto: sus urnas no se sellan.",
                 startSealNoteList:
                     "Con Sellar al cierre, la votación cerrada sigue cerrada: {{items}}.",
                 startKeptChannels_one: "{{post}}: el canal {{channels}} sigue cerrado",

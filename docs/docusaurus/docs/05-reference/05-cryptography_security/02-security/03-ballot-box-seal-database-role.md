@@ -14,18 +14,23 @@ to keep the database and the electoral log consistent.
 
 ## What the database enforces
 
-Migrations `1791000001600_ballot_box_seal` and
-`1791000001700_ballot_box_seal_hardening` add these triggers. Each refusal uses
-SQLSTATE `42501`.
+Migrations `1791000001600_ballot_box_seal`,
+`1791000001700_ballot_box_seal_hardening`,
+`1791000001800_ballot_box_seal_record_policy` and
+`1791000001900_ballot_box_seal_record_guards` add these triggers. Each refusal
+uses SQLSTATE `42501`, except an unknown record policy value (`22023`).
 
 | Trigger | Table | Refuses |
 | --- | --- | --- |
 | `cast_vote_seal_guard` | `cast_vote` | Any insert, update or delete of a cast ballot whose ballot box (old or new election and area) has a seal that is not pending: `ballot_box_sealed`. For an event with Seal at close, it also refuses writes from a transaction that is not at READ COMMITTED: `ballot_box_seal_requires_read_committed`. A stricter isolation level could read a snapshot older than the seal. On events with Do not seal it takes no lock. |
 | `cast_vote_seal_guard_truncate` | `cast_vote` | A truncate once any box is sealed. |
-| `ballot_box_seal_permanence` | `ballot_box_seal` | Deleting a seal, and any change other than the allowed steps: pending to sealed or failed; sealed to published, each publication field set once; the sealer's last attempt while pending; the failure entry's posting time, once. |
+| `ballot_box_seal_permanence` | `ballot_box_seal` | Deleting a seal, and any change other than the allowed steps: pending to sealed or failed; sealed to published, each publication field set once, with a public path exactly when the event's effective Seal Record Publication policy is Public; the sealer's last attempt while pending; the failure entry's posting time, once. |
 | `ballot_box_seal_permanence_truncate` | `ballot_box_seal` | Any truncate. |
 | `guard_ballot_box_seal_policy_update` | `election_event` | Changing the seal policy once voting has opened. |
-| `guard_ballot_box_seal_event_settings` | `election_event` | For a Seal at close event, once voting has opened: changing the effective contest encryption, delegated voting or weighted voting policy (a missing or empty value counts as the default), or the event's bulletin board reference. |
+| `guard_ballot_box_seal_event_settings` | `election_event` | For a Seal at close event, once voting has opened: changing the effective contest encryption, delegated voting, weighted voting or Seal Record Publication policy (a missing or empty value counts as the default), or the event's bulletin board reference. |
+| `guard_ballot_box_seal_record_policy_value` | `election_event` | For a Seal at close event, on every insert or update: a `ballot_box_seal_record_policy` other than `restricted`, `public`, absent or JSON null (SQLSTATE `22023`). |
+| `ballot_box_seal_record_document_guard` | `document` | Updating or deleting the document of a published seal's record. |
+| `ballot_box_seal_record_document_truncate` | `document` | A truncate while any published seal has a record document. |
 | `guard_ballot_box_seal_closed_channels` | `election` | For a Seal at close event: changing the status of a Closed voting channel (`ballot_box_seal_closed_is_final`). |
 | `election_seal_guard` | `election` | Deleting an election that has seals, in any status. |
 

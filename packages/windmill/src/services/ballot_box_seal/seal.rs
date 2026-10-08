@@ -40,7 +40,6 @@ use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::CastVoteStatus;
-use crate::services::election_event_status::get_election_status;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -279,7 +278,7 @@ async fn seal_box_once(
     let ballots = read_box(&transaction, &seal).await?;
     // The ballots are evidence: none may come from a channel that isn't
     // closed, whatever the election enables.
-    let status = get_election_status(election.status.clone()).unwrap_or_default();
+    let status = election_status(election.status.clone()).context(SealErrorCategory::Settings)?;
     match open_ballot_channel(&ballots, &status) {
         Ok(None) => {}
         Ok(Some(channel)) => {
@@ -378,7 +377,7 @@ async fn seal_box_once(
 /// The first channel of the election that holds its seal (see
 /// [`super::deadline`]).
 fn open_channel(election: &Election) -> Result<Option<HoldingChannel>> {
-    let status = get_election_status(election.status.clone()).unwrap_or_default();
+    let status = election_status(election.status.clone())?;
     let channels: VotingChannels = election
         .voting_channels
         .clone()
@@ -387,6 +386,17 @@ fn open_channel(election: &Election) -> Result<Option<HoldingChannel>> {
         .context("Failed to deserialize the election's voting channels")?
         .unwrap_or_default();
     Ok(holding_channel(&status, &channels))
+}
+
+/// The election's voting status: unset is every channel NOT_STARTED, and a
+/// status that doesn't parse is an error (the seal retries, as for any other
+/// setting it can't read), never a guess (R10 S4).
+fn election_status(status: Option<serde_json::Value>) -> Result<ElectionStatus> {
+    Ok(status
+        .map(deserialize_value::<ElectionStatus>)
+        .transpose()
+        .context("Failed to deserialize the election's voting status")?
+        .unwrap_or_default())
 }
 
 /// `WaitingForVotes` (recorded on the row) while Datafix votes of the box
@@ -709,6 +719,19 @@ mod tests {
 
     fn at(minute: i64) -> Option<DateTime<Utc>> {
         DateTime::from_timestamp(1_800_000_000 + minute * 60, 0)
+    }
+
+    #[test]
+    fn an_election_status_that_does_not_parse_is_an_error_not_a_guess() {
+        assert_eq!(election_status(None).unwrap(), ElectionStatus::default());
+        let mut closed = ElectionStatus::default();
+        closed.set_status_by_channel(VotingStatusChannel::ONLINE, VotingStatus::CLOSED);
+        assert_eq!(
+            election_status(Some(serde_json::to_value(&closed).unwrap())).unwrap(),
+            closed
+        );
+        assert!(election_status(Some(serde_json::json!({"voting_status": "SHUT"}))).is_err());
+        assert!(election_status(Some(serde_json::json!("closed"))).is_err());
     }
 
     fn row(voter: Option<&str>, status: &str, seed: &str, minute: i64) -> BoxBallot {

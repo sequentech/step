@@ -318,8 +318,29 @@ export const StopWithAnOpenChannelThatIsNotEnabled: Story = {
     play: async ({canvasElement}) =>
         stopWithText(
             canvasElement,
-            "You are about to stop voting period. Kiosk is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes. Are you sure you want to continue?"
+            "You are about to stop voting period. Kiosk isn't closed and isn't enabled for this Post: stop it to seal the ballot boxes. Are you sure you want to continue?"
         ),
+}
+
+/** R10 B1: the Post's Stop offers a channel it doesn't enable that isn't closed; stopping it seals. */
+export const StopAChannelThePostDoesNotEnable: Story = {
+    args: {
+        sealAtClose: true,
+        publishType: EPublishType.Election,
+        electionName: "Madrid Post",
+        onlineModeEnabled: {is_channel_enabled: true, status: EVotingStatus.CLOSED},
+        kioskModeEnabled: {is_channel_enabled: false, status: EVotingStatus.OPEN},
+    },
+    play: async ({canvasElement, args}) => {
+        const dialog = await openChannelAction(canvasElement, "Stop Voting", "Stop Kiosk Voting")
+        await expect(
+            dialog.getByText(
+                "You are about to stop voting in Madrid Post. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?"
+            )
+        ).toBeVisible()
+        await confirm(dialog)
+        expect(args.onChangeStatus).toHaveBeenCalledWith("CLOSED", ["KIOSK"])
+    },
 }
 
 /** D1: a kiosk that never opened holds the seal; Stop closes it, and the dialog says it won't open. */

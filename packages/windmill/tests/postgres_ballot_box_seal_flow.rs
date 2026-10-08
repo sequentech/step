@@ -1405,12 +1405,13 @@ async fn a_ballot_of_a_channel_that_is_not_closed_holds_the_seal() {
     w.finish().await;
 }
 
-/// W6 B: a channel that took ballots and was then unchecked in the Post's
-/// enabled channels while open holds the seal; the close of the enabled
-/// channels makes no seal. Enabling it again and stopping it (the Stop
-/// Voting route's path) makes the seals, with its close as the close time.
+/// W6 B (R10 B1): a channel that took ballots and was then unchecked in the
+/// Post's enabled channels while open holds the seal; the close of the
+/// enabled channels makes no seal. A Post-level Stop of that channel, still
+/// not enabled (closing lets no ballot in), makes the seals, with its close
+/// as the close time.
 #[tokio::test]
-async fn a_channel_open_but_not_enabled_holds_the_seal_until_enabled_and_stopped() {
+async fn a_channel_disabled_while_open_holds_the_seal_until_a_post_stop_of_it() {
     let w = world(Options {
         kiosk: true,
         ..Default::default()
@@ -1431,17 +1432,7 @@ async fn a_channel_open_but_not_enabled_holds_the_seal_until_enabled_and_stopped
     .await;
     close_election(&w, election, Some(&w.user)).await;
     assert!(w.seals(election).await.is_empty(), "KIOSK holds the seal");
-    // Enabled again (an ordinary write, as the election's settings save it)
-    // and stopped.
-    let enabled = json!({"online": true, "kiosk": true, "early_voting": false});
-    w.client()
-        .await
-        .execute(
-            "UPDATE sequent_backend.election SET voting_channels = $2 WHERE id = $1",
-            &[&election, &enabled],
-        )
-        .await
-        .unwrap();
+    // The Post's Stop of KIOSK, still not enabled.
     change_election(
         &w,
         election,
@@ -1450,6 +1441,17 @@ async fn a_channel_open_but_not_enabled_holds_the_seal_until_enabled_and_stopped
     )
     .await
     .unwrap();
+    let configured: Value = w
+        .client()
+        .await
+        .query_one(
+            "SELECT voting_channels FROM sequent_backend.election WHERE id = $1",
+            &[&election],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(configured, unchecked, "KIOSK stays not enabled");
     let seals = w.seals(election).await;
     assert_eq!(seals.len(), 1);
     let kiosk_closed = w
@@ -1470,6 +1472,151 @@ async fn a_channel_open_but_not_enabled_holds_the_seal_until_enabled_and_stopped
             .await
             .unwrap(),
         SealOutcome::Sealed
+    );
+    w.finish().await;
+}
+
+/// R10 B1: the event enables ONLINE and KIOSK, a Post enables ONLINE only.
+/// With Seal at close, an event-wide manual Start opens KIOSK only where a
+/// Post enables it, so the Post's scheduled close of its channels seals its
+/// box: KIOSK never opened there.
+#[tokio::test]
+async fn an_event_start_opens_only_the_channels_a_post_enables() {
+    let w = world(Options {
+        elections: 2,
+        kiosk: true,
+        online_open: false,
+        ..Default::default()
+    })
+    .await;
+    let [online_only, both] = [w.elections[0], w.elections[1]];
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election SET voting_channels = $2 WHERE id = $1",
+        &[
+            &online_only,
+            &json!({"online": true, "kiosk": false, "early_voting": false}),
+        ],
+    )
+    .await;
+    // Nothing has started yet, at the event either.
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election_event SET status = $2 WHERE id = $1",
+        &[
+            &w.event,
+            &serde_json::to_value(ElectionEventStatus::default()).unwrap(),
+        ],
+    )
+    .await;
+    let mut client = w.client().await;
+    let tx = client.transaction().await.unwrap();
+    let (_, skipped) = update_event_voting_status(
+        &tx,
+        &w.tenant.to_string(),
+        Some(&w.user),
+        Some(ADMIN),
+        &w.event.to_string(),
+        &VotingStatus::OPEN,
+        &Some(vec![
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+        ]),
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    // Not a skipped Post: it opened the channel it offers.
+    assert!(skipped.is_empty(), "{skipped:?}");
+    let status = w.status(online_only).await;
+    assert_eq!(
+        status.status_by_channel(VotingStatusChannel::ONLINE),
+        VotingStatus::OPEN
+    );
+    assert_eq!(
+        status.status_by_channel(VotingStatusChannel::KIOSK),
+        VotingStatus::NOT_STARTED
+    );
+    assert!(status
+        .dates_by_channel(VotingStatusChannel::KIOSK)
+        .first_started_at
+        .is_none());
+    assert_eq!(
+        w.status(both)
+            .await
+            .status_by_channel(VotingStatusChannel::KIOSK),
+        VotingStatus::OPEN
+    );
+    cast_on(&w, online_only, w.areas[0], "voter-online", "ONLINE").await;
+    // The Post's scheduled close of the event's channels.
+    let tx = client.transaction().await.unwrap();
+    update_scheduled_event_voting_status_for(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+        &VotingStatus::CLOSED,
+        &Some(vec![
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+        ]),
+        &HashSet::new(),
+        Some(&HashSet::from([online_only.to_string()])),
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    let seals = w.seals(online_only).await;
+    assert_eq!(seals.len(), 1, "KIOSK never opened at the Post");
+    let environment = TestEnvironment::new(&[("voter-online", 1)]);
+    assert_eq!(
+        seal_box(&mut client, &environment, &seals[0].id)
+            .await
+            .unwrap(),
+        SealOutcome::Sealed
+    );
+    w.finish().await;
+}
+
+/// R10 B1: on a policy-off event, an event-wide manual Start still sets the
+/// channel on every Post, as before VOTE-FREEZE.
+#[tokio::test]
+async fn policy_off_an_event_start_still_opens_every_post() {
+    let w = world(Options {
+        policy: "do-not-seal",
+        kiosk: true,
+        online_open: false,
+        ..Default::default()
+    })
+    .await;
+    let election = w.election();
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election SET voting_channels = $2 WHERE id = $1",
+        &[
+            &election,
+            &json!({"online": true, "kiosk": false, "early_voting": false}),
+        ],
+    )
+    .await;
+    let mut client = w.client().await;
+    let tx = client.transaction().await.unwrap();
+    update_event_voting_status(
+        &tx,
+        &w.tenant.to_string(),
+        Some(&w.user),
+        Some(ADMIN),
+        &w.event.to_string(),
+        &VotingStatus::OPEN,
+        &Some(vec![VotingStatusChannel::KIOSK]),
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(
+        w.status(election)
+            .await
+            .status_by_channel(VotingStatusChannel::KIOSK),
+        VotingStatus::OPEN
     );
     w.finish().await;
 }

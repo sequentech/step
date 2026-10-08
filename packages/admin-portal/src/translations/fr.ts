@@ -561,6 +561,8 @@ const frenchTranslation: TranslationType = {
                     "Restreint : demandez-le à un administrateur autorisé à télécharger des documents.",
                 recordError:
                     "Le procès-verbal de scellement n'a pas pu être téléchargé. Réessayez.",
+                recordMissing:
+                    "Le document du procès-verbal de scellement est manquant : signalez-le comme incident.",
                 beforeClose: "L'urne de chaque zone est scellée à la clôture du vote.",
                 notStarted:
                     "Le vote n'a pas encore ouvert. L'urne de chaque zone est scellée à la clôture du vote.",
@@ -579,7 +581,7 @@ const frenchTranslation: TranslationType = {
                     channelOpen:
                         "{{channel}} est encore activé et non clôturé : arrêtez-le pour sceller l'urne.",
                     channelNotEnabled:
-                        "{{channel}} est ouvert mais n'est pas activé pour cette élection : réactivez-le puis arrêtez-le pour sceller l'urne.",
+                        "{{channel}} n'est pas clôturé et n'est pas activé pour cette élection : arrêtez-le pour sceller l'urne.",
                     channelHasBallots:
                         "{{channel}} a des bulletins dans cette urne et n'est pas clôturé : arrêtez-le pour sceller l'urne.",
                     datafixVotes_one:
@@ -2820,9 +2822,11 @@ const frenchTranslation: TranslationType = {
                 sealHolding_other:
                     "Avec Sceller à la clôture, ses urnes sont scellées une fois tous les canaux activés clôturés : {{channels}} sont encore activés et non clôturés.",
                 sealNotEnabled:
-                    "{{channel}} est ouvert mais n'est pas activé pour cette élection : réactivez-le puis arrêtez-le pour sceller les urnes.",
+                    "{{channel}} n'est pas clôturé et n'est pas activé pour cette élection : arrêtez-le pour sceller les urnes.",
                 sealNotEnabledPost:
-                    "Dans {{post}}, {{channel}} est ouvert mais n'est pas activé : réactivez-le pour cette élection puis arrêtez-le pour sceller ses urnes.",
+                    "Dans {{post}}, {{channel}} n'est pas clôturé et n'est pas activé : arrêtez-le pour cette élection afin de sceller ses urnes.",
+                sealNoChannel:
+                    "Aucun canal n'est activé pour cette élection et aucun n'a été ouvert : ses urnes ne sont donc pas scellées.",
                 stopNeverOpened_one:
                     "{{channels}} n'a jamais ouvert : l'arrêter signifie qu'il n'ouvrira pas.",
                 stopNeverOpened_other:
@@ -2847,6 +2851,10 @@ const frenchTranslation: TranslationType = {
                     "{{names}} garde un autre canal activé et non clôturé : ses urnes seront scellées une fois ce canal clôturé.",
                 holdingEventPart_other:
                     "{{names}} gardent un autre canal activé et non clôturé : leurs urnes seront scellées une fois ces canaux clôturés.",
+                noChannelEventPart_one:
+                    "{{names}} n'active aucun canal et aucun n'y a été ouvert : ses urnes ne sont pas scellées.",
+                noChannelEventPart_other:
+                    "{{names}} n'activent aucun canal et aucun n'y a été ouvert : leurs urnes ne sont pas scellées.",
                 startSealNoteList:
                     "Avec Sceller à la clôture, un vote clôturé reste clos : {{items}}.",
                 startKeptChannels_one: "{{post}} : {{channels}} reste clos",

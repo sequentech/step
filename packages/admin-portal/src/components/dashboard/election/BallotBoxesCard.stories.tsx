@@ -237,7 +237,7 @@ export const OverdueKioskStillOpen: Story = {
     },
 }
 
-/** W6: a channel the Post no longer enables is open: the card says to enable it again and stop it. */
+/** W6 / R10: a channel the Post doesn't enable isn't closed: the card says to stop it. */
 export const OverdueChannelNotEnabled: Story = {
     args: {scenario: EBallotBoxesScenario.OVERDUE_NOT_ENABLED},
     play: async ({canvasElement}) => {
@@ -245,7 +245,7 @@ export const OverdueChannelNotEnabled: Story = {
         await expect(spain.getByText("Sealing overdue")).toBeVisible()
         await expect(
             spain.getByText(
-                "Kiosk is open but not enabled for this Post: enable it again and stop it to seal the ballot box."
+                "Kiosk isn't closed and isn't enabled for this Post: stop it to seal the ballot box."
             )
         ).toBeVisible()
     },

@@ -16,8 +16,9 @@
 //!   included, also once ONLINE has started) holds the seal until it is
 //!   CLOSED. With the policy on, a never-started channel may be closed
 //!   directly (NOT_STARTED → CLOSED). A channel that isn't enabled is
-//!   stopped after enabling it again. Once an election has seals, opening
-//!   any of its channels is refused.
+//!   stopped at its election as it is (closing lets no ballot in), and an
+//!   event-wide Start opens a channel only where an election enables it.
+//!   Once an election has seals, opening any of its channels is refused.
 //! - **Close time:** the latest `last_stopped_at` of the counted channels
 //!   that ran (a `first_started_at`); a channel closed without ever
 //!   starting took no votes, so it doesn't move the close. When no counted
@@ -42,6 +43,7 @@ use sequent_core::ballot::{
     EGracePeriodPolicy, ElectionPresentation, ElectionStatus, VotingStatus, VotingStatusChannel,
 };
 use sequent_core::types::hasura::core::VotingChannels;
+use tracing::warn;
 
 /// Every voting channel an election can enable.
 const CHANNELS: [VotingStatusChannel; 4] = [
@@ -108,7 +110,7 @@ pub enum HoldingChannel {
     /// The election enables it: stopping it releases the seal.
     Enabled(VotingStatusChannel),
     /// The election doesn't enable it, but it is open or paused, or it ran:
-    /// enabling it again and stopping it releases the seal.
+    /// stopping it at the election, still not enabled, releases the seal.
     NotEnabled(VotingStatusChannel),
 }
 
@@ -152,7 +154,17 @@ pub fn seal_deadline(
     // Every counted channel is CLOSED here.
     for channel in counted_channels(status, channels) {
         let dates = status.dates_by_channel(channel);
-        let stopped = dates.last_stopped_at?;
+        let Some(stopped) = dates.last_stopped_at else {
+            // A CLOSED channel always gets a stop date from its status
+            // change; one without it was written past that path. Say so
+            // instead of guessing the close time.
+            warn!(
+                ?channel,
+                "A CLOSED channel that counts for the seal has no last_stopped_at: \
+                 the seal can't take its close time and waits"
+            );
+            return None;
+        };
         any = Some(any.map_or(stopped, |latest| latest.max(stopped)));
         if dates.first_started_at.is_some() {
             ran = Some(ran.map_or(stopped, |latest| latest.max(stopped)));

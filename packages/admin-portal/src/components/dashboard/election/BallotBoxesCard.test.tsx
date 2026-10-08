@@ -332,9 +332,10 @@ describe("a restricted seal record", () => {
         expect(mockFetchDocument).toHaveBeenCalledWith({
             variables: {electionEventId: "event", documentId: "record-document"},
         })
+        // The election and the area: two Posts sharing an area don't clash (N1).
         expect(mockDownloadUrl).toHaveBeenCalledWith(
             "https://private/signed",
-            "ballot-box-seal-area.json"
+            "ballot-box-seal-election-area.json"
         )
         expect(screen.queryByText("dashboard.ballotBoxes.recordError")).toBeNull()
     })
@@ -345,6 +346,22 @@ describe("a restricted seal record", () => {
         renderCard(at("2028-03-13T17:20:00Z"))
         fireEvent.click(screen.getByRole("button", {name: /dashboard.ballotBoxes.downloadRecord/}))
         expect(await screen.findByText("dashboard.ballotBoxes.recordError")).toBeTruthy()
+        expect(mockDownloadUrl).not.toHaveBeenCalled()
+    })
+
+    it("says the document is missing, without offering a retry, when it isn't found (S1)", async () => {
+        mockSeals = [restricted()]
+        mockFetchDocument.mockResolvedValue({
+            data: undefined,
+            error: {
+                message: "Document not found",
+                graphQLErrors: [{message: "Document not found", extensions: {}}],
+            },
+        })
+        renderCard(at("2028-03-13T17:20:00Z"))
+        fireEvent.click(screen.getByRole("button", {name: /dashboard.ballotBoxes.downloadRecord/}))
+        expect(await screen.findByText("dashboard.ballotBoxes.recordMissing")).toBeTruthy()
+        expect(screen.queryByText("dashboard.ballotBoxes.recordError")).toBeNull()
         expect(mockDownloadUrl).not.toHaveBeenCalled()
     })
 

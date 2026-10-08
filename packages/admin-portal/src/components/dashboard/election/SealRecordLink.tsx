@@ -14,6 +14,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
+import {hasGraphQLActionErrorCode} from "@/services/graphqlActionError"
 import type {FetchDocumentQuery, FetchDocumentQueryVariables} from "@/gql/graphql"
 import type {IBallotBoxSeal} from "@/types/ballotBoxSeal"
 
@@ -24,9 +25,20 @@ export interface SealRecordLinkProps {
     areaName: string
 }
 
-/** The file name a downloaded restricted seal record is saved as. */
+/** The file name a downloaded restricted seal record is saved as: its election and area. */
 export const sealRecordFileName = (seal: IBallotBoxSeal): string =>
-    `ballot-box-seal-${seal.area_id}.json`
+    `ballot-box-seal-${seal.election_id}-${seal.area_id}.json`
+
+/** What `fetchDocument` answers when the document row is gone. */
+const DOCUMENT_NOT_FOUND = "Document not found"
+
+/** Why a restricted record wasn't downloaded. */
+enum ERecordDownloadFailure {
+    /** The document is gone: retrying never helps, it is an incident. */
+    MISSING = "missing",
+    /** Anything else: it may work again. */
+    ERROR = "error",
+}
 
 /**
  * The seal record of a published ballot box (VOTE-FREEZE). A public record
@@ -44,7 +56,7 @@ export const SealRecordLink: React.FC<SealRecordLinkProps> = ({
     const {globalSettings} = useContext(SettingsContext)
     const auth = useContext(AuthContext)
     const [tenantId] = useTenantStore()
-    const [failed, setFailed] = useState(false)
+    const [failed, setFailed] = useState<ERecordDownloadFailure | null>(null)
     const [fetchDocument, {loading}] = useLazyQuery<
         FetchDocumentQuery,
         FetchDocumentQueryVariables
@@ -75,7 +87,7 @@ export const SealRecordLink: React.FC<SealRecordLinkProps> = ({
     }
 
     const download = async () => {
-        setFailed(false)
+        setFailed(null)
         try {
             const {data, error} = await fetchDocument({
                 variables: {electionEventId, documentId},
@@ -84,8 +96,14 @@ export const SealRecordLink: React.FC<SealRecordLinkProps> = ({
             if (error || !url) throw error ?? new Error("The seal record has no download URL")
             await downloadUrl(url, sealRecordFileName(seal))
         } catch (error) {
-            console.error("Downloading the seal record failed", error)
-            setFailed(true)
+            const missing = hasGraphQLActionErrorCode(error, DOCUMENT_NOT_FOUND)
+            console.error(
+                missing
+                    ? "The seal record's document is missing: a published seal's record must stay"
+                    : "Downloading the seal record failed",
+                error
+            )
+            setFailed(missing ? ERecordDownloadFailure.MISSING : ERecordDownloadFailure.ERROR)
         }
     }
 
@@ -104,7 +122,9 @@ export const SealRecordLink: React.FC<SealRecordLinkProps> = ({
             </Button>
             {failed ? (
                 <Typography variant="caption" color="error">
-                    {t("dashboard.ballotBoxes.recordError")}
+                    {failed === ERecordDownloadFailure.MISSING
+                        ? t("dashboard.ballotBoxes.recordMissing")
+                        : t("dashboard.ballotBoxes.recordError")}
                 </Typography>
             ) : null}
         </Box>

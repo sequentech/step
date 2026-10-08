@@ -442,6 +442,22 @@ async fn update_event_voting_status_impl(
                         });
                         continue;
                     }
+                    if manual_start_leaves_channel(
+                        ballot_box_seal::seal_policy(&election_event),
+                        &election_channels(election)?,
+                        channel,
+                        new_status,
+                    ) {
+                        info!(
+                            election_id = %election.id,
+                            ?channel,
+                            reason = NOT_ENABLED_REASON,
+                            "Not opening this channel at this Post: the Post doesn't enable it, \
+                             and with the Ballot Box Seal Policy set to Seal at close an \
+                             event-wide Start opens a channel only where a Post enables it"
+                        );
+                        continue;
+                    }
                     status.close_early_voting_if_online_status_change(channel, new_status.clone());
                     status.set_status_by_channel(channel, new_status.clone());
                 }
@@ -1025,6 +1041,45 @@ pub fn never_opened(status: &ElectionStatus, configured: &VotingChannels) -> boo
 /// opened: nothing to close, so it stays as it is.
 pub const NEVER_OPENED_REASON: &str = "never-opened-kept-open";
 
+/// The reason an event-wide manual Start logs for a channel it leaves alone
+/// at a seal-at-close Post that doesn't enable it.
+pub const NOT_ENABLED_REASON: &str = "channel-not-enabled-at-post";
+
+/// The channels a Post enables; none when it has no configuration.
+fn election_channels(
+    election: &sequent_core::types::hasura::core::Election,
+) -> Result<VotingChannels> {
+    Ok(election
+        .voting_channels
+        .clone()
+        .map(deserialize_value)
+        .transpose()
+        .with_context(|| {
+            format!(
+                "Failed to deserialize the voting channels of {}",
+                election.id
+            )
+        })?
+        .unwrap_or_default())
+}
+
+/// Whether an event-wide manual Start leaves `channel` of a Post that
+/// enables `configured` as it is: with Seal at close, a Start opens a
+/// channel only where the Post enables it, as a scheduled Start does, so a
+/// channel the Post doesn't offer never runs there and never holds its seal
+/// (VOTE-FREEZE, R10 B1). Policy-off events open it on every Post, as
+/// before.
+pub fn manual_start_leaves_channel(
+    seal_policy: BallotBoxSealPolicy,
+    configured: &VotingChannels,
+    channel: VotingStatusChannel,
+    new_status: &VotingStatus,
+) -> bool {
+    seal_policy == BallotBoxSealPolicy::SEAL_AT_CLOSE
+        && *new_status == VotingStatus::OPEN
+        && channel.channel_from(configured) != Some(true)
+}
+
 /// Locks the event row and its election rows (all, or one) for a voting
 /// status change, in a fixed order (event, then elections by id), with
 /// `FOR NO KEY UPDATE`: status writers serialize, while the foreign-key
@@ -1177,6 +1232,48 @@ mod scheduled_channel_tests {
             paper: None,
             early_voting: Some(early),
         }
+    }
+
+    #[test]
+    fn with_seal_at_close_a_manual_start_opens_only_the_channels_a_post_enables() {
+        let seal = BallotBoxSealPolicy::SEAL_AT_CLOSE;
+        let online_only = enabled(true, false, false);
+        let open = VotingStatus::OPEN;
+        assert!(!manual_start_leaves_channel(
+            seal,
+            &online_only,
+            VotingStatusChannel::ONLINE,
+            &open
+        ));
+        assert!(manual_start_leaves_channel(
+            seal,
+            &online_only,
+            VotingStatusChannel::KIOSK,
+            &open
+        ));
+        // Unset (None) is not enabled, as the cast check reads it.
+        assert!(manual_start_leaves_channel(
+            seal,
+            &VotingChannels::default(),
+            VotingStatusChannel::TELEPHONE,
+            &open
+        ));
+        // Closing and pausing still apply to every Post.
+        for status in [VotingStatus::CLOSED, VotingStatus::PAUSED] {
+            assert!(!manual_start_leaves_channel(
+                seal,
+                &online_only,
+                VotingStatusChannel::KIOSK,
+                &status
+            ));
+        }
+        // Policy off: as before VOTE-FREEZE.
+        assert!(!manual_start_leaves_channel(
+            BallotBoxSealPolicy::DO_NOT_SEAL,
+            &online_only,
+            VotingStatusChannel::KIOSK,
+            &open
+        ));
     }
 
     #[test]

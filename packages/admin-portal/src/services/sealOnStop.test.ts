@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     electionSealChannels,
+    eventNamedChannels,
     eventStartChannels,
     keptClosedChannels,
     neverOpened,
@@ -43,10 +44,10 @@ describe("stopSealOutcome mirrors seal_deadline's channel rule", () => {
     })
     it("seals when stopping every channel at once", () => {
         expect(
-            stopSealOutcome([
-                channel(Online, EVotingStatus.OPEN),
-                channel(Kiosk, EVotingStatus.PAUSED),
-            ]).seals
+            stopSealOutcome(
+                [channel(Online, EVotingStatus.OPEN), channel(Kiosk, EVotingStatus.PAUSED)],
+                [Online, Kiosk]
+            ).seals
         ).toBe(true)
     })
     it("a never-started enabled channel holds the seal, early voting included", () => {
@@ -245,5 +246,29 @@ describe("R9 small pass", () => {
             channel(name, EVotingStatus.NOT_STARTED, {enabled: false})
         )
         expect(eventStartChannels(none)).toEqual([Online, Kiosk, EarlyVoting, Telephone])
+    })
+})
+
+describe("R10: a Stop without channel names (N4)", () => {
+    it("assumes nothing closes, so it never promises a seal", () => {
+        // The server closes the event's enabled channels, which an election's
+        // channels don't tell.
+        expect(stopSealOutcome([channel(Online, EVotingStatus.OPEN)])).toEqual({
+            seals: false,
+            holding: [Online],
+            notEnabled: [],
+        })
+    })
+    it("names the event's enabled channels, else every channel (resolve_voting_channels)", () => {
+        const event = [
+            channel(Online, EVotingStatus.OPEN),
+            channel(Kiosk, EVotingStatus.NOT_STARTED, {enabled: false}),
+        ]
+        expect(eventNamedChannels(event, [Kiosk])).toEqual([Kiosk])
+        expect(eventNamedChannels(event)).toEqual([Online])
+        const none = [Online, Kiosk].map((name) =>
+            channel(name, EVotingStatus.NOT_STARTED, {enabled: false})
+        )
+        expect(eventNamedChannels(none)).toEqual([Online, Kiosk])
     })
 })

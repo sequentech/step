@@ -556,6 +556,7 @@ const englishTranslation = {
                 downloadRecord: "Download the seal record of {{area}}",
                 recordRestricted: "Restricted: ask an administrator who can download documents.",
                 recordError: "The seal record could not be downloaded. Try again.",
+                recordMissing: "The seal record document is missing: report it as an incident.",
                 beforeClose: "The ballot box of each area is sealed when voting closes.",
                 notStarted:
                     "Voting hasn't opened yet. The ballot box of each area is sealed when voting closes.",
@@ -573,7 +574,7 @@ const englishTranslation = {
                     channelOpen:
                         "{{channel}} is still enabled and not closed: stop it to seal the ballot box.",
                     channelNotEnabled:
-                        "{{channel}} is open but not enabled for this Post: enable it again and stop it to seal the ballot box.",
+                        "{{channel}} isn't closed and isn't enabled for this Post: stop it to seal the ballot box.",
                     channelHasBallots:
                         "{{channel}} has ballots in this ballot box and isn't closed: stop it to seal the ballot box.",
                     datafixVotes_one:
@@ -2773,9 +2774,11 @@ const englishTranslation = {
                 sealHolding_other:
                     "With Seal at close, its ballot boxes are sealed once every enabled channel is closed: {{channels}} are still enabled and not closed.",
                 sealNotEnabled:
-                    "{{channel}} is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes.",
+                    "{{channel}} isn't closed and isn't enabled for this Post: stop it to seal the ballot boxes.",
                 sealNotEnabledPost:
-                    "In {{post}}, {{channel}} is open but not enabled: enable it again for that Post and stop it to seal its ballot boxes.",
+                    "In {{post}}, {{channel}} isn't closed and isn't enabled: stop it at that Post to seal its ballot boxes.",
+                sealNoChannel:
+                    "No channel is enabled for this Post and none has run, so its ballot boxes aren't sealed.",
                 stopNeverOpened_one: "{{channels}} never opened: stopping it means it won't open.",
                 stopNeverOpened_other:
                     "{{channels}} never opened: stopping them means they won't open.",
@@ -2799,6 +2802,10 @@ const englishTranslation = {
                     "{{names}} keeps another channel enabled and not closed: its ballot boxes are sealed once that channel is closed.",
                 holdingEventPart_other:
                     "{{names}} keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed.",
+                noChannelEventPart_one:
+                    "{{names}} enables no channel and none has run there: its ballot boxes aren't sealed.",
+                noChannelEventPart_other:
+                    "{{names}} enable no channel and none has run there: their ballot boxes aren't sealed.",
                 startSealNoteList: "With Seal at close, closed voting stays closed: {{items}}.",
                 startKeptChannels_one: "{{post}}: {{channels}} stays closed",
                 startKeptChannels_other: "{{post}}: {{channels}} stay closed",

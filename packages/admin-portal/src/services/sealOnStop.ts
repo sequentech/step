@@ -20,7 +20,8 @@ export interface ISealProgress {
     holding: VotingStatusChannel[]
     /**
      * Channels the election doesn't enable that hold the seal: open, paused or
-     * ever started, and not CLOSED. They are stopped after enabling them again.
+     * ever started, and not CLOSED. They are stopped at the election as they
+     * are: closing lets no ballot in.
      */
     notEnabled: VotingStatusChannel[]
 }
@@ -60,17 +61,17 @@ export interface IStopSealOutcome {
 /**
  * What stopping `stopping` does to the seal of an election. The server
  * closes the named channels whether or not the Post enables them (an
- * event-wide Stop closes them on every Post); without names, a Post's Stop
- * closes its enabled channels.
+ * event-wide Stop closes them on every Post). Without names it closes the
+ * event's enabled channels (`resolve_voting_channels`), which an
+ * election's channels don't tell: name them with [`eventNamedChannels`];
+ * unnamed, nothing is assumed closed, so the text never promises a seal.
  */
 export const stopSealOutcome = (
     channels: ISealChannel[],
     stopping?: VotingStatusChannel[]
 ): IStopSealOutcome => {
     const after = channels.map((channel) =>
-        (stopping ? stopping.includes(channel.channel) : channel.enabled)
-            ? {...channel, status: EVotingStatus.CLOSED}
-            : channel
+        stopping?.includes(channel.channel) ? {...channel, status: EVotingStatus.CLOSED} : channel
     )
     const {finished, holding, notEnabled} = sealProgress(after)
     return {seals: finished, holding, notEnabled}
@@ -142,24 +143,38 @@ export const neverOpened = (channels: ISealChannel[]): boolean =>
     channels.filter((channel) => channel.enabled).every((channel) => !channel.firstStartedAt)
 
 /**
+ * The channels a status change applies to, as the server resolves them
+ * (`resolve_voting_channels`): the ones named, else the event's enabled
+ * channels, and every channel when the event enables none (`voting_channels`
+ * unset).
+ */
+export const eventNamedChannels = (
+    eventChannels: ISealChannel[],
+    named?: VotingStatusChannel[]
+): VotingStatusChannel[] =>
+    eventChannels
+        .filter((channel) =>
+            named
+                ? named.includes(channel.channel)
+                : channel.enabled || !eventChannels.some(({enabled}) => enabled)
+        )
+        .map(({channel}) => channel)
+
+/**
  * The channels an event-wide Start applies, as `election_event_status.rs`
- * does: the ones named (else the event's enabled channels), except those the
- * event already has open.
+ * does: [`eventNamedChannels`], except those the event already has open.
+ * With Seal at close, each Post opens only the ones it enables.
  */
 export const eventStartChannels = (
     eventChannels: ISealChannel[],
     starting?: VotingStatusChannel[]
-): VotingStatusChannel[] =>
-    eventChannels
-        // Named channels; else the event's enabled ones, and every channel
-        // when the event enables none (`voting_channels` unset).
-        .filter((channel) =>
-            starting
-                ? starting.includes(channel.channel)
-                : channel.enabled || !eventChannels.some(({enabled}) => enabled)
-        )
+): VotingStatusChannel[] => {
+    const named = eventNamedChannels(eventChannels, starting)
+    return eventChannels
+        .filter((channel) => named.includes(channel.channel))
         .filter((channel) => channel.status !== ("OPEN" as EVotingStatus))
         .map(({channel}) => channel)
+}
 
 /**
  * The channels of `applied` an event-wide Start leaves closed on this

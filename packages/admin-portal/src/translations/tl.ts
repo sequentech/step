@@ -564,6 +564,8 @@ const tagalogTranslation: TranslationType = {
                 recordRestricted:
                     "Limitado: hingin ito sa administrator na makakapag-download ng mga dokumento.",
                 recordError: "Hindi ma-download ang seal record. Subukang muli.",
+                recordMissing:
+                    "Nawawala ang dokumento ng seal record: i-report ito bilang insidente.",
                 beforeClose: "Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
                 notStarted:
                     "Hindi pa nagbubukas ang botohan. Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
@@ -582,7 +584,7 @@ const tagalogTranslation: TranslationType = {
                     channelOpen:
                         "Naka-enable pa at hindi sarado ang {{channel}}: ihinto ito para ma-seal ang ballot box.",
                     channelNotEnabled:
-                        "Bukas ang {{channel}} pero hindi ito naka-enable para sa Post na ito: i-enable itong muli at ihinto para ma-seal ang ballot box.",
+                        "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa Post na ito: ihinto ito para ma-seal ang ballot box.",
                     channelHasBallots:
                         "May mga balota ng {{channel}} sa ballot box na ito at hindi pa ito sarado: ihinto ito para ma-seal ang ballot box.",
                     datafixVotes_one:
@@ -2820,9 +2822,11 @@ const tagalogTranslation: TranslationType = {
                 sealHolding_other:
                     "Sa I-seal sa pagsasara, sine-seal ang mga ballot box nito kapag sarado na ang bawat naka-enable na channel: naka-enable pa at hindi sarado ang {{channels}}.",
                 sealNotEnabled:
-                    "Bukas ang {{channel}} pero hindi ito naka-enable para sa Post na ito: i-enable itong muli at ihinto para ma-seal ang mga ballot box.",
+                    "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa Post na ito: ihinto ito para ma-seal ang mga ballot box.",
                 sealNotEnabledPost:
-                    "Sa {{post}}, bukas ang {{channel}} pero hindi ito naka-enable: i-enable itong muli sa Post na iyon at ihinto para ma-seal ang mga ballot box nito.",
+                    "Sa {{post}}, hindi sarado ang {{channel}} at hindi ito naka-enable: ihinto ito sa Post na iyon para ma-seal ang mga ballot box nito.",
+                sealNoChannel:
+                    "Walang naka-enable na channel para sa Post na ito at walang nagbukas, kaya hindi sine-seal ang mga ballot box nito.",
                 stopNeverOpened_one:
                     "Hindi kailanman nabuksan ang {{channels}}: kapag inihinto ito, hindi na ito magbubukas.",
                 stopNeverOpened_other:
@@ -2847,6 +2851,10 @@ const tagalogTranslation: TranslationType = {
                     "May isa pang naka-enable at hindi saradong channel ang {{names}}: sine-seal ang mga ballot box nito kapag naisara ang channel na iyon.",
                 holdingEventPart_other:
                     "May isa pang naka-enable at hindi saradong channel ang {{names}}: sine-seal ang kanilang mga ballot box kapag naisara ang mga channel na iyon.",
+                noChannelEventPart_one:
+                    "Walang naka-enable na channel ang {{names}} at walang nagbukas doon: hindi sine-seal ang mga ballot box nito.",
+                noChannelEventPart_other:
+                    "Walang naka-enable na channel ang {{names}} at walang nagbukas doon: hindi sine-seal ang kanilang mga ballot box.",
                 startSealNoteList:
                     "Sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na: {{items}}.",
                 startKeptChannels_one: "{{post}}: nananatiling sarado ang {{channels}}",

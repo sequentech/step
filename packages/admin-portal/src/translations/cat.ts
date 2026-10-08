@@ -561,6 +561,8 @@ const catalanTranslation: TranslationType = {
                 recordRestricted:
                     "Restringida: demaneu-la a un administrador que pugui descarregar documents.",
                 recordError: "No s'ha pogut descarregar l'acta de segellat. Torneu-ho a provar.",
+                recordMissing:
+                    "Falta el document de l'acta de segellat: notifiqueu-ho com a incidència.",
                 beforeClose: "L'urna de cada àrea se segella quan es tanca la votació.",
                 notStarted:
                     "La votació encara no s'ha obert. L'urna de cada àrea se segella quan es tanca la votació.",
@@ -578,7 +580,7 @@ const catalanTranslation: TranslationType = {
                     channelOpen:
                         "{{channel}} continua habilitat i no s'ha tancat: atureu-lo per segellar l'urna.",
                     channelNotEnabled:
-                        "{{channel}} està obert però no està habilitat en aquesta elecció: torneu-lo a habilitar i atureu-lo per segellar l'urna.",
+                        "{{channel}} no està tancat ni habilitat en aquesta elecció: atureu-lo per segellar l'urna.",
                     channelHasBallots:
                         "{{channel}} té paperetes en aquesta urna i no s'ha tancat: atureu-lo per segellar l'urna.",
                     datafixVotes_one:
@@ -2814,9 +2816,11 @@ const catalanTranslation: TranslationType = {
                 sealHolding_other:
                     "Amb «Segellar en tancar», les seves urnes se segellen quan tots els canals habilitats estan tancats: {{channels}} continuen habilitats i no s'han tancat.",
                 sealNotEnabled:
-                    "{{channel}} està obert però no està habilitat en aquesta elecció: torneu-lo a habilitar i atureu-lo per segellar les urnes.",
+                    "{{channel}} no està tancat ni habilitat en aquesta elecció: atureu-lo per segellar les urnes.",
                 sealNotEnabledPost:
-                    "A {{post}}, {{channel}} està obert però no està habilitat: torneu-lo a habilitar en aquesta elecció i atureu-lo per segellar les seves urnes.",
+                    "A {{post}}, {{channel}} no està tancat ni habilitat: atureu-lo en aquesta elecció per segellar les seves urnes.",
+                sealNoChannel:
+                    "Cap canal no està habilitat en aquesta elecció i cap no ha estat obert, així que les seves urnes no se segellen.",
                 stopNeverOpened_one: "{{channels}} no s'ha obert mai: si l'atureu, ja no s'obrirà.",
                 stopNeverOpened_other:
                     "{{channels}} no s'han obert mai: si els atureu, ja no s'obriran.",
@@ -2840,6 +2844,10 @@ const catalanTranslation: TranslationType = {
                     "{{names}} manté un altre canal habilitat i sense tancar: les seves urnes se segellaran quan aquest canal es tanqui.",
                 holdingEventPart_other:
                     "{{names}} mantenen un altre canal habilitat i sense tancar: les seves urnes se segellaran quan aquests canals es tanquin.",
+                noChannelEventPart_one:
+                    "{{names}} no habilita cap canal i cap no hi ha estat obert: les seves urnes no se segellen.",
+                noChannelEventPart_other:
+                    "{{names}} no habiliten cap canal i cap no hi ha estat obert: les seves urnes no se segellen.",
                 startSealNoteList:
                     "Amb «Segellar en tancar», la votació tancada continua tancada: {{items}}.",
                 startKeptChannels_one: "{{post}}: {{channels}} continua tancat",

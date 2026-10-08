@@ -51,6 +51,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {intlLanguage} from "@/hooks/useZonedTime"
 import {
     electionSealChannels,
+    eventNamedChannels,
     type ISealChannel,
     type IStopSealOutcome,
     eventStartChannels,
@@ -388,11 +389,15 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
     /**
      * Why a Stop doesn't seal the ballot boxes yet: the enabled channels still
-     * open, and each channel the Post doesn't enable that is open or ran.
+     * open, and each channel the Post doesn't enable that isn't closed; or,
+     * when no channel counts (none enabled and none ran), that.
      */
     const sealHoldingText = (outcome: IStopSealOutcome): string =>
         [
-            outcome.holding.length || !outcome.notEnabled.length
+            !outcome.holding.length && !outcome.notEnabled.length
+                ? t("publish.dialog.sealNoChannel")
+                : "",
+            outcome.holding.length
                 ? t("publish.dialog.sealHolding", {
                       count: outcome.holding.length,
                       channels: channelNames(outcome.holding),
@@ -416,7 +421,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const stopSealText = (stopping?: VotingStatusChannel[]): string | null => {
         if (!sealsAtClose) return null
         if (publishType === EPublishType.Event && eventElections) {
-            return stopSealEventText(stopping)
+            // Unnamed, the server closes the event's enabled channels.
+            return stopSealEventText(eventNamedChannels(sealChannels(), stopping))
         }
         const outcome = stopSealOutcome(sealChannels(), stopping)
         const prefix = stopPrefix(stopping)
@@ -460,10 +466,11 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         const unopened = affected.filter(({outcome, unopened}) => outcome.seals && unopened)
         const sealing = affected.filter(({outcome, unopened}) => outcome.seals && !unopened)
         // Posts kept by an enabled channel; those kept only by channels they
-        // don't enable are named with those channels.
-        const holding = affected.filter(
-            ({outcome}) =>
-                !outcome.seals && (outcome.holding.length > 0 || !outcome.notEnabled.length)
+        // don't enable are named with those channels; and those where no
+        // channel counts (none enabled and none ran).
+        const holding = affected.filter(({outcome}) => !outcome.seals && outcome.holding.length > 0)
+        const noChannel = affected.filter(
+            ({outcome}) => !outcome.seals && !outcome.holding.length && !outcome.notEnabled.length
         )
         const notEnabled = affected.flatMap(({election, outcome}) =>
             outcome.seals
@@ -484,7 +491,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                   names: names(unopened),
               })} `
             : ""
-        if (!holding.length && !notEnabled.length) {
+        if (!holding.length && !notEnabled.length && !noChannel.length) {
             return `${unopenedPart}${
                 grace > 0
                     ? t("publish.dialog.stopSealEventGrace", {count: grace})
@@ -504,6 +511,12 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                   })
                 : "",
             ...notEnabled,
+            noChannel.length
+                ? t("publish.dialog.noChannelEventPart", {
+                      count: noChannel.length,
+                      names: names(noChannel),
+                  })
+                : "",
         ]
             .filter(Boolean)
             .join(" ")
@@ -748,14 +761,13 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     const isStopChannelDisabled = (info?: IChannelButtonInfo): boolean => {
         const channelEnabled = info?.is_channel_enabled ?? false
         const st = info?.status
-        // With Seal at close, a channel that never started can be closed at
-        // an election, so it no longer holds the seal (D1).
-        const closesUnopened = sealsAtClose && publishType === EPublishType.Election
-        return (
-            !channelEnabled ||
-            st === EVotingStatus.CLOSED ||
-            (st === EVotingStatus.NOT_STARTED && !closesUnopened)
-        )
+        // With Seal at close, an election's Stop closes any channel that
+        // isn't CLOSED, enabled or not and started or not, so none holds the
+        // seal: closing lets no ballot in (D1, R10 B1).
+        if (sealsAtClose && publishType === EPublishType.Election) {
+            return st === EVotingStatus.CLOSED
+        }
+        return !channelEnabled || st === EVotingStatus.CLOSED || st === EVotingStatus.NOT_STARTED
     }
 
     const initializationReportNotGenerated = (): boolean => {

@@ -560,6 +560,7 @@ const galegoTranslation: TranslationType = {
                 recordRestricted:
                     "Restrinxida: pídella a un administrador que poida descargar documentos.",
                 recordError: "Non se puido descargar a acta de selado. Téntao de novo.",
+                recordMissing: "Falta o documento da acta de selado: comuníqueo como incidencia.",
                 beforeClose: "A urna de cada área sélase cando se pecha a votación.",
                 notStarted:
                     "A votación aínda non se abriu. A urna de cada área sélase cando se pecha a votación.",
@@ -577,7 +578,7 @@ const galegoTranslation: TranslationType = {
                     channelOpen:
                         "A canle {{channel}} segue habilitada e sen pechar: deteñaa para selar a urna.",
                     channelNotEnabled:
-                        "A canle {{channel}} está aberta pero non está habilitada nesta elección: volva habilitala e deteñaa para selar a urna.",
+                        "A canle {{channel}} non está pechada nin habilitada nesta elección: deteñaa para selar a urna.",
                     channelHasBallots:
                         "A canle {{channel}} ten papeletas nesta urna e non está pechada: deteñaa para selar a urna.",
                     datafixVotes_one:
@@ -2809,9 +2810,11 @@ const galegoTranslation: TranslationType = {
                 sealHolding_other:
                     "Con Selar ao pechar, as súas urnas sélanse cando todas as canles habilitadas estean pechadas: as canles {{channels}} seguen habilitadas e sen pechar.",
                 sealNotEnabled:
-                    "A canle {{channel}} está aberta pero non está habilitada nesta elección: volva habilitala e deteñaa para selar as urnas.",
+                    "A canle {{channel}} non está pechada nin habilitada nesta elección: deteñaa para selar as urnas.",
                 sealNotEnabledPost:
-                    "En {{post}}, a canle {{channel}} está aberta pero non está habilitada: volva habilitala nesa elección e deteñaa para selar as súas urnas.",
+                    "En {{post}}, a canle {{channel}} non está pechada nin habilitada: deteñaa nesa elección para selar as súas urnas.",
+                sealNoChannel:
+                    "Ningunha canle está habilitada nesta elección e ningunha estivo aberta, así que as súas urnas non se selan.",
                 stopNeverOpened_one:
                     "A canle {{channels}} nunca se abriu: se a detés, xa non se abrirá.",
                 stopNeverOpened_other:
@@ -2836,6 +2839,10 @@ const galegoTranslation: TranslationType = {
                     "{{names}} mantén outra canle habilitada e sen pechar: as súas urnas sélanse cando esa canle estea pechada.",
                 holdingEventPart_other:
                     "{{names}} manteñen outra canle habilitada e sen pechar: as súas urnas sélanse cando esas canles estean pechadas.",
+                noChannelEventPart_one:
+                    "{{names}} non habilita ningunha canle e ningunha estivo aberta: as súas urnas non se selan.",
+                noChannelEventPart_other:
+                    "{{names}} non habilitan ningunha canle e ningunha estivo aberta: as súas urnas non se selan.",
                 startSealNoteList:
                     "Con Selar ao pechar, a votación pechada segue pechada: {{items}}.",
                 startKeptChannels_one: "{{post}}: a canle {{channels}} segue pechada",

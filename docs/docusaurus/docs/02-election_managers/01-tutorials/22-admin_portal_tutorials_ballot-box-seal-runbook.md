@@ -15,7 +15,7 @@ sealing works and what each status means, see
 | What you see | Section | Is the box locked? | Can it fix itself? |
 | --- | --- | --- | --- |
 | Card header: "*Channel* is enabled and not closed: stop it to seal the ballot boxes." | [A channel holds the seal](#a-channel-holds-the-seal) | No | No: stop the channel |
-| Card header: "*Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes." | [A channel holds the seal](#a-channel-holds-the-seal) | No | No: enable the channel again and stop it |
+| Card header: "*Channel* isn't closed and isn't enabled for this Post: stop it to seal the ballot boxes." | [A channel holds the seal](#a-channel-holds-the-seal) | No | No: stop the channel at the election |
 | **Sealing overdue**, with a reason | [An overdue seal](#an-overdue-seal) | No new casts | Depends on the reason |
 | **Sealed, publishing** for more than a few minutes | [A publication that does not finish](#a-publication-that-does-not-finish) | Yes | Yes, once the cause is fixed |
 | **Not sealed: incident**, and the event's incident banner | [A failed seal](#a-failed-seal) | Yes, permanently | No |
@@ -107,11 +107,13 @@ seal, because it could still open and take votes: the platform doesn't decide
 for you that it is over. This includes Early Voting after Online voting has
 started.
 
-A channel the election doesn't enable holds the seal too when it is Open or
-Paused, or when it ran: for example, Kiosk was unchecked in the election's
-channels while it was open, after it took ballots. The header then says
-"*Channel* is open but not enabled for this Post: enable it again and stop it
-to seal the ballot boxes."
+A channel the election doesn't enable holds the seal too when it isn't Closed
+and it is Open or Paused, or it ran: for example, Kiosk was unchecked in the
+election's channels while it was open, after it took ballots. The header then
+says "*Channel* isn't closed and isn't enabled for this Post: stop it to seal
+the ballot boxes." With Seal at close, an event-wide Start no longer opens a
+channel at an election that doesn't enable it, so this comes only from a
+change of the election's channels while it ran.
 
 **What to do.** Stop the channel that holds the seal on the election's
 **Publish** tab, or with a signed Close voting request. With Seal at close you
@@ -122,10 +124,13 @@ and another enabled channel of the election ran; it never closes a channel it
 doesn't name or the election doesn't enable. A scheduled close leaves an
 election that never opened as it is.
 
-For a channel the election doesn't enable, **Stop Voting** doesn't offer it.
-Check the channel in the election's settings again, save, and stop it on the
-**Publish** tab. An event-wide **Stop Voting** of that channel also closes it,
-on every election.
+For a channel the election doesn't enable, stop it on the election's
+**Publish** tab: with Seal at close, its **Stop Voting** menu offers every
+channel that isn't Closed, enabled or not. Leave the election's enabled
+channels as they are: closing lets no ballot in, while enabling the channel
+would open it to voters until you stop it. A scheduled close or a signed Close voting
+request doesn't close it, because they close only the channels the election
+enables.
 
 Once every channel that counts is Closed, the deadline starts and the box is
 sealed.
@@ -143,8 +148,8 @@ database guard.
 | Reason shown | Why | What to do |
 | --- | --- | --- |
 | *Channel* is still enabled and not closed: stop it to seal the ballot box. | A channel holds the seal. | See [A channel holds the seal](#a-channel-holds-the-seal). |
-| *Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot box. | A channel the election doesn't enable is open or paused, or ran, and isn't closed. | Enable it again and stop it: see [A channel holds the seal](#a-channel-holds-the-seal). |
-| *Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box. | The box holds ballots cast on that channel, and the channel isn't Closed. The sealer checks every ballot's channel before it seals. | Stop that channel (enable it again first if the election doesn't enable it). If it shows Closed, or never opened, its status was changed outside the Admin Portal: treat it as an incident. |
+| *Channel* isn't closed and isn't enabled for this Post: stop it to seal the ballot box. | A channel the election doesn't enable is open or paused, or ran, and isn't closed. | Stop it at the election, as it is: see [A channel holds the seal](#a-channel-holds-the-seal). |
+| *Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box. | The box holds ballots cast on that channel, and the channel isn't Closed. The sealer checks every ballot's channel before it seals. | Stop that channel at the election; the Stop Voting menu offers it whether or not the election enables it. A ballot stored without a channel (from before ballots recorded their channel) counts as Online, so the reason may name Online on an election that doesn't enable it: stop Online there. If the channel shows Closed, its status was changed outside the Admin Portal: treat it as an incident. |
 | *N* votes are in progress in Datafix: the ballot box is sealed once they are resolved. | See [Datafix votes in progress](#datafix-votes-in-progress). | Resolve the votes. |
 | The last attempt couldn't …; it is retried every minute. (one text per kind of error, below) | An error the sealer retries. | See [Errors the sealer retries](#errors-the-sealer-retries). The next attempt after the cause is fixed seals the box. |
 | Last tried at *time*: the sealer may not be running. Check Beat and the seal worker. | No attempt for more than 3 minutes. | Check that Beat and a worker on `short_queue` are running (see [What must run](#what-must-run-at-every-close)). |

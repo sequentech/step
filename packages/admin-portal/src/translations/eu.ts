@@ -561,6 +561,8 @@ const basqueTranslation: TranslationType = {
                 recordRestricted:
                     "Mugatua: eskatu dokumentuak deskarga ditzakeen administratzaile bati.",
                 recordError: "Ezin izan da zigiluaren erregistroa deskargatu. Saiatu berriro.",
+                recordMissing:
+                    "Zigiluaren erregistroaren dokumentua falta da: jakinarazi gorabehera gisa.",
                 beforeClose: "Eremu bakoitzeko hautestontzia bozketa ixtean zigilatzen da.",
                 notStarted:
                     "Bozketa ez da oraindik ireki. Eremu bakoitzeko hautestontzia bozketa ixtean zigilatzen da.",
@@ -578,7 +580,7 @@ const basqueTranslation: TranslationType = {
                     channelOpen:
                         "{{channel}} gaituta dago oraindik eta ez da itxi: gelditu ezazu hautestontzia zigilatzeko.",
                     channelNotEnabled:
-                        "{{channel}} irekita dago, baina ez dago gaituta hauteskunde honetan: gaitu ezazu berriro eta gelditu hautestontzia zigilatzeko.",
+                        "{{channel}} ez dago itxita, ezta gaituta ere hauteskunde honetan: gelditu ezazu hautestontzia zigilatzeko.",
                     channelHasBallots:
                         "{{channel}} kanalak botoak ditu hautestontzi honetan eta ez da itxi: gelditu ezazu hautestontzia zigilatzeko.",
                     datafixVotes_one:
@@ -2797,9 +2799,11 @@ const basqueTranslation: TranslationType = {
                 sealHolding_other:
                     "Zigilatu ixtean aukerarekin, bere hautestontziak gaitutako kanal guztiak itxitakoan zigilatzen dira: {{channels}} gaituta daude oraindik eta ez dira itxi.",
                 sealNotEnabled:
-                    "{{channel}} irekita dago, baina ez dago gaituta hauteskunde honetan: gaitu ezazu berriro eta gelditu hautestontziak zigilatzeko.",
+                    "{{channel}} ez dago itxita, ezta gaituta ere hauteskunde honetan: gelditu ezazu hautestontziak zigilatzeko.",
                 sealNotEnabledPost:
-                    "{{post}}: {{channel}} irekita dago, baina ez dago gaituta; gaitu ezazu berriro hauteskunde horretan eta gelditu bere hautestontziak zigilatzeko.",
+                    "{{post}}: {{channel}} ez dago itxita, ezta gaituta ere; gelditu ezazu hauteskunde horretan bere hautestontziak zigilatzeko.",
+                sealNoChannel:
+                    "Hauteskunde honetan ez dago kanalik gaituta eta bat ere ez da ireki; beraz, bere hautestontziak ez dira zigilatzen.",
                 stopNeverOpened_one:
                     "{{channels}} ez da inoiz ireki: gelditzen baduzu, ez da irekiko.",
                 stopNeverOpened_other:
@@ -2824,6 +2828,10 @@ const basqueTranslation: TranslationType = {
                     "{{names}}: beste kanal bat gaituta dago eta ez da itxi; bere hautestontziak kanal hori itxitakoan zigilatuko dira.",
                 holdingEventPart_other:
                     "{{names}}: beste kanal bat gaituta dute eta ez da itxi; haien hautestontziak kanal horiek itxitakoan zigilatuko dira.",
+                noChannelEventPart_one:
+                    "{{names}}: ez dago kanalik gaituta eta bat ere ez da ireki; bere hautestontziak ez dira zigilatzen.",
+                noChannelEventPart_other:
+                    "{{names}}: ez dute kanalik gaituta eta bat ere ez da ireki; haien hautestontziak ez dira zigilatzen.",
                 startSealNoteList:
                     "Zigilatu ixtean aukerarekin, itxitako bozketa itxita geratzen da: {{items}}.",
                 startKeptChannels_one: "{{post}}: {{channels}} itxita geratzen da",

@@ -280,7 +280,7 @@ impl World {
             &PublishedFields {
                 log_entry_id: 1,
                 public_document_id: Uuid::new_v4(),
-                public_path: Some("seal.json".into()),
+                public_path: None,
                 published_at: now,
             },
         )
