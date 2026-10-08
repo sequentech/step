@@ -6,7 +6,6 @@
 import React from 'react';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import {useDocsVersion} from '@docusaurus/plugin-content-docs/client';
 
 const labels = {
   en: 'Download this manual as PDF',
@@ -15,9 +14,8 @@ const labels = {
 
 // Links to the PDF that scripts/manual-pdf.mjs prints after the build.
 export default function ManualPdfLink() {
-  const {i18n} = useDocusaurusContext();
-  const {version} = useDocsVersion();
-  const name = version === 'current' ? 'next' : version;
+  const {i18n, siteConfig} = useDocusaurusContext();
+  const name = siteConfig.customFields.docsVersion;
   const locale = i18n.currentLocale;
   const href = useBaseUrl(`/pdf/sequent-admin-manual-${name}-${locale}.pdf`);
   return (

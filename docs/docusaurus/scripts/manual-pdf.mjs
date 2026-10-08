@@ -2,15 +2,16 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Print the election administrator manual to one PDF per version and locale.
+// Print the election administrator manual to one PDF per locale.
 //
 // Run after `yarn build`, with the same BASE_URL:
 //
 //   BASE_URL=/docusaurus/main yarn pdf
 //
-// The script serves ./build, opens the first page of each manual version,
-// follows the "Next" links (the sidebar order) and prints all pages as one
-// document with a cover and a table of contents. The files go to
+// The script serves ./build, opens the first page of the Election Managers
+// section, follows the "Next" links (the sidebar order) while they stay in
+// that section, and prints all pages as one document with a cover and a table
+// of contents. The files go to
 // build/[<locale>/]pdf/sequent-admin-manual-<version>-<locale>.pdf, where the
 // ManualPdfLink component links to them.
 
@@ -19,12 +20,17 @@ import http from 'node:http';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
 import puppeteer from 'puppeteer-core';
 
 const siteDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const buildDir = path.join(siteDir, 'build');
 const baseUrl = withSlashes(process.env.BASE_URL || '/step/');
 const publicOrigin = process.env.PUBLIC_ORIGIN || 'https://docs.sequentech.io';
+const {versionName} = createRequire(import.meta.url)('../docs-version.js');
+const version = versionName(process.env.BASE_URL);
+// The manual is the Election Managers section of the docs.
+const manualPath = 'docs/election_managers';
 const defaultLocale = 'en';
 const locales = ['en', 'es'];
 const titles = {
@@ -63,18 +69,6 @@ function chromePath() {
   const found = candidates.find((c) => fs.existsSync(c));
   if (!found) throw new Error('No Chrome found. Set CHROME_PATH.');
   return found;
-}
-
-// The versions of the manual instance, newest first. The last released
-// version is served without a version segment; the current docs as "next".
-function manualVersions() {
-  const released = JSON.parse(
-    fs.readFileSync(path.join(siteDir, 'manual_versions.json'), 'utf8'),
-  );
-  return [
-    ...released.map((name, i) => ({name, path: i === 0 ? '' : '/' + name})),
-    {name: 'next', path: '/next'},
-  ];
 }
 
 const mimeTypes = {
@@ -149,11 +143,11 @@ async function loadPage(page, url) {
 }
 
 // Visit the manual in sidebar order and keep each page's article.
-async function collect(page, startUrl) {
+async function collect(page, startUrl, sectionPath) {
   const pages = [];
   const seen = new Set();
   let url = startUrl;
-  while (url && !seen.has(url)) {
+  while (url && !seen.has(url) && new URL(url).pathname.startsWith(sectionPath)) {
     seen.add(url);
     await loadPage(page, url);
     const data = await page.evaluate(() => {
@@ -173,14 +167,14 @@ async function collect(page, startUrl) {
   return pages;
 }
 
-async function printManual(browser, origin, version, locale) {
+async function printManual(browser, origin, locale) {
   const localePrefix = locale === defaultLocale ? '' : `${locale}/`;
-  const startUrl = `${origin}${baseUrl}${localePrefix}manual${version.path}`;
+  const sectionPath = `${baseUrl}${localePrefix}${manualPath}`;
   const page = await browser.newPage();
   await page.emulateMediaFeatures([{name: 'prefers-color-scheme', value: 'light'}]);
-  const pages = await collect(page, startUrl);
+  const pages = await collect(page, `${origin}${sectionPath}/election_management`, sectionPath);
   const t = titles[locale] || titles[defaultLocale];
-  const label = version.name === 'next' ? 'Next' : version.name;
+  const label = version === 'main' ? 'Next' : version;
   let commit = '';
   try {
     commit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {cwd: siteDir})
@@ -268,7 +262,7 @@ async function printManual(browser, origin, version, locale) {
 
   const outDir = path.join(buildDir, localePrefix, 'pdf');
   fs.mkdirSync(outDir, {recursive: true});
-  const out = path.join(outDir, `sequent-admin-manual-${version.name}-${locale}.pdf`);
+  const out = path.join(outDir, `sequent-admin-manual-${version}-${locale}.pdf`);
   const small = 'font-size:8px;width:100%;padding:0 15mm;color:#555;font-family:sans-serif;';
   await page.pdf({
     path: out,
@@ -294,13 +288,11 @@ async function main() {
   try {
     for (const locale of locales) {
       const localeBuild = locale === defaultLocale ? buildDir : path.join(buildDir, locale);
-      if (!fs.existsSync(path.join(localeBuild, 'manual'))) {
+      if (!fs.existsSync(path.join(localeBuild, manualPath))) {
         console.warn(`Skip locale ${locale}: not built`);
         continue;
       }
-      for (const version of manualVersions()) {
-        await printManual(browser, origin, version, locale);
-      }
+      await printManual(browser, origin, locale);
     }
   } finally {
     await browser.close();

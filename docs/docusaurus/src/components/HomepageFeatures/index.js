@@ -31,7 +31,7 @@ const FeatureList = [
   {
     title: 'Election Managers',
     Svg: ElectionSvg,
-    link: '/manual/',
+    link: '/docs/election_managers/election_management',
     description: (
       <>
         Learn how election managers configure and launch elections, 

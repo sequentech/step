@@ -1,30 +1,30 @@
 {
   "version.label": {
-    "message": "Next",
+    "message": "Siguiente",
     "description": "The label for version current"
   },
   "sidebar.docs.category.System Introduction": {
-    "message": "System Introduction",
+    "message": "Introducción al sistema",
     "description": "The label for category 'System Introduction' in sidebar 'docs'"
   },
   "sidebar.docs.category.Voters": {
-    "message": "Voters",
+    "message": "Votantes",
     "description": "The label for category 'Voters' in sidebar 'docs'"
   },
   "sidebar.docs.category.voters-tutorials": {
-    "message": "Tutorials",
+    "message": "Tutoriales",
     "description": "The label for category 'Tutorials' in sidebar 'docs'"
   },
   "sidebar.docs.category.Election Auditors": {
-    "message": "Election Auditors",
+    "message": "Auditores electorales",
     "description": "The label for category 'Election Auditors' in sidebar 'docs'"
   },
   "sidebar.docs.category.Introduction": {
-    "message": "Introduction",
+    "message": "Introducción",
     "description": "The label for category 'Introduction' in sidebar 'docs'"
   },
   "sidebar.docs.category.auditors-tutorials": {
-    "message": "Tutorials",
+    "message": "Tutoriales",
     "description": "The label for category 'Tutorials' in sidebar 'docs'"
   },
   "sidebar.docs.category.reference": {
@@ -160,11 +160,63 @@
     "description": "The label for category 'Release 8.7' in sidebar 'docs'"
   },
   "sidebar.docs.category.Support": {
-    "message": "Support",
+    "message": "Soporte",
     "description": "The label for category 'Support' in sidebar 'docs'"
   },
   "sidebar.docs.category.Try it out": {
     "message": "Try it out",
     "description": "The label for category 'Try it out' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Election Managers": {
+    "message": "Gestores electorales",
+    "description": "The label for category 'Election Managers' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Procedures": {
+    "message": "Procedimientos",
+    "description": "The label for category 'Procedures' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.More procedures": {
+    "message": "Otros procedimientos",
+    "description": "The label for category 'More procedures' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Reference": {
+    "message": "Referencia",
+    "description": "The label for category 'Reference' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Election Event": {
+    "message": "Evento electoral",
+    "description": "The label for category 'Election Event' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Election": {
+    "message": "Elección",
+    "description": "The label for category 'Election' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Contest": {
+    "message": "Pregunta",
+    "description": "The label for category 'Contest' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Candidate": {
+    "message": "Candidato",
+    "description": "The label for category 'Candidate' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Tenant Configuration": {
+    "message": "Configuración del cliente",
+    "description": "The label for category 'Tenant Configuration' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.electoral-log": {
+    "message": "Registro electoral",
+    "description": "The label for category 'electoral-log' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.settings": {
+    "message": "Ajustes",
+    "description": "The label for category 'settings' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.templates": {
+    "message": "Plantillas",
+    "description": "The label for category 'templates' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Users and Roles": {
+    "message": "Usuarios y roles",
+    "description": "The label for category 'Users and Roles' in sidebar 'docs'"
   }
 }

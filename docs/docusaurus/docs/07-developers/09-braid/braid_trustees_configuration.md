@@ -149,4 +149,4 @@ The trustee startup script logs important events with timestamps. Monitor these 
 - Connection attempts to external services
 
 ## Related Documentation
-- [Admin Portal Trustees Settings](/manual/procedures/tenant)
+- [Admin Portal Trustees Settings](../../02-election_managers/02-procedures/01-tenant.md)
