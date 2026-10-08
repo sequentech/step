@@ -1,6 +1,7 @@
 ---
 id: settings_countries
 title: Countries
+description: "The Countries tab is in Settings. Its title is Country Blocking. It blocks access to the voting portal from the countries that you select. The tenant administrator uses it."
 ---
 
 <!--

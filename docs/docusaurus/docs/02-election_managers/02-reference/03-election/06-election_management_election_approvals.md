@@ -1,6 +1,7 @@
 ---
 id: election_management_election_approvals
 title: Approvals
+description: "The Approvals tab of an election shows the enrollment applications of voters. An election administrator reviews each application, and then approves or rejects it."
 ---
 
 <!--

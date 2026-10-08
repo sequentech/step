@@ -1,6 +1,7 @@
 ---
 title: Before You Start
 sidebar_position: 1
+description: "Read this page before you do a procedure. It gives the order of the work, the roles, the terms and the rules that keep the election secure."
 ---
 
 <!--

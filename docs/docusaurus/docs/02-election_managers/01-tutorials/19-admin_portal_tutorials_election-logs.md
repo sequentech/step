@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_election-logs
 title: Election Logs
+description: "The procedures Publish and Manage the Voting Period, Run the Tally Ceremony and Get the Results give the main path of an election."
 ---
 
 <!--

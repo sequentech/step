@@ -1,6 +1,7 @@
 ---
 title: Create the Election Event
 sidebar_position: 2
+description: "This procedure creates the election event and its content: the elections, the contests, the candidates, the areas and the voters. The election administrator does this procedure."
 ---
 
 <!--

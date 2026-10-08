@@ -1,6 +1,7 @@
 ---
 id: users-and-roles_users
 title: Users
+description: "The Users tab is in Users and Roles. It shows the accounts of the persons who use the admin portal: the administrators and the trustees. Use it to create, change, disable and delete these accounts."
 ---
 
 <!--

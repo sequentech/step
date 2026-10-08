@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_approvals
 title: Approvals
+description: "The Approvals tab shows the enrollment applications of the election event. A voter sends an application when they enroll through the voter enrollment page."
 ---
 
 <!--

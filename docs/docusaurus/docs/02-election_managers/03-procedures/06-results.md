@@ -1,6 +1,7 @@
 ---
 title: Get the Results
 sidebar_position: 6
+description: "This procedure shows the results of a tally, downloads the result documents and publishes the results on the results website. The election administrator does this procedure."
 ---
 
 <!--

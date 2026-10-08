@@ -1,6 +1,7 @@
 ---
 title: Run the Key Ceremony
 sidebar_position: 3
+description: "The key ceremony makes the keys of the election. The voting portal encrypts each ballot with the public key. The private key is in fragments: each trustee keeps one fragment."
 ---
 
 <!--

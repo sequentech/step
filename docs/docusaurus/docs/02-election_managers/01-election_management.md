@@ -2,6 +2,7 @@
 id: election_management
 title: Election Management
 sidebar_position: 0
+description: "This manual tells election administrators and trustees how to prepare, run and close an election with the Sequent Online Voting admin portal, the next version (in development)."
 ---
 
 <!--

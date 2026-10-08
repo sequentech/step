@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_key-ceremony
 title: Key Ceremony
+description: "The Key Ceremony is a vital security procedure that ensures the integrity and secrecy of an election."
 ---
 
 import GoogleVideo from '@site/src/components/GoogleVideo';

@@ -1,6 +1,7 @@
 ---
 id: users-and-roles_roles
 title: Roles
+description: "The Roles tab is in Users and Roles. Use it to see, create, change and delete the roles of the tenant. The tenant administrator uses it."
 ---
 
 <!--

@@ -1,6 +1,7 @@
 ---
 id: election_management_contest_tally_sheets
 title: Tally Sheets
+description: "A tally sheet holds the results of one ballot box that the platform did not count, for example paper ballots or postal ballots."
 ---
 
 <!--

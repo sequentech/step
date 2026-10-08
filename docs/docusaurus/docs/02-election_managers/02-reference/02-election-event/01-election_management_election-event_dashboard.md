@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_dashboard
 title: Dashboard
+description: "At the top of the Data Display section on the dashboard of an Election Event, there is a Step Crumb that indicates the status of the election event. These statuses are sequential and described below:"
 ---
 
 <!--

@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_import-elections
 title: Import/Export of Elections
+description: "The Sequent Admin Portal provides tools to export election data for backup or auditing and to import existing election configurations to quickly set up new events."
 ---
 
 import GoogleVideo from '@site/src/components/GoogleVideo';

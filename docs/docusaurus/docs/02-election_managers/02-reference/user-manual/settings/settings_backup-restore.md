@@ -1,6 +1,7 @@
 ---
 id: settings_backup-restore
 title: Backup & Restore
+description: "The Backup / Restore tab is in Settings. Its title is Backup / Restore Tenant config. Use it to make a backup file of the tenant configuration, and to restore a configuration from such a file."
 ---
 
 <!--

@@ -1,6 +1,7 @@
 ---
 id: settings_look-feel
 title: Look & Feel
+description: "The Look & Feel tab is in Settings. It sets the logo and the style of the admin portal for your tenant, and the links of the Help menu. The tenant administrator uses it."
 ---
 
 <!--

@@ -1,6 +1,7 @@
 ---
 id: settings_election-types-deprecated
 title: Election Types (Deprecated)
+description: "The ELECTION TYPES tab is in Settings. It is not in use. You do not have to set it."
 ---
 
 <!--

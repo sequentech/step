@@ -1,6 +1,7 @@
 ---
 title: Publish and Manage the Voting Period
 sidebar_position: 4
+description: "This procedure makes the ballot available in the voting portal, then opens, pauses and closes the voting period. The election administrator does this procedure."
 ---
 
 <!--

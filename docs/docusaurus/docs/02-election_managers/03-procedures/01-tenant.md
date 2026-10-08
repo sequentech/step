@@ -1,6 +1,7 @@
 ---
 title: Set Up the Tenant
 sidebar_position: 1
+description: "This procedure prepares the tenant for your election events. You set the tenant settings, you create the accounts of the administrators and trustees, and you make a backup of the configuration."
 ---
 
 <!--

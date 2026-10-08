@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_data
 title: Data
+description: "The Data tab is similar across multiple entities in the system (Election Events, Elections, Contests, and Candidates). In this tab, you can configure the main values of each entity."
 ---
 
 <!--

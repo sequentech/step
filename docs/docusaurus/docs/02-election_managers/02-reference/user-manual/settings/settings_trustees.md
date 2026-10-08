@@ -1,6 +1,7 @@
 ---
 id: settings_trustees
 title: Trustees
+description: "The TRUSTEES tab is in Settings. It shows the list of trustees of the tenant."
 ---
 
 <!--

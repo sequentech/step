@@ -2,6 +2,7 @@
 sidebar_position: 5
 id: results_website
 title: Results Website
+description: "The results website publishes a deliberately reduced, read-only view of a completed tally."
 ---
 
 <!--

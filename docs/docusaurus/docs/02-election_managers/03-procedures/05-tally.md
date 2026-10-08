@@ -1,6 +1,7 @@
 ---
 title: Run the Tally Ceremony
 sidebar_position: 5
+description: "The tally ceremony decrypts and counts the votes. The election administrator creates the tally. The trustees upload their key fragments."
 ---
 
 <!--

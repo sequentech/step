@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_system-navigation
 title: System Navigation
+description: "The system's user interface (UI) is divided into four main areas, each serving a specific function:"
 ---
 
 import GoogleVideo from '@site/src/components/GoogleVideo';

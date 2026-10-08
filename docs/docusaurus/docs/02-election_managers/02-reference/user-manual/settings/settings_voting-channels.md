@@ -1,6 +1,7 @@
 ---
 id: settings_voting-channels
 title: Voting Channels
+description: "The VOTING CHANELS tab is in Settings. It keeps a tenant-level record of the voting channels: online, kiosk and telephone. The tenant administrator uses it."
 ---
 
 <!--

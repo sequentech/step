@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_publish-election
 title: Publish Election
+description: "Every time an administrator modifies data at the electoral event, election, contest, or candidate level, those changes must be published to become visible in the Voter Portal."
 ---
 import GoogleVideo from '@site/src/components/GoogleVideo';
 

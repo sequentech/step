@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_create-election
 title: Create Election
+description: "This tutorial guides you through the process of creating a new election event, setting up specific elections, and adding contests and candidates within the Sequent Admin Portal."
 ---
 
 <!--

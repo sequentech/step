@@ -211,9 +211,17 @@ async function collect(page, origin, tree) {
       if (node.path && !seen.has(node.path)) {
         seen.add(node.path);
         await loadPage(page, origin + node.path);
-        const html = await page.evaluate(() => document.querySelector('article')?.innerHTML || '');
-        if (!html) throw new Error(`No article on ${node.path}`);
-        pages.push({path: node.path, html});
+        const {html, generated} = await page.evaluate(() => ({
+          html: document.querySelector('article')?.innerHTML || '',
+          generated: !!document.querySelector('[class*="generatedIndexPage"]'),
+        }));
+        if (generated) {
+          // A category overview of cards: print a heading page instead.
+          node.path = null;
+        } else {
+          if (!html) throw new Error(`No article on ${node.path}`);
+          pages.push({path: node.path, html});
+        }
       }
       await walk(node.children);
     }

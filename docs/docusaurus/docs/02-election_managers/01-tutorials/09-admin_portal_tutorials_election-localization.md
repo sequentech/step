@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_election-localization
 title: Election Localization
+description: "The Sequent platform allows administrators to overwrite or customize any text appearing in the Admin Portal or the Voter Portal."
 ---
 
 <!--

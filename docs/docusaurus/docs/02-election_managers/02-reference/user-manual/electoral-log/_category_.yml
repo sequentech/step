@@ -1,0 +1,7 @@
+label: 'Electoral Log'
+position: 4
+link:
+  type: generated-index
+  slug: /election_managers/reference/tenant/electoral-log
+  description: 'The Electoral Log page.'
+key: 'election_managers-electoral-log'

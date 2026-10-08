@@ -2,6 +2,7 @@
 id: voting_portal_custom_css
 title: Voting Portal CSS hooks
 sidebar_position: 9
+description: "Use the stable classes below in Data → Ballot Design → Custom CSS. Prefer a screen or component class over generated Emotion classes, translated text, element positions, or an assumed HTML tag."
 ---
 
 <!--

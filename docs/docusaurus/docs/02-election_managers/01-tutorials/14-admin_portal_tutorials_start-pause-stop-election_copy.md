@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_start-pause-stop-election
 title: Start/Pause/Stop Election
+description: "The main path is in Publish and Manage the Voting Period. This page gives the status model of the voting channels, the rules for each menu item and the edge cases."
 ---
 
 <!--

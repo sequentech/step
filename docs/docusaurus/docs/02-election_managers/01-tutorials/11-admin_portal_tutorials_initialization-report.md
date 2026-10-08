@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_initialization-report
 title: Initialization Report
+description: "The main path is in Publish and Manage the Voting Period. This page gives the details: when the report is necessary, what blocks it and how it unblocks the voting period."
 ---
 
 <!--

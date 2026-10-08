@@ -1,6 +1,7 @@
 ---
 id: settings_templates-deprecated
 title: Templates (Deprecated)
+description: "The TEMPLATES tab is in Settings. It is not in use. You do not have to set it."
 ---
 
 <!--

@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_monitoring
 title: Monitoring
+description: "The election event has no Monitoring tab in this version of the admin portal. Earlier versions had this tab. If a document or a colleague tells you to open it, use the tabs in the table below."
 ---
 
 <!--

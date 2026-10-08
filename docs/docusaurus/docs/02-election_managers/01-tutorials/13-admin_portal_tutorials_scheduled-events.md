@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_scheduled-events
 title: Scheduled Events
+description: "The main path to schedule the voting period is in Publish and Manage the Voting Period. This page gives all the types of scheduled events, their effect and the rules that apply when they run."
 ---
 
 <!--

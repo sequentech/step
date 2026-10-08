@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_election-results
 title: Election Results
+description: "The main path is in Get the Results. This page gives the details: the sections of the results page, all the export formats and levels, and the publication on the results website."
 ---
 
 <!--

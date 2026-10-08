@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_tally-ceremony
 title: Tally Ceremony
+description: "The main path is in Run the Tally Ceremony. This page gives the details: the statuses, the policies that block or permit a tally, the automatic tally, the resolution of ties, the recount and the…"
 ---
 
 <!--

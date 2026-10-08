@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_define-areas
 title: Define Areas
+description: "Areas allow you to organize an election into specific geographic or logical divisions, such as wards or districts. This structure enables you to assign specific contests to relevant groups of voters."
 ---
 
 <!--
