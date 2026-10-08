@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# 1.58.x drives Chromium build 1208, the one cached in the dev container (~/.cache/ms-playwright).
+playwright==1.58.0
