@@ -24,24 +24,20 @@ fn external_id(election: &ElectionHead) -> Option<&str> {
 /// single election. Import rejects them.
 const QUOTE: char = '"';
 
-/// A spreadsheet takes a cell that starts with one of these for a formula.
-const FORMULA_PREFIXES: [char; 4] = ['=', '+', '-', '@'];
-
 /// Keycloak keeps attribute values in `user_attribute.value`, a 255-character
 /// column, which the voters import writes and the tally census reads.
 const MAX_ATTRIBUTE_VALUE_CHARS: usize = 255;
 
 /// Whether `value` can be stored as an `authorized-election-ids` value: it fits
 /// in the attribute, and reads back unchanged from a voters CSV cell, whose
-/// values are separated by `|` and trimmed, without a spreadsheet taking it for
-/// a formula or import for a quoted value.
+/// values are separated by `|` and trimmed, without import taking it for a
+/// quoted value.
 fn can_be_stored(value: &str) -> bool {
     value.chars().count() <= MAX_ATTRIBUTE_VALUE_CHARS
         && !value.is_empty()
         && value.trim() == value
         && !value.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
         && !value.starts_with(QUOTE)
-        && !value.starts_with(FORMULA_PREFIXES)
 }
 
 /// `value` in double quotes, as export writes values that do not name a single
@@ -296,14 +292,13 @@ mod tests {
         );
     }
 
-    /// A spreadsheet would take them for formulas.
+    /// Export writes the cells a spreadsheet would run as formulas as text.
     #[test]
-    fn external_ids_starting_like_a_formula_are_stored_by_id() {
+    fn external_ids_starting_like_a_formula_are_stored_by_them() {
         for external_id in ["=1+1", "+34", "-1", "@SUM(A1)"] {
             let elections = AuthorizedElectionIds::new(&[election(ELECTION_A, Some(external_id))]);
 
-            assert_eq!(elections.resolve(external_id), Ok(ELECTION_A));
-            assert_eq!(elections.stored_value(ELECTION_A), Some(ELECTION_A));
+            assert_eq!(elections.resolve(ELECTION_A), Ok(external_id));
         }
     }
 
@@ -369,15 +364,15 @@ mod tests {
     /// Its external ID cannot be stored, and its ID names the other election.
     #[test]
     fn an_election_with_no_value_that_can_be_stored_is_not_resolved() {
-        let formula = format!("={EXTERNAL_ID}");
+        let two_values = format!("{EXTERNAL_ID}|{OTHER_EXTERNAL_ID}");
         let elections = AuthorizedElectionIds::new(&[
-            election(ELECTION_A, Some(&formula)),
+            election(ELECTION_A, Some(&two_values)),
             election(ELECTION_B, Some(ELECTION_A)),
         ]);
 
         assert_eq!(elections.stored_value(ELECTION_A), None);
         assert_eq!(
-            elections.resolve(&formula),
+            elections.resolve(&two_values),
             Err(UnresolvedElection::NoStorableValue)
         );
         assert_eq!(elections.stored_value(ELECTION_B), Some(ELECTION_A));
