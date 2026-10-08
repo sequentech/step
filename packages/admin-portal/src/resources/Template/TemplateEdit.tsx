@@ -36,6 +36,7 @@ import {useMutation} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {UPDATE_TEMPLATE} from "@/queries/UpdateTemplate"
+import {primaryTemplateMethod} from "@/services/templateMethods"
 import {TemplateFormContent} from "./TemplateFormContent"
 
 type TTemplateEdit = {
@@ -63,7 +64,9 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
                     set: {
                         alias: aliasValue,
                         annotations: data.annotations,
-                        communication_method: data.communication_method,
+                        communication_method:
+                            primaryTemplateMethod(data.template?.selected_methods) ??
+                            data.communication_method,
                         created_at: data.created_at,
                         created_by: data.created_by,
                         labels: data.labels,

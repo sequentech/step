@@ -41,6 +41,9 @@
                 </#if>
                 <p id="enrollment-reply-by" class="enrollment-reply-by">${msg("enrollment.replyBy", msg(replyByCombinedKey, enrollmentReplyBy.dateTime, replyByZoneName))}</p>
             </#if>
+            <#if noticeChannel??>
+                <p id="notice-channel">${msg("messageOtp.pending.channel", msg("messageChannel." + noticeChannel))}</p>
+            </#if>
             <p id="instruction1" class="instruction">
                 ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .
             </p>

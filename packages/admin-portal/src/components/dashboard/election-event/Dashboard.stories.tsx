@@ -100,7 +100,15 @@ const meta = {
                                 voters_by_channel: votersByChannel,
                                 votes_per_day: votesPerDay,
                             },
-                            election_event: [{statistics: {num_emails_sent: 12, num_sms_sent: 3}}],
+                            election_event: [
+                                {
+                                    statistics: {
+                                        num_emails_sent: 12,
+                                        num_sms_sent: 3,
+                                        num_whatsapp_sent: 40,
+                                    },
+                                },
+                            ],
                         },
                     }
                 },

@@ -247,6 +247,32 @@
 .sequent-auth .auth-resend:not(.Mui-disabled) {
     border-color: #0d796a;
 }
+.sequent-auth .auth-messenger {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 24px;
+    color: #173449;
+}
+.sequent-auth .auth-messenger a.MuiButton-contained {
+    color: #fff;
+    text-decoration: none;
+}
+.sequent-auth .auth-messenger-steps {
+    margin: 0;
+    padding-inline-start: 20px;
+    line-height: 1.7;
+}
+.sequent-auth .auth-messenger-qr {
+    align-items: center;
+    gap: 16px;
+}
+.sequent-auth .auth-other-way {
+    margin-top: 16px;
+}
+.sequent-auth .auth-other-way .auth-form {
+    margin-top: 8px;
+}
 .sequent-auth .auth-footer {
     display: flex;
     flex-direction: column;

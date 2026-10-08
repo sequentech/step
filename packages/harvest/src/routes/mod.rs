@@ -48,6 +48,7 @@ pub mod insert_tenant;
 pub mod keys_ceremony;
 pub mod limit_access_by_countries;
 pub mod manual_verification_pdf;
+pub mod messaging;
 pub mod miru_plugin;
 pub mod monitoring;
 pub mod monitoring_config;

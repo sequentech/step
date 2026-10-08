@@ -409,6 +409,84 @@ actions:
           - role: admin-user
           - role: approval-matrix-write
       comment: Save the enrollment approval matrix as a new version
+    - name: upsert_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/upsert
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: delete_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/delete
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: replace_messaging_account_credentials
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/credentials
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: check_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/check
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: test_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/test
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: update_event_messaging_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/event-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-write
     - name: delete_role
       definition:
           kind: synchronous
@@ -2809,4 +2887,9 @@ custom_types:
         - name: PreviewScheduledOutcomeChangeOutput
         - name: SaveLifecyclePoliciesOutput
         - name: GetLifecycleSnapshotsOutput
+        - name: MessagingAccountOutput
+        - name: ReplaceMessagingAccountCredentialsOutput
+        - name: CheckMessagingAccountOutput
+        - name: TestMessagingAccountOutput
+        - name: UpdateEventMessagingConfigOutput
     scalars: []

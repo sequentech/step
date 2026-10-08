@@ -30,7 +30,8 @@ const logRow = (
     id: number,
     kind: string,
     user: {id: string; name: string} | null,
-    head: {event_type: string; log_type: string; description: string}
+    head: {event_type: string; log_type: string; description: string},
+    body: Record<string, unknown> = {}
 ): StoryRecord<ElectoralLogRow> & {election_event_id: string} => ({
     id,
     election_event_id: EVENT_ID,
@@ -41,11 +42,18 @@ const logRow = (
     message: JSON.stringify({
         user_id: user?.id ?? null,
         username: user?.name ?? null,
-        statement: {head},
+        statement: {head, body},
     }),
 })
 
 const logs = [
+    logRow(
+        3,
+        "SendCommunications",
+        {id: STORY_IDS.secondUser, name: "bob"},
+        {event_type: "SEND_COMMUNICATIONS", log_type: "INFO", description: "Notification sent"},
+        {SendCommunications: {channel: "WHATSAPP", purpose: "NOTICE"}}
+    ),
     logRow(
         2,
         "CastVote",
@@ -191,6 +199,7 @@ export const Populated: Story = {
         expect(headers.filter((text) => text === "Statement kind")).toHaveLength(1)
         expect(headers).toContain("Event Type")
         expect(headers).toContain("Log Type")
+        expect(canvas.getByText("WhatsApp")).toBeVisible()
         expect(listed()).toEqual([
             "electoral_log",
             expect.objectContaining({

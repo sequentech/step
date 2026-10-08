@@ -76,6 +76,33 @@
         "attributes": {}
       },
       {
+        "id": "89f2e054-8f27-480a-80fc-b5ed6b0af2da",
+        "name": "messaging-account-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "3e155ea9-0f8a-48b5-b9a7-79d21607933f",
+        "name": "messaging-account-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "cec178ea-90e7-468c-b18b-d12a76a87851",
+        "name": "messaging-config-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "a8e41b93-2f6c-4d0a-8b57-3c9d1e7f5a24",
         "name": "monitoring-configure",
         "description": "",
@@ -2682,6 +2709,9 @@
         "monitoring-view",
         "monitoring-configure",
         "approval-matrix-write",
+        "messaging-account-read",
+        "messaging-account-write",
+        "messaging-config-write",
         "tally-write",
         "trustee-write",
         "notification-send",
@@ -2884,6 +2914,7 @@
         "default-roles-electoral-process",
         "admin-dashboard-view",
         "monitoring-view",
+        "messaging-account-read",
         "support-material-write",
         "tally-write",
         "user-write",

@@ -94,6 +94,16 @@
 /list-user-roles
 /locate-ballot
 /manage-election-dates
+/messages/link
+/messages/link/confirm
+/messages/link/status
+/messages/send
+/messaging/accounts/check
+/messaging/accounts/credentials
+/messaging/accounts/delete
+/messaging/accounts/test
+/messaging/accounts/upsert
+/messaging/event-config
 /miru/create-transmission-package
 /miru/send-transmission-package
 /miru/upload-signature

@@ -8,10 +8,41 @@ SPDX-License-Identifier: AGPL-3.0-only
     <#if section = "header">
         <h2 style="text-align:center;">${msg(i18nPrefix + ".auth.enterOtpTitle")}</h2>
     <#elseif section = "form">
+        <#assign viaMessenger = (channel!'') == 'MESSENGER'>
+        <#if viaMessenger>
+            <div id="kc-messenger-connect" class="${properties.kcFormGroupClass!}">
+                <#if messengerPage??><p>${msg("messageOtp.messenger.intro", messengerPage)}</p></#if>
+                <ol>
+                    <li>${msg("messageOtp.messenger.step1")}</li>
+                    <li>${msg("messageOtp.messenger.step2")}</li>
+                    <li>${msg("messageOtp.messenger.step3")}</li>
+                </ol>
+                <#if messengerLink??>
+                    <a id="kc-messenger-link" href="${messengerLink}" target="_blank" rel="noopener noreferrer"
+                        class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!}">${msg("messageOtp.messenger.connect")}</a>
+                </#if>
+                <#if messengerWord?? && messengerPage??>
+                    <p>${msg("messageOtp.messenger.word", messengerWord, messengerPage)}</p>
+                </#if>
+                <#if (messengerState!'') == 'CODE_SENT'>
+                    <p role="status">${msg("messageOtp.messenger.codeSent")}</p>
+                <#elseif (messengerState!'') == 'EXPIRED' || (messengerState!'') == 'REPLACED'>
+                    <p role="alert">${msg("messageOtp.messenger.expired")}</p>
+                <#elseif messengerState??>
+                    <p role="status">${msg("messageOtp.messenger.pending")}</p>
+                </#if>
+            </div>
+        </#if>
         <form id="kc-message-otp-form" class="${properties.kcFormClass!}" action="${url.loginAction}" method="post">
             <div class="${properties.kcFormGroupClass!} otp-sent-row">
                 <span class="otp-sent-label">
-                    ${msg(i18nPrefix + ".auth.sentToContact", contact)?no_esc}
+                    <#if viaMessenger>
+                        ${msg("messageOtp.messenger.title")}
+                    <#elseif channel??>
+                        ${msg("messageOtp.auth.sentTo", msg("messageChannel." + channel), contact)}
+                    <#else>
+                        ${msg(i18nPrefix + ".auth.sentToContact", contact)?no_esc}
+                    </#if>
                 </span>
                 <b class="otp-sent-value">${email!}${mobile!}</b>
                 <button type="submit" name="changeValue" value="true" class="change-link">
@@ -48,6 +79,13 @@ SPDX-License-Identifier: AGPL-3.0-only
                 </div>
             </div>
         </form>
+        <#if viaMessenger>
+            <form id="kc-messenger-check-form" class="${properties.kcFormClass!}" action="${url.loginAction}" method="post" style="text-align:center;">
+                <button type="submit" name="messengerStatus" value="true"
+                    class="${properties.kcButtonClass!} ${properties.kcButtonSecondaryClass!}">${msg("messageOtp.messenger.check")}</button>
+            </form>
+            <#include "messenger-status-poll.ftl">
+        </#if>
         <div class="${properties.kcFormGroupClass!} ${properties.kcFormSettingClass!} resend-row">
             <span class="resend-prefix">
                 ${msg(i18nPrefix + ".auth.resendTextPrefix.question")}
@@ -67,7 +105,13 @@ SPDX-License-Identifier: AGPL-3.0-only
             let resendButtonI18n = "${msg(i18nPrefix + ".auth.resend.button.link")}";
             let resendTimerTimeout = ${(resendTimer)};
             let codeJustSent = "${(codeJustSent?string('true', 'false'))}";
+            let sendFailed = "${((deliveryState!'') == 'FAILED')?string('true', 'false')}";
             <#noparse>
+            // A code that was not sent does not make the voter wait to ask again.
+            if (sendFailed === "true") {
+                localStorage.setItem('resendOtpEndTime', Date.now());
+                localStorage.setItem('resendOtpDisabled', false);
+            }
             function resendOtp(resendTimerTimeout) {
                 let form = document.getElementById('kc-message-otp-form');
                 localStorage.setItem('resendOtpEndTime', Date.now() + resendTimerTimeout * 1000);

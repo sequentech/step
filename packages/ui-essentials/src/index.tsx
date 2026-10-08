@@ -11,6 +11,16 @@ export {default as CustomDropFile} from "./components/CustomDropFile/CustomDropF
 export {default as DropFile} from "./components/DropFile/DropFile"
 export {default as Footer} from "./components/Footer/Footer"
 export {default as Icon} from "./components/Icon/Icon"
+export {
+    default as ChannelIcon,
+    ChannelLabel,
+    CHANNEL_ICON_NAMES,
+} from "./components/ChannelIcon/ChannelIcon"
+export type {
+    ChannelIconName,
+    ChannelIconProps,
+    ChannelLabelProps,
+} from "./components/ChannelIcon/ChannelIcon"
 export {default as DecorativeIconBox} from "./components/Icon/DecorativeIconBox"
 export {default as IconButton} from "./components/IconButton/IconButton"
 export {default as VisuallyHidden} from "./components/VisuallyHidden/VisuallyHidden"

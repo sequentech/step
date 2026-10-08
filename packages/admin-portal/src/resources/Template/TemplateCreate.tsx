@@ -6,10 +6,10 @@ import {CreateBase, SimpleForm, useNotify} from "react-admin"
 import {FieldValues, SubmitHandler, useForm} from "react-hook-form"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useMutation} from "@apollo/client"
-import {ITemplateMethod} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {INSERT_TEMPLATE} from "@/queries/InsertTemplate"
+import {primaryTemplateMethod} from "@/services/templateMethods"
 import {TemplateFormContent} from "./TemplateFormContent"
 
 type TTemplateCreate = {
@@ -23,7 +23,11 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const [createTemplate] = useMutation(INSERT_TEMPLATE)
 
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
-        data.communication_method = ITemplateMethod.EMAIL
+        const communicationMethod = primaryTemplateMethod(data.template?.selected_methods)
+        if (!communicationMethod) {
+            notify(t("messaging.templates.noMethod"), {type: "error"})
+            return
+        }
 
         let result
         try {
@@ -33,7 +37,7 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
                         alias: data.template.alias,
                         tenant_id: tenantId,
                         type: data.type,
-                        communication_method: data.communication_method,
+                        communication_method: communicationMethod,
                         template: {
                             ...data.template,
                         },
