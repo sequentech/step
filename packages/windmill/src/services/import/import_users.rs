@@ -176,6 +176,12 @@ pub(crate) fn imported_value<'a>(column: &str, cell: &'a str) -> &'a str {
     }
 }
 
+/// The names of a voters CSV's columns, without the `'` export puts before a
+/// name that a spreadsheet would run as a formula.
+pub(crate) fn column_names(headers: &StringRecord) -> StringRecord {
+    headers.iter().map(unescape_formula).collect()
+}
+
 fn sanitize_db_key(key: &String) -> String {
     key.replace(".", "_").replace("-", "_")
 }
@@ -698,7 +704,7 @@ pub async fn import_users_file(
         .from_reader(voters_file);
 
     let all_headers = match rdr.headers() {
-        Ok(headers) => headers.clone(),
+        Ok(headers) => column_names(headers),
         Err(err) => {
             return Err(Error::String(format!(
                 "Error reading CSV headers from voters file: {err}"
