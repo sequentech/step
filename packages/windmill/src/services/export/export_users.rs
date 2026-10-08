@@ -794,6 +794,8 @@ mod tests {
             attribute(SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME),
             attribute("Trustee"),
             attribute("trustee"),
+            attribute("Embassy"),
+            attribute("embassy"),
         ];
         let mut user = voter("current", &[EXTERNAL_ID]);
         user.attributes.get_or_insert_default().extend([
@@ -821,6 +823,8 @@ mod tests {
             ),
             ("Trustee".to_string(), vec!["custom".to_string()]),
             ("trustee".to_string(), vec!["trustee-1".to_string()]),
+            ("Embassy".to_string(), vec!["custom".to_string()]),
+            ("embassy".to_string(), vec!["embassy-1".to_string()]),
         ]);
 
         let rows = import(
@@ -835,12 +839,14 @@ mod tests {
             rows[0][SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME],
             "document"
         );
+        assert_eq!(rows[0]["trustee"], "trustee-1");
+        assert_eq!(rows[0]["embassy"], "embassy-1");
         assert!(!rows[0].contains_key("authorized_election_ids"));
         assert!(!rows[0].contains_key("Voted_Channel"));
         assert!(!rows[0].contains_key("delegate_vote_to"));
-        assert_eq!(rows[0]["trustee"], "trustee-1");
         assert!(!rows[0].contains_key("support_materials_acknowledged"));
         assert!(!rows[0].contains_key("Trustee"));
+        assert!(!rows[0].contains_key("Embassy"));
     }
 
     /// Kept as they are, they could name an election in the election event they
