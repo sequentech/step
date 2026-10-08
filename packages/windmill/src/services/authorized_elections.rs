@@ -20,9 +20,8 @@ fn external_id(election: &ElectionHead) -> Option<&str> {
         .filter(|external_id| !external_id.is_empty())
 }
 
-/// Starts the values export writes for stored values that name no election
-/// and that a voters CSV cell would not read back as they are. Import rejects
-/// them.
+/// Starts the values export writes for stored values that do not name a
+/// single election. Import rejects them.
 const QUOTE: char = '"';
 
 /// A spreadsheet takes a cell that starts with one of these for a formula.
@@ -32,32 +31,23 @@ const FORMULA_PREFIXES: [char; 4] = ['=', '+', '-', '@'];
 /// column, which the voters import writes and the tally census reads.
 const MAX_ATTRIBUTE_VALUE_CHARS: usize = 255;
 
-/// Whether `value` reads back unchanged from a voters CSV cell, whose values
-/// are separated by `|` and trimmed, without a spreadsheet taking it for a
-/// formula or import for a quoted value.
-fn fits_in_a_cell(value: &str) -> bool {
-    !value.is_empty()
+/// Whether `value` can be stored as an `authorized-election-ids` value: it fits
+/// in the attribute, and reads back unchanged from a voters CSV cell, whose
+/// values are separated by `|` and trimmed, without a spreadsheet taking it for
+/// a formula or import for a quoted value.
+fn can_be_stored(value: &str) -> bool {
+    value.chars().count() <= MAX_ATTRIBUTE_VALUE_CHARS
+        && !value.is_empty()
         && value.trim() == value
         && !value.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
         && !value.starts_with(QUOTE)
         && !value.starts_with(FORMULA_PREFIXES)
 }
 
-/// Whether `value` can be stored as an `authorized-election-ids` value and
-/// written to a voters CSV cell.
-fn can_be_stored(value: &str) -> bool {
-    value.chars().count() <= MAX_ATTRIBUTE_VALUE_CHARS && fits_in_a_cell(value)
-}
-
-/// How export writes a stored value that names no election, so that importing
-/// it fails: as it is, or in double quotes if a voters CSV cell would not read
-/// it back unchanged.
-pub(crate) fn unresolved_cell_value(value: String) -> String {
-    if fits_in_a_cell(&value) {
-        value
-    } else {
-        format!("{QUOTE}{}{QUOTE}", value.escape_debug())
-    }
+/// How export writes a stored value that does not name a single election, so
+/// that importing it into any election event fails: in double quotes.
+pub(crate) fn unresolved_cell_value(value: &str) -> String {
+    format!("{QUOTE}{}{QUOTE}", value.escape_debug())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -172,7 +162,7 @@ impl AuthorizedElectionIds {
 
     /// The value stored for the election that `reference`, read from a voters
     /// CSV cell, names. A reference that starts with a double quote names none,
-    /// as export quotes values that name no election.
+    /// as export quotes values that do not name a single election.
     pub fn resolve_imported(&self, reference: &str) -> Result<&str, UnresolvedElection> {
         if reference.starts_with(QUOTE) {
             return Err(UnresolvedElection::Quoted);
