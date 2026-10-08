@@ -1,4 +1,4 @@
- 
+/* eslint-disable */
 import { VotingStatusChannel } from '@sequentech/ui-core';
 import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
@@ -50,6 +50,7 @@ export type ApplicationChangeStatusOutput = {
   __typename?: 'ApplicationChangeStatusOutput';
   error?: Maybe<Scalars['String']['output']>;
   message?: Maybe<Scalars['String']['output']>;
+  signing_request?: Maybe<SigningRequestSummary>;
 };
 
 export type ApplicationVerifyBody = {
@@ -60,6 +61,11 @@ export type ApplicationVerifyBody = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   tenant_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type ApplyScheduleRecomputeOutput = {
+  __typename?: 'ApplyScheduleRecomputeOutput';
+  updated: Scalars['Int']['output'];
 };
 
 export type BallotPublicationStyles = {
@@ -124,13 +130,16 @@ export type CastVotesPerDay = {
 
 export type CheckPrivateKeyInput = {
   election_event_id: Scalars['String']['input'];
+  key_share_sha256?: InputMaybe<Scalars['String']['input']>;
   keys_ceremony_id: Scalars['String']['input'];
   private_key_base64: Scalars['String']['input'];
+  signing_request_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 export type CheckPrivateKeyOutput = {
   __typename?: 'CheckPrivateKeyOutput';
   is_valid: Scalars['Boolean']['output'];
+  signing_request?: Maybe<SigningRequestSummary>;
 };
 
 export type ConfigureResultsWebsitePolicyOutput = {
@@ -223,7 +232,8 @@ export type CreatePermissionInput = {
 
 export type CreateTallyOutput = {
   __typename?: 'CreateTallyOutput';
-  tally_session_id: Scalars['uuid']['output'];
+  signing_request?: Maybe<SigningRequestSummary>;
+  tally_session_id?: Maybe<Scalars['uuid']['output']>;
 };
 
 export type DataListElectoralLog = {
@@ -340,9 +350,13 @@ export type ElectionStatsOutput = {
 
 export type ElectoralLogFilter = {
   created?: InputMaybe<Scalars['String']['input']>;
+  created_from?: InputMaybe<Scalars['String']['input']>;
+  created_to?: InputMaybe<Scalars['String']['input']>;
   id?: InputMaybe<Scalars['String']['input']>;
   statement_kind?: InputMaybe<Scalars['String']['input']>;
   statement_timestamp?: InputMaybe<Scalars['String']['input']>;
+  statement_timestamp_from?: InputMaybe<Scalars['String']['input']>;
+  statement_timestamp_to?: InputMaybe<Scalars['String']['input']>;
   user_id?: InputMaybe<Scalars['String']['input']>;
   username?: InputMaybe<Scalars['String']['input']>;
 };
@@ -419,6 +433,11 @@ export type ExportOptions = {
   s3_files?: InputMaybe<Scalars['Boolean']['input']>;
   scheduled_events?: InputMaybe<Scalars['Boolean']['input']>;
   tally?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+export type ExportScheduleOutput = {
+  __typename?: 'ExportScheduleOutput';
+  document_id: Scalars['String']['output'];
 };
 
 export type ExportTallyResultsOutput = {
@@ -506,6 +525,11 @@ export type GetBallotPublicationChangesOutput = {
   previous?: Maybe<BallotPublicationStyles>;
 };
 
+export type GetLifecycleSnapshotsOutput = {
+  __typename?: 'GetLifecycleSnapshotsOutput';
+  snapshots: Scalars['jsonb']['output'];
+};
+
 export type GetManualVerificationInput = {
   election_event_id: Scalars['String']['input'];
   tenant_id: Scalars['String']['input'];
@@ -557,6 +581,12 @@ export type GetRolesOutput = {
   __typename?: 'GetRolesOutput';
   items: Array<KeycloakRole>;
   total: TotalAggregate;
+};
+
+export type GetScheduledOutcomesOutput = {
+  __typename?: 'GetScheduledOutcomesOutput';
+  outcomes: Scalars['jsonb']['output'];
+  retained_closes?: Maybe<Scalars['jsonb']['output']>;
 };
 
 export type GetSupportMaterialsAcknowledgmentOutput = {
@@ -636,6 +666,12 @@ export type ImportOptions = {
   include_tenant?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+export type ImportScheduleOutput = {
+  __typename?: 'ImportScheduleOutput';
+  created: Scalars['Int']['output'];
+  updated: Scalars['Int']['output'];
+};
+
 export type ImportTenantOutput = {
   __typename?: 'ImportTenantOutput';
   error?: Maybe<Scalars['String']['output']>;
@@ -696,6 +732,18 @@ export type Int_Comparison_Exp = {
   _lte?: InputMaybe<Scalars['Int']['input']>;
   _neq?: InputMaybe<Scalars['Int']['input']>;
   _nin?: InputMaybe<Array<Scalars['Int']['input']>>;
+};
+
+export type KeyShareSignatureStatusInput = {
+  election_event_id: Scalars['String']['input'];
+  keys_ceremony_id?: InputMaybe<Scalars['String']['input']>;
+  tally_session_id?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type KeyShareSignatureStatusOutput = {
+  __typename?: 'KeyShareSignatureStatusOutput';
+  signature_needed: Scalars['Boolean']['output'];
+  signed: Scalars['Boolean']['output'];
 };
 
 export type KeycloakPermission = {
@@ -820,6 +868,216 @@ export type LogEventOutput = {
 export type ManageElectionDatesOutput = {
   __typename?: 'ManageElectionDatesOutput';
   error_msg?: Maybe<Scalars['String']['output']>;
+  scheduled_date?: Maybe<Scalars['String']['output']>;
+  warnings?: Maybe<Array<ScheduleWarning>>;
+};
+
+export type MonitoringAuthor = {
+  __typename?: 'MonitoringAuthor';
+  id: Scalars['String']['output'];
+  name?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringDashboardSummary = {
+  __typename?: 'MonitoringDashboardSummary';
+  id: Scalars['String']['output'];
+  requirements: Array<Scalars['String']['output']>;
+  section?: Maybe<Scalars['String']['output']>;
+  title: Scalars['String']['output'];
+  widget_count: Scalars['Int']['output'];
+};
+
+export type MonitoringDocumentRef = {
+  __typename?: 'MonitoringDocumentRef';
+  id: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+};
+
+export type MonitoringDocumentSummary = {
+  __typename?: 'MonitoringDocumentSummary';
+  author: MonitoringAuthor;
+  created_at: Scalars['String']['output'];
+  key: Scalars['String']['output'];
+  kind: Scalars['String']['output'];
+  origin: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  sha256?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringExportOutput = {
+  __typename?: 'MonitoringExportOutput';
+  document_id: Scalars['String']['output'];
+  task_execution?: Maybe<Tasks_Execution_Type>;
+};
+
+export type MonitoringGenerationOutput = {
+  __typename?: 'MonitoringGenerationOutput';
+  generation: Scalars['Int']['output'];
+  warnings?: Maybe<Array<MonitoringProblem>>;
+};
+
+export type MonitoringGetConfigOutput = {
+  __typename?: 'MonitoringGetConfigOutput';
+  author: MonitoringAuthor;
+  change: Scalars['String']['output'];
+  created_at: Scalars['String']['output'];
+  history: Array<MonitoringHistoryEntry>;
+  key: Scalars['String']['output'];
+  kind: Scalars['String']['output'];
+  origin: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  yaml?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringGetDashboardOutput = {
+  __typename?: 'MonitoringGetDashboardOutput';
+  catalog: Scalars['jsonb']['output'];
+  dashboard: Scalars['jsonb']['output'];
+  dashboard_revision: Scalars['Int']['output'];
+  event_days: Array<Scalars['String']['output']>;
+  pinned_post?: Maybe<Scalars['String']['output']>;
+  refresh_seconds?: Maybe<Scalars['Int']['output']>;
+  restricted: Scalars['Boolean']['output'];
+  scope_options: MonitoringScopeOptions;
+  settings: Scalars['jsonb']['output'];
+  settings_revision: Scalars['Int']['output'];
+  snapshot?: Maybe<MonitoringSnapshot>;
+  sources: Scalars['jsonb']['output'];
+  theme?: Maybe<MonitoringDocumentRef>;
+  time_zone: Scalars['String']['output'];
+  widgets: Scalars['jsonb']['output'];
+};
+
+export type MonitoringHistoryEntry = {
+  __typename?: 'MonitoringHistoryEntry';
+  author: MonitoringAuthor;
+  change: Scalars['String']['output'];
+  created_at: Scalars['String']['output'];
+  generation: Scalars['Int']['output'];
+  origin: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  sha256?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringListConfigOutput = {
+  __typename?: 'MonitoringListConfigOutput';
+  documents: Array<MonitoringDocumentSummary>;
+  generation: Scalars['Int']['output'];
+  mode: Scalars['String']['output'];
+  preset?: Maybe<MonitoringPresetRef>;
+};
+
+export type MonitoringListDashboardsOutput = {
+  __typename?: 'MonitoringListDashboardsOutput';
+  dashboards: Array<MonitoringDashboardSummary>;
+  mode: Scalars['String']['output'];
+  preset?: Maybe<MonitoringPresetName>;
+  refresh_seconds?: Maybe<Scalars['Int']['output']>;
+  snapshot?: Maybe<MonitoringSnapshot>;
+};
+
+export type MonitoringListPresetsOutput = {
+  __typename?: 'MonitoringListPresetsOutput';
+  presets: Array<MonitoringPreset>;
+};
+
+export type MonitoringPostOption = {
+  __typename?: 'MonitoringPostOption';
+  key: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+  region?: Maybe<Scalars['String']['output']>;
+};
+
+export type MonitoringPreset = {
+  __typename?: 'MonitoringPreset';
+  description?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
+  title: Scalars['String']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type MonitoringPresetName = {
+  __typename?: 'MonitoringPresetName';
+  id: Scalars['String']['output'];
+  title: Scalars['String']['output'];
+};
+
+export type MonitoringPresetRef = {
+  __typename?: 'MonitoringPresetRef';
+  id: Scalars['String']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export type MonitoringProblem = {
+  __typename?: 'MonitoringProblem';
+  code: Scalars['String']['output'];
+  engine_code?: Maybe<Scalars['String']['output']>;
+  message: Scalars['String']['output'];
+  path: Scalars['String']['output'];
+  severity: Scalars['String']['output'];
+};
+
+export type MonitoringQueryTable = {
+  __typename?: 'MonitoringQueryTable';
+  query: Scalars['String']['output'];
+  table: Scalars['jsonb']['output'];
+};
+
+export type MonitoringRenderWidgetOutput = {
+  __typename?: 'MonitoringRenderWidgetOutput';
+  as_of?: Maybe<Scalars['String']['output']>;
+  diagnostics: Array<MonitoringProblem>;
+  ignored_selectors: Array<Scalars['String']['output']>;
+  notices: Array<Scalars['String']['output']>;
+  reason?: Maybe<Scalars['String']['output']>;
+  render_ms?: Maybe<Scalars['Int']['output']>;
+  snapshot_revision?: Maybe<Scalars['Int']['output']>;
+  state: Scalars['String']['output'];
+  svg?: Maybe<Scalars['String']['output']>;
+  table?: Maybe<Scalars['jsonb']['output']>;
+  tables?: Maybe<Array<MonitoringQueryTable>>;
+};
+
+export type MonitoringSaveConfigOutput = {
+  __typename?: 'MonitoringSaveConfigOutput';
+  author?: Maybe<MonitoringAuthor>;
+  created_at?: Maybe<Scalars['String']['output']>;
+  generation: Scalars['Int']['output'];
+  revision: Scalars['Int']['output'];
+  warnings: Array<MonitoringProblem>;
+};
+
+export type MonitoringScopeOption = {
+  __typename?: 'MonitoringScopeOption';
+  key: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+};
+
+export type MonitoringScopeOptions = {
+  __typename?: 'MonitoringScopeOptions';
+  countries: Array<MonitoringScopeOption>;
+  posts: Array<MonitoringPostOption>;
+  regions: Array<MonitoringScopeOption>;
+};
+
+export type MonitoringSetModeOutput = {
+  __typename?: 'MonitoringSetModeOutput';
+  generation: Scalars['Int']['output'];
+  mode: Scalars['String']['output'];
+};
+
+export type MonitoringSnapshot = {
+  __typename?: 'MonitoringSnapshot';
+  as_of: Scalars['String']['output'];
+  checked_at?: Maybe<Scalars['String']['output']>;
+  revision: Scalars['Int']['output'];
+};
+
+export type MonitoringValidateConfigOutput = {
+  __typename?: 'MonitoringValidateConfigOutput';
+  preview?: Maybe<MonitoringRenderWidgetOutput>;
+  problems: Array<MonitoringProblem>;
+  result: Scalars['String']['output'];
 };
 
 export type OptionalId = {
@@ -906,9 +1164,17 @@ export type PrepareBallotPublicationPreviewOutput = {
   task_execution?: Maybe<Tasks_Execution_Type>;
 };
 
+export type PreviewScheduledOutcomeChangeOutput = {
+  __typename?: 'PreviewScheduledOutcomeChangeOutput';
+  applies?: Maybe<Scalars['String']['output']>;
+  applies_message_key?: Maybe<Scalars['String']['output']>;
+  changes: Scalars['jsonb']['output'];
+};
+
 export type PublishBallotOutput = {
   __typename?: 'PublishBallotOutput';
   ballot_publication_id: Scalars['uuid']['output'];
+  signing_request?: Maybe<SigningRequestSummary>;
 };
 
 export type PublishResultsWebsiteOutput = {
@@ -977,13 +1243,16 @@ export type ResolveResultsPublicationOutput = {
 
 export type RestorePrivateKeyInput = {
   election_event_id: Scalars['String']['input'];
+  key_share_sha256?: InputMaybe<Scalars['String']['input']>;
   private_key_base64: Scalars['String']['input'];
+  signing_request_id?: InputMaybe<Scalars['uuid']['input']>;
   tally_session_id: Scalars['String']['input'];
 };
 
 export type RestorePrivateKeyOutput = {
   __typename?: 'RestorePrivateKeyOutput';
   is_valid: Scalars['Boolean']['output'];
+  signing_request?: Maybe<SigningRequestSummary>;
 };
 
 export enum ResultsPublicationStatus {
@@ -1026,6 +1295,48 @@ export type RevokeResultsPublicationOutput = {
   publication_status: ResultsPublicationStatus;
 };
 
+export type SaveLifecyclePoliciesOutput = {
+  __typename?: 'SaveLifecyclePoliciesOutput';
+  applies?: Maybe<Scalars['String']['output']>;
+  applies_message_key?: Maybe<Scalars['String']['output']>;
+  changes: Scalars['jsonb']['output'];
+  policies: Scalars['jsonb']['output'];
+};
+
+export type ScheduleImportRow = {
+  __typename?: 'ScheduleImportRow';
+  election_alias: Scalars['String']['output'];
+  election_id?: Maybe<Scalars['String']['output']>;
+  election_name?: Maybe<Scalars['String']['output']>;
+  error_code?: Maybe<Scalars['String']['output']>;
+  event_type: Scalars['String']['output'];
+  instant?: Maybe<Scalars['String']['output']>;
+  local: Scalars['String']['output'];
+  note_code?: Maybe<Scalars['String']['output']>;
+  primary_local?: Maybe<Scalars['String']['output']>;
+  row: Scalars['Int']['output'];
+  time_zone: Scalars['String']['output'];
+  voting_channels: Array<Scalars['String']['output']>;
+};
+
+export type SchedulePreviewOutput = {
+  __typename?: 'SchedulePreviewOutput';
+  errors: Scalars['Int']['output'];
+  ok: Scalars['Int']['output'];
+  outcome_changes?: Maybe<Scalars['jsonb']['output']>;
+  posts: Scalars['Int']['output'];
+  primary_time_zone: Scalars['String']['output'];
+  rows: Array<ScheduleImportRow>;
+};
+
+export type ScheduleWarning = {
+  __typename?: 'ScheduleWarning';
+  code: Scalars['String']['output'];
+  election_id?: Maybe<Scalars['String']['output']>;
+  message_key: Scalars['String']['output'];
+  params: Scalars['jsonb']['output'];
+};
+
 export type ScheduledEventOutput3 = {
   __typename?: 'ScheduledEventOutput3';
   id?: Maybe<Scalars['String']['output']>;
@@ -1051,6 +1362,114 @@ export type SetVoterAuthenticationOutput = {
   __typename?: 'SetVoterAuthenticationOutput';
   message?: Maybe<Scalars['String']['output']>;
   success: Scalars['Boolean']['output'];
+};
+
+export type SigningApproveOutput = {
+  __typename?: 'SigningApproveOutput';
+  count: Scalars['Int']['output'];
+  required: Scalars['Int']['output'];
+  status: Scalars['String']['output'];
+};
+
+export type SigningCertificateIdOutput = {
+  __typename?: 'SigningCertificateIdOutput';
+  certificate_id: Scalars['uuid']['output'];
+};
+
+export type SigningCheckCertificateOutput = {
+  __typename?: 'SigningCheckCertificateOutput';
+  certificate?: Maybe<Scalars['jsonb']['output']>;
+  checks: Scalars['jsonb']['output'];
+  registration: Scalars['String']['output'];
+  revocation_status: Scalars['String']['output'];
+};
+
+export type SigningEventInfoOutput = {
+  __typename?: 'SigningEventInfoOutput';
+  time_zone?: Maybe<Scalars['String']['output']>;
+  titles: Scalars['jsonb']['output'];
+};
+
+export type SigningExportOutput = {
+  __typename?: 'SigningExportOutput';
+  document_id: Scalars['String']['output'];
+  rows: Scalars['Int']['output'];
+  sha256: Scalars['String']['output'];
+  url?: Maybe<Scalars['String']['output']>;
+};
+
+export type SigningGetRequestOutput = {
+  __typename?: 'SigningGetRequestOutput';
+  panel: Scalars['jsonb']['output'];
+};
+
+export type SigningHeldReportRequestsOutput = {
+  __typename?: 'SigningHeldReportRequestsOutput';
+  requests: Scalars['jsonb']['output'];
+};
+
+export type SigningImportIssuersOutput = {
+  __typename?: 'SigningImportIssuersOutput';
+  errors: Array<Scalars['String']['output']>;
+  imported: Scalars['Int']['output'];
+  skipped: Scalars['Int']['output'];
+};
+
+export type SigningIssuerIdOutput = {
+  __typename?: 'SigningIssuerIdOutput';
+  issuer_id: Scalars['uuid']['output'];
+};
+
+export type SigningPdfPrepareOutput = {
+  __typename?: 'SigningPdfPrepareOutput';
+  digest_b64: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  signing_time: Scalars['String']['output'];
+};
+
+export type SigningPutChecksOutput = {
+  __typename?: 'SigningPutChecksOutput';
+  revision: Scalars['Int']['output'];
+};
+
+export type SigningPutRuleOutput = {
+  __typename?: 'SigningPutRuleOutput';
+  applies?: Maybe<Scalars['String']['output']>;
+  cancelled: Array<Scalars['uuid']['output']>;
+  outcome_changes?: Maybe<Scalars['jsonb']['output']>;
+  revision: Scalars['Int']['output'];
+  rule: Scalars['jsonb']['output'];
+  short_posts: Scalars['jsonb']['output'];
+  warnings: Array<Scalars['String']['output']>;
+};
+
+export type SigningRequestIdOutput = {
+  __typename?: 'SigningRequestIdOutput';
+  request_id: Scalars['uuid']['output'];
+};
+
+export type SigningRequestSummary = {
+  __typename?: 'SigningRequestSummary';
+  code: Scalars['String']['output'];
+  expires_at?: Maybe<Scalars['timestamptz']['output']>;
+  id: Scalars['uuid']['output'];
+  required: Scalars['Int']['output'];
+};
+
+export type SigningRoleChangesInput = {
+  add?: InputMaybe<Array<Scalars['String']['input']>>;
+  remove?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type SigningRuleCapacityOutput = {
+  __typename?: 'SigningRuleCapacityOutput';
+  config_version: Scalars['Int']['output'];
+  max: Scalars['Int']['output'];
+  posts: Scalars['jsonb']['output'];
+  posts_short: Scalars['jsonb']['output'];
+  posts_short_without_requester: Scalars['jsonb']['output'];
+  roles: Scalars['jsonb']['output'];
+  waiting: Scalars['Int']['output'];
 };
 
 export type StartTallyOutput = {
@@ -1161,6 +1580,7 @@ export type TotalAggregate = {
 export type UpdateElectionVotingStatusOutput = {
   __typename?: 'UpdateElectionVotingStatusOutput';
   election_id?: Maybe<Scalars['uuid']['output']>;
+  signing_request?: Maybe<SigningRequestSummary>;
 };
 
 export type UpdateEventVotingStatusOutput = {
@@ -1360,6 +1780,8 @@ export type Mutation_Root = {
   acknowledge_support_materials?: Maybe<AcknowledgeSupportMaterialsOutput>;
   /** applies the Sequent-side reconciliation diff for an already-computed import */
   apply_external_reconciliation_changes?: Maybe<TaskOutput>;
+  /** Apply scheduled dates recomputed with the current timezone database */
+  apply_schedule_recompute?: Maybe<ApplyScheduleRecomputeOutput>;
   call_plugin_route: PluginsRouteOutput;
   /** cast_ballot */
   cast_ballot?: Maybe<CastBallotOutput>;
@@ -1513,6 +1935,30 @@ export type Mutation_Root = {
   delete_sequent_backend_secret?: Maybe<Sequent_Backend_Secret_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.secret" */
   delete_sequent_backend_secret_by_pk?: Maybe<Sequent_Backend_Secret>;
+  /** delete data from the table: "sequent_backend.signing_approval" */
+  delete_sequent_backend_signing_approval?: Maybe<Sequent_Backend_Signing_Approval_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.signing_approval" */
+  delete_sequent_backend_signing_approval_by_pk?: Maybe<Sequent_Backend_Signing_Approval>;
+  /** delete data from the table: "sequent_backend.signing_checks" */
+  delete_sequent_backend_signing_checks?: Maybe<Sequent_Backend_Signing_Checks_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.signing_checks" */
+  delete_sequent_backend_signing_checks_by_pk?: Maybe<Sequent_Backend_Signing_Checks>;
+  /** delete data from the table: "sequent_backend.signing_request" */
+  delete_sequent_backend_signing_request?: Maybe<Sequent_Backend_Signing_Request_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.signing_request" */
+  delete_sequent_backend_signing_request_by_pk?: Maybe<Sequent_Backend_Signing_Request>;
+  /** delete data from the table: "sequent_backend.signing_rule" */
+  delete_sequent_backend_signing_rule?: Maybe<Sequent_Backend_Signing_Rule_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.signing_rule" */
+  delete_sequent_backend_signing_rule_by_pk?: Maybe<Sequent_Backend_Signing_Rule>;
+  /** delete data from the table: "sequent_backend.staff_certificate" */
+  delete_sequent_backend_staff_certificate?: Maybe<Sequent_Backend_Staff_Certificate_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.staff_certificate" */
+  delete_sequent_backend_staff_certificate_by_pk?: Maybe<Sequent_Backend_Staff_Certificate>;
+  /** delete data from the table: "sequent_backend.staff_crl" */
+  delete_sequent_backend_staff_crl?: Maybe<Sequent_Backend_Staff_Crl_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.staff_crl" */
+  delete_sequent_backend_staff_crl_by_pk?: Maybe<Sequent_Backend_Staff_Crl>;
   /** delete data from the table: "sequent_backend.support_material" */
   delete_sequent_backend_support_material?: Maybe<Sequent_Backend_Support_Material_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.support_material" */
@@ -1581,6 +2027,8 @@ export type Mutation_Root = {
   export_election_event?: Maybe<ExportElectionEventOutput>;
   export_election_event_logs?: Maybe<ExportLogsOutput>;
   export_election_event_tasks?: Maybe<ExportTasksOutput>;
+  /** Export the schedule in the CSV import columns */
+  export_schedule: ExportScheduleOutput;
   export_tally_results?: Maybe<ExportTallyResultsOutput>;
   export_tasks_execution?: Maybe<ExportTasksExecutionOutput>;
   export_template?: Maybe<ExportTemplateOutput>;
@@ -1609,6 +2057,8 @@ export type Mutation_Root = {
   import_certificate_authority?: Maybe<ImportCertificateAuthorityOutput>;
   /** import_election_event */
   import_election_event?: Maybe<OptionalImportEvent>;
+  /** Import a clean schedule CSV and log changed scheduled outcomes */
+  import_schedule: ImportScheduleOutput;
   import_templates?: Maybe<TemplateOutput>;
   import_tenant_config?: Maybe<ImportTenantOutput>;
   import_users?: Maybe<TaskOutput>;
@@ -1737,6 +2187,30 @@ export type Mutation_Root = {
   insert_sequent_backend_secret?: Maybe<Sequent_Backend_Secret_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.secret" */
   insert_sequent_backend_secret_one?: Maybe<Sequent_Backend_Secret>;
+  /** insert data into the table: "sequent_backend.signing_approval" */
+  insert_sequent_backend_signing_approval?: Maybe<Sequent_Backend_Signing_Approval_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.signing_approval" */
+  insert_sequent_backend_signing_approval_one?: Maybe<Sequent_Backend_Signing_Approval>;
+  /** insert data into the table: "sequent_backend.signing_checks" */
+  insert_sequent_backend_signing_checks?: Maybe<Sequent_Backend_Signing_Checks_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.signing_checks" */
+  insert_sequent_backend_signing_checks_one?: Maybe<Sequent_Backend_Signing_Checks>;
+  /** insert data into the table: "sequent_backend.signing_request" */
+  insert_sequent_backend_signing_request?: Maybe<Sequent_Backend_Signing_Request_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.signing_request" */
+  insert_sequent_backend_signing_request_one?: Maybe<Sequent_Backend_Signing_Request>;
+  /** insert data into the table: "sequent_backend.signing_rule" */
+  insert_sequent_backend_signing_rule?: Maybe<Sequent_Backend_Signing_Rule_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.signing_rule" */
+  insert_sequent_backend_signing_rule_one?: Maybe<Sequent_Backend_Signing_Rule>;
+  /** insert data into the table: "sequent_backend.staff_certificate" */
+  insert_sequent_backend_staff_certificate?: Maybe<Sequent_Backend_Staff_Certificate_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.staff_certificate" */
+  insert_sequent_backend_staff_certificate_one?: Maybe<Sequent_Backend_Staff_Certificate>;
+  /** insert data into the table: "sequent_backend.staff_crl" */
+  insert_sequent_backend_staff_crl?: Maybe<Sequent_Backend_Staff_Crl_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.staff_crl" */
+  insert_sequent_backend_staff_crl_one?: Maybe<Sequent_Backend_Staff_Crl>;
   /** insert data into the table: "sequent_backend.support_material" */
   insert_sequent_backend_support_material?: Maybe<Sequent_Backend_Support_Material_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.support_material" */
@@ -1791,7 +2265,17 @@ export type Mutation_Root = {
   insert_sequent_backend_trustee_one?: Maybe<Sequent_Backend_Trustee>;
   limit_access_by_countries?: Maybe<LimitAccessByCountriesOutput>;
   manage_election_dates?: Maybe<ManageElectionDatesOutput>;
+  /** Export a monitoring dashboard's figures as CSV or SQL */
+  monitoringExport: MonitoringExportOutput;
+  /** Reset an event's monitoring configuration to a preset */
+  monitoringResetToPreset: MonitoringGenerationOutput;
+  /** Save or remove a monitoring configuration document */
+  monitoringSaveConfig: MonitoringSaveConfigOutput;
+  /** Switch the Dashboard tab between the legacy and the configured dashboards */
+  monitoringSetMode: MonitoringSetModeOutput;
   prepare_ballot_publication_preview?: Maybe<PrepareBallotPublicationPreviewOutput>;
+  /** Preview an uploaded schedule CSV and its resulting scheduled outcomes */
+  preview_schedule_import: SchedulePreviewOutput;
   /** preview_tally_sheet_import */
   preview_tally_sheet_import?: Maybe<TallySheetImportPreviewActionOutput>;
   /** Publish selected tally contests to the results website */
@@ -1811,11 +2295,39 @@ export type Mutation_Root = {
   review_tally_sheet_import?: Maybe<TallySheetImportActionOutput>;
   /** Revoke an active results website publication */
   revokeResultsPublication: RevokeResultsPublicationOutput;
+  /** Save lifecycle policies and log their changed scheduled outcomes */
+  save_lifecycle_policies: SaveLifecyclePoliciesOutput;
   send_transmission_package?: Maybe<OptionalId>;
   set_custom_urls?: Maybe<SetCustomUrlsOutput>;
   set_role_permission?: Maybe<SetRolePermissionOutput>;
   set_user_role?: Maybe<SetUserRoleOutput>;
   set_voter_authentication?: Maybe<SetVoterAuthenticationOutput>;
+  /** Sign a signing request with a staff certificate */
+  signingApprove: SigningApproveOutput;
+  /** Cancel a waiting signing request */
+  signingCancel: SigningRequestIdOutput;
+  /** Dry-run every certificate check of a signing request for the signer's chain */
+  signingCheckCertificate: SigningCheckCertificateOutput;
+  /** Remove a trusted issuer of staff signatures */
+  signingDeleteIssuer: SigningIssuerIdOutput;
+  /** Export an election event's signing requests as CSV */
+  signingExportRequests: SigningExportOutput;
+  /** Log that the next member signs on this computer */
+  signingHandover: SigningRequestIdOutput;
+  /** Import trusted issuers of staff signatures (PEM, or a DER certificate in base64) */
+  signingImportIssuers: SigningImportIssuersOutput;
+  /** Log that a certificate file didn't open, without the file or its password */
+  signingOpenFailure: SigningRequestIdOutput;
+  /** Prepare the PDF revision a signer's certificate signs */
+  signingPdfPrepare: SigningPdfPrepareOutput;
+  /** Save an election event's certificate checks */
+  signingPutChecks: SigningPutChecksOutput;
+  /** Save the signing rule of a protected action */
+  signingPutRule: SigningPutRuleOutput;
+  /** Register a staff certificate to a person, or link it to the same person's second account */
+  signingRegisterCertificate: SigningCertificateIdOutput;
+  /** Revoke a registered staff certificate */
+  signingRevokeCertificate: SigningCertificateIdOutput;
   /** Submit tally resolutions */
   submit_tally_resolution?: Maybe<SubmitTallyResolutionOutput>;
   update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>;
@@ -2002,6 +2514,42 @@ export type Mutation_Root = {
   update_sequent_backend_secret_by_pk?: Maybe<Sequent_Backend_Secret>;
   /** update multiples rows of table: "sequent_backend.secret" */
   update_sequent_backend_secret_many?: Maybe<Array<Maybe<Sequent_Backend_Secret_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.signing_approval" */
+  update_sequent_backend_signing_approval?: Maybe<Sequent_Backend_Signing_Approval_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.signing_approval" */
+  update_sequent_backend_signing_approval_by_pk?: Maybe<Sequent_Backend_Signing_Approval>;
+  /** update multiples rows of table: "sequent_backend.signing_approval" */
+  update_sequent_backend_signing_approval_many?: Maybe<Array<Maybe<Sequent_Backend_Signing_Approval_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.signing_checks" */
+  update_sequent_backend_signing_checks?: Maybe<Sequent_Backend_Signing_Checks_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.signing_checks" */
+  update_sequent_backend_signing_checks_by_pk?: Maybe<Sequent_Backend_Signing_Checks>;
+  /** update multiples rows of table: "sequent_backend.signing_checks" */
+  update_sequent_backend_signing_checks_many?: Maybe<Array<Maybe<Sequent_Backend_Signing_Checks_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.signing_request" */
+  update_sequent_backend_signing_request?: Maybe<Sequent_Backend_Signing_Request_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.signing_request" */
+  update_sequent_backend_signing_request_by_pk?: Maybe<Sequent_Backend_Signing_Request>;
+  /** update multiples rows of table: "sequent_backend.signing_request" */
+  update_sequent_backend_signing_request_many?: Maybe<Array<Maybe<Sequent_Backend_Signing_Request_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.signing_rule" */
+  update_sequent_backend_signing_rule?: Maybe<Sequent_Backend_Signing_Rule_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.signing_rule" */
+  update_sequent_backend_signing_rule_by_pk?: Maybe<Sequent_Backend_Signing_Rule>;
+  /** update multiples rows of table: "sequent_backend.signing_rule" */
+  update_sequent_backend_signing_rule_many?: Maybe<Array<Maybe<Sequent_Backend_Signing_Rule_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.staff_certificate" */
+  update_sequent_backend_staff_certificate?: Maybe<Sequent_Backend_Staff_Certificate_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.staff_certificate" */
+  update_sequent_backend_staff_certificate_by_pk?: Maybe<Sequent_Backend_Staff_Certificate>;
+  /** update multiples rows of table: "sequent_backend.staff_certificate" */
+  update_sequent_backend_staff_certificate_many?: Maybe<Array<Maybe<Sequent_Backend_Staff_Certificate_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.staff_crl" */
+  update_sequent_backend_staff_crl?: Maybe<Sequent_Backend_Staff_Crl_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.staff_crl" */
+  update_sequent_backend_staff_crl_by_pk?: Maybe<Sequent_Backend_Staff_Crl>;
+  /** update multiples rows of table: "sequent_backend.staff_crl" */
+  update_sequent_backend_staff_crl_many?: Maybe<Array<Maybe<Sequent_Backend_Staff_Crl_Mutation_Response>>>;
   /** update data of the table: "sequent_backend.support_material" */
   update_sequent_backend_support_material?: Maybe<Sequent_Backend_Support_Material_Mutation_Response>;
   /** update single row of the table: "sequent_backend.support_material" */
@@ -2110,7 +2658,13 @@ export type Mutation_RootAcknowledge_Support_MaterialsArgs = {
 /** mutation root */
 export type Mutation_RootApply_External_Reconciliation_ChangesArgs = {
   diff_document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootApply_Schedule_RecomputeArgs = {
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -2138,7 +2692,7 @@ export type Mutation_RootCheck_Private_KeyArgs = {
 /** mutation root */
 export type Mutation_RootConfigureResultsWebsitePolicyArgs = {
   access: ResultsWebsiteAccess;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   status: ResultsWebsiteStatus;
   visibility_scope: ResultsWebsiteVisibilityScope;
 };
@@ -2168,7 +2722,7 @@ export type Mutation_RootCreate_Ballot_ReceiptArgs = {
 /** mutation root */
 export type Mutation_RootCreate_ElectionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   external_id: Scalars['String']['input'];
   presentation?: InputMaybe<Scalars['jsonb']['input']>;
 };
@@ -2177,7 +2731,7 @@ export type Mutation_RootCreate_ElectionArgs = {
 /** mutation root */
 export type Mutation_RootCreate_External_Reconciliation_ImportArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -2193,7 +2747,7 @@ export type Mutation_RootCreate_New_Tally_SheetArgs = {
   channel: Scalars['String']['input'];
   content: Scalars['jsonb']['input'];
   contest_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -2220,6 +2774,7 @@ export type Mutation_RootCreate_RoleArgs = {
 
 /** mutation root */
 export type Mutation_RootCreate_Tally_CeremonyArgs = {
+  area_ids?: InputMaybe<Array<Scalars['uuid']['input']>>;
   configuration?: InputMaybe<Scalars['jsonb']['input']>;
   election_event_id: Scalars['uuid']['input'];
   election_ids: Array<Scalars['uuid']['input']>;
@@ -2230,7 +2785,7 @@ export type Mutation_RootCreate_Tally_CeremonyArgs = {
 /** mutation root */
 export type Mutation_RootCreate_Tally_Sheet_ImportArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   selected_channel: Scalars['String']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
   source_format: Scalars['String']['input'];
@@ -2701,6 +3256,78 @@ export type Mutation_RootDelete_Sequent_Backend_Secret_By_PkArgs = {
 
 
 /** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_ApprovalArgs = {
+  where: Sequent_Backend_Signing_Approval_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_Approval_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_ChecksArgs = {
+  where: Sequent_Backend_Signing_Checks_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_Checks_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_RequestArgs = {
+  where: Sequent_Backend_Signing_Request_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_Request_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_RuleArgs = {
+  where: Sequent_Backend_Signing_Rule_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Signing_Rule_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Staff_CertificateArgs = {
+  where: Sequent_Backend_Staff_Certificate_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Staff_Certificate_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Staff_CrlArgs = {
+  where: Sequent_Backend_Staff_Crl_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Staff_Crl_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Support_MaterialArgs = {
   where: Sequent_Backend_Support_Material_Bool_Exp;
 };
@@ -2897,7 +3524,7 @@ export type Mutation_RootDelete_UsersArgs = {
   attributes?: InputMaybe<Scalars['json']['input']>;
   authorized_to_election_alias?: InputMaybe<Scalars['String']['input']>;
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   email?: InputMaybe<Scalars['json']['input']>;
   email_verified?: InputMaybe<Scalars['Boolean']['input']>;
   enabled?: InputMaybe<Scalars['Boolean']['input']>;
@@ -2919,7 +3546,7 @@ export type Mutation_RootEdit_UserArgs = {
 
 /** mutation root */
 export type Mutation_RootEncrypt_ReportArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   password: Scalars['String']['input'];
   report_id?: InputMaybe<Scalars['String']['input']>;
 };
@@ -2934,7 +3561,7 @@ export type Mutation_RootExportTrusteesArgs = {
 /** mutation root */
 export type Mutation_RootExport_ApplicationArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2942,8 +3569,8 @@ export type Mutation_RootExport_ApplicationArgs = {
 /** mutation root */
 export type Mutation_RootExport_Ballot_PublicationArgs = {
   ballot_publication_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2964,8 +3591,11 @@ export type Mutation_RootExport_Election_EventArgs = {
 
 /** mutation root */
 export type Mutation_RootExport_Election_Event_LogsArgs = {
-  election_event_id: Scalars['String']['input'];
+  created_from?: InputMaybe<Scalars['String']['input']>;
+  created_to?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
   format: Scalars['String']['input'];
+  time_zone?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -2976,15 +3606,21 @@ export type Mutation_RootExport_Election_Event_TasksArgs = {
 
 
 /** mutation root */
+export type Mutation_RootExport_ScheduleArgs = {
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootExport_Tally_ResultsArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   tally_session_id: Scalars['String']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootExport_Tasks_ExecutionArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   tenant_id: Scalars['String']['input'];
 };
 
@@ -2992,7 +3628,7 @@ export type Mutation_RootExport_Tasks_ExecutionArgs = {
 /** mutation root */
 export type Mutation_RootExport_TemplateArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id: Scalars['String']['input'];
 };
 
@@ -3012,7 +3648,7 @@ export type Mutation_RootExport_Tenant_UsersArgs = {
 /** mutation root */
 export type Mutation_RootExport_UsersArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   include_secret_attributes?: InputMaybe<Scalars['Boolean']['input']>;
   tenant_id: Scalars['String']['input'];
 };
@@ -3054,7 +3690,7 @@ export type Mutation_RootGenerate_ReportArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_TemplateArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   election_id: Scalars['String']['input'];
   tally_session_id: Scalars['String']['input'];
   type: Scalars['String']['input'];
@@ -3063,8 +3699,8 @@ export type Mutation_RootGenerate_TemplateArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_Transmission_ReportArgs = {
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   tally_session_id?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
@@ -3072,7 +3708,7 @@ export type Mutation_RootGenerate_Transmission_ReportArgs = {
 
 /** mutation root */
 export type Mutation_RootGenerate_Voter_Information_LetterArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   voter_id: Scalars['String']['input'];
 };
 
@@ -3126,7 +3762,7 @@ export type Mutation_RootGet_User_TemplateArgs = {
 export type Mutation_RootImport_ApplicationArgs = {
   document_id: Scalars['String']['input'];
   election_event_id?: InputMaybe<Scalars['String']['input']>;
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
 };
@@ -3135,7 +3771,7 @@ export type Mutation_RootImport_ApplicationArgs = {
 /** mutation root */
 export type Mutation_RootImport_AreasArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -3143,7 +3779,7 @@ export type Mutation_RootImport_AreasArgs = {
 /** mutation root */
 export type Mutation_RootImport_CandidatesArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -3162,6 +3798,13 @@ export type Mutation_RootImport_Election_EventArgs = {
   password?: InputMaybe<Scalars['String']['input']>;
   sha256?: InputMaybe<Scalars['String']['input']>;
   tenant_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootImport_ScheduleArgs = {
+  document_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -3632,6 +4275,90 @@ export type Mutation_RootInsert_Sequent_Backend_Secret_OneArgs = {
 
 
 /** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_ApprovalArgs = {
+  objects: Array<Sequent_Backend_Signing_Approval_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Approval_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_Approval_OneArgs = {
+  object: Sequent_Backend_Signing_Approval_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Approval_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_ChecksArgs = {
+  objects: Array<Sequent_Backend_Signing_Checks_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Checks_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_Checks_OneArgs = {
+  object: Sequent_Backend_Signing_Checks_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Checks_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_RequestArgs = {
+  objects: Array<Sequent_Backend_Signing_Request_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Request_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_Request_OneArgs = {
+  object: Sequent_Backend_Signing_Request_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Request_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_RuleArgs = {
+  objects: Array<Sequent_Backend_Signing_Rule_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Rule_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Signing_Rule_OneArgs = {
+  object: Sequent_Backend_Signing_Rule_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Rule_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Staff_CertificateArgs = {
+  objects: Array<Sequent_Backend_Staff_Certificate_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Staff_Certificate_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Staff_Certificate_OneArgs = {
+  object: Sequent_Backend_Staff_Certificate_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Staff_Certificate_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Staff_CrlArgs = {
+  objects: Array<Sequent_Backend_Staff_Crl_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Staff_Crl_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Staff_Crl_OneArgs = {
+  object: Sequent_Backend_Staff_Crl_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Staff_Crl_On_Conflict>;
+};
+
+
+/** mutation root */
 export type Mutation_RootInsert_Sequent_Backend_Support_MaterialArgs = {
   objects: Array<Sequent_Backend_Support_Material_Insert_Input>;
   on_conflict?: InputMaybe<Sequent_Backend_Support_Material_On_Conflict>;
@@ -3822,25 +4549,76 @@ export type Mutation_RootLimit_Access_By_CountriesArgs = {
 
 /** mutation root */
 export type Mutation_RootManage_Election_DatesArgs = {
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   event_processor: Scalars['String']['input'];
+  local_date_time?: InputMaybe<Scalars['String']['input']>;
   scheduled_date?: InputMaybe<Scalars['String']['input']>;
+  time_zone?: InputMaybe<Scalars['String']['input']>;
   voting_channels?: InputMaybe<Array<VotingStatusChannel>>;
+};
+
+
+/** mutation root */
+export type Mutation_RootMonitoringExportArgs = {
+  dashboard_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  format: Scalars['String']['input'];
+  from?: InputMaybe<Scalars['String']['input']>;
+  scope?: InputMaybe<Scalars['jsonb']['input']>;
+  selector_values?: InputMaybe<Scalars['jsonb']['input']>;
+  snapshot_revision: Scalars['Int']['input'];
+  to?: InputMaybe<Scalars['String']['input']>;
+  widget_id?: InputMaybe<Scalars['String']['input']>;
+  widget_selector_values?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootMonitoringResetToPresetArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  mode?: InputMaybe<Scalars['String']['input']>;
+  preset_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootMonitoringSaveConfigArgs = {
+  change: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  expected_revision?: InputMaybe<Scalars['Int']['input']>;
+  key: Scalars['String']['input'];
+  kind: Scalars['String']['input'];
+  yaml?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootMonitoringSetModeArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  mode: Scalars['String']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootPrepare_Ballot_Publication_PreviewArgs = {
   ballot_publication_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootPreview_Schedule_ImportArgs = {
+  document_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootPreview_Tally_Sheet_ImportArgs = {
   document_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   selected_channel: Scalars['String']['input'];
   sha256?: InputMaybe<Scalars['String']['input']>;
   source_format: Scalars['String']['input'];
@@ -3851,7 +4629,7 @@ export type Mutation_RootPreview_Tally_Sheet_ImportArgs = {
 export type Mutation_RootPublishResultsWebsiteArgs = {
   access: ResultsWebsiteAccess;
   contest_ids: Array<Scalars['String']['input']>;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   election_ids: Array<Scalars['String']['input']>;
   results_event_id: Scalars['String']['input'];
   route_election_id?: InputMaybe<Scalars['String']['input']>;
@@ -3886,7 +4664,7 @@ export type Mutation_RootRecount_Tally_SessionArgs = {
 
 /** mutation root */
 export type Mutation_RootRefreshResultsPublicationIndexArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -3906,7 +4684,7 @@ export type Mutation_RootRestore_Private_KeyArgs = {
 
 /** mutation root */
 export type Mutation_RootReview_Tally_SheetArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   new_status: Scalars['String']['input'];
   tally_sheet_id: Scalars['String']['input'];
 };
@@ -3915,15 +4693,22 @@ export type Mutation_RootReview_Tally_SheetArgs = {
 /** mutation root */
 export type Mutation_RootReview_Tally_Sheet_ImportArgs = {
   decision: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   import_id: Scalars['String']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootRevokeResultsPublicationArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   publication_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSave_Lifecycle_PoliciesArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  policies: Scalars['jsonb']['input'];
 };
 
 
@@ -3963,9 +4748,121 @@ export type Mutation_RootSet_User_RoleArgs = {
 
 /** mutation root */
 export type Mutation_RootSet_Voter_AuthenticationArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   enrollment: Scalars['String']['input'];
   otp: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningApproveArgs = {
+  algorithm: Scalars['String']['input'];
+  chain_pem: Array<Scalars['String']['input']>;
+  document_signature_b64?: InputMaybe<Scalars['String']['input']>;
+  payload_signature_b64: Scalars['String']['input'];
+  pdf_cms_b64?: InputMaybe<Scalars['String']['input']>;
+  request_id: Scalars['uuid']['input'];
+  revision?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningCancelArgs = {
+  reason?: InputMaybe<Scalars['String']['input']>;
+  request_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningCheckCertificateArgs = {
+  chain_pem: Array<Scalars['String']['input']>;
+  request_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningDeleteIssuerArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  issuer_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningExportRequestsArgs = {
+  action?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  status?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningHandoverArgs = {
+  request_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningImportIssuersArgs = {
+  der_base64?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  pem?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningOpenFailureArgs = {
+  file_name: Scalars['String']['input'];
+  reason: Scalars['String']['input'];
+  request_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningPdfPrepareArgs = {
+  chain_pem: Array<Scalars['String']['input']>;
+  request_id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningPutChecksArgs = {
+  crl_unavailable: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  expected_revision: Scalars['Int']['input'];
+  post_binding: Scalars['String']['input'];
+  registration: Scalars['String']['input'];
+  revocation_check: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningPutRuleArgs = {
+  action: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  expected_revision: Scalars['Int']['input'];
+  expires_minutes?: InputMaybe<Scalars['Int']['input']>;
+  requester_signing: Scalars['String']['input'];
+  requirement: Scalars['String']['input'];
+  roles?: InputMaybe<SigningRoleChangesInput>;
+  signatures: Scalars['Int']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningRegisterCertificateArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  linked_to?: InputMaybe<Scalars['String']['input']>;
+  pem: Scalars['String']['input'];
+  user_id: Scalars['String']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootSigningRevokeCertificateArgs = {
+  certificate_id: Scalars['uuid']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  reason: Scalars['String']['input'];
 };
 
 
@@ -3997,13 +4894,13 @@ export type Mutation_RootUpdate_Event_Voting_StatusArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Realm_AttributesArgs = {
   attributes: Scalars['jsonb']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
 /** mutation root */
 export type Mutation_RootUpdate_Realm_Password_PolicyArgs = {
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   include_digits: Scalars['Boolean']['input'];
   include_lowercase: Scalars['Boolean']['input'];
   include_special_characters: Scalars['Boolean']['input'];
@@ -4904,6 +5801,142 @@ export type Mutation_RootUpdate_Sequent_Backend_Secret_ManyArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_ApprovalArgs = {
+  _set?: InputMaybe<Sequent_Backend_Signing_Approval_Set_Input>;
+  where: Sequent_Backend_Signing_Approval_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Approval_By_PkArgs = {
+  _set?: InputMaybe<Sequent_Backend_Signing_Approval_Set_Input>;
+  pk_columns: Sequent_Backend_Signing_Approval_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Approval_ManyArgs = {
+  updates: Array<Sequent_Backend_Signing_Approval_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_ChecksArgs = {
+  _inc?: InputMaybe<Sequent_Backend_Signing_Checks_Inc_Input>;
+  _set?: InputMaybe<Sequent_Backend_Signing_Checks_Set_Input>;
+  where: Sequent_Backend_Signing_Checks_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Checks_By_PkArgs = {
+  _inc?: InputMaybe<Sequent_Backend_Signing_Checks_Inc_Input>;
+  _set?: InputMaybe<Sequent_Backend_Signing_Checks_Set_Input>;
+  pk_columns: Sequent_Backend_Signing_Checks_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Checks_ManyArgs = {
+  updates: Array<Sequent_Backend_Signing_Checks_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_RequestArgs = {
+  _append?: InputMaybe<Sequent_Backend_Signing_Request_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Signing_Request_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Signing_Request_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Signing_Request_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Signing_Request_Inc_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Signing_Request_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Signing_Request_Set_Input>;
+  where: Sequent_Backend_Signing_Request_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Request_By_PkArgs = {
+  _append?: InputMaybe<Sequent_Backend_Signing_Request_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Signing_Request_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Signing_Request_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Signing_Request_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Signing_Request_Inc_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Signing_Request_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Signing_Request_Set_Input>;
+  pk_columns: Sequent_Backend_Signing_Request_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Request_ManyArgs = {
+  updates: Array<Sequent_Backend_Signing_Request_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_RuleArgs = {
+  _inc?: InputMaybe<Sequent_Backend_Signing_Rule_Inc_Input>;
+  _set?: InputMaybe<Sequent_Backend_Signing_Rule_Set_Input>;
+  where: Sequent_Backend_Signing_Rule_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Rule_By_PkArgs = {
+  _inc?: InputMaybe<Sequent_Backend_Signing_Rule_Inc_Input>;
+  _set?: InputMaybe<Sequent_Backend_Signing_Rule_Set_Input>;
+  pk_columns: Sequent_Backend_Signing_Rule_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Signing_Rule_ManyArgs = {
+  updates: Array<Sequent_Backend_Signing_Rule_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Staff_CertificateArgs = {
+  _set?: InputMaybe<Sequent_Backend_Staff_Certificate_Set_Input>;
+  where: Sequent_Backend_Staff_Certificate_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Staff_Certificate_By_PkArgs = {
+  _set?: InputMaybe<Sequent_Backend_Staff_Certificate_Set_Input>;
+  pk_columns: Sequent_Backend_Staff_Certificate_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Staff_Certificate_ManyArgs = {
+  updates: Array<Sequent_Backend_Staff_Certificate_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Staff_CrlArgs = {
+  _set?: InputMaybe<Sequent_Backend_Staff_Crl_Set_Input>;
+  where: Sequent_Backend_Staff_Crl_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Staff_Crl_By_PkArgs = {
+  _set?: InputMaybe<Sequent_Backend_Staff_Crl_Set_Input>;
+  pk_columns: Sequent_Backend_Staff_Crl_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Staff_Crl_ManyArgs = {
+  updates: Array<Sequent_Backend_Staff_Crl_Updates>;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Support_MaterialArgs = {
   _append?: InputMaybe<Sequent_Backend_Support_Material_Append_Input>;
   _delete_at_path?: InputMaybe<Sequent_Backend_Support_Material_Delete_At_Path_Input>;
@@ -5331,7 +6364,7 @@ export type Mutation_RootUpsert_AreaArgs = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_contest_ids?: InputMaybe<Array<InputMaybe<Scalars['String']['input']>>>;
   description?: InputMaybe<Scalars['String']['input']>;
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   id?: InputMaybe<Scalars['String']['input']>;
   labels?: InputMaybe<Scalars['jsonb']['input']>;
   name: Scalars['String']['input'];
@@ -5389,17 +6422,22 @@ export type Query_Root = {
   getElectionStats?: Maybe<ElectionStatsOutput>;
   get_ballot_files_urls: Scalars['jsonb']['output'];
   get_document_password: DocumentPasswordOutput;
+  /** Read trusted lifecycle snapshots per Post and event */
+  get_lifecycle_snapshots: GetLifecycleSnapshotsOutput;
   /** list permissions */
   get_permissions: GetPermissionsOutput;
   get_realm_attributes: GetRealmAttributesOutput;
   get_realm_password_policy: RealmPasswordPolicy;
   get_roles: GetRolesOutput;
+  /** Read scheduled outcomes and authoritative retained signed closes */
+  get_scheduled_outcomes: GetScheduledOutcomesOutput;
   /** get_support_materials_acknowledgment */
   get_support_materials_acknowledgment: GetSupportMaterialsAcknowledgmentOutput;
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
   get_user_profile_configuration: UserProfileConfiguration;
   get_users: GetUsersOutput;
+  key_share_signature_status?: Maybe<KeyShareSignatureStatusOutput>;
   /** List Electoral Log */
   listElectoralLog?: Maybe<DataListElectoralLog>;
   /** List PostgreSQL audit logs */
@@ -5412,6 +6450,22 @@ export type Query_Root = {
   locate_ballot?: Maybe<LocateBallotOutput>;
   /** log an event in immudb */
   logEvent?: Maybe<LogEventOutput>;
+  /** Get a monitoring configuration document and its history */
+  monitoringGetConfig: MonitoringGetConfigOutput;
+  /** Get one monitoring dashboard with what its widgets need */
+  monitoringGetDashboard: MonitoringGetDashboardOutput;
+  /** List an event's monitoring configuration documents */
+  monitoringListConfig: MonitoringListConfigOutput;
+  /** List an election event's monitoring dashboards */
+  monitoringListDashboards: MonitoringListDashboardsOutput;
+  /** List the monitoring presets */
+  monitoringListPresets: MonitoringListPresetsOutput;
+  /** Draw one monitoring widget */
+  monitoringRenderWidget: MonitoringRenderWidgetOutput;
+  /** Check a monitoring configuration document */
+  monitoringValidateConfig: MonitoringValidateConfigOutput;
+  /** Preview the outcomes of a scheduled event policy or rule change */
+  preview_scheduled_outcome_change: PreviewScheduledOutcomeChangeOutput;
   /** Resolve the active results website publication for authenticated viewers */
   resolveResultsPublication?: Maybe<ResolveResultsPublicationOutput>;
   reveal_voter_secret_attribute: RevealVoterSecretAttributeOutput;
@@ -5595,6 +6649,42 @@ export type Query_Root = {
   sequent_backend_secret_aggregate: Sequent_Backend_Secret_Aggregate;
   /** fetch data from the table: "sequent_backend.secret" using primary key columns */
   sequent_backend_secret_by_pk?: Maybe<Sequent_Backend_Secret>;
+  /** fetch data from the table: "sequent_backend.signing_approval" */
+  sequent_backend_signing_approval: Array<Sequent_Backend_Signing_Approval>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_approval" */
+  sequent_backend_signing_approval_aggregate: Sequent_Backend_Signing_Approval_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_approval" using primary key columns */
+  sequent_backend_signing_approval_by_pk?: Maybe<Sequent_Backend_Signing_Approval>;
+  /** fetch data from the table: "sequent_backend.signing_checks" */
+  sequent_backend_signing_checks: Array<Sequent_Backend_Signing_Checks>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_checks" */
+  sequent_backend_signing_checks_aggregate: Sequent_Backend_Signing_Checks_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_checks" using primary key columns */
+  sequent_backend_signing_checks_by_pk?: Maybe<Sequent_Backend_Signing_Checks>;
+  /** fetch data from the table: "sequent_backend.signing_request" */
+  sequent_backend_signing_request: Array<Sequent_Backend_Signing_Request>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_request" */
+  sequent_backend_signing_request_aggregate: Sequent_Backend_Signing_Request_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_request" using primary key columns */
+  sequent_backend_signing_request_by_pk?: Maybe<Sequent_Backend_Signing_Request>;
+  /** fetch data from the table: "sequent_backend.signing_rule" */
+  sequent_backend_signing_rule: Array<Sequent_Backend_Signing_Rule>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_rule" */
+  sequent_backend_signing_rule_aggregate: Sequent_Backend_Signing_Rule_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_rule" using primary key columns */
+  sequent_backend_signing_rule_by_pk?: Maybe<Sequent_Backend_Signing_Rule>;
+  /** fetch data from the table: "sequent_backend.staff_certificate" */
+  sequent_backend_staff_certificate: Array<Sequent_Backend_Staff_Certificate>;
+  /** fetch aggregated fields from the table: "sequent_backend.staff_certificate" */
+  sequent_backend_staff_certificate_aggregate: Sequent_Backend_Staff_Certificate_Aggregate;
+  /** fetch data from the table: "sequent_backend.staff_certificate" using primary key columns */
+  sequent_backend_staff_certificate_by_pk?: Maybe<Sequent_Backend_Staff_Certificate>;
+  /** fetch data from the table: "sequent_backend.staff_crl" */
+  sequent_backend_staff_crl: Array<Sequent_Backend_Staff_Crl>;
+  /** fetch aggregated fields from the table: "sequent_backend.staff_crl" */
+  sequent_backend_staff_crl_aggregate: Sequent_Backend_Staff_Crl_Aggregate;
+  /** fetch data from the table: "sequent_backend.staff_crl" using primary key columns */
+  sequent_backend_staff_crl_by_pk?: Maybe<Sequent_Backend_Staff_Crl>;
   /** fetch data from the table: "sequent_backend.support_material" */
   sequent_backend_support_material: Array<Sequent_Backend_Support_Material>;
   /** fetch aggregated fields from the table: "sequent_backend.support_material" */
@@ -5673,6 +6763,14 @@ export type Query_Root = {
   sequent_backend_trustee_aggregate: Sequent_Backend_Trustee_Aggregate;
   /** fetch data from the table: "sequent_backend.trustee" using primary key columns */
   sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>;
+  /** The election event's time zone and, for a reader of the certificates, the signers' titles */
+  signingEventInfo: SigningEventInfoOutput;
+  /** A signing request's panel: the request, its rule, who signed and who can sign */
+  signingGetRequest: SigningGetRequestOutput;
+  /** Safe held-report request references, filtered by action permissions and Post labels */
+  signingHeldReportRequests: SigningHeldReportRequestsOutput;
+  /** How many people can sign a protected action in each Post */
+  signingRuleCapacity: SigningRuleCapacityOutput;
 };
 
 
@@ -5688,8 +6786,8 @@ export type Query_RootFetchDocumentArgs = {
 
 
 export type Query_RootFetchResultsArtifactArgs = {
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   publication_id: Scalars['String']['input'];
 };
 
@@ -5714,6 +6812,11 @@ export type Query_RootGet_Document_PasswordArgs = {
 };
 
 
+export type Query_RootGet_Lifecycle_SnapshotsArgs = {
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
 export type Query_RootGet_PermissionsArgs = {
   body: GetPermissionsInput;
 };
@@ -5731,6 +6834,11 @@ export type Query_RootGet_Realm_Password_PolicyArgs = {
 
 export type Query_RootGet_RolesArgs = {
   body: GetRolesInput;
+};
+
+
+export type Query_RootGet_Scheduled_OutcomesArgs = {
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -5761,6 +6869,11 @@ export type Query_RootGet_UsersArgs = {
 };
 
 
+export type Query_RootKey_Share_Signature_StatusArgs = {
+  object: KeyShareSignatureStatusInput;
+};
+
+
 export type Query_RootListElectoralLogArgs = {
   election_event_id?: InputMaybe<Scalars['String']['input']>;
   filter?: InputMaybe<ElectoralLogFilter>;
@@ -5788,8 +6901,8 @@ export type Query_RootLocate_BallotArgs = {
 
 export type Query_RootList_Cast_Vote_MessagesArgs = {
   ballot_id: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<ElectoralLogOrderBy>;
@@ -5811,21 +6924,83 @@ export type Query_RootList_User_RolesArgs = {
 
 export type Query_RootLogEventArgs = {
   body: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   message_type: Scalars['String']['input'];
   user_id?: InputMaybe<Scalars['String']['input']>;
 };
 
 
+export type Query_RootMonitoringGetConfigArgs = {
+  before_revision?: InputMaybe<Scalars['Int']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  key: Scalars['String']['input'];
+  kind: Scalars['String']['input'];
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  revision?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type Query_RootMonitoringGetDashboardArgs = {
+  dashboard_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+export type Query_RootMonitoringListConfigArgs = {
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootMonitoringListDashboardsArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+export type Query_RootMonitoringListPresetsArgs = {
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+
+export type Query_RootMonitoringRenderWidgetArgs = {
+  color_scheme?: InputMaybe<Scalars['String']['input']>;
+  dashboard_id: Scalars['String']['input'];
+  draft?: InputMaybe<Scalars['jsonb']['input']>;
+  election_event_id: Scalars['uuid']['input'];
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  locale?: InputMaybe<Scalars['String']['input']>;
+  scope?: InputMaybe<Scalars['jsonb']['input']>;
+  selector_values?: InputMaybe<Scalars['jsonb']['input']>;
+  snapshot_revision?: InputMaybe<Scalars['Int']['input']>;
+  widget_id: Scalars['String']['input'];
+  width?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type Query_RootMonitoringValidateConfigArgs = {
+  election_event_id: Scalars['uuid']['input'];
+  key: Scalars['String']['input'];
+  kind: Scalars['String']['input'];
+  yaml: Scalars['String']['input'];
+};
+
+
+export type Query_RootPreview_Scheduled_Outcome_ChangeArgs = {
+  change: Scalars['jsonb']['input'];
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
 export type Query_RootResolveResultsPublicationArgs = {
   ee_id: Scalars['String']['input'];
-  election_id?: InputMaybe<Scalars['String']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 
 export type Query_RootReveal_Voter_Secret_AttributeArgs = {
   attribute_name: Scalars['String']['input'];
-  election_event_id: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
   tenant_id: Scalars['String']['input'];
   user_id: Scalars['String']['input'];
 };
@@ -6562,6 +7737,144 @@ export type Query_RootSequent_Backend_Secret_By_PkArgs = {
 };
 
 
+export type Query_RootSequent_Backend_Signing_ApprovalArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Approval_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Approval_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Signing_ChecksArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Checks_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Checks_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Checks_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Checks_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Signing_RequestArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Request_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Request_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Request_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Request_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Request_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Request_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Signing_RuleArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Rule_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Rule_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Rule_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Signing_Rule_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Staff_CertificateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Certificate_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Staff_Certificate_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Certificate_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Staff_Certificate_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Staff_CrlArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Crl_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Staff_Crl_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Crl_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Staff_Crl_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
 export type Query_RootSequent_Backend_Support_MaterialArgs = {
   distinct_on?: InputMaybe<Array<Sequent_Backend_Support_Material_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -6872,6 +8185,29 @@ export type Query_RootSequent_Backend_Trustee_AggregateArgs = {
 
 export type Query_RootSequent_Backend_Trustee_By_PkArgs = {
   id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSigningEventInfoArgs = {
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSigningGetRequestArgs = {
+  request_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSigningHeldReportRequestsArgs = {
+  election_event_id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSigningRuleCapacityArgs = {
+  action: Scalars['String']['input'];
+  election_event_id: Scalars['uuid']['input'];
+  requester_signing?: InputMaybe<Scalars['String']['input']>;
+  signatures?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** columns and relationships of "sequent_backend.applications" */
@@ -7948,6 +9284,13 @@ export type Sequent_Backend_Ballot_Publication_Mutation_Response = {
   returning: Array<Sequent_Backend_Ballot_Publication>;
 };
 
+/** input type for inserting object relation for remote table "sequent_backend.ballot_publication" */
+export type Sequent_Backend_Ballot_Publication_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Ballot_Publication_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Ballot_Publication_On_Conflict>;
+};
+
 /** on_conflict condition type for table "sequent_backend.ballot_publication" */
 export type Sequent_Backend_Ballot_Publication_On_Conflict = {
   constraint: Sequent_Backend_Ballot_Publication_Constraint;
@@ -8103,6 +9446,8 @@ export type Sequent_Backend_Ballot_Style = {
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id?: Maybe<Scalars['uuid']['output']>;
   ballot_eml?: Maybe<Scalars['String']['output']>;
+  /** An object relationship */
+  ballot_publication?: Maybe<Sequent_Backend_Ballot_Publication>;
   ballot_publication_id: Scalars['uuid']['output'];
   ballot_signature?: Maybe<Scalars['bytea']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
@@ -8166,6 +9511,7 @@ export type Sequent_Backend_Ballot_Style_Bool_Exp = {
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   area_id?: InputMaybe<Uuid_Comparison_Exp>;
   ballot_eml?: InputMaybe<String_Comparison_Exp>;
+  ballot_publication?: InputMaybe<Sequent_Backend_Ballot_Publication_Bool_Exp>;
   ballot_publication_id?: InputMaybe<Uuid_Comparison_Exp>;
   ballot_signature?: InputMaybe<Bytea_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -8209,6 +9555,7 @@ export type Sequent_Backend_Ballot_Style_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   area_id?: InputMaybe<Scalars['uuid']['input']>;
   ballot_eml?: InputMaybe<Scalars['String']['input']>;
+  ballot_publication?: InputMaybe<Sequent_Backend_Ballot_Publication_Obj_Rel_Insert_Input>;
   ballot_publication_id?: InputMaybe<Scalars['uuid']['input']>;
   ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -8276,6 +9623,7 @@ export type Sequent_Backend_Ballot_Style_Order_By = {
   annotations?: InputMaybe<Order_By>;
   area_id?: InputMaybe<Order_By>;
   ballot_eml?: InputMaybe<Order_By>;
+  ballot_publication?: InputMaybe<Sequent_Backend_Ballot_Publication_Order_By>;
   ballot_publication_id?: InputMaybe<Order_By>;
   ballot_signature?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
@@ -9183,6 +10531,7 @@ export type Sequent_Backend_Certificate_Authority = {
   not_after: Scalars['timestamptz']['output'];
   not_before: Scalars['timestamptz']['output'];
   pem: Scalars['String']['output'];
+  purpose: Scalars['String']['output'];
   serial_number: Scalars['String']['output'];
   subject: Scalars['String']['output'];
   tenant_id: Scalars['uuid']['output'];
@@ -9225,6 +10574,7 @@ export type Sequent_Backend_Certificate_Authority_Bool_Exp = {
   not_after?: InputMaybe<Timestamptz_Comparison_Exp>;
   not_before?: InputMaybe<Timestamptz_Comparison_Exp>;
   pem?: InputMaybe<String_Comparison_Exp>;
+  purpose?: InputMaybe<String_Comparison_Exp>;
   serial_number?: InputMaybe<String_Comparison_Exp>;
   subject?: InputMaybe<String_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -9232,10 +10582,12 @@ export type Sequent_Backend_Certificate_Authority_Bool_Exp = {
 
 /** unique or primary key constraints on table "sequent_backend.certificate_authority" */
 export enum Sequent_Backend_Certificate_Authority_Constraint {
+  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+  CertificateAuthorityInItsEvent = 'certificate_authority_in_its_event',
+  /** unique or primary key constraint on columns "purpose", "tenant_id", "fingerprint_sha256", "election_event_id" */
+  CertificateAuthorityOnePerPurpose = 'certificate_authority_one_per_purpose',
   /** unique or primary key constraint on columns "id" */
-  CertificateAuthorityPkey = 'certificate_authority_pkey',
-  /** unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id" */
-  CertificateAuthorityTenantIdElectionEventIdFingerpriKey = 'certificate_authority_tenant_id_election_event_id_fingerpri_key'
+  CertificateAuthorityPkey = 'certificate_authority_pkey'
 }
 
 /** input type for inserting data into table "sequent_backend.certificate_authority" */
@@ -9250,6 +10602,7 @@ export type Sequent_Backend_Certificate_Authority_Insert_Input = {
   not_after?: InputMaybe<Scalars['timestamptz']['input']>;
   not_before?: InputMaybe<Scalars['timestamptz']['input']>;
   pem?: InputMaybe<Scalars['String']['input']>;
+  purpose?: InputMaybe<Scalars['String']['input']>;
   serial_number?: InputMaybe<Scalars['String']['input']>;
   subject?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -9268,6 +10621,7 @@ export type Sequent_Backend_Certificate_Authority_Max_Fields = {
   not_after?: Maybe<Scalars['timestamptz']['output']>;
   not_before?: Maybe<Scalars['timestamptz']['output']>;
   pem?: Maybe<Scalars['String']['output']>;
+  purpose?: Maybe<Scalars['String']['output']>;
   serial_number?: Maybe<Scalars['String']['output']>;
   subject?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -9286,6 +10640,7 @@ export type Sequent_Backend_Certificate_Authority_Min_Fields = {
   not_after?: Maybe<Scalars['timestamptz']['output']>;
   not_before?: Maybe<Scalars['timestamptz']['output']>;
   pem?: Maybe<Scalars['String']['output']>;
+  purpose?: Maybe<Scalars['String']['output']>;
   serial_number?: Maybe<Scalars['String']['output']>;
   subject?: Maybe<Scalars['String']['output']>;
   tenant_id?: Maybe<Scalars['uuid']['output']>;
@@ -9319,6 +10674,7 @@ export type Sequent_Backend_Certificate_Authority_Order_By = {
   not_after?: InputMaybe<Order_By>;
   not_before?: InputMaybe<Order_By>;
   pem?: InputMaybe<Order_By>;
+  purpose?: InputMaybe<Order_By>;
   serial_number?: InputMaybe<Order_By>;
   subject?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
@@ -9352,6 +10708,8 @@ export enum Sequent_Backend_Certificate_Authority_Select_Column {
   /** column name */
   Pem = 'pem',
   /** column name */
+  Purpose = 'purpose',
+  /** column name */
   SerialNumber = 'serial_number',
   /** column name */
   Subject = 'subject',
@@ -9371,6 +10729,7 @@ export type Sequent_Backend_Certificate_Authority_Set_Input = {
   not_after?: InputMaybe<Scalars['timestamptz']['input']>;
   not_before?: InputMaybe<Scalars['timestamptz']['input']>;
   pem?: InputMaybe<Scalars['String']['input']>;
+  purpose?: InputMaybe<Scalars['String']['input']>;
   serial_number?: InputMaybe<Scalars['String']['input']>;
   subject?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -9396,6 +10755,7 @@ export type Sequent_Backend_Certificate_Authority_Stream_Cursor_Value_Input = {
   not_after?: InputMaybe<Scalars['timestamptz']['input']>;
   not_before?: InputMaybe<Scalars['timestamptz']['input']>;
   pem?: InputMaybe<Scalars['String']['input']>;
+  purpose?: InputMaybe<Scalars['String']['input']>;
   serial_number?: InputMaybe<Scalars['String']['input']>;
   subject?: InputMaybe<Scalars['String']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
@@ -9423,6 +10783,8 @@ export enum Sequent_Backend_Certificate_Authority_Update_Column {
   NotBefore = 'not_before',
   /** column name */
   Pem = 'pem',
+  /** column name */
+  Purpose = 'purpose',
   /** column name */
   SerialNumber = 'serial_number',
   /** column name */
@@ -18362,6 +19724,2561 @@ export type Sequent_Backend_Secret_Updates = {
   where: Sequent_Backend_Secret_Bool_Exp;
 };
 
+/** columns and relationships of "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval = {
+  __typename?: 'sequent_backend_signing_approval';
+  algorithm: Scalars['String']['output'];
+  auth_time?: Maybe<Scalars['timestamptz']['output']>;
+  certificate_id: Scalars['uuid']['output'];
+  certificate_pem: Scalars['String']['output'];
+  chain_pem: Scalars['String']['output'];
+  created_at: Scalars['timestamptz']['output'];
+  display_name?: Maybe<Scalars['String']['output']>;
+  document_signature?: Maybe<Scalars['bytea']['output']>;
+  election_event_id: Scalars['uuid']['output'];
+  fingerprint_sha256: Scalars['String']['output'];
+  holder_sha256: Scalars['String']['output'];
+  id: Scalars['uuid']['output'];
+  payload_signature: Scalars['bytea']['output'];
+  pdf_cms?: Maybe<Scalars['bytea']['output']>;
+  /** An object relationship */
+  request?: Maybe<Sequent_Backend_Signing_Request>;
+  request_id: Scalars['uuid']['output'];
+  revocation_status: Scalars['String']['output'];
+  signed_at: Scalars['timestamptz']['output'];
+  spki_sha256: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  user_id: Scalars['String']['output'];
+  username: Scalars['String']['output'];
+};
+
+/** aggregated selection of "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Aggregate = {
+  __typename?: 'sequent_backend_signing_approval_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Signing_Approval_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Signing_Approval>;
+};
+
+export type Sequent_Backend_Signing_Approval_Aggregate_Bool_Exp = {
+  count?: InputMaybe<Sequent_Backend_Signing_Approval_Aggregate_Bool_Exp_Count>;
+};
+
+export type Sequent_Backend_Signing_Approval_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Aggregate_Fields = {
+  __typename?: 'sequent_backend_signing_approval_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Signing_Approval_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Signing_Approval_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Aggregate_Order_By = {
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<Sequent_Backend_Signing_Approval_Max_Order_By>;
+  min?: InputMaybe<Sequent_Backend_Signing_Approval_Min_Order_By>;
+};
+
+/** input type for inserting array relation for remote table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Arr_Rel_Insert_Input = {
+  data: Array<Sequent_Backend_Signing_Approval_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Approval_On_Conflict>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.signing_approval". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Signing_Approval_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Bool_Exp>>;
+  algorithm?: InputMaybe<String_Comparison_Exp>;
+  auth_time?: InputMaybe<Timestamptz_Comparison_Exp>;
+  certificate_id?: InputMaybe<Uuid_Comparison_Exp>;
+  certificate_pem?: InputMaybe<String_Comparison_Exp>;
+  chain_pem?: InputMaybe<String_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  display_name?: InputMaybe<String_Comparison_Exp>;
+  document_signature?: InputMaybe<Bytea_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  fingerprint_sha256?: InputMaybe<String_Comparison_Exp>;
+  holder_sha256?: InputMaybe<String_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  payload_signature?: InputMaybe<Bytea_Comparison_Exp>;
+  pdf_cms?: InputMaybe<Bytea_Comparison_Exp>;
+  request?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+  request_id?: InputMaybe<Uuid_Comparison_Exp>;
+  revocation_status?: InputMaybe<String_Comparison_Exp>;
+  signed_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  spki_sha256?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  user_id?: InputMaybe<String_Comparison_Exp>;
+  username?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.signing_approval" */
+export enum Sequent_Backend_Signing_Approval_Constraint {
+  /** unique or primary key constraint on columns "fingerprint_sha256", "request_id" */
+  SigningApprovalOnePerCertificate = 'signing_approval_one_per_certificate',
+  /** unique or primary key constraint on columns "request_id", "holder_sha256" */
+  SigningApprovalOnePerHolder = 'signing_approval_one_per_holder',
+  /** unique or primary key constraint on columns "spki_sha256", "request_id" */
+  SigningApprovalOnePerKey = 'signing_approval_one_per_key',
+  /** unique or primary key constraint on columns "user_id", "request_id" */
+  SigningApprovalOnePerUser = 'signing_approval_one_per_user',
+  /** unique or primary key constraint on columns "id" */
+  SigningApprovalPkey = 'signing_approval_pkey'
+}
+
+/** input type for inserting data into table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Insert_Input = {
+  algorithm?: InputMaybe<Scalars['String']['input']>;
+  auth_time?: InputMaybe<Scalars['timestamptz']['input']>;
+  certificate_id?: InputMaybe<Scalars['uuid']['input']>;
+  certificate_pem?: InputMaybe<Scalars['String']['input']>;
+  chain_pem?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  display_name?: InputMaybe<Scalars['String']['input']>;
+  document_signature?: InputMaybe<Scalars['bytea']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  holder_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  payload_signature?: InputMaybe<Scalars['bytea']['input']>;
+  pdf_cms?: InputMaybe<Scalars['bytea']['input']>;
+  request?: InputMaybe<Sequent_Backend_Signing_Request_Obj_Rel_Insert_Input>;
+  request_id?: InputMaybe<Scalars['uuid']['input']>;
+  revocation_status?: InputMaybe<Scalars['String']['input']>;
+  signed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  spki_sha256?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Signing_Approval_Max_Fields = {
+  __typename?: 'sequent_backend_signing_approval_max_fields';
+  algorithm?: Maybe<Scalars['String']['output']>;
+  auth_time?: Maybe<Scalars['timestamptz']['output']>;
+  certificate_id?: Maybe<Scalars['uuid']['output']>;
+  certificate_pem?: Maybe<Scalars['String']['output']>;
+  chain_pem?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  display_name?: Maybe<Scalars['String']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  fingerprint_sha256?: Maybe<Scalars['String']['output']>;
+  holder_sha256?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  request_id?: Maybe<Scalars['uuid']['output']>;
+  revocation_status?: Maybe<Scalars['String']['output']>;
+  signed_at?: Maybe<Scalars['timestamptz']['output']>;
+  spki_sha256?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  user_id?: Maybe<Scalars['String']['output']>;
+  username?: Maybe<Scalars['String']['output']>;
+};
+
+/** order by max() on columns of table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Max_Order_By = {
+  algorithm?: InputMaybe<Order_By>;
+  auth_time?: InputMaybe<Order_By>;
+  certificate_id?: InputMaybe<Order_By>;
+  certificate_pem?: InputMaybe<Order_By>;
+  chain_pem?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  display_name?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  fingerprint_sha256?: InputMaybe<Order_By>;
+  holder_sha256?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  request_id?: InputMaybe<Order_By>;
+  revocation_status?: InputMaybe<Order_By>;
+  signed_at?: InputMaybe<Order_By>;
+  spki_sha256?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  user_id?: InputMaybe<Order_By>;
+  username?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Signing_Approval_Min_Fields = {
+  __typename?: 'sequent_backend_signing_approval_min_fields';
+  algorithm?: Maybe<Scalars['String']['output']>;
+  auth_time?: Maybe<Scalars['timestamptz']['output']>;
+  certificate_id?: Maybe<Scalars['uuid']['output']>;
+  certificate_pem?: Maybe<Scalars['String']['output']>;
+  chain_pem?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  display_name?: Maybe<Scalars['String']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  fingerprint_sha256?: Maybe<Scalars['String']['output']>;
+  holder_sha256?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  request_id?: Maybe<Scalars['uuid']['output']>;
+  revocation_status?: Maybe<Scalars['String']['output']>;
+  signed_at?: Maybe<Scalars['timestamptz']['output']>;
+  spki_sha256?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  user_id?: Maybe<Scalars['String']['output']>;
+  username?: Maybe<Scalars['String']['output']>;
+};
+
+/** order by min() on columns of table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Min_Order_By = {
+  algorithm?: InputMaybe<Order_By>;
+  auth_time?: InputMaybe<Order_By>;
+  certificate_id?: InputMaybe<Order_By>;
+  certificate_pem?: InputMaybe<Order_By>;
+  chain_pem?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  display_name?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  fingerprint_sha256?: InputMaybe<Order_By>;
+  holder_sha256?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  request_id?: InputMaybe<Order_By>;
+  revocation_status?: InputMaybe<Order_By>;
+  signed_at?: InputMaybe<Order_By>;
+  spki_sha256?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  user_id?: InputMaybe<Order_By>;
+  username?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Mutation_Response = {
+  __typename?: 'sequent_backend_signing_approval_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Signing_Approval>;
+};
+
+/** on_conflict condition type for table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_On_Conflict = {
+  constraint: Sequent_Backend_Signing_Approval_Constraint;
+  update_columns?: Array<Sequent_Backend_Signing_Approval_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.signing_approval". */
+export type Sequent_Backend_Signing_Approval_Order_By = {
+  algorithm?: InputMaybe<Order_By>;
+  auth_time?: InputMaybe<Order_By>;
+  certificate_id?: InputMaybe<Order_By>;
+  certificate_pem?: InputMaybe<Order_By>;
+  chain_pem?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  display_name?: InputMaybe<Order_By>;
+  document_signature?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  fingerprint_sha256?: InputMaybe<Order_By>;
+  holder_sha256?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  payload_signature?: InputMaybe<Order_By>;
+  pdf_cms?: InputMaybe<Order_By>;
+  request?: InputMaybe<Sequent_Backend_Signing_Request_Order_By>;
+  request_id?: InputMaybe<Order_By>;
+  revocation_status?: InputMaybe<Order_By>;
+  signed_at?: InputMaybe<Order_By>;
+  spki_sha256?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  user_id?: InputMaybe<Order_By>;
+  username?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.signing_approval */
+export type Sequent_Backend_Signing_Approval_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.signing_approval" */
+export enum Sequent_Backend_Signing_Approval_Select_Column {
+  /** column name */
+  Algorithm = 'algorithm',
+  /** column name */
+  AuthTime = 'auth_time',
+  /** column name */
+  CertificateId = 'certificate_id',
+  /** column name */
+  CertificatePem = 'certificate_pem',
+  /** column name */
+  ChainPem = 'chain_pem',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  DisplayName = 'display_name',
+  /** column name */
+  DocumentSignature = 'document_signature',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  FingerprintSha256 = 'fingerprint_sha256',
+  /** column name */
+  HolderSha256 = 'holder_sha256',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  PayloadSignature = 'payload_signature',
+  /** column name */
+  PdfCms = 'pdf_cms',
+  /** column name */
+  RequestId = 'request_id',
+  /** column name */
+  RevocationStatus = 'revocation_status',
+  /** column name */
+  SignedAt = 'signed_at',
+  /** column name */
+  SpkiSha256 = 'spki_sha256',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UserId = 'user_id',
+  /** column name */
+  Username = 'username'
+}
+
+/** input type for updating data in table "sequent_backend.signing_approval" */
+export type Sequent_Backend_Signing_Approval_Set_Input = {
+  algorithm?: InputMaybe<Scalars['String']['input']>;
+  auth_time?: InputMaybe<Scalars['timestamptz']['input']>;
+  certificate_id?: InputMaybe<Scalars['uuid']['input']>;
+  certificate_pem?: InputMaybe<Scalars['String']['input']>;
+  chain_pem?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  display_name?: InputMaybe<Scalars['String']['input']>;
+  document_signature?: InputMaybe<Scalars['bytea']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  holder_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  payload_signature?: InputMaybe<Scalars['bytea']['input']>;
+  pdf_cms?: InputMaybe<Scalars['bytea']['input']>;
+  request_id?: InputMaybe<Scalars['uuid']['input']>;
+  revocation_status?: InputMaybe<Scalars['String']['input']>;
+  signed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  spki_sha256?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_signing_approval" */
+export type Sequent_Backend_Signing_Approval_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Signing_Approval_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Signing_Approval_Stream_Cursor_Value_Input = {
+  algorithm?: InputMaybe<Scalars['String']['input']>;
+  auth_time?: InputMaybe<Scalars['timestamptz']['input']>;
+  certificate_id?: InputMaybe<Scalars['uuid']['input']>;
+  certificate_pem?: InputMaybe<Scalars['String']['input']>;
+  chain_pem?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  display_name?: InputMaybe<Scalars['String']['input']>;
+  document_signature?: InputMaybe<Scalars['bytea']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  holder_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  payload_signature?: InputMaybe<Scalars['bytea']['input']>;
+  pdf_cms?: InputMaybe<Scalars['bytea']['input']>;
+  request_id?: InputMaybe<Scalars['uuid']['input']>;
+  revocation_status?: InputMaybe<Scalars['String']['input']>;
+  signed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  spki_sha256?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** update columns of table "sequent_backend.signing_approval" */
+export enum Sequent_Backend_Signing_Approval_Update_Column {
+  /** column name */
+  Algorithm = 'algorithm',
+  /** column name */
+  AuthTime = 'auth_time',
+  /** column name */
+  CertificateId = 'certificate_id',
+  /** column name */
+  CertificatePem = 'certificate_pem',
+  /** column name */
+  ChainPem = 'chain_pem',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  DisplayName = 'display_name',
+  /** column name */
+  DocumentSignature = 'document_signature',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  FingerprintSha256 = 'fingerprint_sha256',
+  /** column name */
+  HolderSha256 = 'holder_sha256',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  PayloadSignature = 'payload_signature',
+  /** column name */
+  PdfCms = 'pdf_cms',
+  /** column name */
+  RequestId = 'request_id',
+  /** column name */
+  RevocationStatus = 'revocation_status',
+  /** column name */
+  SignedAt = 'signed_at',
+  /** column name */
+  SpkiSha256 = 'spki_sha256',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UserId = 'user_id',
+  /** column name */
+  Username = 'username'
+}
+
+export type Sequent_Backend_Signing_Approval_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Signing_Approval_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Signing_Approval_Bool_Exp;
+};
+
+/** columns and relationships of "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks = {
+  __typename?: 'sequent_backend_signing_checks';
+  created_at: Scalars['timestamptz']['output'];
+  crl_unavailable: Scalars['String']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  id: Scalars['uuid']['output'];
+  post_binding: Scalars['String']['output'];
+  registration: Scalars['String']['output'];
+  revision: Scalars['bigint']['output'];
+  revocation_check: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  updated_at: Scalars['timestamptz']['output'];
+  updated_by: Scalars['String']['output'];
+  updated_by_name?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregated selection of "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_Aggregate = {
+  __typename?: 'sequent_backend_signing_checks_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Signing_Checks_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Signing_Checks>;
+};
+
+/** aggregate fields of "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_Aggregate_Fields = {
+  __typename?: 'sequent_backend_signing_checks_aggregate_fields';
+  avg?: Maybe<Sequent_Backend_Signing_Checks_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Signing_Checks_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Signing_Checks_Min_Fields>;
+  stddev?: Maybe<Sequent_Backend_Signing_Checks_Stddev_Fields>;
+  stddev_pop?: Maybe<Sequent_Backend_Signing_Checks_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Sequent_Backend_Signing_Checks_Stddev_Samp_Fields>;
+  sum?: Maybe<Sequent_Backend_Signing_Checks_Sum_Fields>;
+  var_pop?: Maybe<Sequent_Backend_Signing_Checks_Var_Pop_Fields>;
+  var_samp?: Maybe<Sequent_Backend_Signing_Checks_Var_Samp_Fields>;
+  variance?: Maybe<Sequent_Backend_Signing_Checks_Variance_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Signing_Checks_Avg_Fields = {
+  __typename?: 'sequent_backend_signing_checks_avg_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.signing_checks". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Signing_Checks_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Signing_Checks_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Bool_Exp>>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  crl_unavailable?: InputMaybe<String_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  post_binding?: InputMaybe<String_Comparison_Exp>;
+  registration?: InputMaybe<String_Comparison_Exp>;
+  revision?: InputMaybe<Bigint_Comparison_Exp>;
+  revocation_check?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  updated_by?: InputMaybe<String_Comparison_Exp>;
+  updated_by_name?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.signing_checks" */
+export enum Sequent_Backend_Signing_Checks_Constraint {
+  /** unique or primary key constraint on columns "tenant_id", "election_event_id" */
+  SigningChecksOnePerEvent = 'signing_checks_one_per_event',
+  /** unique or primary key constraint on columns "id" */
+  SigningChecksPkey = 'signing_checks_pkey'
+}
+
+/** input type for incrementing numeric columns in table "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_Inc_Input = {
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_Insert_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  crl_unavailable?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  post_binding?: InputMaybe<Scalars['String']['input']>;
+  registration?: InputMaybe<Scalars['String']['input']>;
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+  revocation_check?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  updated_by?: InputMaybe<Scalars['String']['input']>;
+  updated_by_name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Signing_Checks_Max_Fields = {
+  __typename?: 'sequent_backend_signing_checks_max_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  crl_unavailable?: Maybe<Scalars['String']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  post_binding?: Maybe<Scalars['String']['output']>;
+  registration?: Maybe<Scalars['String']['output']>;
+  revision?: Maybe<Scalars['bigint']['output']>;
+  revocation_check?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  updated_by?: Maybe<Scalars['String']['output']>;
+  updated_by_name?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Signing_Checks_Min_Fields = {
+  __typename?: 'sequent_backend_signing_checks_min_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  crl_unavailable?: Maybe<Scalars['String']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  post_binding?: Maybe<Scalars['String']['output']>;
+  registration?: Maybe<Scalars['String']['output']>;
+  revision?: Maybe<Scalars['bigint']['output']>;
+  revocation_check?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  updated_by?: Maybe<Scalars['String']['output']>;
+  updated_by_name?: Maybe<Scalars['String']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_Mutation_Response = {
+  __typename?: 'sequent_backend_signing_checks_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Signing_Checks>;
+};
+
+/** on_conflict condition type for table "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_On_Conflict = {
+  constraint: Sequent_Backend_Signing_Checks_Constraint;
+  update_columns?: Array<Sequent_Backend_Signing_Checks_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Signing_Checks_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.signing_checks". */
+export type Sequent_Backend_Signing_Checks_Order_By = {
+  created_at?: InputMaybe<Order_By>;
+  crl_unavailable?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  post_binding?: InputMaybe<Order_By>;
+  registration?: InputMaybe<Order_By>;
+  revision?: InputMaybe<Order_By>;
+  revocation_check?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  updated_at?: InputMaybe<Order_By>;
+  updated_by?: InputMaybe<Order_By>;
+  updated_by_name?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.signing_checks */
+export type Sequent_Backend_Signing_Checks_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.signing_checks" */
+export enum Sequent_Backend_Signing_Checks_Select_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  CrlUnavailable = 'crl_unavailable',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  PostBinding = 'post_binding',
+  /** column name */
+  Registration = 'registration',
+  /** column name */
+  Revision = 'revision',
+  /** column name */
+  RevocationCheck = 'revocation_check',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UpdatedAt = 'updated_at',
+  /** column name */
+  UpdatedBy = 'updated_by',
+  /** column name */
+  UpdatedByName = 'updated_by_name'
+}
+
+/** input type for updating data in table "sequent_backend.signing_checks" */
+export type Sequent_Backend_Signing_Checks_Set_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  crl_unavailable?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  post_binding?: InputMaybe<Scalars['String']['input']>;
+  registration?: InputMaybe<Scalars['String']['input']>;
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+  revocation_check?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  updated_by?: InputMaybe<Scalars['String']['input']>;
+  updated_by_name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Signing_Checks_Stddev_Fields = {
+  __typename?: 'sequent_backend_signing_checks_stddev_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Signing_Checks_Stddev_Pop_Fields = {
+  __typename?: 'sequent_backend_signing_checks_stddev_pop_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Signing_Checks_Stddev_Samp_Fields = {
+  __typename?: 'sequent_backend_signing_checks_stddev_samp_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_signing_checks" */
+export type Sequent_Backend_Signing_Checks_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Signing_Checks_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Signing_Checks_Stream_Cursor_Value_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  crl_unavailable?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  post_binding?: InputMaybe<Scalars['String']['input']>;
+  registration?: InputMaybe<Scalars['String']['input']>;
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+  revocation_check?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  updated_by?: InputMaybe<Scalars['String']['input']>;
+  updated_by_name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Signing_Checks_Sum_Fields = {
+  __typename?: 'sequent_backend_signing_checks_sum_fields';
+  revision?: Maybe<Scalars['bigint']['output']>;
+};
+
+/** update columns of table "sequent_backend.signing_checks" */
+export enum Sequent_Backend_Signing_Checks_Update_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  CrlUnavailable = 'crl_unavailable',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  PostBinding = 'post_binding',
+  /** column name */
+  Registration = 'registration',
+  /** column name */
+  Revision = 'revision',
+  /** column name */
+  RevocationCheck = 'revocation_check',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UpdatedAt = 'updated_at',
+  /** column name */
+  UpdatedBy = 'updated_by',
+  /** column name */
+  UpdatedByName = 'updated_by_name'
+}
+
+export type Sequent_Backend_Signing_Checks_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Sequent_Backend_Signing_Checks_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Signing_Checks_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Signing_Checks_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Signing_Checks_Var_Pop_Fields = {
+  __typename?: 'sequent_backend_signing_checks_var_pop_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Signing_Checks_Var_Samp_Fields = {
+  __typename?: 'sequent_backend_signing_checks_var_samp_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Signing_Checks_Variance_Fields = {
+  __typename?: 'sequent_backend_signing_checks_variance_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** columns and relationships of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request = {
+  __typename?: 'sequent_backend_signing_request';
+  action: Scalars['String']['output'];
+  /** An array relationship */
+  approvals: Array<Sequent_Backend_Signing_Approval>;
+  /** An aggregate relationship */
+  approvals_aggregate: Sequent_Backend_Signing_Approval_Aggregate;
+  area_id?: Maybe<Scalars['uuid']['output']>;
+  cancel_reason?: Maybe<Scalars['String']['output']>;
+  cancelled_by?: Maybe<Scalars['String']['output']>;
+  canonical_payload: Scalars['String']['output'];
+  code: Scalars['String']['output'];
+  completed_at?: Maybe<Scalars['timestamptz']['output']>;
+  config_revision?: Maybe<Scalars['String']['output']>;
+  created_at: Scalars['timestamptz']['output'];
+  document_id?: Maybe<Scalars['uuid']['output']>;
+  document_sha256?: Maybe<Scalars['String']['output']>;
+  election_event_id: Scalars['uuid']['output'];
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  executed_at?: Maybe<Scalars['timestamptz']['output']>;
+  execution_attempts: Scalars['Int']['output'];
+  execution_result?: Maybe<Scalars['jsonb']['output']>;
+  execution_started_at?: Maybe<Scalars['timestamptz']['output']>;
+  expires_at?: Maybe<Scalars['timestamptz']['output']>;
+  id: Scalars['uuid']['output'];
+  open_failures: Scalars['Int']['output'];
+  payload_sha256: Scalars['String']['output'];
+  permission_label?: Maybe<Scalars['String']['output']>;
+  requested_by: Scalars['String']['output'];
+  requested_by_name?: Maybe<Scalars['String']['output']>;
+  requested_by_username: Scalars['String']['output'];
+  required: Scalars['Int']['output'];
+  rule_revision: Scalars['bigint']['output'];
+  rule_snapshot: Scalars['jsonb']['output'];
+  scope_key: Scalars['String']['output'];
+  status: Scalars['String']['output'];
+  subject: Scalars['jsonb']['output'];
+  subject_close_required?: Maybe<Scalars['Boolean']['output']>;
+  subject_publication_id?: Maybe<Scalars['String']['output']>;
+  subject_unsigned_close_policy?: Maybe<Scalars['String']['output']>;
+  task_execution_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id: Scalars['uuid']['output'];
+  trustee_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+
+/** columns and relationships of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_RequestApprovalsArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+
+/** columns and relationships of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_RequestApprovals_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+
+/** columns and relationships of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_RequestExecution_ResultArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_RequestRule_SnapshotArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+/** columns and relationships of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_RequestSubjectArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregated selection of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Aggregate = {
+  __typename?: 'sequent_backend_signing_request_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Signing_Request_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Signing_Request>;
+};
+
+/** aggregate fields of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Aggregate_Fields = {
+  __typename?: 'sequent_backend_signing_request_aggregate_fields';
+  avg?: Maybe<Sequent_Backend_Signing_Request_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Signing_Request_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Signing_Request_Min_Fields>;
+  stddev?: Maybe<Sequent_Backend_Signing_Request_Stddev_Fields>;
+  stddev_pop?: Maybe<Sequent_Backend_Signing_Request_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Sequent_Backend_Signing_Request_Stddev_Samp_Fields>;
+  sum?: Maybe<Sequent_Backend_Signing_Request_Sum_Fields>;
+  var_pop?: Maybe<Sequent_Backend_Signing_Request_Var_Pop_Fields>;
+  var_samp?: Maybe<Sequent_Backend_Signing_Request_Var_Samp_Fields>;
+  variance?: Maybe<Sequent_Backend_Signing_Request_Variance_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Signing_Request_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Signing_Request_Append_Input = {
+  execution_result?: InputMaybe<Scalars['jsonb']['input']>;
+  rule_snapshot?: InputMaybe<Scalars['jsonb']['input']>;
+  subject?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Signing_Request_Avg_Fields = {
+  __typename?: 'sequent_backend_signing_request_avg_fields';
+  execution_attempts?: Maybe<Scalars['Float']['output']>;
+  open_failures?: Maybe<Scalars['Float']['output']>;
+  required?: Maybe<Scalars['Float']['output']>;
+  rule_revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.signing_request". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Signing_Request_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Signing_Request_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Signing_Request_Bool_Exp>>;
+  action?: InputMaybe<String_Comparison_Exp>;
+  approvals?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+  approvals_aggregate?: InputMaybe<Sequent_Backend_Signing_Approval_Aggregate_Bool_Exp>;
+  area_id?: InputMaybe<Uuid_Comparison_Exp>;
+  cancel_reason?: InputMaybe<String_Comparison_Exp>;
+  cancelled_by?: InputMaybe<String_Comparison_Exp>;
+  canonical_payload?: InputMaybe<String_Comparison_Exp>;
+  code?: InputMaybe<String_Comparison_Exp>;
+  completed_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  config_revision?: InputMaybe<String_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  document_id?: InputMaybe<Uuid_Comparison_Exp>;
+  document_sha256?: InputMaybe<String_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  election_id?: InputMaybe<Uuid_Comparison_Exp>;
+  executed_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  execution_attempts?: InputMaybe<Int_Comparison_Exp>;
+  execution_result?: InputMaybe<Jsonb_Comparison_Exp>;
+  execution_started_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  expires_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  open_failures?: InputMaybe<Int_Comparison_Exp>;
+  payload_sha256?: InputMaybe<String_Comparison_Exp>;
+  permission_label?: InputMaybe<String_Comparison_Exp>;
+  requested_by?: InputMaybe<String_Comparison_Exp>;
+  requested_by_name?: InputMaybe<String_Comparison_Exp>;
+  requested_by_username?: InputMaybe<String_Comparison_Exp>;
+  required?: InputMaybe<Int_Comparison_Exp>;
+  rule_revision?: InputMaybe<Bigint_Comparison_Exp>;
+  rule_snapshot?: InputMaybe<Jsonb_Comparison_Exp>;
+  scope_key?: InputMaybe<String_Comparison_Exp>;
+  status?: InputMaybe<String_Comparison_Exp>;
+  subject?: InputMaybe<Jsonb_Comparison_Exp>;
+  subject_close_required?: InputMaybe<Boolean_Comparison_Exp>;
+  subject_publication_id?: InputMaybe<String_Comparison_Exp>;
+  subject_unsigned_close_policy?: InputMaybe<String_Comparison_Exp>;
+  task_execution_id?: InputMaybe<Uuid_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  trustee_id?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.signing_request" */
+export enum Sequent_Backend_Signing_Request_Constraint {
+  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+  SigningRequestInItsEvent = 'signing_request_in_its_event',
+  /** unique or primary key constraint on columns "action", "scope_key", "tenant_id", "election_event_id" */
+  SigningRequestOneWaiting = 'signing_request_one_waiting',
+  /** unique or primary key constraint on columns "id" */
+  SigningRequestPkey = 'signing_request_pkey'
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Signing_Request_Delete_At_Path_Input = {
+  execution_result?: InputMaybe<Array<Scalars['String']['input']>>;
+  rule_snapshot?: InputMaybe<Array<Scalars['String']['input']>>;
+  subject?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Signing_Request_Delete_Elem_Input = {
+  execution_result?: InputMaybe<Scalars['Int']['input']>;
+  rule_snapshot?: InputMaybe<Scalars['Int']['input']>;
+  subject?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Signing_Request_Delete_Key_Input = {
+  execution_result?: InputMaybe<Scalars['String']['input']>;
+  rule_snapshot?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** input type for incrementing numeric columns in table "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Inc_Input = {
+  execution_attempts?: InputMaybe<Scalars['Int']['input']>;
+  open_failures?: InputMaybe<Scalars['Int']['input']>;
+  required?: InputMaybe<Scalars['Int']['input']>;
+  rule_revision?: InputMaybe<Scalars['bigint']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Insert_Input = {
+  action?: InputMaybe<Scalars['String']['input']>;
+  approvals?: InputMaybe<Sequent_Backend_Signing_Approval_Arr_Rel_Insert_Input>;
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  cancel_reason?: InputMaybe<Scalars['String']['input']>;
+  cancelled_by?: InputMaybe<Scalars['String']['input']>;
+  canonical_payload?: InputMaybe<Scalars['String']['input']>;
+  code?: InputMaybe<Scalars['String']['input']>;
+  completed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  config_revision?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  document_id?: InputMaybe<Scalars['uuid']['input']>;
+  document_sha256?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  executed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  execution_attempts?: InputMaybe<Scalars['Int']['input']>;
+  execution_result?: InputMaybe<Scalars['jsonb']['input']>;
+  execution_started_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  expires_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  open_failures?: InputMaybe<Scalars['Int']['input']>;
+  payload_sha256?: InputMaybe<Scalars['String']['input']>;
+  permission_label?: InputMaybe<Scalars['String']['input']>;
+  requested_by?: InputMaybe<Scalars['String']['input']>;
+  requested_by_name?: InputMaybe<Scalars['String']['input']>;
+  requested_by_username?: InputMaybe<Scalars['String']['input']>;
+  required?: InputMaybe<Scalars['Int']['input']>;
+  rule_revision?: InputMaybe<Scalars['bigint']['input']>;
+  rule_snapshot?: InputMaybe<Scalars['jsonb']['input']>;
+  scope_key?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['jsonb']['input']>;
+  task_execution_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Signing_Request_Max_Fields = {
+  __typename?: 'sequent_backend_signing_request_max_fields';
+  action?: Maybe<Scalars['String']['output']>;
+  area_id?: Maybe<Scalars['uuid']['output']>;
+  cancel_reason?: Maybe<Scalars['String']['output']>;
+  cancelled_by?: Maybe<Scalars['String']['output']>;
+  canonical_payload?: Maybe<Scalars['String']['output']>;
+  code?: Maybe<Scalars['String']['output']>;
+  completed_at?: Maybe<Scalars['timestamptz']['output']>;
+  config_revision?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  document_id?: Maybe<Scalars['uuid']['output']>;
+  document_sha256?: Maybe<Scalars['String']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  executed_at?: Maybe<Scalars['timestamptz']['output']>;
+  execution_attempts?: Maybe<Scalars['Int']['output']>;
+  execution_started_at?: Maybe<Scalars['timestamptz']['output']>;
+  expires_at?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  open_failures?: Maybe<Scalars['Int']['output']>;
+  payload_sha256?: Maybe<Scalars['String']['output']>;
+  permission_label?: Maybe<Scalars['String']['output']>;
+  requested_by?: Maybe<Scalars['String']['output']>;
+  requested_by_name?: Maybe<Scalars['String']['output']>;
+  requested_by_username?: Maybe<Scalars['String']['output']>;
+  required?: Maybe<Scalars['Int']['output']>;
+  rule_revision?: Maybe<Scalars['bigint']['output']>;
+  scope_key?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  subject_publication_id?: Maybe<Scalars['String']['output']>;
+  subject_unsigned_close_policy?: Maybe<Scalars['String']['output']>;
+  task_execution_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  trustee_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Signing_Request_Min_Fields = {
+  __typename?: 'sequent_backend_signing_request_min_fields';
+  action?: Maybe<Scalars['String']['output']>;
+  area_id?: Maybe<Scalars['uuid']['output']>;
+  cancel_reason?: Maybe<Scalars['String']['output']>;
+  cancelled_by?: Maybe<Scalars['String']['output']>;
+  canonical_payload?: Maybe<Scalars['String']['output']>;
+  code?: Maybe<Scalars['String']['output']>;
+  completed_at?: Maybe<Scalars['timestamptz']['output']>;
+  config_revision?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  document_id?: Maybe<Scalars['uuid']['output']>;
+  document_sha256?: Maybe<Scalars['String']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  executed_at?: Maybe<Scalars['timestamptz']['output']>;
+  execution_attempts?: Maybe<Scalars['Int']['output']>;
+  execution_started_at?: Maybe<Scalars['timestamptz']['output']>;
+  expires_at?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  open_failures?: Maybe<Scalars['Int']['output']>;
+  payload_sha256?: Maybe<Scalars['String']['output']>;
+  permission_label?: Maybe<Scalars['String']['output']>;
+  requested_by?: Maybe<Scalars['String']['output']>;
+  requested_by_name?: Maybe<Scalars['String']['output']>;
+  requested_by_username?: Maybe<Scalars['String']['output']>;
+  required?: Maybe<Scalars['Int']['output']>;
+  rule_revision?: Maybe<Scalars['bigint']['output']>;
+  scope_key?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  subject_publication_id?: Maybe<Scalars['String']['output']>;
+  subject_unsigned_close_policy?: Maybe<Scalars['String']['output']>;
+  task_execution_id?: Maybe<Scalars['uuid']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  trustee_id?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Mutation_Response = {
+  __typename?: 'sequent_backend_signing_request_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Signing_Request>;
+};
+
+/** input type for inserting object relation for remote table "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Signing_Request_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Signing_Request_On_Conflict>;
+};
+
+/** on_conflict condition type for table "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_On_Conflict = {
+  constraint: Sequent_Backend_Signing_Request_Constraint;
+  update_columns?: Array<Sequent_Backend_Signing_Request_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.signing_request". */
+export type Sequent_Backend_Signing_Request_Order_By = {
+  action?: InputMaybe<Order_By>;
+  approvals_aggregate?: InputMaybe<Sequent_Backend_Signing_Approval_Aggregate_Order_By>;
+  area_id?: InputMaybe<Order_By>;
+  cancel_reason?: InputMaybe<Order_By>;
+  cancelled_by?: InputMaybe<Order_By>;
+  canonical_payload?: InputMaybe<Order_By>;
+  code?: InputMaybe<Order_By>;
+  completed_at?: InputMaybe<Order_By>;
+  config_revision?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  document_id?: InputMaybe<Order_By>;
+  document_sha256?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  election_id?: InputMaybe<Order_By>;
+  executed_at?: InputMaybe<Order_By>;
+  execution_attempts?: InputMaybe<Order_By>;
+  execution_result?: InputMaybe<Order_By>;
+  execution_started_at?: InputMaybe<Order_By>;
+  expires_at?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  open_failures?: InputMaybe<Order_By>;
+  payload_sha256?: InputMaybe<Order_By>;
+  permission_label?: InputMaybe<Order_By>;
+  requested_by?: InputMaybe<Order_By>;
+  requested_by_name?: InputMaybe<Order_By>;
+  requested_by_username?: InputMaybe<Order_By>;
+  required?: InputMaybe<Order_By>;
+  rule_revision?: InputMaybe<Order_By>;
+  rule_snapshot?: InputMaybe<Order_By>;
+  scope_key?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  subject?: InputMaybe<Order_By>;
+  subject_close_required?: InputMaybe<Order_By>;
+  subject_publication_id?: InputMaybe<Order_By>;
+  subject_unsigned_close_policy?: InputMaybe<Order_By>;
+  task_execution_id?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  trustee_id?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.signing_request */
+export type Sequent_Backend_Signing_Request_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Signing_Request_Prepend_Input = {
+  execution_result?: InputMaybe<Scalars['jsonb']['input']>;
+  rule_snapshot?: InputMaybe<Scalars['jsonb']['input']>;
+  subject?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** select columns of table "sequent_backend.signing_request" */
+export enum Sequent_Backend_Signing_Request_Select_Column {
+  /** column name */
+  Action = 'action',
+  /** column name */
+  AreaId = 'area_id',
+  /** column name */
+  CancelReason = 'cancel_reason',
+  /** column name */
+  CancelledBy = 'cancelled_by',
+  /** column name */
+  CanonicalPayload = 'canonical_payload',
+  /** column name */
+  Code = 'code',
+  /** column name */
+  CompletedAt = 'completed_at',
+  /** column name */
+  ConfigRevision = 'config_revision',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  DocumentId = 'document_id',
+  /** column name */
+  DocumentSha256 = 'document_sha256',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
+  /** column name */
+  ExecutedAt = 'executed_at',
+  /** column name */
+  ExecutionAttempts = 'execution_attempts',
+  /** column name */
+  ExecutionResult = 'execution_result',
+  /** column name */
+  ExecutionStartedAt = 'execution_started_at',
+  /** column name */
+  ExpiresAt = 'expires_at',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  OpenFailures = 'open_failures',
+  /** column name */
+  PayloadSha256 = 'payload_sha256',
+  /** column name */
+  PermissionLabel = 'permission_label',
+  /** column name */
+  RequestedBy = 'requested_by',
+  /** column name */
+  RequestedByName = 'requested_by_name',
+  /** column name */
+  RequestedByUsername = 'requested_by_username',
+  /** column name */
+  Required = 'required',
+  /** column name */
+  RuleRevision = 'rule_revision',
+  /** column name */
+  RuleSnapshot = 'rule_snapshot',
+  /** column name */
+  ScopeKey = 'scope_key',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  Subject = 'subject',
+  /** column name */
+  SubjectCloseRequired = 'subject_close_required',
+  /** column name */
+  SubjectPublicationId = 'subject_publication_id',
+  /** column name */
+  SubjectUnsignedClosePolicy = 'subject_unsigned_close_policy',
+  /** column name */
+  TaskExecutionId = 'task_execution_id',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  TrusteeId = 'trustee_id'
+}
+
+/** input type for updating data in table "sequent_backend.signing_request" */
+export type Sequent_Backend_Signing_Request_Set_Input = {
+  action?: InputMaybe<Scalars['String']['input']>;
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  cancel_reason?: InputMaybe<Scalars['String']['input']>;
+  cancelled_by?: InputMaybe<Scalars['String']['input']>;
+  canonical_payload?: InputMaybe<Scalars['String']['input']>;
+  code?: InputMaybe<Scalars['String']['input']>;
+  completed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  config_revision?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  document_id?: InputMaybe<Scalars['uuid']['input']>;
+  document_sha256?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  executed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  execution_attempts?: InputMaybe<Scalars['Int']['input']>;
+  execution_result?: InputMaybe<Scalars['jsonb']['input']>;
+  execution_started_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  expires_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  open_failures?: InputMaybe<Scalars['Int']['input']>;
+  payload_sha256?: InputMaybe<Scalars['String']['input']>;
+  permission_label?: InputMaybe<Scalars['String']['input']>;
+  requested_by?: InputMaybe<Scalars['String']['input']>;
+  requested_by_name?: InputMaybe<Scalars['String']['input']>;
+  requested_by_username?: InputMaybe<Scalars['String']['input']>;
+  required?: InputMaybe<Scalars['Int']['input']>;
+  rule_revision?: InputMaybe<Scalars['bigint']['input']>;
+  rule_snapshot?: InputMaybe<Scalars['jsonb']['input']>;
+  scope_key?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['jsonb']['input']>;
+  task_execution_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Signing_Request_Stddev_Fields = {
+  __typename?: 'sequent_backend_signing_request_stddev_fields';
+  execution_attempts?: Maybe<Scalars['Float']['output']>;
+  open_failures?: Maybe<Scalars['Float']['output']>;
+  required?: Maybe<Scalars['Float']['output']>;
+  rule_revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Signing_Request_Stddev_Pop_Fields = {
+  __typename?: 'sequent_backend_signing_request_stddev_pop_fields';
+  execution_attempts?: Maybe<Scalars['Float']['output']>;
+  open_failures?: Maybe<Scalars['Float']['output']>;
+  required?: Maybe<Scalars['Float']['output']>;
+  rule_revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Signing_Request_Stddev_Samp_Fields = {
+  __typename?: 'sequent_backend_signing_request_stddev_samp_fields';
+  execution_attempts?: Maybe<Scalars['Float']['output']>;
+  open_failures?: Maybe<Scalars['Float']['output']>;
+  required?: Maybe<Scalars['Float']['output']>;
+  rule_revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_signing_request" */
+export type Sequent_Backend_Signing_Request_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Signing_Request_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Signing_Request_Stream_Cursor_Value_Input = {
+  action?: InputMaybe<Scalars['String']['input']>;
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  cancel_reason?: InputMaybe<Scalars['String']['input']>;
+  cancelled_by?: InputMaybe<Scalars['String']['input']>;
+  canonical_payload?: InputMaybe<Scalars['String']['input']>;
+  code?: InputMaybe<Scalars['String']['input']>;
+  completed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  config_revision?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  document_id?: InputMaybe<Scalars['uuid']['input']>;
+  document_sha256?: InputMaybe<Scalars['String']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  executed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  execution_attempts?: InputMaybe<Scalars['Int']['input']>;
+  execution_result?: InputMaybe<Scalars['jsonb']['input']>;
+  execution_started_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  expires_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  open_failures?: InputMaybe<Scalars['Int']['input']>;
+  payload_sha256?: InputMaybe<Scalars['String']['input']>;
+  permission_label?: InputMaybe<Scalars['String']['input']>;
+  requested_by?: InputMaybe<Scalars['String']['input']>;
+  requested_by_name?: InputMaybe<Scalars['String']['input']>;
+  requested_by_username?: InputMaybe<Scalars['String']['input']>;
+  required?: InputMaybe<Scalars['Int']['input']>;
+  rule_revision?: InputMaybe<Scalars['bigint']['input']>;
+  rule_snapshot?: InputMaybe<Scalars['jsonb']['input']>;
+  scope_key?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['jsonb']['input']>;
+  subject_close_required?: InputMaybe<Scalars['Boolean']['input']>;
+  subject_publication_id?: InputMaybe<Scalars['String']['input']>;
+  subject_unsigned_close_policy?: InputMaybe<Scalars['String']['input']>;
+  task_execution_id?: InputMaybe<Scalars['uuid']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  trustee_id?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Signing_Request_Sum_Fields = {
+  __typename?: 'sequent_backend_signing_request_sum_fields';
+  execution_attempts?: Maybe<Scalars['Int']['output']>;
+  open_failures?: Maybe<Scalars['Int']['output']>;
+  required?: Maybe<Scalars['Int']['output']>;
+  rule_revision?: Maybe<Scalars['bigint']['output']>;
+};
+
+/** update columns of table "sequent_backend.signing_request" */
+export enum Sequent_Backend_Signing_Request_Update_Column {
+  /** column name */
+  Action = 'action',
+  /** column name */
+  AreaId = 'area_id',
+  /** column name */
+  CancelReason = 'cancel_reason',
+  /** column name */
+  CancelledBy = 'cancelled_by',
+  /** column name */
+  CanonicalPayload = 'canonical_payload',
+  /** column name */
+  Code = 'code',
+  /** column name */
+  CompletedAt = 'completed_at',
+  /** column name */
+  ConfigRevision = 'config_revision',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  DocumentId = 'document_id',
+  /** column name */
+  DocumentSha256 = 'document_sha256',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
+  /** column name */
+  ExecutedAt = 'executed_at',
+  /** column name */
+  ExecutionAttempts = 'execution_attempts',
+  /** column name */
+  ExecutionResult = 'execution_result',
+  /** column name */
+  ExecutionStartedAt = 'execution_started_at',
+  /** column name */
+  ExpiresAt = 'expires_at',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  OpenFailures = 'open_failures',
+  /** column name */
+  PayloadSha256 = 'payload_sha256',
+  /** column name */
+  PermissionLabel = 'permission_label',
+  /** column name */
+  RequestedBy = 'requested_by',
+  /** column name */
+  RequestedByName = 'requested_by_name',
+  /** column name */
+  RequestedByUsername = 'requested_by_username',
+  /** column name */
+  Required = 'required',
+  /** column name */
+  RuleRevision = 'rule_revision',
+  /** column name */
+  RuleSnapshot = 'rule_snapshot',
+  /** column name */
+  ScopeKey = 'scope_key',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  Subject = 'subject',
+  /** column name */
+  TaskExecutionId = 'task_execution_id',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  TrusteeId = 'trustee_id'
+}
+
+export type Sequent_Backend_Signing_Request_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<Sequent_Backend_Signing_Request_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<Sequent_Backend_Signing_Request_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<Sequent_Backend_Signing_Request_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<Sequent_Backend_Signing_Request_Delete_Key_Input>;
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Sequent_Backend_Signing_Request_Inc_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<Sequent_Backend_Signing_Request_Prepend_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Signing_Request_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Signing_Request_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Signing_Request_Var_Pop_Fields = {
+  __typename?: 'sequent_backend_signing_request_var_pop_fields';
+  execution_attempts?: Maybe<Scalars['Float']['output']>;
+  open_failures?: Maybe<Scalars['Float']['output']>;
+  required?: Maybe<Scalars['Float']['output']>;
+  rule_revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Signing_Request_Var_Samp_Fields = {
+  __typename?: 'sequent_backend_signing_request_var_samp_fields';
+  execution_attempts?: Maybe<Scalars['Float']['output']>;
+  open_failures?: Maybe<Scalars['Float']['output']>;
+  required?: Maybe<Scalars['Float']['output']>;
+  rule_revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Signing_Request_Variance_Fields = {
+  __typename?: 'sequent_backend_signing_request_variance_fields';
+  execution_attempts?: Maybe<Scalars['Float']['output']>;
+  open_failures?: Maybe<Scalars['Float']['output']>;
+  required?: Maybe<Scalars['Float']['output']>;
+  rule_revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** columns and relationships of "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule = {
+  __typename?: 'sequent_backend_signing_rule';
+  action: Scalars['String']['output'];
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  expires_minutes?: Maybe<Scalars['Int']['output']>;
+  id: Scalars['uuid']['output'];
+  requester_signing: Scalars['String']['output'];
+  requirement: Scalars['String']['output'];
+  revision: Scalars['bigint']['output'];
+  signatures: Scalars['Int']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  updated_at: Scalars['timestamptz']['output'];
+  updated_by: Scalars['String']['output'];
+  updated_by_name?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregated selection of "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_Aggregate = {
+  __typename?: 'sequent_backend_signing_rule_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Signing_Rule_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Signing_Rule>;
+};
+
+/** aggregate fields of "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_Aggregate_Fields = {
+  __typename?: 'sequent_backend_signing_rule_aggregate_fields';
+  avg?: Maybe<Sequent_Backend_Signing_Rule_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Signing_Rule_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Signing_Rule_Min_Fields>;
+  stddev?: Maybe<Sequent_Backend_Signing_Rule_Stddev_Fields>;
+  stddev_pop?: Maybe<Sequent_Backend_Signing_Rule_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Sequent_Backend_Signing_Rule_Stddev_Samp_Fields>;
+  sum?: Maybe<Sequent_Backend_Signing_Rule_Sum_Fields>;
+  var_pop?: Maybe<Sequent_Backend_Signing_Rule_Var_Pop_Fields>;
+  var_samp?: Maybe<Sequent_Backend_Signing_Rule_Var_Samp_Fields>;
+  variance?: Maybe<Sequent_Backend_Signing_Rule_Variance_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Signing_Rule_Avg_Fields = {
+  __typename?: 'sequent_backend_signing_rule_avg_fields';
+  expires_minutes?: Maybe<Scalars['Float']['output']>;
+  revision?: Maybe<Scalars['Float']['output']>;
+  signatures?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.signing_rule". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Signing_Rule_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Signing_Rule_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Bool_Exp>>;
+  action?: InputMaybe<String_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  expires_minutes?: InputMaybe<Int_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  requester_signing?: InputMaybe<String_Comparison_Exp>;
+  requirement?: InputMaybe<String_Comparison_Exp>;
+  revision?: InputMaybe<Bigint_Comparison_Exp>;
+  signatures?: InputMaybe<Int_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  updated_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  updated_by?: InputMaybe<String_Comparison_Exp>;
+  updated_by_name?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.signing_rule" */
+export enum Sequent_Backend_Signing_Rule_Constraint {
+  /** unique or primary key constraint on columns "action", "tenant_id", "election_event_id" */
+  SigningRuleOnePerAction = 'signing_rule_one_per_action',
+  /** unique or primary key constraint on columns "id" */
+  SigningRulePkey = 'signing_rule_pkey'
+}
+
+/** input type for incrementing numeric columns in table "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_Inc_Input = {
+  expires_minutes?: InputMaybe<Scalars['Int']['input']>;
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+  signatures?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_Insert_Input = {
+  action?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  expires_minutes?: InputMaybe<Scalars['Int']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  requester_signing?: InputMaybe<Scalars['String']['input']>;
+  requirement?: InputMaybe<Scalars['String']['input']>;
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+  signatures?: InputMaybe<Scalars['Int']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  updated_by?: InputMaybe<Scalars['String']['input']>;
+  updated_by_name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Signing_Rule_Max_Fields = {
+  __typename?: 'sequent_backend_signing_rule_max_fields';
+  action?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  expires_minutes?: Maybe<Scalars['Int']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  requester_signing?: Maybe<Scalars['String']['output']>;
+  requirement?: Maybe<Scalars['String']['output']>;
+  revision?: Maybe<Scalars['bigint']['output']>;
+  signatures?: Maybe<Scalars['Int']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  updated_by?: Maybe<Scalars['String']['output']>;
+  updated_by_name?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Signing_Rule_Min_Fields = {
+  __typename?: 'sequent_backend_signing_rule_min_fields';
+  action?: Maybe<Scalars['String']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  expires_minutes?: Maybe<Scalars['Int']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  requester_signing?: Maybe<Scalars['String']['output']>;
+  requirement?: Maybe<Scalars['String']['output']>;
+  revision?: Maybe<Scalars['bigint']['output']>;
+  signatures?: Maybe<Scalars['Int']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  updated_at?: Maybe<Scalars['timestamptz']['output']>;
+  updated_by?: Maybe<Scalars['String']['output']>;
+  updated_by_name?: Maybe<Scalars['String']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_Mutation_Response = {
+  __typename?: 'sequent_backend_signing_rule_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Signing_Rule>;
+};
+
+/** on_conflict condition type for table "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_On_Conflict = {
+  constraint: Sequent_Backend_Signing_Rule_Constraint;
+  update_columns?: Array<Sequent_Backend_Signing_Rule_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Signing_Rule_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.signing_rule". */
+export type Sequent_Backend_Signing_Rule_Order_By = {
+  action?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  expires_minutes?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  requester_signing?: InputMaybe<Order_By>;
+  requirement?: InputMaybe<Order_By>;
+  revision?: InputMaybe<Order_By>;
+  signatures?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  updated_at?: InputMaybe<Order_By>;
+  updated_by?: InputMaybe<Order_By>;
+  updated_by_name?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.signing_rule */
+export type Sequent_Backend_Signing_Rule_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.signing_rule" */
+export enum Sequent_Backend_Signing_Rule_Select_Column {
+  /** column name */
+  Action = 'action',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ExpiresMinutes = 'expires_minutes',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  RequesterSigning = 'requester_signing',
+  /** column name */
+  Requirement = 'requirement',
+  /** column name */
+  Revision = 'revision',
+  /** column name */
+  Signatures = 'signatures',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UpdatedAt = 'updated_at',
+  /** column name */
+  UpdatedBy = 'updated_by',
+  /** column name */
+  UpdatedByName = 'updated_by_name'
+}
+
+/** input type for updating data in table "sequent_backend.signing_rule" */
+export type Sequent_Backend_Signing_Rule_Set_Input = {
+  action?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  expires_minutes?: InputMaybe<Scalars['Int']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  requester_signing?: InputMaybe<Scalars['String']['input']>;
+  requirement?: InputMaybe<Scalars['String']['input']>;
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+  signatures?: InputMaybe<Scalars['Int']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  updated_by?: InputMaybe<Scalars['String']['input']>;
+  updated_by_name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Signing_Rule_Stddev_Fields = {
+  __typename?: 'sequent_backend_signing_rule_stddev_fields';
+  expires_minutes?: Maybe<Scalars['Float']['output']>;
+  revision?: Maybe<Scalars['Float']['output']>;
+  signatures?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Signing_Rule_Stddev_Pop_Fields = {
+  __typename?: 'sequent_backend_signing_rule_stddev_pop_fields';
+  expires_minutes?: Maybe<Scalars['Float']['output']>;
+  revision?: Maybe<Scalars['Float']['output']>;
+  signatures?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Signing_Rule_Stddev_Samp_Fields = {
+  __typename?: 'sequent_backend_signing_rule_stddev_samp_fields';
+  expires_minutes?: Maybe<Scalars['Float']['output']>;
+  revision?: Maybe<Scalars['Float']['output']>;
+  signatures?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_signing_rule" */
+export type Sequent_Backend_Signing_Rule_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Signing_Rule_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Signing_Rule_Stream_Cursor_Value_Input = {
+  action?: InputMaybe<Scalars['String']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  expires_minutes?: InputMaybe<Scalars['Int']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  requester_signing?: InputMaybe<Scalars['String']['input']>;
+  requirement?: InputMaybe<Scalars['String']['input']>;
+  revision?: InputMaybe<Scalars['bigint']['input']>;
+  signatures?: InputMaybe<Scalars['Int']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  updated_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  updated_by?: InputMaybe<Scalars['String']['input']>;
+  updated_by_name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Signing_Rule_Sum_Fields = {
+  __typename?: 'sequent_backend_signing_rule_sum_fields';
+  expires_minutes?: Maybe<Scalars['Int']['output']>;
+  revision?: Maybe<Scalars['bigint']['output']>;
+  signatures?: Maybe<Scalars['Int']['output']>;
+};
+
+/** update columns of table "sequent_backend.signing_rule" */
+export enum Sequent_Backend_Signing_Rule_Update_Column {
+  /** column name */
+  Action = 'action',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ExpiresMinutes = 'expires_minutes',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  RequesterSigning = 'requester_signing',
+  /** column name */
+  Requirement = 'requirement',
+  /** column name */
+  Revision = 'revision',
+  /** column name */
+  Signatures = 'signatures',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UpdatedAt = 'updated_at',
+  /** column name */
+  UpdatedBy = 'updated_by',
+  /** column name */
+  UpdatedByName = 'updated_by_name'
+}
+
+export type Sequent_Backend_Signing_Rule_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Sequent_Backend_Signing_Rule_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Signing_Rule_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Signing_Rule_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Signing_Rule_Var_Pop_Fields = {
+  __typename?: 'sequent_backend_signing_rule_var_pop_fields';
+  expires_minutes?: Maybe<Scalars['Float']['output']>;
+  revision?: Maybe<Scalars['Float']['output']>;
+  signatures?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Signing_Rule_Var_Samp_Fields = {
+  __typename?: 'sequent_backend_signing_rule_var_samp_fields';
+  expires_minutes?: Maybe<Scalars['Float']['output']>;
+  revision?: Maybe<Scalars['Float']['output']>;
+  signatures?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Signing_Rule_Variance_Fields = {
+  __typename?: 'sequent_backend_signing_rule_variance_fields';
+  expires_minutes?: Maybe<Scalars['Float']['output']>;
+  revision?: Maybe<Scalars['Float']['output']>;
+  signatures?: Maybe<Scalars['Float']['output']>;
+};
+
+/** columns and relationships of "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate = {
+  __typename?: 'sequent_backend_staff_certificate';
+  created_at: Scalars['timestamptz']['output'];
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
+  election_event_id: Scalars['uuid']['output'];
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  fingerprint_sha256: Scalars['String']['output'];
+  holder_sha256: Scalars['String']['output'];
+  id: Scalars['uuid']['output'];
+  issuer: Scalars['String']['output'];
+  linked_to?: Maybe<Scalars['String']['output']>;
+  not_after: Scalars['timestamptz']['output'];
+  not_before: Scalars['timestamptz']['output'];
+  pem: Scalars['String']['output'];
+  registered_at: Scalars['timestamptz']['output'];
+  registered_by: Scalars['String']['output'];
+  registered_by_name?: Maybe<Scalars['String']['output']>;
+  registration: Scalars['String']['output'];
+  revoke_reason?: Maybe<Scalars['String']['output']>;
+  revoked_at?: Maybe<Scalars['timestamptz']['output']>;
+  revoked_by?: Maybe<Scalars['String']['output']>;
+  revoked_by_name?: Maybe<Scalars['String']['output']>;
+  serial: Scalars['String']['output'];
+  spki_sha256: Scalars['String']['output'];
+  status: Scalars['String']['output'];
+  subject: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  user_display_name?: Maybe<Scalars['String']['output']>;
+  user_id: Scalars['String']['output'];
+  username: Scalars['String']['output'];
+};
+
+/** aggregated selection of "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_Aggregate = {
+  __typename?: 'sequent_backend_staff_certificate_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Staff_Certificate_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Staff_Certificate>;
+};
+
+/** aggregate fields of "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_Aggregate_Fields = {
+  __typename?: 'sequent_backend_staff_certificate_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Staff_Certificate_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Staff_Certificate_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.staff_certificate". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Staff_Certificate_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Staff_Certificate_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Bool_Exp>>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  election_id?: InputMaybe<Uuid_Comparison_Exp>;
+  fingerprint_sha256?: InputMaybe<String_Comparison_Exp>;
+  holder_sha256?: InputMaybe<String_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  issuer?: InputMaybe<String_Comparison_Exp>;
+  linked_to?: InputMaybe<String_Comparison_Exp>;
+  not_after?: InputMaybe<Timestamptz_Comparison_Exp>;
+  not_before?: InputMaybe<Timestamptz_Comparison_Exp>;
+  pem?: InputMaybe<String_Comparison_Exp>;
+  registered_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  registered_by?: InputMaybe<String_Comparison_Exp>;
+  registered_by_name?: InputMaybe<String_Comparison_Exp>;
+  registration?: InputMaybe<String_Comparison_Exp>;
+  revoke_reason?: InputMaybe<String_Comparison_Exp>;
+  revoked_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  revoked_by?: InputMaybe<String_Comparison_Exp>;
+  revoked_by_name?: InputMaybe<String_Comparison_Exp>;
+  serial?: InputMaybe<String_Comparison_Exp>;
+  spki_sha256?: InputMaybe<String_Comparison_Exp>;
+  status?: InputMaybe<String_Comparison_Exp>;
+  subject?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  user_display_name?: InputMaybe<String_Comparison_Exp>;
+  user_id?: InputMaybe<String_Comparison_Exp>;
+  username?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.staff_certificate" */
+export enum Sequent_Backend_Staff_Certificate_Constraint {
+  /** unique or primary key constraint on columns "id", "tenant_id", "election_event_id" */
+  StaffCertificateInItsEvent = 'staff_certificate_in_its_event',
+  /** unique or primary key constraint on columns "tenant_id", "fingerprint_sha256", "election_event_id" */
+  StaffCertificateOneActive = 'staff_certificate_one_active',
+  /** unique or primary key constraint on columns "user_id", "tenant_id", "fingerprint_sha256", "election_event_id" */
+  StaffCertificateOneActivePerUser = 'staff_certificate_one_active_per_user',
+  /** unique or primary key constraint on columns "id" */
+  StaffCertificatePkey = 'staff_certificate_pkey'
+}
+
+/** input type for inserting data into table "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_Insert_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  holder_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer?: InputMaybe<Scalars['String']['input']>;
+  linked_to?: InputMaybe<Scalars['String']['input']>;
+  not_after?: InputMaybe<Scalars['timestamptz']['input']>;
+  not_before?: InputMaybe<Scalars['timestamptz']['input']>;
+  pem?: InputMaybe<Scalars['String']['input']>;
+  registered_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  registered_by?: InputMaybe<Scalars['String']['input']>;
+  registered_by_name?: InputMaybe<Scalars['String']['input']>;
+  registration?: InputMaybe<Scalars['String']['input']>;
+  revoke_reason?: InputMaybe<Scalars['String']['input']>;
+  revoked_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  revoked_by?: InputMaybe<Scalars['String']['input']>;
+  revoked_by_name?: InputMaybe<Scalars['String']['input']>;
+  serial?: InputMaybe<Scalars['String']['input']>;
+  spki_sha256?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  user_display_name?: InputMaybe<Scalars['String']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Staff_Certificate_Max_Fields = {
+  __typename?: 'sequent_backend_staff_certificate_max_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  fingerprint_sha256?: Maybe<Scalars['String']['output']>;
+  holder_sha256?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  issuer?: Maybe<Scalars['String']['output']>;
+  linked_to?: Maybe<Scalars['String']['output']>;
+  not_after?: Maybe<Scalars['timestamptz']['output']>;
+  not_before?: Maybe<Scalars['timestamptz']['output']>;
+  pem?: Maybe<Scalars['String']['output']>;
+  registered_at?: Maybe<Scalars['timestamptz']['output']>;
+  registered_by?: Maybe<Scalars['String']['output']>;
+  registered_by_name?: Maybe<Scalars['String']['output']>;
+  registration?: Maybe<Scalars['String']['output']>;
+  revoke_reason?: Maybe<Scalars['String']['output']>;
+  revoked_at?: Maybe<Scalars['timestamptz']['output']>;
+  revoked_by?: Maybe<Scalars['String']['output']>;
+  revoked_by_name?: Maybe<Scalars['String']['output']>;
+  serial?: Maybe<Scalars['String']['output']>;
+  spki_sha256?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  subject?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  user_display_name?: Maybe<Scalars['String']['output']>;
+  user_id?: Maybe<Scalars['String']['output']>;
+  username?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Staff_Certificate_Min_Fields = {
+  __typename?: 'sequent_backend_staff_certificate_min_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  fingerprint_sha256?: Maybe<Scalars['String']['output']>;
+  holder_sha256?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  issuer?: Maybe<Scalars['String']['output']>;
+  linked_to?: Maybe<Scalars['String']['output']>;
+  not_after?: Maybe<Scalars['timestamptz']['output']>;
+  not_before?: Maybe<Scalars['timestamptz']['output']>;
+  pem?: Maybe<Scalars['String']['output']>;
+  registered_at?: Maybe<Scalars['timestamptz']['output']>;
+  registered_by?: Maybe<Scalars['String']['output']>;
+  registered_by_name?: Maybe<Scalars['String']['output']>;
+  registration?: Maybe<Scalars['String']['output']>;
+  revoke_reason?: Maybe<Scalars['String']['output']>;
+  revoked_at?: Maybe<Scalars['timestamptz']['output']>;
+  revoked_by?: Maybe<Scalars['String']['output']>;
+  revoked_by_name?: Maybe<Scalars['String']['output']>;
+  serial?: Maybe<Scalars['String']['output']>;
+  spki_sha256?: Maybe<Scalars['String']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  subject?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  user_display_name?: Maybe<Scalars['String']['output']>;
+  user_id?: Maybe<Scalars['String']['output']>;
+  username?: Maybe<Scalars['String']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_Mutation_Response = {
+  __typename?: 'sequent_backend_staff_certificate_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Staff_Certificate>;
+};
+
+/** on_conflict condition type for table "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_On_Conflict = {
+  constraint: Sequent_Backend_Staff_Certificate_Constraint;
+  update_columns?: Array<Sequent_Backend_Staff_Certificate_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Staff_Certificate_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.staff_certificate". */
+export type Sequent_Backend_Staff_Certificate_Order_By = {
+  created_at?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  election_id?: InputMaybe<Order_By>;
+  fingerprint_sha256?: InputMaybe<Order_By>;
+  holder_sha256?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  issuer?: InputMaybe<Order_By>;
+  linked_to?: InputMaybe<Order_By>;
+  not_after?: InputMaybe<Order_By>;
+  not_before?: InputMaybe<Order_By>;
+  pem?: InputMaybe<Order_By>;
+  registered_at?: InputMaybe<Order_By>;
+  registered_by?: InputMaybe<Order_By>;
+  registered_by_name?: InputMaybe<Order_By>;
+  registration?: InputMaybe<Order_By>;
+  revoke_reason?: InputMaybe<Order_By>;
+  revoked_at?: InputMaybe<Order_By>;
+  revoked_by?: InputMaybe<Order_By>;
+  revoked_by_name?: InputMaybe<Order_By>;
+  serial?: InputMaybe<Order_By>;
+  spki_sha256?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  subject?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  user_display_name?: InputMaybe<Order_By>;
+  user_id?: InputMaybe<Order_By>;
+  username?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.staff_certificate */
+export type Sequent_Backend_Staff_Certificate_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.staff_certificate" */
+export enum Sequent_Backend_Staff_Certificate_Select_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
+  /** column name */
+  FingerprintSha256 = 'fingerprint_sha256',
+  /** column name */
+  HolderSha256 = 'holder_sha256',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Issuer = 'issuer',
+  /** column name */
+  LinkedTo = 'linked_to',
+  /** column name */
+  NotAfter = 'not_after',
+  /** column name */
+  NotBefore = 'not_before',
+  /** column name */
+  Pem = 'pem',
+  /** column name */
+  RegisteredAt = 'registered_at',
+  /** column name */
+  RegisteredBy = 'registered_by',
+  /** column name */
+  RegisteredByName = 'registered_by_name',
+  /** column name */
+  Registration = 'registration',
+  /** column name */
+  RevokeReason = 'revoke_reason',
+  /** column name */
+  RevokedAt = 'revoked_at',
+  /** column name */
+  RevokedBy = 'revoked_by',
+  /** column name */
+  RevokedByName = 'revoked_by_name',
+  /** column name */
+  Serial = 'serial',
+  /** column name */
+  SpkiSha256 = 'spki_sha256',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  Subject = 'subject',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UserDisplayName = 'user_display_name',
+  /** column name */
+  UserId = 'user_id',
+  /** column name */
+  Username = 'username'
+}
+
+/** input type for updating data in table "sequent_backend.staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_Set_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  holder_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer?: InputMaybe<Scalars['String']['input']>;
+  linked_to?: InputMaybe<Scalars['String']['input']>;
+  not_after?: InputMaybe<Scalars['timestamptz']['input']>;
+  not_before?: InputMaybe<Scalars['timestamptz']['input']>;
+  pem?: InputMaybe<Scalars['String']['input']>;
+  registered_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  registered_by?: InputMaybe<Scalars['String']['input']>;
+  registered_by_name?: InputMaybe<Scalars['String']['input']>;
+  registration?: InputMaybe<Scalars['String']['input']>;
+  revoke_reason?: InputMaybe<Scalars['String']['input']>;
+  revoked_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  revoked_by?: InputMaybe<Scalars['String']['input']>;
+  revoked_by_name?: InputMaybe<Scalars['String']['input']>;
+  serial?: InputMaybe<Scalars['String']['input']>;
+  spki_sha256?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  user_display_name?: InputMaybe<Scalars['String']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_staff_certificate" */
+export type Sequent_Backend_Staff_Certificate_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Staff_Certificate_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Staff_Certificate_Stream_Cursor_Value_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  fingerprint_sha256?: InputMaybe<Scalars['String']['input']>;
+  holder_sha256?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer?: InputMaybe<Scalars['String']['input']>;
+  linked_to?: InputMaybe<Scalars['String']['input']>;
+  not_after?: InputMaybe<Scalars['timestamptz']['input']>;
+  not_before?: InputMaybe<Scalars['timestamptz']['input']>;
+  pem?: InputMaybe<Scalars['String']['input']>;
+  registered_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  registered_by?: InputMaybe<Scalars['String']['input']>;
+  registered_by_name?: InputMaybe<Scalars['String']['input']>;
+  registration?: InputMaybe<Scalars['String']['input']>;
+  revoke_reason?: InputMaybe<Scalars['String']['input']>;
+  revoked_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  revoked_by?: InputMaybe<Scalars['String']['input']>;
+  revoked_by_name?: InputMaybe<Scalars['String']['input']>;
+  serial?: InputMaybe<Scalars['String']['input']>;
+  spki_sha256?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  subject?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  user_display_name?: InputMaybe<Scalars['String']['input']>;
+  user_id?: InputMaybe<Scalars['String']['input']>;
+  username?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** update columns of table "sequent_backend.staff_certificate" */
+export enum Sequent_Backend_Staff_Certificate_Update_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
+  /** column name */
+  FingerprintSha256 = 'fingerprint_sha256',
+  /** column name */
+  HolderSha256 = 'holder_sha256',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Issuer = 'issuer',
+  /** column name */
+  LinkedTo = 'linked_to',
+  /** column name */
+  NotAfter = 'not_after',
+  /** column name */
+  NotBefore = 'not_before',
+  /** column name */
+  Pem = 'pem',
+  /** column name */
+  RegisteredAt = 'registered_at',
+  /** column name */
+  RegisteredBy = 'registered_by',
+  /** column name */
+  RegisteredByName = 'registered_by_name',
+  /** column name */
+  Registration = 'registration',
+  /** column name */
+  RevokeReason = 'revoke_reason',
+  /** column name */
+  RevokedAt = 'revoked_at',
+  /** column name */
+  RevokedBy = 'revoked_by',
+  /** column name */
+  RevokedByName = 'revoked_by_name',
+  /** column name */
+  Serial = 'serial',
+  /** column name */
+  SpkiSha256 = 'spki_sha256',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  Subject = 'subject',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  UserDisplayName = 'user_display_name',
+  /** column name */
+  UserId = 'user_id',
+  /** column name */
+  Username = 'username'
+}
+
+export type Sequent_Backend_Staff_Certificate_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Staff_Certificate_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Staff_Certificate_Bool_Exp;
+};
+
+/** columns and relationships of "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl = {
+  __typename?: 'sequent_backend_staff_crl';
+  created_at: Scalars['timestamptz']['output'];
+  der?: Maybe<Scalars['bytea']['output']>;
+  election_event_id: Scalars['uuid']['output'];
+  fetched_at: Scalars['timestamptz']['output'];
+  id: Scalars['uuid']['output'];
+  issuer_fingerprint: Scalars['String']['output'];
+  issuer_id: Scalars['uuid']['output'];
+  last_error?: Maybe<Scalars['String']['output']>;
+  last_ok_at?: Maybe<Scalars['timestamptz']['output']>;
+  next_update?: Maybe<Scalars['timestamptz']['output']>;
+  status: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  this_update?: Maybe<Scalars['timestamptz']['output']>;
+  url: Scalars['String']['output'];
+};
+
+/** aggregated selection of "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl_Aggregate = {
+  __typename?: 'sequent_backend_staff_crl_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Staff_Crl_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Staff_Crl>;
+};
+
+/** aggregate fields of "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl_Aggregate_Fields = {
+  __typename?: 'sequent_backend_staff_crl_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Staff_Crl_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Staff_Crl_Min_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.staff_crl". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Staff_Crl_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Staff_Crl_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Bool_Exp>>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  der?: InputMaybe<Bytea_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  fetched_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  issuer_fingerprint?: InputMaybe<String_Comparison_Exp>;
+  issuer_id?: InputMaybe<Uuid_Comparison_Exp>;
+  last_error?: InputMaybe<String_Comparison_Exp>;
+  last_ok_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  next_update?: InputMaybe<Timestamptz_Comparison_Exp>;
+  status?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  this_update?: InputMaybe<Timestamptz_Comparison_Exp>;
+  url?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.staff_crl" */
+export enum Sequent_Backend_Staff_Crl_Constraint {
+  /** unique or primary key constraint on columns "tenant_id", "election_event_id", "url" */
+  StaffCrlOnePerUrl = 'staff_crl_one_per_url',
+  /** unique or primary key constraint on columns "id" */
+  StaffCrlPkey = 'staff_crl_pkey'
+}
+
+/** input type for inserting data into table "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl_Insert_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  der?: InputMaybe<Scalars['bytea']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fetched_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer_fingerprint?: InputMaybe<Scalars['String']['input']>;
+  issuer_id?: InputMaybe<Scalars['uuid']['input']>;
+  last_error?: InputMaybe<Scalars['String']['input']>;
+  last_ok_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  next_update?: InputMaybe<Scalars['timestamptz']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  this_update?: InputMaybe<Scalars['timestamptz']['input']>;
+  url?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Staff_Crl_Max_Fields = {
+  __typename?: 'sequent_backend_staff_crl_max_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  fetched_at?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  issuer_fingerprint?: Maybe<Scalars['String']['output']>;
+  issuer_id?: Maybe<Scalars['uuid']['output']>;
+  last_error?: Maybe<Scalars['String']['output']>;
+  last_ok_at?: Maybe<Scalars['timestamptz']['output']>;
+  next_update?: Maybe<Scalars['timestamptz']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  this_update?: Maybe<Scalars['timestamptz']['output']>;
+  url?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Staff_Crl_Min_Fields = {
+  __typename?: 'sequent_backend_staff_crl_min_fields';
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  fetched_at?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  issuer_fingerprint?: Maybe<Scalars['String']['output']>;
+  issuer_id?: Maybe<Scalars['uuid']['output']>;
+  last_error?: Maybe<Scalars['String']['output']>;
+  last_ok_at?: Maybe<Scalars['timestamptz']['output']>;
+  next_update?: Maybe<Scalars['timestamptz']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  this_update?: Maybe<Scalars['timestamptz']['output']>;
+  url?: Maybe<Scalars['String']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl_Mutation_Response = {
+  __typename?: 'sequent_backend_staff_crl_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Staff_Crl>;
+};
+
+/** on_conflict condition type for table "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl_On_Conflict = {
+  constraint: Sequent_Backend_Staff_Crl_Constraint;
+  update_columns?: Array<Sequent_Backend_Staff_Crl_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Staff_Crl_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.staff_crl". */
+export type Sequent_Backend_Staff_Crl_Order_By = {
+  created_at?: InputMaybe<Order_By>;
+  der?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  fetched_at?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  issuer_fingerprint?: InputMaybe<Order_By>;
+  issuer_id?: InputMaybe<Order_By>;
+  last_error?: InputMaybe<Order_By>;
+  last_ok_at?: InputMaybe<Order_By>;
+  next_update?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  this_update?: InputMaybe<Order_By>;
+  url?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.staff_crl */
+export type Sequent_Backend_Staff_Crl_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "sequent_backend.staff_crl" */
+export enum Sequent_Backend_Staff_Crl_Select_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  Der = 'der',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  FetchedAt = 'fetched_at',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  IssuerFingerprint = 'issuer_fingerprint',
+  /** column name */
+  IssuerId = 'issuer_id',
+  /** column name */
+  LastError = 'last_error',
+  /** column name */
+  LastOkAt = 'last_ok_at',
+  /** column name */
+  NextUpdate = 'next_update',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  ThisUpdate = 'this_update',
+  /** column name */
+  Url = 'url'
+}
+
+/** input type for updating data in table "sequent_backend.staff_crl" */
+export type Sequent_Backend_Staff_Crl_Set_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  der?: InputMaybe<Scalars['bytea']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fetched_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer_fingerprint?: InputMaybe<Scalars['String']['input']>;
+  issuer_id?: InputMaybe<Scalars['uuid']['input']>;
+  last_error?: InputMaybe<Scalars['String']['input']>;
+  last_ok_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  next_update?: InputMaybe<Scalars['timestamptz']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  this_update?: InputMaybe<Scalars['timestamptz']['input']>;
+  url?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_staff_crl" */
+export type Sequent_Backend_Staff_Crl_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Staff_Crl_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Staff_Crl_Stream_Cursor_Value_Input = {
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  der?: InputMaybe<Scalars['bytea']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  fetched_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  issuer_fingerprint?: InputMaybe<Scalars['String']['input']>;
+  issuer_id?: InputMaybe<Scalars['uuid']['input']>;
+  last_error?: InputMaybe<Scalars['String']['input']>;
+  last_ok_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  next_update?: InputMaybe<Scalars['timestamptz']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  this_update?: InputMaybe<Scalars['timestamptz']['input']>;
+  url?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** update columns of table "sequent_backend.staff_crl" */
+export enum Sequent_Backend_Staff_Crl_Update_Column {
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  Der = 'der',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  FetchedAt = 'fetched_at',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  IssuerFingerprint = 'issuer_fingerprint',
+  /** column name */
+  IssuerId = 'issuer_id',
+  /** column name */
+  LastError = 'last_error',
+  /** column name */
+  LastOkAt = 'last_ok_at',
+  /** column name */
+  NextUpdate = 'next_update',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  ThisUpdate = 'this_update',
+  /** column name */
+  Url = 'url'
+}
+
+export type Sequent_Backend_Staff_Crl_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Staff_Crl_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Staff_Crl_Bool_Exp;
+};
+
 /** columns and relationships of "sequent_backend.support_material" */
 export type Sequent_Backend_Support_Material = {
   __typename?: 'sequent_backend_support_material';
@@ -23906,6 +27823,54 @@ export type Subscription_Root = {
   sequent_backend_secret_by_pk?: Maybe<Sequent_Backend_Secret>;
   /** fetch data from the table in a streaming manner: "sequent_backend.secret" */
   sequent_backend_secret_stream: Array<Sequent_Backend_Secret>;
+  /** fetch data from the table: "sequent_backend.signing_approval" */
+  sequent_backend_signing_approval: Array<Sequent_Backend_Signing_Approval>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_approval" */
+  sequent_backend_signing_approval_aggregate: Sequent_Backend_Signing_Approval_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_approval" using primary key columns */
+  sequent_backend_signing_approval_by_pk?: Maybe<Sequent_Backend_Signing_Approval>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.signing_approval" */
+  sequent_backend_signing_approval_stream: Array<Sequent_Backend_Signing_Approval>;
+  /** fetch data from the table: "sequent_backend.signing_checks" */
+  sequent_backend_signing_checks: Array<Sequent_Backend_Signing_Checks>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_checks" */
+  sequent_backend_signing_checks_aggregate: Sequent_Backend_Signing_Checks_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_checks" using primary key columns */
+  sequent_backend_signing_checks_by_pk?: Maybe<Sequent_Backend_Signing_Checks>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.signing_checks" */
+  sequent_backend_signing_checks_stream: Array<Sequent_Backend_Signing_Checks>;
+  /** fetch data from the table: "sequent_backend.signing_request" */
+  sequent_backend_signing_request: Array<Sequent_Backend_Signing_Request>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_request" */
+  sequent_backend_signing_request_aggregate: Sequent_Backend_Signing_Request_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_request" using primary key columns */
+  sequent_backend_signing_request_by_pk?: Maybe<Sequent_Backend_Signing_Request>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.signing_request" */
+  sequent_backend_signing_request_stream: Array<Sequent_Backend_Signing_Request>;
+  /** fetch data from the table: "sequent_backend.signing_rule" */
+  sequent_backend_signing_rule: Array<Sequent_Backend_Signing_Rule>;
+  /** fetch aggregated fields from the table: "sequent_backend.signing_rule" */
+  sequent_backend_signing_rule_aggregate: Sequent_Backend_Signing_Rule_Aggregate;
+  /** fetch data from the table: "sequent_backend.signing_rule" using primary key columns */
+  sequent_backend_signing_rule_by_pk?: Maybe<Sequent_Backend_Signing_Rule>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.signing_rule" */
+  sequent_backend_signing_rule_stream: Array<Sequent_Backend_Signing_Rule>;
+  /** fetch data from the table: "sequent_backend.staff_certificate" */
+  sequent_backend_staff_certificate: Array<Sequent_Backend_Staff_Certificate>;
+  /** fetch aggregated fields from the table: "sequent_backend.staff_certificate" */
+  sequent_backend_staff_certificate_aggregate: Sequent_Backend_Staff_Certificate_Aggregate;
+  /** fetch data from the table: "sequent_backend.staff_certificate" using primary key columns */
+  sequent_backend_staff_certificate_by_pk?: Maybe<Sequent_Backend_Staff_Certificate>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.staff_certificate" */
+  sequent_backend_staff_certificate_stream: Array<Sequent_Backend_Staff_Certificate>;
+  /** fetch data from the table: "sequent_backend.staff_crl" */
+  sequent_backend_staff_crl: Array<Sequent_Backend_Staff_Crl>;
+  /** fetch aggregated fields from the table: "sequent_backend.staff_crl" */
+  sequent_backend_staff_crl_aggregate: Sequent_Backend_Staff_Crl_Aggregate;
+  /** fetch data from the table: "sequent_backend.staff_crl" using primary key columns */
+  sequent_backend_staff_crl_by_pk?: Maybe<Sequent_Backend_Staff_Crl>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.staff_crl" */
+  sequent_backend_staff_crl_stream: Array<Sequent_Backend_Staff_Crl>;
   /** fetch data from the table: "sequent_backend.support_material" */
   sequent_backend_support_material: Array<Sequent_Backend_Support_Material>;
   /** fetch aggregated fields from the table: "sequent_backend.support_material" */
@@ -24954,6 +28919,186 @@ export type Subscription_RootSequent_Backend_Secret_StreamArgs = {
 };
 
 
+export type Subscription_RootSequent_Backend_Signing_ApprovalArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Approval_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Approval_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Approval_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Approval_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Signing_Approval_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Approval_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_ChecksArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Checks_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Checks_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Checks_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Checks_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Checks_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Checks_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Signing_Checks_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Checks_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_RequestArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Request_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Request_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Request_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Request_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Request_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Request_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Request_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Signing_Request_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Request_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_RuleArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Rule_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Rule_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Signing_Rule_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Rule_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Rule_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Signing_Rule_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Signing_Rule_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Signing_Rule_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_CertificateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Certificate_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_Certificate_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Certificate_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Certificate_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_Certificate_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_Certificate_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Staff_Certificate_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Certificate_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_CrlArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Crl_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_Crl_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Staff_Crl_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Crl_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_Crl_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Staff_Crl_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Staff_Crl_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Staff_Crl_Bool_Exp>;
+};
+
+
 export type Subscription_RootSequent_Backend_Support_MaterialArgs = {
   distinct_on?: InputMaybe<Array<Sequent_Backend_Support_Material_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -25550,8 +29695,8 @@ export type ReceiveBallotMutation = { __typename?: 'mutation_root', receive_ball
 
 export type ListCastVoteMessagesQueryVariables = Exact<{
   tenantId: Scalars['String']['input'];
-  electionEventId: Scalars['String']['input'];
-  electionId?: InputMaybe<Scalars['String']['input']>;
+  electionEventId: Scalars['uuid']['input'];
+  electionId?: InputMaybe<Scalars['uuid']['input']>;
   ballotId: Scalars['String']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
@@ -25577,4 +29722,4 @@ export const GetSupportMaterialsAcknowledgmentDocument = {"kind":"Document","def
 export const GetVoterStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetVoterStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_ballot_files_urls"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]},{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_cast_vote"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}}]}}]}}]} as unknown as DocumentNode<GetVoterStatusQuery, GetVoterStatusQueryVariables>;
 export const InsertCastVoteDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertCastVote"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"content"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insert_cast_vote"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"content"},"value":{"kind":"Variable","name":{"kind":"Name","value":"content"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"cast_ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"voter_id_string"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<InsertCastVoteMutation, InsertCastVoteMutationVariables>;
 export const ReceiveBallotDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ReceiveBallot"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"content"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"receive_ballot"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"content"},"value":{"kind":"Variable","name":{"kind":"Name","value":"content"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"received_at"}},{"kind":"Field","name":{"kind":"Name","value":"key_id"}},{"kind":"Field","name":{"kind":"Name","value":"received_signature"}}]}}]}}]} as unknown as DocumentNode<ReceiveBallotMutation, ReceiveBallotMutationVariables>;
-export const ListCastVoteMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"listCastVoteMessages"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ElectoralLogOrderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list_cast_vote_messages"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"statement_timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"statement_kind"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"}}]}}]}}]} as unknown as DocumentNode<ListCastVoteMessagesQuery, ListCastVoteMessagesQueryVariables>;
+export const ListCastVoteMessagesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"listCastVoteMessages"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"ElectoralLogOrderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list_cast_vote_messages"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"tenant_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"tenantId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"ballot_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotId"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"Variable","name":{"kind":"Name","value":"orderBy"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"list"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"statement_timestamp"}},{"kind":"Field","name":{"kind":"Name","value":"statement_kind"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_id"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"message"}}]}},{"kind":"Field","name":{"kind":"Name","value":"total"}}]}}]}}]} as unknown as DocumentNode<ListCastVoteMessagesQuery, ListCastVoteMessagesQueryVariables>;

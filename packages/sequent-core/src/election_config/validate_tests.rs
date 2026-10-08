@@ -793,6 +793,8 @@ fn labelled_report(
         cron_config: None,
         created_at: chrono::DateTime::UNIX_EPOCH,
         permission_label: Some(vec![label.into()]),
+        copies: None,
+        output_formats: None,
     }
 }
 
@@ -1748,4 +1750,62 @@ fn a_bundle_problem_carries_its_specifics() {
     assert_eq!(problem.details["min"], "3");
     assert_eq!(problem.details["max"], "1");
     assert_eq!(problem.code, Code::ContestArithmetic);
+}
+
+// -- slates -----------------------------------------------------------------
+
+/// The sound bundle with one slate naming one candidate for president.
+fn with_slate(candidate_id: &str) -> ImportElectionEventSchema {
+    let mut bundle = sound();
+    let slates = serde_json::json!({
+        "version": 1,
+        "slates": [{
+            "id": "forward-together",
+            "name": {"en": "Forward Together"},
+            "members": {
+                "c1000000-0000-5000-8000-000000000000": [candidate_id]
+            }
+        }]
+    });
+    bundle.elections[0].annotations = Some(serde_json::json!({
+        crate::election_config::slates::SLATES_ANNOTATION: slates.to_string()
+    }));
+    bundle
+}
+
+#[test]
+fn slates_that_resolve_are_accepted() {
+    let bundle = with_slate("d1000000-0000-5000-8000-000000000000");
+    assert_eq!(error_codes(&bundle), Vec::new());
+}
+
+#[test]
+fn a_slate_naming_a_candidate_the_bundle_lacks_is_refused() {
+    let bundle = with_slate("d9000000-0000-5000-8000-000000000000");
+    let report = validate(&bundle);
+    let problem = report.errors().next().expect("a slate problem");
+    assert_eq!(problem.code, Code::DanglingReference);
+    assert!(problem
+        .path
+        .starts_with("elections[0].annotations.sequent.slates"));
+    assert_eq!(problem.external_id.as_deref(), Some("officers"));
+}
+
+#[cfg(feature = "keycloak")]
+#[test]
+fn slates_still_resolve_after_the_importer_regenerates_ids() {
+    let bundle = with_slate("d1000000-0000-5000-8000-000000000000");
+    let document = serde_json::to_string(&bundle).unwrap();
+    let (remapped, replaced) = crate::services::replace_uuids::replace_uuids(
+        &document,
+        vec![TENANT.to_string()],
+    );
+    assert!(replaced.contains_key("d1000000-0000-5000-8000-000000000000"));
+    let imported: ImportElectionEventSchema =
+        serde_json::from_str(&remapped).unwrap();
+    assert_eq!(error_codes(&imported), Vec::new());
+    let annotations = imported.elections[0].annotations.as_ref().unwrap();
+    assert!(!annotations
+        .to_string()
+        .contains("d1000000-0000-5000-8000-000000000000"));
 }

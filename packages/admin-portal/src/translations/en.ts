@@ -4,10 +4,10 @@
 
 const englishTranslation = {
     translations: {
-        philippinePassport: "Philippine Passport",
-        seamanBook: "Seaman's Book",
+        philippinePassport: "Passport",
+        seamanBook: "Seafarer's Book",
         philSysID: "PhilSys ID",
-        iBP: "Integrated Bar of the Philippines (IBP)",
+        iBP: "Integrated Bar of the Philippines ID",
         driversLicense: "Driver's License",
         loading: "Loading...",
         loadingDataProvider: "Loading data provider...",
@@ -210,6 +210,51 @@ const englishTranslation = {
             exportdialog: {
                 description:
                     "Please confirm you want to execute this action, it might take a while to execute.",
+                title: "Export logs",
+                from: "From",
+                to: "To",
+                timeZone: "Timezone",
+                format: "Format",
+                csv: "CSV",
+                pdf: "PDF",
+                zoneNote:
+                    "Each row keeps its time in UTC (ISO 8601) and in {{abbr}}, with the timezone name. The date range includes both ends, in {{abbr}}.",
+                zoneNotePdf:
+                    "The PDF prints each time in {{abbr}}. The date range includes both ends, in {{abbr}}.",
+                rowZones: "Each row's election timezone",
+                zoneNoteRows:
+                    "Each row keeps its time in UTC (ISO 8601) and in its election's timezone, with the timezone name. The date range includes both ends, in {{abbr}}.",
+                zoneNoteRowsPdf:
+                    "The PDF prints each time in its election's timezone. The date range includes both ends, in {{abbr}}.",
+            },
+            filter: {
+                createdFrom: "Created from",
+                createdTo: "to",
+                statementTimestampFrom: "Statement Timestamp from",
+                statementTimestampTo: "Statement Timestamp to",
+                timeZone: "Timezone",
+            },
+            scheduledOutcome: {
+                outcome: {
+                    "waiting-for-initialization": "Waiting for initialization",
+                    "runs": "runs",
+                    "runs-unsigned": "runs without signatures",
+                    "refused": "refused",
+                },
+                check: {
+                    "initialization": "Required initialization is incomplete",
+                    "voting-close": "Voting cannot open at or after its close deadline",
+                    "needs-signatures": "signatures needed",
+                    "covered": "in the signed configuration",
+                    "unsigned-close": "close without signatures",
+                    "stricter-copy": "current or published settings",
+                    "defaults": "nothing published yet",
+                },
+                changed: "Now {{after}} (was: {{before}}).",
+                result: "Outcome: {{outcome}}.",
+                deciding: "Deciding check: {{check}}. {{value}}",
+                authorizedBy: "Authorized by configuration {{code}}.",
+                nextStep: "Next step: {{step}}",
             },
             column: {
                 id: "Id",
@@ -300,6 +345,7 @@ const englishTranslation = {
                 taskTitle: "Task: {{title}}",
                 viewTask: "View Task",
                 downloadDocument: "Download File",
+                downloadHashManifest: "Hash manifest",
             },
             exportTasksExecution: {
                 success: "Export finished successfully",
@@ -503,6 +549,7 @@ const englishTranslation = {
                     duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
+                    invalidTimeZoneText: "This text must keep {{placeholders}}.",
                 },
                 common: {
                     title: "Localization",
@@ -520,6 +567,7 @@ const englishTranslation = {
                     ballotVerifier: "Ballot verifier",
                     resultsPortal: "Results portal",
                     adminPortal: "Admin portal",
+                    templates: "Reports and messages",
                 },
             },
             field: {
@@ -592,6 +640,22 @@ const englishTranslation = {
                     checksAvailableUntilRequired:
                         "Enter the date and time until which ballots can be checked.",
                 },
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Voter accessibility settings",
+                    options: {
+                        disabled: "Hide the accessibility settings",
+                        enabled: "Offer text size, contrast, spacing and motion settings",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Audio instructions",
+                    options: {
+                        "disabled": "No audio instructions",
+                        "recorded": "Uploaded recordings only",
+                        "recorded-or-synthesized":
+                            "Uploaded recordings, or the browser's voice where there is none",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Show Cast Vote Logs Tab",
                     options: {
@@ -601,6 +665,8 @@ const englishTranslation = {
                 },
                 lockdownState: {
                     policyLabel: "Lockdown Status",
+                    helperText:
+                        "Schedule a start or end of the lockdown period to change this state.",
                     options: {
                         "locked-down": "Locked Down",
                         "not-locked-down": "Not Locked Down",
@@ -1061,6 +1127,21 @@ const englishTranslation = {
                     "no-gold-level": "No Gold level Authentication",
                 },
             },
+            slates: {
+                title: "Slates",
+                configuration: "Slate configuration (JSON)",
+                helper: "Named slates and the candidates each one runs in each contest. Leave empty for an election without slates.",
+                loading:
+                    "The election's contests and candidates are still loading. Try again in a moment.",
+                mobileCandidateLists: {
+                    label: "Mobile candidate lists",
+                    helper: "How each slate's candidate list starts on phones. Voters can always open or close it.",
+                    options: {
+                        collapsed: "Collapsed",
+                        expanded: "Expanded",
+                    },
+                },
+            },
             startScreenTitlePolicy: {
                 label: "Start Screen Title Policy",
                 options: {
@@ -1494,6 +1575,7 @@ const englishTranslation = {
                 "task-export": "Export Tasks",
                 "application-read": "Read Application",
                 "application-write": "Edit Application",
+                "approval-matrix-write": "Edit Approval Matrix",
                 "logs-export": "Export Logs",
                 "election-event-logs-columns": "Election Event Logs Columns",
                 "election-events-logs-filters": "Election Event Logs Filters",
@@ -1601,6 +1683,22 @@ const englishTranslation = {
                 START_LOCKDOWN_PERIOD: "Start Lockdown Period",
                 END_LOCKDOWN_PERIOD: "End Lockdown Period",
                 ALLOW_TALLY: "Allow Tally",
+                START_READINESS_TEST: "Start Election Readiness Test",
+                END_READINESS_TEST: "End Election Readiness Test",
+                START_FINAL_TESTING: "Start Final Testing and Lockdown",
+                END_FINAL_TESTING: "End Final Testing and Lockdown",
+                START_TEST_VOTING: "Start Test Voting",
+                END_TEST_VOTING: "End Test Voting",
+            },
+            warning: {
+                votingWindowDays:
+                    "The voting window of {{election}} covers {{days}} local days ({{start_local}} to {{end_local}}, {{time_zone}}); the rule asks for {{expected}}.",
+                finalTestingLeadTime:
+                    "Final testing of {{election}} starts {{final_testing_local}}, less than {{minimum_days}} days before voting opens at {{voting_start_local}} ({{time_zone}}).",
+                closeBeforeOpen:
+                    "Voting at {{election}} closes at or before it opens ({{start_local}} to {{end_local}}, {{time_zone}}).",
+                shortLastDay:
+                    "The last voting day at {{election}} has {{hours}} hours, less than {{minimum_hours}}: voting closes {{end_local}} ({{time_zone}}).",
             },
             election: {
                 label: "Election",
@@ -1937,6 +2035,7 @@ const englishTranslation = {
                 "warn-only-in-review": "Warn in Review",
                 "warn": "Warn",
                 "warn-and-alert": "Warn and Alert",
+                "warn-and-confirm-in-review": "Warn and Confirm in Review",
             },
             invalidVotePolicy: {
                 "label": "Invalid Vote Policy",
@@ -2433,6 +2532,15 @@ const englishTranslation = {
             exportAllAreas: "Export All Areas Results in {{format}} format for '{{item}}'",
         },
         publish: {
+            initialization: {
+                countryInfo:
+                    "Generate the report for the entire Post or one country. Voting remains blocked until all required country and event-wide initialization is complete.",
+                countriesError: "Could not load eligible countries. Close and try again.",
+                noCountries:
+                    "This Post has no eligible countries with active ballot styles. Check its areas and publication before initializing.",
+                country: "Country",
+                entirePost: "Entire Post",
+            },
             preview: {
                 publicationAreas: "Select Area for Preview",
                 action: "Preview",
@@ -2749,6 +2857,23 @@ const englishTranslation = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Audio instructions for screen",
+                languageLabel: "Language of the recording",
+                none: "Not audio instructions",
+                helperText:
+                    "Voters hear this file when they ask for the instructions on that screen.",
+                screens: {
+                    "election-chooser": "Election list",
+                    "start": "Start",
+                    "ballot": "Ballot",
+                    "review": "Review",
+                    "confirmation": "Confirmation",
+                    "audit": "Audit",
+                    "ballot-locator": "Ballot locator",
+                    "support-materials": "Support materials",
+                },
+            },
             createMaterialSuccess: "Support material created",
             createMaterialError: "Error creating support material",
             updateMaterialSuccess: "Support material updated",
@@ -2819,46 +2944,431 @@ const englishTranslation = {
         approvalsScreen: {
             column: {
                 status: "Status",
-                id: "ID",
+                id: "Application ID",
                 applicantId: "Applicant ID",
-                verificationType: "Verification Type",
-                createdAt: "Created At",
-                updatedAt: "Updated At",
-                verified_by: "Verified By",
+                verificationType: "Verification",
+                createdAt: "Applied",
+                verified_by: "Verified by",
+                voter: "Voter",
+                what: "What happened",
+                post: "Post",
+                when: "When",
             },
-            approvalRequest: "Approval Request",
-            taskInformation: "Task Information",
-            ok: "Ok",
-            title: "Voters",
-            subtitle: "Find matching voters",
-            approve: {
-                body: "Are you sure you want to approve this voter? This action is not reversible.",
+            status: {
+                PENDING: "Needs review",
+                ACCEPTED: "Approved",
+                REJECTED: "Rejected",
             },
-            reject: {
-                label: "Reject Application",
-                confirm:
-                    "Are you sure you want to reject this voter? This action is not reversible.",
-                rejectReason: "Rejection Reason",
-                message: "Write here the disapproval reason",
-                messageRequired: "A rejection message is required for the 'Other' option.",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Missing Data",
-                    "no-matching-voter": "No Matching Voter",
-                    "voter-already-approved": "Already Approved",
-                    "other": "Other",
+            verification: {
+                AUTOMATIC: "Automatic",
+                MANUAL: "Manual",
+            },
+            time: {
+                minutes_one: "{{count}} minute",
+                minutes_other: "{{count}} minutes",
+                hours_one: "{{count}} hour",
+                hours_other: "{{count}} hours",
+                days_one: "{{count}} day",
+                days_other: "{{count}} days",
+            },
+            summary: {
+                join: "{{head}} and {{last}}",
+                differs_one: "{{fields}} differs from the registry",
+                differs_other: "{{fields}} differ from the registry",
+                typedByHand: "Details typed by hand, not read from an ID scan",
+                needsFaceToFace: "Needs a face-to-face check",
+                scanVerified: "ID scan verified",
+                noVoter: "No voter found in the registry",
+                allMatch: "All details match the registry",
+                needsReview: "Waiting for a person to decide",
+                approvedBy: "Approved by {{name}}",
+                approvedAuto: "Approved automatically",
+                rejectedBy: "Rejected by {{name}}",
+                rejectedAuto: "Rejected automatically",
+            },
+            list: {
+                title: "Approvals",
+                subtitle: "Enrollments the rules can't decide on their own wait here for a person.",
+                search: "Search",
+                review: "Review enrollment",
+                openRecord: "Open enrollment",
+                seeRule: "See the rule that decided",
+                unnamed: "Unnamed applicant",
+                waiting: "Waiting {{time}}",
+                applied: "Applied {{date}}",
+                empty: {
+                    title: "Nothing here",
+                    text: "Enrollments with this status will appear here. Try another search or status.",
                 },
             },
+            flow: {
+                stepsLabel: "Review steps",
+                steps: {
+                    identity: "Check the identity",
+                    voter: "Find the voter",
+                    decide: "Decide",
+                },
+                continue: "Continue",
+                backToList: "Back to Approvals",
+                identity: {
+                    details: "Details on the enrollment",
+                    confirm:
+                        "I checked the voter's ID in person or by video call, and it matches this enrollment.",
+                    checked: "Face-to-face check confirmed",
+                    notChecked: "Face-to-face check not confirmed yet",
+                },
+                voter: {
+                    none: "None of these is the voter",
+                    noneHint: "The enrollment can then only be rejected, for no matching voter.",
+                    noneChosen: "None of these is the voter",
+                    notChosen: "No voter chosen yet",
+                },
+                decide: {
+                    approve: "Approve",
+                    reject: "Reject",
+                    approveText:
+                        "Link this enrollment to {{voter}} in the registry. The voter is told by email or text message and can sign in to vote when voting opens.",
+                    rejectText: "The voter is told why. This can't be undone.",
+                    chooseVoter: "Choose the matching voter in step 2 to approve.",
+                    noVoter:
+                        "You found no matching voter, so this enrollment can only be rejected.",
+                    enrolled: "The chosen voter is already enrolled.",
+                    faceToFace: "Confirm the face-to-face check in step 1 to approve.",
+                },
+            },
+            review: {
+                loadError: "The enrollment could not be loaded.",
+                applied: "Applied {{date}}",
+                waiting: "Waiting {{time}}",
+                whyTitle: "Why this needs a person",
+                decisionTitle: "How this was decided",
+                rule: "Rule {{rule}} of matrix version {{version}}",
+                ruleLast: "Last rule of matrix version {{version}}",
+                seeRule: "See the rule",
+                why: {
+                    typedByHand:
+                        "The voter typed their details by hand instead of scanning an ID. Enrollments like this are never approved automatically: an officer confirms who they are first.",
+                    differs_one:
+                        "One detail doesn't match the registry: {{details}}. The approval rules ask a person to check this enrollment.",
+                    differs_other:
+                        "{{count}} details don't match the registry: {{details}}. The approval rules ask a person to check this enrollment.",
+                    differsFields_one:
+                        "One detail doesn't match the registry: the {{fields}}. The approval rules ask a person to check this enrollment.",
+                    differsFields_other:
+                        "{{count}} details don't match the registry: the {{fields}}. The approval rules ask a person to check this enrollment.",
+                    difference:
+                        "the {{field}} is “{{enrollment}}” on the enrollment and “{{registry}}” in the registry",
+                    noVoter:
+                        "No voter in the registry has these details. The approval rules ask a person to check this enrollment.",
+                    severalVoters:
+                        "More than one voter in the registry fits this enrollment. A person chooses the right one.",
+                    pending: "The approval rules ask a person to check this enrollment.",
+                    unknown: "This enrollment is waiting for a person to decide.",
+                    approvedAuto:
+                        "The approval rules approved this enrollment automatically. Every check they require passed.",
+                    approvedBy: "{{name}} approved this enrollment on {{date}}.",
+                    rejectedAuto:
+                        "The approval rules rejected this enrollment automatically: {{reason}}.",
+                    rejectedBy: "{{name}} rejected this enrollment on {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "We looked for voters with the same {{fields}}. Choose the one this enrollment belongs to.",
+                registrySearching:
+                    "These are the voters in the registry that match your search. Choose the one this enrollment belongs to.",
+                registrySearch: "Not in the list? Search the registry by name or email",
+                registryLoading: "Looking in the registry",
+                registryError: "The registry could not be searched.",
+                noCandidates: "No voter in the registry matches. Try searching by name or email.",
+                candidates: "Voters in the registry",
+                alreadyEnrolled: "Already enrolled",
+                bestMatch: "Best match",
+                detailsMatch: "{{count}} of {{total}} details match",
+                compareTitle: "Compared with {{name}} in the registry",
+                col: {
+                    detail: "Detail",
+                    enrollment: "On the enrollment",
+                    registry: "In the registry",
+                    result: "Result",
+                },
+                same: "Same",
+                differs: "Different",
+                compareNote: "Names ignore capital letters, accents and hyphens.",
+                compareJoint:
+                    "For driver's licenses and seafarer's books, first and middle name are compared together.",
+                applicationId: "Application ID",
+                copy: "Copy",
+                copied: "Copied",
+                approve: "Approve enrollment",
+                approveDialog: {
+                    title: "Approve {{name}}?",
+                    body: "This links the enrollment to the registry voter below. The voter is told by email or text message and can sign in to vote when voting opens.",
+                    checked: "You checked the voter's ID face to face.",
+                    irreversible: "This can't be undone.",
+                    confirm: "Approve",
+                },
+                reject: "Reject enrollment",
+            },
+            idCheck: {
+                title: "ID check",
+                method: {
+                    VERIFIED: "ID scan verified",
+                    MANUAL_ENTRY: "Typed by hand",
+                    UNKNOWN: "Not reported",
+                },
+                verified: "The enrollment flow verified the voter's ID",
+                typedByHand: "The voter typed their details by hand",
+                unknown: "The enrollment flow didn't report how the identity was checked",
+                faceToFaceTitle: "Check them face to face before approving",
+                faceToFaceText:
+                    "Meet the voter in person or by video call and compare their ID with the details on this page.",
+            },
+            reject: {
+                rejectReason: "Reason for rejecting",
+                message: "Message to the voter",
+                messageRequired: "Write a message for the voter when the reason is Other.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Missing data",
+                    "no-matching-voter": "No matching voter",
+                    "voter-already-approved": "Already approved",
+                    "other": "Other",
+                },
+                hint: {
+                    "insufficient-information": "Details are missing or can't be read.",
+                    "no-matching-voter": "The person isn't in the voter registry.",
+                    "voter-already-approved": "This voter is already enrolled.",
+                    "other": "Write your own message.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "We couldn't enroll you because some of your details are missing or can't be read. Please enroll again with complete details.",
+                    "no-matching-voter":
+                        "We couldn't find a voter in the registry that matches your details. Check your details and enroll again, or contact your election office.",
+                    "voter-already-approved":
+                        "You are already enrolled. You can sign in to vote when voting opens.",
+                },
+                previewTitle: "The voter will see",
+            },
             notifications: {
-                approveError: "Error approving voter",
-                approveSuccess: "Voter approved",
-                rejectError: "Error rejecting voter",
-                rejectSuccess: "Voter rejected",
-                VoterApprovedAlready: "Voter is already approved.",
+                approveError: "The enrollment could not be approved",
+                approveSuccess: "{{name}} approved. The voter has been told.",
+                rejectError: "The enrollment could not be rejected",
+                rejectSuccess: "{{name}} rejected. The voter has been told.",
+                VoterApprovedAlready: "This voter is already enrolled.",
             },
             export: {
                 success: "Applications export finished successfully",
                 error: "Error exporting applications",
+            },
+            matrix: {
+                button: "Approval matrix",
+                title: "Approval matrix",
+                back: "Approvals",
+                subtitle:
+                    "Rules decide what happens to each enrollment. The first rule that fits decides.",
+                versionChip: "Version {{version}}",
+                savedBy: "Saved {{date}} by {{user}}",
+                builtIn: "Built-in rules, used until a version is saved",
+                unsaved: "Unsaved changes",
+                viewOnly: "View only",
+                readOnlyTitle: "You can see the rules but not change them",
+                readOnlyText:
+                    "Ask an administrator who has the approval-matrix-write permission to make changes.",
+                loadError: "The approval matrix could not be loaded.",
+                compared: "What we compare",
+                comparedHelp:
+                    "Each enrollment is compared with the voter found in the registry. Names ignore capital letters, accents and hyphens; for driver's licenses and seafarer's books, first and middle name are compared together.",
+                addCompared: "Compare another detail",
+                rules: "Rules",
+                rulesHelp:
+                    "Rules are checked from the top. The first one that fits decides; if none fits, the last rule applies.",
+                when: "When",
+                then: "Then",
+                otherwise: "Otherwise",
+                noneApply: "None of the rules above apply",
+                andWord: "and",
+                and: " and ",
+                appliesToExample: "Applies to your example",
+                cameFrom: "Decided the enrollment you came from",
+                voterIsTold: "The voter is told: “{{reason}}”.",
+                sentence: "When {{when}}, {{outcome}}.",
+                sentenceOtherwise: "If none of the rules above apply, {{outcome}}.",
+                sentenceEmpty: "Add a condition to say when this rule applies.",
+                addRule: "Add rule",
+                discard: "Discard changes",
+                actions: {
+                    edit: "Edit rule {{number}}",
+                    editOtherwise: "Edit the last rule",
+                    moveUp: "Move rule {{number}} up",
+                    moveDown: "Move rule {{number}} down",
+                    delete: "Delete rule {{number}}",
+                },
+                saveBar: {
+                    title: "You have unsaved changes",
+                    fix_one: "Fix 1 rule before saving",
+                    fix_other: "Fix {{count}} rules before saving",
+                    more: "+{{count}} more",
+                },
+                test: "Try an example",
+                testHelp:
+                    "Describe an enrollment to see which rule decides it. Your unsaved changes count.",
+                testDetails: "Details compared",
+                applies: "Rule {{number}} applies",
+                otherwiseApplies: "The last rule applies",
+                testError: "The example could not be tried.",
+                testInvalid: "Fix these rules to try an example:",
+                ruleError: "Rule {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "A typed identity is never approved automatically, so this goes to a person.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "A voter who is already enrolled is never approved again.",
+                    NO_VOTER_NOT_ACCEPTED: "Nobody is approved without a voter in the registry.",
+                    OTHERWISE_NOT_ACCEPTED: "The last rule never approves.",
+                },
+                dialog: {
+                    editTitle: "Edit rule {{number}}",
+                    newTitle: "New rule",
+                    otherwiseTitle: "Edit the last rule",
+                    summary: "In short",
+                    whenHelp:
+                        "All of these must be true. Leave a condition out when it doesn't matter.",
+                    otherwiseHelp: "If none of the rules above apply",
+                    addCondition: "Add condition",
+                    remove: "Remove “{{condition}}”",
+                    identity: "Identity check",
+                    voterFound: "Voter in the registry",
+                    alreadyEnrolled: "Already enrolled",
+                    validId: "ID type",
+                    differing: "Details that differ",
+                    decision: "Decision",
+                    reason: "What the voter is told",
+                    voterSees: "The voter sees",
+                    apply: "Apply",
+                    close: "Close",
+                    yes: "Yes",
+                    no: "No",
+                    notReported: "Not reported",
+                },
+                identity: {
+                    VERIFIED: "Verified by ID scan",
+                    MANUAL_ENTRY: "Typed by hand",
+                },
+                differing: {
+                    none: "None",
+                    exactly_1: "Exactly 1",
+                    at_most_1: "At most 1",
+                    exactly_2: "Exactly 2",
+                    at_most_2: "At most 2",
+                    at_least_3: "3 or more",
+                },
+                fieldMatch: {
+                    MATCHES: "Same",
+                    DIFFERS: "Different",
+                },
+                decisions: {
+                    ACCEPTED: "Approve automatically",
+                    PENDING: "Send to a person",
+                    REJECTED: "Reject",
+                },
+                outcomeShort: {
+                    ACCEPTED: "approve automatically",
+                    PENDING: "send to a person",
+                    REJECTED: "reject",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "The voter is enrolled without anyone looking at it.",
+                    PENDING:
+                        "An officer decides, and the voter is told the enrollment is under review.",
+                    REJECTED: "The voter is told why, and can enroll again.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "approve the enrollment automatically",
+                    PENDING: "send the enrollment to a person",
+                    REJECTED: "reject the enrollment",
+                },
+                reasons: {
+                    NO_VOTER: "No matching voter",
+                    ALREADY_APPROVED: "Already approved",
+                    INSUFFICIENT_INFORMATION: "Missing data",
+                    IDENTITY_NOT_VERIFIED: "Identity not verified",
+                    OTHER: "Other",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "We couldn't find a voter in the registry that matches your details. Check your details and enroll again, or contact your election office.",
+                    ALREADY_APPROVED:
+                        "You are already enrolled. You can sign in to vote when voting opens.",
+                    INSUFFICIENT_INFORMATION:
+                        "We couldn't enroll you because some of your details are missing or can't be read. Please enroll again with complete details.",
+                    IDENTITY_NOT_VERIFIED:
+                        "We could not verify your identity automatically, so an election officer will review your enrollment.",
+                    OTHER: "An election officer writes this message when they decide.",
+                },
+                conditions: {
+                    any: "No conditions yet",
+                    identity: {
+                        VERIFIED: "Identity verified by ID scan",
+                        MANUAL_ENTRY: "Identity typed by hand",
+                    },
+                    voterFound: {
+                        true: "Voter found in the registry",
+                        false: "No voter found in the registry",
+                    },
+                    alreadyEnrolled: {
+                        true: "Already enrolled",
+                        false: "Not enrolled yet",
+                    },
+                    validId: "ID: {{id}}",
+                    differing: {
+                        none: "All details match",
+                        exactly_1: "Exactly 1 detail differs",
+                        at_most_1: "At most 1 detail differs",
+                        exactly_2: "Exactly 2 details differ",
+                        at_most_2: "At most 2 details differ",
+                        at_least_3: "3 or more details differ",
+                    },
+                    field: {
+                        MATCHES: "{{field}} matches",
+                        DIFFERS: "{{field}} differs",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Enrollments whose identity was typed by hand can't be approved automatically.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "A voter who is already enrolled can't be approved again.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "An enrollment can't be approved without a voter in the registry.",
+                    OTHERWISE_ACCEPTS:
+                        "The last rule can send enrollments to a person or reject them, but not approve them.",
+                    MISSING_REASON: "Choose what the voter is told.",
+                    UNEXPECTED_REASON: "An approval has no reason.",
+                    NO_COMPARED_FIELDS: "Choose at least one detail to compare with the registry.",
+                    DUPLICATE_COMPARED_FIELD: "A compared detail is repeated.",
+                    UNKNOWN_FIELD: "A rule uses a detail that is not compared.",
+                    NO_CONDITIONS:
+                        "Add at least one condition. Only the last rule applies to everything else.",
+                },
+                change: {
+                    added: "Rule {{number}} added",
+                    decision: "Rule {{number}}: {{from}} → {{to}}",
+                    edited: "Rule {{number}} changed",
+                    removed: "A rule was removed ({{text}})",
+                    moved: "Rules were reordered",
+                    otherwise: "The last rule changed",
+                    compared: "The details compared changed",
+                },
+                save: {
+                    button: "Save as version {{version}}",
+                    title: "Save as version {{version}}?",
+                    body: "New enrollments are decided with these rules from now on. Enrollments already decided keep their decision.",
+                    changes: "What changed",
+                    log: "The new version is recorded in the electoral log.",
+                    confirm: "Save version {{version}}",
+                    success: "Saved as version {{version}}",
+                    error: "The approval matrix could not be saved",
+                },
             },
         },
         monitoring: {
@@ -4066,6 +4576,377 @@ const englishTranslation = {
                 redo: "Your key share was contributed without your signature, which this election now needs. Contribute it again and sign it.",
                 notTaken:
                     "The ceremony no longer takes this key share. Drop your key share file again.",
+            },
+        },
+        lifecycle: {
+            signedClose: {
+                title: "Signed close deadline",
+                deadline: "{{election}}: {{time}} · authorized by configuration {{code}}.",
+                explanation:
+                    "This signed deadline remains authoritative after the editable schedule is changed or removed. The scheduler closes its authorized channels that are still open.",
+                reached:
+                    "This signed deadline has passed. Check the current voting state and audit log; processing has not been recorded yet.",
+                processed: "Signed close deadline processed at {{time}}.",
+                signedAt: "Signed deadline: {{time}}.",
+                channels: "Channels still covered by this deadline: {{channels}}.",
+                result: "Consult the voting state and audit log for the actual changes and complete result.",
+                unavailable:
+                    "Unable to load signed close deadlines. Check the published schedule and audit log.",
+            },
+            picker: {
+                noMatch: "No timezone matches. Type a city, country, zone, abbreviation or offset.",
+            },
+            input: {
+                timezone: "Timezone",
+                scheduledAt: "Scheduled at",
+                meetingStart: "Meeting start",
+                cronZone: "The schedule runs in the event's primary timezone, {{zone}}.",
+                unconfiguredZone:
+                    "{{zone}} isn't one of the event's configured timezones. Choose one of them.",
+            },
+            schedule: {
+                allElections: "All elections",
+                outcome: "Outcome",
+                noOffset: "No timezone offset: never runs",
+                unpublished: "Not published yet",
+                notPublished:
+                    "Nothing is published yet: voters see the schedule after the first publication.",
+                unpublishedChanges_one:
+                    "{{count}} scheduled event changed since the last publication. Voters see it after you publish.",
+                unpublishedChanges_other:
+                    "{{count}} scheduled events changed since the last publication. Voters see them after you publish.",
+                offsetless_one:
+                    "{{count}} scheduled time has no timezone offset, so it never runs. Edit it to set its timezone.",
+                offsetless_other:
+                    "{{count}} scheduled times have no timezone offset, so they never run. Edit them to set their timezone.",
+                outcomeChange:
+                    "Saving changes what this scheduled transition does: {{before}} → {{after}}.",
+                outcomeNew: "Once saved, this scheduled transition: {{after}}.",
+                outcomeElections: "{{count}} of {{total}} elections",
+                exportError: "The schedule could not be exported.",
+                exportFileName: "schedule.csv",
+                totals: {
+                    refused_one:
+                        "{{count}} scheduled row will be refused ({{transitions}} election transitions).",
+                    refused_other:
+                        "{{count}} scheduled rows will be refused ({{transitions}} election transitions).",
+                    runsUnsigned_one:
+                        "{{count}} scheduled close will run without signatures ({{transitions}} election transitions).",
+                    runsUnsigned_other:
+                        "{{count}} scheduled closes will run without signatures ({{transitions}} election transitions).",
+                    review: "Review",
+                    showAll: "Show all",
+                    showing: {
+                        refused:
+                            "Showing the {{count}} scheduled rows that will be refused ({{transitions}} election transitions).",
+                        runsUnsigned:
+                            "Showing the {{count}} scheduled closes that will run without signatures ({{transitions}} election transitions).",
+                    },
+                },
+                recompute: {
+                    title_one:
+                        "A timezone database update moves {{count}} future scheduled time. Nothing changes until you apply it.",
+                    title_other:
+                        "A timezone database update moves {{count}} future scheduled times. Nothing changes until you apply them.",
+                    change: "{{type}}: {{before}} → {{after}}",
+                    apply: "Apply",
+                    applied_one: "{{count}} scheduled time updated.",
+                    applied_other: "{{count}} scheduled times updated.",
+                    error: "The scheduled times could not be updated.",
+                },
+                outcomeChangeElections_one: "Saving changes the outcome at {{count}} election:",
+                outcomeChangeElections_other: "Saving changes the outcome at {{count}} elections:",
+            },
+            authorizes: {
+                reportPolicyOf: "{{election}}: {{value}}",
+                initializationRetained:
+                    "A required report in this signed configuration remains required if the current Post setting is changed to not required.",
+                title: "What this approval authorizes",
+                schedule: "Scheduled openings and closings",
+                noSchedule: "No scheduled openings or closings: the signers open and close voting.",
+                opens: "Opens {{time}}",
+                closes: "Closes {{time}}",
+                settings: "Settings",
+                unsignedClose: "Scheduled close without signatures: {{value}}",
+                initialization: "Initialization: {{value}}",
+                firstConfiguration:
+                    "This is the first approved configuration: nothing to compare with.",
+                sameAsPrevious:
+                    "The settings are the same as in the previous approved configuration.",
+                rule: {
+                    openNeeds_one: "Opening needs {{count}} signature",
+                    openNeeds_other: "Opening needs {{count}} signatures",
+                    openNoSignatures: "Opening needs no signatures",
+                    closeNeeds_one: "Closing needs {{count}} signature",
+                    closeNeeds_other: "Closing needs {{count}} signatures",
+                    closeNoSignatures: "Closing needs no signatures",
+                    openSetting: "Opening voting",
+                    closeSetting: "Closing voting",
+                    signatures_one: "{{count}} signature",
+                    signatures_other: "{{count}} signatures",
+                    none: "no signatures",
+                },
+                diff: {
+                    tightens: "Tightens: {{setting}} {{before}} → {{after}}",
+                    loosens: "Loosens: {{setting}} {{before}} → {{after}}",
+                    mixed: "Changes: {{setting}} {{before}} → {{after}} (stricter in one way, looser in another)",
+                },
+                comparedWith:
+                    "Compared with the previous approved configuration, approval {{code}}:",
+                channels: "Voting channels per election",
+                channelsOf: "{{election}}: {{channels}}",
+                noChannels: "none",
+            },
+            publish: {
+                openedAuthorized:
+                    "Voting opened on schedule at {{time}}, authorized by configuration approval {{code}} (signed by {{names}}).",
+                closedAuthorized:
+                    "Voting closed on schedule at {{time}}, authorized by configuration approval {{code}} (signed by {{names}}).",
+                closedUnsigned:
+                    "Voting closed on schedule at {{time}}. No closing signatures: the schedule closed voting at its deadline.",
+                authorizedBy: "Authorized by",
+                cancelledRequest:
+                    "Request {{code}} had {{n}} of {{k}} signatures and was cancelled.",
+                openedRefused: "The scheduled opening at {{time}} was refused.",
+                closedRefused: "The scheduled close at {{time}} was refused.",
+                openedNoSignaturesNeeded:
+                    "Voting opened on schedule at {{time}}; no signatures were needed.",
+                closedNoSignaturesNeeded:
+                    "Voting closed on schedule at {{time}}; no signatures were needed.",
+                openedNothingToChange:
+                    "At {{time}} the scheduled opening had nothing to open: its channels were already open.",
+                closedNothingToChange:
+                    "At {{time}} the scheduled close had nothing to close: its channels were already closed.",
+            },
+            import: {
+                title: "Import schedule",
+                subtitle:
+                    "One row per event and election, in local time. Leave timezone empty to use the election's timezone.",
+                chooseFile: "Choose a CSV file",
+                template: "Download template",
+                templateFileName: "schedule-template.csv",
+                ready: "{{ok}} events ready for {{posts}} elections.",
+                needsAttention_one:
+                    "{{ok}} events ready for {{posts}} elections. {{count}} row needs attention; fix the file and upload it again.",
+                needsAttention_other:
+                    "{{ok}} events ready for {{posts}} elections. {{count}} rows need attention; fix the file and upload it again.",
+                preview: "Rows to import",
+                row: "Row",
+                asWritten: "{{local}} · {{place}}",
+                moreRows: "…and {{count}} more rows",
+                imported: "Schedule imported: {{created}} created, {{updated}} updated.",
+                uploadError: "The file could not be checked. Upload it again.",
+                importError: "The schedule could not be imported.",
+                error: {
+                    unknownElection: "No election has the alias {{election}}.",
+                    unknownEventType: "{{type}} is not a scheduled event type.",
+                    invalidTimeZone: "{{zone}} is not a timezone.",
+                    invalidDateTime: "The date and time must read YYYY-MM-DDTHH:MM.",
+                    invalidVotingChannels:
+                        "The voting channels are unknown, or open Online and Early voting together.",
+                    dstGap: "{{dateTime}} does not exist in {{city}} because clocks go forward. Write a time that exists.",
+                    duplicate: "Another row schedules the same event for this election.",
+                    other: "This row can't be imported ({{code}}).",
+                    ambiguousElection: "More than one election has the alias {{election}}.",
+                },
+            },
+            settings: {
+                accordion: "Language, Date and Time",
+                dateAndTime: "Date and time",
+                configured: "Configured timezones",
+                configuredHelp:
+                    "{{count}} timezones. Elections choose theirs from this list; type a city or country to add one.",
+                moreZones: "+{{count}}",
+                primary: "Primary timezone",
+                primaryHelp:
+                    "Used for event-wide schedules, reports and elections without their own timezone.",
+                primaryInUse:
+                    "{{zone}} is the primary timezone. Choose another primary timezone first.",
+                inUse: "{{zone}} is in use by {{names}}. Change those elections first.",
+                logs: "Times in Logs and log exports",
+                logsPrimary: "Primary timezone ({{abbr}})",
+                logsElection: "Each row's election timezone",
+                logsHelp: "Rows without an election use the primary timezone.",
+                electionZone: "Timezone",
+                electionPrimary: "Event primary: {{zone}}",
+                electionZoneHelp:
+                    "Schedules, voter screens and reports for this election use this timezone, including every area under it. Empty uses the event's primary timezone.",
+                electionUnconfigured:
+                    "The event no longer configures this timezone, so the election uses the primary timezone, {{zone}}. Choose one of the configured timezones.",
+                electionUnconfiguredSave: "Choose one of the event's configured timezones.",
+            },
+            policies: {
+                accordion: "Voting lifecycle",
+                intro: "These settings are part of the election event's configuration: the configuration approval signs them, and scheduled openings and closings follow the stricter of the current and the published settings.",
+                nothingPublished:
+                    "Nothing published yet: until the first publication, scheduled openings and closings use the defaults (per election, refuse).",
+                publishedValue: "Published configuration: {{value}}",
+                changedSincePublished:
+                    "Changed since the published configuration: scheduled openings and closings follow the stricter of the two until the next approved publication.",
+                scope: {
+                    title: "Initialization before voting opens",
+                    post: {
+                        label: "Per election",
+                        help: "An election opens once it is initialized.",
+                    },
+                    event: {
+                        label: "Whole event",
+                        help: "No election opens until every election is initialized.",
+                        warning:
+                            "One election that isn't initialized keeps every election closed, including at their scheduled openings.",
+                    },
+                    postAndCountry: {
+                        label: "Per election and country",
+                        help: "An election opens once every country (area) under it is initialized.",
+                        warning:
+                            "An election stays closed, also at its scheduled opening, until every country under it is initialized; each country is initialized with its own report.",
+                    },
+                },
+                close: {
+                    title: "Scheduled close without signatures",
+                    help: "When closing voting needs signatures and a scheduled close isn't in the signed configuration.",
+                    refuse: {
+                        label: "Refuse",
+                        help: "The close doesn't run; the election's signers close voting with their signatures.",
+                    },
+                    runAsSystem: {
+                        label: "Run as system",
+                        help: "Voting closes at the deadline, recorded as closed by the schedule without signatures.",
+                        warning:
+                            "Scheduled closes outside the signed configuration close voting without anyone's signature. The log and the documents say so.",
+                    },
+                },
+                onSave: {
+                    outcomes_zero: "No scheduled transition changes its outcome.",
+                    outcomes_one:
+                        "{{count}} scheduled transition changes its outcome. Review it in Scheduled Events.",
+                    outcomes_other:
+                        "{{count}} scheduled transitions change their outcome. Review them in Scheduled Events.",
+                },
+                saveError: "The voting lifecycle settings could not be saved.",
+                publishedPerTarget: "Published configuration, per target: {{values}}",
+                publishedCount_one: "{{value}} ({{count}} target)",
+                publishedCount_other: "{{value}} ({{count}} targets)",
+                savedWithoutPolicies:
+                    "The election event was saved, but the voting lifecycle settings were not: {{reason}}. Save them again.",
+            },
+        },
+        scheduledOutcome: {
+            chip: {
+                waitingForInitialization: "Waiting for initialization",
+                runs: "Will run",
+                runsUnsigned: "Will run without signatures",
+                refused: "Will be refused",
+            },
+            note: {
+                waitingForInitialization: "Waiting for initialization",
+                authorized: "Authorized by configuration {{code}}",
+                noSignaturesNeeded: "No signatures needed",
+                closesUnsigned: "Closes without signatures",
+                refused: {
+                    initialization: "Required initialization is incomplete",
+                    votingClose: "Voting cannot open at or after its close deadline",
+                    needsSignatures: "Needs the signers' signatures",
+                    covered: "Not in the signed configuration",
+                    unsignedClose: "A close without signatures is refused",
+                    stricterCopy: "Changed since the published configuration, which still decides",
+                    defaults: "Nothing published yet: the defaults apply",
+                },
+                refusedWithStep: "{{reason}}. {{next}}",
+            },
+            why: {
+                button: "Why?",
+                title: {
+                    waitingForInitialization: "Why it is waiting for initialization",
+                    runs: "Why it will run",
+                    runsUnsigned: "Why it will run without signatures",
+                    refused: "Why it will be refused",
+                },
+                checks: "Checks",
+                check: "Check",
+                current: "Current settings",
+                published: "Published configuration",
+                verdict: "Verdict",
+                allows: "Allows",
+                blocks: "Blocks",
+                deciding: "Deciding check",
+                nextStep: "Next step:",
+                signedBy: "Signed by {{names}}",
+            },
+            question: {
+                initialization: "Is the required initialization complete?",
+                votingClose: "Does this opening respect the voting close deadline?",
+                needsSignatures: "Does this action need signatures?",
+                covered: "Is this exact schedule in the signed configuration?",
+                unsignedClose: "What happens to a close without signatures?",
+                stricterCopy:
+                    "Do the current and the published settings differ? Which one decides?",
+                defaults: "Is anything published yet?",
+            },
+            check: {
+                initialization: {
+                    waiting:
+                        "Initialization requirements in both the current and published settings must be satisfied.",
+                },
+                votingClose: {
+                    passed: "Voting closes at {{closes_at}}; this opening cannot run at or after that deadline.",
+                },
+                needsSignatures: {
+                    yes: "Yes, {{signatures}} signatures",
+                    yes_one: "Yes, {{count}} signature",
+                    yes_other: "Yes, {{count}} signatures",
+                    no: "No",
+                },
+                covered: {
+                    overriddenBySignedPostRow:
+                        "The signed configuration {{code}} uses this Post's own opening {{scheduled_event_id}}. The event-wide opening does not apply.",
+                    yes: "Yes: approval {{code}}, unchanged",
+                    changed: "No: changed since approval {{code}}",
+                    changedBy:
+                        "No: edited on {{edited_at}} by {{edited_by}}, after approval {{code}}",
+                    notInApproval: "No: approval {{code}} doesn't include it",
+                    noApproval: "No approved configuration yet",
+                    channelsChanged:
+                        "No: the election's voting channels changed since approval {{code}}",
+                    alreadyFired:
+                        "No: this transition of approval {{code}} already ran at {{fired_at}}; running it again needs signatures",
+                    late: "No: it is more than 15 minutes past {{scheduled_date}} (approval {{code}}); running it now needs signatures",
+                },
+                unsignedClose: {
+                    refuse: "Refuse",
+                    runAsSystem: "Run as system",
+                },
+                stricterCopy: {
+                    same: "Both are the same",
+                    currentStricter: "Current settings are stricter: applied now",
+                    currentLooser:
+                        "Current settings are looser: they apply after the next approved publication",
+                    combined: "Each is stricter in one value: both apply",
+                },
+                defaults: {
+                    published: "Published on {{published_at}}",
+                    nothingPublished: "Nothing published: defaults apply",
+                    noSnapshot:
+                        "Published on {{published_at}}, before publications kept these settings: defaults apply",
+                },
+            },
+            nextStep: {
+                initialize:
+                    "Complete the required initialization. The scheduler will retry before voting closes.",
+                closed: "This opening will not run after voting closes.",
+                none: "No action needed.",
+                publishAndApprove: "Publish and approve the configuration.",
+                requireConfigurationApproval:
+                    "Make Approve configuration need signatures, then publish and approve the configuration.",
+                askSignersToOpen: "Ask the election's signers to open voting.",
+                askSignersToClose: "Ask the election's signers to close voting.",
+            },
+            applies: {
+                tightens: "Applies now to manual and scheduled actions.",
+                loosens:
+                    "Applies now to manual actions; to scheduled openings and closings after the next approved publication.",
+                tightensAndLoosens:
+                    "Its stricter part applies now to manual and scheduled actions; its looser part applies now to manual actions and to scheduled openings and closings after the next approved publication.",
             },
         },
     },

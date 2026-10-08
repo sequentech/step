@@ -50,12 +50,14 @@ import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useLocalizationPermissions} from "./useLocalizationPermissions"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {TranslationScopeInput, translationScopeLabel} from "@/components/TranslationScopeInput"
+import {timeZoneTextOverrideError} from "@/lib/timeZoneTextOverride"
 
 const ELECTION_EVENT_TRANSLATION_SCOPES = [
     ETranslationScope.GLOBAL,
     ETranslationScope.VOTING_PORTAL,
     ETranslationScope.BALLOT_VERIFIER,
     ETranslationScope.RESULTS_PORTAL,
+    ETranslationScope.TEMPLATES,
 ] as const
 
 interface LocalizationListProps {
@@ -205,6 +207,11 @@ const EditElectionEventTextDataTable = () => {
             })
             return
         }
+        const newTimeZoneError = timeZoneTextOverrideError(t, newKey, newValue)
+        if (newTimeZoneError) {
+            notify(newTimeZoneError, {type: "error"})
+            return
+        }
         const currentTranslations = record?.presentation.i18n?.[selectedLanguage] ?? {}
         const updatedTranslations = updateTranslationOverride(
             currentTranslations,
@@ -259,6 +266,11 @@ const EditElectionEventTextDataTable = () => {
             notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
                 type: "error",
             })
+            return
+        }
+        const editTimeZoneError = timeZoneTextOverrideError(t, editKey, editVal)
+        if (editTimeZoneError) {
+            notify(editTimeZoneError, {type: "error"})
             return
         }
         const currentTranslations = record?.presentation.i18n?.[selectedLanguage] ?? {}

@@ -351,14 +351,36 @@ fn realm_patch_document(bundle: &Bundle) -> Value {
     Value::Object(document)
 }
 
+/// Zip the members at the archive root, reproducibly and deflated.
+#[cfg(feature = "election_config_archive")]
+pub fn zip(
+    members: &[Artifact],
+) -> Result<Vec<u8>, crate::election_config::Problem> {
+    zip_with(members, zip::CompressionMethod::Deflated)
+}
+
+/// Zip the members without compressing them.
+///
+/// For a zip that is itself a member of a delivery: its bytes are hashed in
+/// the manifest, and deflate gives different bytes on different builds (the
+/// native one and the browser's), while stored members are the same
+/// everywhere. The delivery around it is deflated, so little is lost.
+#[cfg(feature = "election_config_archive")]
+pub fn zip_stored(
+    members: &[Artifact],
+) -> Result<Vec<u8>, crate::election_config::Problem> {
+    zip_with(members, zip::CompressionMethod::Stored)
+}
+
 /// Zip the members at the archive root, reproducibly.
 ///
 /// A fixed timestamp and a fixed mode on every entry: without them the archive's
 /// bytes change on every run, and "regenerating produced no diff" stops being
 /// something anyone can check.
 #[cfg(feature = "election_config_archive")]
-pub fn zip(
+fn zip_with(
     members: &[Artifact],
+    method: zip::CompressionMethod,
 ) -> Result<Vec<u8>, crate::election_config::Problem> {
     use crate::election_config::problem::Code;
     use std::io::{Cursor, Write};
@@ -382,7 +404,7 @@ pub fn zip(
     {
         let mut writer = zip::ZipWriter::new(Cursor::new(&mut buffer));
         let options = SimpleFileOptions::default()
-            .compression_method(zip::CompressionMethod::Deflated)
+            .compression_method(method)
             .last_modified_time(fixed_time())
             // 0o644, the mode a normal export has.
             .unix_permissions(0o644);
@@ -776,6 +798,41 @@ mod tests {
 
     #[cfg(feature = "election_config_archive")]
     #[test]
+    fn a_zip_nested_in_a_delivery_holds_its_members_uncompressed() {
+        // Deflate differs between the native build and the browser's, and
+        // the manifest hashes this zip: stored members are the same bytes
+        // on both.
+        let layout = layout(&bundle(vec![]));
+        let nested = zip_stored(&layout.importable).unwrap();
+        let mut archive =
+            ::zip::ZipArchive::new(std::io::Cursor::new(nested.clone()))
+                .unwrap();
+        for index in 0..archive.len() {
+            let member = archive.by_index(index).unwrap();
+            assert_eq!(member.compression(), ::zip::CompressionMethod::Stored);
+            assert_eq!(member.compressed_size(), member.size());
+        }
+        for expected in &layout.importable {
+            assert!(nested
+                .windows(expected.bytes.len())
+                .any(|window| window == expected.bytes.as_slice()));
+        }
+
+        let delivered = delivery(&layout).unwrap();
+        let mut outer =
+            ::zip::ZipArchive::new(std::io::Cursor::new(delivered.bytes))
+                .unwrap();
+        let mut inside = Vec::new();
+        std::io::Read::read_to_end(
+            &mut outer.by_name(IMPORTABLE_MEMBER).unwrap(),
+            &mut inside,
+        )
+        .unwrap();
+        assert_eq!(inside, nested);
+    }
+
+    #[cfg(feature = "election_config_archive")]
+    #[test]
     fn a_member_survives_the_round_trip_byte_for_byte() {
         use std::io::Read;
 
@@ -1078,7 +1135,7 @@ pub const WORKBOOK_MEMBER: &str = "election_workbook.xlsx";
 pub fn delivery(
     layout: &Layout,
 ) -> Result<Artifact, crate::election_config::Problem> {
-    let importable = zip(&layout.importable)?;
+    let importable = zip_stored(&layout.importable)?;
 
     let mut members = Vec::with_capacity(layout.auxiliary.len() + 2);
     members.push(Artifact {
@@ -1105,7 +1162,7 @@ pub fn delivery(
     if !portal.is_empty() {
         members.push(Artifact {
             name: ADMIN_PORTAL_MEMBER.to_string(),
-            bytes: zip(&portal)?,
+            bytes: zip_stored(&portal)?,
         });
     }
 

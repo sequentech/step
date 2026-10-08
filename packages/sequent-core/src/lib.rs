@@ -55,6 +55,10 @@ pub mod services;
 #[cfg(feature = "default_features")]
 pub mod signing;
 
+/// Which timezone applies where (VOTE-LIFECYCLE); zone names only.
+#[cfg(feature = "default_features")]
+pub mod time_zones;
+
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 

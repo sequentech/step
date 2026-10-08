@@ -9,12 +9,14 @@ export const CREATE_TALLY_CEREMONY = gql`
         $election_ids: [uuid!]!
         $configuration: jsonb
         $tally_type: String
+        $area_ids: [uuid!]
     ) {
         create_tally_ceremony(
             election_event_id: $election_event_id
             election_ids: $election_ids
             configuration: $configuration
             tally_type: $tally_type
+            area_ids: $area_ids
         ) {
             tally_session_id
             signing_request {

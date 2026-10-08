@@ -9,7 +9,11 @@ use super::eml_generator::{
     MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
-use super::signed_transmission_package::{lock_transmission_data, transmission_timezone};
+use super::package_manifest::{
+    eml_name, link_returns, package_requester, store_package_manifest, xz_name, StoredReturns,
+    ALL_SERVERS_NAME,
+};
+use super::signed_transmission_package::{lock_transmission_data, transmission_zone};
 use super::transmission_package::{
     create_logs_package, create_transmission_package, generate_base_compressed_xml,
 };
@@ -26,8 +30,12 @@ use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
-use crate::services::documents::upload_and_return_document;
+use crate::services::documents::{
+    upload_and_return_document, upload_and_return_document_with_annotations,
+};
 use crate::services::folders::list_files;
+use crate::services::reports::generation::ReportRequester;
+use crate::services::reports::report_variables::configuration_stamp_without_template;
 use crate::services::signing::actions::transmission::{guard_transmission_package, PackageToSign};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{
@@ -38,11 +46,10 @@ use crate::{
     types::miru_plugin::MiruTallySessionData,
 };
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::translations::Name;
 use sequent_core::signatures::ecies_encrypt::generate_ecies_key_pair;
 use sequent_core::types::ceremonies::Log;
@@ -165,6 +172,8 @@ pub async fn generate_all_servers_document(
     server_signatures: Vec<ACMTrustee>,
     logs: &Vec<Log>,
     election_annotations: &MiruElectionAnnotations,
+    transaction_id: &str,
+    requester: &ReportRequester,
 ) -> Result<Document> {
     let acm_key_pair = get_acm_key_pair(hasura_transaction, tenant_id, election_event_id).await?;
     let temp_dir = tempdir().with_context(|| "Error generating temp directory")?;
@@ -217,18 +226,51 @@ pub async fn generate_all_servers_document(
     let file_size =
         get_file_size(dst_file_string.as_str()).with_context(|| "Error obtaining file size")?;
 
-    let document = upload_and_return_document(
-        &hasura_transaction,
-        &dst_file_string,
-        file_size,
-        "applization/zip",
+    let manifest_link = store_package_manifest(
+        hasura_transaction,
         tenant_id,
-        Some(election_event_id.to_string()),
-        "all_servers.zip",
-        None,
-        false,
+        election_event_id,
+        &StoredReturns {
+            transaction_id,
+            eml: eml.as_bytes(),
+            compressed: &compressed_xml_bytes,
+        },
+        &std::fs::read(dst_file_path).with_context(|| "Error reading the servers' archive")?,
+        requester,
     )
     .await?;
+
+    let document = match manifest_link {
+        Some(annotations) => {
+            upload_and_return_document_with_annotations(
+                &hasura_transaction,
+                &dst_file_string,
+                file_size,
+                "applization/zip",
+                tenant_id,
+                Some(election_event_id.to_string()),
+                ALL_SERVERS_NAME,
+                None,
+                false,
+                &annotations,
+            )
+            .await?
+        }
+        None => {
+            upload_and_return_document(
+                &hasura_transaction,
+                &dst_file_string,
+                file_size,
+                "applization/zip",
+                tenant_id,
+                Some(election_event_id.to_string()),
+                ALL_SERVERS_NAME,
+                None,
+                false,
+            )
+            .await?
+        }
+    };
 
     Ok(document)
 }
@@ -322,9 +364,11 @@ pub async fn create_transmission_package_service(
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
     let now_utc = Utc::now();
-    let time_zone =
-        transmission_timezone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
-    let now_local = now_utc.with_timezone(&Local);
+    // The package is dated in the event's primary zone.
+    let zone =
+        transmission_zone(&hasura_transaction, tenant_id, &election_event.id, now_utc).await?;
+    let time_zone = zone.offset;
+    let now_local = now_utc.with_timezone(&zone.zone);
 
     let election_event_annotations = election_event.get_annotations()?;
     let Some(result) = results
@@ -345,6 +389,9 @@ pub async fn create_transmission_package_service(
         })
         .map(|report_computed| report_computed.into())
         .collect();
+    let stamp =
+        configuration_stamp_without_template(&hasura_transaction, tenant_id, &election_event.id)
+            .await?;
     let (base_compressed_xml, eml, eml_hash) = generate_base_compressed_xml(
         tally_id,
         &transaction_id,
@@ -354,6 +401,7 @@ pub async fn create_transmission_package_service(
         &election_annotations,
         &area_annotations,
         &reports,
+        stamp.as_ref(),
     )
     .await?;
 
@@ -405,7 +453,7 @@ pub async fn create_transmission_package_service(
     }
 
     // upload .xz
-    let xz_name = format!("er_{}.xz", transaction_id);
+    let xz_name = xz_name(&transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&base_compressed_xml, &xz_name, ".xz")?;
     let xz_document = upload_and_return_document(
@@ -422,7 +470,7 @@ pub async fn create_transmission_package_service(
     .await?;
 
     // upload eml
-    let eml_name = format!("er_{}.xml", transaction_id);
+    let eml_name = eml_name(&transaction_id);
     let (temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&eml.as_bytes().to_vec(), &eml_name, ".eml")?;
     let eml_document = upload_and_return_document(
@@ -469,6 +517,16 @@ pub async fn create_transmission_package_service(
         vec![],
         &logs,
         &election_annotations,
+        &transaction_id,
+        &package_requester(requester.as_ref()),
+    )
+    .await?;
+    link_returns(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        &all_servers_document,
+        [&eml_document.id, &xz_document.id],
     )
     .await?;
 
@@ -484,7 +542,7 @@ pub async fn create_transmission_package_service(
             },
             transaction_id: transaction_id.clone(),
             servers_sent_to: vec![],
-            created_at: ISO8601::to_string(&now_local),
+            created_at: now_local.to_rfc3339(),
             signatures: vec![],
         }],
         logs,

@@ -13,6 +13,11 @@ use crate::ballot_receipt::{
     sign_cast_statement_with_kept_key, verify_cast_receipt,
     verify_received_ballot, CastReceipt, ReceivedBallot,
 };
+use crate::election_config::slates::coverage::slates_coverage;
+use crate::election_config::slates::selection::apply_slate;
+use crate::election_config::slates::{
+    ballot_style_slates, canonicalize, check_annotation, Slate,
+};
 use crate::encrypt;
 use crate::encrypt::*;
 use crate::fixtures::ballot_codec::*;
@@ -25,6 +30,7 @@ use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::generate_urls::get_auth_url;
 use crate::services::generate_urls::AuthAction;
 use crate::types::ceremonies::CountingAlgType;
+use crate::types::hasura::core as hasura;
 use crate::util::locale::{
     iso_639_2t_to_bcp47, locale_to_internal_language_code,
 };
@@ -1452,5 +1458,153 @@ pub fn get_voting_screen_back_policy_values_js() -> Result<JsValue, JsValue> {
         JsValue::from_str(&format!(
             "Error serializing voting screen back policy values: {err}"
         ))
+    })
+}
+
+#[wasm_bindgen]
+/// Returns the slates the ballot style carries, or null when its election
+/// has none. Throws the list of problems of an invalid configuration.
+pub fn get_ballot_style_slates_js(
+    ballot_style_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_style: BallotStyle =
+        serde_wasm_bindgen::from_value(ballot_style_json)
+            .map_err(|err| format!("Error parsing ballot style: {}", err))
+            .into_json()?;
+    let serializer = Serializer::json_compatible();
+
+    match ballot_style_slates(&ballot_style) {
+        Ok(slates) => slates
+            .serialize(&serializer)
+            .map_err(|err| format!("Error serializing slates: {:?}", err))
+            .into_json(),
+        Err(problems) => {
+            Err(problems.serialize(&serializer).map_err(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })?)
+        }
+    }
+}
+
+#[wasm_bindgen]
+/// Returns what each slate covers of the ballot style's contests, in the
+/// configured order and without the slates that have no candidate in them.
+/// Returns null when the election has no slates. Throws the list of problems
+/// of an invalid configuration.
+pub fn get_ballot_style_slates_coverage_js(
+    ballot_style_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_style: BallotStyle =
+        serde_wasm_bindgen::from_value(ballot_style_json)
+            .map_err(|err| format!("Error parsing ballot style: {}", err))
+            .into_json()?;
+    let serializer = Serializer::json_compatible();
+
+    match ballot_style_slates(&ballot_style) {
+        Ok(slates) => slates
+            .map(|config| slates_coverage(&config, &ballot_style.contests))
+            .serialize(&serializer)
+            .map_err(|err| {
+                format!("Error serializing slates coverage: {:?}", err)
+            })
+            .into_json(),
+        Err(problems) => {
+            Err(problems.serialize(&serializer).map_err(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })?)
+        }
+    }
+}
+
+#[wasm_bindgen]
+/// Returns the selection that choosing a slate produces from the current one,
+/// and what it changes. Throws the list of problems of a slate that cannot be
+/// applied.
+pub fn apply_slate_js(
+    slate_json: JsValue,
+    contests_json: JsValue,
+    current_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let slate: Slate = serde_wasm_bindgen::from_value(slate_json)
+        .map_err(|err| format!("Error parsing slate: {}", err))
+        .into_json()?;
+    let contests: Vec<Contest> = serde_wasm_bindgen::from_value(contests_json)
+        .map_err(|err| format!("Error parsing contests: {}", err))
+        .into_json()?;
+    let current: Vec<DecodedVoteContest> =
+        serde_wasm_bindgen::from_value(current_json)
+            .map_err(|err| format!("Error parsing ballot selection: {}", err))
+            .into_json()?;
+    let serializer = Serializer::json_compatible();
+
+    match apply_slate(&slate, &contests, &current) {
+        Ok(choices) => choices
+            .serialize(&serializer)
+            .map_err(|err| {
+                format!("Error serializing slate choices: {:?}", err)
+            })
+            .into_json(),
+        Err(problems) => {
+            Err(problems.serialize(&serializer).map_err(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })?)
+        }
+    }
+}
+
+const SLATES_PROBLEM_PATH: &str = "sequent.slates";
+
+#[wasm_bindgen]
+/// Checks a slate configuration against the contests and candidates of its
+/// election, given as JSON arrays of rows. Returns the list of problems,
+/// empty when the configuration can be published.
+pub fn check_election_slates_js(
+    annotation: &str,
+    default_language: &str,
+    contests_json: &str,
+    candidates_json: &str,
+) -> Result<JsValue, JsValue> {
+    let contests: Vec<hasura::Contest> = serde_json::from_str(contests_json)
+        .map_err(|err| format!("Error parsing contests: {}", err))
+        .into_json()?;
+    let candidates: Vec<hasura::Candidate> =
+        serde_json::from_str(candidates_json)
+            .map_err(|err| format!("Error parsing candidates: {}", err))
+            .into_json()?;
+
+    check_annotation(
+        annotation,
+        default_language,
+        &contests,
+        &candidates,
+        SLATES_PROBLEM_PATH,
+    )
+    .serialize(&Serializer::json_compatible())
+    .map_err(|err| format!("Error serializing slate problems: {:?}", err))
+    .into_json()
+}
+
+#[wasm_bindgen]
+/// Returns the slate configuration in the form it is stored and published.
+/// Throws the list of problems of a configuration that cannot be read.
+pub fn canonicalize_slates_js(annotation: &str) -> Result<String, JsValue> {
+    canonicalize(annotation, SLATES_PROBLEM_PATH).map_err(|problems| {
+        problems
+            .serialize(&Serializer::json_compatible())
+            .unwrap_or_else(|err| {
+                JsValue::from_str(&format!(
+                    "Error serializing slate problems: {:?}",
+                    err
+                ))
+            })
     })
 }

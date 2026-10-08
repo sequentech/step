@@ -99,8 +99,9 @@ type Story = StoryObj<Scenario>
 const edit = (key: string) => i18n.t(`electionEventScreen.edit.${key}`)
 const field = (key: string) => i18n.t(`electionEventScreen.field.${key}`)
 const results = (key: string) => i18n.t(`tally.resultsPublication.${key}`)
+/** A section by its `electionEventScreen.edit` key, or by a full key such as `lifecycle.settings.accordion`. */
 const section = (canvasElement: HTMLElement, key: string) =>
-    within(canvasElement).getByRole("button", {name: edit(key)})
+    within(canvasElement).getByRole("button", {name: key.includes(".") ? i18n.t(key) : edit(key)})
 const operations = () => boundaries.graphql.calls.map(({name}) => name)
 
 async function loaded(canvasElement: HTMLElement) {
@@ -188,6 +189,59 @@ export const RealmAttributes: Story = {
         expect(
             boundaries.graphql.calls.find(({name}) => name === "GetRealmAttributes")
         ).toMatchObject({variables: {election_event_id: EVENT_ID}})
+    },
+}
+
+export const EnrollmentAuthorityIsReadOnly: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        const canvas = within(canvasElement)
+        for (const key of ["enrollment_windows", "enrollment_registration_restore"]) {
+            const name = await canvas.findByText(key)
+            const row = name.closest(".jer-value-component") as HTMLElement
+            await expect(row).toBeVisible()
+            // Copy remains available; edit/delete controls are absent.
+            expect(
+                row.querySelector(".jer-edit-buttons")?.children.length ?? 0
+            ).toBeLessThanOrEqual(1)
+            await userEvent.dblClick(name)
+            expect(row.querySelector("input, textarea")).toBeNull()
+        }
+        const ordinary = canvas
+            .getByText("voter_certificate_policy")
+            .closest(".jer-value-component") as HTMLElement
+        await userEvent.dblClick(canvas.getByText("voter_certificate_policy"))
+        expect(ordinary.querySelector("input.jer-key-edit")).not.toBeNull()
+        await userEvent.keyboard("{Escape}")
+        const editor = ordinary.closest(".jer-collection-component") as HTMLElement
+        const root = editor.querySelector(".jer-collection-header-row") as HTMLElement
+        await userEvent.dblClick(root.querySelector(".jer-collection-name") as HTMLElement)
+        expect(editor.querySelector(".jer-collection-text-edit")).toBeNull()
+    },
+}
+
+export const SaveRealmAttributesWithoutAuthority: Story = {
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "realm_attributes")
+        const canvas = within(canvasElement)
+        const row = canvas
+            .getByText("voter_certificate_policy")
+            .closest(".jer-value-component") as HTMLElement
+        await userEvent.dblClick(row.querySelector(".jer-value-string") as HTMLElement)
+        const value = within(row).getByRole("textbox")
+        await userEvent.clear(value)
+        await userEvent.type(value, "optional{Enter}")
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const update = boundaries.graphql.calls.find(({name}) => name === "UpdateRealmAttributes")
+        expect(update?.variables).toEqual({
+            election_event_id: EVENT_ID,
+            attributes: {voter_certificate_policy: "optional"},
+        })
     },
 }
 
@@ -350,10 +404,15 @@ export const WeightedVotingConflicts: Story = {
 }
 
 export const InvalidCustomDateTimeFormat: Story = {
-    parameters: openedSection,
+    parameters: {
+        expectedFailure: {
+            reason: "The language selector's default-language radios have no labels.",
+            a11y: ["label"],
+        },
+    },
     play: async ({canvasElement, args}) => {
         const canvas = await loaded(canvasElement)
-        await openSection(canvasElement, "advancedConfigurations")
+        await openSection(canvasElement, "lifecycle.settings.accordion")
         await choose(
             canvasElement,
             field("votingPortalDateTimeFormat.policyLabel"),
@@ -369,5 +428,56 @@ export const InvalidCustomDateTimeFormat: Story = {
             await canvas.findByText(field("votingPortalDateTimeFormat.customFormat.invalid"))
         ).toBeVisible()
         expect(args.transform).not.toHaveBeenCalled()
+    },
+}
+
+/** The timezone editor must use the accordion width, including on narrow screens. */
+export const FullWidthDateAndTime: Story = {
+    parameters: {
+        expectedFailure: {
+            reason: "The language selector's default-language radios have no labels.",
+            a11y: ["label"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await openSection(canvasElement, "lifecycle.settings.accordion")
+        const zones = canvas.getByTestId("event-time-zones")
+        const details = zones.closest(".MuiAccordionDetails-root") as HTMLElement
+        const style = getComputedStyle(details)
+        const available =
+            details.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+        expect(zones.getBoundingClientRect().width).toBeGreaterThan(available * 0.95)
+        const format = canvas.getByRole("combobox", {
+            name: field("votingPortalDateTimeFormat.policyLabel"),
+        })
+        expect(format.getBoundingClientRect().width).toBeGreaterThan(available * 0.9)
+    },
+}
+
+export const FullWidthDateAndTimeNarrow: Story = {
+    ...FullWidthDateAndTime,
+    decorators: [
+        (Story) => (
+            <div style={{width: 600, maxWidth: "100%"}}>
+                <Story />
+            </div>
+        ),
+    ],
+}
+
+export const LifecycleRadioAlignment: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await openSection(canvasElement, "lifecycle.policies.accordion")
+        const lifecycle = canvas.getByTestId("voting-lifecycle")
+        for (const radio of within(lifecycle).getAllByRole("radio")) {
+            const label = radio.closest("label") as HTMLElement
+            const text = label.querySelector(".MuiFormControlLabel-label") as HTMLElement
+            const icon = label.querySelector("svg") as SVGElement
+            expect(
+                Math.abs(text.getBoundingClientRect().top - icon.getBoundingClientRect().top)
+            ).toBeLessThan(5)
+        }
     },
 }

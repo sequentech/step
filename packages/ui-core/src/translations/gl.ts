@@ -24,6 +24,7 @@ const galegoTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Pechar o diálogo",
+            languageSelector: "Idioma: {{language}}",
             dismissMessage: "Descartar a mensaxe",
             ballotIdHelp: "Sobre o seu ID de voto",
             loading: "Cargando",
@@ -36,6 +37,48 @@ const galegoTranslation: TranslationType = {
             selectList: "Seleccionar toda a lista",
             preferenceLabel: "Preferencia",
             writeInFor: "Nome do candidato escrito",
+        },
+        accessibility: {
+            button: "Accesibilidade",
+            title: "Axustes de accesibilidade",
+            description: "Cambie o aspecto deste sitio neste dispositivo.",
+            textSize: {
+                label: "Tamaño do texto",
+                default: "Predeterminado",
+                large: "Grande",
+                larger: "Máis grande",
+            },
+            contrast: {
+                label: "Contraste",
+                default: "Predeterminado",
+                high: "Alto contraste",
+            },
+            textSpacing: {
+                label: "Espazado do texto",
+                default: "Predeterminado",
+                wide: "Amplo",
+            },
+            motion: {
+                label: "Movemento",
+                default: "Predeterminado",
+                reduced: "Reducido",
+            },
+            reset: "Restablecer os axustes",
+            close: "Pechar",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Axustes restablecidos",
+        },
+        audioInstructions: {
+            label: "Instrucións en audio",
+            play: "Escoitar as instrucións",
+            pause: "Pausar as instrucións",
+            resume: "Retomar as instrucións",
+            stop: "Deter as instrucións",
+            showTranscript: "Ler as instrucións",
+            hideTranscript: "Ocultar as instrucións",
+            playing: "Reproducindo as instrucións",
+            paused: "Instrucións en pausa",
+            stopped: "Instrucións detidas",
         },
         candidate: {
             moreInformationLink: "Máis información",
@@ -130,6 +173,8 @@ const galegoTranslation: TranslationType = {
                     "Configuración de voto inválida: o concurso define {{count}} candidatos explicitamente inválidos, pero só se permite un.",
                 multipleExplicitBlankCandidates:
                     "Configuración de voto inválida: o concurso define {{count}} candidatos de voto en branco explícito, pero só se permite un.",
+                invalidSlateConfiguration:
+                    "Configuración de voto inválida: as candidaturas conxuntas non son válidas ({{reason}}).",
             },
         },
         ballotHash: "O teu ID de Papeleta: {{ballotId}}",
@@ -465,6 +510,16 @@ const galegoTranslation: TranslationType = {
                         text: "Sen arquivo importable — este zip ten un plan pero non o arquivo que importa o Portal de Administración, así que non contén o censo nin os ficheiros que nomea.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Deseño de papeleta sen clave",
+                        text: "Deseño de papeleta sen clave — {{kind}} {{id}} non ten nome nin id externo, así que os seus deseños de papeleta non se poden recoñecer despois dunha importación.",
+                    },
+                    "unreadable-style": {
+                        lead: "Estilo de papeleta ilexible",
+                        text: "Estilo de papeleta ilexible — non se puido ler o estilo de papeleta da plataforma para calcular a pegada do seu deseño: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "A elección e o evento non coinciden",
@@ -664,6 +719,152 @@ const galegoTranslation: TranslationType = {
                         text: "Contrasinais sen semente — a semente é o que fai que unha reconstrución produza os mesmos contrasinais en vez de novos.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Xa importada",
+                        text: "Xa importada — a revisión {{revision}} desta configuración xa se importou; importe unha revisión máis recente.",
+                    },
+                    "approval-invalid": {
+                        lead: "A aprobación non conta",
+                        text: "A aprobación non conta — non se puido verificar a aprobación de {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "A mesma persoa aprobou dúas veces",
+                        text: "A mesma persoa aprobou dúas veces — {{name}} aprobou máis dunha vez, e conta unha soa vez.",
+                    },
+                    "approver-key-usage": {
+                        lead: "O aprobador non pode asinar",
+                        text: "O aprobador non pode asinar — o certificado dun aprobador non está feito para asinar.",
+                    },
+                    "bad-signature": {
+                        lead: "A sinatura non coincide",
+                        text: "A sinatura non coincide — a sinatura do paquete non se verifica, así que se modificou despois de asinalo ou asinouno outra chave: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "A pegada do contido non coincide",
+                        text: "A pegada do contido non coincide — o manifesto di {{expected}} e o seu contido dá {{actual}}.",
+                    },
+                    "duplicate-member": {
+                        lead: "Nome de ficheiro repetido",
+                        text: "Nome de ficheiro repetido — «{{file}}» aparece dúas veces en {{archive}}, así que dous lectores poderían coller ficheiros distintos.",
+                    },
+                    "file-changed": {
+                        lead: "Modificado despois de asinar",
+                        text: "Modificado despois de asinar — {{file}} ten SHA-256 {{actual}}, e o manifesto di {{expected}}. Non se leu nada do paquete.",
+                    },
+                    "file-extra": {
+                        lead: "Ficheiro fóra do manifesto",
+                        text: "Ficheiro fóra do manifesto — {{file}} está no paquete pero non se asinou. Non se leu nada do paquete.",
+                    },
+                    "file-missing": {
+                        lead: "Falta un ficheiro asinado",
+                        text: "Falta un ficheiro asinado — {{file}} está no manifesto e non no paquete. Non se leu nada do paquete.",
+                    },
+                    "invalid-time": {
+                        lead: "Non é unha data e hora",
+                        text: "Non é unha data e hora — «{{value}}» no manifesto non é unha data e hora.",
+                    },
+                    "member-too-large": {
+                        lead: "Ficheiro demasiado grande",
+                        text: "Ficheiro demasiado grande — «{{file}}» en {{archive}} ocupa, descomprimido, máis dos {{limit}} bytes que pode ocupar un ficheiro.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Demasiados zips aniñados",
+                        text: "Demasiados zips aniñados — «{{file}}» está dentro de máis zips dos {{limit}} nos que pode estar aniñado un ficheiro.",
+                    },
+                    "no-importable": {
+                        lead: "Nada que importar",
+                        text: "Nada que importar — o paquete non ten official_election_setup.zip, o arquivo que le o importador.",
+                    },
+                    "report-template-changed": {
+                        lead: "O modelo do informe cambiou",
+                        text: "O modelo do informe cambiou — o modelo do informe {{report}} non é o aprobado: a súa pegada é {{actual}}, e a configuración asinada di {{expected}}.",
+                    },
+                    "report-template-missing": {
+                        lead: "Falta o modelo do informe",
+                        text: "Falta o modelo do informe — o informe {{report}} xérase co modelo «{{template}}», que non está na configuración, así que o seu deseño non se pode asinar.",
+                    },
+                    "report-unreadable": {
+                        lead: "O informe non se pode asinar",
+                        text: "O informe non se pode asinar — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Certificado de aprobador revogado",
+                        text: "Certificado de aprobador revogado — o certificado dun aprobador foi revogado, así que a aprobación non conta.",
+                    },
+                    "revoked-signer": {
+                        lead: "Chave de sinatura revogada",
+                        text: "Chave de sinatura revogada — a chave que asinou este paquete foi revogada, e os seus paquetes rexéitanse.",
+                    },
+                    "rollback": {
+                        lead: "Non é unha revisión máis recente",
+                        text: "Non é unha revisión máis recente — a revisión {{revision}} non é máis recente cá revisión {{last}}, a última importada.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "Asinado no futuro",
+                        text: "Asinado no futuro — o paquete indica {{at}} como momento da sinatura, e agora é {{now}}.",
+                    },
+                    "signer-key-usage": {
+                        lead: "A chave de sinatura non pode asinar",
+                        text: "A chave de sinatura non pode asinar — o certificado da chave que asinou este paquete non está feito para asinar.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Moi poucas aprobacións",
+                        text: "Moi poucas aprobacións — {{count}} aprobacións válidas de persoas distintas, e fan falta {{required}}.",
+                    },
+                    "too-large": {
+                        lead: "Paquete demasiado grande",
+                        text: "Paquete demasiado grande — descomprimido ocupa máis dos {{limit}} bytes que pode ocupar un paquete: «{{file}}» en {{archive}} sobrepásaos.",
+                    },
+                    "too-many-members": {
+                        lead: "Demasiados ficheiros",
+                        text: "Demasiados ficheiros — {{archive}} contén máis ficheiros ca os {{limit}} que pode conter un paquete.",
+                    },
+                    "unhashable-content": {
+                        lead: "Non se pode calcular a pegada",
+                        text: "Non se pode calcular a pegada — non se puido escribir o contido da configuración para calcular a súa pegada: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Formato de manifesto descoñecido",
+                        text: "Formato de manifesto descoñecido — o manifesto está no formato «{{format}}», que esta versión non pode ler.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Certificados do asinante ilexibles",
+                        text: "Certificados do asinante ilexibles — non se puido ler a cadea de certificados do paquete: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Manifesto ilexible",
+                        text: "Manifesto ilexible — non se puido ler o manifesto do paquete: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Lista de revogación ilexible",
+                        text: "Lista de revogación ilexible — non se puido ler unha lista de revogación, así que non se pode aplicar: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Certificados de confianza ilexibles",
+                        text: "Certificados de confianza ilexibles — non se puido ler o axuste {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Arquivo ilexible",
+                        text: "Arquivo ilexible — non se puido ler {{archive}} como zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Paquete sen asinar",
+                        text: "Paquete sen asinar — non ten {{missing}}, e esta instalación só importa paquetes asinados.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Aprobador non fiable",
+                        text: "Aprobador non fiable — o certificado dun aprobador non é de confianza: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Asinante non fiable",
+                        text: "Asinante non fiable — a chave que asinou este paquete non é unha na que confíe esta instalación: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Non se pode escribir o manifesto",
+                        text: "Non se pode escribir o manifesto — non se puido escribir o manifesto: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "Non é un plan electoral",
@@ -676,6 +877,24 @@ const galegoTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Plan ilexible",
                         text: "Plan ilexible — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Informe configurado dúas veces",
+                        text: "Informe configurado dúas veces — o informe {{report}} está configurado máis dunha vez para a mesma elección.",
+                    },
+                    "no-copies": {
+                        lead: "Sen copias",
+                        text: "Sen copias — o informe {{report}} está configurado para non imprimir ningunha copia. Indique polo menos unha.",
+                    },
+                    "unknown-election": {
+                        lead: "Elección descoñecida",
+                        text: "Elección descoñecida — o informe {{report}} trata da elección «{{election}}», que este plan non ten.",
+                    },
+                    "unsupported-format": {
+                        lead: "Formato non dispoñible",
+                        text: "Formato non dispoñible — o informe {{report}} non se pode xerar en {{format}}.",
                     },
                 },
                 schedule: {
@@ -793,6 +1012,24 @@ const galegoTranslation: TranslationType = {
                     },
                 },
             },
+        },
+        timezones: {
+            abbr: {
+                "Asia/Manila": "PhST",
+            },
+            name: {},
+            city: {},
+            offset: "GMT{{sign}}{{hours}}:{{minutes}}",
+            option: "({{offset}}) {{city}}",
+            optionPrimary: "{{option}} · principal",
+            optionDetail: "{{countries}} · {{name}}",
+            dateTimeZone: "{{dateTime}} {{zone}}",
+            myTime: "{{dateTime}} {{zone}} · a miña hora",
+            placeTime: "{{dateTime}} {{zone}} · {{place}}",
+            voterDateTimeZone: "{{dateTime}} {{zoneName}}",
+            onThisDevice: "Neste dispositivo: {{dateTime}}",
+            gap: "{{dateTime}} non existe en {{city}} porque os reloxos se adiantan. Executarase á hora indicada.",
+            overlap: "{{dateTime}} ocorre dúas veces en {{city}}. Úsase a primeira.",
         },
     },
 }

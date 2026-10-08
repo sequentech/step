@@ -44,7 +44,6 @@ use super::requests::{
 use super::signers::{list_signers, GroupChange};
 use super::{InvalidReason, SigningCaller, SigningError, SigningResult};
 use crate::postgres::document::get_document;
-use crate::postgres::monitoring_config::EventRef;
 use crate::postgres::signing::{list_signing_approvals, SigningRequestRow};
 use crate::postgres::signing_document_revision::{
     count_recent_prepared_revisions, find_reusable_prepared_revision, get_latest_document_revision,
@@ -54,7 +53,7 @@ use crate::postgres::signing_document_revision::{
 use crate::services::documents::{
     get_document_as_temp_file, get_document_url, upload_and_return_document,
 };
-use crate::services::monitoring::config_store::get_live_config;
+use crate::services::time_zones::event_time_zone;
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
@@ -76,7 +75,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
-use tracing::{instrument, warn};
+use tracing::instrument;
 use uuid::Uuid;
 
 /// The certification sentence above the signature boxes. Only actions
@@ -288,29 +287,6 @@ pub fn appearance_lines(wording: &PageWording, facts: &SignatureFacts<'_>) -> Ve
         lines.push(fill(&wording.document, &[("sha256", sha256)]));
     }
     lines
-}
-
-/// The event's time zone: the one its monitoring settings name, if any.
-pub async fn event_time_zone(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: Uuid,
-    election_event_id: Uuid,
-) -> anyhow::Result<Option<Tz>> {
-    let event = EventRef {
-        tenant_id,
-        election_event_id,
-    };
-    let zone = get_live_config(hasura_transaction, event)
-        .await?
-        .and_then(|config| config.assembled.set.settings)
-        .map(|settings| settings.time_zone);
-    Ok(zone.and_then(|zone| match zone.parse() {
-        Ok(zone) => Some(zone),
-        Err(_) => {
-            warn!("The event's time zone {zone:?} is unknown; signatures print UTC");
-            None
-        }
-    }))
 }
 
 /// The signer directory's titles ("Chairperson"); tests use fakes.
@@ -1041,7 +1017,7 @@ async fn prepare_in(
                 title: title.as_deref(),
                 issuer: leaf.issuer.as_deref(),
                 signing_time,
-                zone,
+                zone: Some(zone),
                 code: &request.code,
                 document_sha256: request.document_sha256.as_deref(),
             },

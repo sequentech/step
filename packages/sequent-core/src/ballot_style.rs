@@ -9,6 +9,7 @@ use crate::ballot::{
     TieBreakingPolicy, WeightedVotingPolicy,
 };
 
+use crate::election_config::slates;
 use crate::serialization::deserialize_with_path::deserialize_value;
 #[cfg(feature = "areas")]
 use crate::services::area_tree::TreeNode;
@@ -151,7 +152,7 @@ pub fn create_ballot_style(
         .transpose()?
         .unwrap_or_default();
 
-    Ok(ballot::BallotStyle {
+    let ballot_style = ballot::BallotStyle {
         id,
         tenant_id: election.tenant_id,
         election_event_id: election.election_event_id,
@@ -182,7 +183,21 @@ pub fn create_ballot_style(
         area_annotations,
         multi_contest_encoding_mode: Some(multi_contest_encoding_mode),
         ballot_box_key: None,
-    })
+    };
+
+    let problems = slates::check_ballot_style(
+        &ballot_style,
+        &format!(
+            "election {}: {}",
+            ballot_style.election_id,
+            slates::SLATES_ANNOTATION
+        ),
+    );
+    if !problems.is_empty() {
+        return Err(slates::InvalidSlates { problems }.into());
+    }
+
+    Ok(ballot_style)
 }
 
 /// `EXPANDED_CAPACITY` if any contest in the election allows over-voting,
@@ -213,7 +228,7 @@ fn resolve_multi_contest_encoding_mode(
     Ok(ballot::MultiContestEncodingMode::LEGACY)
 }
 
-fn create_contest(
+pub(crate) fn create_contest(
     contest: hasura_types::Contest,
     candidates: Vec<hasura_types::Candidate>,
     default_language: String,

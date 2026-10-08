@@ -19,6 +19,7 @@ import {
     Typography,
 } from "@mui/material"
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined"
+import OpenInNewIcon from "@mui/icons-material/OpenInNew"
 import type {ISigningApi, ISigningPanelData} from "@/lib/signing/api"
 import {
     PayloadMismatchError,
@@ -29,6 +30,7 @@ import {
 import {DocumentKind, SigningAction} from "@/lib/signing/types"
 import {actionObject, documentTypeLabel, shortHash} from "./format"
 import {problemMessage, useSignedView} from "./useSignedView"
+import {ConfigurationAuthorizes, LIFECYCLE_SUBJECT_KEYS} from "./ConfigurationAuthorizes"
 
 export enum SigningSubjectVariant {
     Panel = "panel",
@@ -83,15 +85,27 @@ const DocumentCard: React.FC<{data: ISigningPanelData; view: ISignedView; api: I
     return (
         <Paper
             variant="outlined"
-            sx={{p: 2, display: "flex", gap: 2, alignItems: "center"}}
+            sx={{
+                p: 2,
+                display: "grid",
+                gridTemplateColumns: "auto minmax(0, 1fr)",
+                columnGap: 2,
+                rowGap: 1,
+                alignItems: "center",
+            }}
             data-testid="signing-document"
         >
             <DescriptionOutlinedIcon color="action" aria-hidden />
             <Box sx={{minWidth: 0}}>
-                <Typography sx={{fontWeight: 600, overflowWrap: "anywhere"}}>
+                <Typography sx={{fontWeight: 600, overflowWrap: "anywhere", m: 0}}>
                     {data.document_name ?? actionObject(t, data.request.action)}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" title={hash}>
+                <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    title={hash}
+                    sx={{m: 0, mt: 0.5}}
+                >
                     {data.document_pages
                         ? t("signing.widget.documentPages", {
                               type: documentTypeLabel(kind),
@@ -103,25 +117,35 @@ const DocumentCard: React.FC<{data: ISigningPanelData; view: ISignedView; api: I
                               hash: shortHash(hash),
                           })}
                 </Typography>
-                {data.document_url ? (
-                    <Button
-                        size="small"
-                        sx={{px: 0, fontWeight: 600}}
-                        disabled={opening}
-                        startIcon={opening ? <CircularProgress size={14} aria-hidden /> : undefined}
-                        onClick={() => {
-                            openDocument().catch(() => undefined)
-                        }}
-                    >
-                        {t("signing.panel.openDocument")}
-                    </Button>
-                ) : null}
-                {error ? (
-                    <Alert severity="error" sx={{mt: 1}}>
-                        {t(error)}
-                    </Alert>
-                ) : null}
             </Box>
+            {data.document_url ? (
+                <Button
+                    variant="secondary"
+                    size="small"
+                    sx={{
+                        px: 1.5,
+                        py: 0.5,
+                        gridColumn: {xs: "1 / -1", sm: 2},
+                        justifySelf: "start",
+                        minHeight: {xs: 44, sm: 36},
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                    }}
+                    endIcon={<OpenInNewIcon fontSize="small" />}
+                    disabled={opening}
+                    startIcon={opening ? <CircularProgress size={14} aria-hidden /> : undefined}
+                    onClick={() => {
+                        openDocument().catch(() => undefined)
+                    }}
+                >
+                    {t("signing.panel.openDocument")}
+                </Button>
+            ) : null}
+            {error ? (
+                <Alert severity="error" sx={{gridColumn: "1 / -1"}}>
+                    {t(error)}
+                </Alert>
+            ) : null}
         </Paper>
     )
 }
@@ -218,6 +242,11 @@ export const SigningSubject: React.FC<{
     const {view, problem} = useSignedView(data)
     const kind = documentKindOf(data.request)
     const notes = subjectNotes(t, data.request.action)
+    // A configuration approval shows its lifecycle snapshot in words, not as rows.
+    const configuration = data.request.action === SigningAction.ApproveConfiguration
+    const rows = (view?.rows ?? []).filter(
+        (row) => !configuration || !LIFECYCLE_SUBJECT_KEYS.includes(row.key)
+    )
 
     return (
         <Stack spacing={2}>
@@ -228,7 +257,7 @@ export const SigningSubject: React.FC<{
             ) : null}
             {view && kind !== DocumentKind.NoDocument ? (
                 <DocumentCard data={data} view={view} api={api} />
-            ) : view && (view.rows.length || notes.length) ? (
+            ) : view && (rows.length || notes.length) ? (
                 <Box>
                     {data.request.action === SigningAction.ApproveConfiguration ? (
                         <Typography variant="subtitle2" component="h3" sx={{mb: 1}}>
@@ -237,7 +266,7 @@ export const SigningSubject: React.FC<{
                     ) : null}
                     <Table size="small" aria-label={t("signing.widget.panel.details")}>
                         <TableBody>
-                            {view.rows.map((row) => (
+                            {rows.map((row) => (
                                 <TableRow key={row.key}>
                                     <TableCell
                                         component="th"
@@ -281,6 +310,13 @@ export const SigningSubject: React.FC<{
                         </TableBody>
                     </Table>
                 </Box>
+            ) : null}
+            {view && configuration ? (
+                <ConfigurationAuthorizes
+                    subject={view.subject}
+                    electionEventId={data.request.election_event_id}
+                    requestId={data.request.id}
+                />
             ) : null}
             <Stack
                 direction={{xs: "column", sm: "row"}}

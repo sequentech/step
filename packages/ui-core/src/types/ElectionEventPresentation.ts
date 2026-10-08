@@ -125,6 +125,17 @@ export enum EVoterCertificatePolicy {
     DISABLED = "disabled",
 }
 
+export enum EVoterAccessibilitySettingsPolicy {
+    DISABLED = "disabled",
+    ENABLED = "enabled",
+}
+
+export enum EAudioInstructionsPolicy {
+    DISABLED = "disabled",
+    RECORDED = "recorded",
+    RECORDED_OR_SYNTHESIZED = "recorded-or-synthesized",
+}
+
 export enum EResultsWebsiteStatus {
     ENABLED = "enabled",
     DISABLED = "disabled",
@@ -248,4 +259,41 @@ export interface IElectionEventPresentation {
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
     receipts?: IReceiptsPresentation
+    voter_accessibility_settings_policy?: EVoterAccessibilitySettingsPolicy
+    audio_instructions_policy?: EAudioInstructionsPolicy
+    /** Configured timezones and the primary one (VOTE-LIFECYCLE). */
+    timezones?: IElectionEventTimeZones
+    /** Lifecycle decisions that are part of the (signed) configuration. */
+    lifecycle_policies?: ILifecyclePolicies
+}
+
+/** Which timezone the Logs tab and log exports show. */
+export enum ELogTimeZonePolicy {
+    PRIMARY = "primary",
+    ELECTION = "election",
+}
+
+/** IANA zone names in tzdata canonical form (Asia/Kolkata, not Asia/Calcutta). */
+export interface IElectionEventTimeZones {
+    /** At least one; elections choose theirs from this list. */
+    configured: Array<string>
+    /** One of `configured`. */
+    primary: string
+    logs?: ELogTimeZonePolicy
+}
+
+export enum EInitializationScope {
+    POST = "post",
+    EVENT = "event",
+    POST_AND_COUNTRY = "post-and-country",
+}
+
+export enum EUnsignedScheduledClosePolicy {
+    REFUSE = "refuse",
+    RUN_AS_SYSTEM = "run-as-system",
+}
+
+export interface ILifecyclePolicies {
+    initialization_scope?: EInitializationScope
+    unsigned_scheduled_close?: EUnsignedScheduledClosePolicy
 }

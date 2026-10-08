@@ -298,10 +298,10 @@ describe("the header", () => {
         const menu = await screen.findByRole("menu")
         expect(
             within(menu)
-                .getAllByRole("menuitem")
+                .getAllByRole("menuitemradio")
                 .map((item) => item.textContent)
         ).toEqual(["English", "Español"])
-        userEvent.click(within(menu).getByRole("menuitem", {name: "Español"}))
+        userEvent.click(within(menu).getByRole("menuitemradio", {name: "Español"}))
 
         expect(
             await screen.findByRole("heading", {name: /Paso 1: Importa tu papeleta electoral/})

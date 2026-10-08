@@ -18,6 +18,7 @@
 #   STEP_E2E_PROJECT       compose project name (default unique per invocation)
 #   STEP_E2E_OUTPUT_DIR    logs/results (default .cache/backend-e2e/<project>)
 #   STEP_E2E_BIN_DIR       binaries (default .cache/backend-e2e/bin)
+#   STEP_E2E_COMPOSE_OVERLAY optional existing Compose file, applied last
 #   STEP_E2E_PORTS=1       also publish Hasura, Keycloak and MinIO on 127.0.0.1
 #   STEP_E2E_COVERAGE=1    instrumented binaries (default .cache/backend-e2e/bin-coverage);
 #                          after the journeys the services stop and <output>/coverage
@@ -62,6 +63,15 @@ while (($#)); do
     esac
     shift
 done
+
+# Resolve caller-relative overrides before builds, ownership checks or cleanup.
+if [[ -n "${STEP_E2E_COMPOSE_OVERLAY:-}" ]]; then
+    [[ -f "$STEP_E2E_COMPOSE_OVERLAY" && -r "$STEP_E2E_COMPOSE_OVERLAY" ]] || {
+        echo 'STEP_E2E_COMPOSE_OVERLAY must name an existing readable file' >&2
+        exit 2
+    }
+    export STEP_E2E_COMPOSE_OVERLAY="$(cd -- "$(dirname -- "$STEP_E2E_COMPOSE_OVERLAY")" && pwd)/$(basename -- "$STEP_E2E_COMPOSE_OVERLAY")"
+fi
 
 if $coverage && $keep; then
     echo 'Services write complete coverage profiles only when they stop; drop --keep' >&2
@@ -122,6 +132,7 @@ EOF
 files=(-f "$DEVCONTAINER/docker-compose.yml" -f "$DEVCONTAINER/docker-compose-ci.yml")
 [[ "${STEP_E2E_PORTS:-}" == 1 ]] && files+=(-f "$DEVCONTAINER/docker-compose-ci-ports.yml")
 $coverage && files+=(-f "$DEVCONTAINER/docker-compose-ci-coverage.yml")
+[[ -n "${STEP_E2E_COMPOSE_OVERLAY:-}" ]] && files+=(-f "$STEP_E2E_COMPOSE_OVERLAY")
 compose() {
     $DOCKER compose --project-name "$PROJECT" \
         --env-file "$DEVCONTAINER/.env.development" --env-file "$OUTPUT/compose.env" \

@@ -22,6 +22,26 @@ import {legacyMonitoring} from "@/components/monitoring/__stories__/MonitoringFi
 import {EStoryPermissions, useStoryGlobals} from "../../../../ui-essentials/.storybook/globals"
 import {SigningProvider} from "@/components/signing/SigningProvider"
 import {idleSigningApi} from "./Signatures/__stories__/SignaturesFixture"
+// The tabs load their widgets lazily, and a cold dev server can take longer to
+// serve one than a story may wait: load them with the stories instead.
+import "@/components/dashboard/election-event/Dashboard"
+import "@/components/monitoring/MonitoringDashboardTab"
+import "./EditElectionEventData"
+import "./EditElectionEventTextData"
+import "./EditElectionEventUsers"
+import "./EditElectionEventAreas"
+import "./EditElectionEventKeys"
+import "./Signatures/EditElectionEventSignatures"
+import "./EditElectionEventCAs"
+import "./EditElectionEventIvr"
+import "./EditElectionEventTally"
+import "../TallySheetImport/TallySheetImports"
+import "@/resources/Publish/Publish"
+import "./ElectoralLog"
+import "./EditElectionEventTasks"
+import "./EditElectionEventScheduledEvents"
+import "./EditElectionEventApprovals"
+import "../Reports/EditReportsTab"
 
 interface Scenario {
     /** Whether the event is locked down, which hides its editing tabs. */
@@ -299,7 +319,19 @@ export const PublishLinkedById: Story = {
     },
 }
 
+/**
+ * The generated schema has no signing tables or actions yet: stories that open
+ * the Signatures tab answer without validating its operations against it.
+ */
+const withoutSchema: Pick<Story, "beforeEach"> = {
+    beforeEach: () => {
+        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()))
+    },
+}
+
 export const Data: Story = {
+    // The Voting lifecycle section's snapshot query isn't in the generated schema yet.
+    ...withoutSchema,
     parameters: {widgets: ["DataTab"]},
     play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
 }
@@ -355,16 +387,6 @@ export const Keys: Story = {
         reads: ["getList sequent_backend_keys_ceremony"],
         operations: ["TrusteeNames"],
     }),
-}
-
-/**
- * The generated schema has no signing tables or actions yet: stories that open
- * the Signatures tab answer without validating its operations against it.
- */
-const withoutSchema: Pick<Story, "beforeEach"> = {
-    beforeEach: () => {
-        graphql = graphqlBoundary(answerOrPending(legacyMonitoring()))
-    },
 }
 
 export const Signatures: Story = {

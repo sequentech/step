@@ -176,7 +176,7 @@ export const SecurityOfficer: Story = {
         await expect(canvas.getByLabelText(label("onePost"))).toBeChecked()
         await expect(canvas.getByLabelText(label("registration.on-first-use"))).toBeChecked()
         // Each revocation list with its last download, in the event's zone with its name
-        // (Asia/Manila: 10:00 UTC is 18:00 GMT+8), as the signing panel shows times.
+        // Asia/Manila: 10:00 UTC is 6:00 PM PhST in the canonical admin format.
         for (const crl of organization.crls) {
             await expect(canvas.getByText(new RegExp(`^${crl.url}: `))).toBeVisible()
         }
@@ -184,7 +184,7 @@ export const SecurityOfficer: Story = {
             canvas.getByText(
                 label("crlUpdated", {
                     url: organization.crls[0].url,
-                    time: "May 8, 2028, 18:00 GMT+8",
+                    time: "May 8, 2028, 6:00 PM PhST",
                 })
             )
         ).toBeVisible()
@@ -198,7 +198,7 @@ export const SecurityOfficer: Story = {
         await expect(mariaRow.getByText(`· ${organization.titles[maria.user_id]}`)).toBeVisible()
         await expect(mariaRow.getByText(organization.posts[0].name)).toBeVisible()
         // Dates as the signing panel writes them, in the event's zone.
-        await expect(mariaRow.getByText("Jan 11, 2030")).toBeVisible()
+        await expect(mariaRow.getByText("Jan 11, 2030, 8:00 AM PhST")).toBeVisible()
         await expect(
             (await certificateRow(canvasElement, soon.username)).getByText(
                 label("statuses.expires-soon")

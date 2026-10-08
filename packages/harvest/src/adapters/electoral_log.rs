@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ports::electoral_log::{
-    ElectoralLogs, PhoneBlacklistChange, PhoneBlacklistEntryLog,
+    ApprovalMatrixLog, ElectoralLogs, PhoneBlacklistChange,
+    PhoneBlacklistEntryLog,
 };
 use anyhow::anyhow;
 use deadpool_postgres::Transaction;
@@ -85,5 +86,39 @@ impl ElectoralLogs for BoardElectoralLogs {
             }
         }
         Ok(())
+    }
+
+    async fn approval_matrix_updated(
+        &self,
+        transaction: &Transaction<'_>,
+        entry: ApprovalMatrixLog<'_>,
+    ) -> anyhow::Result<()> {
+        let event = get_election_event_by_id(
+            transaction,
+            entry.tenant_id,
+            entry.election_event_id,
+        )
+        .await?;
+        let electoral_log = ElectoralLog::for_admin_user(
+            transaction,
+            &get_election_event_board(event.bulletin_board_reference)
+                .ok_or(anyhow!("missing board"))?,
+            entry.tenant_id,
+            entry.election_event_id,
+            entry.user_id,
+            entry.username.clone(),
+            None,
+            None,
+        )
+        .await?;
+        electoral_log
+            .post_approval_matrix_updated(
+                entry.election_event_id.to_string(),
+                entry.version,
+                entry.sha256,
+                Some(entry.user_id.to_string()),
+                entry.username,
+            )
+            .await
     }
 }

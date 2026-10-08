@@ -14,7 +14,7 @@ use super::approve::{log_step_refusal, DocumentSigner, RefusedStep};
 use super::executors::SigningExecutorRegistry;
 use super::key_shares::{key_share_labels, KeyShareLabels};
 use super::log::{stage, Actor, LogStep, SystemOutcome};
-use super::pdf::{event_time_zone, DocumentRevisionView};
+use super::pdf::DocumentRevisionView;
 use super::signers::{list_signers, signer_titles, GroupChange};
 use super::{
     action_title, allowed_by, allowed_by_permission, log_scope, Allowance, SigningCaller,
@@ -23,6 +23,7 @@ use super::{
 use crate::postgres::signing::*;
 use crate::postgres::signing_certificates::get_signing_request_in_tenant;
 use crate::services::documents::{get_document_url, upload_and_return_document};
+use crate::services::time_zones::event_time_zone;
 use crate::tasks::signing_log_outbox::kick_signing_log_outbox;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -113,6 +114,7 @@ fn cancel_reason_text(reason: CancelReason) -> &'static str {
         CancelReason::PayloadChanged => "what it signs changed",
         CancelReason::Superseded => "a newer request replaced it",
         CancelReason::CertificateRevoked => "the certificate of a signature it counted was revoked",
+        CancelReason::ClosedOnSchedule => "the schedule closed voting at its deadline",
     }
 }
 
@@ -128,7 +130,9 @@ fn cancel_allowance(reason: CancelReason) -> Option<Allowance> {
         CancelReason::CertificateRevoked => Some(Allowance::Permission(
             Permissions::SIGNING_CERTIFICATES_REVOKE,
         )),
-        CancelReason::PayloadChanged | CancelReason::Superseded => None,
+        CancelReason::PayloadChanged
+        | CancelReason::Superseded
+        | CancelReason::ClosedOnSchedule => None,
     }
 }
 
@@ -545,8 +549,9 @@ pub struct SigningPanel {
     pub details: Vec<SigningDetail>,
     pub election_name: Option<String>,
     pub area_name: Option<String>,
-    /// The election event's time zone (IANA), which its times are shown in.
-    pub time_zone: Option<String>,
+    /// The event's primary timezone (IANA): the panel shows times in it, as
+    /// the signed PDF prints them.
+    pub time_zone: String,
     /// For a trustee's request, the names beside its ceremony and trustee ids.
     #[serde(flatten)]
     pub key_share: KeyShareLabels,
@@ -554,6 +559,21 @@ pub struct SigningPanel {
 
 /// The subject's fields in key order, lists joined with commas.
 pub fn subject_details(subject: &Value) -> Vec<SigningDetail> {
+    // Match the widget's displayValue without changing the signed payload.
+    // PostgreSQL JSONB does not preserve canonical object key order.
+    fn display_value(value: &Value) -> String {
+        match value {
+            Value::String(text) => text.clone(),
+            Value::Null => String::new(),
+            Value::Array(items) => items
+                .iter()
+                .map(display_value)
+                .collect::<Vec<_>>()
+                .join(", "),
+            Value::Object(_) => super::actions::configuration::canonical_text(value),
+            other => other.to_string(),
+        }
+    }
     let Value::Object(fields) = subject else {
         return vec![];
     };
@@ -561,19 +581,7 @@ pub fn subject_details(subject: &Value) -> Vec<SigningDetail> {
     keys.sort();
     keys.into_iter()
         .map(|key| {
-            let value = match &fields[key] {
-                Value::String(text) => text.clone(),
-                Value::Null => String::new(),
-                Value::Array(items) => items
-                    .iter()
-                    .map(|item| match item {
-                        Value::String(text) => text.clone(),
-                        other => other.to_string(),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                other => other.to_string(),
-            };
+            let value = display_value(&fields[key]);
             SigningDetail {
                 key: key.clone(),
                 value,
@@ -737,7 +745,8 @@ pub async fn get_panel(
         area_name,
         time_zone: event_time_zone(hasura_transaction, tenant_id, request.election_event_id)
             .await?
-            .map(|zone| zone.name().to_owned()),
+            .name()
+            .to_owned(),
         key_share: key_share_labels(hasura_transaction, &request).await?,
     })
 }
@@ -794,9 +803,12 @@ pub async fn event_info(
         BTreeMap::new()
     };
     Ok(SigningEventInfo {
-        time_zone: event_time_zone(hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .map(|zone| zone.name().to_owned()),
+        time_zone: Some(
+            event_time_zone(hasura_transaction, tenant_id, election_event_id)
+                .await?
+                .name()
+                .to_owned(),
+        ),
         titles,
     })
 }

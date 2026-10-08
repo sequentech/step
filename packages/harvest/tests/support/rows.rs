@@ -171,13 +171,14 @@ impl Event {
     }
 
     /// Merge `presentation` into the election event's presentation.
+    /// A fixture, so it may set the lockdown as the server does.
     pub async fn present(&self, pool: &Pool, presentation: serde_json::Value) {
         let (_, election_event_id) = self.ids();
         execute(
             pool,
             "UPDATE sequent_backend.election_event
              SET presentation = coalesce(presentation, '{}'::jsonb) || $2
-             WHERE id = $1",
+             WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
             &[&election_event_id, &presentation],
         )
         .await;

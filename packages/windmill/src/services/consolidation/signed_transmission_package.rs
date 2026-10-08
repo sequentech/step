@@ -18,24 +18,25 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::tally_session::{get_tally_session_by_id, lock_tally_session_for_update};
+use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::{
     LoadedPackage, PostSbeis, SbeiDirectory, SbeiIdentity, TransmissionPackages,
 };
-use crate::services::signing::pdf::{event_time_zone, RevisionStore, S3RevisionStore};
+use crate::services::signing::pdf::{RevisionStore, S3RevisionStore};
+use crate::services::time_zones::{event_time_zone, offset_at};
 use crate::types::miru_plugin::{
     MiruDocument, MiruDocumentIds, MiruSignature, MiruTallySessionData,
 };
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use chrono::{Local, Offset, TimeZone as _, Utc};
+use chrono::Utc;
+use chrono_tz::Tz;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::translations::Name;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::TallySession;
-use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
 use std::collections::HashMap;
 use tracing::instrument;
 use uuid::Uuid;
@@ -87,39 +88,32 @@ pub async fn lock_transmission_data(
     })
 }
 
-/// The time zone transmission packages are dated in: the event's
-/// configured zone at `now` (as its offset), else the zone packages were
-/// dated in before events had one.
-pub async fn transmission_timezone(
+/// The zone transmission packages are dated in: the event's primary.
+#[derive(Debug, Clone)]
+pub struct TransmissionZone {
+    /// For the package's log lines and document times.
+    pub zone: Tz,
+    /// Its offset at the package's time, as the EML and ACM print it.
+    pub offset: TimeZone,
+}
+
+/// The event's [`TransmissionZone`] at `now`.
+pub async fn transmission_zone(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     now: chrono::DateTime<Utc>,
-) -> Result<TimeZone> {
+) -> Result<TransmissionZone> {
     let zone = event_time_zone(
         hasura_transaction,
         Uuid::parse_str(tenant_id).context("Error parsing the tenant id")?,
         Uuid::parse_str(election_event_id).context("Error parsing the election event id")?,
     )
     .await?;
-    Ok(match zone {
-        Some(zone) => time_zone_at(zone, now),
-        None => PHILIPPINO_TIMEZONE,
+    Ok(TransmissionZone {
+        zone,
+        offset: offset_at(zone, now),
     })
-}
-
-/// A zone's offset at `now`, in whole hours when it is, else in minutes
-/// (+5:30, +5:45).
-pub fn time_zone_at(zone: chrono_tz::Tz, now: chrono::DateTime<Utc>) -> TimeZone {
-    let seconds = zone
-        .offset_from_utc_datetime(&now.naive_utc())
-        .fix()
-        .local_minus_utc();
-    if seconds % 3600 == 0 {
-        TimeZone::Offset(seconds / 3600)
-    } else {
-        TimeZone::OffsetMinutes(seconds / 60)
-    }
 }
 
 /// The bytes of a stored document of the request's event.
@@ -272,7 +266,14 @@ impl TransmissionPackages for StoredPackages {
     ) -> Result<String> {
         let at = place(request)?;
         let now_utc = Utc::now();
-        let now_local = now_utc.with_timezone(&Local);
+        let zone = transmission_zone(
+            hasura_transaction,
+            &at.tenant_id,
+            &at.election_event_id,
+            now_utc,
+        )
+        .await?;
+        let now_local = now_utc.with_timezone(&zone.zone);
         let election_event =
             get_election_event_by_id(hasura_transaction, &at.tenant_id, &at.election_event_id)
                 .await?;
@@ -320,13 +321,8 @@ impl TransmissionPackages for StoredPackages {
                 &member.id,
             ));
         }
-        let time_zone = transmission_timezone(
-            hasura_transaction,
-            &at.tenant_id,
-            &at.election_event_id,
-            now_utc,
-        )
-        .await?;
+        let latest = get_latest_miru_document(&package.documents)
+            .ok_or_else(|| anyhow!("The transmission package has no document"))?;
         // The destinations the package was made for, which its subject names.
         let all_servers = generate_all_servers_document(
             hasura_transaction,
@@ -338,15 +334,15 @@ impl TransmissionPackages for StoredPackages {
             &election_event.get_annotations()?,
             &at.election_event_id,
             &at.tenant_id,
-            time_zone,
+            zone.offset,
             now_utc,
             members,
             &package.logs,
             &election.get_annotations()?,
+            &latest.transaction_id,
+            &ReportRequester::default(),
         )
         .await?;
-        let latest = get_latest_miru_document(&package.documents)
-            .ok_or_else(|| anyhow!("The transmission package has no document"))?;
         package.documents.push(MiruDocument {
             document_ids: MiruDocumentIds {
                 eml: latest.document_ids.eml.clone(),
@@ -355,7 +351,7 @@ impl TransmissionPackages for StoredPackages {
             },
             transaction_id: latest.transaction_id.clone(),
             servers_sent_to: vec![],
-            created_at: ISO8601::to_string(&now_local),
+            created_at: now_local.to_rfc3339(),
             signatures,
         });
         update_transmission_package_annotations(

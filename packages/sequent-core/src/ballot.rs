@@ -27,7 +27,10 @@ use serde::{Deserialize, Serialize};
 use serde_path_to_error::Error;
 use std::hash::Hash;
 use std::ops::Deref;
-use std::{collections::HashMap, default::Default};
+use std::{
+    collections::{BTreeMap, HashMap},
+    default::Default,
+};
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
@@ -1310,6 +1313,23 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipts: Option<ReceiptsPresentation>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub voter_accessibility_settings_policy:
+        Option<VoterAccessibilitySettingsPolicy>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub audio_instructions_policy: Option<AudioInstructionsPolicy>,
+    /// The event's configured timezones and its primary one (VOTE-LIFECYCLE).
+    /// Display and configuration data only: skipped in Borsh so ballot-style
+    /// hashes (and the auditable ballots that carry them) don't change.
+    #[borsh(skip)]
+    pub timezones: Option<ElectionEventTimeZones>,
+    /// Lifecycle decisions that are part of the (signed) configuration. The
+    /// configuration approval signs them through the publication digest
+    /// (JSON), not through Borsh.
+    #[borsh(skip)]
+    pub lifecycle_policies: Option<LifecyclePolicies>,
 }
 
 impl ElectionEventPresentation {
@@ -1319,6 +1339,140 @@ impl ElectionEventPresentation {
             .and_then(|receipts| receipts.policy.clone())
             .unwrap_or_default()
     }
+}
+
+/// Which timezone the Logs tab and log exports show.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LogTimeZonePolicy {
+    /// The event's primary timezone for every row.
+    #[strum(serialize = "primary")]
+    #[serde(rename = "primary")]
+    PRIMARY,
+    /// Each row's election timezone (the primary for event-wide rows).
+    #[default]
+    #[strum(serialize = "election")]
+    #[serde(rename = "election")]
+    ELECTION,
+}
+
+/// The timezones an election event works with. Zones are IANA names in
+/// their tzdata canonical form (`Asia/Kolkata`, not `Asia/Calcutta`).
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+)]
+pub struct ElectionEventTimeZones {
+    /// At least one; elections choose theirs from this list.
+    pub configured: Vec<String>,
+    /// One of `configured`: event-wide schedules, reports and elections
+    /// without their own timezone use it.
+    pub primary: String,
+    #[serde(default)]
+    pub logs: LogTimeZonePolicy,
+}
+
+/// When voting can open with respect to initialization.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum InitializationScope {
+    /// A Post opens once it is initialized.
+    #[default]
+    #[strum(serialize = "post")]
+    #[serde(rename = "post")]
+    POST,
+    /// No Post opens until every Post is initialized.
+    #[strum(serialize = "event")]
+    #[serde(rename = "event")]
+    EVENT,
+    /// A Post opens once every country under it is initialized.
+    #[strum(serialize = "post-and-country")]
+    #[serde(rename = "post-and-country")]
+    POST_AND_COUNTRY,
+}
+
+/// What a scheduled close does when Close voting needs signatures and the
+/// close isn't covered by a signed configuration.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum UnsignedScheduledClosePolicy {
+    /// The close doesn't run; the election's signers close it with signatures.
+    #[default]
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
+    /// The close runs at its deadline, recorded as closed by the schedule
+    /// without signatures.
+    #[strum(serialize = "run-as-system")]
+    #[serde(rename = "run-as-system")]
+    RUN_AS_SYSTEM,
+}
+
+/// Lifecycle decisions kept in the event presentation, so the configuration
+/// approval signs them.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Default,
+)]
+pub struct LifecyclePolicies {
+    #[serde(default)]
+    pub initialization_scope: InitializationScope,
+    #[serde(default)]
+    pub unsigned_scheduled_close: UnsignedScheduledClosePolicy,
 }
 
 impl ElectionEvent {
@@ -1470,6 +1624,9 @@ pub enum EUnderVotePolicy {
     #[strum(serialize = "warn-and-alert")]
     #[serde(rename = "warn-and-alert")]
     WARN_AND_ALERT,
+    #[strum(serialize = "warn-and-confirm-in-review")]
+    #[serde(rename = "warn-and-confirm-in-review")]
+    WARN_AND_CONFIRM_IN_REVIEW,
 }
 
 #[allow(non_camel_case_types)]
@@ -1637,6 +1794,10 @@ pub struct ElectionPresentation {
     /// decline_to_vote_policy) to preserve the Borsh binary layout of
     /// already-serialized ElectionPresentation/BallotStyle payloads.
     pub blank_ballots_policy: Option<BlankBallotsPolicy>,
+    /// One of the event's configured timezones; `None` uses the primary.
+    /// Every area under the election uses it (VOTE-LIFECYCLE).
+    #[borsh(skip)]
+    pub timezone: Option<String>,
 }
 
 impl hasura_core::Election {
@@ -1679,6 +1840,7 @@ impl Default for ElectionPresentation {
             voting_screen_back_policy: Some(VotingScreenBackPolicy::default()),
             css: None,
             blank_ballots_policy: Some(BlankBallotsPolicy::default()),
+            timezone: None,
         }
     }
 }
@@ -2191,6 +2353,58 @@ pub enum VoterCertificatePolicy {
     ENABLED,
 }
 
+/// Whether the Voting Portal offers the voter its display settings: text size,
+/// contrast, text spacing and motion.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum VoterAccessibilitySettingsPolicy {
+    #[default]
+    Disabled,
+    Enabled,
+}
+
+/// Whether each Voting Portal screen offers spoken instructions, and where
+/// the audio may come from: only the event's uploaded recordings, or the
+/// browser's speech synthesis where a screen has no recording.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum AudioInstructionsPolicy {
+    #[default]
+    Disabled,
+    Recorded,
+    RecordedOrSynthesized,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -2687,6 +2901,12 @@ pub struct ReportDates {
 pub struct ScheduledEventDates {
     pub scheduled_at: Option<String>,
     pub stopped_at: Option<String>,
+    /// The IANA zone the date was set in (`cron_config.timezone`), so
+    /// screens can show it in that zone (VOTE-LIFECYCLE). Display only:
+    /// skipped in Borsh so ballot-style hashes don't change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[borsh(skip)]
+    pub timezone: Option<String>,
 }
 
 impl PeriodDates {
@@ -2748,6 +2968,54 @@ pub struct ElectionStatus {
     pub early_voting_period_dates: PeriodDates,
     pub telephone_voting_period_dates: PeriodDates,
     pub allow_tally: AllowTallyStatus,
+    /// The scheduled lifecycle windows of the election (VOTE-LIFECYCLE).
+    /// What each window enables belongs to readiness and test voting.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lifecycle_windows:
+        Option<BTreeMap<LifecycleWindow, LifecycleWindowState>>,
+}
+
+/// A window the schedule opens and closes for an election.
+#[allow(non_camel_case_types)]
+#[derive(
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Debug,
+    Clone,
+    Copy,
+    Display,
+    EnumString,
+)]
+pub enum LifecycleWindow {
+    /// Election Readiness Test.
+    READINESS_TEST,
+    /// Final Testing and Lockdown.
+    FINAL_TESTING,
+    TEST_VOTING,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Display,
+    EnumString,
+)]
+pub enum LifecycleWindowState {
+    OPEN,
+    CLOSED,
 }
 
 impl Default for ElectionStatus {
@@ -2764,6 +3032,7 @@ impl Default for ElectionStatus {
             early_voting_period_dates: Default::default(),
             telephone_voting_period_dates: Default::default(),
             allow_tally: Default::default(),
+            lifecycle_windows: None,
         }
     }
 }
@@ -3327,6 +3596,72 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn voter_accessibility_settings_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.voter_accessibility_settings_policy, None);
+        assert_eq!(
+            legacy
+                .voter_accessibility_settings_policy
+                .unwrap_or_default(),
+            VoterAccessibilitySettingsPolicy::Disabled
+        );
+
+        let enabled = parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "enabled"
+        }))
+        .unwrap();
+        assert_eq!(
+            enabled.voter_accessibility_settings_policy,
+            Some(VoterAccessibilitySettingsPolicy::Enabled)
+        );
+        assert_eq!(
+            serde_json::to_value(&enabled).unwrap()
+                ["voter_accessibility_settings_policy"],
+            "enabled"
+        );
+
+        assert!(parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "sometimes"
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn audio_instructions_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.audio_instructions_policy, None);
+        assert_eq!(
+            legacy.audio_instructions_policy.unwrap_or_default(),
+            AudioInstructionsPolicy::Disabled
+        );
+
+        let configured = parse(serde_json::json!({
+            "audio_instructions_policy": "recorded-or-synthesized"
+        }))
+        .unwrap();
+        assert_eq!(
+            configured.audio_instructions_policy,
+            Some(AudioInstructionsPolicy::RecordedOrSynthesized)
+        );
+        assert_eq!(
+            serde_json::to_value(&configured).unwrap()
+                ["audio_instructions_policy"],
+            "recorded-or-synthesized"
+        );
+
+        assert!(parse(serde_json::json!({
+            "audio_instructions_policy": "autoplay"
+        }))
+        .is_err());
+    }
+
+    #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
         let event_presentation = ElectionEventPresentation::default();
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
@@ -3335,6 +3670,25 @@ mod presentation_borsh_compat_tests {
             ..event_presentation
         };
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+
+        let event_with_accessibility = ElectionEventPresentation {
+            voter_accessibility_settings_policy: Some(
+                VoterAccessibilitySettingsPolicy::Enabled,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_accessibility).unwrap(),
+            event_bytes
+        );
+
+        let event_with_audio = ElectionEventPresentation {
+            audio_instructions_policy: Some(
+                AudioInstructionsPolicy::RecordedOrSynthesized,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_audio).unwrap(), event_bytes);
 
         let election_presentation = ElectionPresentation::default();
         let election_bytes = borsh::to_vec(&election_presentation).unwrap();

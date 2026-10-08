@@ -21,7 +21,7 @@ use sequent_core::{
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{Map, Value};
 use std::cmp::{self, Ordering};
 use std::{
     collections::HashMap,
@@ -46,6 +46,7 @@ use crate::{
         mark_winners::{WinnerResult, OUTPUT_WINNERS},
         pipe_inputs::{AreaConfig, InputAreaConfig, InputContestConfig, PipeInputs},
         pipe_name::PipeNameOutputDir,
+        report_manifest::write_folder_manifest,
         Pipe,
     },
 };
@@ -78,10 +79,92 @@ pub struct GeneratedReportsBytes {
     bytes_json: Vec<u8>,
 }
 
+/// Adds the run's time variables to a report's template variables
+/// (VOTE-LIFECYCLE): the event's (`electionEventTimezone`, timezone texts)
+/// and the report's election zone (`electionTimezone`, else the event's).
+/// The report's own variables win.
+pub fn add_template_time_variables(
+    template_vars: &mut serde_json::Map<String, Value>,
+    run_variables: &serde_json::Map<String, Value>,
+    election_time_zones: &HashMap<String, String>,
+    election_id: Option<&str>,
+) {
+    for (key, value) in run_variables {
+        // The run's electionTimezone is the primary fallback; choose the
+        // report's target before filling that key.
+        if key == reports::ELECTION_TIMEZONE_VAR {
+            continue;
+        }
+        template_vars
+            .entry(key.clone())
+            .or_insert_with(|| value.clone());
+    }
+    let election_zone = election_id
+        .and_then(|election_id| election_time_zones.get(election_id))
+        .map(|zone| Value::String(zone.clone()))
+        .or_else(|| {
+            run_variables
+                .get(reports::ELECTION_EVENT_TIMEZONE_VAR)
+                .cloned()
+        });
+    if let Some(zone) = election_zone {
+        template_vars
+            .entry(reports::ELECTION_TIMEZONE_VAR.to_string())
+            .or_insert(zone);
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TemplateData {
     pub execution_annotations: HashMap<String, String>,
     pub reports: Vec<ReportDataComputed>,
+}
+
+pub const EXECUTION_ANNOTATIONS_VAR: &str = "execution_annotations";
+pub const COPY_NUMBER_VAR: &str = "copy_number";
+pub const COPY_TOTAL_VAR: &str = "copy_total";
+
+/// A report's content as it is printed: once, or for a report printed in
+/// several copies once for each, one after another, each on its own pages
+/// and named in `execution_annotations.copy_number` and `copy_total`.
+pub fn render_copies(
+    template_name: &str,
+    template_map: &HashMap<String, String>,
+    template_vars: &Map<String, Value>,
+    copies: u32,
+) -> Result<String> {
+    let render = |variables: Map<String, Value>| {
+        reports::render_template(template_name, template_map.clone(), variables).map_err(|e| {
+            Error::UnexpectedError(format!(
+                "Error during render_template_text from report.hbs template file: {}",
+                e
+            ))
+        })
+    };
+    if copies <= 1 {
+        return render(template_vars.clone());
+    }
+    let mut rendered = String::new();
+    for number in 1..=copies {
+        let mut variables = template_vars.clone();
+        let annotations = variables
+            .entry(EXECUTION_ANNOTATIONS_VAR)
+            .or_insert_with(|| Value::Object(Map::new()));
+        if let Value::Object(annotations) = annotations {
+            annotations.insert(COPY_NUMBER_VAR.into(), Value::String(number.to_string()));
+            annotations.insert(COPY_TOTAL_VAR.into(), Value::String(copies.to_string()));
+        }
+        let page_break = if number == 1 {
+            ""
+        } else {
+            " style=\"break-before: page; page-break-before: always;\""
+        };
+        rendered.push_str(&format!(
+            "<div class=\"report-copy\"{page_break}>\n{}\n</div>\n",
+            render(variables)?
+        ));
+    }
+    Ok(rendered)
 }
 
 impl GenerateReports {
@@ -313,11 +396,24 @@ impl GenerateReports {
             reports: computed_reports,
         };
 
-        let template_vars = template_data
+        let mut template_vars = template_data
             .clone()
             .to_map()
             // TODO: Fix neededing to do a Map Err
             .map_err(|err| Error::UnexpectedError(format!("serialization error: {err:?}")))?;
+        add_template_time_variables(
+            &mut template_vars,
+            &config.template_variables,
+            &config.election_time_zones,
+            reports
+                .first()
+                .filter(|first| {
+                    reports
+                        .iter()
+                        .all(|report| report.election_id == first.election_id)
+                })
+                .map(|report| report.election_id.as_str()),
+        );
 
         let mut template_map = HashMap::new();
         let report_base_html = include_str!("../../resources/report_base_html.hbs");
@@ -329,17 +425,9 @@ impl GenerateReports {
             .unwrap_or(include_str!("../../resources/report_content.hbs").to_string());
         template_map.insert("report_content".to_string(), report_content);
 
-        let render_html_user = reports::render_template(
-            "report_base_html",
-            template_map.clone(),
-            template_vars.clone(),
-        )
-        .map_err(|e| {
-            Error::UnexpectedError(format!(
-                "Error during render_template_text from report.hbs template file: {}",
-                e
-            ))
-        })?;
+        let copies = config.copies.unwrap_or(1);
+        let render_html_user =
+            render_copies("report_base_html", &template_map, &template_vars, copies)?;
 
         let mut template_system_vars = Map::new();
         template_system_vars.insert(
@@ -350,6 +438,18 @@ impl GenerateReports {
         if let serde_json::Value::Object(obj) = &config.extra_data {
             for (key, value) in obj {
                 template_system_vars.insert(key.clone(), value.clone());
+            }
+        }
+
+        // The outer HTML/PDF template uses the same target zone and texts as
+        // its report content, including custom date helpers.
+        for key in [
+            reports::ELECTION_EVENT_TIMEZONE_VAR,
+            reports::ELECTION_TIMEZONE_VAR,
+            reports::TIMEZONE_TEXTS_VAR,
+        ] {
+            if let Some(value) = template_vars.get(key) {
+                template_system_vars.insert(key.to_string(), value.clone());
             }
         }
 
@@ -364,13 +464,7 @@ impl GenerateReports {
 
         let bytes_pdf = if enable_pdfs {
             let render_pdf_user: String =
-                reports::render_template("report_base_pdf", template_map, template_vars.clone())
-                    .map_err(|e| {
-                        Error::UnexpectedError(format!(
-                            "Error during render_template_text from report.hbs template file: {}",
-                            e
-                        ))
-                    })?;
+                render_copies("report_base_pdf", &template_map, &template_vars, copies)?;
 
             template_system_vars.insert(
                 "rendered_user_template".to_string(),
@@ -923,6 +1017,11 @@ impl GenerateReports {
             .create(true)
             .open(json_path)?;
         json_file.write_all(&reports.bytes_json)?;
+
+        let config = self.get_config()?;
+        if let Some(stamp) = &config.configuration {
+            write_folder_manifest(&base_path, &config.tally_type.to_string(), stamp)?;
+        }
 
         Ok(result_hash)
     }
@@ -2251,5 +2350,454 @@ mod participation_by_channel_tests {
         assert!(!should_show_candidate_results(Some(&preferential)));
         assert!(should_show_candidate_results(Some(&acclaimed_preferential)));
         assert!(!should_show_candidate_results(None));
+    }
+}
+
+#[cfg(test)]
+mod report_render_timezones_tests {
+    use super::*;
+    use crate::cli::{state::Stage, CliRun};
+    use crate::config::PipeConfig;
+    use crate::pipes::pipe_name::PipeName;
+    use serde_json::json;
+
+    fn report(election_id: &str) -> ReportData {
+        ReportData {
+            election_name: election_id.into(),
+            election_alias: election_id.into(),
+            election_id: election_id.into(),
+            election_event_id: "event".into(),
+            tenant_id: "tenant".into(),
+            election_description: String::new(),
+            election_dates: None,
+            election_annotations: HashMap::new(),
+            election_event_annotations: HashMap::new(),
+            contest: None,
+            area: None,
+            contest_result: None,
+            winners: vec![],
+            channel_type: None,
+            election_results: None,
+        }
+    }
+
+    fn renderer(with_timezones: bool) -> GenerateReports {
+        let mut config = PipeConfigGenerateReports {
+            report_content_template: Some(
+                r#"<p id="content-time">{{datetime_zone "2028-04-09T00:00:00Z" output_format="%H:%M"}}</p>"#.into(),
+            ),
+            system_template: r#"<main><p id="outer-time">{{datetime_zone "2028-04-09T00:00:00Z" output_format="%H:%M"}}</p>{{{rendered_user_template}}}</main>"#.into(),
+            ..Default::default()
+        };
+        if with_timezones {
+            config.template_variables = json!({
+                "electionEventTimezone": "Europe/Madrid",
+                "electionTimezone": "UTC",
+                "timezoneTexts": {
+                    "defaults": {
+                        "timezones.abbrDaylight.Atlantic/Canary": "WEST",
+                        "timezones.abbrDaylight.Europe/Madrid": "CEST"
+                    },
+                    "overrides": {}
+                }
+            })
+            .as_object()
+            .unwrap()
+            .clone();
+            config.election_time_zones = HashMap::from([
+                ("office".into(), "Atlantic/Canary".into()),
+                ("another-office".into(), "Asia/Manila".into()),
+            ]);
+            // An arbitrary outer-template field must not replace the resolved report zone.
+            config.extra_data = json!({"electionTimezone": "Asia/Tokyo"});
+        }
+        GenerateReports::new(PipeInputs {
+            cli: CliRun {
+                stage: "main".into(),
+                pipe_id: "reports".into(),
+                config: PathBuf::new(),
+                input_dir: PathBuf::new(),
+                output_dir: PathBuf::new(),
+            },
+            root_path_config: PathBuf::new(),
+            root_path_ballots: PathBuf::new(),
+            root_path_tally_sheets: PathBuf::new(),
+            root_path_database: PathBuf::new(),
+            stage: Stage {
+                name: "main".into(),
+                current_pipe: Some(PipeName::GenerateReports),
+                previous_pipe: None,
+                pipeline: vec![PipeConfig {
+                    id: "reports".into(),
+                    pipe: PipeName::GenerateReports,
+                    config: Some(serde_json::to_value(config).unwrap()),
+                }],
+            },
+            election_list: vec![],
+        })
+    }
+
+    #[test]
+    fn reports_of_one_election_render_its_zone_in_content_and_outer_template() {
+        let (bytes, hash) = renderer(true)
+            .generate_report(
+                vec![report("office"), report("office")],
+                false,
+                Some("election-hash".into()),
+                &HashMap::new(),
+                false,
+            )
+            .unwrap();
+        let html = String::from_utf8(bytes.bytes_html).unwrap();
+        assert!(
+            html.contains(r#"id="content-time">01:00 WEST</p>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"id="outer-time">01:00 WEST</p>"#), "{html}");
+        assert_eq!(hash, "election-hash");
+        assert!(bytes.bytes_pdf.is_none());
+        let data: Value = serde_json::from_slice(&bytes.bytes_json).unwrap();
+        assert_eq!(data["reports"].as_array().unwrap().len(), 2);
+        assert_eq!(data["reports"][0]["election_id"], "office");
+    }
+
+    #[test]
+    fn reports_of_different_elections_render_the_event_zone_in_both_templates() {
+        let (bytes, _) = renderer(true)
+            .generate_report(
+                vec![report("office"), report("another-office")],
+                false,
+                None,
+                &HashMap::new(),
+                true,
+            )
+            .unwrap();
+        let html = String::from_utf8(bytes.bytes_html).unwrap();
+        assert!(
+            html.contains(r#"id="content-time">02:00 CEST</p>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"id="outer-time">02:00 CEST</p>"#), "{html}");
+        let data: Value = serde_json::from_slice(&bytes.bytes_json).unwrap();
+        assert_eq!(data["reports"][0]["election_id"], "office");
+        assert_eq!(data["reports"][1]["election_id"], "another-office");
+    }
+
+    #[test]
+    fn older_report_inputs_without_timezones_render_utc_in_both_templates() {
+        let (bytes, _) = renderer(false)
+            .generate_report(vec![report("office")], false, None, &HashMap::new(), false)
+            .unwrap();
+        let html = String::from_utf8(bytes.bytes_html).unwrap();
+        assert!(
+            html.contains(r#"id="content-time">00:00 UTC</p>"#),
+            "{html}"
+        );
+        assert!(html.contains(r#"id="outer-time">00:00 UTC</p>"#), "{html}");
+    }
+}
+
+#[cfg(test)]
+mod configuration_and_copies_tests {
+    use super::*;
+    use crate::cli::{state::Stage, CliRun};
+    use crate::config::PipeConfig;
+    use crate::pipes::pipe_name::PipeName;
+    use sequent_core::election_config::manifest::{
+        sha256_hex, ConfigurationStamp, ReportManifest, REPORT_MANIFEST_NAME,
+    };
+    use serde_json::json;
+
+    const RESULTS_TEMPLATE: &str =
+        include_str!("../../../../../.devcontainer/minio/public-assets/electoral_results_user.hbs");
+    const INITIALIZATION_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/minio/public-assets/initialization_report_user.hbs"
+    );
+    const BUILT_IN_TEMPLATE: &str = include_str!("../../resources/report_content.hbs");
+
+    fn stamp() -> ConfigurationStamp {
+        ConfigurationStamp {
+            external_id: "ov-2028".into(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            template_sha256: "cd".repeat(32),
+        }
+    }
+
+    fn stamp_line() -> String {
+        format!(
+            "Configuration revision 3, manifest SHA-256 {}",
+            "ab".repeat(32)
+        )
+    }
+
+    fn variables(stamped: bool) -> Map<String, Value> {
+        let mut annotations = json!({
+            "date_printed": "2028-04-09T00:00:00Z",
+            "results_hash": "results",
+            "app_hash": "hash",
+            "app_version": "1.0",
+            "software_version": "1.0",
+            "executer_username": "admin",
+        });
+        if stamped {
+            annotations["configuration_revision"] = json!("3");
+            annotations["configuration_manifest_sha256"] = json!("ab".repeat(32));
+        }
+        let Value::Object(variables) = json!({
+            "execution_annotations": annotations,
+            "reports": [{
+                "election_name": "Election",
+                "contest": {
+                    "name": "Contest",
+                    "description": "",
+                    "counting_algorithm": "other",
+                    "min_votes": 0,
+                    "max_votes": 1
+                },
+                "contest_result": {},
+                "candidate_result": [],
+            }]
+        }) else {
+            panic!("report variables must be an object");
+        };
+        variables
+    }
+
+    fn templates(content: &str) -> HashMap<String, String> {
+        HashMap::from([
+            (
+                "report_base_html".to_string(),
+                include_str!("../../resources/report_base_html.hbs").to_string(),
+            ),
+            ("report_content".to_string(), content.to_string()),
+        ])
+    }
+
+    fn pipe(config: PipeConfigGenerateReports, output_dir: PathBuf) -> GenerateReports {
+        GenerateReports::new(PipeInputs {
+            cli: CliRun {
+                stage: "main".into(),
+                pipe_id: "reports".into(),
+                config: PathBuf::new(),
+                input_dir: PathBuf::new(),
+                output_dir,
+            },
+            root_path_config: PathBuf::new(),
+            root_path_ballots: PathBuf::new(),
+            root_path_tally_sheets: PathBuf::new(),
+            root_path_database: PathBuf::new(),
+            stage: Stage {
+                name: "main".into(),
+                current_pipe: Some(PipeName::GenerateReports),
+                previous_pipe: None,
+                pipeline: vec![PipeConfig {
+                    id: "reports".into(),
+                    pipe: PipeName::GenerateReports,
+                    config: Some(serde_json::to_value(config).unwrap()),
+                }],
+            },
+            election_list: vec![],
+        })
+    }
+
+    fn config(
+        copies: Option<u32>,
+        configuration: Option<ConfigurationStamp>,
+    ) -> PipeConfigGenerateReports {
+        let mut execution_annotations = HashMap::from([(
+            "date_printed".to_string(),
+            "2028-04-09T00:00:00Z".to_string(),
+        )]);
+        if let Some(stamp) = &configuration {
+            execution_annotations
+                .insert("configuration_revision".into(), stamp.revision.to_string());
+            execution_annotations.insert(
+                "configuration_manifest_sha256".into(),
+                stamp.manifest_sha256.clone(),
+            );
+        }
+        PipeConfigGenerateReports {
+            report_content_template: Some(RESULTS_TEMPLATE.to_string()),
+            system_template: "<main>{{{rendered_user_template}}}</main>".into(),
+            execution_annotations,
+            copies,
+            configuration,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn the_results_templates_name_the_configuration_only_when_the_event_has_one() {
+        for template in [BUILT_IN_TEMPLATE, RESULTS_TEMPLATE, INITIALIZATION_TEMPLATE] {
+            let stamped = reports::render_template_text(template, variables(true)).unwrap();
+            assert!(stamped.contains(&stamp_line()), "{stamped}");
+            assert!(!stamped.contains("Copy "));
+
+            let plain = reports::render_template_text(template, variables(false)).unwrap();
+            assert!(!plain.contains("Configuration revision"), "{plain}");
+            assert!(!plain.contains("manifest SHA-256"));
+        }
+    }
+
+    #[test]
+    fn a_report_printed_once_is_rendered_as_before() {
+        for copies in [0, 1] {
+            let rendered = render_copies(
+                "report_base_html",
+                &templates(RESULTS_TEMPLATE),
+                &variables(true),
+                copies,
+            )
+            .unwrap();
+            assert_eq!(
+                rendered,
+                reports::render_template(
+                    "report_base_html",
+                    templates(RESULTS_TEMPLATE),
+                    variables(true)
+                )
+                .unwrap()
+            );
+            assert!(!rendered.contains("report-copy"));
+            assert!(!rendered.contains("Copy "));
+        }
+    }
+
+    #[test]
+    fn each_copy_follows_the_one_before_on_its_own_pages_and_numbers_itself() {
+        for template in [BUILT_IN_TEMPLATE, RESULTS_TEMPLATE, INITIALIZATION_TEMPLATE] {
+            let rendered = render_copies(
+                "report_base_html",
+                &templates(template),
+                &variables(true),
+                3,
+            )
+            .unwrap();
+            assert_eq!(rendered.matches("<div class=\"report-copy\"").count(), 3);
+            assert_eq!(rendered.matches("break-before: page").count(), 2);
+            let positions: Vec<usize> = (1..=3)
+                .map(|number| {
+                    let label = format!("Copy {number} of 3");
+                    assert_eq!(rendered.matches(&label).count(), 1, "{label}");
+                    rendered.find(&label).unwrap()
+                })
+                .collect();
+            assert!(positions[0] < positions[1] && positions[1] < positions[2]);
+            assert_eq!(rendered.matches(&stamp_line()).count(), 3);
+        }
+    }
+
+    #[test]
+    fn a_template_that_cannot_be_drawn_fails_every_copy() {
+        let broken = templates("{{#if}}");
+        assert!(render_copies("report_base_html", &broken, &variables(true), 1).is_err());
+        assert!(render_copies("report_base_html", &broken, &variables(true), 2).is_err());
+    }
+
+    #[test]
+    fn the_copies_are_in_the_report_to_print_and_not_in_its_data() {
+        let directory = PathBuf::new();
+        let (once, _) = pipe(config(None, Some(stamp())), directory.clone())
+            .generate_report(vec![], false, None, &HashMap::new(), false)
+            .unwrap();
+        let (copies, _) = pipe(config(Some(2), Some(stamp())), directory)
+            .generate_report(vec![], false, None, &HashMap::new(), false)
+            .unwrap();
+
+        let html = String::from_utf8(copies.bytes_html).unwrap();
+        assert!(
+            html.starts_with("<main><div class=\"report-copy\">"),
+            "{html}"
+        );
+        assert!(html.contains("Copy 1 of 2") && html.contains("Copy 2 of 2"));
+        assert_eq!(html.matches(&stamp_line()).count(), 2);
+        let single = String::from_utf8(once.bytes_html).unwrap();
+        assert_eq!(single.matches(&stamp_line()).count(), 1);
+        assert!(!single.contains("report-copy"));
+
+        let data: Value = serde_json::from_slice(&copies.bytes_json).unwrap();
+        assert_eq!(
+            data,
+            serde_json::from_slice::<Value>(&once.bytes_json).unwrap()
+        );
+        assert_eq!(data["execution_annotations"]["configuration_revision"], "3");
+        assert!(data["execution_annotations"].get("copy_total").is_none());
+    }
+
+    #[test]
+    fn a_report_of_a_signed_configuration_is_written_with_its_hash_manifest() {
+        let directory = tempfile::tempdir().unwrap();
+        let election_id = Uuid::new_v4();
+        let mut stamped = config(Some(2), Some(stamp()));
+        stamped.tally_type = TallyType::ELECTORAL_RESULTS;
+        pipe(stamped, directory.path().to_path_buf())
+            .write_report(
+                &election_id,
+                None,
+                None,
+                vec![],
+                false,
+                None,
+                false,
+                false,
+                None,
+                &HashMap::new(),
+                false,
+            )
+            .unwrap();
+
+        let folder = PipeInputs::build_path(
+            &directory
+                .path()
+                .join(PipeNameOutputDir::GenerateReports.as_ref()),
+            &election_id,
+            None,
+            None,
+        );
+        let manifest: ReportManifest =
+            serde_json::from_slice(&fs::read(folder.join(REPORT_MANIFEST_NAME)).unwrap()).unwrap();
+        assert_eq!(manifest.report_type, "ELECTORAL_RESULTS");
+        assert_eq!(manifest.configuration, stamp());
+        let names: Vec<&str> = manifest
+            .files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect();
+        assert_eq!(names, vec![OUTPUT_HTML, OUTPUT_JSON]);
+        for file in &manifest.files {
+            let written = fs::read(folder.join(&file.path)).unwrap();
+            assert_eq!(file.size, written.len() as u64);
+            assert_eq!(file.sha256, sha256_hex(&written));
+        }
+    }
+
+    #[test]
+    fn a_report_of_any_other_event_is_written_without_a_manifest() {
+        let directory = tempfile::tempdir().unwrap();
+        let election_id = Uuid::new_v4();
+        pipe(config(None, None), directory.path().to_path_buf())
+            .write_report(
+                &election_id,
+                None,
+                None,
+                vec![],
+                false,
+                None,
+                false,
+                false,
+                None,
+                &HashMap::new(),
+                true,
+            )
+            .unwrap();
+        let folder = PipeInputs::build_consolidated_report_path(
+            &directory
+                .path()
+                .join(PipeNameOutputDir::GenerateReports.as_ref()),
+            &election_id,
+        );
+        assert!(folder.join(OUTPUT_ALL_AREAS_HTML).is_file());
+        assert!(!folder.join(REPORT_MANIFEST_NAME).exists());
     }
 }

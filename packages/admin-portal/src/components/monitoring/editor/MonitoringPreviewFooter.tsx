@@ -5,6 +5,7 @@
 import React from "react"
 import {useTranslation} from "react-i18next"
 import {Box, Button, CircularProgress, Typography} from "@mui/material"
+import {useEventZonedFormat} from "@/hooks/useZonedFormat"
 import {EPreviewStatus} from "./yamlDraft"
 
 /** What the footer's buttons are waiting for. */
@@ -36,12 +37,6 @@ export interface MonitoringPreviewFooterProps {
     onSave: () => void
 }
 
-const formatDate = (value: string, locale: string) => {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return value
-    return new Intl.DateTimeFormat(locale, {dateStyle: "medium", timeStyle: "short"}).format(date)
-}
-
 /**
  * Preview · {scope} · Valid · no chart warnings · rendered in {n} ms ·
  * Revision {n} · saved {date} by {user} · Cancel · Validate · Save.
@@ -64,7 +59,8 @@ export const MonitoringPreviewFooter: React.FC<MonitoringPreviewFooterProps> = (
     onValidate,
     onSave,
 }) => {
-    const {t, i18n} = useTranslation()
+    const {t} = useTranslation()
+    const zoned = useEventZonedFormat()
     const facts: Array<{key: string; text: string; tone?: "error" | "success"}> = []
     if (hasPreview) {
         facts.push({
@@ -108,7 +104,7 @@ export const MonitoringPreviewFooter: React.FC<MonitoringPreviewFooterProps> = (
             facts.push({
                 key: "saved",
                 text: t("monitoring.editor.footer.savedBy", {
-                    date: formatDate(savedAt, i18n.language),
+                    date: zoned.format(savedAt),
                     user: savedBy || t("monitoring.editor.footer.unknownUser"),
                 }),
             })

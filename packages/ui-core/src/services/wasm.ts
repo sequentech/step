@@ -16,6 +16,9 @@ import SequentCoreLibInit, {
     get_default_blank_ballots_policy_js,
     get_default_voting_screen_back_policy_js,
     get_voting_screen_back_policy_values_js,
+    get_ballot_style_slates_js,
+    get_ballot_style_slates_coverage_js,
+    apply_slate_js,
     IVotingScreenBackPolicy,
 } from "sequent-core"
 import {
@@ -73,7 +76,12 @@ import {
     ELanguageDetectionPolicy,
     EDeclineToVotePolicy,
     EBlankBallotsPolicy,
+    ISlatesConfig,
+    ISlateCoverage,
+    ISlate,
+    ISlateChoices,
 } from ".."
+import {SLATES_ANNOTATION} from "../types/Slates"
 
 export type {
     IPermission,
@@ -468,6 +476,62 @@ export const check_voting_error_dialog_bool = (
 ): boolean => {
     try {
         return check_voting_error_dialog(contests, decodedContests)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+const hasSlates = (ballotStyle: IBallotStyle): boolean =>
+    SLATES_ANNOTATION in (ballotStyle.election_annotations ?? {})
+
+/**
+ * The slates a ballot style carries, or null when its election has none.
+ * Throws the list of problems (ISlateProblem) of an invalid configuration.
+ */
+export const getBallotStyleSlates = (ballotStyle: IBallotStyle): ISlatesConfig | null => {
+    if (!hasSlates(ballotStyle)) {
+        return null
+    }
+    try {
+        return get_ballot_style_slates_js(ballotStyle) ?? null
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * What each slate covers of the contests of a ballot style, in the configured
+ * order and without the slates that have no candidate in it. Null when the
+ * election has no slates. Throws like `getBallotStyleSlates`.
+ */
+export const getBallotStyleSlatesCoverage = (
+    ballotStyle: IBallotStyle
+): Array<ISlateCoverage> | null => {
+    if (!hasSlates(ballotStyle)) {
+        return null
+    }
+    try {
+        return get_ballot_style_slates_coverage_js(ballotStyle) ?? null
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * The selection that choosing a slate produces from the current one, and what
+ * it changes. Throws the list of problems (ISlateProblem) of a slate that
+ * cannot be applied; nothing is applied in that case.
+ */
+export const applySlate = (
+    slate: ISlate,
+    contests: IContest[],
+    current: BallotSelection
+): ISlateChoices => {
+    try {
+        return apply_slate_js(slate, contests, current)
     } catch (error) {
         console.log(error)
         throw error

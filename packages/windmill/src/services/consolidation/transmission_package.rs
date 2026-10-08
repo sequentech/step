@@ -16,6 +16,7 @@ use crate::services::password::generate_random_string_with_charset;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
+use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::services::reports;
 use sequent_core::services::s3::{download_s3_file_to_string, get_public_asset_file_path};
 use sequent_core::signatures::ecies_encrypt::{
@@ -62,6 +63,7 @@ pub async fn generate_base_compressed_xml(
     election_annotations: &MiruElectionAnnotations,
     area_annotations: &MiruAreaAnnotations,
     reports: &Vec<ReportData>,
+    stamp: Option<&ConfigurationStamp>,
 ) -> Result<(Vec<u8>, String, String)> {
     let eml_data = render_eml_file(
         tally_id,
@@ -73,17 +75,35 @@ pub async fn generate_base_compressed_xml(
         area_annotations,
         &reports,
     )?;
-    let mut variables_map: Map<String, Value> = Map::new();
-    variables_map.insert("data".to_string(), serde_json::to_value(eml_data)?);
     let template_path = PUBLIC_ASSETS_EML_BASE_TEMPLATE;
     let s3_template_url = get_public_asset_file_path(&template_path)
         .with_context(|| "Error fetching get_minio_url")?;
     let template_string = download_s3_file_to_string(&s3_template_url).await?;
-    // render handlebars template
-    let render_xml = reports::render_template_text(&template_string, variables_map)
-        .map_err(|err| anyhow!("{}", err))?;
+    let render_xml = render_eml(&template_string, serde_json::to_value(eml_data)?, stamp)?;
     let (compressed_xml, rendered_xml_hash) = compress_hash_eml(&render_xml)?;
     Ok((compressed_xml, render_xml, rendered_xml_hash))
+}
+
+/// What the EML template calls the line naming the signed configuration.
+pub const EML_CONFIGURATION_VAR: &str = "configuration";
+
+/// The election returns' XML. For an event imported from a signed
+/// configuration its header names the revision and the manifest digest, in
+/// a comment: the schema has no element for them.
+pub fn render_eml(
+    template: &str,
+    eml_data: Value,
+    stamp: Option<&ConfigurationStamp>,
+) -> Result<String> {
+    let mut variables_map: Map<String, Value> = Map::new();
+    variables_map.insert("data".to_string(), eml_data);
+    if let Some(stamp) = stamp {
+        variables_map.insert(
+            EML_CONFIGURATION_VAR.to_string(),
+            Value::String(stamp.line()),
+        );
+    }
+    reports::render_template_text(template, variables_map).map_err(|err| anyhow!("{}", err))
 }
 
 #[instrument(skip(compressed_xml), err)]

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::document::get_document;
+use crate::postgres::reports::ReportType;
 use crate::postgres::tasks_execution::{
     get_task_by_id_with_transaction, merge_task_execution_annotations,
 };
@@ -15,6 +16,9 @@ use crate::services::electoral_log::{
 };
 use crate::services::pdf_encryption::encrypt_pdf;
 use crate::services::pg_lock::PgLock;
+use crate::services::reports::generation::{
+    attach_report_manifest, write_report_manifest, GeneratedFile, ReportRequester, WrittenManifest,
+};
 use crate::services::reports::voter_information_letter::VoterInformationLetterTemplate;
 use crate::services::tasks_execution::{
     update_complete_with_annotations, update_fail_preserving_annotations,
@@ -24,6 +28,7 @@ use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
+use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, KeycloakAdminClient,
@@ -167,6 +172,24 @@ async fn deliver_audit_and_complete(
 }
 
 #[instrument(skip_all, err)]
+/// For an event imported from a signed configuration: the hash manifest of
+/// a letter as it is stored, encrypted with its document password.
+fn letter_manifest(
+    stamp: &ConfigurationStamp,
+    document_name: &str,
+    path: &str,
+) -> Result<WrittenManifest> {
+    write_report_manifest(
+        &ReportType::CREDENTIALS,
+        stamp,
+        &[GeneratedFile {
+            name: document_name.to_string(),
+            path: path.to_string(),
+            media_type: "application/pdf".to_string(),
+        }],
+    )
+}
+
 async fn generate(
     tenant_id: &str,
     election_event_id: &str,
@@ -244,7 +267,7 @@ async fn generate(
         voter_password.clone(),
         may_read_secret_attributes,
     );
-    let pdf = report
+    let (pdf, stamp) = report
         .render_pdf(&hasura_transaction, &keycloak_transaction)
         .await?;
     let encrypted_pdf = encrypt_pdf(&pdf, &document_password.password)?;
@@ -259,6 +282,17 @@ async fn generate(
         if let Some(access) = document_annotations.access.as_mut() {
             access.voter_secret_attributes = true;
         }
+    }
+    if let Some(stamp) = &stamp {
+        attach_report_manifest(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &letter_manifest(stamp, &document_name, &path)?,
+            &ReportRequester::from(password_change_initiator),
+            &mut document_annotations,
+        )
+        .await?;
     }
     upload_and_return_document_with_annotations(
         &hasura_transaction,
@@ -414,8 +448,42 @@ pub async fn generate_voter_information_letter(
 
 #[cfg(test)]
 mod tests {
-    use super::{voter_credential_lock_key, VoterInformationLetterTaskError};
+    use super::{letter_manifest, voter_credential_lock_key, VoterInformationLetterTaskError};
     use celery::error::TaskError;
+    use sequent_core::election_config::manifest::{sha256_hex, ConfigurationStamp};
+
+    #[test]
+    fn a_letters_hash_manifest_lists_the_encrypted_letter_that_is_stored() {
+        let stamp = ConfigurationStamp {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            template_sha256: "cd".repeat(32),
+        };
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("letter.pdf");
+        std::fs::write(&path, b"%PDF-1.7 encrypted").unwrap();
+
+        let written = letter_manifest(
+            &stamp,
+            "voter-information-letter-voter.pdf",
+            &path.to_string_lossy(),
+        )
+        .unwrap();
+
+        assert_eq!(written.manifest.report_type, "CREDENTIALS");
+        assert_eq!(written.manifest.configuration, stamp);
+        assert_eq!(written.manifest.files.len(), 1);
+        assert_eq!(
+            written.manifest.files[0].path,
+            "voter-information-letter-voter.pdf"
+        );
+        assert_eq!(
+            written.manifest.files[0].sha256,
+            sha256_hex(b"%PDF-1.7 encrypted")
+        );
+        assert!(letter_manifest(&stamp, "letter.pdf", "/nonexistent/letter.pdf").is_err());
+    }
 
     #[test]
     fn voter_credential_lock_is_scoped_to_tenant_event_and_voter() {

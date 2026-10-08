@@ -203,6 +203,8 @@ impl Election {
         publication_deleted_at: Option<DateTime<Utc>>,
         style_deleted_at: Option<DateTime<Utc>>,
     ) -> Uuid {
+        // Published rows are written by the publication workflow only.
+        windmill::postgres::trusted_write(tx).await.unwrap();
         let publication = Uuid::new_v4();
         tx.execute(
             "INSERT INTO sequent_backend.ballot_publication
@@ -235,6 +237,12 @@ impl Election {
                 &style_deleted_at,
                 &BALLOT_EML,
             ],
+        )
+        .await
+        .unwrap();
+        tx.execute(
+            "SELECT set_config('sequent.trusted_write', 'off', true)",
+            &[],
         )
         .await
         .unwrap();

@@ -7,10 +7,12 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::scheduled_transition_applies;
+use crate::services::initialization_schedule::{scheduled_post_opening, ScheduledPostOpening};
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::signing::actions::voting::scheduled_change_needs_signatures;
 use crate::services::voting_status::{self};
+use crate::tasks::scheduled_events::fires_later;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use async_trait::async_trait;
@@ -34,6 +36,20 @@ async fn manage_election_date_wrapper(
     scheduled_event_id: String,
     election_id: String,
 ) -> AnyhowResult<()> {
+    lock_scheduled_event(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        &scheduled_event_id,
+    )
+    .await?;
+    if get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
+        .await?
+        .is_archived
+    {
+        info!("Skipping scheduled transition {scheduled_event_id}: the event is archived");
+        return Ok(());
+    }
     let scheduled_manage_date_opt = find_scheduled_event_by_id(
         hasura_transaction,
         Some(tenant_id.clone()),
@@ -49,6 +65,30 @@ async fn manage_election_date_wrapper(
             scheduled_event_id
         ));
     };
+
+    let payload: ManageElectionDatePayload = serde_json::from_value(
+        scheduled_manage_date
+            .event_payload
+            .clone()
+            .unwrap_or_else(|| serde_json::json!({})),
+    )?;
+    if payload.election_id.as_deref() != Some(election_id.as_str()) {
+        return Err(anyhow!(
+            "The queued scheduled transition no longer targets this Post"
+        ));
+    }
+    if fires_later(&scheduled_manage_date, chrono::Utc::now()) {
+        info!("Scheduled event {scheduled_event_id} was moved to a later time; it runs then");
+        return Ok(());
+    }
+    // The election's status is read and written below.
+    lock_elections(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        Some(&election_id),
+    )
+    .await?;
 
     let Some(election) = get_election_by_id(
         hasura_transaction,
@@ -77,27 +117,6 @@ async fn manage_election_date_wrapper(
         }
     };
 
-    // Opening or closing that needs signatures is left to people (D4).
-    if scheduled_change_needs_signatures(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        Some(&election_id),
-        &status,
-        &scheduled_manage_date.id,
-    )
-    .await?
-    {
-        stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
-        return Ok(());
-    }
-
-    let payload: ManageElectionDatePayload = serde_json::from_value(
-        scheduled_manage_date
-            .event_payload
-            .clone()
-            .unwrap_or_else(|| serde_json::json!({})),
-    )?;
     let configured = election
         .voting_channels
         .clone()
@@ -116,7 +135,64 @@ async fn manage_election_date_wrapper(
         .filter(|channel| {
             scheduled_transition_applies(&election_status.status_by_channel(*channel), &status)
         })
-        .collect();
+        .collect::<Vec<_>>();
+
+    // An opening waits for the Post's initialization at the event's scope,
+    // and never runs once its voting period has closed (VOTE-LIFECYCLE §9).
+    let may_run = match crate::services::scheduled_outcome::fire_time_state(
+        hasura_transaction,
+        Uuid::parse_str(&tenant_id)?,
+        Uuid::parse_str(&election_event_id)?,
+        &scheduled_manage_date.id,
+    )
+    .await?
+    {
+        Some((state, row)) => {
+            state
+                .explain(
+                    &row,
+                    Some(Uuid::parse_str(&election_id)?),
+                    crate::services::scheduled_outcome::Moment::FireTime,
+                )
+                .outcome
+                != sequent_core::types::scheduled_outcome::ScheduledOutcomeKind::Refused
+        }
+        None => false,
+    };
+    if status == VotingStatus::OPEN && !voting_channels.is_empty() && may_run {
+        match scheduled_post_opening(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+            &election,
+            &scheduled_manage_date,
+        )
+        .await?
+        {
+            ScheduledPostOpening::Open => {}
+            ScheduledPostOpening::Wait => return Ok(()),
+            ScheduledPostOpening::AfterClose => {
+                stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+                    .await?;
+                return Ok(());
+            }
+        }
+    }
+
+    // The locked schedule is evaluated against both configuration copies.
+    if scheduled_change_needs_signatures(
+        hasura_transaction,
+        &tenant_id,
+        &election_event_id,
+        Some(&election_id),
+        &status,
+        &scheduled_manage_date.id,
+    )
+    .await?
+    {
+        stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+        return Ok(());
+    }
 
     let result = voting_status::update_election_status(
         tenant_id.clone(),

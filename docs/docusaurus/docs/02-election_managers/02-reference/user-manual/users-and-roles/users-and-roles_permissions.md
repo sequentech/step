@@ -69,6 +69,21 @@ intended roles by hand.
 See [Monitoring](../../02-election-event/02-election_management_election-event_monitoring.md) for what
 each permission shows and allows.
 
+## Approval Matrix Permission
+
+The **Approvals** tab of an election event shows its enrollment approval matrix to everyone who can
+see the tab (`application-read`), who can also try enrollments in its test panel.
+
+| Permission | Allows |
+|---|---|
+| `approval-matrix-write` | Save a new version of the election event's approval matrix. |
+
+New tenant realms grant it to the `admin` group, in the default tenant realm template and in the
+COMELEC template. Existing realms are not changed; grant it to the intended roles by hand.
+
+See [Approvals](../../02-election-event/14-election_management_election-event_approvals.md) for the
+matrix and its rules.
+
 ## Signature Permissions
 
 The **Signatures** tab of an election event decides which protected actions need the signatures of

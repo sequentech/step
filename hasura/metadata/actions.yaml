@@ -362,6 +362,53 @@ actions:
               version: 2
       permissions:
           - role: phone-blacklist-delete
+    - name: get_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: application-read
+          - role: approval-matrix-write
+      comment: Read the enrollment approval matrix in force
+    - name: evaluate_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/evaluate-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: application-read
+          - role: approval-matrix-write
+      comment: Try an enrollment against approval matrix rules without saving
+    - name: save_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/save-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: approval-matrix-write
+      comment: Save the enrollment approval matrix as a new version
     - name: delete_role
       definition:
           kind: synchronous
@@ -2361,6 +2408,129 @@ actions:
           - role: sign-generate-election-returns
           - role: sign-generate-reports
       comment: Prepare the PDF revision a signer's certificate signs
+    - name: apply_schedule_recompute
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/apply-schedule-recompute
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: admin-user
+      comment: Apply scheduled dates recomputed with the current timezone database
+    - name: preview_schedule_import
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/preview-schedule-import
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: election-event-write
+          - role: admin-user
+      comment: Preview an uploaded schedule CSV and its resulting scheduled outcomes
+    - name: import_schedule
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/import-schedule
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: election-event-write
+          - role: admin-user
+      comment: Import a clean schedule CSV and log changed scheduled outcomes
+    - name: export_schedule
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/export-schedule
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: scheduled-event-write
+          - role: election-event-write
+          - role: admin-user
+      comment: Export the schedule in the CSV import columns
+    - name: get_scheduled_outcomes
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-scheduled-outcomes
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+      comment: Read scheduled outcomes and authoritative retained signed closes
+    - name: preview_scheduled_outcome_change
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/preview-scheduled-outcome-change
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+      comment: Preview the outcomes of a scheduled event policy or rule change
+    - name: save_lifecycle_policies
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/save-lifecycle-policies
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-write
+      comment: Save lifecycle policies and log their changed scheduled outcomes
+    - name: get_lifecycle_snapshots
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-lifecycle-snapshots
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: election-event-read
+      comment: Read trusted lifecycle snapshots per Post and event
 custom_types:
     enums:
         - name: EarlyVotingPolicy
@@ -2626,4 +2796,17 @@ custom_types:
         - name: SigningHeldReportRequestsOutput
         - name: SigningRequestSummary
         - name: SigningPdfPrepareOutput
+        - name: ApprovalMatrixOutput
+        - name: ApprovalMatrixError
+        - name: EvaluateApprovalMatrixOutput
+        - name: ScheduleWarning
+        - name: ApplyScheduleRecomputeOutput
+        - name: ScheduleImportRow
+        - name: SchedulePreviewOutput
+        - name: ImportScheduleOutput
+        - name: ExportScheduleOutput
+        - name: GetScheduledOutcomesOutput
+        - name: PreviewScheduledOutcomeChangeOutput
+        - name: SaveLifecyclePoliciesOutput
+        - name: GetLifecycleSnapshotsOutput
     scalars: []
