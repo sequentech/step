@@ -514,6 +514,7 @@ const englishTranslation = {
                 language: "Language",
                 allowed: "Voting Channels Allowed",
                 materials: "Support Materials",
+                ballotReceipts: "Ballot Receipts",
                 ballotDesign: "Ballot Design",
                 templates: "Templates",
                 reorder: "Reorder elections",
@@ -623,6 +624,19 @@ const englishTranslation = {
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Period for checking cast ballots",
+                        helper: "How long voters can look up their cast ballot and print its receipt in the Voting Portal.",
+                        options: {
+                            "unlimited": "No limit",
+                            "until-date": "Until a date",
+                        },
+                    },
+                    checksAvailableUntil: "Checks available until ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Enter the date and time until which ballots can be checked.",
+                },
                 voterAccessibilitySettingsPolicy: {
                     policyLabel: "Voter accessibility settings",
                     options: {
@@ -702,6 +716,14 @@ const englishTranslation = {
                     "policyLabel": "Voter Signing Policy",
                     "no-signature": "No signature",
                     "with-signature": "With signature",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Receipts signed by the ballot box",
+                    "disabled": "Disabled",
+                    "signed-by-ballot-box": "Signed by the ballot box",
+                    "helperText":
+                        "When on, the ballot box stores and signs each ballot at review, and the voter sees a Ballot ID only once the ballot has been received. Voters sign their ballots. Publish the ballots again after changing it.",
+                    "lockedHelperText": "This cannot be changed once voting has started.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

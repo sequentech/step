@@ -68,6 +68,12 @@ Because a four-character locator is shorter than the full Ballot ID, two or more
 **Ballot Content:** Please note that even though you have access to the content of your ballot, this is encrypted so that it's not possible to obtain the intention of the vote from the Ballot Content. This is a security measure intended to maintain the secrecy of the vote and preventing anyone to prove how they voted.
 :::
 
+## Until when you can check your ballot
+
+Your election may set a date until which ballots can be checked. While checks are open, the Ballot Locator shows that date under its title. After it, the Ballot Locator shows when checks ended, and ballots can no longer be looked up or their receipts printed.
+
+The Ballot Locator only finds your own ballots, and shows the Ballot ID, when the ballot was cast and its encrypted content. It never shows your choices.
+
 ## Option 2: Lookup the vote using a saved Ballot ID
 
 As explained earlier in [step 1.1](#step-11-secure-your-ballot-id), after casting the vote you can simply save the Ballot ID by copying it and saving it somewhere save. With this, you can then follow the steps below to look it up and ensure that the vote is found using the Ballot Locator.

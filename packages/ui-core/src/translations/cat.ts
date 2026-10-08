@@ -552,6 +552,10 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Període de comprovació no vàlid",
+                        text: "Període de comprovació no vàlid — no s'ha pogut llegir el període en què els votants poden comprovar el seu vot emès: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Sense identificador",
                         text: "Sense identificador — tots els id generats se'n deriven, així que sense un res no es pot construir dues vegades igual.",

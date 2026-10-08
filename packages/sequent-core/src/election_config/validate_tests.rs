@@ -1339,6 +1339,50 @@ fn a_cast_vote_logs_policy_the_platform_does_not_have_is_refused() {
 }
 
 #[test]
+fn a_period_for_checking_ballots_needs_a_date_with_an_offset() {
+    for receipts in [
+        serde_json::json!({"checks_period_policy": "until-date"}),
+        serde_json::json!({
+            "checks_period_policy": "until-date",
+            "checks_available_until": "2028-06-07T23:59"
+        }),
+        serde_json::json!({"checks_period_policy": "for-a-week"}),
+    ] {
+        let mut bundle = sound();
+        bundle.election_event.presentation =
+            Some(serde_json::json!({ "receipts": receipts }));
+
+        let report = validate(&bundle);
+        assert!(report.has_errors(), "{receipts} was accepted");
+        assert!(report.problems.iter().any(|problem| problem
+            .message
+            .contains("the period for checking ballots is not valid")));
+    }
+}
+
+#[test]
+fn a_period_for_checking_ballots_is_optional_and_may_be_in_the_past() {
+    for receipts in [
+        serde_json::Value::Null,
+        serde_json::json!({}),
+        serde_json::json!({"checks_period_policy": "unlimited"}),
+        serde_json::json!({
+            "checks_period_policy": "until-date",
+            "checks_available_until": "2028-06-07T23:59:00+08:00"
+        }),
+        serde_json::json!({
+            "checks_period_policy": "until-date",
+            "checks_available_until": "2020-01-01T00:00:00Z"
+        }),
+    ] {
+        let mut bundle = sound();
+        bundle.election_event.presentation =
+            Some(serde_json::json!({ "receipts": receipts }));
+        assert!(!validate(&bundle).has_errors(), "{receipts} was refused");
+    }
+}
+
+#[test]
 fn a_voter_can_look_up_their_ballot_unless_asked_otherwise() {
     for value in ["show-logs-tab", "hide-logs-tab"] {
         let mut bundle = sound();

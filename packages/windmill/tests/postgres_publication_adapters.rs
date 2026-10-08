@@ -2477,6 +2477,7 @@ async fn cast(
         &Some("ES".to_string()),
         VotingStatusChannel::KIOSK,
         ballot.status,
+        None,
     )
     .await
 }

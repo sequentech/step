@@ -518,6 +518,7 @@ const basqueTranslation: TranslationType = {
                 language: "Hizkuntza",
                 allowed: "Baimendutako Bozketa Kanalak",
                 materials: "Laguntza Materialak",
+                ballotReceipts: "Boto-txartelen ordezkagiriak",
                 ballotDesign: "Bozketa Diseinua",
                 templates: "Txantiloiak",
                 reorder: "Berrantolatu hauteskundeak",
@@ -626,6 +627,19 @@ const basqueTranslation: TranslationType = {
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Emandako botoak egiaztatzeko epea",
+                        helper: "Zenbat denboraz bilatu dezaketen hautesleek emandako botoa eta inprimatu haren agiria Bozketa Atarian.",
+                        options: {
+                            "unlimited": "Mugarik gabe",
+                            "until-date": "Data batera arte",
+                        },
+                    },
+                    checksAvailableUntil: "Egiaztapenak noiz arte ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Sartu botoak noiz arte egiazta daitezkeen adierazten duen data eta ordua.",
+                },
                 voterAccessibilitySettingsPolicy: {
                     policyLabel: "Boto-emailearen irisgarritasun-ezarpenak",
                     options: {
@@ -704,6 +718,14 @@ const basqueTranslation: TranslationType = {
                     "policyLabel": "Bozkatzaile Sinadura Politika",
                     "no-signature": "Sinadurarik ez",
                     "with-signature": "Sinadura batekin",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Hautetsontziak sinatutako ordezkagiriak",
+                    "disabled": "Desgaituta",
+                    "signed-by-ballot-box": "Hautetsontziak sinatuta",
+                    "helperText":
+                        "Aktibatuta dagoenean, hautetsontziak boto-txartel bakoitza berrikuspen-pantailan gorde eta sinatzen du, eta bozkatzaileak boto-txartelaren IDa hautetsontziak jaso ondoren bakarrik ikusten du. Bozkatzaileek beren boto-txartelak sinatzen dituzte. Aldatu ondoren, argitaratu berriro boto-txartelak.",
+                    "lockedHelperText": "Ezin da aldatu bozketa hasi ondoren.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

@@ -554,6 +554,9 @@ const spanishTranslation: TranslationType = {
                 "No encontrado, compruebe que el ID de la Papeleta sea correcto y pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID de Papeleta",
             totalBallots: "Papeletas: {{total}}",
+            checksAvailableUntil: "Puedes comprobar tu papeleta hasta el {{date}}.",
+            checksEnded: "Las comprobaciones finalizaron el {{date}}.",
+            castAt: "Emitido el {{date}}",
             steps: {
                 lookup: "Encuentra tu Papeleta",
                 result: "Resultado",

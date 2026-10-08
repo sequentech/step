@@ -90,6 +90,7 @@ const SAVED_PRESENTATION_DEFAULTS = {
     show_cast_vote_logs: "hide-logs-tab",
     automatic_recount_policy: "disabled",
     materials: {policy: "off"},
+    receipts: {policy: "disabled", checks_period_policy: "unlimited"},
     contest_encryption_policy: "single-contest",
     locked_down: "not-locked-down",
     decoded_ballot_inclusion_policy: "not-included",
@@ -473,6 +474,30 @@ test("flags conflicting weighted voting and an invalid custom date format before
     const presentation = (update._set as {presentation: Row}).presentation
     expect(presentation.voting_portal_datetime_format).toEqual({custom: "dd.MM.yyyy HH:mm"})
     expect(presentation.weighted_voting_policy).toBe("disabled-weighted-voting")
+})
+
+test("saves a period for checking cast ballots and requires its date", async ({page, portal}) => {
+    editableEvent(portal)
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Ballot Receipts", exact: true}).click()
+    await choose(page, /^Period for checking cast ballots/, "Until a date")
+    await page.getByRole("button", {name: "Save", exact: true}).click()
+    await expect(
+        page.getByText("Enter the date and time until which ballots can be checked.", {
+            exact: true,
+        })
+    ).toBeVisible()
+    expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
+
+    await page.getByLabel(/^Checks available until/).fill("2028-06-07T23:59")
+    const until = await page.evaluate(() => new Date("2028-06-07T23:59").toISOString())
+    const update = await save(page, portal)
+    const presentation = (update._set as {presentation: Row}).presentation
+    expect(presentation.receipts).toEqual({
+        policy: "disabled",
+        checks_period_policy: "until-date",
+        checks_available_until: until,
+    })
 })
 
 test("edits the name of each enabled language and changes the default language", async ({

@@ -4,6 +4,7 @@
 # Kept static: removing a guard must not silently remove its test case.
 /acknowledge-support-materials
 /apply-reconciliation-changes
+/cast-ballot
 /change-application-status
 /check-private-key
 /configure-results-website-policy
@@ -91,6 +92,7 @@
 /list-cast-vote-messages
 /list-keys-ceremonies
 /list-user-roles
+/locate-ballot
 /manage-election-dates
 /messages/link
 /messages/link/confirm
@@ -121,6 +123,7 @@
 /preview-tally-sheet-import
 /publish-ballot
 /publish-results-website
+/receive-ballot
 /recount-tally-session
 /refresh-results-publication-index
 /render-document-pdf

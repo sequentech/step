@@ -517,6 +517,7 @@ const catalanTranslation: TranslationType = {
                 votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
+                ballotReceipts: "Rebuts de papereta",
                 ballotDesign: "Disseny de la Papereta",
                 templates: "Plantillas",
                 reorder: "Reordenar eleccions",
@@ -630,6 +631,19 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Període de comprovació dels vots emesos",
+                        helper: "Durant quant de temps els votants poden localitzar el seu vot emès i imprimir-ne el rebut al Portal de Votació.",
+                        options: {
+                            "unlimited": "Sense límit",
+                            "until-date": "Fins a una data",
+                        },
+                    },
+                    checksAvailableUntil: "Comprovacions disponibles fins a ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introdueix la data i l'hora fins a la qual es poden comprovar els vots.",
+                },
                 voterAccessibilitySettingsPolicy: {
                     policyLabel: "Configuració d'accessibilitat del votant",
                     options: {
@@ -709,6 +723,14 @@ const catalanTranslation: TranslationType = {
                     "policyLabel": "Política de Signatura de Votants",
                     "no-signature": "Sense signatura",
                     "with-signature": "Amb signatura",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Rebuts signats per l'urna",
+                    "disabled": "Desactivat",
+                    "signed-by-ballot-box": "Signats per l'urna",
+                    "helperText":
+                        "Quan està activat, l'urna emmagatzema i signa cada papereta a la pantalla de revisió, i el votant veu un ID de papereta només quan l'urna l'ha rebuda. Els votants signen les seves paperetes. Torneu a publicar les paperetes després de canviar-ho.",
+                    "lockedHelperText": "No es pot canviar un cop iniciada la votació.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

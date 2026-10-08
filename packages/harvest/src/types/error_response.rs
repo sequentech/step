@@ -45,6 +45,7 @@ pub enum ErrorCode {
     VoterInformationLetterUnavailable,
     PrivateKeyDownloadUnavailable,
     ConfirmPolicyShowCastVoteLogsFailed,
+    BallotChecksEnded,
     BallotIdMismatch,
     BallotPublicationValidation,
     TallyValidation,

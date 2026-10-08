@@ -4,7 +4,10 @@
 
 pub mod application;
 pub mod approval_matrix;
+pub mod ballot_box_key;
+pub mod ballot_checks;
 pub mod ballot_styles;
+pub mod cast_ballot;
 pub mod cast_votes;
 pub mod celery_app;
 pub mod ceremonies;
@@ -57,6 +60,7 @@ pub mod protocol_manager;
 pub mod providers;
 pub mod public_keys;
 pub mod realm_localization;
+pub mod receive_ballot;
 pub mod reports;
 pub mod reports_vault;
 pub mod results_publication;

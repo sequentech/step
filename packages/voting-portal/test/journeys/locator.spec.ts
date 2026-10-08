@@ -11,7 +11,24 @@ function lookup(portal: Portal) {
     portal.graphql.on("GetElections", () => ({
         data: {sequent_backend_election: [portal.data.election]},
     }))
-    portal.graphql.on("GetCastVote", () => ({data: {sequent_backend_cast_vote: []}}))
+    portal.graphql.on("LocateBallot", () => ({data: {locate_ballot: located("not-found")}}))
+}
+
+function located(status: string, ballot: {ballot_id?: string; content?: string} = {}) {
+    return {
+        status,
+        ballot_id: ballot.ballot_id ?? null,
+        content: ballot.content ?? null,
+        cast_at: ballot.content ? FIXED_TIME : null,
+        checks_available_until: null,
+    }
+}
+
+function checksUntil(portal: Portal, until: string) {
+    Object.assign(portal.data.event.presentation, {
+        receipts: {checks_period_policy: "until-date", checks_available_until: until},
+    })
+    portal.publish()
 }
 
 test("locator rejects empty, odd-length and non-hex IDs before requesting a lookup", async ({
@@ -28,56 +45,104 @@ test("locator rejects empty, odd-length and non-hex IDs before requesting a look
         await input.fill(invalid)
         await expect(locate).toBeDisabled()
     }
-    expect(portal.graphql.callsTo("GetCastVote")).toEqual([])
+    expect(portal.graphql.callsTo("LocateBallot")).toEqual([])
 })
 
-for (const [count, message] of [
-    [0, "was not found"],
-    [1, "has been found"],
-    [2, "More than one of your ballots matches"],
+for (const [status, message] of [
+    ["not-found", "was not found"],
+    ["found", "has been found"],
+    ["ambiguous", "More than one of your ballots matches"],
 ] as const) {
-    test(`locator renders ${count} matching ballots without disclosing ambiguous content`, async ({
+    test(`locator renders a ${status} lookup without disclosing other content`, async ({
         page,
         portal,
     }) => {
         lookup(portal)
         const ballotId = "abcdef12".repeat(8)
-        portal.graphql.on("GetCastVote", () => ({
+        portal.graphql.on("LocateBallot", () => ({
             data: {
-                sequent_backend_cast_vote: Array.from({length: count}, (_, index) => ({
-                    ballot_id: ballotId,
-                    content: `encrypted-content-${index}`,
-                })),
+                locate_ballot:
+                    status === "found"
+                        ? located(status, {ballot_id: ballotId, content: "encrypted-content-0"})
+                        : located(status),
             },
         }))
         await page.goto(`${portal.origin}${locatorPath}/${ballotId}?lang=en`)
         await expect(page.getByRole("status").filter({hasText: message})).toBeVisible()
-        if (count === 1)
+        if (status === "found") {
             await expect(page.getByText("encrypted-content-0", {exact: true})).toBeVisible()
-        else await expect(page.getByText(/encrypted-content-/)).toHaveCount(0)
-        expect(portal.graphql.callsTo("GetCastVote")[0].variables).toEqual({
-            tenantId: IDS.tenant,
+            await expect(page.getByText(/^Cast on /)).toBeVisible()
+        } else {
+            await expect(page.getByText(/encrypted-content-/)).toHaveCount(0)
+            await expect(page.getByText(/^Cast on /)).toHaveCount(0)
+        }
+        expect(portal.graphql.callsTo("LocateBallot")[0].variables).toEqual({
             electionEventId: IDS.event,
             electionId: IDS.election,
-            ballotIdPattern: ballotId,
+            ballotId,
         })
     })
 }
 
-for (const telephone of [false, true]) {
-    test(`four-character lookup uses a prefix only for telephone voting: ${telephone}`, async ({
-        page,
-        portal,
-    }) => {
-        lookup(portal)
-        portal.data.election.voting_channels.telephone = telephone
-        await page.goto(`${portal.origin}${locatorPath}/AB12?lang=en`)
-        await expect(page.getByRole("status").filter({hasText: "was not found"})).toBeVisible()
-        expect(portal.graphql.callsTo("GetCastVote")[0].variables.ballotIdPattern).toBe(
-            telephone ? "ab12%" : "ab12"
-        )
-    })
-}
+test("the lookup sends the typed ID in lower case and leaves matching to the API", async ({
+    page,
+    portal,
+}) => {
+    lookup(portal)
+    portal.data.election.voting_channels.telephone = true
+    await page.goto(`${portal.origin}${locatorPath}/AB12?lang=en`)
+    await expect(page.getByRole("status").filter({hasText: "was not found"})).toBeVisible()
+    expect(portal.graphql.callsTo("LocateBallot")[0].variables.ballotId).toBe("ab12")
+})
+
+test("a failed lookup is not reported as a ballot that was not found", async ({page, portal}) => {
+    lookup(portal)
+    portal.graphql.on("LocateBallot", () => ({
+        errors: [{message: "Unable to check the ballot"}],
+    }))
+    await page.goto(`${portal.origin}${locatorPath}/ab12?lang=en`)
+    await expect(page.getByRole("status").filter({hasText: "Something went wrong"})).toBeVisible()
+    await expect(page.getByText("was not found")).toHaveCount(0)
+})
+
+test("while checks are open the locator says until when", async ({page, portal}) => {
+    lookup(portal)
+    checksUntil(portal, "2999-06-07T23:59:00+08:00")
+    await page.goto(`${portal.origin}${locatorPath}?lang=en`)
+    await expect(page.getByText(/You can check your ballot until .*2999/)).toBeVisible()
+    await expect(page.getByRole("textbox")).toBeVisible()
+})
+
+test("after the checks period the locator offers no lookup and no logs", async ({page, portal}) => {
+    lookup(portal)
+    Object.assign(portal.data.event.presentation, {show_cast_vote_logs: "show-logs-tab"})
+    checksUntil(portal, "2000-06-15T12:00:00Z")
+    await page.goto(`${portal.origin}${locatorPath}/ab12?lang=en`)
+    await expect(page.getByRole("status").filter({hasText: /Checks ended on .*2000/})).toBeVisible()
+    await expect(page.getByRole("textbox")).toHaveCount(0)
+    await expect(page.getByRole("tab", {name: "Logs", exact: true})).toHaveCount(0)
+    await expect(page.getByRole("button", {name: "Find another Ballot"})).toHaveCount(0)
+    expect(portal.graphql.callsTo("LocateBallot")).toEqual([])
+    expect(portal.graphql.callsTo("listCastVoteMessages")).toEqual([])
+})
+
+test("the API's answer that checks ended is shown even when this device's clock disagrees", async ({
+    page,
+    portal,
+}) => {
+    lookup(portal)
+    portal.graphql.on("LocateBallot", () => ({
+        data: {
+            locate_ballot: {
+                ...located("checks-ended"),
+                checks_available_until: "2000-06-15T12:00:00+00:00",
+            },
+        },
+    }))
+    await page.goto(`${portal.origin}${locatorPath}/ab12?lang=en`)
+    await expect(page.getByRole("status").filter({hasText: /Checks ended on .*2000/})).toBeVisible()
+    await expect(page.getByText("was not found")).toHaveCount(0)
+})
 
 test("cast log sorting and paging send scoped variables and display returned rows", async ({
     page,

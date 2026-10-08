@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The task-execution adapters that open their own connection instead of
-//! taking a transaction, and the maintenance task. They use the process-wide
+//! taking a transaction, the maintenance task and the ballot box's entry
+//! points. They use the process-wide
 //! pools of `get_hasura_pool` and `get_keycloak_pool`, which read
 //! `HASURA_DB__*` and `KEYCLOAK_DB__*` once, on first use. This test binary
 //! points both at the fixture database before that first use, restores the
@@ -10,10 +11,14 @@
 //! reach the database the environment names. Their writes commit: each test
 //! uses a tenant of its own and deletes its rows at the end.
 
+// Casting a ballot is one deeply nested future.
+#![recursion_limit = "256"]
+
 #[path = "support/schema.rs"]
 mod schema;
 
 use deadpool_postgres::Pool;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::{json, Value};
@@ -22,8 +27,12 @@ use std::future::Future;
 use std::sync::LazyLock;
 use tokio::runtime::Runtime;
 use tokio::sync::OnceCell;
+use uuid::Uuid;
 use windmill::postgres::{maintenance, tasks_execution};
+use windmill::services::cast_ballot::{try_cast_ballot, CastBallotInput};
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::insert_cast_vote::CastVoteError;
+use windmill::services::receive_ballot::{try_receive_ballot, ReceiveBallotInput};
 
 static FIXTURE: OnceCell<Pool> = OnceCell::const_new();
 
@@ -697,5 +706,56 @@ fn vacuum_analyze_direct_runs_on_both_configured_databases() {
         fixture().await;
 
         maintenance::vacuum_analyze_direct().await.unwrap();
+    })
+}
+
+#[test]
+fn the_ballot_box_receives_no_ballot_for_an_area_it_does_not_know() {
+    run(async {
+        fixture().await;
+        let ids = ids!();
+
+        let refused = try_receive_ballot(
+            ReceiveBallotInput {
+                ballot_id: "0abc12".to_string(),
+                election_id: Uuid::parse_str(&ids.id(3)).unwrap(),
+                content: "{}".to_string(),
+            },
+            &ids.id(1),
+            "voter",
+            &ids.id(2),
+            VotingStatusChannel::ONLINE,
+            &None,
+        )
+        .await;
+
+        assert!(matches!(refused, Err(CastVoteError::AreaNotFound)));
+    })
+}
+
+#[test]
+fn the_ballot_box_casts_no_ballot_for_an_area_it_does_not_know() {
+    run(async {
+        fixture().await;
+        let ids = ids!();
+
+        let refused = try_cast_ballot(
+            CastBallotInput {
+                election_id: Uuid::parse_str(&ids.id(3)).unwrap(),
+                ballot_id: "FTBE-MHRX".to_string(),
+                cast_signature: "signature".to_string(),
+            },
+            &ids.id(1),
+            "voter",
+            &ids.id(2),
+            VotingStatusChannel::ONLINE,
+            &None,
+            &None,
+            &None,
+            &None,
+        )
+        .await;
+
+        assert!(matches!(refused, Err(CastVoteError::AreaNotFound)));
     })
 }

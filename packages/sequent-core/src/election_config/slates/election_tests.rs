@@ -268,6 +268,7 @@ fn ballot_style(
         election_event_annotations: None,
         area_annotations: None,
         multi_contest_encoding_mode: None,
+        ballot_box_key: None,
         contests: election_contests(&contests, &candidates(), "en", PATH)
             .unwrap(),
         election_annotations: Some(

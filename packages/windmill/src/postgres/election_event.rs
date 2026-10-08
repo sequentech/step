@@ -488,6 +488,7 @@ pub async fn delete_election_event(
         "tally_session_execution",
         "contest",
         "cast_vote",
+        "received_ballot",
         "election",
         "document",
         "event_execution",

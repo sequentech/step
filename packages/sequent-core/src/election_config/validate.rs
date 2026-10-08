@@ -349,6 +349,26 @@ fn check_event_presentation(
             ),
         }
     }
+
+    if let Err(error) = crate::ballot::checks_period_from_presentation(
+        bundle.election_event.presentation.as_ref(),
+        chrono::Utc::now(),
+    ) {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                format!(
+                    "election_event.presentation.{}",
+                    crate::ballot::RECEIPTS_PRESENTATION_KEY
+                ),
+                format!(
+                    "the period for checking ballots is not valid: {error}"
+                ),
+            )
+            .id("event.checks-period-invalid")
+            .detail("reason", error.to_string()),
+        );
+    }
 }
 
 /// An image's two references, which have to agree with each other.

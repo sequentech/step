@@ -543,6 +543,9 @@ const englishTranslation = {
                 "Not found, check that your Ballot ID is correct and belongs to this user.",
             filterByBallotId: "Filter by Ballot ID",
             totalBallots: "Total Ballots: {{total}}",
+            checksAvailableUntil: "You can check your ballot until {{date}}.",
+            checksEnded: "Checks ended on {{date}}.",
+            castAt: "Cast on {{date}}",
             steps: {
                 lookup: "Find your Ballot",
                 result: "Result",

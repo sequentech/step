@@ -3,12 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot::*;
 use crate::ballot::{
-    sign_hashable_ballot_with_ephemeral_voter_signing_key,
-    verify_ballot_signature,
+    sign_hashable_ballot_with_voter_signing_key, verify_ballot_signature,
 };
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
 use crate::ballot_codec::raw_ballot::RawBallotCodec;
+use crate::ballot_receipt::{
+    forget_voter_signing_key, keep_voter_signing_key, normalize_ballot_id,
+    sign_cast_statement_with_kept_key, verify_cast_receipt,
+    verify_received_ballot, CastReceipt, ReceivedBallot,
+};
 use crate::election_config::slates::coverage::slates_coverage;
 use crate::election_config::slates::selection::apply_slate;
 use crate::election_config::slates::{
@@ -32,6 +36,7 @@ use crate::util::locale::{
 };
 use crate::util::normalize_vote::*;
 use strand::backend::ristretto::RistrettoCtx;
+use strand::signature::StrandSignatureSk;
 use wasm_bindgen::prelude::*;
 extern crate console_error_panic_hook;
 use crate::util::voting_screen::{
@@ -1079,12 +1084,16 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key_js(
         })?;
 
     // Generates ephemeral voter signing key and signs the ballot
-    let signed_content = sign_hashable_ballot_with_ephemeral_voter_signing_key(
+    let voter_sk = StrandSignatureSk::generate()
+        .map_err(|err| format!("Error generating secret key: {err}"))?;
+    let signed_content = sign_hashable_ballot_with_voter_signing_key(
+        &voter_sk,
         &ballot_id,
         &election_id,
         &hashable_ballot,
     )
     .map_err(|err| format!("Error signing the ballot signature: {err}"))?;
+    keep_voter_signing_key(&election_id, voter_sk);
     serde_wasm_bindgen::to_value(&signed_content)
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
@@ -1128,14 +1137,18 @@ pub fn sign_hashable_multi_ballot_with_ephemeral_voter_signing_key_js(
         .into_json()?;
 
     // Generates ephemeral voter signing key and signs the ballot
-    let signed_content =
-        sign_hashable_multi_ballot_with_ephemeral_voter_signing_key(
-            &ballot_id,
-            &election_id,
-            &hashable_multi_ballot,
-        )
-        .map_err(|err| format!("Error signing the ballot: {err}"))
+    let voter_sk = StrandSignatureSk::generate()
+        .map_err(|err| format!("Error generating secret key: {err}"))
         .into_json()?;
+    let signed_content = sign_hashable_multi_ballot_with_voter_signing_key(
+        &voter_sk,
+        &ballot_id,
+        &election_id,
+        &hashable_multi_ballot,
+    )
+    .map_err(|err| format!("Error signing the ballot: {err}"))
+    .into_json()?;
+    keep_voter_signing_key(&election_id, voter_sk);
     serde_wasm_bindgen::to_value(&signed_content)
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
@@ -1255,6 +1268,115 @@ pub fn verify_multi_ballot_signature_js(
     .into_json()?;
 
     serde_wasm_bindgen::to_value(&result.is_some())
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns the Ballot ID if the published ballot box key signed the receipt,
+// error otherwise
+#[wasm_bindgen]
+pub fn verify_received_ballot_js(
+    ballot_box_key: JsValue,
+    received_ballot: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_box_key: BallotBoxKey =
+        serde_wasm_bindgen::from_value(ballot_box_key)
+            .map_err(|err| format!("Error deserializing ballot box key: {err}"))
+            .into_json()?;
+    let received_ballot: ReceivedBallot =
+        serde_wasm_bindgen::from_value(received_ballot)
+            .map_err(|err| {
+                format!("Error deserializing received ballot: {err}")
+            })
+            .into_json()?;
+
+    let ballot_id = verify_received_ballot(&ballot_box_key, &received_ballot)
+        .map_err(|err| format!("Error verifying the received ballot: {err}"))
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&ballot_id)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns the voter's signature over "cast this Ballot ID", made with the key
+// that signed the election's ballot at review; error when that key is gone
+#[wasm_bindgen]
+pub fn sign_ballot_cast_js(
+    election_id: JsValue,
+    voter_signing_pk: JsValue,
+    ballot_id: JsValue,
+) -> Result<JsValue, JsValue> {
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    let voter_signing_pk: String =
+        serde_wasm_bindgen::from_value(voter_signing_pk)
+            .map_err(|err| format!("Error deserializing voter key: {err}"))
+            .into_json()?;
+    let ballot_id: String = serde_wasm_bindgen::from_value(ballot_id)
+        .map_err(|err| format!("Error deserializing ballot_id: {err}"))
+        .into_json()?;
+
+    let cast_signature = sign_cast_statement_with_kept_key(
+        &election_id,
+        &voter_signing_pk,
+        &ballot_id,
+    )
+    .map_err(|err| format!("Error signing the cast: {err}"))
+    .into_json()?;
+
+    serde_wasm_bindgen::to_value(&cast_signature)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// drops the key that signed the election's ballot, once it is cast
+#[wasm_bindgen]
+pub fn forget_voter_signing_key_js(
+    election_id: JsValue,
+) -> Result<(), JsValue> {
+    let election_id: String = serde_wasm_bindgen::from_value(election_id)
+        .map_err(|err| format!("Error deserializing election_id: {err}"))
+        .into_json()?;
+    forget_voter_signing_key(&election_id);
+    Ok(())
+}
+
+// returns true if the published ballot box key signed the cast receipt, error
+// otherwise
+#[wasm_bindgen]
+pub fn verify_cast_receipt_js(
+    ballot_box_key: JsValue,
+    cast_receipt: JsValue,
+) -> Result<JsValue, JsValue> {
+    let ballot_box_key: BallotBoxKey =
+        serde_wasm_bindgen::from_value(ballot_box_key)
+            .map_err(|err| format!("Error deserializing ballot box key: {err}"))
+            .into_json()?;
+    let cast_receipt: CastReceipt =
+        serde_wasm_bindgen::from_value(cast_receipt)
+            .map_err(|err| format!("Error deserializing cast receipt: {err}"))
+            .into_json()?;
+
+    verify_cast_receipt(&ballot_box_key, &cast_receipt)
+        .map_err(|err| format!("Error verifying the cast receipt: {err}"))
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&true)
+        .map_err(|err| format!("Error writing javascript string: {err}",))
+        .into_json()
+}
+
+// returns the Ballot ID as the ballot box writes it, or null when the typed
+// text cannot be a Ballot ID
+#[wasm_bindgen]
+pub fn normalize_ballot_id_js(typed: JsValue) -> Result<JsValue, JsValue> {
+    let typed: String = serde_wasm_bindgen::from_value(typed)
+        .map_err(|err| format!("Error deserializing ballot id: {err}"))
+        .into_json()?;
+
+    serde_wasm_bindgen::to_value(&normalize_ballot_id(&typed))
         .map_err(|err| format!("Error writing javascript string: {err}",))
         .into_json()
 }

@@ -517,6 +517,7 @@ const galegoTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canles de Votación Permitidas",
                 materials: "Materiais de Soporte",
+                ballotReceipts: "Recibos de papeleta",
                 ballotDesign: "Deseño da Papeleta",
                 templates: "Modelos",
                 reorder: "Reordenar eleccións",
@@ -629,6 +630,19 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Período de comprobación dos votos emitidos",
+                        helper: "Durante canto tempo os votantes poden localizar o seu voto emitido e imprimir o seu recibo no Portal de Votación.",
+                        options: {
+                            "unlimited": "Sen límite",
+                            "until-date": "Ata unha data",
+                        },
+                    },
+                    checksAvailableUntil: "Comprobacións dispoñibles ata ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introduce a data e a hora ata a que se poden comprobar os votos.",
+                },
                 voterAccessibilitySettingsPolicy: {
                     policyLabel: "Axustes de accesibilidade do votante",
                     options: {
@@ -708,6 +722,14 @@ const galegoTranslation: TranslationType = {
                     "policyLabel": "Política de Firma de Votantes",
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Recibos asinados pola urna",
+                    "disabled": "Desactivado",
+                    "signed-by-ballot-box": "Asinados pola urna",
+                    "helperText":
+                        "Cando está activado, a urna almacena e asina cada papeleta na pantalla de revisión, e o votante ve un ID de papeleta só cando a urna a recibiu. Os votantes asinan as súas papeletas. Volva publicar as papeletas despois de cambialo.",
+                    "lockedHelperText": "Non se pode cambiar unha vez iniciada a votación.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

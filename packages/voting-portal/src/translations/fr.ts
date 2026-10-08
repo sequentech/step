@@ -550,6 +550,9 @@ const frenchTranslation: TranslationType = {
                 "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",
             filterByBallotId: "Filtrez par numéro d'identification du bulletin",
             totalBallots: "Total: {{total}}",
+            checksAvailableUntil: "Vous pouvez vérifier votre bulletin jusqu'au {{date}}.",
+            checksEnded: "Les vérifications ont pris fin le {{date}}.",
+            castAt: "Déposé le {{date}}",
             steps: {
                 lookup: "Trouvez votre bulletin de vote",
                 result: "Résultat",

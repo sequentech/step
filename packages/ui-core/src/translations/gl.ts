@@ -555,6 +555,10 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Período de comprobación non válido",
+                        text: "Período de comprobación non válido — non se puido ler o período no que os votantes poden comprobar o seu voto emitido: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Sen identificador",
                         text: "Sen identificador — todos os id xerados derívanse del, así que sen un nada se pode construír dúas veces igual.",

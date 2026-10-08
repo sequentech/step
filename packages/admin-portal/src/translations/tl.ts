@@ -520,6 +520,7 @@ const tagalogTranslation: TranslationType = {
                 language: "Wika",
                 allowed: "Pinapayagang Mga Channel ng Pagboto",
                 materials: "Mga Karagdagang Materyales",
+                ballotReceipts: "Mga resibo ng balota",
                 ballotDesign: "Disenyo ng Balota",
                 templates: "Mga plantilya",
                 reorder: "I-reorder ang mga halalan",
@@ -632,6 +633,19 @@ const tagalogTranslation: TranslationType = {
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Panahon ng pagsusuri ng mga naihulog na balota",
+                        helper: "Kung gaano katagal mahahanap ng mga botante ang kanilang naihulog na balota at mai-print ang resibo nito sa Voting Portal.",
+                        options: {
+                            "unlimited": "Walang limitasyon",
+                            "until-date": "Hanggang sa isang petsa",
+                        },
+                    },
+                    checksAvailableUntil: "Available ang mga pagsusuri hanggang ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Ilagay ang petsa at oras kung hanggang kailan masusuri ang mga balota.",
+                },
                 voterAccessibilitySettingsPolicy: {
                     policyLabel: "Mga setting ng accessibility ng botante",
                     options: {
@@ -708,6 +722,14 @@ const tagalogTranslation: TranslationType = {
                     "policyLabel": "Patakaran sa Pagpirma ng Botante",
                     "no-signature": "Walang pirma",
                     "with-signature": "May pirma",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Mga resibong pinirmahan ng ballot box",
+                    "disabled": "Hindi pinagana",
+                    "signed-by-ballot-box": "Pinirmahan ng ballot box",
+                    "helperText":
+                        "Kapag naka-on, iniimbak at pinipirmahan ng ballot box ang bawat balota sa pagsusuri, at makikita lamang ng botante ang Ballot ID kapag natanggap na ang balota. Pinipirmahan ng mga botante ang kanilang mga balota. I-publish muli ang mga balota pagkatapos itong baguhin.",
+                    "lockedHelperText": "Hindi na ito mababago kapag nagsimula na ang botohan.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",

@@ -551,6 +551,10 @@ const englishTranslation = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Ballot checks period not valid",
+                        text: "Ballot checks period not valid — the period in which voters can check their cast ballot could not be read: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "No identifier",
                         text: "No identifier — every generated id is derived from it, so without one nothing can be built twice the same way.",
