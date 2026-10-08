@@ -821,3 +821,7 @@ pub async fn update_event_messaging_config(
         errors: Value::Array(vec![]),
     }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/messaging_routes.rs"]
+mod route_tests;
