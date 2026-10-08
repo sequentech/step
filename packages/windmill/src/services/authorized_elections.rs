@@ -126,15 +126,21 @@ impl AuthorizedElectionIds {
         }
     }
 
-    /// Also resolves the IDs an election event import replaced, given as a map
-    /// from the exported ID to the imported one.
+    /// Also resolves the values an election event import replaced, given as a
+    /// map from the exported value to the imported one, as the imported one.
+    /// The import replaces every value shaped like an ID, external IDs too.
     pub fn with_replaced_ids(mut self, replaced_ids: &HashMap<String, String>) -> Self {
-        for (old_id, new_id) in replaced_ids {
-            if self.stored_values.contains_key(new_id) {
-                self.elections_named
-                    .entry(old_id.clone())
-                    .or_insert_with(|| vec![new_id.clone()]);
-            }
+        let replaced: Vec<(String, Vec<String>)> = replaced_ids
+            .iter()
+            .filter_map(|(old_value, new_value)| {
+                let election_ids = self.elections_named.get(new_value)?;
+                Some((old_value.clone(), election_ids.clone()))
+            })
+            .collect();
+        for (old_value, election_ids) in replaced {
+            self.elections_named
+                .entry(old_value)
+                .or_insert(election_ids);
         }
         self
     }
@@ -355,6 +361,42 @@ mod tests {
             elections.resolve(exported_area),
             Err(UnresolvedElection::NoElection)
         );
+    }
+
+    /// An election event import replaces every value shaped like an ID,
+    /// external IDs included, so each value named in the exported event what
+    /// its replacement names in the imported one.
+    #[test]
+    fn values_replaced_by_an_event_import_resolve_as_their_replacements() {
+        let exported_a = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a";
+        let exported_b = "2e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b";
+        let exported_external_id = "4a5b6c7d-8e9f-4a0b-9c1d-2e3f4a5b6c7d";
+        let imported_external_id = "5b6c7d8e-9f0a-4b1c-8d2e-3f4a5b6c7d8e";
+        let replaced_ids = HashMap::from([
+            (exported_a.to_string(), ELECTION_A.to_string()),
+            (exported_b.to_string(), ELECTION_B.to_string()),
+            (
+                exported_external_id.to_string(),
+                imported_external_id.to_string(),
+            ),
+        ]);
+        let elections = AuthorizedElectionIds::new(&[
+            election(ELECTION_A, Some(ELECTION_B)),
+            election(ELECTION_B, Some(imported_external_id)),
+        ])
+        .with_replaced_ids(&replaced_ids);
+
+        assert_eq!(
+            elections.resolve(exported_external_id),
+            Ok(imported_external_id)
+        );
+        for (exported, imported) in &replaced_ids {
+            assert_eq!(
+                elections.resolve(exported),
+                elections.resolve(imported),
+                "{exported} must resolve as {imported}"
+            );
+        }
     }
 
     #[test]
