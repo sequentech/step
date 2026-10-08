@@ -60,7 +60,8 @@ it.
 In `authorized-election-ids`, name each election by its external ID, or by its ID if it has no
 external ID. An election's ID is also accepted when it has an external ID, and the external ID is
 stored instead. An election is named and stored by its ID when another election shares its external
-ID, or when the external ID starts or ends with a space, contains `|` or starts with `"`. It is also
+ID, or when the external ID starts or ends with whitespace, such as a space, a tab or a line break,
+contains `|` or starts with `"`. It is also
 stored by its ID when its external ID is longer than 255 characters, the most a voter attribute
 holds. If an election's ID is another election's external ID, that value names the other election,
 as in the token mapper, so the first one can only be named and stored by its own external ID, and
