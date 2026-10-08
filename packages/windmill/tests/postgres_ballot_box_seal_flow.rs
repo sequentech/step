@@ -51,7 +51,8 @@ use windmill::services::ballot_box_seal::seal::{
 };
 use windmill::services::ballot_box_seal::sink::{closing_ballot_boxes, PendingSealSink};
 use windmill::services::ballot_box_seal::{
-    Census, ProductionSealEnvironment, SealEnvironment, BALLOT_BOX_SEALED_MESSAGE,
+    on_close, Census, CloseProvenance, ProductionSealEnvironment, SealEnvironment,
+    BALLOT_BOX_SEALED_MESSAGE,
 };
 use windmill::services::election_event_status::{
     scheduled_change_applies, update_event_voting_status, update_scheduled_event_voting_status,
@@ -1618,6 +1619,188 @@ async fn policy_off_an_event_start_still_opens_every_post() {
             .status_by_channel(VotingStatusChannel::KIOSK),
         VotingStatus::OPEN
     );
+    w.finish().await;
+}
+
+/// R11 S2: the initialization refusal of an event-wide Start counts only
+/// the Posts the Start opens: an uninitialized Online-only Post doesn't
+/// block a Kiosk Start, while an Online Start is still refused for it.
+#[tokio::test]
+async fn an_event_start_is_not_refused_for_a_post_it_leaves_alone() {
+    let w = world(Options {
+        elections: 2,
+        kiosk: true,
+        online_open: false,
+        ..Default::default()
+    })
+    .await;
+    let [online_only, both] = [w.elections[0], w.elections[1]];
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election
+         SET voting_channels = $2,
+             presentation = presentation || '{\"initialization_report_policy\": \"required\"}'
+         WHERE id = $1",
+        &[
+            &online_only,
+            &json!({"online": true, "kiosk": false, "early_voting": false}),
+        ],
+    )
+    .await;
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election_event SET status = $2 WHERE id = $1",
+        &[
+            &w.event,
+            &serde_json::to_value(ElectionEventStatus::default()).unwrap(),
+        ],
+    )
+    .await;
+    let start = |channel| {
+        let w = &w;
+        async move {
+            let mut client = w.client().await;
+            let tx = client.transaction().await.unwrap();
+            let result = update_event_voting_status(
+                &tx,
+                &w.tenant.to_string(),
+                Some(&w.user),
+                Some(ADMIN),
+                &w.event.to_string(),
+                &VotingStatus::OPEN,
+                &Some(vec![channel]),
+            )
+            .await;
+            if result.is_ok() {
+                tx.commit().await.unwrap();
+            }
+            result.map(|_| ())
+        }
+    };
+    // The Post would open Online: its initialization refuses the Start.
+    assert!(start(VotingStatusChannel::ONLINE).await.is_err());
+    // It doesn't offer Kiosk, so the Kiosk Start leaves it alone.
+    start(VotingStatusChannel::KIOSK).await.unwrap();
+    assert_eq!(
+        w.status(online_only)
+            .await
+            .status_by_channel(VotingStatusChannel::KIOSK),
+        VotingStatus::NOT_STARTED
+    );
+    assert_eq!(
+        w.status(both)
+            .await
+            .status_by_channel(VotingStatusChannel::KIOSK),
+        VotingStatus::OPEN
+    );
+    w.finish().await;
+}
+
+/// R11 N2: with Seal at close, an event-wide Online Start leaves a Post
+/// that doesn't enable Online alone, Early Voting included (as a scheduled
+/// Start does); a Post that enables both has its Early Voting closed, as
+/// before.
+#[tokio::test]
+async fn an_event_online_start_leaves_early_voting_open_at_a_post_without_online() {
+    let w = world(Options {
+        elections: 2,
+        early_voting: true,
+        online_open: false,
+        ..Default::default()
+    })
+    .await;
+    let [early_only, both] = [w.elections[0], w.elections[1]];
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election SET voting_channels = $2 WHERE id = $1",
+        &[
+            &early_only,
+            &json!({"online": false, "kiosk": false, "early_voting": true}),
+        ],
+    )
+    .await;
+    let mut early_open = ElectionStatus::default();
+    early_open.set_status_by_channel(VotingStatusChannel::EARLY_VOTING, VotingStatus::OPEN);
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election SET status = $2 WHERE election_event_id = $1",
+        &[&w.event, &serde_json::to_value(&early_open).unwrap()],
+    )
+    .await;
+    let mut event_status = ElectionEventStatus::default();
+    event_status.set_status_by_channel(VotingStatusChannel::EARLY_VOTING, VotingStatus::OPEN);
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election_event SET status = $2 WHERE id = $1",
+        &[&w.event, &serde_json::to_value(&event_status).unwrap()],
+    )
+    .await;
+    let mut client = w.client().await;
+    let tx = client.transaction().await.unwrap();
+    update_event_voting_status(
+        &tx,
+        &w.tenant.to_string(),
+        Some(&w.user),
+        Some(ADMIN),
+        &w.event.to_string(),
+        &VotingStatus::OPEN,
+        &Some(vec![VotingStatusChannel::ONLINE]),
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    let early = w.status(early_only).await;
+    assert_eq!(
+        early.status_by_channel(VotingStatusChannel::ONLINE),
+        VotingStatus::NOT_STARTED
+    );
+    assert_eq!(
+        early.status_by_channel(VotingStatusChannel::EARLY_VOTING),
+        VotingStatus::OPEN
+    );
+    let both = w.status(both).await;
+    assert_eq!(
+        both.status_by_channel(VotingStatusChannel::ONLINE),
+        VotingStatus::OPEN
+    );
+    assert_eq!(
+        both.status_by_channel(VotingStatusChannel::EARLY_VOTING),
+        VotingStatus::CLOSED
+    );
+    w.finish().await;
+}
+
+/// R11 N4: the close hook fails on an election status that doesn't parse,
+/// instead of reading it as nothing started (which makes no seals).
+#[tokio::test]
+async fn the_close_hook_fails_on_a_status_that_does_not_parse() {
+    let w = world(Options::default()).await;
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1",
+        &[&w.election(), &json!({"voting_status": 42})],
+    )
+    .await;
+    let mut client = w.client().await;
+    let tx = client.transaction().await.unwrap();
+    let event = windmill::postgres::election_event::get_election_event_by_id(
+        &tx,
+        &w.tenant.to_string(),
+        &w.event.to_string(),
+    )
+    .await
+    .unwrap();
+    let error = on_close(
+        &tx,
+        &event,
+        &[w.election().to_string()],
+        CloseProvenance::Scheduled,
+    )
+    .await
+    .unwrap_err();
+    assert!(format!("{error:#}").contains("voting status"), "{error:#}");
+    drop(tx);
+    assert!(w.seals(w.election()).await.is_empty());
     w.finish().await;
 }
 

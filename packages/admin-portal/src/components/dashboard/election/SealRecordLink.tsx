@@ -29,8 +29,11 @@ export interface SealRecordLinkProps {
 export const sealRecordFileName = (seal: IBallotBoxSeal): string =>
     `ballot-box-seal-${seal.election_id}-${seal.area_id}.json`
 
-/** What `fetchDocument` answers when the document row is gone. */
-const DOCUMENT_NOT_FOUND = "Document not found"
+/**
+ * The error code `fetchDocument` answers when the document row or its stored
+ * file is gone. Hasura forwards a JSON error's code also with dev mode off.
+ */
+const DOCUMENT_NOT_FOUND = "DocumentNotFound"
 
 /** Why a restricted record wasn't downloaded. */
 enum ERecordDownloadFailure {

@@ -2854,6 +2854,12 @@ const catalanTranslation: TranslationType = {
                 startKeptChannels_other: "{{post}}: {{channels}} continuen tancats",
                 startKeptSealed:
                     "{{post}} continua tancat, perquè les seves urnes estan segellades",
+                startNotEnabledList:
+                    "Amb «Segellar en tancar», un inici obre un canal només als Posts que l'habiliten: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: {{channels}} no hi està habilitat i continua No iniciat",
+                startNotEnabledChannels_other:
+                    "{{post}}: {{channels}} no hi estan habilitats i continuen No iniciats",
                 stopNeverOpenedPosts_one:
                     "{{names}} no s'ha obert mai: detenir-lo el tanca i segella les seves urnes buides.",
                 stopNeverOpenedPosts_other:

@@ -2848,6 +2848,12 @@ const galegoTranslation: TranslationType = {
                 startKeptChannels_one: "{{post}}: a canle {{channels}} segue pechada",
                 startKeptChannels_other: "{{post}}: as canles {{channels}} seguen pechadas",
                 startKeptSealed: "{{post}} segue pechado, xa que as súas urnas están seladas",
+                startNotEnabledList:
+                    "Con Selar ao pechar, un inicio abre unha canle só nos Posts que a habilitan: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: a canle {{channels}} non está habilitada alí e segue Non iniciada",
+                startNotEnabledChannels_other:
+                    "{{post}}: as canles {{channels}} non están habilitadas alí e seguen Non iniciadas",
                 stopNeverOpenedPosts_one:
                     "{{names}} nunca se abriu: ao detelo, péchase e sélanse as súas urnas baleiras.",
                 stopNeverOpenedPosts_other:

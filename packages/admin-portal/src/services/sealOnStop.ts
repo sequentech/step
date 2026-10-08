@@ -107,13 +107,20 @@ export const CHANNEL_STATUS_KEYS: Record<
 const record = (value: unknown): Record<string, unknown> =>
     value && typeof value === "object" ? (value as Record<string, unknown>) : {}
 
+/**
+ * What a NULL `voting_channels` enables: Online only, as the server reads it
+ * (`VotingChannels::default()`).
+ */
+const DEFAULT_ENABLED: Record<string, unknown> = {online: true}
+
 /** The channels of an election, from its `status` and `voting_channels` columns. */
 export const electionSealChannels = (election: {
     status?: unknown
     voting_channels?: unknown
 }): ISealChannel[] => {
     const status = record(election.status)
-    const enabled = record(election.voting_channels)
+    const enabled =
+        election.voting_channels == null ? DEFAULT_ENABLED : record(election.voting_channels)
     return (Object.keys(CHANNEL_STATUS_KEYS) as Array<`${VotingStatusChannel}`>).map((name) => {
         const keys = CHANNEL_STATUS_KEYS[name]
         return {
@@ -178,9 +185,10 @@ export const eventStartChannels = (
 
 /**
  * The channels of `applied` an event-wide Start leaves closed on this
- * election under Seal at close: the server skips a Post per channel where
- * that channel is CLOSED on it, enabled or not. (An election with seals
- * stays closed on every channel; the caller knows its seals.)
+ * election under Seal at close (`manual_post_change`'s `KeptClosed`): an
+ * enabled channel that is CLOSED there. A channel the election doesn't
+ * enable is [`notEnabledStartChannels`]'s, closed or not. (An election with
+ * seals stays closed on every enabled channel; the caller knows its seals.)
  */
 export const keptClosedChannels = (
     channels: ISealChannel[],
@@ -188,6 +196,23 @@ export const keptClosedChannels = (
 ): VotingStatusChannel[] =>
     applied.filter((name) =>
         channels.some(
-            (channel) => channel.channel === name && channel.status === ("CLOSED" as EVotingStatus)
+            (channel) =>
+                channel.channel === name &&
+                channel.enabled &&
+                channel.status === ("CLOSED" as EVotingStatus)
         )
+    )
+
+/**
+ * The channels of `applied` an event-wide Start leaves as they are on this
+ * election under Seal at close, because the election doesn't enable them
+ * (`manual_post_change`'s `NotEnabled`): they stay Not started there, as
+ * with a scheduled Start. The server checks this before the closed check.
+ */
+export const notEnabledStartChannels = (
+    channels: ISealChannel[],
+    applied: VotingStatusChannel[]
+): VotingStatusChannel[] =>
+    applied.filter(
+        (name) => !channels.some((channel) => channel.channel === name && channel.enabled)
     )

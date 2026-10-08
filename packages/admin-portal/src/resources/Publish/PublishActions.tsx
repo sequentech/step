@@ -56,6 +56,7 @@ import {
     type IStopSealOutcome,
     eventStartChannels,
     keptClosedChannels,
+    notEnabledStartChannels,
     neverOpened,
     onlineRan,
     sealProgress,
@@ -530,9 +531,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
 
     /**
      * With the seal at close, an event Start names, Post by Post, what the
-     * server keeps closed (`election_event_status.rs`): per channel it
-     * applies, a Post where that channel is CLOSED; and every channel of a
-     * Post with ballot box seals.
+     * server leaves as it is (`manual_post_change`): per channel it applies,
+     * a Post that doesn't enable that channel (it stays Not started there);
+     * else a Post where that channel is CLOSED; and every enabled channel of
+     * a Post with ballot box seals.
      */
     const startSealNote = (starting?: VotingStatusChannel[]): string | null => {
         if (!sealsAtClose || publishType !== EPublishType.Event) return null
@@ -540,25 +542,45 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             return t("publish.dialog.startSealNote")
         }
         const applied = eventStartChannels(sealChannels(), starting)
-        const items = eventElections.flatMap((election) => {
+        const kept: string[] = []
+        const notEnabled: string[] = []
+        for (const election of eventElections) {
             const post = aliasRenderer(election)
-            if (sealedElectionIds.has(String(election.id))) {
-                return [t("publish.dialog.startKeptSealed", {post})]
+            const channels = electionSealChannels(election)
+            const skipped = notEnabledStartChannels(channels, applied)
+            if (skipped.length) {
+                notEnabled.push(
+                    t("publish.dialog.startNotEnabledChannels", {
+                        post,
+                        count: skipped.length,
+                        channels: channelNames(skipped),
+                    })
+                )
             }
-            const kept = keptClosedChannels(electionSealChannels(election), applied)
-            return kept.length
-                ? [
-                      t("publish.dialog.startKeptChannels", {
-                          post,
-                          count: kept.length,
-                          channels: channelNames(kept),
-                      }),
-                  ]
-                : []
-        })
-        return items.length
-            ? t("publish.dialog.startSealNoteList", {items: items.join("; ")})
-            : null
+            if (sealedElectionIds.has(String(election.id))) {
+                if (skipped.length < applied.length) {
+                    kept.push(t("publish.dialog.startKeptSealed", {post}))
+                }
+                continue
+            }
+            const closed = keptClosedChannels(channels, applied)
+            if (closed.length) {
+                kept.push(
+                    t("publish.dialog.startKeptChannels", {
+                        post,
+                        count: closed.length,
+                        channels: channelNames(closed),
+                    })
+                )
+            }
+        }
+        const sentences = [
+            kept.length ? t("publish.dialog.startSealNoteList", {items: kept.join("; ")}) : null,
+            notEnabled.length
+                ? t("publish.dialog.startNotEnabledList", {items: notEnabled.join("; ")})
+                : null,
+        ].filter(Boolean)
+        return sentences.length ? sentences.join(" ") : null
     }
 
     /**

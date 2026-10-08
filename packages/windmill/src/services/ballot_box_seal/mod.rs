@@ -25,7 +25,6 @@ use crate::postgres::election::get_election_by_id;
 use crate::services::documents::{
     upload_and_return_document, upload_and_return_public_event_document,
 };
-use crate::services::election_event_status::get_election_status;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{
     list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
@@ -604,7 +603,10 @@ pub async fn on_close(
         else {
             continue;
         };
-        let status = get_election_status(election.status.clone()).unwrap_or_default();
+        // A status that doesn't parse is an error, never "nothing started",
+        // which would make no seals (R11 N4).
+        let status = seal::election_status(election.status.clone())
+            .with_context(|| format!("Reading the voting status of {election_id} at the close"))?;
         let channels: VotingChannels = election
             .voting_channels
             .clone()

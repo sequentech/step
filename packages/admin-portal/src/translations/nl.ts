@@ -2846,6 +2846,12 @@ const dutchTranslation: TranslationType = {
                 startKeptChannels_one: "{{post}}: {{channels}} blijft gesloten",
                 startKeptChannels_other: "{{post}}: {{channels}} blijven gesloten",
                 startKeptSealed: "{{post}} blijft gesloten, omdat de stembussen zijn verzegeld",
+                startNotEnabledList:
+                    "Met Verzegelen bij sluiting opent een start een kanaal alleen bij de Posts die het inschakelen: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: {{channels}} is daar niet ingeschakeld en blijft Niet gestart",
+                startNotEnabledChannels_other:
+                    "{{post}}: {{channels}} zijn daar niet ingeschakeld en blijven Niet gestart",
                 stopNeverOpenedPosts_one:
                     "{{names}} is nooit geopend: stoppen sluit de Post en verzegelt de lege stembussen.",
                 stopNeverOpenedPosts_other:

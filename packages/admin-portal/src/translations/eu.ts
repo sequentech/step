@@ -2838,6 +2838,12 @@ const basqueTranslation: TranslationType = {
                 startKeptChannels_other: "{{post}}: {{channels}} itxita geratzen dira",
                 startKeptSealed:
                     "{{post}}: itxita geratzen da, bere hautestontziak zigilatuta daudelako",
+                startNotEnabledList:
+                    "Zigilatu ixtean aukerarekin, hasierak kanal bat gaitzen duten Postetan bakarrik irekitzen du: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: {{channels}} ez dago han gaituta eta Hasi gabe geratzen da",
+                startNotEnabledChannels_other:
+                    "{{post}}: {{channels}} ez daude han gaituta eta Hasi gabe geratzen dira",
                 stopNeverOpenedPosts_one:
                     "{{names}}: ez da inoiz ireki; gelditzeak itxi egingo du eta bere hautestontzi hutsak zigilatuko ditu.",
                 stopNeverOpenedPosts_other:

@@ -391,7 +391,7 @@ fn open_channel(election: &Election) -> Result<Option<HoldingChannel>> {
 /// The election's voting status: unset is every channel NOT_STARTED, and a
 /// status that doesn't parse is an error (the seal retries, as for any other
 /// setting it can't read), never a guess (R10 S4).
-fn election_status(status: Option<serde_json::Value>) -> Result<ElectionStatus> {
+pub(crate) fn election_status(status: Option<serde_json::Value>) -> Result<ElectionStatus> {
     Ok(status
         .map(deserialize_value::<ElectionStatus>)
         .transpose()

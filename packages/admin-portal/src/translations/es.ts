@@ -2842,6 +2842,12 @@ const spanishTranslation: TranslationType = {
                 startKeptChannels_one: "{{post}}: el canal {{channels}} sigue cerrado",
                 startKeptChannels_other: "{{post}}: los canales {{channels}} siguen cerrados",
                 startKeptSealed: "{{post}} sigue cerrado, ya que sus urnas están selladas",
+                startNotEnabledList:
+                    "Con Sellar al cierre, un inicio abre un canal solo en los Posts que lo habilitan: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: el canal {{channels}} no está habilitado allí y sigue No iniciado",
+                startNotEnabledChannels_other:
+                    "{{post}}: los canales {{channels}} no están habilitados allí y siguen No iniciados",
                 stopNeverOpenedPosts_one:
                     "{{names}} nunca se abrió: al detenerlo, se cierra y se sellan sus urnas vacías.",
                 stopNeverOpenedPosts_other:

@@ -6,6 +6,7 @@ import {
     eventStartChannels,
     keptClosedChannels,
     neverOpened,
+    notEnabledStartChannels,
     onlineRan,
     sealProgress,
     stopSealOutcome,
@@ -151,6 +152,15 @@ describe("online voting started on a Post that doesn't enable it", () => {
 })
 
 describe("electionSealChannels", () => {
+    it("reads a NULL voting_channels as Online only, as the server does (VotingChannels::default)", () => {
+        const enabled = (voting_channels: unknown) =>
+            electionSealChannels({status: {}, voting_channels})
+                .filter((sealChannel) => sealChannel.enabled)
+                .map((sealChannel) => sealChannel.channel)
+        expect(enabled(null)).toEqual([Online])
+        expect(enabled(undefined)).toEqual([Online])
+        expect(enabled({})).toEqual([])
+    })
     it("reads each channel's status, dates and whether it is enabled", () => {
         const channels = electionSealChannels({
             status: {
@@ -192,10 +202,20 @@ describe("an event-wide Start, per channel (election_event_status.rs)", () => {
         expect(keptClosedChannels(post, eventStartChannels(event, [Online, Kiosk]))).toEqual([])
         expect(keptClosedChannels(post, [Online, Kiosk])).toEqual([Online])
     })
-    it("reads the channel's status whether or not the Post enables it", () => {
-        expect(
-            keptClosedChannels([channel(Online, EVotingStatus.CLOSED, {enabled: false})], [Online])
-        ).toEqual([Online])
+    it("leaves a channel the Post doesn't enable to notEnabledStartChannels, also if it's CLOSED (R11 N3)", () => {
+        const post = [channel(Online, EVotingStatus.CLOSED, {enabled: false})]
+        expect(keptClosedChannels(post, [Online])).toEqual([])
+        expect(notEnabledStartChannels(post, [Online])).toEqual([Online])
+    })
+    it("names the applied channels a Post doesn't enable: they stay Not started (R11 S1)", () => {
+        const post = [
+            channel(Online, EVotingStatus.OPEN),
+            channel(Kiosk, EVotingStatus.NOT_STARTED, {enabled: false}),
+            channel(EarlyVoting, EVotingStatus.NOT_STARTED, {enabled: false}),
+        ]
+        expect(notEnabledStartChannels(post, [Online, Kiosk])).toEqual([Kiosk])
+        expect(notEnabledStartChannels(post, [Online])).toEqual([])
+        expect(keptClosedChannels(post, [Online, Kiosk])).toEqual([])
     })
 })
 

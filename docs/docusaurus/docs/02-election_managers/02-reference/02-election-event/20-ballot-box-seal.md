@@ -175,10 +175,20 @@ names the channel that holds the seal, and you stop it by hand.
 With Seal at close, an event-wide **Start Voting** opens a channel only at the
 elections that enable it, as a scheduled start does. An election that doesn't
 offer Kiosk, for example, keeps Kiosk *Not started* when the whole event's
-Kiosk starts, so Kiosk never holds that election's seal. The log says "Not
-opening this channel at this Post: the Post doesn't enable it" for each such
-election and channel. On events with Do not seal, an event-wide Start still
-sets the channel on every election, as before.
+Kiosk starts, so Kiosk never holds that election's seal. The Start dialog
+names them before you confirm: "With Seal at close, a Start opens a channel
+only at the Posts that enable it: *election*: Kiosk isn't enabled there and
+stays Not started." Such an election doesn't refuse the Start either, for
+example while it waits for its initialization. Operators also find a line per
+election and channel in the windmill service log ("Not opening this channel at
+this Post: the Post doesn't enable it"); the electoral log has no entry for
+it. On events with Do not seal, an event-wide Start still sets the channel on
+every election, as before.
+
+Starting Online event-wide normally closes Early Voting. With Seal at close,
+an election that doesn't enable Online is left alone, Early Voting included,
+so its Early Voting stays open there while the event's shows Closed. Stop it
+from that election's **Stop Voting** menu.
 
 The sealer also checks the ballots themselves. If the ballot box holds a ballot
 cast on a channel that isn't Closed, the box stays pending and the card says
@@ -305,6 +315,14 @@ With **Seal at close**, the election's **Dashboard** shows a **Ballot boxes**
 card under the charts, in both monitoring modes. It lists the election's ballot
 boxes, one row per area, from before the close on. With **Do not seal** the
 card is not shown.
+
+With a configured monitoring dashboard, a **Show ballot boxes** switch under
+the dashboards shows or hides the card. It is on by default. The choice is
+remembered in this browser, for every election of every event, until you
+change it. The legacy dashboard, and the modes shown when monitoring fails to
+load or you lack its permission, always show the card, without the switch.
+Hiding the card hides its incidents on this tab too (failed or overdue seals);
+the event **Dashboard** still shows failed seals in its incident banner.
 
 The header says where the election is:
 
@@ -512,7 +530,7 @@ post is lost, the sealer posts it again until it is recorded.
 | Stop one channel while another enabled channel is still open or never started | Not sealed yet. | That channel could still take votes. Nothing is guessed on your behalf. | Stop dialog: "… *channel* is still enabled and not closed". Card header: "*Channel* is enabled and not closed: stop it to seal the ballot boxes." |
 | Early Voting enabled, never started, Online started and then closed | Not sealed yet: Early Voting holds the seal, like any enabled channel. | The platform doesn't decide for you that a channel is over. | Stop dialog and card header name Early Voting. Stop it (it closes without opening) to seal the boxes. |
 | A channel the election doesn't enable is Open or Paused, or ran (for example, unchecked in the election's channels after it took ballots) | Not sealed yet: it holds the seal until it is Closed. Its close counts for the close time. A scheduled close or a signed Close voting request doesn't close it (they close only enabled channels). | It may have taken ballots. Voters can't cast on it (the cast check refuses a channel the election doesn't enable), and closing it lets no ballot in. | Stop dialog and card: "*Channel* isn't closed and isn't enabled for this Post: stop it to seal the ballot boxes." Stop it from the election's Stop Voting menu, without enabling it. |
-| Event-wide **Start Voting** of a channel an election doesn't enable (Seal at close) | That election's channel stays *Not started*; the other elections open it. | A channel the election doesn't offer never runs there, so it never holds its seal. | The channel stays *Not started* at that election; the log names the election and the channel. On Do not seal events, every election's channel is set, as before. |
+| Event-wide **Start Voting** of a channel an election doesn't enable (Seal at close) | That election's channel stays *Not started*; the other elections open it. | A channel the election doesn't offer never runs there, so it never holds its seal. | The Start dialog names each such election and channel ("*election*: *Channel* isn't enabled there and stays Not started"); the channel stays *Not started* there; the windmill service log (not the electoral log) has a line per election and channel. The election doesn't refuse the Start, for example while it waits for its initialization. With Online, its Early Voting stays open: stop it from the election. On Do not seal events, every election's channel is set, as before. |
 | A channel the election doesn't enable that never started | It doesn't count. | It took no ballots. | Nothing. |
 | The ballot box holds a ballot of a channel that isn't Closed (for example, after the channel's status was changed outside the Admin Portal) | Not sealed yet; the sealer retries every minute. | The ballots are evidence that the channel took votes. | Sealing overdue: "*Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box." |
 | A ballot's channel is none of Online, Kiosk, Early Voting or Telephone | Seal stopped; the box stays locked; a `BallotBoxSealFailed` ERROR entry is logged. | The stored data was altered or corrupted. It is an incident, not a retry. | Not sealed: incident, "A ballot has an unknown voting channel." |

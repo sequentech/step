@@ -2860,6 +2860,12 @@ const frenchTranslation: TranslationType = {
                 startKeptChannels_one: "{{post}} : {{channels}} reste clos",
                 startKeptChannels_other: "{{post}} : {{channels}} restent clos",
                 startKeptSealed: "{{post}} reste clos, car ses urnes sont scellées",
+                startNotEnabledList:
+                    "Avec Sceller à la clôture, un démarrage n'ouvre un canal que dans les Posts qui l'activent : {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}} : {{channels}} n'y est pas activé et reste Non commencé",
+                startNotEnabledChannels_other:
+                    "{{post}} : {{channels}} n'y sont pas activés et restent Non commencés",
                 stopNeverOpenedPosts_one:
                     "{{names}} n'a jamais ouvert : l'arrêter le clôture et scelle ses urnes vides.",
                 stopNeverOpenedPosts_other:

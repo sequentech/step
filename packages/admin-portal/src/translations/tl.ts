@@ -2861,6 +2861,12 @@ const tagalogTranslation: TranslationType = {
                 startKeptChannels_other: "{{post}}: nananatiling sarado ang {{channels}}",
                 startKeptSealed:
                     "nananatiling sarado ang {{post}}, dahil naka-seal na ang mga ballot box nito",
+                startNotEnabledList:
+                    "Sa I-seal sa pagsasara, binubuksan ng Start ang isang channel sa mga Post lamang na nag-enable nito: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: hindi naka-enable doon ang {{channels}} at nananatiling Hindi pa nagsisimula",
+                startNotEnabledChannels_other:
+                    "{{post}}: hindi naka-enable doon ang {{channels}} at nananatiling Hindi pa nagsisimula",
                 stopNeverOpenedPosts_one:
                     "Hindi kailanman nabuksan ang {{names}}: isasara ito ng paghinto at ise-seal ang mga walang lamang ballot box nito.",
                 stopNeverOpenedPosts_other:

@@ -2810,6 +2810,12 @@ const englishTranslation = {
                 startKeptChannels_one: "{{post}}: {{channels}} stays closed",
                 startKeptChannels_other: "{{post}}: {{channels}} stay closed",
                 startKeptSealed: "{{post}} stays closed, as its ballot boxes are sealed",
+                startNotEnabledList:
+                    "With Seal at close, a Start opens a channel only at the Posts that enable it: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: {{channels}} isn't enabled there and stays Not started",
+                startNotEnabledChannels_other:
+                    "{{post}}: {{channels}} aren't enabled there and stay Not started",
                 stopNeverOpenedPosts_one:
                     "{{names}} never opened: stopping closes it and seals its empty ballot boxes.",
                 stopNeverOpenedPosts_other:

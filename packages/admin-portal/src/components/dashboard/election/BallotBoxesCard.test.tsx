@@ -349,7 +349,29 @@ describe("a restricted seal record", () => {
         expect(mockDownloadUrl).not.toHaveBeenCalled()
     })
 
-    it("says the document is missing, without offering a retry, when it isn't found (S1)", async () => {
+    // Harvest answers a JSON error whose code Hasura forwards also with dev
+    // mode off (R11 S4): the row or its stored file is gone (R11 N8).
+    it.each(["Document not found", "The document's stored file is missing"])(
+        "says the document is missing, without offering a retry, when its code says so (%s)",
+        async (message) => {
+            mockSeals = [restricted()]
+            mockFetchDocument.mockResolvedValue({
+                data: undefined,
+                error: {
+                    message,
+                    graphQLErrors: [{message, extensions: {code: "DocumentNotFound"}}],
+                },
+            })
+            renderCard(at("2028-03-13T17:20:00Z"))
+            fireEvent.click(
+                screen.getByRole("button", {name: /dashboard.ballotBoxes.downloadRecord/})
+            )
+            expect(await screen.findByText("dashboard.ballotBoxes.recordMissing")).toBeTruthy()
+            expect(screen.queryByText("dashboard.ballotBoxes.recordError")).toBeNull()
+            expect(mockDownloadUrl).not.toHaveBeenCalled()
+        }
+    )
+    it("doesn't take a message alone for a missing document", async () => {
         mockSeals = [restricted()]
         mockFetchDocument.mockResolvedValue({
             data: undefined,
@@ -360,9 +382,7 @@ describe("a restricted seal record", () => {
         })
         renderCard(at("2028-03-13T17:20:00Z"))
         fireEvent.click(screen.getByRole("button", {name: /dashboard.ballotBoxes.downloadRecord/}))
-        expect(await screen.findByText("dashboard.ballotBoxes.recordMissing")).toBeTruthy()
-        expect(screen.queryByText("dashboard.ballotBoxes.recordError")).toBeNull()
-        expect(mockDownloadUrl).not.toHaveBeenCalled()
+        expect(await screen.findByText("dashboard.ballotBoxes.recordError")).toBeTruthy()
     })
 
     it("says who can download it when the admin can't", () => {

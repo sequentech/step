@@ -4,6 +4,7 @@
 
 use crate::services::access::document_extra_permissions;
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
@@ -27,9 +28,46 @@ pub struct GetDocumentUrlResponse {
     url: String,
 }
 
+/// The message of a missing document, with [`ErrorCode::DocumentNotFound`].
+const DOCUMENT_NOT_FOUND: &str = "Document not found";
+
+/// fetchDocument's error as JSON with a code, keeping the HTTP status:
+/// Hasura forwards a JSON error's message and code to the portal also with
+/// dev mode off, while it hides a plain-text body (R11 S4). Internal
+/// details are logged, not answered.
+pub(crate) fn fetch_document_error(
+    (status, message): (Status, String),
+) -> JsonError {
+    if status == Status::NotFound {
+        ErrorResponse::new(
+            status,
+            DOCUMENT_NOT_FOUND,
+            ErrorCode::DocumentNotFound,
+        )
+    } else if status == Status::Unauthorized || status == Status::Forbidden {
+        ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+    } else {
+        tracing::error!("fetchDocument failed: {message}");
+        ErrorResponse::new(
+            status,
+            "Could not fetch the document.",
+            ErrorCode::InternalServerError,
+        )
+    }
+}
+
 #[instrument(skip(claims))]
 #[post("/fetch-document", format = "json", data = "<body>")]
 pub async fn fetch_document(
+    body: Json<GetDocumentUrlBody>,
+    claims: JwtClaims,
+) -> Result<Json<GetDocumentUrlResponse>, JsonError> {
+    fetch_document_url(body, claims)
+        .await
+        .map_err(fetch_document_error)
+}
+
+async fn fetch_document_url(
     body: Json<GetDocumentUrlBody>,
     claims: JwtClaims,
 ) -> Result<Json<GetDocumentUrlResponse>, (Status, String)> {
@@ -72,7 +110,7 @@ pub async fn fetch_document(
             format!("Error reading document: {error:?}"),
         )
     })?
-    .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
+    .ok_or_else(|| (Status::NotFound, DOCUMENT_NOT_FOUND.to_string()))?;
     let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)
@@ -101,7 +139,7 @@ pub async fn fetch_document(
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
-    .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
+    .ok_or_else(|| (Status::NotFound, DOCUMENT_NOT_FOUND.to_string()))?;
 
     hasura_transaction.commit().await.map_err(|err| {
         (
@@ -112,3 +150,7 @@ pub async fn fetch_document(
 
     Ok(Json(GetDocumentUrlResponse { url }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/fetch_document_errors.rs"]
+mod tests;
