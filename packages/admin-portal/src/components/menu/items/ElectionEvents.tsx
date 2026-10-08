@@ -54,7 +54,7 @@ import {
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {sortCandidatesInContest, sortContestList, sortElectionList} from "@sequentech/ui-core"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {configuredLanguage} from "@/hooks/usePresentationName"
+import {configuredLanguage, valueInAnyLanguage} from "@/hooks/usePresentationName"
 
 const MenuItem = styled(Menu.Item)`
     color: ${adminTheme.palette.brandColor};
@@ -460,10 +460,12 @@ export default function ElectionEvents() {
     }
 
     // A name in the interface language, else in the default language the record
-    // or its election or event configures, else in English.
+    // or its election or event configures, else in English, else in any language
+    // the record has.
     const nameIn = (record: object, language?: string) =>
         translateFromPresentation(record, "name", i18n.language, {defaultLanguageCode: language}) ??
         translateFromPresentation(record, "name", "en") ??
+        valueInAnyLanguage(record, ["name"]) ??
         "-"
 
     const transformElectionEvent = (electionEvent: ElectionEventType): ElectionEventType => {

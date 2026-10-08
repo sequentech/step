@@ -5,7 +5,7 @@
 import {translateFromPresentation} from "@sequentech/ui-core"
 import {useCallback} from "react"
 import {useTranslation} from "react-i18next"
-import {configuredLanguage} from "./usePresentationName"
+import {configuredLanguage, valueInAnyLanguage} from "./usePresentationName"
 
 export const MISSING_ALIAS = "-"
 
@@ -16,7 +16,7 @@ export function useAliasRenderer() {
     const {i18n} = useTranslation()
 
     // Fallback order: the interface language, then the given default language or
-    // the record's own, then English.
+    // the record's own, then English, then any language the record has.
     const aliasRenderer = useCallback(
         (item: unknown, defaultLang?: string) => {
             const t = (x: any) => {
@@ -30,6 +30,7 @@ export function useAliasRenderer() {
                         : undefined) ||
                     translateFromPresentation(x, "alias", "en") ||
                     translateFromPresentation(x, "name", "en") ||
+                    valueInAnyLanguage(x, ["alias", "name"]) ||
                     MISSING_ALIAS
                 )
             }
