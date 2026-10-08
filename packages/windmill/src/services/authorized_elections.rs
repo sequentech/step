@@ -179,17 +179,21 @@ impl AuthorizedElectionIds {
             .and_then(Option::as_deref)
     }
 
-    /// The values the token mapper resolves to `election`, and an external ID
-    /// it shares with other elections, which earlier token mappers resolved to
-    /// one of them.
+    /// The values the token mapper resolves to `election`, and the one earlier
+    /// token mappers looked it up by: its external ID, or else its ID. When
+    /// other elections had that value too, they resolved it to whichever came
+    /// last, so a voter with it may have voted in any of them.
     fn census_values(&self, election: &ElectionHead) -> Vec<String> {
+        let earlier_value = external_id(election).unwrap_or(&election.id);
         let mut values: Vec<String> = external_id(election)
             .into_iter()
             .chain([election.id.as_str()])
             .filter(|value| {
-                self.elections_named
-                    .get(*value)
-                    .is_some_and(|ids| ids.contains(&election.id))
+                *value == earlier_value
+                    || self
+                        .elections_named
+                        .get(*value)
+                        .is_some_and(|ids| ids.contains(&election.id))
             })
             .map(str::to_string)
             .collect();
@@ -489,7 +493,8 @@ mod tests {
     }
 
     /// The token mapper resolves the ID to the election whose external ID it
-    /// is, so the other election's census must not match it.
+    /// is, and earlier token mappers looked the other election up by its own
+    /// external ID, so the other election's census must not match it.
     #[test]
     fn the_census_does_not_match_an_id_another_election_has_as_external_id() {
         let census = census_values_by_election(&[
@@ -504,10 +509,11 @@ mod tests {
         assert_eq!(census[ELECTION_B], vec![EXTERNAL_ID.to_string()]);
     }
 
-    /// No value restricts a voter to the other election, so its census matches
-    /// only unrestricted voters.
+    /// No value names the other election now, but earlier token mappers looked
+    /// it up by its ID, and resolved it to whichever of the two came last, so
+    /// its census matches it rather than leave out the ballots cast then.
     #[test]
-    fn the_census_of_an_election_no_value_names_matches_none() {
+    fn the_census_of_an_election_no_value_names_matches_its_id() {
         let census = census_values_by_election(&[
             election(ELECTION_A, Some(ELECTION_B)),
             election(ELECTION_B, None),
@@ -517,7 +523,7 @@ mod tests {
             census[ELECTION_A],
             vec![ELECTION_B.to_string(), ELECTION_A.to_string()]
         );
-        assert!(census[ELECTION_B].is_empty());
+        assert_eq!(census[ELECTION_B], vec![ELECTION_B.to_string()]);
     }
 
     /// Earlier token mappers resolved a shared external ID to one of them, so
