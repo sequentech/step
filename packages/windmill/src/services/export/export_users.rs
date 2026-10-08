@@ -8,8 +8,8 @@ use crate::services::csv_cell::escape_formula;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::import::import_users::{
-    is_election_column, is_misspelled_vote_weight, temp_table_column, ELECTION_COL_PREFIX,
-    HEADER_RE, INTERNAL_USER_ID_COL_NAME, RESERVED_COL_NAMES, USER_ENTITY_COLUMNS,
+    is_election_column, is_misspelled_vote_weight, is_reserved_column, temp_table_column,
+    ELECTION_COL_PREFIX, HEADER_RE, INTERNAL_USER_ID_COL_NAME,
 };
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
@@ -98,8 +98,7 @@ fn exported_attributes(user_attributes: Vec<UserProfileAttribute>) -> Vec<UserPr
         .into_iter()
         .filter(|(_, attr)| {
             attr.name.as_deref().is_some_and(|name| {
-                !RESERVED_COL_NAMES.contains(&name)
-                    && !USER_ENTITY_COLUMNS.contains(&name)
+                !is_reserved_column(name)
                     && !is_election_column(name)
                     && HEADER_RE.is_match(name)
                     && !is_misspelled_vote_weight(name)
