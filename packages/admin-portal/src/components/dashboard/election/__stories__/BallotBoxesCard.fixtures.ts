@@ -59,6 +59,8 @@ export const SCHEDULED_CLOSE: IBallotBoxClosedBy = {kind: EBallotBoxClosedByKind
 
 /** 7:01 PM PhST, with no grace period. */
 export const POST_CLOSE = "2028-05-08T11:01:00Z"
+/** The private documents of the restricted seal records, one per area. */
+export const RESTRICTED_RECORD_DOCUMENTS = [storyId(9, 1), storyId(9, 2)]
 /** 6:00 PM CET and the end of its 15-minute grace period, 6:15 PM CET. */
 export const ASSOCIATION_CLOSE = "2028-03-13T17:00:00Z"
 export const ASSOCIATION_DEADLINE = "2028-03-13T17:15:00Z"
@@ -106,10 +108,14 @@ export enum EBallotBoxesScenario {
     GRACE_SEALED = "graceSealed",
     DUE = "due",
     OVERDUE_CHANNEL = "overdueChannel",
+    OVERDUE_NOT_ENABLED = "overdueNotEnabled",
+    OVERDUE_BALLOTS = "overdueBallots",
     OVERDUE_DATAFIX = "overdueDatafix",
     OVERDUE_ERROR = "overdueError",
     OVERDUE_STALE = "overdueStale",
     FAILED = "failed",
+    /** Sealed, with restricted (private) seal records: no public path. */
+    RESTRICTED_RECORD = "restrictedRecord",
 }
 
 /** An election's status and channels, as the card reads them before the close. */
@@ -246,6 +252,20 @@ export const BALLOT_BOXES_FIXTURES: Record<EBallotBoxesScenario, IBallotBoxesFix
         seals: overdue("channel_open:KIOSK", "2028-05-08T11:05:00Z"),
         now: "2028-05-08T11:05:30Z",
     },
+    [EBallotBoxesScenario.OVERDUE_NOT_ENABLED]: {
+        zone: MANILA,
+        areas: POST_AREAS,
+        election: closedOnline,
+        seals: overdue("channel_not_enabled:KIOSK", "2028-05-08T11:05:00Z"),
+        now: "2028-05-08T11:05:30Z",
+    },
+    [EBallotBoxesScenario.OVERDUE_BALLOTS]: {
+        zone: MANILA,
+        areas: POST_AREAS,
+        election: closedOnline,
+        seals: overdue("channel_has_ballots:TELEPHONE", "2028-05-08T11:05:00Z"),
+        now: "2028-05-08T11:05:30Z",
+    },
     [EBallotBoxesScenario.OVERDUE_DATAFIX]: {
         zone: MANILA,
         areas: POST_AREAS,
@@ -278,6 +298,18 @@ export const BALLOT_BOXES_FIXTURES: Record<EBallotBoxesScenario, IBallotBoxesFix
                     "a ballot does not match its Ballot ID (stored 3a91…, content hashes to 77c0…)",
             }),
         ],
+        now: "2028-05-08T11:10:00Z",
+    },
+    [EBallotBoxesScenario.RESTRICTED_RECORD]: {
+        zone: MANILA,
+        areas: POST_AREAS,
+        election: closedOnline,
+        seals: POST_AREAS.map((area, index) =>
+            sealRow(area, EBallotBoxSealStatus.PUBLISHED, {
+                public_path: null,
+                public_document_id: RESTRICTED_RECORD_DOCUMENTS[index],
+            })
+        ),
         now: "2028-05-08T11:10:00Z",
     },
 }

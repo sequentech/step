@@ -5,22 +5,31 @@
 //! When a ballot box is sealed (VOTE-FREEZE): once voting at its election
 //! has finished and the online grace period, if any, has ended.
 //!
-//! - **Finished:** every enabled channel is finished and at least one is
-//!   CLOSED. A channel is finished when it is CLOSED, or when it never
-//!   started and can no longer open under the platform's rules. Today that
-//!   is only EARLY_VOTING once ONLINE has started (`EarlyVotingAfterOnline`).
-//!   A never-started ONLINE, KIOSK or TELEPHONE channel holds the seal
-//!   ([`holding_channel`] names it). Once an election has seals, opening any
-//!   of its channels is refused.
-//!   With the policy on, a never-started channel may be closed directly
-//!   (NOT_STARTED → CLOSED), so it stops holding the seal.
-//! - **Close time:** the latest `last_stopped_at` of the CLOSED channels that
-//!   ran (a `first_started_at`); a channel closed without ever starting took
-//!   no votes, so it doesn't move the close. When no closed channel ran, the
-//!   latest `last_stopped_at` of the CLOSED channels.
+//! - **Counted channels:** a channel counts when the election enables it,
+//!   or when it is OPEN or PAUSED, or when it ever started (a
+//!   `first_started_at`). A channel the election doesn't enable that was
+//!   opened, or that took ballots and was then unchecked, still counts.
+//! - **Finished:** every counted channel is CLOSED, and at least one channel
+//!   counts. A counted channel that isn't CLOSED holds the seal
+//!   ([`holding_channel`] names it and says whether it is enabled). Nothing
+//!   is guessed: an enabled channel that never started (EARLY_VOTING
+//!   included, also once ONLINE has started) holds the seal until it is
+//!   CLOSED. With the policy on, a never-started channel may be closed
+//!   directly (NOT_STARTED → CLOSED). A channel that isn't enabled is
+//!   stopped after enabling it again. Once an election has seals, opening
+//!   any of its channels is refused.
+//! - **Close time:** the latest `last_stopped_at` of the counted channels
+//!   that ran (a `first_started_at`); a channel closed without ever
+//!   starting took no votes, so it doesn't move the close. When no counted
+//!   channel ran, the latest `last_stopped_at` of the counted channels.
 //! - **Deadline:** the close time plus the [`grace_period`] when the ONLINE
-//!   channel is enabled and actually ran (an ONLINE closed without ever
-//!   starting took no online votes, so it has no grace).
+//!   channel actually ran, enabled or not (online ballots were cast under
+//!   it; an ONLINE closed without ever starting took none, so it has no
+//!   grace).
+//!
+//! The seal itself also checks the ballots of the box: a ballot of a
+//! channel that isn't CLOSED leaves the seal pending
+//! (`super::seal::open_ballot_channel`).
 //!
 //! The cast check takes its grace period from [`grace_period`] too, but it
 //! anchors it on the election's end date when there is one. With the policy
@@ -63,44 +72,69 @@ pub fn grace_period(presentation: &ElectionPresentation) -> Option<Duration> {
     )
 }
 
-fn enabled_channels(channels: &VotingChannels) -> Vec<VotingStatusChannel> {
+fn enabled(channels: &VotingChannels, channel: VotingStatusChannel) -> bool {
+    channel.channel_from(channels) == Some(true)
+}
+
+/// Whether `channel` counts for the seal: the election enables it, or it is
+/// open or paused, or it ever started (it may have taken ballots).
+fn counts(
+    status: &ElectionStatus,
+    channels: &VotingChannels,
+    channel: VotingStatusChannel,
+) -> bool {
+    enabled(channels, channel)
+        || matches!(
+            status.status_by_channel(channel),
+            VotingStatus::OPEN | VotingStatus::PAUSED
+        )
+        || status.dates_by_channel(channel).first_started_at.is_some()
+}
+
+/// The channels that count for the seal (see [`counts`]).
+fn counted_channels(
+    status: &ElectionStatus,
+    channels: &VotingChannels,
+) -> Vec<VotingStatusChannel> {
     CHANNELS
         .into_iter()
-        .filter(|channel| channel.channel_from(channels) == Some(true))
+        .filter(|channel| counts(status, channels, *channel))
         .collect()
 }
 
-/// Whether ONLINE voting has ever started at the election.
-fn online_started(status: &ElectionStatus) -> bool {
-    status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
-        || status
-            .dates_by_channel(VotingStatusChannel::ONLINE)
-            .first_started_at
-            .is_some()
+/// A channel that holds an election's seal, and what closes it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HoldingChannel {
+    /// The election enables it: stopping it releases the seal.
+    Enabled(VotingStatusChannel),
+    /// The election doesn't enable it, but it is open or paused, or it ran:
+    /// enabling it again and stopping it releases the seal.
+    NotEnabled(VotingStatusChannel),
 }
 
-/// Whether `channel` is finished: CLOSED, or never started and unable to
-/// open any more (EARLY_VOTING once ONLINE has started).
-fn finished(status: &ElectionStatus, channel: VotingStatusChannel) -> bool {
-    match status.status_by_channel(channel) {
-        VotingStatus::CLOSED => true,
-        VotingStatus::NOT_STARTED => {
-            channel == VotingStatusChannel::EARLY_VOTING
-                && status.dates_by_channel(channel).first_started_at.is_none()
-                && online_started(status)
+impl HoldingChannel {
+    pub fn channel(&self) -> VotingStatusChannel {
+        match self {
+            HoldingChannel::Enabled(channel) | HoldingChannel::NotEnabled(channel) => *channel,
         }
-        _ => false,
     }
 }
 
-/// The first enabled channel that holds the seal (not finished), if any.
+/// The first channel that counts for the seal and isn't CLOSED, if any.
 pub fn holding_channel(
     status: &ElectionStatus,
     channels: &VotingChannels,
-) -> Option<VotingStatusChannel> {
-    enabled_channels(channels)
+) -> Option<HoldingChannel> {
+    counted_channels(status, channels)
         .into_iter()
-        .find(|channel| !finished(status, *channel))
+        .find(|channel| status.status_by_channel(*channel) != VotingStatus::CLOSED)
+        .map(|channel| {
+            if enabled(channels, channel) {
+                HoldingChannel::Enabled(channel)
+            } else {
+                HoldingChannel::NotEnabled(channel)
+            }
+        })
 }
 
 /// The election's close time and seal deadline once its voting has
@@ -110,20 +144,18 @@ pub fn seal_deadline(
     channels: &VotingChannels,
     presentation: &ElectionPresentation,
 ) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
-    let enabled = enabled_channels(channels);
     if holding_channel(status, channels).is_some() {
         return None;
     }
     let mut ran: Option<DateTime<Utc>> = None;
     let mut any: Option<DateTime<Utc>> = None;
-    for channel in &enabled {
-        if status.status_by_channel(*channel) == VotingStatus::CLOSED {
-            let dates = status.dates_by_channel(*channel);
-            let stopped = dates.last_stopped_at?;
-            any = Some(any.map_or(stopped, |latest| latest.max(stopped)));
-            if dates.first_started_at.is_some() {
-                ran = Some(ran.map_or(stopped, |latest| latest.max(stopped)));
-            }
+    // Every counted channel is CLOSED here.
+    for channel in counted_channels(status, channels) {
+        let dates = status.dates_by_channel(channel);
+        let stopped = dates.last_stopped_at?;
+        any = Some(any.map_or(stopped, |latest| latest.max(stopped)));
+        if dates.first_started_at.is_some() {
+            ran = Some(ran.map_or(stopped, |latest| latest.max(stopped)));
         }
     }
     let closed_at = ran.or(any)?;
@@ -131,7 +163,7 @@ pub fn seal_deadline(
         .dates_by_channel(VotingStatusChannel::ONLINE)
         .first_started_at
         .is_some();
-    let grace = if enabled.contains(&VotingStatusChannel::ONLINE) && online_ran {
+    let grace = if online_ran {
         grace_period(presentation).unwrap_or_else(Duration::zero)
     } else {
         Duration::zero()
@@ -291,15 +323,162 @@ mod tests {
     }
 
     #[test]
-    fn early_voting_that_can_no_longer_open_does_not_hold_the_seal() {
-        // Early voting enabled but never opened: ONLINE has started, so it
-        // never can.
-        let status = online_closed_at(60);
+    fn an_enabled_early_voting_that_never_started_holds_the_seal_until_closed() {
+        // ONLINE ran and closed; early voting is enabled but never opened.
+        let mut status = online_closed_at(60);
+        assert_eq!(
+            seal_deadline(&status, &channels(true, false, true), &presentation(None)),
+            None
+        );
+        assert_eq!(
+            holding_channel(&status, &channels(true, false, true)),
+            Some(HoldingChannel::Enabled(VotingStatusChannel::EARLY_VOTING))
+        );
+        // Closed directly (Seal at close): it took no votes, so it doesn't
+        // move the close.
+        set(
+            &mut status,
+            VotingStatusChannel::EARLY_VOTING,
+            VotingStatus::CLOSED,
+            None,
+            Some(at(70)),
+        );
+        assert_eq!(holding_channel(&status, &channels(true, false, true)), None);
         assert_eq!(
             seal_deadline(&status, &channels(true, false, true), &presentation(None)),
             Some((at(60), at(60)))
         );
-        assert_eq!(holding_channel(&status, &channels(true, false, true)), None);
+    }
+
+    #[test]
+    fn a_not_enabled_channel_that_is_open_or_paused_holds_the_seal() {
+        for (value, started) in [
+            (VotingStatus::OPEN, Some(at(0))),
+            (VotingStatus::PAUSED, Some(at(0))),
+            // Open without a start date still holds.
+            (VotingStatus::OPEN, None),
+        ] {
+            let mut status = online_closed_at(60);
+            set(
+                &mut status,
+                VotingStatusChannel::KIOSK,
+                value,
+                started,
+                None,
+            );
+            assert_eq!(
+                holding_channel(&status, &channels(true, false, false)),
+                Some(HoldingChannel::NotEnabled(VotingStatusChannel::KIOSK))
+            );
+            assert_eq!(
+                seal_deadline(&status, &channels(true, false, false), &presentation(None)),
+                None
+            );
+        }
+    }
+
+    #[test]
+    fn a_not_enabled_channel_that_ran_holds_the_seal_and_moves_the_close() {
+        // KIOSK ran and is NOT_STARTED again only on paper: it ran.
+        let mut status = online_closed_at(60);
+        set(
+            &mut status,
+            VotingStatusChannel::KIOSK,
+            VotingStatus::NOT_STARTED,
+            Some(at(0)),
+            None,
+        );
+        assert_eq!(
+            holding_channel(&status, &channels(true, false, false)),
+            Some(HoldingChannel::NotEnabled(VotingStatusChannel::KIOSK))
+        );
+        // Once closed, its close counts like an enabled channel's.
+        set(
+            &mut status,
+            VotingStatusChannel::KIOSK,
+            VotingStatus::CLOSED,
+            Some(at(0)),
+            Some(at(90)),
+        );
+        assert_eq!(
+            holding_channel(&status, &channels(true, false, false)),
+            None
+        );
+        assert_eq!(
+            seal_deadline(&status, &channels(true, false, false), &presentation(None)),
+            Some((at(90), at(90)))
+        );
+    }
+
+    #[test]
+    fn a_not_enabled_channel_that_never_ran_does_not_count() {
+        let mut status = online_closed_at(60);
+        assert_eq!(
+            holding_channel(&status, &channels(true, false, false)),
+            None
+        );
+        // Closed without ever starting: no hold and no later close.
+        set(
+            &mut status,
+            VotingStatusChannel::KIOSK,
+            VotingStatus::CLOSED,
+            None,
+            Some(at(90)),
+        );
+        assert_eq!(
+            holding_channel(&status, &channels(true, false, false)),
+            None
+        );
+        assert_eq!(
+            seal_deadline(&status, &channels(true, false, false), &presentation(None)),
+            Some((at(60), at(60)))
+        );
+    }
+
+    #[test]
+    fn the_first_holding_channel_is_named_with_whether_it_is_enabled() {
+        // Both hold; the first in channel order is named, with its kind.
+        let mut status = ElectionStatus::default();
+        set(
+            &mut status,
+            VotingStatusChannel::ONLINE,
+            VotingStatus::OPEN,
+            Some(at(0)),
+            None,
+        );
+        set(
+            &mut status,
+            VotingStatusChannel::KIOSK,
+            VotingStatus::OPEN,
+            Some(at(0)),
+            None,
+        );
+        assert_eq!(
+            holding_channel(&status, &channels(false, true, false)),
+            Some(HoldingChannel::NotEnabled(VotingStatusChannel::ONLINE))
+        );
+    }
+
+    #[test]
+    fn online_that_ran_keeps_its_grace_when_no_longer_enabled() {
+        // Online ballots were cast under it until 60; the Post no longer
+        // enables ONLINE.
+        let mut status = online_closed_at(60);
+        set(
+            &mut status,
+            VotingStatusChannel::KIOSK,
+            VotingStatus::CLOSED,
+            Some(at(0)),
+            Some(at(30)),
+        );
+        assert_eq!(
+            seal_deadline(
+                &status,
+                &channels(false, true, false),
+                &presentation(Some(QUARTER_HOUR_SECS))
+            ),
+            Some((at(60), at(75)))
+        );
     }
 
     #[test]
@@ -319,7 +498,7 @@ mod tests {
         );
         assert_eq!(
             holding_channel(&status, &channels(true, false, true)),
-            Some(VotingStatusChannel::ONLINE)
+            Some(HoldingChannel::Enabled(VotingStatusChannel::ONLINE))
         );
     }
 
@@ -332,7 +511,7 @@ mod tests {
         );
         assert_eq!(
             holding_channel(&status, &channels(true, true, false)),
-            Some(VotingStatusChannel::KIOSK)
+            Some(HoldingChannel::Enabled(VotingStatusChannel::KIOSK))
         );
     }
 
@@ -410,7 +589,7 @@ mod tests {
     }
 
     #[test]
-    fn grace_applies_only_with_online_enabled() {
+    fn no_grace_when_online_never_ran_and_is_not_enabled() {
         let mut status = ElectionStatus::default();
         set(
             &mut status,

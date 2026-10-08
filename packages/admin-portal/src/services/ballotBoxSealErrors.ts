@@ -40,6 +40,7 @@ const KNOWN_TEXTS: Array<[RegExp, string]> = [
     [/is still in progress$/i, "dashboard.ballotBoxes.failure.inProgress"],
     [/already on the bulletin board/i, "dashboard.ballotBoxes.failure.alreadyOnBoard"],
     [/has no bulletin board/i, "dashboard.ballotBoxes.failure.noBoard"],
+    [/has the unknown voting channel/i, "dashboard.ballotBoxes.failure.unknownChannel"],
     // refusals of actions
     [/^Voting can't start again/i, "publish.sealRefusals.startAgain"],
     [
@@ -50,9 +51,9 @@ const KNOWN_TEXTS: Array<[RegExp, string]> = [
         /can only change before voting opens/i,
         "electionEventScreen.field.ballotBoxSealPolicy.refused",
     ],
-    // the hardening migration's refusals (1791000001700)
+    // the settings guard's refusals (1791000001700, 1791000001800)
     [
-        /(contest_encryption_policy|delegated_voting_policy|weighted_voting_policy) of election event .* can't change after voting has opened/i,
+        /(contest_encryption_policy|delegated_voting_policy|weighted_voting_policy|ballot_box_seal_record_policy) of election event .* can't change after voting has opened/i,
         "electionEventScreen.field.ballotBoxSealPolicy.settingRefused",
     ],
     [

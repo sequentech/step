@@ -196,8 +196,12 @@ pub struct SealedFields {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PublishedFields {
     pub log_entry_id: i64,
+    /// The seal record's document: public or private, by the event's Seal
+    /// Record Publication policy.
     pub public_document_id: Uuid,
-    pub public_path: String,
+    /// The record's path in the public bucket; None for a restricted
+    /// (private) record.
+    pub public_path: Option<String>,
     pub published_at: DateTime<Utc>,
 }
 
@@ -604,6 +608,11 @@ pub enum WaitingReason {
     Deadline,
     /// An enabled voting channel isn't finished.
     ChannelOpen(String),
+    /// A voting channel the election doesn't enable is open or paused, or
+    /// ran, and isn't closed.
+    ChannelNotEnabled(String),
+    /// The box has ballots of a voting channel that isn't closed.
+    ChannelHasBallots(String),
     /// Datafix votes of the box are still in progress.
     DatafixVotes(i64),
     /// Another run holds the box.
@@ -620,6 +629,12 @@ impl std::fmt::Display for WaitingReason {
         match self {
             WaitingReason::Deadline => write!(f, "deadline"),
             WaitingReason::ChannelOpen(channel) => write!(f, "channel_open:{channel}"),
+            WaitingReason::ChannelNotEnabled(channel) => {
+                write!(f, "channel_not_enabled:{channel}")
+            }
+            WaitingReason::ChannelHasBallots(channel) => {
+                write!(f, "channel_has_ballots:{channel}")
+            }
             WaitingReason::DatafixVotes(count) => write!(f, "datafix_votes:{count}"),
             WaitingReason::Busy => write!(f, "busy"),
             WaitingReason::Error(error) => {
@@ -864,6 +879,26 @@ mod tests {
             serde_json::to_value(&signed).unwrap(),
             json!({"kind": "signed", "signers": [{"name": "Chair", "certificate_sha256": "ab"}], "signing_code": "CODE"})
         );
+    }
+
+    #[test]
+    fn waiting_reasons_name_the_channel() {
+        for (reason, text) in [
+            (
+                WaitingReason::ChannelOpen("KIOSK".into()),
+                "channel_open:KIOSK",
+            ),
+            (
+                WaitingReason::ChannelNotEnabled("KIOSK".into()),
+                "channel_not_enabled:KIOSK",
+            ),
+            (
+                WaitingReason::ChannelHasBallots("TELEPHONE".into()),
+                "channel_has_ballots:TELEPHONE",
+            ),
+        ] {
+            assert_eq!(reason.to_string(), text);
+        }
     }
 
     #[test]

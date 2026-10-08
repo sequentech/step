@@ -15,6 +15,7 @@ sealing works and what each status means, see
 | What you see | Section | Is the box locked? | Can it fix itself? |
 | --- | --- | --- | --- |
 | Card header: "*Channel* is enabled and not closed: stop it to seal the ballot boxes." | [A channel holds the seal](#a-channel-holds-the-seal) | No | No: stop the channel |
+| Card header: "*Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes." | [A channel holds the seal](#a-channel-holds-the-seal) | No | No: enable the channel again and stop it |
 | **Sealing overdue**, with a reason | [An overdue seal](#an-overdue-seal) | No new casts | Depends on the reason |
 | **Sealed, publishing** for more than a few minutes | [A publication that does not finish](#a-publication-that-does-not-finish) | Yes | Yes, once the cause is fixed |
 | **Not sealed: incident**, and the event's incident banner | [A failed seal](#a-failed-seal) | Yes, permanently | No |
@@ -59,7 +60,8 @@ Seal at close they are needed at **every close**:
 - the key store (the event's protocol manager key, kept in the database's
   secret store under the master secret);
 - immudb (the electoral log);
-- the public documents bucket (the seal records).
+- the documents storage: the private documents bucket for restricted seal
+  records (the default), the public one for public records.
 
 **Upgrade note.** When you enable Seal at close on a deployment, check that its
 worker deployment keeps `short_queue` consumers running during every close
@@ -67,7 +69,7 @@ window, and does not scale them down outside tallies.
 
 **Worker sizing.** At a common close, every ballot box is due at the same
 time, one task per box. Each task holds its box's ballots in memory, and then
-its public record. In the measurement below, a 50,000-ballot box was about
+its seal record. In the measurement below, a 50,000-ballot box was about
 33 MB of ballots and produced a 26.6 MB record.
 
 How many seal tasks a worker runs at once depends on its `--prefetch-count`:
@@ -98,10 +100,18 @@ the transaction ends. Apply it in a quiet window, not during voting.
 stop it to seal the ballot boxes." The rows stay **Open**, or the Stop Voting
 confirmation says "*channel* is still enabled and not closed".
 
-**Why.** A ballot box is sealed only when every enabled channel of its election
-is finished. A channel that never started holds the seal, because it could
-still open and take votes. The only exception is Early Voting once Online
-voting has started: it can no longer open.
+**Why.** A ballot box is sealed only when every channel that counts at its
+election is Closed. A channel counts when the election enables it, when it is
+Open or Paused, or when it ever started. A channel that never started holds the
+seal, because it could still open and take votes: the platform doesn't decide
+for you that it is over. This includes Early Voting after Online voting has
+started.
+
+A channel the election doesn't enable holds the seal too when it is Open or
+Paused, or when it ran: for example, Kiosk was unchecked in the election's
+channels while it was open, after it took ballots. The header then says
+"*Channel* is open but not enabled for this Post: enable it again and stop it
+to seal the ballot boxes."
 
 **What to do.** Stop the channel that holds the seal on the election's
 **Publish** tab, or with a signed Close voting request. With Seal at close you
@@ -110,8 +120,15 @@ never opened: stopping it means it won't open"). A scheduled close or a signed
 request closes such a channel only if it names it, the election enables it,
 and another enabled channel of the election ran; it never closes a channel it
 doesn't name or the election doesn't enable. A scheduled close leaves an
-election that never opened as it is. Once every enabled
-channel is finished, the deadline starts and the box is sealed.
+election that never opened as it is.
+
+For a channel the election doesn't enable, **Stop Voting** doesn't offer it.
+Check the channel in the election's settings again, save, and stop it on the
+**Publish** tab. An event-wide **Stop Voting** of that channel also closes it,
+on every election.
+
+Once every channel that counts is Closed, the deadline starts and the box is
+sealed.
 
 ## An overdue seal
 
@@ -126,6 +143,8 @@ database guard.
 | Reason shown | Why | What to do |
 | --- | --- | --- |
 | *Channel* is still enabled and not closed: stop it to seal the ballot box. | A channel holds the seal. | See [A channel holds the seal](#a-channel-holds-the-seal). |
+| *Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot box. | A channel the election doesn't enable is open or paused, or ran, and isn't closed. | Enable it again and stop it: see [A channel holds the seal](#a-channel-holds-the-seal). |
+| *Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box. | The box holds ballots cast on that channel, and the channel isn't Closed. The sealer checks every ballot's channel before it seals. | Stop that channel (enable it again first if the election doesn't enable it). If it shows Closed, or never opened, its status was changed outside the Admin Portal: treat it as an incident. |
 | *N* votes are in progress in Datafix: the ballot box is sealed once they are resolved. | See [Datafix votes in progress](#datafix-votes-in-progress). | Resolve the votes. |
 | The last attempt couldn't …; it is retried every minute. (one text per kind of error, below) | An error the sealer retries. | See [Errors the sealer retries](#errors-the-sealer-retries). The next attempt after the cause is fixed seals the box. |
 | Last tried at *time*: the sealer may not be running. Check Beat and the seal worker. | No attempt for more than 3 minutes. | Check that Beat and a worker on `short_queue` are running (see [What must run](#what-must-run-at-every-close)). |
@@ -180,7 +199,9 @@ is final and stored. What is still missing is one of the publication steps:
 
 1. posting the signed `BallotBoxSealed` entry to the event's electoral log;
 2. reading back the log entry's ID;
-3. uploading the public seal record.
+3. uploading the seal record, as a private event document (Seal Record
+   Publication policy **Restricted**, the default) or to the public documents
+   bucket (**Public**).
 
 Each step is safe to repeat. A retry never creates a second log entry or a
 second record: the log delivery and the record's document ID are fixed per
@@ -194,8 +215,11 @@ seal. Normally this status lasts less than a minute.
 2. **The electoral log is reachable.** The entry goes to the event's board in
    immudb. Check that immudb is up and that other log entries (for example the
    voting period close) were delivered.
-3. **The public documents storage is reachable.** The record is uploaded to the
-   event's public documents bucket, where published results go too.
+3. **The documents storage is reachable.** A restricted record is uploaded to
+   the private documents bucket, a public one to the event's public documents
+   bucket, where published results go too. The event's
+   [Seal Record Publication policy](../02-reference/02-election-event/20-ballot-box-seal.md#the-seal-record-publication-policy)
+   says which.
 4. **The windmill logs** for errors of the `seal_ballot_box` task, which carry
    the seal ID. A successful run logs "Ballot box seal published".
 
@@ -226,6 +250,7 @@ nothing to retry by hand.
 | --- | --- |
 | A ballot does not match its Ballot ID. | A stored ballot's content no longer produces the Ballot ID stored with it (the same check the cast runs). The stored data was altered or corrupted. The log entry gives both IDs: "stored *X*, content hashes to *Y*". |
 | A ballot has no content or no Ballot ID. | A stored ballot is incomplete. |
+| A ballot has an unknown voting channel. | A stored ballot names a channel that is none of Online, Kiosk, Early Voting or Telephone. The stored data was altered or corrupted. The log entry names the channel. |
 | The election event has no bulletin board. | There is nowhere to post the seal. |
 | A seal for this ballot box is already on the bulletin board. | The event's log already has a `BallotBoxSealed` entry for this box. This happens after the database was restored, or failed over, to a point before the seal: see [After a restore or failover](#after-a-restore-or-failover). The system never posts a second seal. |
 

@@ -7,7 +7,7 @@
 // for a staff association closing with a 15-minute grace period.
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
-import {expect, within} from "storybook/test"
+import {expect, userEvent, waitFor, within} from "storybook/test"
 import {EBallotBoxSealPolicy, i18n, zoneLabel} from "@sequentech/ui-core"
 import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
@@ -19,6 +19,7 @@ import {
     BALLOT_BOXES_FIXTURES,
     EBallotBoxesScenario,
     MADRID,
+    RESTRICTED_RECORD_DOCUMENTS,
     sealingEventPresentation,
 } from "./__stories__/BallotBoxesCard.fixtures"
 import {useStoryGlobals} from "../../../../../ui-essentials/.storybook/globals"
@@ -76,6 +77,9 @@ const meta = {
                     },
                 }),
                 GetBallotBoxAreaNames: () => ({data: {sequent_backend_area: fixture.areas}}),
+                FetchDocument: () => ({
+                    data: {fetchDocument: {url: "data:application/json,%7B%7D"}},
+                }),
             },
             {schema: true}
         )
@@ -122,6 +126,12 @@ export const Sealed: Story = {
         )
         const andorra = within(await rowOf(canvasElement, "Andorra"))
         await expect(andorra.getAllByText("16")).toHaveLength(2)
+        // Why a box holds more ballots than it counts.
+        await expect(
+            canvas.getByText(
+                "Ballots that count: each eligible voter's latest valid ballot. The others in the box were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible."
+            )
+        ).toBeVisible()
     },
 }
 
@@ -135,6 +145,29 @@ export const Publishing: Story = {
         expect(andorra.queryByRole("link")).toBeNull()
         const spain = within(await rowOf(canvasElement, "Spain"))
         await expect(spain.getByRole("link", {name: /seal record of Spain/})).toBeVisible()
+    },
+}
+
+/**
+ * W6: with the Seal Record Publication policy Restricted, a record is a private
+ * document: the card downloads it through a presigned URL instead of a public link.
+ */
+export const RestrictedRecord: Story = {
+    args: {scenario: EBallotBoxesScenario.RESTRICTED_RECORD},
+    play: async ({canvasElement}) => {
+        const spain = within(await rowOf(canvasElement, "Spain"))
+        await expect(spain.getByText("Sealed")).toBeVisible()
+        expect(spain.queryByRole("link")).toBeNull()
+        await userEvent.click(
+            spain.getByRole("button", {name: "Download the seal record of Spain"})
+        )
+        await waitFor(() =>
+            expect(graphql.calls.find(({name}) => name === "FetchDocument")?.variables).toEqual({
+                electionEventId: EVENT_ID,
+                documentId: RESTRICTED_RECORD_DOCUMENTS[0],
+            })
+        )
+        expect(spain.queryByText("The seal record could not be downloaded. Try again.")).toBeNull()
     },
 }
 
@@ -199,6 +232,34 @@ export const OverdueKioskStillOpen: Story = {
         await expect(
             spain.getByText(
                 "Kiosk is still enabled and not closed: stop it to seal the ballot box."
+            )
+        ).toBeVisible()
+    },
+}
+
+/** W6: a channel the Post no longer enables is open: the card says to enable it again and stop it. */
+export const OverdueChannelNotEnabled: Story = {
+    args: {scenario: EBallotBoxesScenario.OVERDUE_NOT_ENABLED},
+    play: async ({canvasElement}) => {
+        const spain = within(await rowOf(canvasElement, "Spain"))
+        await expect(spain.getByText("Sealing overdue")).toBeVisible()
+        await expect(
+            spain.getByText(
+                "Kiosk is open but not enabled for this Post: enable it again and stop it to seal the ballot box."
+            )
+        ).toBeVisible()
+    },
+}
+
+/** W6: the box has ballots of a channel that isn't closed: the card names it. */
+export const OverdueChannelHasBallots: Story = {
+    args: {scenario: EBallotBoxesScenario.OVERDUE_BALLOTS},
+    play: async ({canvasElement}) => {
+        const spain = within(await rowOf(canvasElement, "Spain"))
+        await expect(spain.getByText("Sealing overdue")).toBeVisible()
+        await expect(
+            spain.getByText(
+                "Telephone has ballots in this ballot box and isn't closed: stop it to seal the ballot box."
             )
         ).toBeVisible()
     },

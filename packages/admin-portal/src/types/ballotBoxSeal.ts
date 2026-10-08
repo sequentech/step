@@ -75,6 +75,13 @@ export enum EBallotBoxWaitingReason {
     DEADLINE = "deadline",
     /** A channel of the election is enabled and not closed (`channel_open:KIOSK`). */
     CHANNEL_OPEN = "channel_open",
+    /**
+     * A channel the election doesn't enable is open or paused, or ran, and
+     * isn't closed (`channel_not_enabled:KIOSK`).
+     */
+    CHANNEL_NOT_ENABLED = "channel_not_enabled",
+    /** The box has ballots of a channel that isn't closed (`channel_has_ballots:KIOSK`). */
+    CHANNEL_HAS_BALLOTS = "channel_has_ballots",
     /** Datafix votes are in progress (`datafix_votes:3`). */
     DATAFIX_VOTES = "datafix_votes",
     /** Another run was sealing it. */

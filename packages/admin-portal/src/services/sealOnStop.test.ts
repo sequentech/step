@@ -23,12 +23,12 @@ const channel = (
     overrides: Partial<ISealChannel> = {}
 ): ISealChannel => ({channel: name, enabled: true, status, ...overrides})
 
-describe("stopSealOutcome mirrors seal_deadline's channel rule (D1)", () => {
+describe("stopSealOutcome mirrors seal_deadline's channel rule", () => {
     it("seals when the stop closes the only open channel", () => {
         expect(stopSealOutcome([channel(Online, EVotingStatus.OPEN)], [Online])).toEqual({
             seals: true,
             holding: [],
-            neverOpened: [],
+            notEnabled: [],
         })
     })
     it("does not seal while another enabled channel is open or paused, and names it", () => {
@@ -38,7 +38,7 @@ describe("stopSealOutcome mirrors seal_deadline's channel rule (D1)", () => {
                     [channel(Online, EVotingStatus.OPEN), channel(Kiosk, status)],
                     [Online]
                 )
-            ).toEqual({seals: false, holding: [Kiosk], neverOpened: []})
+            ).toEqual({seals: false, holding: [Kiosk], notEnabled: []})
         }
     })
     it("seals when stopping every channel at once", () => {
@@ -49,26 +49,15 @@ describe("stopSealOutcome mirrors seal_deadline's channel rule (D1)", () => {
             ]).seals
         ).toBe(true)
     })
-    it("a never-started kiosk or telephone channel holds the seal", () => {
-        for (const held of [Kiosk, Telephone]) {
+    it("a never-started enabled channel holds the seal, early voting included", () => {
+        for (const held of [Kiosk, Telephone, EarlyVoting]) {
             expect(
                 stopSealOutcome(
                     [channel(Online, EVotingStatus.OPEN), channel(held, EVotingStatus.NOT_STARTED)],
                     [Online]
                 )
-            ).toEqual({seals: false, holding: [held], neverOpened: []})
+            ).toEqual({seals: false, holding: [held], notEnabled: []})
         }
-    })
-    it("never-started early voting doesn't hold the seal once online voting has started", () => {
-        expect(
-            stopSealOutcome(
-                [
-                    channel(Online, EVotingStatus.OPEN),
-                    channel(EarlyVoting, EVotingStatus.NOT_STARTED),
-                ],
-                [Online]
-            )
-        ).toEqual({seals: true, holding: [], neverOpened: [EarlyVoting]})
     })
     it("closed early voting with online never started is not finished", () => {
         expect(
@@ -79,7 +68,7 @@ describe("stopSealOutcome mirrors seal_deadline's channel rule (D1)", () => {
                 ],
                 [EarlyVoting]
             )
-        ).toEqual({seals: false, holding: [Online], neverOpened: []})
+        ).toEqual({seals: false, holding: [Online], notEnabled: []})
     })
     it("a NOT_STARTED channel that once opened holds the seal", () => {
         expect(
@@ -94,50 +83,69 @@ describe("stopSealOutcome mirrors seal_deadline's channel rule (D1)", () => {
             ).holding
         ).toEqual([EarlyVoting])
     })
-    it("ignores disabled channels and needs one closed channel", () => {
+    it("a channel that isn't enabled but is open, paused or ran holds the seal", () => {
+        for (const overrides of [
+            {status: EVotingStatus.OPEN},
+            {status: EVotingStatus.PAUSED},
+            {status: EVotingStatus.NOT_STARTED, firstStartedAt: "2028-03-13T08:00:00Z"},
+        ]) {
+            expect(
+                stopSealOutcome(
+                    [
+                        channel(Online, EVotingStatus.OPEN),
+                        channel(Kiosk, overrides.status, {enabled: false, ...overrides}),
+                    ],
+                    [Online]
+                )
+            ).toEqual({seals: false, holding: [], notEnabled: [Kiosk]})
+        }
+    })
+    it("ignores a channel that isn't enabled and never ran, and needs one closed channel", () => {
         expect(
             stopSealOutcome(
                 [
                     channel(Online, EVotingStatus.OPEN),
-                    channel(Kiosk, EVotingStatus.OPEN, {enabled: false}),
+                    channel(Kiosk, EVotingStatus.NOT_STARTED, {enabled: false}),
+                    channel(Telephone, EVotingStatus.CLOSED, {enabled: false}),
                 ],
                 [Online]
             ).seals
         ).toBe(true)
         expect(sealProgress([channel(Kiosk, EVotingStatus.NOT_STARTED)]).finished).toBe(false)
     })
+    it("closes a named channel whether or not the Post enables it (an event-wide Stop)", () => {
+        expect(
+            stopSealOutcome(
+                [
+                    channel(Online, EVotingStatus.OPEN),
+                    channel(Kiosk, EVotingStatus.OPEN, {enabled: false}),
+                ],
+                [Online, Kiosk]
+            )
+        ).toEqual({seals: true, holding: [], notEnabled: []})
+    })
 })
 
-describe("online voting started on a Post that doesn't enable it (deadline.rs online_started)", () => {
-    it("still makes never-started early voting finished, as an event-wide Start sets it", () => {
+describe("online voting started on a Post that doesn't enable it", () => {
+    it("no longer finishes never-started early voting", () => {
         expect(
             sealProgress([
-                channel(Online, EVotingStatus.OPEN, {enabled: false}),
-                channel(EarlyVoting, EVotingStatus.NOT_STARTED),
-                channel(Kiosk, EVotingStatus.CLOSED),
-            ])
-        ).toEqual({finished: true, holding: [], neverOpened: [EarlyVoting]})
-    })
-    it("counts an online channel that once opened even if it isn't enabled", () => {
-        expect(
-            sealProgress([
-                channel(Online, EVotingStatus.NOT_STARTED, {
+                channel(Online, EVotingStatus.CLOSED, {
                     enabled: false,
                     firstStartedAt: "2028-01-01T00:00:00Z",
                 }),
                 channel(EarlyVoting, EVotingStatus.NOT_STARTED),
                 channel(Kiosk, EVotingStatus.CLOSED),
-            ]).finished
-        ).toBe(true)
+            ])
+        ).toEqual({finished: false, holding: [EarlyVoting], notEnabled: []})
     })
-    it("holds the seal while online voting has never started anywhere", () => {
+    it("holds the seal while it is open", () => {
         expect(
             sealProgress([
-                channel(Online, EVotingStatus.NOT_STARTED, {enabled: false}),
-                channel(EarlyVoting, EVotingStatus.NOT_STARTED),
+                channel(Online, EVotingStatus.OPEN, {enabled: false}),
                 channel(Kiosk, EVotingStatus.CLOSED),
             ])
-        ).toEqual({finished: false, holding: [EarlyVoting], neverOpened: []})
+        ).toEqual({finished: false, holding: [], notEnabled: [Online]})
     })
 })
 
@@ -159,7 +167,7 @@ describe("electionSealChannels", () => {
         })
         expect(channels.find(({channel: name}) => name === Kiosk)?.enabled).toBe(true)
         expect(channels.find(({channel: name}) => name === EarlyVoting)?.enabled).toBe(false)
-        expect(sealProgress(channels)).toEqual({finished: false, holding: [Kiosk], neverOpened: []})
+        expect(sealProgress(channels)).toEqual({finished: false, holding: [Kiosk], notEnabled: []})
     })
 })
 
@@ -190,22 +198,23 @@ describe("an event-wide Start, per channel (election_event_status.rs)", () => {
     })
 })
 
-describe("onlineRan and neverOpened (deadline.rs online_ran)", () => {
-    it("needs ONLINE enabled and started for the grace period", () => {
+describe("onlineRan and neverOpened (deadline.rs)", () => {
+    it("needs ONLINE started for the grace period, enabled or not", () => {
         expect(
             onlineRan([
                 channel(Online, EVotingStatus.OPEN, {firstStartedAt: "2028-01-01T00:00:00Z"}),
             ])
         ).toBe(true)
         expect(onlineRan([channel(Online, EVotingStatus.CLOSED)])).toBe(false)
+        // Online ballots were cast under it before the Post stopped enabling it.
         expect(
             onlineRan([
-                channel(Online, EVotingStatus.OPEN, {
+                channel(Online, EVotingStatus.CLOSED, {
                     enabled: false,
                     firstStartedAt: "2028-01-01T00:00:00Z",
                 }),
             ])
-        ).toBe(false)
+        ).toBe(true)
     })
     it("knows a Post where no enabled channel ever opened", () => {
         expect(

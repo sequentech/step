@@ -14,47 +14,37 @@ export interface ISealChannel {
 }
 
 export interface ISealProgress {
-    /** Every enabled channel is finished and one is CLOSED: the ballot boxes are due to be sealed. */
+    /** Every channel that counts is CLOSED, and one counts: the ballot boxes are due to be sealed. */
     finished: boolean
-    /** Enabled channels that hold the seal: not closed, and able to open. */
+    /** Enabled channels that hold the seal: not CLOSED. */
     holding: VotingStatusChannel[]
-    /** Enabled channels that never opened and no longer can (they don't hold the seal). */
-    neverOpened: VotingStatusChannel[]
+    /**
+     * Channels the election doesn't enable that hold the seal: open, paused or
+     * ever started, and not CLOSED. They are stopped after enabling them again.
+     */
+    notEnabled: VotingStatusChannel[]
 }
 
-const started = ({status, firstStartedAt}: ISealChannel) =>
-    status !== EVotingStatus.NOT_STARTED || !!firstStartedAt
-
 /**
- * Whether a channel that never started can no longer open under the
- * platform's rules. Today only early voting, once online voting has started
- * (`EarlyVotingAfterOnline`). As in `deadline.rs`'s `online_started`, only
- * the online status counts, enabled or not: an event-wide Start sets it on
- * every election.
+ * Whether a channel counts for the seal (`deadline.rs`'s `counts`): enabled,
+ * open or paused, or ever started.
  */
-const cannotOpen = (channel: ISealChannel, channels: ISealChannel[]) =>
-    channel.channel === ("EARLY_VOTING" as VotingStatusChannel) &&
-    channels.some((other) => other.channel === ("ONLINE" as VotingStatusChannel) && started(other))
+const counts = ({enabled, status, firstStartedAt}: ISealChannel) =>
+    enabled || status === EVotingStatus.OPEN || status === EVotingStatus.PAUSED || !!firstStartedAt
 
 /**
- * Where voting at an election stands for its seal (VOTE-FREEZE, D1).
- * Mirrors windmill's `seal_deadline`: an enabled channel is finished when it
- * is CLOSED, or when it never started and can no longer open. Sealing is due
- * when every enabled channel is finished and at least one is CLOSED.
+ * Where voting at an election stands for its seal (VOTE-FREEZE). Mirrors
+ * windmill's `seal_deadline`: every channel that counts must be CLOSED, and
+ * one must count. Nothing is guessed: an enabled channel that never started
+ * (early voting included) holds the seal until it is closed.
  */
 export const sealProgress = (channels: ISealChannel[]): ISealProgress => {
-    const enabled = channels.filter((channel) => channel.enabled)
-    const neverOpened = enabled.filter(
-        (channel) => !started(channel) && cannotOpen(channel, channels)
-    )
-    const holding = enabled.filter(
-        (channel) => channel.status !== EVotingStatus.CLOSED && !neverOpened.includes(channel)
-    )
+    const counted = channels.filter(counts)
+    const held = counted.filter((channel) => channel.status !== EVotingStatus.CLOSED)
     return {
-        finished:
-            !holding.length && enabled.some((channel) => channel.status === EVotingStatus.CLOSED),
-        holding: holding.map(({channel}) => channel),
-        neverOpened: neverOpened.map(({channel}) => channel),
+        finished: !held.length && counted.length > 0,
+        holding: held.filter(({enabled}) => enabled).map(({channel}) => channel),
+        notEnabled: held.filter(({enabled}) => !enabled).map(({channel}) => channel),
     }
 }
 
@@ -63,26 +53,27 @@ export interface IStopSealOutcome {
     seals: boolean
     /** Enabled channels that still hold the seal after this Stop. */
     holding: VotingStatusChannel[]
-    /** Enabled channels that never opened and can't any more: they don't hold the seal. */
-    neverOpened: VotingStatusChannel[]
+    /** Channels the election doesn't enable that still hold the seal after this Stop. */
+    notEnabled: VotingStatusChannel[]
 }
 
-/** What stopping `stopping` (every channel when absent) does to the seal of an election. */
+/**
+ * What stopping `stopping` does to the seal of an election. The server
+ * closes the named channels whether or not the Post enables them (an
+ * event-wide Stop closes them on every Post); without names, a Post's Stop
+ * closes its enabled channels.
+ */
 export const stopSealOutcome = (
     channels: ISealChannel[],
     stopping?: VotingStatusChannel[]
 ): IStopSealOutcome => {
     const after = channels.map((channel) =>
-        channel.enabled && (!stopping || stopping.includes(channel.channel))
+        (stopping ? stopping.includes(channel.channel) : channel.enabled)
             ? {...channel, status: EVotingStatus.CLOSED}
             : channel
     )
-    const progress = sealProgress(after)
-    return {
-        seals: progress.finished,
-        holding: progress.holding,
-        neverOpened: progress.finished ? progress.neverOpened : [],
-    }
+    const {finished, holding, notEnabled} = sealProgress(after)
+    return {seals: finished, holding, notEnabled}
 }
 
 /** The status and period-dates keys of each channel in an election's status. */
@@ -135,14 +126,13 @@ export const electionSealChannels = (election: {
 
 /**
  * Whether online voting ran at the election, which is when its grace period
- * applies (`deadline.rs`: ONLINE enabled, with a `first_started_at`).
+ * applies (`deadline.rs`: ONLINE with a `first_started_at`, enabled or not,
+ * since online ballots were cast under it).
  */
 export const onlineRan = (channels: ISealChannel[]): boolean =>
     channels.some(
         (channel) =>
-            channel.channel === ("ONLINE" as VotingStatusChannel) &&
-            channel.enabled &&
-            !!channel.firstStartedAt
+            channel.channel === ("ONLINE" as VotingStatusChannel) && !!channel.firstStartedAt
     )
 
 /** Whether no enabled channel of the election has ever opened. */

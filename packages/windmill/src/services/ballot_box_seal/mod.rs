@@ -7,7 +7,8 @@
 //! ballot box ([`on_close`], in the close transaction). Once the grace
 //! period ends, [`seal::seal_box`] locks, hashes and signs each box, and
 //! [`publish::publish_box`] posts the signed entry to the event's electoral
-//! log and uploads the public seal record. The `cast_vote` guard refuses
+//! log and uploads the seal record: a private event document, or a public
+//! one, by the event's Seal Record Publication policy. The `cast_vote` guard refuses
 //! every write to a box whose seal isn't pending.
 
 pub mod deadline;
@@ -21,7 +22,9 @@ use crate::postgres::ballot_box_seal::{
 };
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::election::get_election_by_id;
-use crate::services::documents::upload_and_return_public_event_document;
+use crate::services::documents::{
+    upload_and_return_document, upload_and_return_public_event_document,
+};
 use crate::services::election_event_status::get_election_status;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::{
@@ -33,8 +36,8 @@ use b4::messages::message::Signer;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::ballot::{
-    BallotBoxSealPolicy, BallotStyle as SequentBallotStyle, DelegatedVotingPolicy,
-    ElectionEventPresentation, WeightedVotingPolicy,
+    BallotBoxSealPolicy, BallotBoxSealRecordPolicy, BallotStyle as SequentBallotStyle,
+    DelegatedVotingPolicy, ElectionEventPresentation, WeightedVotingPolicy,
 };
 use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
@@ -136,7 +139,7 @@ pub enum SealErrorCategory {
     Census,
     /// Reading the event's signing key.
     Keystore,
-    /// Uploading the public record.
+    /// Uploading the seal record.
     Storage,
     /// The event's or election's configuration doesn't parse.
     Settings,
@@ -271,7 +274,7 @@ pub type Census = HashMap<String, u64>;
 
 /// What sealing and publishing need besides the Hasura database and the
 /// event's electoral log: the key that signs the log, the census, and the
-/// public bucket. Production uses [`ProductionSealEnvironment`].
+/// document storage. Production uses [`ProductionSealEnvironment`].
 #[async_trait]
 pub trait SealEnvironment: Send + Sync {
     /// The event's protocol manager key, which signs its electoral log as
@@ -292,8 +295,11 @@ pub trait SealEnvironment: Send + Sync {
         election_alias: &str,
     ) -> Result<Census>;
 
-    /// Uploads the public record `name` of the event with the fixed
-    /// `document_id`, in `hasura_transaction`; returns the document id.
+    /// Uploads the seal record `name` of the event with the fixed
+    /// `document_id`, in `hasura_transaction`: to the public bucket when
+    /// `policy` is Public, else as a private event document. Returns the
+    /// document id.
+    #[allow(clippy::too_many_arguments)]
     async fn upload_record(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -302,15 +308,16 @@ pub trait SealEnvironment: Send + Sync {
         name: &str,
         json: &[u8],
         document_id: Uuid,
+        policy: BallotBoxSealRecordPolicy,
     ) -> Result<Uuid>;
 }
 
-/// The vault's protocol manager key, the Keycloak census and the public
-/// bucket.
+/// The vault's protocol manager key, the Keycloak census and the document
+/// buckets.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ProductionSealEnvironment;
 
-/// The media type of a public seal record.
+/// The media type of a seal record.
 const RECORD_MEDIA_TYPE: &str = "application/json";
 
 #[async_trait]
@@ -373,6 +380,7 @@ impl SealEnvironment for ProductionSealEnvironment {
         name: &str,
         json: &[u8],
         document_id: Uuid,
+        policy: BallotBoxSealRecordPolicy,
     ) -> Result<Uuid> {
         use std::io::Write;
         let mut file = NamedTempFile::new().context("Error creating the seal record file")?;
@@ -382,20 +390,41 @@ impl SealEnvironment for ProductionSealEnvironment {
             .path()
             .to_str()
             .ok_or_else(|| anyhow!("The seal record file path is not UTF-8"))?;
-        let document = with_timeout(
-            "Uploading the seal record",
-            upload_and_return_public_event_document(
-                hasura_transaction,
-                file_path,
-                json.len() as u64,
-                RECORD_MEDIA_TYPE,
-                tenant_id,
-                election_event_id,
-                name,
-                Some(document_id.to_string()),
-            ),
-        )
-        .await?;
+        let document = match policy {
+            BallotBoxSealRecordPolicy::PUBLIC => {
+                with_timeout(
+                    "Uploading the public seal record",
+                    upload_and_return_public_event_document(
+                        hasura_transaction,
+                        file_path,
+                        json.len() as u64,
+                        RECORD_MEDIA_TYPE,
+                        tenant_id,
+                        election_event_id,
+                        name,
+                        Some(document_id.to_string()),
+                    ),
+                )
+                .await?
+            }
+            BallotBoxSealRecordPolicy::RESTRICTED => {
+                with_timeout(
+                    "Uploading the restricted seal record",
+                    upload_and_return_document(
+                        hasura_transaction,
+                        file_path,
+                        json.len() as u64,
+                        RECORD_MEDIA_TYPE,
+                        tenant_id,
+                        Some(election_event_id.to_string()),
+                        name,
+                        Some(document_id.to_string()),
+                        false,
+                    ),
+                )
+                .await?
+            }
+        };
         Ok(Uuid::parse_str(&document.id)?)
     }
 }

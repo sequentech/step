@@ -165,8 +165,8 @@ the database. A superuser who changes those too can get past it:
 2. point the event's bulletin board reference at another board, and put that
    board's key in the event's place in the secret table;
 3. the sealer then signs and posts a new seal for the changed box on the other
-   board, and overwrites the public record. The tally reads that board and
-   key, finds one valid seal, and counts the changed box.
+   board, and overwrites the seal record (public or restricted). The tally
+   reads that board and key, finds one valid seal, and counts the changed box.
 
 The trigger on the bulletin board reference makes this one more trigger to
 bypass, not impossible. What still catches it:
@@ -182,7 +182,7 @@ Other evidence:
 
 - **The audit trail.** PostgreSQL's audit log records writes (`pgaudit.log =
   'WRITE'`).
-- **The public record no longer matches** the copies observers kept.
+- **The seal record no longer matches** the copies observers kept.
 
 Detection is not prevention. Keeping the services on a least-privilege role,
 and the superuser and owner logins apart and alerted, is what prevents it.

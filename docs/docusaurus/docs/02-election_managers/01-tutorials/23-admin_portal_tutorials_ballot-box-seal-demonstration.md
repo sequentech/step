@@ -9,14 +9,14 @@ title: Demonstrate the ballot box seal
 This tutorial walks through a demonstration of the
 [ballot box seal](../02-reference/02-election-event/20-ballot-box-seal.md) from
 start to finish: close an election, show its signed seal and a refused write,
-verify the public seal record without the system, then tally. It takes about
+verify the seal record without the system, then tally. It takes about
 half an hour, plus the grace period of any election that has one.
 
 | Step | What it shows |
 | --- | --- |
 | [3. Close and seal](#3-close-and-seal) | At the close, a signed, time-stamped SHA-512 hash of every ballot of each ballot box goes to the public bulletin board. |
 | [4. Refused writes](#4-refused-writes) | After the close, no ballot can be added, changed or deleted, and voting cannot start again. |
-| [5. Verify offline](#5-verify-the-public-record-offline) | Anyone can check a ballot box against its public record without the system, and detect tampering. |
+| [5. Verify offline](#5-verify-the-record-offline) | Anyone who has the seal record can check a ballot box against it without the system, and detect tampering. |
 | [6. Tally](#6-tally) | The tally counts only sealed ballot boxes and checks each one against its signed seal first. |
 
 ## Before you start
@@ -34,10 +34,15 @@ You need:
 ## 1. Prepare the event
 
 1. Create an election event. In **Data > Advanced Configurations**, set
-   **Ballot Box Seal Policy** to **Seal at close**. Do it now: it cannot be
-   changed after voting has opened.
-2. Create one election with two areas, with only the Online channel enabled
-   (any other enabled channel must be stopped too before the boxes are sealed).
+   **Ballot Box Seal Policy** to **Seal at close**. Leave **Ballot Box Seal
+   Record** on **Restricted** (the default) to show the records being shared
+   with observers, or set it to **Public** to show anyone downloading them
+   without signing in. Do it now: neither can be changed after voting has
+   opened.
+2. Create one election with two areas, with only the Online channel enabled.
+   Every enabled channel must be stopped before the boxes are sealed, even
+   one that never opened (Early Voting included), and so must any channel
+   that opened and was then unchecked.
    Leave one area without voters, to show that an empty ballot box is sealed
    too.
 3. Add voters, run the key ceremony and publish.
@@ -65,8 +70,11 @@ You need:
    *election*, *area* sealed: 3 of 4 ballots counted." It is signed by the
    event's system key and carries the seal hash and the counts. Note the seal
    hash of each entry: step 5 compares it with the record.
-4. On the card, open **Seal record** for each area and save the JSON files.
-   They are public: anyone can download them.
+4. On the card, select **Seal record** for each area and save the JSON files.
+   With **Restricted**, the button downloads each record through a short-lived
+   signed link, and you hand the files to the observers. With **Public**, it is
+   a link to the public file, which anyone with the event's IDs can download
+   without signing in.
 
 This demonstration uses Stop Voting without signatures, so the record's
 `close_request` is empty. When the close is signed by a quorum of signers, the
@@ -92,7 +100,7 @@ the guard; production needs a least-privilege role (see
 [Database role for the ballot box seal](../../05-reference/05-cryptography_security/02-security/03-ballot-box-seal-database-role.md),
 which also explains what a superuser could still do and how it is caught).
 
-## 5. Verify the public record offline
+## 5. Verify the record offline
 
 On a computer without access to the system, follow
 [Verify a ballot box seal](../../04-election_auditors/02-tutorials/06-auditor_verify-ballot-box-seal.md):

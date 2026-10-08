@@ -9,7 +9,6 @@ import {
     Alert,
     Box,
     Chip,
-    Link,
     Table,
     TableBody,
     TableCell,
@@ -17,7 +16,6 @@ import {
     TableRow,
     Typography,
 } from "@mui/material"
-import OpenInNewIcon from "@mui/icons-material/OpenInNew"
 import {EBallotBoxSealPolicy, EVotingStatus, VotingStatusChannel} from "@sequentech/ui-core"
 import {BallotHashCopyButton, theme} from "@sequentech/ui-essentials"
 import CardChart from "../charts/Charts"
@@ -32,6 +30,7 @@ import {
     GET_BALLOT_BOX_SEALS,
 } from "@/queries/GetBallotBoxSeals"
 import {sealText} from "@/services/ballotBoxSealErrors"
+import {SealRecordLink} from "./SealRecordLink"
 import {electionSealChannels, sealProgress} from "@/services/sealOnStop"
 
 import {
@@ -103,6 +102,8 @@ export const ballotBoxRowStatus = (
             const waiting = parseWaitingReason(seal.waiting_reason)?.reason
             const held =
                 waiting === EBallotBoxWaitingReason.CHANNEL_OPEN ||
+                waiting === EBallotBoxWaitingReason.CHANNEL_NOT_ENABLED ||
+                waiting === EBallotBoxWaitingReason.CHANNEL_HAS_BALLOTS ||
                 waiting === EBallotBoxWaitingReason.DATAFIX_VOTES ||
                 waiting === EBallotBoxWaitingReason.ERROR
             return held || isStale(seal, now)
@@ -280,15 +281,31 @@ const BallotBoxesTable: React.FC<{
     /** What the card says before any ballot box has a seal row, from the election's status. */
     const beforeClose = (): string => {
         if (!election) return t("dashboard.ballotBoxes.beforeClose")
-        const channels = electionSealChannels(election).filter(({enabled}) => enabled)
-        const progress = sealProgress(channels)
+        const all = electionSealChannels(election)
+        const channels = all.filter(({enabled}) => enabled)
+        const progress = sealProgress(all)
+        // A channel the Post doesn't enable that is open or ran holds the
+        // seal: say so, whatever the enabled channels' state.
+        const notEnabled = progress.notEnabled
+            .map((channel) =>
+                t("publish.dialog.sealNotEnabled", {
+                    channel: t(`publish.dialog.channel.${channel}`),
+                })
+            )
+            .join(" ")
         const closed = channels.some(({status}) => status === EVotingStatus.CLOSED)
         if (closed && progress.holding.length) {
-            return t("dashboard.ballotBoxes.holding", {
-                count: progress.holding.length,
-                channels: channelNames(progress.holding),
-            })
+            return [
+                t("dashboard.ballotBoxes.holding", {
+                    count: progress.holding.length,
+                    channels: channelNames(progress.holding),
+                }),
+                notEnabled,
+            ]
+                .filter(Boolean)
+                .join(" ")
         }
+        if (notEnabled) return notEnabled
         const open = channels.filter(({status}) => status === EVotingStatus.OPEN)
         if (open.length) {
             return t("dashboard.ballotBoxes.openOn", {
@@ -369,6 +386,22 @@ const BallotBoxesTable: React.FC<{
                         channel: t(`publish.dialog.channel.${waiting.detail}`),
                     })
                 }
+                if (
+                    waiting?.reason === EBallotBoxWaitingReason.CHANNEL_NOT_ENABLED &&
+                    waiting.detail
+                ) {
+                    return t("dashboard.ballotBoxes.why.channelNotEnabled", {
+                        channel: t(`publish.dialog.channel.${waiting.detail}`),
+                    })
+                }
+                if (
+                    waiting?.reason === EBallotBoxWaitingReason.CHANNEL_HAS_BALLOTS &&
+                    waiting.detail
+                ) {
+                    return t("dashboard.ballotBoxes.why.channelHasBallots", {
+                        channel: t(`publish.dialog.channel.${waiting.detail}`),
+                    })
+                }
                 if (waiting?.reason === EBallotBoxWaitingReason.DATAFIX_VOTES) {
                     return t("dashboard.ballotBoxes.why.datafixVotes", {
                         count: Number(waiting.detail) || 0,
@@ -397,8 +430,6 @@ const BallotBoxesTable: React.FC<{
     }
     const number = (value?: number | null) =>
         value === null || value === undefined ? "—" : value.toLocaleString(i18n.language)
-    const recordUrl = (path: string) =>
-        `${globalSettings.PUBLIC_BUCKET_URL}${path.replace(/^\/+/, "")}`
 
     return (
         <Box sx={{maxWidth: 1024, marginX: "auto", marginTop: 2}}>
@@ -535,28 +566,12 @@ const BallotBoxesTable: React.FC<{
                                                     </TableCell>
                                                     <TableCell sx={{whiteSpace: "nowrap"}}>
                                                         {status === EBallotBoxRowStatus.SEALED &&
-                                                        seal?.public_path ? (
-                                                            <Link
-                                                                href={recordUrl(seal.public_path)}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                aria-label={t(
-                                                                    "dashboard.ballotBoxes.openRecord",
-                                                                    {
-                                                                        area: areaName,
-                                                                    }
-                                                                )}
-                                                                sx={{
-                                                                    display: "inline-flex",
-                                                                    alignItems: "center",
-                                                                    gap: 0.5,
-                                                                }}
-                                                            >
-                                                                {t(
-                                                                    "dashboard.ballotBoxes.column.record"
-                                                                )}
-                                                                <OpenInNewIcon fontSize="inherit" />
-                                                            </Link>
+                                                        seal ? (
+                                                            <SealRecordLink
+                                                                electionEventId={electionEventId}
+                                                                seal={seal}
+                                                                areaName={areaName}
+                                                            />
                                                         ) : status ===
                                                           EBallotBoxRowStatus.PUBLISHING ? (
                                                             t("dashboard.ballotBoxes.notYet")

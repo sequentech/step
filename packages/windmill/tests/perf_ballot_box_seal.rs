@@ -96,6 +96,7 @@ impl SealEnvironment for PerfEnvironment {
         name: &str,
         json: &[u8],
         document_id: Uuid,
+        _: sequent_core::ballot::BallotBoxSealRecordPolicy,
     ) -> Result<Uuid> {
         self.uploads
             .lock()

@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The public seal record of a ballot box (VOTE-FREEZE), built from the
-//! seal row's stored manifest and signed message. It holds no voter id, no
-//! pseudonym, no time of an individual ballot and no network data.
+//! The seal record of a ballot box (VOTE-FREEZE), built from the seal row's
+//! stored manifest and signed message. The event's Seal Record Publication
+//! policy decides whether it is published as a private or a public
+//! document; the record is the same. It holds no voter id, no pseudonym, no
+//! time of an individual ballot and no network data.
 
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::ballot_box_seal::{BallotBoxSeal, ClosedBy};
@@ -44,7 +46,7 @@ pub async fn area_name(
         .unwrap_or_else(|| area_id.to_string()))
 }
 
-/// The public record of a sealed ballot box whose `BallotBoxSealed` entry
+/// The seal record of a sealed ballot box whose `BallotBoxSealed` entry
 /// has id `log_entry_id` in the event's log, signed by `system_pk`.
 pub async fn build_record(
     hasura_transaction: &Transaction<'_>,

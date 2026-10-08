@@ -27,13 +27,14 @@ use electoral_log::client::board_client::{
 };
 use electoral_log::messages::statement::StatementType;
 use electoral_log::seal::{verify_record, SealDisposition, SealRecord};
-use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::ballot::{BallotBoxSealRecordPolicy, ContestEncryptionPolicy};
 use sequent_core::ballot::{
     EGracePeriodPolicy, ElectionEventStatus, ElectionPresentation, ElectionStatus,
     SignedHashableBallot, VotingPeriodEnd, VotingStatus, VotingStatusChannel, TYPES_VERSION,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
@@ -42,7 +43,9 @@ use windmill::postgres::ballot_box_seal::{
 };
 use windmill::postgres::election_event::{delete_election_event, SEALED_EVENT_DELETE_REFUSAL};
 use windmill::postgres::trusted_write;
-use windmill::services::ballot_box_seal::publish::{publish_box, sealed_entries, PublishOutcome};
+use windmill::services::ballot_box_seal::publish::{
+    publish_box, record_document_id, sealed_entries, PublishOutcome,
+};
 use windmill::services::ballot_box_seal::seal::{
     computed_ballot_id, post_failure, seal_box, SealOutcome,
 };
@@ -71,6 +74,10 @@ const BOARD_ATTEMPTS: u32 = 10;
 struct TestEnvironment {
     census: Census,
     uploads: Mutex<Vec<(String, Vec<u8>)>>,
+    /// The record policy of each upload, in order.
+    upload_policies: Mutex<Vec<BallotBoxSealRecordPolicy>>,
+    /// How many uploads fail before one succeeds.
+    failing_uploads: AtomicUsize,
 }
 
 impl TestEnvironment {
@@ -81,6 +88,8 @@ impl TestEnvironment {
                 .map(|(voter, weight)| (voter.to_string(), *weight))
                 .collect(),
             uploads: Mutex::new(vec![]),
+            upload_policies: Mutex::new(vec![]),
+            failing_uploads: AtomicUsize::new(0),
         }
     }
 }
@@ -116,11 +125,22 @@ impl SealEnvironment for TestEnvironment {
         name: &str,
         json: &[u8],
         document_id: Uuid,
+        policy: BallotBoxSealRecordPolicy,
     ) -> Result<Uuid> {
+        if self
+            .failing_uploads
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |left| {
+                left.checked_sub(1)
+            })
+            .is_ok()
+        {
+            anyhow::bail!("The bucket is down");
+        }
         self.uploads
             .lock()
             .unwrap()
             .push((name.to_string(), json.to_vec()));
+        self.upload_policies.lock().unwrap().push(policy);
         Ok(document_id)
     }
 }
@@ -184,6 +204,8 @@ struct Options {
     /// Whether the elections enable ONLINE.
     online_enabled: bool,
     grace_secs: Option<u64>,
+    /// The event's Seal Record Publication policy; None leaves it unset.
+    record_policy: Option<&'static str>,
 }
 
 impl Default for Options {
@@ -196,6 +218,7 @@ impl Default for Options {
             online_open: true,
             online_enabled: true,
             grace_secs: None,
+            record_policy: None,
         }
     }
 }
@@ -275,7 +298,13 @@ async fn world(options: Options) -> World {
             &event,
             &tenant,
             &serde_json::to_value(&event_status).unwrap(),
-            &json!({ "ballot_box_seal_policy": options.policy }),
+            &match options.record_policy {
+                Some(record_policy) => json!({
+                    "ballot_box_seal_policy": options.policy,
+                    "ballot_box_seal_record_policy": record_policy,
+                }),
+                None => json!({ "ballot_box_seal_policy": options.policy }),
+            },
             &json!({"id": 1, "database_name": board, "is_archived": false}),
             &json!({"online": true, "kiosk": options.kiosk, "early_voting": options.early_voting}),
         ],
@@ -1037,7 +1066,11 @@ async fn log_entries(w: &World, kind: StatementType, election: Uuid, area: Uuid)
 
 #[tokio::test]
 async fn a_box_is_sealed_and_published_once() {
-    let w = world(Options::default()).await;
+    let w = world(Options {
+        record_policy: Some("public"),
+        ..Default::default()
+    })
+    .await;
     let (election, area) = (w.election(), w.areas[0]);
     let replaced = cast(&w, election, area, "voter-alice", "valid", "a1", 3).await;
     let counted = cast(&w, election, area, "voter-alice", "valid", "a2", 2).await;
@@ -1096,6 +1129,15 @@ async fn a_box_is_sealed_and_published_once() {
         .await
         .unwrap();
     assert_eq!(Some(entries[0].id), published.log_entry_id);
+
+    assert_eq!(
+        published.public_document_id,
+        Some(record_document_id(&seal.id))
+    );
+    assert_eq!(
+        *environment.upload_policies.lock().unwrap(),
+        vec![BallotBoxSealRecordPolicy::PUBLIC]
+    );
 
     // The public record: verifies, holds only the allowed fields, and no
     // voter id.
@@ -1181,6 +1223,73 @@ async fn a_box_is_sealed_and_published_once() {
     w.finish().await;
 }
 
+/// With the Seal Record Publication policy unset (restricted), the record is
+/// a private event document: the seal keeps its fixed document id and has no
+/// public path. A failed upload leaves the seal sealed; the retry publishes
+/// it once, with the same document id.
+#[tokio::test]
+async fn a_restricted_record_is_a_private_document() {
+    let w = world(Options::default()).await;
+    let (election, area) = (w.election(), w.areas[0]);
+    cast(&w, election, area, "voter-alice", "valid", "a1", 2).await;
+    close_election(&w, election, Some(&w.user)).await;
+    let environment = TestEnvironment::new(&[("voter-alice", 1)]);
+    environment.failing_uploads.store(1, Ordering::SeqCst);
+    let seal = w.seals(election).await.remove(0);
+    let mut client = w.client().await;
+    assert_eq!(
+        seal_box(&mut client, &environment, &seal.id).await.unwrap(),
+        SealOutcome::Sealed
+    );
+
+    // The upload fails: nothing is published, and the log entry stays one.
+    assert!(publish_box(&mut client, &environment, &seal.id)
+        .await
+        .is_err());
+    let sealed = w.seals(election).await.remove(0);
+    assert_eq!(sealed.status, BallotBoxSealStatus::Sealed);
+    assert_eq!(sealed.public_document_id, None);
+
+    // The retry publishes it, privately.
+    assert_eq!(
+        publish_box(&mut client, &environment, &seal.id)
+            .await
+            .unwrap(),
+        PublishOutcome::Published
+    );
+    assert_eq!(
+        publish_box(&mut client, &environment, &seal.id)
+            .await
+            .unwrap(),
+        PublishOutcome::NotSealed(BallotBoxSealStatus::Published)
+    );
+    let published = w.seals(election).await.remove(0);
+    assert_eq!(published.status, BallotBoxSealStatus::Published);
+    assert_eq!(published.public_path, None);
+    assert_eq!(
+        published.public_document_id,
+        Some(record_document_id(&seal.id))
+    );
+    assert!(published.log_entry_id.is_some());
+    assert_eq!(
+        *environment.upload_policies.lock().unwrap(),
+        vec![BallotBoxSealRecordPolicy::RESTRICTED]
+    );
+    let uploads = environment.uploads.lock().unwrap().clone();
+    assert_eq!(uploads.len(), 1);
+    assert_eq!(
+        uploads[0].0,
+        format!("ballot-box-seals/{election}/{area}.json")
+    );
+    let record: SealRecord = serde_json::from_slice(&uploads[0].1).unwrap();
+    verify_record(&record, None).unwrap();
+    assert_eq!(
+        log_entries(&w, StatementType::BallotBoxSealed, election, area).await,
+        1
+    );
+    w.finish().await;
+}
+
 #[tokio::test]
 async fn a_ballot_id_mismatch_fails_the_seal_and_logs_it_once() {
     let w = world(Options::default()).await;
@@ -1227,6 +1336,190 @@ async fn a_ballot_id_mismatch_fails_the_seal_and_logs_it_once() {
         log_entries(&w, StatementType::BallotBoxSealed, election, area).await,
         0
     );
+    w.finish().await;
+}
+
+/// Stores a valid ballot of `voter` in the box, cast on `channel`.
+async fn cast_on(w: &World, election: Uuid, area: Uuid, voter: &str, channel: &str) {
+    let (content, ballot_id) = ballot(voter);
+    w.client()
+        .await
+        .execute(
+            "INSERT INTO sequent_backend.cast_vote
+                 (tenant_id, election_event_id, election_id, area_id, voter_id_string,
+                  status, content, ballot_id, created_at, annotations)
+             VALUES ($1, $2, $3, $4, $5, 'valid', $6, $7, now(), $8)",
+            &[
+                &w.tenant,
+                &w.event,
+                &election,
+                &area,
+                &voter,
+                &content,
+                &ballot_id,
+                &json!({ "voting_channel": channel }),
+            ],
+        )
+        .await
+        .unwrap();
+}
+
+/// W6 B2: the ballots are evidence. A ballot of a channel that isn't
+/// closed (here KIOSK, which the Post doesn't enable and whose status never
+/// moved) leaves the seal pending and names the channel; once that channel
+/// is closed, the box is sealed.
+#[tokio::test]
+async fn a_ballot_of_a_channel_that_is_not_closed_holds_the_seal() {
+    let w = world(Options::default()).await;
+    let (election, area) = (w.election(), w.areas[0]);
+    cast_on(&w, election, area, "voter-online", "ONLINE").await;
+    cast_on(&w, election, area, "voter-kiosk", "KIOSK").await;
+    close_election(&w, election, Some(&w.user)).await;
+    let environment = TestEnvironment::new(&[("voter-online", 1), ("voter-kiosk", 1)]);
+    let seal = seal_row(&w, election).await;
+    let mut client = w.client().await;
+    assert_eq!(
+        seal_box(&mut client, &environment, &seal.id).await.unwrap(),
+        SealOutcome::WaitingForChannel("KIOSK".to_string())
+    );
+    let row = seal_row(&w, election).await;
+    assert_eq!(row.status, BallotBoxSealStatus::Pending);
+    assert_eq!(
+        row.waiting_reason.as_deref(),
+        Some("channel_has_ballots:KIOSK")
+    );
+    assert!(row.last_attempt_at.is_some());
+    // KIOSK closes: the box is sealed.
+    let mut status = w.status(election).await;
+    status.set_status_by_channel(VotingStatusChannel::KIOSK, VotingStatus::CLOSED);
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1",
+        &[&election, &serde_json::to_value(&status).unwrap()],
+    )
+    .await;
+    assert_eq!(
+        seal_box(&mut client, &environment, &seal.id).await.unwrap(),
+        SealOutcome::Sealed
+    );
+    w.finish().await;
+}
+
+/// W6 B: a channel that took ballots and was then unchecked in the Post's
+/// enabled channels while open holds the seal; the close of the enabled
+/// channels makes no seal. Enabling it again and stopping it (the Stop
+/// Voting route's path) makes the seals, with its close as the close time.
+#[tokio::test]
+async fn a_channel_open_but_not_enabled_holds_the_seal_until_enabled_and_stopped() {
+    let w = world(Options {
+        kiosk: true,
+        ..Default::default()
+    })
+    .await;
+    let election = w.election();
+    change_election(&w, election, VotingStatus::OPEN, VotingStatusChannel::KIOSK)
+        .await
+        .unwrap();
+    cast_on(&w, election, w.areas[0], "voter-kiosk", "KIOSK").await;
+    // The Post stops enabling KIOSK while it is open.
+    let unchecked = json!({"online": true, "kiosk": false, "early_voting": false});
+    bypass(
+        &w,
+        "UPDATE sequent_backend.election SET voting_channels = $2 WHERE id = $1",
+        &[&election, &unchecked],
+    )
+    .await;
+    close_election(&w, election, Some(&w.user)).await;
+    assert!(w.seals(election).await.is_empty(), "KIOSK holds the seal");
+    // Enabled again (an ordinary write, as the election's settings save it)
+    // and stopped.
+    let enabled = json!({"online": true, "kiosk": true, "early_voting": false});
+    w.client()
+        .await
+        .execute(
+            "UPDATE sequent_backend.election SET voting_channels = $2 WHERE id = $1",
+            &[&election, &enabled],
+        )
+        .await
+        .unwrap();
+    change_election(
+        &w,
+        election,
+        VotingStatus::CLOSED,
+        VotingStatusChannel::KIOSK,
+    )
+    .await
+    .unwrap();
+    let seals = w.seals(election).await;
+    assert_eq!(seals.len(), 1);
+    let kiosk_closed = w
+        .status(election)
+        .await
+        .dates_by_channel(VotingStatusChannel::KIOSK)
+        .last_stopped_at
+        .unwrap();
+    // The column keeps microseconds.
+    assert_eq!(
+        seals[0].closed_at.timestamp_micros(),
+        kiosk_closed.timestamp_micros()
+    );
+    let environment = TestEnvironment::new(&[("voter-kiosk", 1)]);
+    let mut client = w.client().await;
+    assert_eq!(
+        seal_box(&mut client, &environment, &seals[0].id)
+            .await
+            .unwrap(),
+        SealOutcome::Sealed
+    );
+    w.finish().await;
+}
+
+/// W6 B: with Seal at close, early voting that never opened still closes
+/// directly once ONLINE has started, so it stops holding the seal.
+#[tokio::test]
+async fn never_started_early_voting_closes_directly_after_online_started() {
+    let w = world(Options {
+        early_voting: true,
+        ..Default::default()
+    })
+    .await;
+    let election = w.election();
+    cast_on(&w, election, w.areas[0], "voter-online", "ONLINE").await;
+    close_election(&w, election, Some(&w.user)).await;
+    assert!(
+        w.seals(election).await.is_empty(),
+        "EARLY_VOTING holds the seal"
+    );
+    change_election(
+        &w,
+        election,
+        VotingStatus::CLOSED,
+        VotingStatusChannel::EARLY_VOTING,
+    )
+    .await
+    .unwrap();
+    assert_eq!(w.seals(election).await.len(), 1);
+    w.finish().await;
+}
+
+/// W6 B2: a ballot whose channel is none of the four is an incident: the
+/// seal fails, as a Ballot ID mismatch does.
+#[tokio::test]
+async fn a_ballot_of_an_unknown_channel_fails_the_seal() {
+    let w = world(Options::default()).await;
+    let (election, area) = (w.election(), w.areas[0]);
+    cast_on(&w, election, area, "voter-paper", "PAPER").await;
+    close_election(&w, election, Some(&w.user)).await;
+    let environment = TestEnvironment::new(&[("voter-paper", 1)]);
+    let seal = seal_row(&w, election).await;
+    let mut client = w.client().await;
+    let outcome = seal_box(&mut client, &environment, &seal.id).await.unwrap();
+    assert_eq!(
+        outcome,
+        SealOutcome::Failed("a ballot has the unknown voting channel \"PAPER\"".to_string())
+    );
+    let failed = seal_row(&w, election).await;
+    assert_eq!(failed.status, BallotBoxSealStatus::Failed);
     w.finish().await;
 }
 

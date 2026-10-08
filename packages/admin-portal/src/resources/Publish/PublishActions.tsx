@@ -367,8 +367,8 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         return Math.ceil(secs / 60)
     }
 
-    /** Sentences said before a Stop's seal text: channels it closes before they ever opened. */
-    const stopPrefix = (outcome: IStopSealOutcome, stopping?: VotingStatusChannel[]): string => {
+    /** The sentence said before a Stop's seal text: channels it closes before they ever opened. */
+    const stopPrefix = (stopping?: VotingStatusChannel[]): string => {
         const closingUnopened = sealChannels()
             .filter(
                 (channel) =>
@@ -378,22 +378,34 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                     (!stopping || stopping.includes(channel.channel))
             )
             .map(({channel}) => channel)
-        return [
-            closingUnopened.length
-                ? t("publish.dialog.stopNeverOpened", {
-                      count: closingUnopened.length,
-                      channels: channelNames(closingUnopened),
+        return closingUnopened.length
+            ? t("publish.dialog.stopNeverOpened", {
+                  count: closingUnopened.length,
+                  channels: channelNames(closingUnopened),
+              })
+            : ""
+    }
+
+    /**
+     * Why a Stop doesn't seal the ballot boxes yet: the enabled channels still
+     * open, and each channel the Post doesn't enable that is open or ran.
+     */
+    const sealHoldingText = (outcome: IStopSealOutcome): string =>
+        [
+            outcome.holding.length || !outcome.notEnabled.length
+                ? t("publish.dialog.sealHolding", {
+                      count: outcome.holding.length,
+                      channels: channelNames(outcome.holding),
                   })
                 : "",
-            outcome.neverOpened.length
-                ? t("publish.dialog.stopSealNeverOpened", {
-                      channels: channelNames(outcome.neverOpened),
-                  })
-                : "",
+            ...outcome.notEnabled.map((channel) =>
+                t("publish.dialog.sealNotEnabled", {
+                    channel: t(`publish.dialog.channel.${channel}`),
+                })
+            ),
         ]
             .filter(Boolean)
             .join(" ")
-    }
 
     /**
      * What Stop Voting says when the event seals its ballot boxes at close
@@ -407,15 +419,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             return stopSealEventText(stopping)
         }
         const outcome = stopSealOutcome(sealChannels(), stopping)
-        const prefix = stopPrefix(outcome, stopping)
+        const prefix = stopPrefix(stopping)
         const text = outcome.seals
             ? stopSealBaseText()
-            : t("publish.dialog.stopSealNotYet", {
-                  holding: t("publish.dialog.sealHolding", {
-                      count: outcome.holding.length,
-                      channels: channelNames(outcome.holding),
-                  }),
-              })
+            : t("publish.dialog.stopSealNotYet", {holding: sealHoldingText(outcome)})
         return [prefix, text].filter(Boolean).join(" ")
     }
 
@@ -452,7 +459,22 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
         // that never opened is closed for good and gets empty sealed boxes.
         const unopened = affected.filter(({outcome, unopened}) => outcome.seals && unopened)
         const sealing = affected.filter(({outcome, unopened}) => outcome.seals && !unopened)
-        const holding = affected.filter(({outcome}) => !outcome.seals)
+        // Posts kept by an enabled channel; those kept only by channels they
+        // don't enable are named with those channels.
+        const holding = affected.filter(
+            ({outcome}) =>
+                !outcome.seals && (outcome.holding.length > 0 || !outcome.notEnabled.length)
+        )
+        const notEnabled = affected.flatMap(({election, outcome}) =>
+            outcome.seals
+                ? []
+                : outcome.notEnabled.map((channel) =>
+                      t("publish.dialog.sealNotEnabledPost", {
+                          post: aliasRenderer(election),
+                          channel: t(`publish.dialog.channel.${channel}`),
+                      })
+                  )
+        )
         const grace = Math.max(0, ...sealing.map((item) => item.grace))
         const names = (items: typeof affected) =>
             listFormat(items.map(({election}) => aliasRenderer(election)))
@@ -462,7 +484,7 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
                   names: names(unopened),
               })} `
             : ""
-        if (!holding.length) {
+        if (!holding.length && !notEnabled.length) {
             return `${unopenedPart}${
                 grace > 0
                     ? t("publish.dialog.stopSealEventGrace", {count: grace})
@@ -474,12 +496,20 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
             : grace > 0
               ? t("publish.dialog.sealedGracePart", {names: names(sealing), count: grace})
               : t("publish.dialog.sealedNowPart", {names: names(sealing)})
+        const holdingPart = [
+            holding.length
+                ? t("publish.dialog.holdingEventPart", {
+                      count: holding.length,
+                      names: names(holding),
+                  })
+                : "",
+            ...notEnabled,
+        ]
+            .filter(Boolean)
+            .join(" ")
         return `${unopenedPart}${t("publish.dialog.stopSealEventSome", {
             sealed: sealedPart,
-            holding: t("publish.dialog.holdingEventPart", {
-                count: holding.length,
-                names: names(holding),
-            }),
+            holding: holdingPart,
         })}`
             .replace(/\s+/g, " ")
             .trim()

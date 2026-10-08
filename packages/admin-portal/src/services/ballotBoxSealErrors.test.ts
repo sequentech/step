@@ -64,6 +64,10 @@ describe("sealText and sealErrorText", () => {
         ],
         ["Election event e1 has no bulletin board", "dashboard.ballotBoxes.failure.noBoard"],
         [
+            'a ballot has the unknown voting channel "PAPER"',
+            "dashboard.ballotBoxes.failure.unknownChannel",
+        ],
+        [
             "Voting can't start again: with the Ballot Box Seal Policy set to Seal at close, …",
             "publish.sealRefusals.startAgain",
         ],
@@ -77,6 +81,10 @@ describe("sealText and sealErrorText", () => {
         ],
         [
             "The contest_encryption_policy of election event e1 can't change after voting has opened",
+            "electionEventScreen.field.ballotBoxSealPolicy.settingRefused",
+        ],
+        [
+            "The ballot_box_seal_record_policy of election event e1 can't change after voting has opened",
             "electionEventScreen.field.ballotBoxSealPolicy.settingRefused",
         ],
         [

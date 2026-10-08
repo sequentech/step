@@ -5,25 +5,28 @@
 //! Sealing one ballot box (VOTE-FREEZE), in two steps.
 //!
 //! 1. **Checks**, in a short transaction that doesn't wait for a row
-//!    another run holds: the seal is pending and due, every enabled
-//!    channel is finished, no Datafix vote of the box is in progress, the
+//!    another run holds: the seal is pending and due, no channel holds the
+//!    seal, no Datafix vote of the box is in progress, the
 //!    event has a bulletin board and no seal for the box is on it yet. Then
 //!    the signing key, and the census outside any lock.
 //! 2. **The seal**, in one READ COMMITTED transaction: take the box's lock
 //!    without waiting, recheck the seal, read every ballot of the box,
-//!    decide how each counts, check every Ballot ID, build and hash the
-//!    manifest, sign the `BallotBoxSealed` entry and store it on the row.
+//!    check that the channel of each is closed, decide how each counts,
+//!    check every Ballot ID, build and hash the manifest, sign the
+//!    `BallotBoxSealed` entry and store it on the row.
 //!
 //! Each attempt that leaves the seal pending records why on the row
-//! (`last_attempt_at`, `waiting_reason`). Only a ballot whose Ballot ID
-//! doesn't match its content (or that has no content or no Ballot ID), an
-//! event without a bulletin board, or a seal for the box already on the
-//! bulletin board fails the seal: the row becomes `failed` (the box stays
+//! (`last_attempt_at`, `waiting_reason`), e.g. a channel that holds the
+//! seal ([`super::deadline::holding_channel`]) or a ballot of a channel
+//! that isn't closed. Only a ballot whose Ballot ID doesn't match its
+//! content (or that has no content or no Ballot ID, or whose channel is
+//! none of the voting channels), an event without a bulletin board, or a
+//! seal for the box already on the bulletin board fails the seal: the row becomes `failed` (the box stays
 //! locked) and [`post_failure`] posts a `BallotBoxSealFailed` ERROR entry.
 //! A ballot that can't be read, or a configuration that doesn't parse, is
 //! an error the next attempt retries. Publishing is [`super::publish`]'s.
 
-use super::deadline::holding_channel;
+use super::deadline::{holding_channel, HoldingChannel};
 use super::publish::{deliver, event_board, genuine_entries, sealed_entries, sha256_hex};
 use super::record::{area_name, election_name};
 use super::{
@@ -47,7 +50,10 @@ use electoral_log::seal::{
     ballot_hash, build, BallotBoxSealManifest, SealDisposition, SealEntry, DEFAULT_SEAL_CHANNEL,
     SEAL_FORMAT_V1,
 };
-use sequent_core::ballot::{ContestEncryptionPolicy, HashableBallot, SignedHashableBallot};
+use sequent_core::ballot::{
+    ContestEncryptionPolicy, ElectionStatus, HashableBallot, SignedHashableBallot, VotingStatus,
+    VotingStatusChannel,
+};
 use sequent_core::encrypt::{hash_ballot, hash_multi_ballot};
 use sequent_core::multi_ballot::{HashableMultiBallot, SignedHashableMultiBallot};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
@@ -77,7 +83,8 @@ pub enum SealOutcome {
     NotPending(BallotBoxSealStatus),
     /// The grace period hasn't ended.
     NotDue,
-    /// An enabled channel of the election isn't finished.
+    /// A channel of the election holds the seal, or the box has ballots of
+    /// a channel that isn't closed.
     WaitingForChannel(String),
     /// Another run holds the box (or a cast is in flight); the next tick
     /// retries.
@@ -165,13 +172,13 @@ async fn seal_box_once(
             return Ok(SealOutcome::NotDue);
         }
         let (election_event, election) = event_and_election(&transaction, &seal).await?;
-        if let Some(channel) = open_channel(&election).context(SealErrorCategory::Settings)? {
-            record_attempt(
-                &transaction,
-                seal_id,
-                &WaitingReason::ChannelOpen(channel.clone()),
-            )
-            .await?;
+        if let Some(holding) = open_channel(&election).context(SealErrorCategory::Settings)? {
+            let channel = holding.channel().to_string();
+            let reason = match holding {
+                HoldingChannel::Enabled(_) => WaitingReason::ChannelOpen(channel.clone()),
+                HoldingChannel::NotEnabled(_) => WaitingReason::ChannelNotEnabled(channel.clone()),
+            };
+            record_attempt(&transaction, seal_id, &reason).await?;
             transaction.commit().await?;
             return Ok(SealOutcome::WaitingForChannel(channel));
         }
@@ -267,9 +274,32 @@ async fn seal_box_once(
         return Ok(outcome);
     }
 
-    let (election_event, _) = event_and_election(&transaction, &seal).await?;
+    let (election_event, election) = event_and_election(&transaction, &seal).await?;
     let presentation = strict_presentation(&election_event).context(SealErrorCategory::Settings)?;
     let ballots = read_box(&transaction, &seal).await?;
+    // The ballots are evidence: none may come from a channel that isn't
+    // closed, whatever the election enables.
+    let status = get_election_status(election.status.clone()).unwrap_or_default();
+    match open_ballot_channel(&ballots, &status) {
+        Ok(None) => {}
+        Ok(Some(channel)) => {
+            let channel = channel.to_string();
+            record_attempt(
+                &transaction,
+                seal_id,
+                &WaitingReason::ChannelHasBallots(channel.clone()),
+            )
+            .await?;
+            transaction.commit().await?;
+            return Ok(SealOutcome::WaitingForChannel(channel));
+        }
+        Err(EntriesError::Incident(reason)) => {
+            return fail(transaction, &seal, reason, &names).await
+        }
+        Err(EntriesError::Retry(reason)) => {
+            return Err(anyhow!(reason).context(SealErrorCategory::Ballots))
+        }
+    }
     let entries = match entries(
         &ballots,
         &census,
@@ -345,9 +375,9 @@ async fn seal_box_once(
     Ok(SealOutcome::Sealed)
 }
 
-/// The first enabled channel of the election that isn't finished (see
-/// [`super::deadline`]), by name.
-fn open_channel(election: &Election) -> Result<Option<String>> {
+/// The first channel of the election that holds its seal (see
+/// [`super::deadline`]).
+fn open_channel(election: &Election) -> Result<Option<HoldingChannel>> {
     let status = get_election_status(election.status.clone()).unwrap_or_default();
     let channels: VotingChannels = election
         .voting_channels
@@ -356,7 +386,7 @@ fn open_channel(election: &Election) -> Result<Option<String>> {
         .transpose()
         .context("Failed to deserialize the election's voting channels")?
         .unwrap_or_default();
-    Ok(holding_channel(&status, &channels).map(|channel| channel.to_string()))
+    Ok(holding_channel(&status, &channels))
 }
 
 /// `WaitingForVotes` (recorded on the row) while Datafix votes of the box
@@ -523,6 +553,29 @@ async fn read_box(transaction: &Transaction<'_>, seal: &BallotBoxSeal) -> Result
         .collect()
 }
 
+/// The first channel, in the order the ballots come, that has a ballot in
+/// the box and isn't CLOSED in the election's `status`; `None` when every
+/// such channel is closed. A ballot whose channel is none of the voting
+/// channels is an incident.
+pub fn open_ballot_channel(
+    ballots: &[BoxBallot],
+    status: &ElectionStatus,
+) -> std::result::Result<Option<VotingStatusChannel>, EntriesError> {
+    let mut open = None;
+    for ballot in ballots {
+        let channel = VotingStatusChannel::from_str(&ballot.channel).map_err(|_| {
+            EntriesError::Incident(format!(
+                "a ballot has the unknown voting channel {:?}",
+                ballot.channel
+            ))
+        })?;
+        if open.is_none() && status.status_by_channel(channel) != VotingStatus::CLOSED {
+            open = Some(channel);
+        }
+    }
+    Ok(open)
+}
+
 /// How each ballot of the box counts, as the tally used to decide:
 /// each voter's latest valid ballot (by `created_at`, then id) is counted,
 /// with the voter's census weight, if the voter is in the census, and not
@@ -677,6 +730,38 @@ mod tests {
             .find(|entry| Some(&entry.ballot_id) == ballot.ballot_id.as_ref())
             .unwrap();
         (entry.disposition, entry.weight)
+    }
+
+    #[test]
+    fn a_ballot_of_a_channel_that_is_not_closed_is_named() {
+        let mut status = ElectionStatus::default();
+        status.set_status_by_channel(VotingStatusChannel::ONLINE, VotingStatus::CLOSED);
+        let online = row(Some("alice"), "valid", "a", 1);
+        let mut kiosk = row(Some("bob"), "discarded", "b", 1);
+        kiosk.channel = "KIOSK".to_string();
+        assert_eq!(open_ballot_channel(&[online.clone()], &status), Ok(None));
+        assert_eq!(
+            open_ballot_channel(&[online.clone(), kiosk.clone()], &status),
+            Ok(Some(VotingStatusChannel::KIOSK))
+        );
+        status.set_status_by_channel(VotingStatusChannel::KIOSK, VotingStatus::CLOSED);
+        assert_eq!(open_ballot_channel(&[online, kiosk], &status), Ok(None));
+        assert_eq!(open_ballot_channel(&[], &status), Ok(None));
+    }
+
+    #[test]
+    fn a_ballot_of_an_unknown_channel_is_an_incident() {
+        let status = ElectionStatus::default();
+        let mut paper = row(Some("alice"), "valid", "a", 1);
+        paper.channel = "PAPER".to_string();
+        let open = row(Some("bob"), "valid", "b", 1);
+        // Even after a ballot of a channel that isn't closed.
+        assert_eq!(
+            open_ballot_channel(&[open, paper], &status),
+            Err(EntriesError::Incident(
+                "a ballot has the unknown voting channel \"PAPER\"".to_string()
+            ))
+        );
     }
 
     #[test]

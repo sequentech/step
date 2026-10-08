@@ -9198,7 +9198,9 @@ export type Sequent_Backend_Ballot_Box_Seal = {
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
   log_entry_id?: Maybe<Scalars['bigint']['output']>;
   manifest?: Maybe<Scalars['bytea']['output']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: Maybe<Scalars['uuid']['output']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
   public_path?: Maybe<Scalars['String']['output']>;
   published_at?: Maybe<Scalars['timestamptz']['output']>;
   seal_hash?: Maybe<Scalars['String']['output']>;
@@ -9344,7 +9346,9 @@ export type Sequent_Backend_Ballot_Box_Seal_Insert_Input = {
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
   log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
   public_path?: InputMaybe<Scalars['String']['input']>;
   published_at?: InputMaybe<Scalars['timestamptz']['input']>;
   seal_hash?: InputMaybe<Scalars['String']['input']>;
@@ -9374,7 +9378,9 @@ export type Sequent_Backend_Ballot_Box_Seal_Max_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
   log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: Maybe<Scalars['uuid']['output']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
   public_path?: Maybe<Scalars['String']['output']>;
   published_at?: Maybe<Scalars['timestamptz']['output']>;
   seal_hash?: Maybe<Scalars['String']['output']>;
@@ -9403,7 +9409,9 @@ export type Sequent_Backend_Ballot_Box_Seal_Min_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
   log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: Maybe<Scalars['uuid']['output']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
   public_path?: Maybe<Scalars['String']['output']>;
   published_at?: Maybe<Scalars['timestamptz']['output']>;
   seal_hash?: Maybe<Scalars['String']['output']>;
@@ -9549,7 +9557,9 @@ export type Sequent_Backend_Ballot_Box_Seal_Set_Input = {
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
   log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
   public_path?: InputMaybe<Scalars['String']['input']>;
   published_at?: InputMaybe<Scalars['timestamptz']['input']>;
   seal_hash?: InputMaybe<Scalars['String']['input']>;
@@ -9612,7 +9622,9 @@ export type Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Value_Input = {
   last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
   log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
   manifest?: InputMaybe<Scalars['bytea']['input']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
   public_document_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
   public_path?: InputMaybe<Scalars['String']['input']>;
   published_at?: InputMaybe<Scalars['timestamptz']['input']>;
   seal_hash?: InputMaybe<Scalars['String']['input']>;

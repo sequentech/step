@@ -25,3 +25,19 @@ export const isSealAtClose = (presentation: unknown): boolean => {
         (value as {ballot_box_seal_policy?: unknown}).ballot_box_seal_policy === SEAL_AT_CLOSE
     )
 }
+
+/** The values of `EBallotBoxSealRecordPolicy`, without importing ui-core. */
+export type SealRecordPolicyValue = "restricted" | "public"
+
+/**
+ * The effective Seal Record Publication policy of an event presentation:
+ * `public` only when set to it, else `restricted` (the default), as the
+ * server and the database lock read it.
+ */
+export const effectiveSealRecordPolicy = (presentation: unknown): SealRecordPolicyValue =>
+    !!presentation &&
+    typeof presentation === "object" &&
+    (presentation as {ballot_box_seal_record_policy?: unknown}).ballot_box_seal_record_policy ===
+        "public"
+        ? "public"
+        : "restricted"

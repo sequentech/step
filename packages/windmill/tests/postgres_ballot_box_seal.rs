@@ -368,7 +368,7 @@ async fn seals_are_permanent_and_follow_their_status_flow() {
     let published = PublishedFields {
         log_entry_id: 7,
         public_document_id: Uuid::new_v4(),
-        public_path: format!("ballot-box-seals/{}/{}.json", w.election, w.area),
+        public_path: Some(format!("ballot-box-seals/{}/{}.json", w.election, w.area)),
         published_at: Utc::now(),
     };
     mark_published(&tx, &id, &published).await.unwrap();
@@ -377,7 +377,43 @@ async fn seals_are_permanent_and_follow_their_status_flow() {
     let row = get_for_update(&tx, &id).await.unwrap().unwrap();
     assert_eq!(row.status, BallotBoxSealStatus::Published);
     assert_eq!(row.manifest, Some(vec![1, 2, 3]));
-    assert_eq!(row.public_path, Some(published.public_path));
+    assert_eq!(row.public_path, published.public_path);
+}
+
+/// A restricted seal record is a private document: the seal is published
+/// with its document id and no public path, and is then final.
+#[tokio::test]
+async fn a_restricted_record_is_published_without_a_public_path() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = world(&tx).await;
+    insert_pending(&tx, &[pending(&w, w.area, Duration::zero())])
+        .await
+        .unwrap();
+    let id = list_for_elections(&tx, &w.tenant, &w.event, &[w.election])
+        .await
+        .unwrap()[0]
+        .id;
+    mark_sealed(&tx, &id, &sealed_fields()).await.unwrap();
+    // The document id is still required.
+    let no_document = "UPDATE sequent_backend.ballot_box_seal
+         SET status = 'published', log_entry_id = 7, published_at = now() WHERE id = $1";
+    assert_eq!(refused(&tx, no_document, &[&id]).await.0, "42501");
+    let published = PublishedFields {
+        log_entry_id: 7,
+        public_document_id: Uuid::new_v4(),
+        public_path: None,
+        published_at: Utc::now(),
+    };
+    mark_published(&tx, &id, &published).await.unwrap();
+    let row = get_for_update(&tx, &id).await.unwrap().unwrap();
+    assert_eq!(row.status, BallotBoxSealStatus::Published);
+    assert_eq!(row.public_document_id, Some(published.public_document_id));
+    assert_eq!(row.public_path, None);
+    // A public path can't be added afterwards.
+    let late_path = "UPDATE sequent_backend.ballot_box_seal SET public_path = 'x' WHERE id = $1";
+    assert_eq!(refused(&tx, late_path, &[&id]).await.0, "42501");
 }
 
 #[tokio::test]
@@ -514,6 +550,109 @@ async fn the_seal_policy_locks_once_the_event_opened() {
         .0,
         "42501"
     );
+}
+
+/// Marks voting as having opened on the world's election (a trusted
+/// write): it started once and is closed now.
+async fn open_voting(tx: &Transaction<'_>, w: &World) {
+    trusted_write(tx).await.unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1",
+        &[
+            &w.election,
+            &json!({
+                "voting_status": "CLOSED",
+                "voting_period_dates": {"first_started_at": "2028-04-09T00:00:00.000Z"}
+            }),
+        ],
+    )
+    .await
+    .unwrap();
+}
+
+/// The Seal Record Publication policy is locked with the other settings the
+/// seal relies on once voting opened on a seal-at-close event; its effective
+/// value counts (unset is restricted).
+#[tokio::test]
+async fn the_record_policy_locks_once_voting_opened() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = world(&tx).await;
+    let set_record_policy = "UPDATE sequent_backend.election_event
+         SET presentation = jsonb_set(presentation, '{ballot_box_seal_record_policy}', $2)
+         WHERE id = $1";
+    let drop_record_policy = "UPDATE sequent_backend.election_event
+         SET presentation = presentation - 'ballot_box_seal_record_policy' WHERE id = $1";
+    // Before voting opens it changes freely.
+    tx.execute(set_record_policy, &[&w.event, &json!("public")])
+        .await
+        .unwrap();
+    tx.execute(drop_record_policy, &[&w.event]).await.unwrap();
+
+    open_voting(&tx, &w).await;
+
+    // Unset reads as restricted: spelling it out passes, making it public
+    // doesn't, even for a trusted write.
+    tx.execute(set_record_policy, &[&w.event, &json!("restricted")])
+        .await
+        .unwrap();
+    let (code, message) = refused(&tx, set_record_policy, &[&w.event, &json!("public")]).await;
+    assert_eq!(code, "42501");
+    assert!(
+        message.contains("ballot_box_seal_record_policy"),
+        "{message}"
+    );
+    tx.execute(drop_record_policy, &[&w.event]).await.unwrap();
+}
+
+/// A public record policy stays public once voting opened: dropping the key
+/// would make it restricted.
+#[tokio::test]
+async fn a_public_record_policy_stays_public_once_voting_opened() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = world(&tx).await;
+    tx.execute(
+        "UPDATE sequent_backend.election_event
+         SET presentation = presentation || '{\"ballot_box_seal_record_policy\": \"public\"}'
+         WHERE id = $1",
+        &[&w.event],
+    )
+    .await
+    .unwrap();
+    open_voting(&tx, &w).await;
+    let (code, message) = refused(
+        &tx,
+        "UPDATE sequent_backend.election_event
+         SET presentation = presentation - 'ballot_box_seal_record_policy' WHERE id = $1",
+        &[&w.event],
+    )
+    .await;
+    assert_eq!(code, "42501");
+    assert!(
+        message.contains("ballot_box_seal_record_policy"),
+        "{message}"
+    );
+}
+
+/// An event that doesn't seal never locks the record policy.
+#[tokio::test]
+async fn the_record_policy_is_free_when_the_event_does_not_seal() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = world_with_policy(&tx, DO_NOT_SEAL).await;
+    open_voting(&tx, &w).await;
+    tx.execute(
+        "UPDATE sequent_backend.election_event
+         SET presentation = presentation || '{\"ballot_box_seal_record_policy\": \"public\"}'
+         WHERE id = $1",
+        &[&w.event],
+    )
+    .await
+    .unwrap();
 }
 
 /// A cast that arrives while the sealer holds the box waits, then sees the

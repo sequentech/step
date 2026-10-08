@@ -313,9 +313,14 @@ export const SaveTheEvent: Story = {
                 }),
             },
         })
-        // An event without a seal policy is saved without one (VOTE-FREEZE).
+        // An event without a seal policy is saved without one (VOTE-FREEZE), nor a
+        // seal record policy.
         expect(
             (values as {presentation: Record<string, unknown>}).presentation.ballot_box_seal_policy
+        ).toBeUndefined()
+        expect(
+            (values as {presentation: Record<string, unknown>}).presentation
+                .ballot_box_seal_record_policy
         ).toBeUndefined()
         const custom = boundaries.graphql.calls.filter(({name}) => name === "SetCustomUrls")
         expect(custom.map(({variables}) => variables.key)).toEqual(["login", "enrollment", "saml"])
@@ -561,5 +566,70 @@ export const SealSettingsLockedAfterVoting: Story = {
         expect(presentation.contest_encryption_policy).toBeUndefined()
         expect(presentation.weighted_voting_policy).toBeUndefined()
         expect(presentation.delegated_voting_policy).toBe("disabled")
+    },
+}
+
+const sealRecordPolicy = () => field("ballotBoxSealRecordPolicy.policyLabel")
+const RESTRICTED_HELP = /Only administrators can download it; share it with observers\./
+const PUBLIC_HELP =
+    /Anyone with the event's ids can download it, without signing in; it shows how each ballot counted\./
+
+/**
+ * VOTE-FREEZE: the Seal Record Publication policy shows only with Seal at
+ * close; each option says who can download the record, and the choice is
+ * saved.
+ */
+export const SealRecordPolicyBeforeVoting: Story = {
+    args: {neverOpened: true},
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await loaded(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const canvas = within(canvasElement)
+        expect(canvas.queryByRole("combobox", {name: sealRecordPolicy()})).toBeNull()
+        await choose(canvasElement, sealPolicy(), "Seal at close")
+        const select = await canvas.findByRole("combobox", {name: sealRecordPolicy()})
+        // Unset reads as its default, Restricted.
+        await expect(select).toHaveTextContent("Restricted")
+        await expect(canvas.getByText(RESTRICTED_HELP)).toBeVisible()
+        await choose(canvasElement, sealRecordPolicy(), "Public")
+        await expect(canvas.getByText(PUBLIC_HELP)).toBeVisible()
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect((values as {presentation: Record<string, unknown>}).presentation).toMatchObject({
+            ballot_box_seal_policy: "seal-at-close",
+            ballot_box_seal_record_policy: "public",
+        })
+    },
+}
+
+/**
+ * VOTE-FREEZE: once voting has opened on a seal-at-close event, the Seal
+ * Record Publication policy is read-only like the seal policy, and an
+ * ordinary save doesn't add it.
+ */
+export const SealRecordPolicyLockedAfterVoting: Story = {
+    args: {sealAtClose: true},
+    parameters: openedSection,
+    play: async ({canvasElement, args}) => {
+        await editDescription(canvasElement)
+        await openSection(canvasElement, "advancedConfigurations")
+        const canvas = within(canvasElement)
+        const select = await canvas.findByRole("combobox", {name: sealRecordPolicy()})
+        await expect(select).toHaveTextContent("Restricted")
+        await expect(canvas.getByText(RESTRICTED_HELP)).toHaveTextContent(
+            /Locked: voting has opened in /
+        )
+        await userEvent.click(select)
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        expect(within(document.body).queryByRole("listbox")).toBeNull()
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        const [values] = args.transform.mock.calls[0]
+        expect(
+            (values as {presentation: Record<string, unknown>}).presentation
+                .ballot_box_seal_record_policy
+        ).toBeUndefined()
     },
 }

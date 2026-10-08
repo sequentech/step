@@ -85,6 +85,7 @@ impl SealEnvironment for TestEnvironment {
         _: &str,
         json: &[u8],
         document_id: Uuid,
+        _: sequent_core::ballot::BallotBoxSealRecordPolicy,
     ) -> Result<Uuid> {
         self.uploads.lock().unwrap().push(json.to_vec());
         Ok(document_id)

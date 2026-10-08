@@ -8,7 +8,9 @@ import {gql} from "@apollo/client"
  * The seals of the ballot boxes of some elections (VOTE-FREEZE): one row per
  * election and area, inserted when the election closes. No row means the
  * ballot box is open. The manifest and the signed message are not exposed to
- * the portal; the public seal record serves them.
+ * the portal; the seal record serves them. A published seal has its record's
+ * document (`public_document_id`, public or private by the event's Seal
+ * Record Publication policy) and, only when public, its `public_path`.
  */
 export const GET_BALLOT_BOX_SEALS = gql`
     query GetBallotBoxSeals($electionEventId: uuid!, $electionIds: [uuid!]!) {
@@ -32,6 +34,7 @@ export const GET_BALLOT_BOX_SEALS = gql`
             ballots_counted
             seal_hash
             failure_reason
+            public_document_id
             public_path
             published_at
             last_attempt_at

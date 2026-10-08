@@ -56,6 +56,7 @@ import {
     EVotingPortalCountdownPolicy,
     EElectionEventLockedDown,
     EBallotBoxSealPolicy,
+    EBallotBoxSealRecordPolicy,
     EElectionEventEnrollment,
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
@@ -135,6 +136,7 @@ import {SAVE_LIFECYCLE_POLICIES, type SaveLifecyclePoliciesData} from "@/queries
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 import {ballotBoxSealPolicyLock, ESealPolicyLock} from "@/services/ElectionStatus"
+import {effectiveSealRecordPolicy} from "@/services/ballotBoxSealPolicy"
 import {sealErrorText} from "@/services/ballotBoxSealErrors"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 import {
@@ -909,6 +911,12 @@ export const EditElectionEventDataForm: React.FC<{
             name: t(`electionEventScreen.field.lockdownState.options.${value}`),
         }))
     }
+
+    const ballotBoxSealRecordPolicyChoices = () =>
+        Object.values(EBallotBoxSealRecordPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ballotBoxSealRecordPolicy.options.${value}`),
+        }))
 
     const ballotBoxSealPolicyChoices = () => {
         return Object.values(EBallotBoxSealPolicy).map((value) => ({
@@ -2035,6 +2043,45 @@ export const EditElectionEventDataForm: React.FC<{
                             format={(value: unknown) => value ?? EBallotBoxSealPolicy.DO_NOT_SEAL}
                             emptyText={undefined}
                         />
+                        {/* Who can download the seal records: only with Seal at close, and
+                            locked like the seal policy once voting has opened. */}
+                        <FormDataConsumer>
+                            {({formData}) =>
+                                (formData?.presentation as IElectionEventPresentation | undefined)
+                                    ?.ballot_box_seal_policy ===
+                                EBallotBoxSealPolicy.SEAL_AT_CLOSE ? (
+                                    <SelectInput
+                                        source={"presentation.ballot_box_seal_record_policy"}
+                                        SelectProps={{
+                                            readOnly: isBallotBoxSealPolicyLocked,
+                                            ...(isBallotBoxSealPolicyLocked
+                                                ? {IconComponent: LockOutlinedIcon}
+                                                : {}),
+                                        }}
+                                        sx={
+                                            isBallotBoxSealPolicyLocked ? lockedSelectSx : undefined
+                                        }
+                                        helperText={`${t(
+                                            `electionEventScreen.field.ballotBoxSealRecordPolicy.help.${effectiveSealRecordPolicy(
+                                                formData?.presentation
+                                            )}`
+                                        )} ${sealPolicyLockText}`}
+                                        choices={ballotBoxSealRecordPolicyChoices()}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.ballotBoxSealRecordPolicy.policyLabel"
+                                            )
+                                        )}
+                                        // Unset shows Restricted (its effective value), and the
+                                        // save doesn't add the key unless it is chosen.
+                                        format={(value: unknown) =>
+                                            value ?? EBallotBoxSealRecordPolicy.RESTRICTED
+                                        }
+                                        emptyText={undefined}
+                                    />
+                                ) : null
+                            }
+                        </FormDataConsumer>
                         <SelectInput
                             source={"presentation.decoded_ballot_inclusion_policy"}
                             choices={decodedBallotsStateChoices()}

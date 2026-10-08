@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {act, render, screen} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import {BallotBoxesCard, EBallotBoxRowStatus, ballotBoxRowStatus} from "./BallotBoxesCard"
 import {
     EBallotBoxClosedByKind,
@@ -15,9 +15,13 @@ let mockSeals: IBallotBoxSeal[] = []
 let mockStyleAreas: string[] = []
 let mockError: Error | undefined
 let mockPolicy = "seal-at-close"
+let mockCanDownload = true
+const mockFetchDocument = jest.fn()
+const mockDownloadUrl = jest.fn()
 
 jest.mock("@apollo/client", () => ({
     gql: (parts: TemplateStringsArray) => parts.join(""),
+    useLazyQuery: () => [mockFetchDocument, {loading: false}],
     useQuery: (query: string, options?: {skip?: boolean}) => {
         if (options?.skip) return {data: undefined}
         if (query.includes("GetBallotBoxSeals")) {
@@ -48,6 +52,19 @@ jest.mock("react-i18next", () => ({
 jest.mock("@sequentech/ui-core", () => ({
     ...require("../../../../../ui-core/src/types/ElectionEventPresentation"),
     ...require("../../../../../ui-core/src/types/CoreTypes"),
+    downloadUrl: (...args: unknown[]) => mockDownloadUrl(...args),
+}))
+jest.mock("@/providers/AuthContextProvider", () => ({
+    AuthContext: require("react").createContext({
+        isAuthorized: (_: boolean, __: string, permission: string) =>
+            permission !== "document-download" || mockCanDownload,
+    }),
+}))
+jest.mock("@/providers/TenantContextProvider", () => ({
+    useTenantStore: () => ["tenant"],
+}))
+jest.mock("@/types/keycloak", () => ({
+    IPermissions: {DOCUMENT_DOWNLOAD: "document-download"},
 }))
 jest.mock(
     "@sequentech/ui-essentials",
@@ -96,6 +113,9 @@ beforeEach(() => {
     mockStyleAreas = []
     mockError = undefined
     mockPolicy = "seal-at-close"
+    mockCanDownload = true
+    mockFetchDocument.mockReset()
+    mockDownloadUrl.mockReset()
 })
 afterEach(() => jest.useRealTimers())
 
@@ -156,6 +176,8 @@ describe("ballotBoxRowStatus", () => {
 describe("the reason a pending box isn't sealed is shown inline", () => {
     it.each([
         ["channel_open:KIOSK", "dashboard.ballotBoxes.why.channelOpen"],
+        ["channel_not_enabled:KIOSK", "dashboard.ballotBoxes.why.channelNotEnabled"],
+        ["channel_has_ballots:TELEPHONE", "dashboard.ballotBoxes.why.channelHasBallots"],
         ["datafix_votes:3", 'dashboard.ballotBoxes.why.datafixVotes {"count":3}'],
         ["error:keystore", "dashboard.ballotBoxes.why.errorCategory.keystore"],
         ["error:board", "dashboard.ballotBoxes.why.errorCategory.board"],
@@ -219,6 +241,24 @@ describe("the summary", () => {
         renderCard(undefined, {status, voting_channels: {online: true, kiosk: true}})
         expect(screen.getByText(new RegExp(key))).toBeTruthy()
     })
+    it("before the close, names a never-started early voting that holds the seal", () => {
+        renderCard(undefined, {
+            status: {voting_status: "CLOSED", early_voting_status: "NOT_STARTED"},
+            voting_channels: {online: true, early_voting: true},
+        })
+        expect(
+            screen.getByText(/dashboard.ballotBoxes.holding .*publish.dialog.channel.EARLY_VOTING/)
+        ).toBeTruthy()
+    })
+    it("before the close, names an open channel the Post doesn't enable", () => {
+        renderCard(undefined, {
+            status: {voting_status: "CLOSED", kiosk_voting_status: "OPEN"},
+            voting_channels: {online: true, kiosk: false},
+        })
+        expect(
+            screen.getByText(/publish.dialog.sealNotEnabled .*publish.dialog.channel.KIOSK/)
+        ).toBeTruthy()
+    })
 })
 
 it("moves a pending box to due when its grace period ends, without a reload", () => {
@@ -266,6 +306,68 @@ it("names each ballot box after its area and links its published record", () => 
     )
     expect(screen.getByText(/dashboard.ballotBoxes.closedByUser/)).toBeTruthy()
     expect(screen.getByText("dashboard.ballotBoxes.help.counted")).toBeTruthy()
+})
+
+describe("a restricted seal record", () => {
+    const restricted = () =>
+        seal(EBallotBoxSealStatus.PUBLISHED, {
+            seal_hash: "109a3264aa",
+            sealed_at: DEADLINE,
+            public_path: null,
+            public_document_id: "record-document",
+        })
+
+    it("is downloaded through a presigned URL of its private document", async () => {
+        mockSeals = [restricted()]
+        mockFetchDocument.mockResolvedValue({
+            data: {fetchDocument: {url: "https://private/signed"}},
+        })
+        renderCard(at("2028-03-13T17:20:00Z"))
+        expect(screen.queryByRole("link")).toBeNull()
+        const button = screen.getByRole("button", {
+            name: /dashboard.ballotBoxes.downloadRecord.*Madrid office/,
+        })
+        fireEvent.click(button)
+        await waitFor(() => expect(mockDownloadUrl).toHaveBeenCalledTimes(1))
+        expect(mockFetchDocument).toHaveBeenCalledWith({
+            variables: {electionEventId: "event", documentId: "record-document"},
+        })
+        expect(mockDownloadUrl).toHaveBeenCalledWith(
+            "https://private/signed",
+            "ballot-box-seal-area.json"
+        )
+        expect(screen.queryByText("dashboard.ballotBoxes.recordError")).toBeNull()
+    })
+
+    it("says so when the download fails", async () => {
+        mockSeals = [restricted()]
+        mockFetchDocument.mockResolvedValue({data: undefined, error: new Error("denied")})
+        renderCard(at("2028-03-13T17:20:00Z"))
+        fireEvent.click(screen.getByRole("button", {name: /dashboard.ballotBoxes.downloadRecord/}))
+        expect(await screen.findByText("dashboard.ballotBoxes.recordError")).toBeTruthy()
+        expect(mockDownloadUrl).not.toHaveBeenCalled()
+    })
+
+    it("says who can download it when the admin can't", () => {
+        mockCanDownload = false
+        mockSeals = [restricted()]
+        renderCard(at("2028-03-13T17:20:00Z"))
+        expect(screen.queryByRole("button", {name: /downloadRecord/})).toBeNull()
+        expect(screen.getByText("dashboard.ballotBoxes.recordRestricted")).toBeTruthy()
+    })
+
+    it("isn't offered before the seal is published", () => {
+        mockSeals = [
+            seal(EBallotBoxSealStatus.SEALED, {
+                seal_hash: "109a3264aa",
+                sealed_at: DEADLINE,
+                public_document_id: null,
+            }),
+        ]
+        renderCard(at("2028-03-13T17:20:00Z"))
+        expect(screen.queryByRole("button", {name: /downloadRecord/})).toBeNull()
+        expect(screen.getByText("dashboard.ballotBoxes.notYet")).toBeTruthy()
+    })
 })
 
 it("says the seals are unknown, not open, when they can't be read", () => {

@@ -290,8 +290,8 @@ export const StopOneOfTwoOpenChannels: Story = {
         ),
 }
 
-/** D1: early voting that never opened can't open once online voting has; it doesn't hold the seal. */
-export const StopLocksOutNeverOpenedEarlyVoting: Story = {
+/** W6: enabled early voting that never opened holds the seal like any channel, until it is stopped. */
+export const StopWaitsForNeverOpenedEarlyVoting: Story = {
     args: {
         sealAtClose: true,
         publishType: EPublishType.Election,
@@ -302,7 +302,23 @@ export const StopLocksOutNeverOpenedEarlyVoting: Story = {
     play: async ({canvasElement}) =>
         stopWithText(
             canvasElement,
-            "Early voting never opened and can't open once the ballot boxes are sealed. You are about to stop voting in Madrid Post. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. Are you sure you want to continue?"
+            "You are about to stop voting period. With Seal at close, its ballot boxes are sealed once every enabled channel is closed: Early voting is still enabled and not closed. Are you sure you want to continue?"
+        ),
+}
+
+/** W6: a channel the Post no longer enables but that is open holds the seal; the dialog says what to do. */
+export const StopWithAnOpenChannelThatIsNotEnabled: Story = {
+    args: {
+        sealAtClose: true,
+        publishType: EPublishType.Election,
+        electionName: "Madrid Post",
+        onlineModeEnabled: sealedOnline,
+        kioskModeEnabled: {is_channel_enabled: false, status: EVotingStatus.OPEN},
+    },
+    play: async ({canvasElement}) =>
+        stopWithText(
+            canvasElement,
+            "You are about to stop voting period. Kiosk is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes. Are you sure you want to continue?"
         ),
 }
 

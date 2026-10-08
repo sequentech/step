@@ -7,7 +7,7 @@ title: Verify a ballot box seal
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
 When an election event uses the **Seal at close** policy, every ballot box (the
-ballots of one election in one area) gets a public **seal record** when voting
+ballots of one election in one area) gets a **seal record** when voting
 closes. This guide shows how to check a seal record on your own computer,
 without access to the voting system. See
 [Ballot box seal](../../02-election_managers/02-reference/02-election-event/20-ballot-box-seal.md)
@@ -23,17 +23,31 @@ You need:
 
 ## Get the seal record
 
-Each record is a JSON file in the election event's public documents bucket,
-where published results go too, at a stable path:
+Each record is a JSON file. Where it is depends on the event's **Seal Record
+Publication** policy, which the organization chooses before voting opens and
+can't change afterwards
+([Seal Record Publication policy](../../02-election_managers/02-reference/02-election-event/20-ballot-box-seal.md#the-seal-record-publication-policy)):
 
-```text
-tenant-<tenant id>/event-<event id>/ballot-box-seals/<election id>/<area id>.json
-```
+- **Restricted** (the default): the record is a private document of the
+  election event. An administrator with the document download permission
+  downloads it with the **Seal record** button on the election's Ballot boxes
+  card (Dashboard), and gives it to you. Ask the organization how it shares the
+  records, and for the key fingerprint at the same time.
+- **Public**: the record is in the election event's public documents bucket,
+  where published results go too, at a stable path. Anyone with the tenant,
+  event, election and area IDs can download it without signing in:
 
-Administrators open it from the **Seal record** link on the election's Ballot
-boxes card. The organization decides how it shares the records with observers.
-Keep a copy: a record you downloaded at the close lets you detect a later
-change.
+  ```text
+  tenant-<tenant id>/event-<event id>/ballot-box-seals/<election id>/<area id>.json
+  ```
+
+  Administrators also open it from the **Seal record** link on the Ballot
+  boxes card.
+
+Under both policies the file is the same, and the check below is the same: the
+record proves itself through the signed log entry and the key you trust, not
+through where you got it. Keep a copy: a record you downloaded at the close
+lets you detect a later change.
 
 ## What the seal record contains
 
@@ -58,7 +72,9 @@ change.
 
 The record holds **no** voter IDs, pseudonyms, times of individual ballots or
 network data. Each entry carries the hash of the encrypted ballot, not the
-ballot itself. See [Privacy](#privacy) for what the entries do reveal.
+ballot itself. See
+[Privacy: what the record reveals](#privacy-what-the-record-reveals) for what the
+entries do reveal.
 
 ## Run the check
 
@@ -304,16 +320,33 @@ Know where the CSV comes from:
 
 Investigate any non-zero count before drawing a conclusion.
 
-## Privacy
+## Privacy: what the record reveals
 
-The record pairs each Ballot ID with how it counts and its weight. Anyone
-holding a voter's receipt can therefore see, from the public record:
+The record pairs each Ballot ID with how it counts, its weight and its channel.
+Compare it with what other sources already show.
 
-- whether that ballot was **replaced** by a later one. Where revoting is meant
-  to protect voters against coercion, a coercer holding the receipt can check
-  whether the voter voted again;
-- whether it was counted as **not eligible**;
-- its **weight**, which in weighted or delegated voting may identify a voter.
+**What the electoral log already shows.** Each `CastVote` entry of the
+electoral log carries the voter's pseudonym: a hash of the voter's ID
+(`hash_voter_id`), the same for every ballot of that voter. Anyone who can read
+the log can therefore link a voter's ballots, see that the voter voted again,
+and, with a Ballot ID from a receipt, find that voter's other ballots. Revoting
+is visible there, with or without the seal record.
 
-This is a known limit of the record's design. Organizations that rely on
-revoting against coercion should take it into account.
+**What the ballot locator shows.** When the event's `show_cast_vote_logs`
+setting is **ShowLogsTab**, the voting portal's ballot locator lists every
+`CastVote` entry of the election, with its log message, to any voter signed in
+to that election, for example during voting.
+
+**What the seal record adds**, for each Ballot ID:
+
+- whether it was counted as **not eligible** (the census at the seal);
+- its **weight**, which in weighted or delegated voting may identify a voter;
+- its **channel** (Online, Kiosk, Early Voting or Telephone);
+- with the **Public** policy only: access **without signing in**, to anyone
+  with the event's IDs, and **after the close**, for as long as the file is
+  kept.
+
+**Restricted** (the default) keeps the record to the people who receive it from
+the organizers. Organizations that rely on revoting against coercion, or on the
+secrecy of weights or channels, should choose **Restricted** and decide whom to
+give the records to; the log and the locator setting need the same care.

@@ -14,8 +14,11 @@ ballots of one election in one area. Sealing does three things:
 2. It computes one SHA-512 hash, the **seal hash**, over a manifest that lists
    every ballot in the box and says how each one counts.
 3. It posts a signed, time-stamped `BallotBoxSealed` entry with that hash to the
-   election event's electoral log (the bulletin board), and publishes a public
-   **seal record** that anyone can check offline.
+   election event's electoral log (the bulletin board), and publishes a **seal
+   record** that can be checked offline. By default the record is restricted
+   to administrators, who share it with observers; the
+   [Seal Record Publication policy](#the-seal-record-publication-policy) can
+   make it public.
 
 The tally then counts only sealed ballot boxes, and first checks each one
 against its signed entry.
@@ -79,6 +82,7 @@ on them:
 - the event's **bulletin board**: "The election event's bulletin board can't
   change after voting has opened: with Seal at close, the seals are posted to
   it."
+- the [Seal Record Publication policy](#the-seal-record-publication-policy).
 
 The database compares the **effective** values: a setting that is missing or
 empty counts as its default. So saving the event for any other reason (a logo,
@@ -88,18 +92,74 @@ write a setting out with its default value, is not refused.
 There is no way to turn sealing off for an event once voting has opened, and no
 way to unseal a ballot box. Choose the policy before you open voting.
 
+## The Seal Record Publication policy
+
+The **Ballot Box Seal Record** select, under the Ballot Box Seal Policy in
+**Election Event > Data > Advanced Configurations**, decides who can download
+the seal record of each sealed ballot box. It is shown only when the Ballot Box
+Seal Policy is **Seal at close**. It is stored as
+`presentation.ballot_box_seal_record_policy`.
+
+| Value | Who can download the record | Where it is |
+| --- | --- | --- |
+| **Restricted** (default) | "Only administrators can download it; share it with observers." Users with the document download permission download it from the Ballot boxes card, through a short-lived signed link. | A private document of the election event, in the private documents bucket. The seal has no public path. |
+| **Public** | "Anyone with the event's ids can download it, without signing in; it shows how each ballot counted." | The event's public documents bucket, at `tenant-<tenant id>/event-<event id>/ballot-box-seals/<election id>/<area id>.json`. |
+
+An event without the setting, including existing and imported events, uses
+**Restricted**. Saving the event without touching the select doesn't add the
+setting.
+
+The record is the same file under both values: the seal hash, the signed log
+entry and, for each ballot, its hash, Ballot ID, how it counts (counted,
+replaced, not eligible, discarded), its weight and its channel. Only who can
+read it differs. The policy changes nothing in the seal, the electoral log or
+the tally. See
+[what the record reveals](../../../04-election_auditors/02-tutorials/06-auditor_verify-ballot-box-seal.md#privacy-what-the-record-reveals)
+before choosing **Public**.
+
+**It is locked once voting has opened**, like the Ballot Box Seal Policy and
+with the same note under the select ("Locked: voting has opened in …"), so
+every ballot box of the event is published the same way. The database compares
+its effective value (missing counts as **Restricted**) and refuses a change
+with "The ballot_box_seal_record_policy of election event *id* can't change
+after voting has opened"; the Admin Portal shows "This setting can't be changed
+after voting has opened: with Seal at close, the seal relies on it."
+
+**Upgrading.** Before this setting existed every record was public. Records
+already published keep their public path. A box sealed but not yet published
+when the upgrade is applied is published under the event's current value,
+which is **Restricted** unless the event sets **Public**.
+
 ## When a ballot box is sealed
 
 A ballot box is sealed once **both** conditions hold for its election:
 
-- voting has **finished**: every enabled channel is finished, and at least one
-  is **Closed**;
+- voting has **finished**: every channel that counts is **Closed**, and at
+  least one channel counts;
 - the **seal deadline** has passed.
 
-A channel is **finished** when it is Closed, or when it never started **and can
-no longer open**. Today the only such channel is Early Voting once Online voting
-has started. Any other enabled channel that never started (Online, Kiosk,
-Telephone) **holds the seal** until it is closed.
+A channel **counts** when any of these is true:
+
+- the election **enables** it;
+- it is **Open** or **Paused**;
+- it has **ever started**, even if the election no longer enables it (it may
+  have taken ballots).
+
+A channel that counts and isn't Closed **holds the seal** until it is closed.
+Nothing is guessed on your behalf: an enabled channel that never started holds
+the seal too, Early Voting included, also once Online voting has started.
+
+A channel that was unchecked in the election's enabled channels while it was
+open, or after it took ballots, still holds the seal. Enable it again in the
+election's settings and stop it: the Stop dialog and the Ballot boxes card say
+"*Channel* is open but not enabled for this Post: enable it again and stop it
+to seal the ballot boxes."
+
+The sealer also checks the ballots themselves. If the ballot box holds a ballot
+cast on a channel that isn't Closed, the box stays pending and the card says
+"*Channel* has ballots in this ballot box and isn't closed: stop it to seal the
+ballot box." A ballot whose channel is none of Online, Kiosk, Early Voting or
+Telephone is an incident: the seal fails, as for a Ballot ID mismatch.
 
 With Seal at close, you can close a channel that never started directly, so
 it doesn't hold the seal:
@@ -126,14 +186,15 @@ that never started.
 
 The seal deadline is the close time plus the grace period:
 
-- The **close time** is the latest close of the closed channels that ran. A
+- The **close time** is the latest close of the channels that count and ran. A
   channel closed without ever starting took no votes, so it doesn't move the
   close time.
 - The **grace period** is the election's grace period. It applies only when the
-  Online channel is enabled **and actually ran**, and the grace period policy
-  is not *No grace period*. An Online channel closed without ever opening took
-  no online votes, so it adds no grace period. Otherwise the deadline is the
-  close time.
+  Online channel **actually ran**, and the grace period policy is not *No grace
+  period*. It applies also when the election no longer enables Online, since
+  online ballots were cast under it. An Online channel closed without ever
+  opening took no online votes, so it adds no grace period. Otherwise the
+  deadline is the close time.
 
 With Seal at close, a cast is refused once the box's seal deadline has passed,
 even if the election's end date and grace period would allow it later. So no
@@ -174,11 +235,13 @@ to the seal. It promises the seal only when the stop finishes voting:
 | One election, no grace period | You are about to stop voting in *name*. Its ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. |
 | One election, with a grace period (only when Online ran: see the grace period rule above) | You are about to stop voting in *name*. Its ballot boxes are sealed when the grace period ends, *N* minutes later: from then on no ballot can be added, changed or deleted. Voting cannot start again. |
 | One election, another channel still holds the seal | You are about to stop voting period. With Seal at close, its ballot boxes are sealed once every enabled channel is closed: *channels* is still enabled and not closed. |
+| One election, a channel it doesn't enable holds the seal | You are about to stop voting period. *Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes. |
 | The stop closes a channel that never opened | The text above is preceded by "*channels* never opened: stopping it means it won't open." |
 | Whole event, no grace period | You are about to stop voting in every election. Their ballot boxes are then sealed: no ballot can be added, changed or deleted, and voting cannot start again. |
 | Whole event, with grace periods | You are about to stop voting in every election. Their ballot boxes are sealed when each election's grace period ends, up to *N* minutes later: … |
 | Whole event, some elections never opened | The text also says "*names* never opened: stopping closes them and seals their empty ballot boxes." The event-wide Stop closes those elections too, and they can't open afterwards. |
 | Whole event, some elections keep a channel open | You are about to stop voting in every election. The ballot boxes of *names* are then sealed (or: sealed when their grace period ends, up to *N* minutes later). *Names* keep another channel enabled and not closed: their ballot boxes are sealed once those channels are closed. |
+| Whole event, an election keeps open a channel it doesn't enable | The text also says, per such channel: "In *election*, *channel* is open but not enabled: enable it again for that Post and stop it to seal its ballot boxes." |
 
 When closing signatures are required, Close voting still goes through its
 signing panel; the panel itself does not change.
@@ -224,6 +287,7 @@ The header says where the election is:
 | Voting is open | Voting is open on *channels*. The ballot box of each area is sealed when voting closes. |
 | Voting is paused | Voting is paused. The ballot box of each area is sealed when voting closes. |
 | A channel holds the seal | *Channels* is enabled and not closed: stop it to seal the ballot boxes. |
+| A channel the election doesn't enable holds the seal | *Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes. (Added to the text above when an enabled channel holds the seal too.) |
 | During the grace period | Voting closed at *time*. The ballot boxes are sealed when the grace period ends, at *deadline*. |
 | Past the deadline, no grace period | Voting closed at *time*. The ballot boxes are being sealed. |
 | Past the deadline, after a grace period | Voting closed at *time*. The grace period ended at *deadline*; the ballot boxes are being sealed. |
@@ -249,8 +313,8 @@ Each row shows its status and, under it, why the box is in that state.
 | **Sealing at** *time* | Closed; waiting for the grace period to end. Eligible late casts are still accepted until then. | No | |
 | **Sealing now** | Past the deadline; the sealer is sealing it. | No new casts | "Being sealed: this takes up to a minute." |
 | **Sealing overdue** | Past the deadline, and something holds the seal. | No new casts | The reason: see below. |
-| **Sealed, publishing** | Sealed and locked. The entry on the bulletin board and the public seal record are being posted, and are retried until they exist. | Yes | "The ballot box is locked. Its entry on the bulletin board is being posted again." |
-| **Sealed** | Sealed, on the bulletin board, and the seal record is public. | Yes | |
+| **Sealed, publishing** | Sealed and locked. The entry on the bulletin board and the seal record are being posted, and are retried until they exist. | Yes | "The ballot box is locked. Its entry on the bulletin board is being posted again." |
+| **Sealed** | Sealed, on the bulletin board, and the seal record is published (restricted or public, by the Seal Record Publication policy). | Yes | |
 | **Not sealed: incident** | The seal was stopped. | Yes, and it stays locked | The reason, for example "A ballot does not match its Ballot ID." |
 
 The sealer records on each pending seal when it last tried and why the box
@@ -259,6 +323,8 @@ isn't sealed yet. The card shows **Sealing overdue** with that reason:
 | Recorded reason | Shown under the status |
 | --- | --- |
 | A channel is still enabled and not closed | *Channel* is still enabled and not closed: stop it to seal the ballot box. |
+| A channel the election doesn't enable is open or paused, or ran, and isn't closed | *Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot box. |
+| The ballot box has ballots of a channel that isn't closed | *Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box. |
 | Datafix votes are in progress | *N* votes are in progress in Datafix: the ballot box is sealed once they are resolved. |
 | The last attempt failed and will be retried | A text for the kind of error, for example "The last attempt couldn't reach the bulletin board; it is retried every minute." The kinds are: the bulletin board, the voter list, the signing key, the database or file storage, the election's settings, a ballot that can't be read yet, the database, and other errors. The details are only in the service log. |
 | The last attempt is more than 3 minutes old | Last tried at *time*: the sealer may not be running. Check Beat and the seal worker. |
@@ -277,11 +343,14 @@ The runbook explains each case:
 | Counted | The ballots that count: each eligible voter's latest valid ballot. The others were replaced by the voter's later ballot, discarded, or cast by a voter who is not eligible. |
 | Sealed | The seal time. |
 | Seal hash | The first and last characters of the seal hash, with a copy button for the full value. |
-| Seal record | A link to the public seal record, or "Not yet" until it is published. |
+| Seal record | "Not yet" until it is published. Then, for a public record, a link to it; for a restricted record, a button that downloads it through a short-lived signed link, or "Restricted: ask an administrator who can download documents." for users without the document download permission. A failed download says "The seal record could not be downloaded. Try again." |
 
-The seal record is a JSON file in the event's public documents bucket, at
+The seal record is a JSON file. A public one is in the event's public documents
+bucket, at
 `tenant-<tenant id>/event-<event id>/ballot-box-seals/<election id>/<area id>.json`.
-The path is stable: it does not change on a retry.
+A restricted one is a private document of the event, with the same name. Its
+document id is fixed per seal (the seal's `public_document_id`, whatever the
+policy), so a retry never adds a second document and the path does not change.
 
 The card is visible to users who can see the election's dashboard or read
 tallies.
@@ -384,8 +453,10 @@ database. See
 ## Electoral log entries
 
 The **Logs** tab shows four new statement kinds, filterable like the others.
-Each is explained in plain words when you open it: the seal hash and counts, the
-Close voting request, the failure reason, the tally session.
+Click **Show More** in an entry's Description to see the full description and a
+plain-words explanation: the seal hash and counts (and, when the box holds
+more ballots than it counts, why the others don't count), the Close voting
+request, the failure reason, the tally session.
 
 | Kind | Level | Description |
 | --- | --- | --- |
@@ -406,10 +477,17 @@ post is lost, the sealer posts it again until it is recorded.
 | Policy is Do not seal | No seal; tally unchanged. | Sealing is opt-in per event. | No Ballot boxes card; no sealing texts in Stop Voting; no readiness rule in the tally list. |
 | You change the policy before voting has ever opened | Saved. | Nothing has been cast yet. | The select is enabled. |
 | You change the policy after voting has opened | Refused. | Changing the rule mid-election would make some boxes sealed and others not, or remove a promised seal. | The select is disabled, with the reason ("Locked: voting has opened in …"). |
+| Seal Record Publication policy unset or **Restricted** | Each record is a private event document; the seal has no public path. | Restricted is the default: the record shows how each Ballot ID counted. | Seal record: a download button for users with the document download permission, else "Restricted: …". |
+| Seal Record Publication policy **Public** | Each record is uploaded to the public bucket. | The organizers chose to publish it. | Seal record: a link to the public file. |
+| You change the Seal Record Publication policy after voting has opened (Seal at close) | Refused by the database. | Every box of the event is published the same way. | The select is disabled, with the reason ("Locked: voting has opened in …"). |
 | Change the contest encryption, delegated or weighted voting policy, or the bulletin board, after voting has opened (Seal at close) | Refused by the database. | The seal and the tally rely on them. | The selects are disabled: "With Seal at close, the seal relies on this setting." |
 | Save the event for another reason after voting has opened, with one of those settings missing or empty (Seal at close) | Saved. | A missing or empty setting counts as its default, so its effective value didn't change. | Nothing special. |
-| Stop one channel while another enabled channel is still open or never started (other than Early Voting after Online) | Not sealed yet. | That channel could still take votes. | Stop dialog: "… *channel* is still enabled and not closed". Card header: "*Channel* is enabled and not closed: stop it to seal the ballot boxes." |
-| Early Voting enabled, never started, Online started and then closed | Early Voting doesn't hold the seal. | Early Voting can't start once Online has. | Stop dialog: "*Early voting* never opened and can't open once the ballot boxes are sealed." |
+| Stop one channel while another enabled channel is still open or never started | Not sealed yet. | That channel could still take votes. Nothing is guessed on your behalf. | Stop dialog: "… *channel* is still enabled and not closed". Card header: "*Channel* is enabled and not closed: stop it to seal the ballot boxes." |
+| Early Voting enabled, never started, Online started and then closed | Not sealed yet: Early Voting holds the seal, like any enabled channel. | The platform doesn't decide for you that a channel is over. | Stop dialog and card header name Early Voting. Stop it (it closes without opening) to seal the boxes. |
+| A channel the election doesn't enable is Open or Paused, or ran (for example, unchecked in the election's channels after it took ballots) | Not sealed yet: it holds the seal until it is Closed. Its close counts for the close time. | It may have taken ballots, or still take them. | Stop dialog and card: "*Channel* is open but not enabled for this Post: enable it again and stop it to seal the ballot boxes." Enable it again in the election's settings, then stop it. |
+| A channel the election doesn't enable that never started | It doesn't count. | It took no ballots. | Nothing. |
+| The ballot box holds a ballot of a channel that isn't Closed (for example, after the channel's status was changed outside the Admin Portal) | Not sealed yet; the sealer retries every minute. | The ballots are evidence that the channel took votes. | Sealing overdue: "*Channel* has ballots in this ballot box and isn't closed: stop it to seal the ballot box." |
+| A ballot's channel is none of Online, Kiosk, Early Voting or Telephone | Seal stopped; the box stays locked; a `BallotBoxSealFailed` ERROR entry is logged. | The stored data was altered or corrupted. It is an incident, not a retry. | Not sealed: incident, "A ballot has an unknown voting channel." |
 | Stop a channel that never started (Seal at close) | It closes without ever opening, and stops holding the seal. Its close doesn't move the close time. | Otherwise it would hold the seal forever. | Stop dialog: "*channel* never opened: stopping it means it won't open." |
 | Scheduled close or signed Close voting request that names an enabled channel that never started, while another enabled channel of the election ran (Seal at close) | It closes that channel too. | Same. | The channel shows Closed. |
 | Scheduled end of Early Voting while Online never started | Only Early Voting closes. Online stays able to open; the boxes are sealed after Online closes. | A schedule closes only the channels it names. | Online stays *Not started*. |
@@ -417,8 +495,8 @@ post is lost, the sealer posts it again until it is recorded.
 | Event-wide **Stop Voting** while some elections never opened | Those elections close too, and their empty ballot boxes are sealed. | A manual stop does what the administrator asks. | The Stop dialog names them: "*names* never opened: stopping closes them and seals their empty ballot boxes." |
 | Scheduled or signed close names a channel the election doesn't enable | That channel is left alone. | A close only changes the channels the election uses. | Nothing changes for that channel. |
 | Pause Voting | Not sealed. | Paused is not closed. | Open. |
-| All enabled channels finished, no grace period applies | Sealed at the deadline, normally within moments. | The deadline is the close time. | Sealing now, then Sealed, publishing, then Sealed. |
-| All enabled channels finished, Online grace period of *N* minutes | Eligible late casts are accepted until the deadline; then sealed. | The grace period lets voters who signed in before the close finish. | Sealing at *close + N minutes*. |
+| All channels that count closed, no grace period applies | Sealed at the deadline, normally within moments. | The deadline is the close time. | Sealing now, then Sealed, publishing, then Sealed. |
+| All channels that count closed, Online ran, grace period of *N* minutes | Eligible late casts are accepted until the deadline; then sealed. This holds also if the election no longer enables Online. | The grace period lets voters who signed in before the close finish. | Sealing at *close + N minutes*. |
 | Online enabled with a grace period, but closed without ever opening | No grace period: the deadline is the close time. | No online voter can be finishing a ballot. | Sealing now. |
 | A cast after the seal deadline, while an earlier end date plus grace would still allow it | Refused. | The seal deadline is the one the seal records. | The voter gets the closed error. |
 | A cast arrives while the box is being sealed | It waits, then is refused. | The seal holds the box's lock. | The voter gets the closed error. |
@@ -459,8 +537,13 @@ post is lost, the sealer posts it again until it is recorded.
 - **Before the close.** The seal fixes the box at the close. For evidence
   about the time before the close, compare the seal's Ballot IDs with the
   `CastVote` log entries (`--cast-votes` in the verify command).
-- **Privacy of dispositions.** The public record lists, for each Ballot ID, how
-  it counts (counted, replaced, not eligible, discarded) and its weight. Anyone
-  holding a voter's receipt can see whether that ballot was replaced by a later
-  one, and a weight may identify a voter in weighted or delegated voting.
-  Deployments that rely on revoting against coercion should weigh this.
+- **Privacy of dispositions.** The record lists, for each Ballot ID, how it
+  counts (counted, replaced, not eligible, discarded), its weight and its
+  channel. Anyone who has the record and a voter's receipt can see whether that
+  ballot was replaced by a later one, and a weight may identify a voter in
+  weighted or delegated voting. With **Restricted** (the default) only the
+  people the organizers give the record to can do this; with **Public**,
+  anyone. Deployments that rely on revoting against coercion should weigh this.
+  The electoral log already links a voter's ballots for anyone who can read
+  it; see
+  [what the record reveals](../../../04-election_auditors/02-tutorials/06-auditor_verify-ballot-box-seal.md#privacy-what-the-record-reveals).
