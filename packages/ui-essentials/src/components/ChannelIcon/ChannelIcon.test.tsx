@@ -39,6 +39,16 @@ describe("ChannelIcon", () => {
         expect(screen.getByRole("img", {name: "Viber"})).toBeInTheDocument()
     })
 
+    it("keeps the outline with one style or several", () => {
+        for (const sx of [{color: "red"}, [{color: "red"}, {opacity: 0.5}]]) {
+            const {container, unmount} = render(<ChannelIcon channel="SMS" sx={sx} />)
+            const svg = container.querySelector("svg") as SVGSVGElement
+            expect(getComputedStyle(svg).fill).toBe("none")
+            expect(getComputedStyle(svg).color).toBe("rgb(255, 0, 0)")
+            unmount()
+        }
+    })
+
     it("labels a channel next to its icon", () => {
         render(<ChannelLabel channel="MESSENGER" label="Facebook Messenger" />)
         expect(screen.getByText("Facebook Messenger")).toBeInTheDocument()
