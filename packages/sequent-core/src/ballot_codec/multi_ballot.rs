@@ -2978,54 +2978,60 @@ mod tests {
 
     #[test]
     fn test_roundtrip() {
-        let (ballot, style) = random_ballot(5);
-        println!("{:?}", ballot);
+        // Always exercise mixed valid/explicit-invalid contests and a fully
+        // marked empty ballot. Randomly missing either case made CI coverage vary.
+        for decline_to_vote in [false, true] {
+            let (ballot, style) = random_ballot(5, decline_to_vote);
+            println!("{:?}", ballot);
 
-        let max_bytes = BallotChoices::maximum_size_bytes(
-            &style.contests,
-            style.decline_to_vote_enabled(),
-            style.blank_ballots_enabled(),
-            style.multi_contest_encoding_mode.unwrap_or_default(),
-        )
-        .unwrap();
-        // `encode_vec_to_array` reserves byte 0 for the length prefix, so the
-        // payload limit is 29, not the 30-byte array size. Asserting against
-        // 30 would let this test pass for a style that cannot encode.
-        assert!(max_bytes <= BallotChoices::MAX_SIZE_BYTES);
+            let max_bytes = BallotChoices::maximum_size_bytes(
+                &style.contests,
+                style.decline_to_vote_enabled(),
+                style.blank_ballots_enabled(),
+                style.multi_contest_encoding_mode.unwrap_or_default(),
+            )
+            .unwrap();
+            // `encode_vec_to_array` reserves byte 0 for the length prefix, so the
+            // payload limit is 29, not the 30-byte array size. Asserting against
+            // 30 would let this test pass for a style that cannot encode.
+            assert!(max_bytes <= BallotChoices::MAX_SIZE_BYTES);
 
-        println!("max bytes: {:?}", max_bytes);
+            println!("max bytes: {:?}", max_bytes);
 
-        let bytes = ballot.encode_to_30_bytes(&style).unwrap();
-        println!("bytes {:?}", bytes);
+            let bytes = ballot.encode_to_30_bytes(&style).unwrap();
+            println!("bytes {:?}", bytes);
 
-        let back = BallotChoices::decode_from_30_bytes(&bytes, &style).unwrap();
+            let back =
+                BallotChoices::decode_from_30_bytes(&bytes, &style).unwrap();
 
-        let mut in_choices = ballot.choices.clone();
-        in_choices.sort_by_key(|c| c.contest_id.clone());
+            let mut in_choices = ballot.choices.clone();
+            in_choices.sort_by_key(|c| c.contest_id.clone());
 
-        let mut out_choices = back.choices.clone();
-        out_choices.sort_by_key(|c| c.contest_id.clone());
+            let mut out_choices = back.choices.clone();
+            out_choices.sort_by_key(|c| c.contest_id.clone());
 
-        assert_eq!(ballot.is_explicit_invalid, back.is_explicit_invalid);
-        assert_eq!(in_choices.len(), out_choices.len());
+            assert_eq!(ballot.is_explicit_invalid, back.is_explicit_invalid);
+            assert_eq!(back.is_explicit_invalid, decline_to_vote);
+            assert_eq!(in_choices.len(), out_choices.len());
 
-        for (i, inc) in in_choices.iter().enumerate() {
-            let outc = out_choices[i].clone();
+            for (i, inc) in in_choices.iter().enumerate() {
+                let outc = out_choices[i].clone();
 
-            assert_eq!(inc.contest_id, outc.contest_id);
-            assert_eq!(inc.is_explicit_invalid, outc.is_explicit_invalid);
-            assert_eq!(inc.choices.len(), outc.choices.len());
+                assert_eq!(inc.contest_id, outc.contest_id);
+                assert_eq!(inc.is_explicit_invalid, outc.is_explicit_invalid);
+                assert_eq!(inc.choices.len(), outc.choices.len());
 
-            let mut inc = inc.choices.clone();
-            inc.sort_by_key(|c| c.candidate_id.clone());
+                let mut inc = inc.choices.clone();
+                inc.sort_by_key(|c| c.candidate_id.clone());
 
-            let mut outc = outc.choices.clone();
-            outc.sort_by_key(|c| c.clone().0);
+                let mut outc = outc.choices.clone();
+                outc.sort_by_key(|c| c.clone().0);
 
-            for (j, ic) in inc.iter().enumerate() {
-                let oc = outc[j].clone();
+                for (j, ic) in inc.iter().enumerate() {
+                    let oc = outc[j].clone();
 
-                assert_eq!(ic.candidate_id, oc.0);
+                    assert_eq!(ic.candidate_id, oc.0);
+                }
             }
         }
     }
@@ -3097,14 +3103,21 @@ mod tests {
         }
     }
 
-    fn random_ballot(contests: usize) -> (BallotChoices, BallotStyle) {
+    fn random_ballot(
+        contests: usize,
+        use_decline_to_vote: bool,
+    ) -> (BallotChoices, BallotStyle) {
         let mut rng = rand::thread_rng();
         let contests: Vec<Contest> = (0..contests)
             .map(|i| {
                 let contest_id = i.to_string();
 
                 // allow for 0 min_votes to test decline to vote
-                let min_votes = rng.gen_range(0..5);
+                let min_votes = if use_decline_to_vote {
+                    0
+                } else {
+                    (i % 5) as i64
+                };
                 let max_votes = if min_votes == 0 {
                     rng.gen_range(0..5)
                 } else {
@@ -3123,11 +3136,6 @@ mod tests {
                 random_contest(contest_id, candidates, min_votes, max_votes)
             })
             .collect();
-
-        let all_allow_decline_to_vote =
-            contests.iter().all(|c| c.min_votes == 0);
-        let use_decline_to_vote =
-            all_allow_decline_to_vote && rng.gen_bool(0.15);
 
         let choices: Vec<ContestChoices> = if use_decline_to_vote {
             contests
@@ -3169,7 +3177,8 @@ mod tests {
     fn random_contest_choices(contest: &Contest) -> ContestChoices {
         let mut rng = rand::thread_rng();
 
-        if contest.min_votes == 0 && rng.gen_bool(0.2) {
+        // The zero-minimum contest supplies the explicit-invalid control.
+        if contest.min_votes == 0 {
             return ContestChoices::new(contest.id.clone(), vec![], true);
         }
 
