@@ -215,7 +215,7 @@ cannot:
 - `authorized-election-ids`, `authorized-to-election-alias`, `permission_labels`, and `trustee`
 - `vote-weight`, `delegate-vote-to`, `voted-channel`, `support-materials-acknowledged`, and
   `disable-comment`
-- `sequent.read-only.id-card-number-validated` and `sequent.read-only.mobile-number`
+- `embassy`, `sequent.read-only.id-card-number-validated`, and `sequent.read-only.mobile-number`
 
 Step reads the secret-attribute configuration through a short cache, so a change to the
 annotation can take up to 30 seconds to be reflected in the voter list and editor. If the
