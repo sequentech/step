@@ -41,7 +41,7 @@ const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-cha
 /// The first and last name are included: they live in Keycloak's top-level
 /// user fields, which every voter-level output copies verbatim. So is
 /// `password`, a column the voters import reads as the voter's password.
-pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 21] = [
+pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 22] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",
@@ -49,6 +49,7 @@ pub(crate) const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 21] = [
     "delegate-vote-to",
     "disable-comment",
     "email",
+    "embassy",
     "firstName",
     "first_name",
     "lastName",
@@ -768,6 +769,15 @@ mod tests {
     #[test]
     fn trustee_cannot_be_secret() {
         let config = SecretAttributeConfig::from_profile(&[secret_attribute("trustee")]);
+        assert!(config.validated_names().is_err());
+    }
+
+    /// Keycloak's enrollment emails a voter the embassy stored for them, and
+    /// windmill gives an applicant their post's permission label only when the
+    /// embassy they enter matches it, which a ciphertext never does.
+    #[test]
+    fn embassy_cannot_be_secret() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("embassy")]);
         assert!(config.validated_names().is_err());
     }
 
