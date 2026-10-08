@@ -39,8 +39,9 @@ const CONFIG_CACHE_TTL: Duration = Duration::from_secs(30);
 const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-characters"];
 /// Identity and operational fields that other components read in plaintext.
 /// The first and last name are included: they live in Keycloak's top-level
-/// user fields, which every voter-level output copies verbatim.
-const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 17] = [
+/// user fields, which every voter-level output copies verbatim. So is
+/// `password`, a column the voters import reads as the voter's password.
+const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 18] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",
@@ -51,6 +52,7 @@ const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 17] = [
     "first_name",
     "lastName",
     "last_name",
+    "password",
     "permission_labels",
     "sequent.read-only.id-card-number-validated",
     "sequent.read-only.mobile-number",
@@ -725,6 +727,15 @@ mod tests {
             assert!(config.validated_names().is_err(), "{name} must be rejected");
             assert!(config.redacted_names().contains(name));
         }
+    }
+
+    /// An export with secrets would write it as a `password` column, which the
+    /// voters import reads as the voter's password, as written.
+    #[test]
+    fn password_cannot_be_secret() {
+        let config = SecretAttributeConfig::from_profile(&[secret_attribute("password")]);
+        assert!(config.validated_names().is_err());
+        assert!(config.redacted_names().contains("password"));
     }
 
     #[test]
