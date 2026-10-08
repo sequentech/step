@@ -7,7 +7,7 @@ use crate::services::authorized_elections::{quoted, AuthorizedElectionIds};
 use crate::services::csv_cell::escape_formula;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
-use crate::services::import::import_users::ELECTION_COL_PREFIX;
+use crate::services::import::import_users::{ELECTION_COL_PREFIX, RESERVED_COL_NAMES};
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
 use crate::services::voter_secret_attributes::{
@@ -70,6 +70,14 @@ pub enum ExportBody {
     },
 }
 
+/// Whether export writes the profile attribute `name` in a column of its own.
+/// Not when an account column has that name, nor when import reads the column
+/// as something else, such as the voter's password: the attribute would come
+/// back as that.
+fn is_exported_attribute(name: &str) -> bool {
+    !USER_FIELDS.contains(&name) && !RESERVED_COL_NAMES.contains(&name)
+}
+
 /// The columns of a voters CSV: the account's, one per profile attribute, and,
 /// when exporting an election event's voters, one per election.
 #[instrument(skip(elections))]
@@ -88,12 +96,8 @@ fn get_headers(
         "area_name".to_string(),
     ];
     for attr in user_attributes {
-        match (&attr.name) {
-            (Some(name)) => {
-                if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_headers.push(name.clone())
-                }
-            }
+        match &attr.name {
+            Some(name) if is_exported_attribute(name) => user_headers.push(name.clone()),
             _ => (),
         }
     }
@@ -184,15 +188,13 @@ fn get_user_record(
     ];
     for attr in user_attributes {
         match &attr.name {
-            Some(name) => {
-                if !USER_FIELDS.contains(&name.as_str()) {
-                    if name == AUTHORIZED_ELECTION_IDS_NAME {
-                        user_info.push(get_authorized_election_ids(user, authorized_elections))
-                    } else if let Some(true) = &attr.multivalued {
-                        user_info.push(user.get_attribute_multival(name).unwrap_or_default())
-                    } else {
-                        user_info.push(user.get_attribute_val(name).unwrap_or_default())
-                    }
+            Some(name) if is_exported_attribute(name) => {
+                if name == AUTHORIZED_ELECTION_IDS_NAME {
+                    user_info.push(get_authorized_election_ids(user, authorized_elections))
+                } else if let Some(true) = &attr.multivalued {
+                    user_info.push(user.get_attribute_multival(name).unwrap_or_default())
+                } else {
+                    user_info.push(user.get_attribute_val(name).unwrap_or_default())
                 }
             }
             _ => (),
@@ -647,6 +649,31 @@ mod tests {
             cells[AUTHORIZED_ELECTION_IDS_NAME],
             format!("{EXTERNAL_ID}|{ELECTION_A}")
         );
+    }
+
+    /// Import reads these columns as the voter's password and group, so the
+    /// attributes would come back as those instead.
+    #[test]
+    fn attributes_named_like_columns_import_reserves_are_not_exported() {
+        let attributes = vec![
+            attribute("password"),
+            attribute("group_name"),
+            attribute("mobile-number"),
+        ];
+        let user = User {
+            username: Some("voter".to_string()),
+            attributes: Some(HashMap::from([
+                ("password".to_string(), vec!["=1+1".to_string()]),
+                ("group_name".to_string(), vec!["admins".to_string()]),
+                ("mobile-number".to_string(), vec!["600000000".to_string()]),
+            ])),
+            ..Default::default()
+        };
+
+        let cells = exported_cells(&elections(), &attributes, &user);
+        assert!(!cells.contains_key("password"));
+        assert!(!cells.contains_key("group_name"));
+        assert_eq!(cells["mobile-number"], "600000000");
     }
 
     /// Kept as they are, they could name an election in the election event they

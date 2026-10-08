@@ -58,7 +58,9 @@ const GROUP_COL_NAME: &str = "group_name";
 const AREA_NAME_COL_NAME: &str = "area_name";
 pub const ELECTION_COL_PREFIX: &str = "election__";
 const INTERNAL_USER_ID_COL_NAME: &str = "sequent_internal_user_id";
-const RESERVED_COL_NAMES: [&str; 7] = [
+/// Columns import reads as something other than the voter attribute of the same
+/// name.
+pub(crate) const RESERVED_COL_NAMES: [&str; 7] = [
     HASHED_PASSWORD_COL_NAME,
     SALT_COL_NAME,
     PASSWORD_COL_NAME,
