@@ -57,6 +57,8 @@ jobs:
           export BASE_URL=$URL_PATH
           yarn install --frozen-lockfile
           yarn build
+          # Print the administrator manual to PDF (uses the runner's Chrome).
+          yarn pdf
 
       - name: Spectaql | GraphQL Documentation
         working-directory: ./docs/api/graphql

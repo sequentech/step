@@ -17,7 +17,7 @@ a PIN (`direct-grant-validate-password`). Some elections instead want voters to 
 one or more attributes they already know - a date of birth, a national ID - plus a PIN, without a
 separate voter ID step. `MultiAttributePasswordDirectGrantAuthenticator`
 (provider ID `multi-attribute-password-direct`) is the IVR/Direct Grant counterpart of the
-web login's [Multi-Attribute + Password Form](../../02-election_managers/01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md) -
+web login's [Multi-Attribute + Password Form](/manual/more-procedures/admin_portal_tutorials_multi_attribute_password_login) -
 both share the same resolution logic (`MultiAttributeCredentialResolver`): every configured
 identifying attribute must match the same user, and the PIN then disambiguates among candidates.
 

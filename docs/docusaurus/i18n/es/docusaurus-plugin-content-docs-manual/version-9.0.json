@@ -1,0 +1,14 @@
+{
+  "version.label": {
+    "message": "9.0",
+    "description": "The label for version 9.0"
+  },
+  "sidebar.manual.category.Procedures": {
+    "message": "Procedimientos",
+    "description": "The label for category 'Procedures' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Reference": {
+    "message": "Referencia",
+    "description": "The label for category 'Reference' in sidebar 'manual'"
+  }
+}

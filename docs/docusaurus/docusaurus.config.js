@@ -7,6 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 // @ts-check
 
+// Docusaurus builds one site per locale and sets this variable for each.
+const locale = process.env.DOCUSAURUS_CURRENT_LOCALE || 'en';
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Sequent Online Voting',
@@ -22,10 +25,14 @@ const config = {
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
-  // i18n, if you ever need it:
+  // The site language selector. Untranslated pages fall back to the English source.
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'es'],
+    localeConfigs: {
+      en: {label: 'English', htmlLang: 'en'},
+      es: {label: 'Español', htmlLang: 'es'},
+    },
   },
   presets: [
     [
@@ -45,6 +52,29 @@ const config = {
           customCss: require.resolve('./src/css/custom.css'),
         },
       }),
+    ],
+  ],
+
+  plugins: [
+    [
+      // The election administrator manual is versioned separately from the
+      // technical documentation. See manual/README.md.
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'manual',
+        path: 'manual',
+        routeBasePath: 'manual',
+        sidebarPath: require.resolve('./sidebarsManual.js'),
+        remarkPlugins: [require('./plugins/remark-code-tabs')],
+        editUrl: 'https://github.com/sequentech/step/edit/main/docs/docusaurus',
+        exclude: ['README.md', '**/_*.{md,mdx}'],
+        lastVersion: '10.0',
+        versions: {
+          current: {label: 'Next', path: 'next', banner: 'unreleased'},
+          '10.0': {label: '10.0'},
+          '9.0': {label: '9.0', path: '9.0', banner: 'none'},
+        },
+      },
     ],
   ],
 
@@ -74,10 +104,26 @@ const config = {
             label: 'Docs',
           },
           {
+            type: 'docSidebar',
+            sidebarId: 'manual',
+            docsPluginId: 'manual',
+            position: 'left',
+            label: 'Administrator Manual',
+          },
+          {
             href: (process.env.BASE_URL || '') + '/graphql',
             label: 'GraphQL API',
             position: 'left',
             target: '_blank',
+          },
+          {
+            type: 'docsVersionDropdown',
+            docsPluginId: 'manual',
+            position: 'right',
+          },
+          {
+            type: 'localeDropdown',
+            position: 'right',
           },
           {
             href: 'https://github.com/sequentech',
@@ -86,6 +132,14 @@ const config = {
           },
         ],
       },
+      ...(locale === 'es' && {
+        announcementBar: {
+          id: 'es-translation-in-progress',
+          content:
+            'La traducción al español está en curso. Las páginas sin traducir se muestran en inglés.',
+          isCloseable: true,
+        },
+      }),
       footer: {
         style: 'dark',
         copyright: `Copyright © ${new Date().getFullYear()} Sequent`,

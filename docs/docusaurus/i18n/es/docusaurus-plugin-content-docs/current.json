@@ -1,0 +1,170 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.docs.category.System Introduction": {
+    "message": "System Introduction",
+    "description": "The label for category 'System Introduction' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Voters": {
+    "message": "Voters",
+    "description": "The label for category 'Voters' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.voters-tutorials": {
+    "message": "Tutorials",
+    "description": "The label for category 'Tutorials' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Election Auditors": {
+    "message": "Election Auditors",
+    "description": "The label for category 'Election Auditors' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Introduction": {
+    "message": "Introduction",
+    "description": "The label for category 'Introduction' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.auditors-tutorials": {
+    "message": "Tutorials",
+    "description": "The label for category 'Tutorials' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.reference": {
+    "message": "Reference",
+    "description": "The label for category 'Reference' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Software Architecture": {
+    "message": "Software Architecture",
+    "description": "The label for category 'Software Architecture' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Tally Deep Dive": {
+    "message": "Tally Deep Dive",
+    "description": "The label for category 'Tally Deep Dive' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Cryptography and Security": {
+    "message": "Cryptography and Security",
+    "description": "The label for category 'Cryptography and Security' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Cryptography": {
+    "message": "Cryptography",
+    "description": "The label for category 'Cryptography' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Security": {
+    "message": "Security",
+    "description": "The label for category 'Security' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Technology": {
+    "message": "Technology",
+    "description": "The label for category 'Technology' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Developers": {
+    "message": "Developers",
+    "description": "The label for category 'Developers' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.CLI": {
+    "message": "CLI",
+    "description": "The label for category 'CLI' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.tutorials": {
+    "message": "tutorials",
+    "description": "The label for category 'tutorials' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.developers-cli-reference": {
+    "message": "Reference",
+    "description": "The label for category 'Reference' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Admin CLI Manual": {
+    "message": "Admin CLI Manual",
+    "description": "The label for category 'Admin CLI Manual' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Development Environment": {
+    "message": "Development Environment",
+    "description": "The label for category 'Development Environment' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Admin Portal": {
+    "message": "Admin Portal",
+    "description": "The label for category 'Admin Portal' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Voting Portal": {
+    "message": "Voting Portal",
+    "description": "The label for category 'Voting Portal' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Keycloak": {
+    "message": "Keycloak",
+    "description": "The label for category 'Keycloak' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Velvet": {
+    "message": "Velvet",
+    "description": "The label for category 'Velvet' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Windmill": {
+    "message": "Windmill",
+    "description": "The label for category 'Windmill' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Braid": {
+    "message": "Braid",
+    "description": "The label for category 'Braid' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.developers-tutorials": {
+    "message": "Tutorials",
+    "description": "The label for category 'Tutorials' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Updates": {
+    "message": "Updates",
+    "description": "The label for category 'Updates' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.IVR Telephone Voting": {
+    "message": "IVR Telephone Voting",
+    "description": "The label for category 'IVR Telephone Voting' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Electoral Log": {
+    "message": "Electoral Log",
+    "description": "The label for category 'Electoral Log' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Integrations": {
+    "message": "Integrations",
+    "description": "The label for category 'Integrations' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Releases": {
+    "message": "Releases",
+    "description": "The label for category 'Releases' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 10.0": {
+    "message": "Release 10.0",
+    "description": "The label for category 'Release 10.0' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 9.5": {
+    "message": "Release 9.5",
+    "description": "The label for category 'Release 9.5' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 9.4": {
+    "message": "Release 9.4",
+    "description": "The label for category 'Release 9.4' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 9.3": {
+    "message": "Release 9.3",
+    "description": "The label for category 'Release 9.3' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 9.2": {
+    "message": "Release 9.2",
+    "description": "The label for category 'Release 9.2' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 9.1": {
+    "message": "Release 9.1",
+    "description": "The label for category 'Release 9.1' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 9.0": {
+    "message": "Release 9.0",
+    "description": "The label for category 'Release 9.0' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Release 8.7": {
+    "message": "Release 8.7",
+    "description": "The label for category 'Release 8.7' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Support": {
+    "message": "Support",
+    "description": "The label for category 'Support' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Try it out": {
+    "message": "Try it out",
+    "description": "The label for category 'Try it out' in sidebar 'docs'"
+  }
+}

@@ -1,0 +1,47 @@
+---
+id: election_management_election_event_publish
+title: Publish
+---
+
+<!--
+-- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+
+To commit any changes to an Election Event, they must be published using this tab. Additionally, you can start, pause, and stop Election Events here.
+
+All publications and their respective changes can be viewed in the table using the "eye" icon.
+
+### Table Options
+
+- **Columns**: Enable or disable specific columns for display.
+- **Add Filter**: Create text filters for the table by column.
+
+### Actions
+
+**Any action performed in this tab will effect all Elections associated with the Election Event.**
+
+- **Start Election**: Begin the Election Event.
+- **Pause**: Temporarily halt the Election Event.
+- **Stop Election**: End the Election Event.
+- **Publish Changes**: Apply any changes to this Election Event.  
+
+---
+
+## Publish Changes / Preview
+
+Changing settings in the Admin Portal will not apply them until they have been published. Publishing changes is done by selecting **Publish Changes** in the Publish tab.
+
+### Steps to Publish Changes
+
+1. Select **Publish Changes**.
+2. Enter your password (sensitive operations are password protected).
+3. Review the changes.
+4. (Optional) Select **Preview** to open the Voting Portal changes in a separate tab (per Area).
+5. Select **Publish Changes** again to apply the changes.
+
+### Additional Actions
+
+- **Regenerate**: Regenerate the diff files.
+- **Export**: Export the diff files.

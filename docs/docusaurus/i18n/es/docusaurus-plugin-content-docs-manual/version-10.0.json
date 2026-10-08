@@ -1,0 +1,50 @@
+{
+  "version.label": {
+    "message": "10.0",
+    "description": "The label for version 10.0"
+  },
+  "sidebar.manual.category.Procedures": {
+    "message": "Procedimientos",
+    "description": "The label for category 'Procedures' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.More procedures": {
+    "message": "Otros procedimientos",
+    "description": "The label for category 'More procedures' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Reference": {
+    "message": "Referencia",
+    "description": "The label for category 'Reference' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Election Event": {
+    "message": "Evento electoral",
+    "description": "The label for category 'Election Event' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Election": {
+    "message": "Elección",
+    "description": "The label for category 'Election' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Contest": {
+    "message": "Pregunta",
+    "description": "The label for category 'Contest' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Candidate": {
+    "message": "Candidato",
+    "description": "The label for category 'Candidate' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Tenant Configuration": {
+    "message": "Configuración del cliente",
+    "description": "The label for category 'Tenant Configuration' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.settings": {
+    "message": "Ajustes",
+    "description": "The label for category 'settings' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.templates": {
+    "message": "Plantillas",
+    "description": "The label for category 'templates' in sidebar 'manual'"
+  },
+  "sidebar.manual.category.Users and Roles": {
+    "message": "Usuarios y roles",
+    "description": "The label for category 'Users and Roles' in sidebar 'manual'"
+  }
+}
