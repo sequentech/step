@@ -65,7 +65,7 @@ pub async fn import_areas_route(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::AREA_WRITE],
+        vec![Permissions::AREA_IMPORT],
     )?;
 
     provide_hasura_transaction(|hasura_transaction| {
