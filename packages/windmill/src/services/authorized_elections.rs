@@ -464,6 +464,19 @@ mod tests {
         );
     }
 
+    /// The token mapper ignores only empty external IDs, so a voter whose
+    /// `authorized-election-ids` holds a blank one votes in its election,
+    /// although import stores the election by ID.
+    #[test]
+    fn the_census_matches_a_blank_external_id() {
+        let census = census_values_by_election(&[election(ELECTION_A, Some(" "))]);
+
+        assert_eq!(
+            census[ELECTION_A],
+            vec![" ".to_string(), ELECTION_A.to_string()]
+        );
+    }
+
     /// The token mapper resolves the ID to the election whose external ID it
     /// is, so the other election's census must not match it.
     #[test]
