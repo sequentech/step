@@ -35,8 +35,20 @@ pub const READER_USER_ENV: &str = "ELECTORAL_LOG_PG_READER_USER";
 pub const READER_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_READER_PASSWORD";
 /// Role of the environment's backups, which reads every election event's database.
 pub const BACKUP_USER_ENV: &str = "ELECTORAL_LOG_PG_BACKUP_USER";
+/// Role that creates and drops the election events' databases, which the application
+/// role owns: it needs `CREATEDB` and membership in the application role. Unset, the
+/// application role creates them itself and needs `CREATEDB`.
+pub const PROVISIONING_USER_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_USER";
+pub const PROVISIONING_PASSWORD_ENV: &str = "ELECTORAL_LOG_PG_PROVISIONING_PASSWORD";
 /// Connections of a store's pool.
 const POOL_SIZE: usize = 8;
+
+/// A role's login.
+#[derive(Clone)]
+struct Login {
+    user: String,
+    password: String,
+}
 
 /// Connection settings of the electoral-log database.
 #[derive(Clone)]
@@ -44,6 +56,7 @@ pub struct PostgresConnection {
     config: Config,
     tls: MakeTlsConnector,
     database: String,
+    provisioning: Option<Login>,
 }
 
 impl PostgresConnection {
@@ -57,7 +70,8 @@ impl PostgresConnection {
                 .parse()
                 .context("Invalid electoral-log PostgreSQL port")?,
         );
-        config.user(&required("ELECTORAL_LOG_PG_USER")?);
+        let user = required("ELECTORAL_LOG_PG_USER")?;
+        config.user(&user);
         config.password(required("ELECTORAL_LOG_PG_PASSWORD")?);
         let database = required("ELECTORAL_LOG_PG_DATABASE")?;
         config.dbname(&database);
@@ -84,11 +98,32 @@ impl PostgresConnection {
             _ => anyhow::bail!("ELECTORAL_LOG_PG_SSLMODE must be disable, require or verify-full"),
         }
         config.connect_timeout(Duration::from_secs(10));
+        let provisioning = match Self::role(PROVISIONING_USER_ENV) {
+            Some(provisioner) if provisioner != user => Some(Login {
+                user: provisioner,
+                password: required(PROVISIONING_PASSWORD_ENV)?,
+            }),
+            _ => None,
+        };
         Ok(Self {
             config,
             tls: MakeTlsConnector::new(tls.build()),
             database,
+            provisioning,
         })
+    }
+
+    /// The application role.
+    pub fn user(&self) -> Result<&str> {
+        self.config
+            .get_user()
+            .context("The electoral-log connection has no user")
+    }
+
+    /// Whether a role of its own, `ELECTORAL_LOG_PG_PROVISIONING_USER`, creates and
+    /// drops databases.
+    pub fn has_provisioning_role(&self) -> bool {
+        self.provisioning.is_some()
     }
 
     /// The database of `ELECTORAL_LOG_PG_DATABASE`.
@@ -152,6 +187,22 @@ impl PostgresConnection {
         let mut config = self.config.clone();
         config.dbname(database);
         self.connect(config, database).await
+    }
+
+    /// A connection of its own to a database of the server as the role that creates
+    /// and drops databases: the provisioning role, or else the application role.
+    pub async fn provisioning_client_of(&self, database: &str) -> Result<tokio_postgres::Client> {
+        let Some(login) = &self.provisioning else {
+            return self.client_of(database).await;
+        };
+        let mut config = self.config.clone();
+        config
+            .dbname(database)
+            .user(&login.user)
+            .password(login.password.as_str());
+        self.connect(config, database)
+            .await
+            .context("Error connecting as the electoral-log provisioning role")
     }
 
     async fn connect(&self, config: Config, database: &str) -> Result<tokio_postgres::Client> {

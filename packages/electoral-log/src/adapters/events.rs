@@ -312,10 +312,14 @@ impl EventDatabases {
             .is_some();
         if !exists {
             client
-                .batch_execute(&format!("CREATE DATABASE {quoted}"))
+                .batch_execute(&format!(
+                    "CREATE DATABASE {quoted} OWNER {}",
+                    quote_identifier(self.inner.connection.user()?)
+                ))
                 .await
                 .with_context(|| format!("Error creating database {database}"))?;
         }
+        self.act_as_owner(&client).await?;
         // Also after a creation that stopped before registering the event.
         client
             .batch_execute(&format!(
@@ -341,14 +345,15 @@ impl EventDatabases {
         self.open(&event, &database)
     }
 
-    /// A connection of its own to the base database holding the lock that makes the
-    /// creations and drops of event databases take turns. The lock ends with the
-    /// connection, also when a call is dropped half way.
+    /// A connection of its own to the base database, as the role that creates and drops
+    /// databases, holding the lock that makes the creations and drops of event
+    /// databases take turns. The lock ends with the connection, also when a call is
+    /// dropped half way.
     async fn locked_client(&self) -> Result<tokio_postgres::Client> {
         let client = self
             .inner
             .connection
-            .client_of(self.inner.connection.database())
+            .provisioning_client_of(self.inner.connection.database())
             .await?;
         client
             .batch_execute(&format!("SET lock_timeout = '{CREATE_LOCK_TIMEOUT}'"))
@@ -358,6 +363,19 @@ impl EventDatabases {
             .await
             .context("Error waiting for another creation or drop of an event database")?;
         Ok(client)
+    }
+
+    /// Act as the application role, which owns the event databases, on a connection of
+    /// the provisioning role, which can only create databases.
+    async fn act_as_owner(&self, client: &tokio_postgres::Client) -> Result<()> {
+        if !self.inner.connection.has_provisioning_role() {
+            return Ok(());
+        }
+        let owner = self.inner.connection.user()?;
+        client
+            .batch_execute(&format!("SET ROLE {}", quote_identifier(owner)))
+            .await
+            .with_context(|| format!("The provisioning role must be a member of {owner}"))
     }
 
     /// Release the lock of `locked_client`. Closing the connection releases it too, so
@@ -432,6 +450,7 @@ impl EventDatabases {
             }
             None => self.database_name(&event)?,
         };
+        self.act_as_owner(&client).await?;
         self.forget(&event);
         client
             .batch_execute(&format!(

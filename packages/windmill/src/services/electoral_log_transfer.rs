@@ -171,7 +171,7 @@ pub async fn import_electoral_log(
     election_event_id: &str,
     board: &str,
     manifest: &[u8],
-    records: &[u8],
+    records: impl BufRead + Send,
 ) -> Result<ImportedElectoralLog> {
     let manifest: ExportManifest =
         serde_json::from_slice(manifest).context("The electoral-log manifest is malformed")?;

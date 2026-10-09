@@ -64,7 +64,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Cursor;
 use std::io::Seek;
-use std::io::{self, Read, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::path::Path;
 use std::str::FromStr;
 use tempfile::NamedTempFile;
@@ -1006,7 +1006,7 @@ async fn process_electoral_log_files(
     tenant_id: &str,
     election_event_id: &str,
     manifest: &[u8],
-    records: &[u8],
+    records: &NamedTempFile,
 ) -> Result<()> {
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
@@ -1016,7 +1016,7 @@ async fn process_electoral_log_files(
         election_event_id,
         &board_name,
         manifest,
-        records,
+        BufReader::new(records.reopen()?),
     )
     .await?;
     for log in &imported.logs {
@@ -1134,18 +1134,33 @@ pub async fn process_s3_file(
     Ok(())
 }
 
+/// Files of an export that grow with the event's electoral log. An import extracts them
+/// to disk instead of reading them into memory.
+const SPOOLED_DOCUMENTS: [EDocuments; 2] =
+    [EDocuments::ELECTORAL_LOG_RECORDS, EDocuments::ACTIVITY_LOGS];
+
+/// What an imported ZIP holds: its files but the election event's JSON, by name and in
+/// import order, listing those extracted to disk without their contents; the files
+/// extracted to disk, by name; and the election event's JSON.
+pub type ZipEntries = (
+    Vec<(String, Vec<u8>)>,
+    HashMap<String, NamedTempFile>,
+    String,
+);
+
 // return zip entries, and the original string of the json schema
 #[instrument(err, skip(temp_file_path))]
 pub async fn get_zip_entries(
     temp_file_path: NamedTempFile,
     document_type: &str,
-) -> Result<(Vec<(String, Vec<u8>)>, String)> {
-    let (mut zip_entries, election_event_schema) =
+) -> Result<ZipEntries> {
+    let (mut zip_entries, spooled, election_event_schema) =
         if document_type == "application/ezip" || matches_mime("zip", document_type) {
-            tokio::task::spawn_blocking(move || -> Result<(Vec<(String, Vec<u8>)>, String)> {
+            tokio::task::spawn_blocking(move || -> Result<ZipEntries> {
                 let file = File::open(&temp_file_path)?;
                 let mut zip = ZipArchive::new(file)?;
                 let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+                let mut spooled: HashMap<String, NamedTempFile> = HashMap::new();
 
                 let mut election_event_schema: Option<String> = None;
                 for i in 0..zip.len() {
@@ -1158,6 +1173,15 @@ pub async fn get_zip_entries(
                         let mut file_str = String::new();
                         file.read_to_string(&mut file_str)?;
                         election_event_schema = Some(file_str);
+                    } else if SPOOLED_DOCUMENTS
+                        .iter()
+                        .any(|document| file_name.contains(document.to_file_name()))
+                    {
+                        let mut extracted = NamedTempFile::new()?;
+                        io::copy(&mut file, &mut extracted)?;
+                        extracted.as_file_mut().rewind()?;
+                        entries.push((file_name.clone(), Vec::new()));
+                        spooled.insert(file_name, extracted);
                     } else {
                         let mut file_contents = Vec::new();
                         file.read_to_end(&mut file_contents)?;
@@ -1165,7 +1189,7 @@ pub async fn get_zip_entries(
                     }
                 }
                 if let Some(schema_str) = election_event_schema {
-                    Ok((entries, schema_str))
+                    Ok((entries, spooled, schema_str))
                 } else {
                     Err(anyhow!("No JSON file found in ZIP"))
                 }
@@ -1176,7 +1200,7 @@ pub async fn get_zip_entries(
             let mut file = File::open(temp_file_path)?;
             let mut data_str = String::new();
             file.read_to_string(&mut data_str)?;
-            (vec![], data_str)
+            (vec![], HashMap::new(), data_str)
         };
 
     // Sort the ZIP entries by importance:
@@ -1203,7 +1227,7 @@ pub async fn get_zip_entries(
         (rank, file_name.clone()) // rank first, then alphabetically within rank
     });
 
-    Ok((zip_entries, election_event_schema))
+    Ok((zip_entries, spooled, election_event_schema))
 }
 
 #[instrument(err, skip_all)]
@@ -1221,7 +1245,7 @@ pub async fn process_document(
     .await
     .map_err(|err| anyhow!("Failed to get document: {err}"))?;
 
-    let (zip_entries, file_election_event_schema) =
+    let (zip_entries, spooled_entries, file_election_event_schema) =
         get_zip_entries(temp_file_path, &document_type).await?;
 
     let is_importing_keys = zip_entries.iter().any(|(file_name, _)| {
@@ -1274,15 +1298,15 @@ pub async fn process_document(
 
     // Exports that carry the electoral logs with their identities replace the activity
     // logs file, which older exports carry alone.
-    let electoral_log_entry = |document: EDocuments| {
+    let electoral_log_files = (
         zip_entries
             .iter()
-            .find(|(name, _)| name.contains(document.to_file_name()))
-            .map(|(_, contents)| contents)
-    };
-    let electoral_log_files = (
-        electoral_log_entry(EDocuments::ELECTORAL_LOG_MANIFEST),
-        electoral_log_entry(EDocuments::ELECTORAL_LOG_RECORDS),
+            .find(|(name, _)| name.contains(EDocuments::ELECTORAL_LOG_MANIFEST.to_file_name()))
+            .map(|(_, contents)| contents),
+        spooled_entries
+            .iter()
+            .find(|(name, _)| name.contains(EDocuments::ELECTORAL_LOG_RECORDS.to_file_name()))
+            .map(|(_, file)| file),
     );
     let imports_electoral_log = match electoral_log_files {
         (Some(_), Some(_)) => true,
@@ -1316,15 +1340,12 @@ pub async fn process_document(
             if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name()))
                 && !imports_electoral_log
             {
-                let mut temp_file = NamedTempFile::new()
-                    .context("Failed to create activity logs temporary file")?;
-
-                io::copy(&mut cursor, &mut temp_file)
-                    .context("Failed to copy contents of activity logs to temporary file")?;
-                temp_file.as_file_mut().rewind()?;
+                let temp_file = spooled_entries
+                    .get(file_name)
+                    .with_context(|| format!("The activity logs {file_name} were not extracted"))?;
                 process_activity_logs_file(
                     hasura_transaction,
-                    &temp_file,
+                    temp_file,
                     &election_event_id,
                     &tenant_id,
                 )
@@ -1700,6 +1721,58 @@ mod tests {
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
+
+    #[tokio::test]
+    async fn files_that_grow_with_the_electoral_log_are_extracted_to_disk() -> Result<()> {
+        let zip_file = NamedTempFile::new()?;
+        let mut writer = zip::ZipWriter::new(zip_file.reopen()?);
+        let options: zip::write::FileOptions<()> = zip::write::FileOptions::default();
+        let records = format!(
+            "{}-{EVENT}.jsonl",
+            EDocuments::ELECTORAL_LOG_RECORDS.to_file_name()
+        );
+        let activity = format!("{}-{EVENT}.csv", EDocuments::ACTIVITY_LOGS.to_file_name());
+        let manifest = format!(
+            "{}-{EVENT}.json",
+            EDocuments::ELECTORAL_LOG_MANIFEST.to_file_name()
+        );
+        for (name, contents) in [
+            (
+                format!("{}-{EVENT}.json", EDocuments::ELECTION_EVENT.to_file_name()),
+                "{}",
+            ),
+            (records.clone(), "{\"line\":1}\n{\"line\":2}\n"),
+            (activity.clone(), "id,data\n"),
+            (manifest.clone(), "{\"logs\":[]}"),
+        ] {
+            writer.start_file(name, options)?;
+            writer.write_all(contents.as_bytes())?;
+        }
+        writer.finish()?;
+
+        let (files, spooled, schema) = get_zip_entries(zip_file, "application/zip").await?;
+        assert_eq!(schema, "{}");
+        let listed = |name: &str| files.iter().find(|(file, _)| file == name).map(|(_, c)| c);
+        assert_eq!(
+            listed(&manifest).map(Vec::as_slice),
+            Some(&b"{\"logs\":[]}"[..])
+        );
+        for (name, contents) in [
+            (&records, "{\"line\":1}\n{\"line\":2}\n"),
+            (&activity, "id,data\n"),
+        ] {
+            assert_eq!(listed(name).map(Vec::len), Some(0), "{name}");
+            let mut read = String::new();
+            spooled
+                .get(name)
+                .with_context(|| format!("{name} was not extracted"))?
+                .reopen()?
+                .read_to_string(&mut read)?;
+            assert_eq!(read, contents);
+        }
+        assert_eq!(spooled.len(), 2);
+        Ok(())
+    }
 
     /// A bundle that deserializes and is fatally invalid: its contest points at an
     /// election that is not in it.
