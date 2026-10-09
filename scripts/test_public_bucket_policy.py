@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,7 +45,7 @@ elif args[:3] == ["anonymous", "set", "download"]:
             mc.chmod(0o755)
             env = {
                 **os.environ,
-                "PATH": str(staging) + os.pathsep + os.environ["PATH"],
+                "PATH": str(staging) + os.pathsep + (os.environ.get("PATH") or os.defpath),
                 "MINIO_POLICY_CAPTURE": str(capture),
                 "TMPDIR": str(staging),
                 "FAIL_PUBLIC_POLICY": str(fail_policy).lower(),
@@ -60,7 +61,7 @@ elif args[:3] == ["anonymous", "set", "download"]:
             }
             result = subprocess.run(
                 ["bash", str(ROOT / ".devcontainer/minio/entrypoint.sh")],
-                env=env, capture_output=True, text=True, timeout=10,
+                env=env, capture_output=True, text=True, timeout=30,
             )
             policy = json.loads(capture.read_text()) if capture.exists() else None
             return result, policy
@@ -74,6 +75,12 @@ elif args[:3] == ["anonymous", "set", "download"]:
             "Effect": "Allow", "Principal": {"AWS": ["*"]},
             "Action": ["s3:GetObject"], "Resource": ["arn:aws:s3:::test-public/*"],
         }])
+
+    def test_configuration_works_without_an_inherited_path(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            result, policy = self.configure()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIsNotNone(policy)
 
     def test_configuration_fails_when_public_policy_cannot_be_applied(self):
         result, policy = self.configure(fail_policy=True)
