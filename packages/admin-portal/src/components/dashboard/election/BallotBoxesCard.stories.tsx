@@ -102,6 +102,7 @@ const rowOf = async (canvasElement: HTMLElement, area: string) =>
 
 /** Closing 1: both countries sealed after two signers closed the Post. */
 export const Sealed: Story = {
+    parameters: {widgets: ["BallotBoxesTable"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(

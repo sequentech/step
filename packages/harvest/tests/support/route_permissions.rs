@@ -245,7 +245,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "include_secret_attributes": true}, [USER_READ], BAD_REQUEST, UNAUTHORIZED),
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "include_secret_attributes": true}, [VOTER_READ, VOTER_SECRET_ATTRIBUTE_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/fetch-document", {"document_id": "test-document"}, [DOCUMENT_DOWNLOAD], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/fetch-document", {"document_id": "test-document"}, [DOCUMENT_DOWNLOAD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/fetch-results-artifact", {"election_event_id": EVENT_ID, "publication_id": "test-publication"}, [], BACKEND),
         case!(Gold, "/generate-ballot-publication", {"election_event_id": EVENT_ID}, [PUBLISH_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/generate-google-meeting", {"summary": "test", "description": "test", "start_date_time": "2030-01-01T10:00:00Z", "end_date_time": "2030-01-01T11:00:00Z", "time_zone": "UTC", "attendee_emails": []}, [GOOGLE_MEET_LINK], BACKEND, UNAUTHORIZED),
