@@ -106,6 +106,9 @@ class AuthorizedElectionsUserAttributeMapperTest {
     assertTrue(
         AuthorizedElectionsUserAttributeMapper.parseAccessToken("{\"access_token\":\"\"}")
             .isEmpty());
+    assertTrue(
+        AuthorizedElectionsUserAttributeMapper.parseAccessToken("{\"access_token\":\"   \"}")
+            .isEmpty());
     assertTrue(AuthorizedElectionsUserAttributeMapper.parseAccessToken("[]").isEmpty());
   }
 }
