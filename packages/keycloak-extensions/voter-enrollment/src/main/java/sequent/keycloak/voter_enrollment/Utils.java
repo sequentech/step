@@ -13,7 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -127,20 +126,20 @@ public class Utils {
     // Lookup user by attributes using form data
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
+    Map<Boolean, List<String>> fieldsByReserved =
+        formData.keySet().stream().collect(Collectors.partitioningBy(RESERVED_NOTES::contains));
+    List<String> storedFields = fieldsByReserved.get(false);
+    List<String> ignoredFields = fieldsByReserved.get(true);
+
     // We store each key
-    String keys = Utils.serializeUserdataKeys(formData.keySet());
+    String keys = Utils.serializeUserdataKeys(storedFields);
 
     log.debug(
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
-    List<String> ignoredFields = new ArrayList<>();
-    formData.forEach(
-        (key, value) -> {
-          if (RESERVED_NOTES.contains(key)) {
-            ignoredFields.add(key);
-            return;
-          }
+    storedFields.forEach(
+        key -> {
           String values = Utils.serializeUserdataKeys(formData.get(key));
           log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
           sessionModel.setAuthNote(key, values);
