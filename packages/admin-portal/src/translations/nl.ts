@@ -2945,7 +2945,7 @@ const dutchTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Verkiezingslog",
             subtitle:
-                "Bekijk het verkiezingslog en de stembus van een verkiezingsevenement, of bevraag de database van het verkiezingslog. Niets op deze pagina wijzigt gegevens.",
+                "Bekijk het verkiezingslog en de stembus van een verkiezingsevenement, of bevraag de database van zijn verkiezingslog. Niets op deze pagina wijzigt gegevens.",
             notAllowed:
                 "U hebt de machtiging electoral-log-console-read nodig om het verkiezingslog te openen.",
             tabs: {
@@ -2953,6 +2953,7 @@ const dutchTranslation: TranslationType = {
                 query: "Query",
             },
             electionEvent: "Verkiezingsevenement",
+            tenant: "Tenant",
             table: "Tabel",
             tables: {
                 records: "Records",
@@ -2998,7 +2999,9 @@ const dutchTranslation: TranslationType = {
                 loadError: "Het record kon niet worden gelezen.",
             },
             query: {
-                help: "Query's worden uitgevoerd op de database van het verkiezingslog in een alleen-lezen transactie. De tabellen zijn electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending en ballot_box_sequencer.",
+                help: "Query's worden uitgevoerd op de verkiezingslogdatabase van het verkiezingsevenement in een alleen-lezen transactie. De tabellen zijn electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending en ballot_box_sequencer; trellis_logs beschrijft de Merkle-logs.",
+                scope: "Elk verkiezingsevenement heeft een eigen database, dus een query leest één evenement.",
+                chooseEvent: "Kies het verkiezingsevenement dat u wilt bevragen.",
                 placeholder: "SELECT …",
                 limits: "Alleen-lezen · tot 1.000 rijen · limiet van 30 s · elke query wordt met uw gebruiker vastgelegd in de serverlogs",
                 run: "Query Uitvoeren",

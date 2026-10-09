@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
+use crate::services::delete_election_event::drop_uncommitted_event_database;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -65,6 +66,7 @@ pub async fn import_election_event(
         }
         Err(error) => {
             let err_str = format!("Error processing election event document: {error:#}");
+            drop_uncommitted_event_database(&tenant_id, &election_event_id).await;
             let _ = update_fail(&task_execution, &err_str).await;
             Err(err_str.into())
         }

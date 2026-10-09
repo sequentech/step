@@ -628,7 +628,7 @@ export type InsertCastVoteOutput = {
     annotations?: Maybe<Scalars["jsonb"]["output"]>
     area_id: Scalars["uuid"]["output"]
     ballot_id?: Maybe<Scalars["String"]["output"]>
-    cast_ballot_signature: Scalars["bytea"]["output"]
+    cast_ballot_signature?: Maybe<Scalars["bytea"]["output"]>
     content?: Maybe<Scalars["String"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id: Scalars["uuid"]["output"]
@@ -1778,8 +1778,6 @@ export type Mutation_Root = {
     /** update multiples rows of table: "sequent_backend.candidate" */
     update_sequent_backend_candidate_many?: Maybe<
         Array<Maybe<Sequent_Backend_Candidate_Mutation_Response>>
-    >
-        Array<Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>>
     >
     /** update data of the table: "sequent_backend.certificate_authority" */
     update_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>

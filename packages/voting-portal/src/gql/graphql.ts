@@ -627,7 +627,7 @@ export type InsertCastVoteOutput = {
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id: Scalars['uuid']['output'];
   ballot_id?: Maybe<Scalars['String']['output']>;
-  cast_ballot_signature: Scalars['bytea']['output'];
+  cast_ballot_signature?: Maybe<Scalars['bytea']['output']>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id: Scalars['uuid']['output'];
@@ -24971,7 +24971,7 @@ export type InsertCastVoteMutationVariables = Exact<{
 }>;
 
 
-export type InsertCastVoteMutation = { __typename?: 'mutation_root', insert_cast_vote?: { __typename?: 'InsertCastVoteOutput', id: any, ballot_id?: string | null, election_id: any, election_event_id: any, tenant_id: any, area_id: any, created_at?: any | null, last_updated_at?: any | null, labels?: any | null, annotations?: any | null, content?: string | null, cast_ballot_signature: any, voter_id_string?: string | null } | null };
+export type InsertCastVoteMutation = { __typename?: 'mutation_root', insert_cast_vote?: { __typename?: 'InsertCastVoteOutput', id: any, ballot_id?: string | null, election_id: any, election_event_id: any, tenant_id: any, area_id: any, created_at?: any | null, last_updated_at?: any | null, labels?: any | null, annotations?: any | null, content?: string | null, cast_ballot_signature?: any | null, voter_id_string?: string | null } | null };
 
 export type ListCastVoteMessagesQueryVariables = Exact<{
   tenantId: Scalars['String']['input'];

@@ -5,6 +5,7 @@
 use crate::postgres::election_event::update_bulletin_board;
 use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::database::get_hasura_pool;
+use crate::services::delete_election_event::drop_uncommitted_event_database;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::import::import_election_event::insert_election_event_db;
 use crate::services::import::import_election_event::upsert_b3_and_elog;
@@ -177,7 +178,11 @@ pub async fn insert_election_event_t(
     id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    insert_election_event_anyhow(object, id, task_execution).await?;
+    let tenant_id = object.tenant_id.clone();
+    if let Err(error) = insert_election_event_anyhow(object, id.clone(), task_execution).await {
+        drop_uncommitted_event_database(&tenant_id, &id).await;
+        return Err(error.into());
+    }
 
     Ok(())
 }

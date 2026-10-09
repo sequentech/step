@@ -2961,7 +2961,7 @@ const tagalogTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Log ng Halalan",
             subtitle:
-                "I-browse ang log ng halalan at ballot box ng isang kaganapan ng halalan, o i-query ang database ng log ng halalan. Walang binabagong datos ang pahinang ito.",
+                "I-browse ang log ng halalan at ballot box ng isang kaganapan ng halalan, o i-query ang database ng log ng halalan nito. Walang binabagong datos ang pahinang ito.",
             notAllowed:
                 "Kailangan mo ang pahintulot na electoral-log-console-read para buksan ang log ng halalan.",
             tabs: {
@@ -2969,6 +2969,7 @@ const tagalogTranslation: TranslationType = {
                 query: "Query",
             },
             electionEvent: "Kaganapan ng Halalan",
+            tenant: "Tenant",
             table: "Talahanayan",
             tables: {
                 records: "Mga Record",
@@ -3014,7 +3015,9 @@ const tagalogTranslation: TranslationType = {
                 loadError: "Hindi mabasa ang record.",
             },
             query: {
-                help: "Tumatakbo ang mga query sa database ng log ng halalan sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer.",
+                help: "Tumatakbo ang mga query sa database ng log ng halalan ng kaganapan ng halalan sa isang read-only na transaksyon. Ang mga talahanayan nito ay electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending at ballot_box_sequencer; inilalarawan ng trellis_logs ang mga Merkle log nito.",
+                scope: "May sariling database ang bawat kaganapan ng halalan, kaya isang kaganapan lang ang binabasa ng isang query.",
+                chooseEvent: "Piliin ang kaganapan ng halalan na iqu-query.",
                 placeholder: "SELECT …",
                 limits: "Read-only · hanggang 1,000 hilera · 30 s na limitasyon · itinatala ang bawat query sa mga log ng server kasama ang iyong user",
                 run: "Patakbuhin ang Query",

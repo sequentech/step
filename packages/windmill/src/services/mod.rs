@@ -30,6 +30,7 @@ pub mod electoral_log;
 pub mod electoral_log_audit;
 pub mod electoral_log_checkpoint_copies;
 pub mod electoral_log_dead_letter;
+pub mod electoral_log_transfer;
 pub mod ess_xml_converter;
 pub mod event_list;
 pub mod export;

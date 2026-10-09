@@ -3506,6 +3506,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "borsh",
  "clap",
  "deadpool-postgres",
@@ -10608,6 +10609,7 @@ dependencies = [
  "tokio-postgres",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

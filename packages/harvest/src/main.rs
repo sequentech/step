@@ -82,6 +82,7 @@ async fn rocket() -> _ {
                 routes::electoral_log_console::electoral_log_console_page,
                 routes::electoral_log_console::electoral_log_console_record,
                 routes::electoral_log_console::electoral_log_console_query,
+                routes::electoral_log_console::electoral_log_console_tenants,
                 routes::export_election_event::export_election_event_route,
                 routes::export_election_event_logs::export_election_event_logs_route,
                 routes::insert_election_event::insert_election_event_f,

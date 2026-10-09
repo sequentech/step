@@ -26,8 +26,8 @@ use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
 use b4::client::pgsql::B3MessageRow;
+use electoral_log::adapters::events::EventDatabases;
 use electoral_log::adapters::postgres::PostgresStore;
-use electoral_log::adapters::router::StoreRouter;
 use electoral_log::BoardClient;
 use std::sync::Arc;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
@@ -417,27 +417,27 @@ pub async fn add_ballots_to_board<C: Ctx>(
     b3_client.insert_ballots::<C>(board_name, message).await
 }
 
-static ELECTORAL_LOG_ROUTER: OnceCell<Arc<StoreRouter>> = OnceCell::const_new();
+static ELECTORAL_LOG_DATABASES: OnceCell<EventDatabases> = OnceCell::const_new();
 static ELECTORAL_LOG_CLIENT: OnceCell<BoardClient> = OnceCell::const_new();
 
-/// The process-wide router to the electoral-log databases, with one connection pool
-/// per database.
-pub async fn get_electoral_log_router() -> Result<Arc<StoreRouter>> {
-    let router = ELECTORAL_LOG_ROUTER
-        .get_or_try_init(|| async { StoreRouter::from_env().map(Arc::new) })
+/// The process-wide pools of the election events' electoral-log databases.
+pub async fn get_event_databases() -> Result<EventDatabases> {
+    let databases = ELECTORAL_LOG_DATABASES
+        .get_or_try_init(|| async { EventDatabases::from_env() })
         .await?;
-    Ok(router.clone())
+    Ok(databases.clone())
 }
 
-/// The store of the database that holds a board.
-pub async fn get_electoral_log_store(board: &str) -> Result<PostgresStore> {
-    get_electoral_log_router().await?.store_for(board).await
+/// The store of an election event's electoral-log database.
+pub async fn get_event_store(election_event_id: &str) -> Result<PostgresStore> {
+    get_event_databases().await?.store(election_event_id).await
 }
 
+/// Boards of every election event, each in its event's database.
 pub async fn get_board_client() -> Result<BoardClient> {
     let client = ELECTORAL_LOG_CLIENT
         .get_or_try_init(|| async {
-            Ok::<_, anyhow::Error>(BoardClient::new(get_electoral_log_router().await?))
+            Ok::<_, anyhow::Error>(BoardClient::new(Arc::new(get_event_databases().await?)))
         })
         .await?;
     Ok(client.clone())

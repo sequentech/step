@@ -434,7 +434,6 @@ pub async fn try_insert_cast_vote(
         election_event: &election_event,
         voting_channel,
         ids,
-        board: &electoral_log.elog_database,
         format,
         status: initial_status,
         auth_time,
@@ -634,7 +633,6 @@ struct BallotToAccept<'a> {
     election_event: &'a ElectionEvent,
     voting_channel: VotingStatusChannel,
     ids: CastVoteIds<'a>,
-    board: &'a str,
     format: BallotFormat,
     status: BallotStatus,
     auth_time: &'a Option<i64>,
@@ -647,9 +645,9 @@ struct BallotToAccept<'a> {
     ballot_hash: &'a CastVoteHash,
 }
 
-/// Accept a vote into the ballot box of the event's electoral-log database, after
-/// checking that its election accepts votes through its channel. The ballot box
-/// enforces the revote limit and cross-area exclusivity.
+/// Accept a vote into the event's ballot box, after checking that its election
+/// accepts votes through its channel. The ballot box enforces the revote limit and
+/// cross-area exclusivity.
 #[instrument(skip_all, err)]
 async fn accept_into_ballot_box(
     hasura_transaction: Transaction<'_>,
@@ -660,7 +658,6 @@ async fn accept_into_ballot_box(
         election_event,
         voting_channel,
         ids,
-        board,
         format,
         status,
         auth_time,
@@ -705,27 +702,24 @@ async fn accept_into_ballot_box(
     let format = format.to_string();
     let channel = effective_voting_channel.to_string();
     let _phase = CastVotePhase::start("accept");
-    let outcome = accept_ballot(
-        board,
-        &AcceptBallot {
-            election_event_id: ids.election_event_id,
-            election_id: &election_id,
-            area_id: ids.area_id,
-            voter_id: ids.voter_id,
-            ballot_id: &input.ballot_id,
-            format: &format,
-            content: &input.content,
-            voter_signature: voter_signature.as_deref(),
-            pseudonym_hash: &pseudonym_hash,
-            ballot_hash: &ballot_hash,
-            voting_channel: &channel,
-            status,
-            voter_ip: voter_ip.as_deref(),
-            voter_country: voter_country.as_deref(),
-            username: username.as_deref(),
-            allowed_votes,
-        },
-    )
+    let outcome = accept_ballot(&AcceptBallot {
+        election_event_id: ids.election_event_id,
+        election_id: &election_id,
+        area_id: ids.area_id,
+        voter_id: ids.voter_id,
+        ballot_id: &input.ballot_id,
+        format: &format,
+        content: &input.content,
+        voter_signature: voter_signature.as_deref(),
+        pseudonym_hash: &pseudonym_hash,
+        ballot_hash: &ballot_hash,
+        voting_channel: &channel,
+        status,
+        voter_ip: voter_ip.as_deref(),
+        voter_country: voter_country.as_deref(),
+        username: username.as_deref(),
+        allowed_votes,
+    })
     .await
     .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?;
     match outcome {

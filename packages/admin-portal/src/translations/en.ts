@@ -2918,7 +2918,7 @@ const englishTranslation = {
         electoralLogConsole: {
             title: "Electoral Log",
             subtitle:
-                "Browse an election event's electoral log and ballot box, or query the electoral-log database. Nothing on this page changes any data.",
+                "Browse an election event's electoral log and ballot box, or query its electoral-log database. Nothing on this page changes any data.",
             notAllowed:
                 "You need the electoral-log-console-read permission to open the electoral log.",
             tabs: {
@@ -2926,6 +2926,7 @@ const englishTranslation = {
                 query: "Query",
             },
             electionEvent: "Election Event",
+            tenant: "Tenant",
             table: "Table",
             tables: {
                 records: "Records",
@@ -2971,7 +2972,9 @@ const englishTranslation = {
                 loadError: "The record could not be read.",
             },
             query: {
-                help: "Queries run on the electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer.",
+                help: "Queries run on the election event's electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer; trellis_logs describes its Merkle logs.",
+                scope: "Each election event has a database of its own, so a query reads one event.",
+                chooseEvent: "Choose the election event to query.",
                 placeholder: "SELECT …",
                 limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
                 run: "Run Query",

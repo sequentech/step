@@ -237,6 +237,23 @@ impl PostgresStore {
             .collect()
     }
 
+    /// Whether the event has a ballot whose outcome is pending.
+    pub async fn has_pending_status(&self, election_event_id: &str) -> Result<bool> {
+        Ok(self
+            .client()
+            .await?
+            .query_one(
+                &format!(
+                    "SELECT EXISTS (SELECT 1 FROM ballot_box_ballot \
+                     WHERE election_event_id = $1::text::uuid AND status = '{PENDING}')"
+                ),
+                &[&election_event_id],
+            )
+            .await
+            .context("Error looking for ballots whose outcome is pending")?
+            .try_get(0)?)
+    }
+
     /// Pending ballots of every event in the database accepted at least
     /// `min_age_secs` seconds ago, in `(event, ID)` order, after the given one.
     pub async fn ballots_to_review(

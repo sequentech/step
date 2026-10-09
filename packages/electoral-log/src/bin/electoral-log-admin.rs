@@ -3,11 +3,14 @@
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use electoral_log::{
-    adapters::router::StoreRouter,
+    adapters::{
+        events::{event_of_board, EventDatabases},
+        postgres::LogScope,
+    },
+    ports::ElectoralLogStore,
     proofs::{Checkpoint, Consistency, RecordProof},
-    BoardClient,
 };
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(about = "Administer and verify the PostgreSQL/Trellis electoral log")]
@@ -16,19 +19,36 @@ struct Cli {
     action: Action,
     #[arg(long)]
     board: Option<String>,
+    /// Election event whose database holds the board; by default, the event the
+    /// board's name ends with. Needed for the sealed logs an imported event's board
+    /// continues, whose names are those of the source event's boards.
+    #[arg(long)]
+    election_event_id: Option<String>,
+    #[arg(long)]
+    tenant_id: Option<String>,
     #[arg(long)]
     record_id: Option<i64>,
     #[arg(long)]
     checkpoint: Option<PathBuf>,
     #[arg(long)]
     proof: Option<PathBuf>,
-    /// Tenant whose database `provision-tenant` creates.
-    #[arg(long)]
-    tenant_id: Option<String>,
 }
 #[derive(Clone, ValueEnum)]
 enum Action {
+    /// Create the catalog of election event databases in the base database.
     Init,
+    /// Create an election event's database (`--tenant-id`, `--election-event-id`).
+    CreateEventDatabase,
+    /// Drop an election event's database and every record and ballot in it
+    /// (`--tenant-id`, `--election-event-id`).
+    DropEventDatabase,
+    /// Apply the schema to an election event's database again, or to every event's
+    /// without `--election-event-id`, and let the reader and backup roles read it.
+    UpgradeEventDatabases,
+    /// List the election events with a database.
+    ListEventDatabases,
+    /// List the logs of an election event's database.
+    Logs,
     CreateBoard,
     DeleteBoard,
     Checkpoint,
@@ -38,7 +58,6 @@ enum Action {
     VerifyConsistency,
     Audit,
     BackfillNodes,
-    ProvisionTenant,
 }
 fn read_json<T: serde::de::DeserializeOwned>(path: Option<&PathBuf>, name: &str) -> Result<T> {
     Ok(serde_json::from_slice(&std::fs::read(
@@ -69,41 +88,82 @@ async fn main() -> Result<()> {
         println!("Verified");
         return Ok(());
     }
-    let router = StoreRouter::from_env()?;
-    // `init` and `backfill-nodes` without a board cover the shared database and every
-    // tenant database of the environment.
-    let mut tenants = Vec::new();
-    for database in router.tenant_databases().await? {
-        tenants.push(router.database_store(&database).await?);
-    }
-    if matches!(args.action, Action::Init) {
-        // The reader role may read tenant databases only: the shared one holds every
-        // tenant's boards.
-        router.shared().initialize().await?;
-        for store in &tenants {
-            router.initialize(store).await?;
+    let databases = EventDatabases::from_env()?;
+    let event = match (&args.election_event_id, &args.board) {
+        (Some(event), _) => Some(event.clone()),
+        (None, Some(board)) => Some(event_of_board(board)?),
+        (None, None) => None,
+    };
+    let event_required = || event.clone().context("--election-event-id is required");
+    let tenant_required = || args.tenant_id.as_deref().context("--tenant-id is required");
+    match args.action {
+        Action::Init => return databases.initialize().await,
+        Action::CreateEventDatabase => {
+            databases
+                .create_event(tenant_required()?, &event_required()?)
+                .await?;
+            return Ok(());
         }
-        return Ok(());
+        Action::DropEventDatabase => {
+            return databases
+                .drop_event(tenant_required()?, &event_required()?)
+                .await
+        }
+        Action::UpgradeEventDatabases => {
+            let events = match &event {
+                Some(event) => vec![event.clone()],
+                None => databases
+                    .events()
+                    .await?
+                    .into_iter()
+                    .map(|entry| entry.election_event_id)
+                    .collect(),
+            };
+            let mut failed = Vec::new();
+            for event in &events {
+                if let Err(error) = databases.apply_schema(event).await {
+                    eprintln!("Error upgrading the database of election event {event}: {error:#}");
+                    failed.push(event.clone());
+                }
+            }
+            output(
+                &serde_json::json!({ "upgraded": events.len() - failed.len(), "failed": failed }),
+            )?;
+            anyhow::ensure!(failed.is_empty(), "Some event databases were not upgraded");
+            return Ok(());
+        }
+        Action::ListEventDatabases => {
+            let events: Vec<_> = databases
+                .events()
+                .await?
+                .into_iter()
+                .map(|event| {
+                    serde_json::json!({
+                        "election_event_id": event.election_event_id,
+                        "tenant_id": event.tenant_id,
+                        "database": event.database_name,
+                    })
+                })
+                .collect();
+            return output(&events);
+        }
+        _ => {}
     }
-    let databases: Vec<_> = std::iter::once(router.shared()).chain(tenants).collect();
-    if matches!(args.action, Action::ProvisionTenant) {
-        let tenant_id = args.tenant_id.context("--tenant-id is required")?;
-        return router.provision_tenant(&tenant_id).await;
-    }
-    // Without a board, back-fill every log created before subtrees were stored.
-    if matches!(args.action, Action::BackfillNodes) && args.board.is_none() {
-        let mut rebuilt = Vec::new();
-        for store in &databases {
-            let journal = store.journal();
+    let store = databases.store(&event_required()?).await?;
+    let journal = store.journal();
+    match args.action {
+        Action::Logs => return output(&journal.logs().await?),
+        // Without a board, back-fill every log created before subtrees were stored.
+        Action::BackfillNodes if args.board.is_none() => {
+            let mut rebuilt = Vec::new();
             for board in journal.unbuilt_logs().await? {
                 rebuilt.push(journal.rebuild(&board).await?);
             }
+            return output(&rebuilt);
         }
-        return output(&rebuilt);
+        _ => {}
     }
     let board = args.board.context("--board is required")?;
-    let store = router.store_for(&board).await?;
-    let journal = store.journal();
     // Optional trusted checkpoint for inclusion (anchor) and audit (extra history check).
     let checkpoint: Option<Checkpoint> = match args.checkpoint.as_ref() {
         Some(path) => Some(read_json(Some(path), "checkpoint")?),
@@ -121,7 +181,7 @@ async fn main() -> Result<()> {
             let id = args.record_id.context("--record-id is required")?;
             output(
                 &store
-                    .record_proof(&journal, &board, id, checkpoint.as_ref())
+                    .record_proof(&journal, LogScope::Board(&board), id, checkpoint.as_ref())
                     .await?,
             )
         }
@@ -136,16 +196,8 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Action::BackfillNodes => output(&journal.rebuild(&board).await?),
-        Action::CreateBoard => {
-            BoardClient::new(Arc::new(router))
-                .create_board(&board)
-                .await
-        }
-        Action::DeleteBoard => {
-            BoardClient::new(Arc::new(router))
-                .delete_board(&board)
-                .await
-        }
+        Action::CreateBoard => store.create_board(&board).await,
+        Action::DeleteBoard => store.delete_board(&board).await,
         _ => unreachable!(),
     }
 }

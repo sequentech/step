@@ -88,8 +88,8 @@ add-database-init-to-tarball() {
     tmpdir=$(mktemp -d)
     mkdir -p $tmpdir/initdb
     cp "$PROJECT_ROOT/.devcontainer/postgresql/init-electoral-log.sh" "$tmpdir/initdb/20-electoral-log.sh"
-    cp "$PROJECT_ROOT/packages/electoral-log/schema.sql" "$tmpdir/electoral-log-schema.sql"
-    tar --append -C "$tmpdir" --file="$DELIVERABLE_TARBALL" electoral-log-schema.sql
+    cp "$PROJECT_ROOT/packages/electoral-log/catalog.sql" "$tmpdir/electoral-log-catalog.sql"
+    tar --append -C "$tmpdir" --file="$DELIVERABLE_TARBALL" electoral-log-catalog.sql
     cat $PROJECT_ROOT/scripts/airgap-files/b3.sql > $tmpdir/initdb/b3.sql
 
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL initdb

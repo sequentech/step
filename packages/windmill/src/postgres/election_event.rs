@@ -182,6 +182,21 @@ pub async fn get_election_event_by_id_if_exist(
     Ok((election_event))
 }
 
+/// Whether an election event with this ID exists in any tenant.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn election_event_id_exists(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<bool> {
+    let statement = hasura_transaction
+        .prepare("SELECT 1 FROM sequent_backend.election_event WHERE id = $1")
+        .await?;
+    Ok(!hasura_transaction
+        .query(&statement, &[&parse_uuid_v4(election_event_id)?])
+        .await?
+        .is_empty())
+}
+
 /// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(

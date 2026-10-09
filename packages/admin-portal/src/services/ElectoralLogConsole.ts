@@ -129,6 +129,40 @@ export type ConsoleQueryResult = ConsoleQueryRows | ConsoleQueryError
 export const isQueryError = (result: ConsoleQueryResult): result is ConsoleQueryError =>
     typeof (result as ConsoleQueryError).error === "string"
 
+// What the super-admin tenant may browse: every tenant, its election events and
+// their elections, as electoral_log_console_tenants returns them.
+export interface ConsoleElection {
+    id: string
+    presentation?: unknown
+}
+
+export interface ConsoleEvent extends ConsoleElection {
+    is_archived: boolean
+    elections: ConsoleElection[]
+}
+
+export interface ConsoleTenant {
+    id: string
+    slug: string
+    events: ConsoleEvent[]
+}
+
+export interface ConsoleTenants {
+    tenants: ConsoleTenant[]
+}
+
+/** The election events of a tenant, or none if the tenant is unknown. */
+export const tenantEvents = (tenants: ConsoleTenant[], tenantId: string): ConsoleEvent[] =>
+    tenants.find((tenant) => tenant.id === tenantId)?.events ?? []
+
+/** The elections of an election event of a tenant, or none if either is unknown. */
+export const eventElections = (
+    tenants: ConsoleTenant[],
+    tenantId: string,
+    eventId: string
+): ConsoleElection[] =>
+    tenantEvents(tenants, tenantId).find((event) => event.id === eventId)?.elections ?? []
+
 export const ROW_ID = "__row"
 
 /** The grid field of a column: by position, since a query may repeat a name. */

@@ -2947,7 +2947,7 @@ const galegoTranslation: TranslationType = {
         electoralLogConsole: {
             title: "Rexistro Electoral",
             subtitle:
-                "Explore o rexistro electoral e a urna dun evento electoral, ou consulte a base de datos do rexistro electoral. Nada nesta páxina modifica datos.",
+                "Explore o rexistro electoral e a urna dun evento electoral, ou consulte a súa base de datos do rexistro electoral. Nada nesta páxina modifica datos.",
             notAllowed:
                 "Precisa o permiso electoral-log-console-read para abrir o rexistro electoral.",
             tabs: {
@@ -2955,6 +2955,7 @@ const galegoTranslation: TranslationType = {
                 query: "Consulta",
             },
             electionEvent: "Evento Electoral",
+            tenant: "Inquilino",
             table: "Táboa",
             tables: {
                 records: "Entradas",
@@ -3000,7 +3001,9 @@ const galegoTranslation: TranslationType = {
                 loadError: "Non se puido ler a entrada.",
             },
             query: {
-                help: "As consultas execútanse sobre a base de datos do rexistro electoral nunha transacción de só lectura. As súas táboas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending e ballot_box_sequencer.",
+                help: "As consultas execútanse sobre a base de datos do rexistro electoral do evento electoral nunha transacción de só lectura. As súas táboas son electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending e ballot_box_sequencer; trellis_logs describe os seus rexistros Merkle.",
+                scope: "Cada evento electoral ten a súa propia base de datos, así que unha consulta le un só evento.",
+                chooseEvent: "Escolla o evento electoral que consultar.",
                 placeholder: "SELECT …",
                 limits: "Só lectura · ata 1.000 filas · límite de 30 s · cada consulta queda anotada nos rexistros do servidor co seu usuario",
                 run: "Executar Consulta",
