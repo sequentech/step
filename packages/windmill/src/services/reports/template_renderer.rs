@@ -501,7 +501,12 @@ pub trait TemplateRenderer: Debug {
             })?;
 
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
-        let document_visibility = DocumentVisibility::for_report(&self.get_report_type(), false);
+        // This branch has no voter-secret template attributes; receipt data is fixed.
+        let document_visibility = DocumentVisibility::for_report(
+            &self.get_report_type(),
+            false,
+            generate_mode == GenerateReportMode::REAL,
+        );
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report

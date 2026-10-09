@@ -8,7 +8,6 @@ mc mb -p myminio/$MINIO_PUBLIC_BUCKET
 mc mb -p myminio/$MINIO_BUCKET
 # Allow public object reads without revealing the bucket's object keys.
 public_bucket_policy="$(mktemp)"
-trap 'rm -f "$public_bucket_policy"' EXIT
 cat > "$public_bucket_policy" <<EOF
 {
   "Version": "2012-10-17",
@@ -20,7 +19,11 @@ cat > "$public_bucket_policy" <<EOF
   }]
 }
 EOF
-mc anonymous set-json "$public_bucket_policy" "myminio/${MINIO_PUBLIC_BUCKET}" || exit 1
+if ! mc anonymous set-json "$public_bucket_policy" "myminio/${MINIO_PUBLIC_BUCKET}"; then
+  rm -f "$public_bucket_policy"
+  exit 1
+fi
+rm -f "$public_bucket_policy"
 
 mc admin accesskey create myminio/ "$MINIO_ROOT_USER" \
   --access-key "$MINIO_ACCESS_KEY" \
