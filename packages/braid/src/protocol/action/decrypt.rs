@@ -53,7 +53,13 @@ pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::Loca
 
         let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
-        let share = ctx.decrypt_exp(&share_.encrypted_shares[*self_p], sk)?;
+        let encrypted_share = share_.encrypted_shares.get(*self_p).ok_or_else(|| {
+            ProtocolError::VerificationError(format!(
+                "Shares from trustee {} have no share for trustee {}",
+                sender, self_p
+            ))
+        })?;
+        let share = ctx.decrypt_exp(encrypted_share, sk)?;
 
         secret = secret.add(&share);
         secret = secret.modq(&ctx);
