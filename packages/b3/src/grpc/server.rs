@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::fs::{self, OpenOptions};
+use std::io::{ErrorKind, Write};
 use std::str::FromStr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use anyhow::{anyhow, Result};
@@ -99,8 +100,7 @@ impl PgsqlB3Server {
                 );
                 let path = blob_path.join(name.replace("/", ":"));
                 if !path.exists() {
-                    let mut file = File::create(&path)?;
-                    file.write_all(&m.message)?;
+                    StagedBlob::write(path.clone(), &m.message)?.publish()?;
                     info!("Wrote {} bytes to {:?}", m.message.len(), path);
                 }
             }
@@ -112,11 +112,14 @@ impl PgsqlB3Server {
                 );
                 let path = blob_path.join(name.replace("/", ":"));
 
-                assert!(path.exists());
-                let mut file = File::open(&path)?;
-                let mut buffer = vec![];
-
-                let bytes = file.read_to_end(&mut buffer)?;
+                let Some(buffer) = read_blob(&path)? else {
+                    warn!(
+                        "get_messages_: no blob for message {} at {:?}, returning the messages before it",
+                        m.id, path
+                    );
+                    break;
+                };
+                let bytes = buffer.len();
                 info!("read {} bytes from {:?}", bytes, path);
                 if bytes > MESSAGE_CHUNK_SIZE {
                     error!(
@@ -186,6 +189,7 @@ impl PgsqlB3Server {
             .map_err(|e| Status::internal(format!("Failed to parse grpc messages: {e}")))?;
 
         // optionally retrieve the message bytes from the blob store
+        let mut staged = vec![];
         if let Some(blob_root) = &self.blob_root {
             let now = Instant::now();
 
@@ -200,9 +204,8 @@ impl PgsqlB3Server {
                     m.statement_kind, m.sender_pk, m.batch, m.mix_number
                 );
                 let path = blob_path.join(name.replace("/", ":"));
-                let mut file = File::create(&path)?;
-                file.write_all(&m.message)?;
-                info!("Wrote {} bytes to {:?}", m.message.len(), path);
+                info!("Writing {} bytes to {:?}", m.message.len(), path);
+                staged.push(StagedBlob::write(path, &m.message)?);
 
                 // FIXME this is a hack
                 // Allows testing and democode to retrieve this artifact
@@ -221,7 +224,20 @@ impl PgsqlB3Server {
             info!("Total writes: {}ms", now.elapsed().as_millis());
         }
 
-        let reply = c.insert_messages(board, &messages).await;
+        // Publish the blobs once the messages are inserted and before the
+        // transaction commits, so that a failed insert leaves the stored blobs
+        // as they were and every committed message has its blob.
+        let reply = if self.blob_root.is_some() {
+            c.insert_messages_then_commit(board, &messages, move || {
+                for blob in staged {
+                    blob.publish()?;
+                }
+                Ok(())
+            })
+            .await
+        } else {
+            c.insert_messages(board, &messages).await
+        };
         let Ok(_) = reply else {
             error!("Failed to insert messages in database: {:?}", reply.err());
             return Err(Status::internal(format!(
@@ -230,6 +246,55 @@ impl PgsqlB3Server {
         };
 
         Ok(())
+    }
+}
+
+static STAGED_BLOB_COUNT: AtomicU64 = AtomicU64::new(0);
+
+/// Message bytes written beside their blob path. `publish` moves them into
+/// place; dropping an unpublished blob removes them.
+struct StagedBlob {
+    staged: PathBuf,
+    path: PathBuf,
+}
+
+impl StagedBlob {
+    fn write(path: PathBuf, bytes: &[u8]) -> std::io::Result<StagedBlob> {
+        let mut staged = path.clone().into_os_string();
+        staged.push(format!(
+            ".{}.{}.tmp",
+            std::process::id(),
+            STAGED_BLOB_COUNT.fetch_add(1, Ordering::Relaxed)
+        ));
+        let blob = StagedBlob {
+            staged: PathBuf::from(staged),
+            path,
+        };
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&blob.staged)?;
+        file.write_all(bytes)?;
+
+        Ok(blob)
+    }
+
+    fn publish(self) -> std::io::Result<()> {
+        fs::rename(&self.staged, &self.path)
+    }
+}
+
+impl Drop for StagedBlob {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.staged);
+    }
+}
+
+fn read_blob(path: &Path) -> std::io::Result<Option<Vec<u8>>> {
+    match fs::read(path) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
     }
 }
 
@@ -455,8 +520,11 @@ pub(crate) mod tests {
         client::grpc::B3Client,
         grpc::proto::b3_server::B3,
         messages::{
-            artifact::Configuration, newtypes::PROTOCOL_MANAGER_INDEX,
+            artifact::Configuration,
+            message::Signer,
+            newtypes::{ConfigurationHash, PROTOCOL_MANAGER_INDEX},
             protocol_manager::ProtocolManager,
+            statement::Statement,
         },
     };
     use serial_test::serial;
@@ -541,6 +609,131 @@ pub(crate) mod tests {
 
         assert_eq!(boards.boards.len(), 1);
         assert_eq!(boards.boards[0], TEST_BOARD);
+    }
+
+    #[tokio::test]
+    #[ignore]
+    #[serial]
+    async fn test_blob_store_keeps_stored_message_when_insert_fails() {
+        let mut database = set_up().await;
+        let blob_root = std::env::temp_dir().join(format!("b3-blobs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&blob_root);
+
+        let manager = ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap());
+        let trustees: Vec<ProtocolManager<RistrettoCtx>> = (0..2)
+            .map(|_| ProtocolManager::new(StrandSignatureSk::gen().unwrap()))
+            .collect();
+        let cfg = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&manager.signing_key).unwrap(),
+            trustees
+                .iter()
+                .map(|t| StrandSignaturePk::from_sk(&t.signing_key).unwrap())
+                .collect(),
+            2,
+            PhantomData,
+        );
+        let bootstrap = Message::bootstrap_msg(&cfg, &manager).unwrap();
+        database
+            .insert_messages(
+                TEST_BOARD,
+                &vec![B3MessageRow::try_from(bootstrap).unwrap()],
+            )
+            .await
+            .unwrap();
+
+        let c = PgsqlConnectionParams::new(PG_HOST, PG_PORT, PG_USER, PG_PASSW);
+        let b3_impl = PgsqlB3Server::new(c.with_database(PG_DATABASE), Some(blob_root.clone()))
+            .await
+            .unwrap();
+
+        let cfg_h = Message::configuration_msg(&cfg, &trustees[0])
+            .unwrap()
+            .statement
+            .get_cfg_h();
+        let stored = trustees[0]
+            .sign(
+                Statement::ConfigurationSigned(1, ConfigurationHash(cfg_h)),
+                None,
+            )
+            .unwrap();
+        let same_slot = trustees[0]
+            .sign(
+                Statement::ConfigurationSigned(2, ConfigurationHash(cfg_h)),
+                None,
+            )
+            .unwrap();
+
+        let request =
+            B3Client::put_messages_request(TEST_BOARD, &[stored.try_clone().unwrap()]).unwrap();
+        b3_impl
+            .put_messages(tonic::Request::new(request))
+            .await
+            .unwrap();
+        let request = B3Client::put_messages_request(TEST_BOARD, &[same_slot]).unwrap();
+        assert!(b3_impl
+            .put_messages(tonic::Request::new(request))
+            .await
+            .is_err());
+
+        let request = B3Client::get_messages_request(TEST_BOARD, -1);
+        let returned = b3_impl
+            .get_messages(tonic::Request::new(request))
+            .await
+            .unwrap();
+        let returned = &returned.get_ref().messages;
+        assert_eq!(returned.len(), 2);
+        assert_eq!(returned[1].message, stored.strand_serialize().unwrap());
+
+        let _ = fs::remove_dir_all(&blob_root);
+    }
+
+    fn blob_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("b3-{}-{}", name, std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+
+        dir
+    }
+
+    #[test]
+    fn staged_blob_does_not_change_stored_blob_until_published() {
+        let dir = blob_dir("staged_blob_does_not_change_stored_blob");
+        let path = dir.join("Channel-sender-0-0");
+        fs::write(&path, b"stored").unwrap();
+
+        let staged = StagedBlob::write(path.clone(), b"incoming").unwrap();
+        assert_eq!(fs::read(&path).unwrap(), b"stored");
+        drop(staged);
+
+        assert_eq!(fs::read(&path).unwrap(), b"stored");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn published_blob_replaces_slot_file() {
+        let dir = blob_dir("published_blob_replaces_slot_file");
+        let path = dir.join("Channel-sender-0-0");
+
+        StagedBlob::write(path.clone(), b"incoming")
+            .unwrap()
+            .publish()
+            .unwrap();
+
+        assert_eq!(fs::read(&path).unwrap(), b"incoming");
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_blob_returns_none_for_missing_blob() {
+        let dir = blob_dir("read_blob_returns_none_for_missing_blob");
+
+        let result = read_blob(&dir.join("Channel-sender-0-0")).unwrap();
+
+        assert!(result.is_none());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     fn get_test_configuration<C: Ctx>(n_trustees: usize, threshold: usize) -> Message {
