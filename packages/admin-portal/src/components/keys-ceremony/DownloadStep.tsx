@@ -26,6 +26,7 @@ import {
     IKeysCeremonyTrusteeStatus as TStatus,
 } from "@/services/KeyCeremony"
 import {isPrivateKeyDownloadUnavailableError} from "@/services/privateKeyDownloadError"
+import {downloadTextFile} from "@/services/downloadTextFile"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -112,15 +113,10 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     setErrors(t("keysGeneration.downloadStep.errorEmptyKey"))
                     return
                 }
-                const blob = new Blob([privateKey], {type: "text/plain"})
-                const blobUrl = window.URL.createObjectURL(blob)
                 const username = authContext.username
                 const electionName = aliasRenderer(electionEvent.presentation)
                 const fileName = `encrypted_private_key_trustee_${username}_${electionName}.txt`
-                var tempLink = document.createElement("a")
-                tempLink.href = blobUrl
-                tempLink.setAttribute("download", fileName)
-                tempLink.click()
+                downloadTextFile(privateKey, fileName)
                 setDownloaded(true)
             }
         } catch (exception: unknown) {

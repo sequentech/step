@@ -16,7 +16,36 @@ Usage:
   create-keys <public-key-file> <private-key-file>
   encrypt <public-key-file> <plaintext-base64>
   decrypt <private-key-file> <encrypted-text>
+  sign <private-key-file> <plaintext-file>
+  sign-bulk <private-key-file> <folder>
+  verify <public-key-file> <plaintext-file> <signature-base64>
+  sign-ec <p12-private-key-file> <plaintext-file> <p12-password>
+  verify-ec <cert-file> <plaintext-file> <signature-base64> (<ca-cert-file>)
+  sign-rsa <p12-private-key-file> <plaintext-file> <p12-password>
+  verify-rsa <public-key-file> <plaintext-file> <signature-base64>
+  public-key <p12-private-key-file> <p12-password>
+
+<plaintext-base64> and <p12-password> also accept env:NAME, which reads
+the value from environment variable NAME instead of the command line.
 ```
+
+## Passing secrets through the environment
+
+Command line arguments are visible to other processes on the same host (for
+example through `/proc/<pid>/cmdline` or `ps`), so the secret arguments
+(`<plaintext-base64>` of `encrypt` and `<p12-password>` of `sign-ec`,
+`sign-rsa` and `public-key`) accept `env:NAME`. In that form the tool reads
+the value from the environment variable `NAME`, in the same way as openssl's
+`-passin env:NAME`. If `NAME` is not set, the tool exits with an error naming
+the variable. Any other value is used literally, which is convenient for
+manual use:
+
+```bash
+ECIES_SECRET="$plaintext_b64" java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar encrypt public.pem env:ECIES_SECRET
+ECIES_SECRET="$p12_password" java -jar target/ECIESEncryption-1.0-SNAPSHOT.jar public-key key.p12 env:ECIES_SECRET
+```
+
+Windmill always passes these secrets this way.
 
 ## Implementation details.
 
@@ -71,6 +100,7 @@ The java code is rebuilt using:
 cd /workspaces/step/packages/ECIESEncryption
 mvn clean package
 ```
+This also runs the unit tests under `src/test/java`.
 This generates a new jar file in the path
 `/app/ECIESEncryption/target/ECIESEncryption-1.0-SNAPSHOT.jar` to
 be used. We run windmill in a docker launched by docker compose. This deployment
