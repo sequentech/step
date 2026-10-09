@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::document_visibility::DocumentVisibility;
 use super::generation::{
     attach_report_manifest, bundle, copy_template_data, delivered_manifest, manifest_log,
     report_copies, task_with_log, write_report_manifest, Delivery, GeneratedFile, ReportCopy,
@@ -896,6 +897,8 @@ pub trait TemplateRenderer: Debug {
 
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
+        let document_visibility =
+            DocumentVisibility::for_report(&self.get_report_type(), contains_voter_secrets);
         let is_real = generate_mode == GenerateReportMode::REAL;
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
@@ -1197,7 +1200,7 @@ pub trait TemplateRenderer: Debug {
                             .context("The report's document id is no UUID")?,
                     },
                     file_name: final_report_name.clone(),
-                    is_public: !contains_voter_secrets,
+                    is_public: document_visibility.is_public(),
                     // Released wrapped in its password, as it would have been.
                     encryption: if report.as_ref().is_some_and(|report| {
                         report.encryption_policy == EReportEncryption::ConfiguredPassword
@@ -1326,7 +1329,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &enc_report_name,
                 Some(document_id.to_string()),
-                !contains_voter_secrets,
+                document_visibility.is_public(),
                 &annotations,
             )
             .await
@@ -1367,7 +1370,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &final_report_name,
                 Some(document_id.to_string()),
-                !contains_voter_secrets,
+                document_visibility.is_public(),
                 &annotations,
             )
             .await
