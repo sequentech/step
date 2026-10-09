@@ -40,6 +40,11 @@ class StoreUserDataNotesTest {
           "verificationMismatchedFields",
           "fields_match");
 
+  /**
+   * Profile attributes and other form fields such as the password and terms acceptance must still
+   * reach the notes the later authenticators read, while the notes those authenticators own keep
+   * only the values they set themselves.
+   */
   @Test
   void formFieldsBecomeNotesExceptAuthenticatorNotes() {
     FormContext context = mock(FormContext.class);

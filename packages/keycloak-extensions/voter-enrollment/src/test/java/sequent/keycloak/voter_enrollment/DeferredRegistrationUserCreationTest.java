@@ -481,6 +481,10 @@ class DeferredRegistrationUserCreationTest {
     assertTrue(normalized.containsKey(UserModel.EMAIL));
   }
 
+  /**
+   * The event listener classifies events by these details, so they must come only from the
+   * authenticators that set them, while ordinary form fields stay in the registration event.
+   */
   @Test
   void eventDetailsKeepFormFieldsExceptListenerDetails() throws Exception {
     ValidationContext context = mock(ValidationContext.class);

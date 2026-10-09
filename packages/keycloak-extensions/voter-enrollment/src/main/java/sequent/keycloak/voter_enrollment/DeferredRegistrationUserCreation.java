@@ -966,6 +966,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return true;
   }
 
+  /**
+   * Adds the submitted form fields, except credentials, hidden profile attributes and {@link
+   * #RESERVED_EVENT_DETAILS}, to the registration event, and links the event to the matched user.
+   */
   private void buildEventDetails(
       MultivaluedMap<String, String> formData,
       ValidationContext context,
