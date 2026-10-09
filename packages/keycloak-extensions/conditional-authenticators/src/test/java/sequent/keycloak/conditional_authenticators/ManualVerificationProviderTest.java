@@ -22,8 +22,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserProvider;
-import org.keycloak.services.resources.admin.fgap.AdminPermissionEvaluator;
-import org.keycloak.services.resources.admin.fgap.UserPermissionEvaluator;
+import org.keycloak.services.resources.admin.permissions.AdminPermissionEvaluator;
+import org.keycloak.services.resources.admin.permissions.UserPermissionEvaluator;
 
 class ManualVerificationProviderTest {
   private KeycloakSession session;
