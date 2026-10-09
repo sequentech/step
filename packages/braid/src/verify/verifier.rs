@@ -4,12 +4,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use colored::*;
 use serde::Serialize;
 use strum::Display;
-use tracing::info;
+use tracing::{info, warn};
 
+use b3::grpc::GrpcB3Message;
 use b3::messages::artifact::Configuration;
 use b3::messages::message::Message;
 use b3::messages::message::VerifiedMessage;
@@ -17,6 +18,7 @@ use b3::messages::newtypes::*;
 use b3::messages::statement::StatementType;
 
 use crate::protocol::board::grpc_m::GrpcB3;
+use crate::protocol::board::local2::LocalBoard;
 use crate::protocol::board::Board;
 use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee2::Trustee;
@@ -128,42 +130,46 @@ impl<C: Ctx> Verifier<C> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        let mut vr = VerificationResult::new(&self.board_name);
-        vr.add_target(Check::CONFIGURATION_VALID);
-        vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
-        vr.add_target(Check::MESSAGES_CFG_VALID);
-        vr.add_target(Check::PK_VALID);
-
         info!(
             "{}",
             format!("Verifying board '{}'", self.board_name).bold()
         );
 
         let messages = self.board.get_messages(&self.board_name, -1).await?;
+        let vr = self.verify_messages(&messages)?;
+
+        // Summary
+
+        info!("{}", vr);
+
+        Ok(())
+    }
+
+    fn verify_messages(&mut self, messages: &[GrpcB3Message]) -> Result<VerificationResult> {
+        let mut vr = VerificationResult::new(&self.board_name);
+        vr.add_target(Check::CONFIGURATION_VALID);
+        vr.add_target(Check::MESSAGE_SIGNATURES_VALID);
+        vr.add_target(Check::MESSAGES_CFG_VALID);
+        vr.add_target(Check::PK_VALID);
+
+        let mut unverified = 0;
         let messages: Vec<(Message, i64)> = messages
             .iter()
-            .map(|m| (Message::strand_deserialize(&m.message).unwrap(), m.id))
+            .filter_map(|m| match Message::strand_deserialize(&m.message) {
+                Ok(message) => Some((message, m.id)),
+                Err(e) => {
+                    warn!("Message {} could not be deserialized: {}", m.id, e);
+                    unverified += 1;
+                    None
+                }
+            })
             .collect();
-        // discard ids here
-        // let messages: Vec<Message> = messages.into_iter().map(|(m, id)| m).collect();
 
-        let cfg_message: Vec<&Message> = messages
+        let (cfg, cfg_message) = messages
             .iter()
-            .filter(|m| m.0.statement.get_kind() == StatementType::Configuration)
-            .map(|m| &m.0)
-            .collect();
-
-        assert_eq!(cfg_message.len(), 1);
-
-        let cfg_bytes = cfg_message
-            .first()
-            .as_ref()
-            .unwrap()
-            .artifact
-            .as_ref()
-            .unwrap();
-        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
-        let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+            .find_map(|m| LocalBoard::<C>::verify_bootstrap(&m.0).ok())
+            .ok_or(anyhow!("No valid configuration message found"))?;
+        let cfg_h = cfg_message.statement.get_cfg_h();
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
         vr.add_result(
@@ -188,16 +194,30 @@ impl<C: Ctx> Verifier<C> {
 
         info!("Verifying signatures for {} messages..", messages.len());
 
-        let vmessages: Result<Vec<VerifiedMessage>> =
-            messages.iter().map(|m| m.0.verify(&cfg)).collect();
-        let vmessages = vmessages?;
-        vr.add_result(Check::MESSAGE_SIGNATURES_VALID, true, &vmessages.len());
+        let mut vmessages: Vec<VerifiedMessage> = vec![];
+        for (message, id) in &messages {
+            match message.verify(&cfg) {
+                Ok(verified) => vmessages.push(verified),
+                Err(e) => {
+                    warn!("Message {} failed verification: {}", id, e);
+                    unverified += 1;
+                }
+            }
+        }
+        vr.add_result(
+            Check::MESSAGE_SIGNATURES_VALID,
+            unverified == 0,
+            &vmessages.len(),
+        );
 
         // Derive per-batch verification targets
 
         let mut predicates = vec![];
         // Skip the configuration message
-        for message in &vmessages[1..] {
+        for message in vmessages
+            .iter()
+            .filter(|m| m.statement.get_kind() != StatementType::Configuration)
+        {
             let predicate =
                 Predicate::from_statement::<C>(&message.statement, message.signer_position, &cfg)?;
             predicates.push(predicate);
@@ -246,11 +266,7 @@ impl<C: Ctx> Verifier<C> {
             )?;
         }
 
-        // Summary
-
-        info!("{}", vr);
-
-        Ok(())
+        Ok(vr)
     }
 }
 
@@ -449,5 +465,47 @@ impl std::fmt::Display for VerificationResult {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::board::local2::tests::{remote, TestBoard};
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::signature::StrandSignatureSk;
+
+    #[test]
+    fn verify_messages_reports_messages_that_fail_verification() {
+        let board = TestBoard::new(2);
+        let other = TestBoard::new(2);
+        let mut messages = remote(
+            0,
+            vec![
+                board.bootstrap(),
+                board.unverifiable_as(0),
+                other.bootstrap(),
+            ],
+        );
+        messages.push(GrpcB3Message {
+            id: 3,
+            message: b"not a message".to_vec(),
+            version: b3::get_schema_version(),
+        });
+
+        let trustee = Trustee::<RistrettoCtx>::new(
+            "Verifier".to_string(),
+            "board".to_string(),
+            StrandSignatureSk::gen().unwrap(),
+            strand::symm::gen_key(),
+            None,
+            None,
+        );
+        let mut verifier = Verifier::new(trustee, GrpcB3::new("http://127.0.0.1:1"), "board");
+
+        let vr = verifier.verify_messages(&messages).unwrap();
+
+        assert!(vr.targets[&Check::CONFIGURATION_VALID].result);
+        assert!(!vr.targets[&Check::MESSAGE_SIGNATURES_VALID].result);
     }
 }

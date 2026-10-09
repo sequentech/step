@@ -605,7 +605,10 @@ impl<C: Ctx> LocalBoard<C> {
     /// This method can be called independently of step, to only update the store
     /// (when a truncated message is received from the bulletin board)
     ///
-    /// Messages are deserialized to recover metadata, and then stored.
+    /// Messages are deserialized to recover metadata, verified, and then stored.
+    /// Messages that do not verify against the board configuration are skipped.
+    /// Until the configuration is known, only a configuration message signed
+    /// by its protocol manager is stored.
     /// If a blob store exists, bytes will be stored in the filesystem, and
     /// the message store will only contain the metadata.
     pub(crate) fn update_store(
@@ -622,8 +625,11 @@ impl<C: Ctx> LocalBoard<C> {
         }
 
         let connection = self.get_store()?;
+        let mut configuration = match &self.configuration {
+            Some(configuration) => Some(configuration.clone()),
+            None => self.get_stored_configuration(&connection)?,
+        };
 
-        // FIXME verify message signatures before inserting in local store
         let mut statement = if ignore_existing {
             connection.prepare(
                 "INSERT OR IGNORE INTO MESSAGES(external_id, message, sender_pk, statement_kind, batch, mix_number) VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
@@ -634,6 +640,7 @@ impl<C: Ctx> LocalBoard<C> {
             )?
         };
 
+        let mut inserted = 0;
         connection.execute("BEGIN TRANSACTION", [])?;
         for m in messages {
             if m.version != b3::get_schema_version() {
@@ -643,7 +650,16 @@ impl<C: Ctx> LocalBoard<C> {
                     b3::get_schema_version()
                 ));
             }
-            let message = Message::strand_deserialize(&m.message)?;
+            let message = match Self::admit(m, &mut configuration) {
+                Ok(message) => message,
+                Err(e) => {
+                    warn!(
+                        "update_store: message failed verification, skipping message {}: {}",
+                        m.id, e
+                    );
+                    continue;
+                }
+            };
             let sender_pk = message.sender.pk.to_der_b64_string()?;
             let kind = message.statement.get_kind().to_string();
             let batch: i32 = message.statement.get_batch_number().try_into()?;
@@ -669,20 +685,145 @@ impl<C: Ctx> LocalBoard<C> {
             } else {
                 statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number])?;
             }
+            inserted += 1;
         }
         connection.execute("END TRANSACTION", [])?;
 
         drop(statement);
 
-        if messages.len() > 0 {
+        if inserted > 0 {
             tracing::info!(
                 "update_store: inserted {} messages in {}ms",
-                messages.len(),
+                inserted,
                 now.elapsed().as_millis()
             );
         }
 
         Ok(())
+    }
+
+    /// Deserializes and verifies a remote message before it is stored.
+    ///
+    /// If no configuration is known yet, the message must be a valid
+    /// configuration message, which then becomes the configuration that
+    /// subsequent messages are verified against.
+    fn admit(
+        remote: &GrpcB3Message,
+        configuration: &mut Option<Configuration<C>>,
+    ) -> Result<Message> {
+        let message = Message::strand_deserialize(&remote.message)?;
+        match configuration {
+            Some(configuration) => {
+                message.verify(configuration)?;
+            }
+            None => {
+                let (bootstrap, _) = Self::verify_bootstrap(&message)?;
+                *configuration = Some(bootstrap);
+            }
+        }
+
+        Ok(message)
+    }
+
+    /// Verifies a configuration message and returns the configuration it carries.
+    ///
+    /// The message must be a Configuration statement whose artifact is a valid
+    /// configuration, signed by the protocol manager named in that configuration.
+    pub(crate) fn verify_bootstrap(
+        message: &Message,
+    ) -> Result<(Configuration<C>, VerifiedMessage), ProtocolError> {
+        if message.statement.get_kind() != StatementType::Configuration {
+            return Err(ProtocolError::BootstrapError(format!(
+                "Invalid statement type for configuration message {:?}",
+                message.statement.get_kind()
+            )));
+        }
+
+        let artifact = message
+            .artifact
+            .as_ref()
+            .ok_or(ProtocolError::BootstrapError(
+                "No artifact for configuration message".to_string(),
+            ))?;
+        let configuration = Configuration::<C>::strand_deserialize(artifact)?;
+
+        if !configuration.is_valid() {
+            return Err(ProtocolError::InvalidConfiguration(format!(
+                "Configuration::is_valid failed, {:?}",
+                configuration
+            )));
+        }
+
+        let verified = message.verify(&configuration).map_err(|e| {
+            ProtocolError::VerificationError(format!(
+                "Configuration signature did not verify: {:?}",
+                e
+            ))
+        })?;
+
+        if verified.signer_position != PROTOCOL_MANAGER_INDEX {
+            return Err(ProtocolError::VerificationError(
+                "Configuration not signed by the protocol manager".to_string(),
+            ));
+        }
+
+        Ok((configuration, verified))
+    }
+
+    /// Returns the configuration of the first valid configuration message in
+    /// the message store, if any.
+    ///
+    /// Used to verify incoming messages when the store already holds the
+    /// configuration but the board has not been bootstrapped from it yet,
+    /// for example after a restart.
+    fn get_stored_configuration(
+        &self,
+        connection: &Connection,
+    ) -> Result<Option<Configuration<C>>> {
+        let mut stmt = connection.prepare(
+            "SELECT id,message,sender_pk,statement_kind,batch,mix_number FROM MESSAGES where statement_kind = ?1 order by id asc",
+        )?;
+
+        let rows = stmt.query_map([StatementType::Configuration.to_string()], |row| {
+            Ok(SqliteStoreMessageRow {
+                id: row.get(0)?,
+                message: row.get(1)?,
+                sender_pk: row.get(2)?,
+                kind: row.get(3)?,
+                batch: row.get(4)?,
+                mix_number: row.get(5)?,
+            })
+        })?;
+
+        for row in rows {
+            let message = self.read_stored_message(&row?)?;
+            if let Ok((configuration, _)) = Self::verify_bootstrap(&message) {
+                return Ok(Some(configuration));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Reads a stored message, from the blob store if one exists.
+    fn read_stored_message(&self, row: &SqliteStoreMessageRow) -> Result<Message> {
+        let message = if let Some(blob_store) = &self.blob_store {
+            let name = format!(
+                "{}-{}-{}-{}",
+                row.kind, row.sender_pk, row.batch, row.mix_number
+            );
+            let path = blob_store.join(name.replace("/", ":"));
+            let mut file = File::open(&path)?;
+            let mut buffer = vec![];
+
+            let bytes = file.read_to_end(&mut buffer)?;
+            tracing::info!("store_read: read {} bytes from {:?}", bytes, path);
+            Message::strand_deserialize(&buffer)?
+        } else {
+            Message::strand_deserialize(&row.message)?
+        };
+
+        Ok(message)
     }
 
     /// Updates the message store and returns messages not yet in the board.
@@ -724,26 +865,9 @@ impl<C: Ctx> LocalBoard<C> {
         let messages: Result<Vec<(Message, i64)>> = rows
             .map(|mr| {
                 let row = mr?;
-                let id = row.id;
-                // let message = Message::strand_deserialize(&row.message)?;
-                let message = if let Some(blob_store) = &self.blob_store {
-                    let name = format!(
-                        "{}-{}-{}-{}",
-                        row.kind, row.sender_pk, row.batch, row.mix_number
-                    );
-                    let path = blob_store.join(name.replace("/", ":"));
-                    assert!(path.exists());
-                    let mut file = File::open(&path)?;
-                    let mut buffer = vec![];
+                let message = self.read_stored_message(&row)?;
 
-                    let bytes = file.read_to_end(&mut buffer)?;
-                    tracing::info!("store_read: read {} bytes from {:?}", bytes, path);
-                    Message::strand_deserialize(&buffer)?
-                } else {
-                    Message::strand_deserialize(&row.message)?
-                };
-
-                Ok((message, id))
+                Ok((message, row.id))
             })
             .collect();
 
@@ -1003,4 +1127,172 @@ struct SqliteStoreMessageRow {
     kind: String,
     batch: i32,
     mix_number: i32,
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use b3::messages::protocol_manager::ProtocolManager;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+
+    /// A board configuration with its protocol manager and trustee keys.
+    pub(crate) struct TestBoard {
+        pub(crate) cfg: Configuration<RistrettoCtx>,
+        manager: ProtocolManager<RistrettoCtx>,
+        pub(crate) trustee_keys: Vec<StrandSignatureSk>,
+    }
+    impl TestBoard {
+        pub(crate) fn new(n_trustees: usize) -> TestBoard {
+            let manager = ProtocolManager::new(StrandSignatureSk::gen().unwrap());
+            let trustee_keys: Vec<StrandSignatureSk> = (0..n_trustees)
+                .map(|_| StrandSignatureSk::gen().unwrap())
+                .collect();
+            let cfg = Configuration::<RistrettoCtx>::new(
+                0,
+                StrandSignaturePk::from_sk(&manager.signing_key).unwrap(),
+                trustee_keys
+                    .iter()
+                    .map(|sk| StrandSignaturePk::from_sk(sk).unwrap())
+                    .collect(),
+                n_trustees,
+                PhantomData,
+            );
+
+            TestBoard {
+                cfg,
+                manager,
+                trustee_keys,
+            }
+        }
+
+        pub(crate) fn bootstrap(&self) -> Message {
+            Message::bootstrap_msg(&self.cfg, &self.manager).unwrap()
+        }
+
+        /// The configuration signature of the trustee at `position`.
+        pub(crate) fn signed_by(&self, position: usize) -> Message {
+            let trustee = ProtocolManager::<RistrettoCtx>::new(self.trustee_keys[position].clone());
+            Message::configuration_msg(&self.cfg, &trustee).unwrap()
+        }
+
+        /// A configuration signature that names the trustee at `position` as
+        /// sender but is signed with a key outside the configuration.
+        pub(crate) fn unverifiable_as(&self, position: usize) -> Message {
+            let other = ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap());
+            let mut message = Message::configuration_msg(&self.cfg, &other).unwrap();
+            message.sender.pk = self.cfg.trustees[position].clone();
+
+            message
+        }
+    }
+
+    /// Remote board messages with consecutive ids starting at `first_id`.
+    pub(crate) fn remote(first_id: i64, messages: Vec<Message>) -> Vec<GrpcB3Message> {
+        messages
+            .into_iter()
+            .enumerate()
+            .map(|(i, m)| GrpcB3Message {
+                id: first_id + i as i64,
+                message: m.strand_serialize().unwrap(),
+                version: b3::get_schema_version(),
+            })
+            .collect()
+    }
+
+    /// A message store file that is removed when dropped.
+    pub(crate) struct TestStore(PathBuf);
+    impl TestStore {
+        pub(crate) fn new(name: &str) -> TestStore {
+            let path =
+                std::env::temp_dir().join(format!("braid-{}-{}.db", name, std::process::id()));
+            let _ = fs::remove_file(&path);
+
+            TestStore(path)
+        }
+
+        pub(crate) fn path(&self) -> PathBuf {
+            self.0.clone()
+        }
+    }
+    impl Drop for TestStore {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+
+    fn stored(board: &mut LocalBoard<RistrettoCtx>) -> Vec<Message> {
+        board
+            .store_and_return_messages(&vec![], -1, false)
+            .unwrap()
+            .into_iter()
+            .map(|(m, _)| m)
+            .collect()
+    }
+
+    #[test]
+    fn update_store_skips_unverifiable_message() {
+        let board = TestBoard::new(2);
+        let store = TestStore::new("update_store_skips_unverifiable_message");
+        let mut local = LocalBoard::<RistrettoCtx>::new(Some(store.path()), None);
+
+        local
+            .update_store(
+                &remote(0, vec![board.bootstrap(), board.unverifiable_as(0)]),
+                false,
+            )
+            .unwrap();
+        local
+            .update_store(&remote(2, vec![board.signed_by(0)]), false)
+            .unwrap();
+
+        let messages = stored(&mut local);
+        assert_eq!(messages.len(), 2);
+        assert!(messages.iter().all(|m| m.verify(&board.cfg).is_ok()));
+    }
+
+    #[test]
+    fn update_store_skips_messages_before_configuration() {
+        let board = TestBoard::new(2);
+        let store = TestStore::new("update_store_skips_messages_before_configuration");
+        let mut local = LocalBoard::<RistrettoCtx>::new(Some(store.path()), None);
+
+        local
+            .update_store(
+                &remote(0, vec![board.signed_by(0), board.bootstrap()]),
+                false,
+            )
+            .unwrap();
+
+        let messages = stored(&mut local);
+        assert_eq!(messages.len(), 1);
+        assert_eq!(
+            messages[0].statement.get_kind(),
+            StatementType::Configuration
+        );
+    }
+
+    #[test]
+    fn update_store_verifies_with_stored_configuration_after_restart() {
+        let board = TestBoard::new(2);
+        let store = TestStore::new("update_store_verifies_with_stored_configuration");
+        let local = LocalBoard::<RistrettoCtx>::new(Some(store.path()), None);
+        local
+            .update_store(&remote(0, vec![board.bootstrap()]), false)
+            .unwrap();
+        drop(local);
+
+        let mut restarted = LocalBoard::<RistrettoCtx>::new(Some(store.path()), None);
+        restarted
+            .update_store(
+                &remote(1, vec![board.unverifiable_as(0), board.signed_by(1)]),
+                false,
+            )
+            .unwrap();
+
+        let messages = stored(&mut restarted);
+        assert_eq!(messages.len(), 2);
+        assert!(messages.iter().all(|m| m.verify(&board.cfg).is_ok()));
+    }
 }
