@@ -22,6 +22,13 @@ fn task_data_object(data: Value) -> AnyhowResult<Map<String, Value>> {
     }
 }
 
+async fn mark_failed(task_execution: &TasksExecution, err: anyhow::Error) -> Error {
+    if let Err(update_err) = update_fail(task_execution, &err.to_string()).await {
+        info!("Failed to update task as failed: {}", update_err);
+    }
+    Error::from(err)
+}
+
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
@@ -35,17 +42,15 @@ pub async fn execute_plugin_task(
 
     let mut task_data = match task_data_object(data) {
         Ok(task_data) => task_data,
-        Err(err) => {
-            if let Err(update_err) = update_fail(&task_execution, &err.to_string()).await {
-                info!("Failed to update task as failed: {}", update_err);
-            }
-            return Err(Error::from(err));
-        }
+        Err(err) => return Err(mark_failed(&task_execution, err).await),
     };
 
-    let task_execution_str: String = serde_json::to_string(&task_execution)
+    let task_execution_str: String = match serde_json::to_string(&task_execution)
         .context("Failed to serialize task_execution to string")
-        .map_err(Error::from)?;
+    {
+        Ok(task_execution_str) => task_execution_str,
+        Err(err) => return Err(mark_failed(&task_execution, err).await),
+    };
 
     task_data.insert(
         PLUGIN_TASK_EXECUTION_KEY.to_string(),
@@ -58,10 +63,13 @@ pub async fn execute_plugin_task(
     let task_data = Value::Object(task_data);
 
     let plugin_manager: &'static plugin_manager::PluginManager =
-        plugin_manager::get_plugin_manager()
+        match plugin_manager::get_plugin_manager()
             .await
             .context("Failed to get plugin manager")
-            .map_err(Error::from)?;
+        {
+            Ok(plugin_manager) => plugin_manager,
+            Err(err) => return Err(mark_failed(&task_execution, err).await),
+        };
 
     let res = tokio::spawn(async move {
         let execution_result = plugin_manager
