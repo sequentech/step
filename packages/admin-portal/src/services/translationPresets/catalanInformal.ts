@@ -60,6 +60,7 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
             "Estàs a punt de tancar aquesta aplicació. Aquesta acció no es pot desfer.",
         "global:logout.modal.close": "Tanca",
         "global:dragNDrop.firstLine": "Arrossega i deixa anar fitxers o",
+        "global:dragNDrop.browse": "Carrega fitxer",
         "global:selectElection.voteButton": "Fes clic per votar",
         "global:selectElection.ballotLocator": "Localitza el teu vot",
         "global:header.session.title": "La teva sessió està a punt d'expirar.",
@@ -74,6 +75,9 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
             "La teva papereta conté seleccions que poden necessitar la teva atenció (com ara seleccionar menys opcions de les permeses). La teva papereta és vàlida i es comptarà tal com s'ha enviat.",
         "votingPortal:votingScreen.warningDialog.ok": "Torna i revisa",
         "votingPortal:votingScreen.warningDialog.continue": "Continua",
+        "votingPortal:votingScreen.warningDialog.cancel": "Cancel·la",
+        "votingPortal:votingScreen.blankBallotDialog.continue": "Continua",
+        "votingPortal:votingScreen.blankBallotDialog.cancel": "Cancel·la",
         "votingPortal:startScreen.declineToVoteDialog.title": "Confirma que vols declinar votar",
         "votingPortal:startScreen.declineToVoteDialog.content":
             "Segur que vols declinar votar?<br />Aniràs directament a la revisió i el teu estat de participació es desarà com a <b>Ha declinat votar</b>.",
@@ -88,6 +92,8 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:startScreen.step3Title": "3. Emet la teva papereta",
         "votingPortal:startScreen.step3Description":
             "Quan estiguis a punt, emet la teva papereta perquè quedi registrada oficialment. O tria auditar primer per confirmar que va ser capturada i xifrada correctament",
+        "votingPortal:reviewScreen.acclamation.description":
+            "Revisa el que s'ha resolt per aclamació en aquesta elecció. No s'emetrà cap papereta.",
         "votingPortal:reviewScreen.title": "Revisa el teu vot",
         "votingPortal:reviewScreen.description":
             "Per fer canvis a les teves seleccions, fes clic al botó “<b>Edita el teu vot</b>”, per confirmar les teves seleccions, fes clic al botó “<b>Envia el vot</b>” a sota, i per auditar la teva papereta fes clic al botó “<b>Auditar papereta</b>” a sota.",
@@ -95,6 +101,7 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
             "Per fer canvis a les teves seleccions, fes clic al botó “<b>Edita el teu vot</b>”, per confirmar les teves seleccions, fes clic al botó “<b>Envia el vot</b>” a sota.",
         "votingPortal:reviewScreen.backButton": "Edita el teu vot",
         "votingPortal:reviewScreen.castBallotButton": "Envia el vot",
+        "votingPortal:reviewScreen.copyBallotId": "Copia l'ID de la papereta",
         "votingPortal:reviewScreen.reviewScreenHelpDialog.content":
             "Aquesta pantalla et permet revisar les teves seleccions abans d'emetre el vot",
         "votingPortal:reviewScreen.ballotIdHelpDialog.title": "El teu vot no ha estat emès",
@@ -198,6 +205,9 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:confirmationScreen.title": "El teu vot ha estat emès",
         "votingPortal:confirmationScreen.description":
             "La teva papereta va ser emesa correctament. Utilitza el codi a continuació per verificar que va ser comptabilitzada",
+        "votingPortal:confirmationScreen.remainingElectionsError":
+            "No hem pogut comprovar si tens més eleccions en què votar. Torna-ho a provar.",
+        "votingPortal:confirmationScreen.retryButton": "Torna-ho a provar",
         "votingPortal:confirmationScreen.verifyCastTitle": "Comprova que el teu vot va ser emès",
         "votingPortal:confirmationScreen.verifyCastDescription":
             "Pots verificar en qualsevol moment que la teva papereta va ser emesa correctament usant el codi QR a continuació",
@@ -246,8 +256,13 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
             "No hi ha eleccions en les quals puguis votar. Això podria ser perquè l'àrea no té cap pregunta associada. Si us plau, torna-ho a provar més tard o contacta amb el servei d'assistència.",
         "votingPortal:electionSelectionScreen.alerts.electionEventNotPublished":
             "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torna-ho a provar més tard o contacta amb el servei d'assistència.",
+        "votingPortal:electionSelectionScreen.materialsGate.instructions":
+            "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
         "votingPortal:errors.page.certAuthFailedMessage":
             "No s'ha pogut verificar el teu certificat. Comprova que estàs utilitzant un certificat de votant vàlid i torna-ho a provar.",
+        "votingPortal:materials.mandatory.continueButton": "Continua",
+        "votingPortal:materials.mandatory.error":
+            "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
         "votingPortal:ballotLocator.title": "Troba la teva papereta",
         "votingPortal:ballotLocator.titleResult": "Resultats de la cerca de la teva papereta",
         "votingPortal:ballotLocator.description":

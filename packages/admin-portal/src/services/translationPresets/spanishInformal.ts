@@ -190,6 +190,8 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:confirmationScreen.title": "Tu voto ha sido emitido",
         "votingPortal:confirmationScreen.description":
             "Tu papeleta fue emitida correctamente. Usa el código a continuación para verificar que fue contabilizada",
+        "votingPortal:confirmationScreen.remainingElectionsError":
+            "No pudimos comprobar si tienes más elecciones en las que votar. Vuelve a intentarlo.",
         "votingPortal:confirmationScreen.verifyCastTitle": "Comprueba que tu voto fue emitido",
         "votingPortal:confirmationScreen.verifyCastDescription":
             "Puedes verificar en cualquier momento que tu papeleta fue emitida correctamente usando el código QR a continuación",
@@ -238,8 +240,12 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
             "No hay elecciones en las que puedas votar. Esto podría deberse a que el área no tiene ninguna pregunta asociada. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
         "votingPortal:electionSelectionScreen.alerts.electionEventNotPublished":
             "El evento electoral aún no ha sido publicado. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+        "votingPortal:electionSelectionScreen.materialsGate.instructions":
+            "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
         "votingPortal:errors.page.certAuthFailedMessage":
             "No se ha podido verificar tu certificado. Comprueba que estás usando un certificado de votante válido e inténtalo de nuevo.",
+        "votingPortal:materials.mandatory.error":
+            "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
         "votingPortal:ballotLocator.title": "Encuentra tu papeleta",
         "votingPortal:ballotLocator.titleResult": "Resultados de tu búsqueda de Papeleta",
         "votingPortal:ballotLocator.description":
