@@ -114,6 +114,41 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(summary["tests_ignored"], 1)
         self.assertEqual(summary["features"], ["default_features", "keycloak"])
 
+    def test_consumers_run_without_contributing_to_package_counters(self):
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\nconsumer_packages = ["windmill"]',
+            )
+        )
+        consumer = self.workspace / "windmill/src/query.rs"
+        consumer.parent.mkdir(parents=True)
+        consumer.write_text("pub fn query() {}\n")
+        original = self.tool_output
+
+        def tool_output(command, log, environment):
+            output = original(command, log, environment)
+            if "--tests" in command:
+                packages = [
+                    command[index + 1]
+                    for index, argument in enumerate(command)
+                    if argument == "--package"
+                ]
+                self.assertEqual(packages, ["sequent-core", "windmill"])
+            if "--json" in command:
+                destination = Path(command[command.index("--output-path") + 1])
+                destination.write_text(
+                    json.dumps(export(llvm_file(self.source), llvm_file(consumer, 100)))
+                )
+            return output
+
+        self.tool_output = tool_output
+        code, summary = self.attempt()
+        self.assertEqual(code, 0)
+        self.assertEqual(summary["consumer_packages"], ["windmill"])
+        self.assertEqual(summary["metrics"]["lines"]["covered"], 95)
+        self.assertEqual(summary["metrics"]["lines"]["count"], 100)
+
     def test_profile_fixture_environment_overrides_the_callers_service_settings(
         self,
     ) -> None:
