@@ -161,13 +161,15 @@ crepe! {
     (mix_number1 != mix_number2),
     (signer_t1 == signer_t2);
 
-    Verified(cfg_h, batch, ballots_h, decrypted_ciphertexts_h, decryption_pk_h, plaintexts_h, new_mixing_hs) <-
+    Verified(cfg_h, batch, ballots_h, last_ciphertexts_h, decryption_pk_h, plaintexts_h, new_mixing_hs) <-
     ConfigurationSignedAll(cfg_h, _, _num_t, threshold),
     MixVerifiedUpto(cfg_h, batch, last_ciphertexts_h, mixing_hs, threshold),
     MixVerifiedUpto(cfg_h, batch, _, _, 1),
     MixSigned(cfg_h, batch, ballots_h, _target_h, VERIFIER_INDEX),
     Ballots(cfg_h, batch, ballots_h, _, selected),
-    Plaintexts(cfg_h, batch, plaintexts_h, _dfactors_hs, decrypted_ciphertexts_h, decryption_pk_h, selected[0] - 1),
+    Plaintexts(cfg_h, batch, plaintexts_h, dfactors_hs, last_ciphertexts_h, decryption_pk_h, selected[0] - 1),
+    // The plaintexts must have been recomputed and signed by the verifier itself
+    PlaintextsSigned(cfg_h, batch, plaintexts_h, dfactors_hs, last_ciphertexts_h, decryption_pk_h, VERIFIER_INDEX),
     !MixRepeat(cfg_h, batch),
     let new_mixing_hs = MixingHashes(hashes_add(mixing_hs.0, last_ciphertexts_h.0));
 
@@ -186,5 +188,126 @@ impl S {
         runtime.extend(&inputs);
 
         runtime.run()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::datalog::{trustees_add, trustees_init};
+
+    const BATCH: BatchNumber = 1;
+    const NUM_TRUSTEES: TrusteeCount = 3;
+    const THRESHOLD: Threshold = 2;
+
+    struct Hashes {
+        cfg: ConfigurationHash,
+        pk: PublicKeyHash,
+        shares: SharesHashes,
+        ballots: CiphertextsHash,
+        mix1: CiphertextsHash,
+        mix2: CiphertextsHash,
+        plaintexts: PlaintextsHash,
+        dfactors: DecryptionFactorsHashes,
+    }
+
+    fn hashes() -> Hashes {
+        Hashes {
+            cfg: ConfigurationHash([1u8; 64]),
+            pk: PublicKeyHash([2u8; 64]),
+            shares: SharesHashes(hashes_init([3u8; 64])),
+            ballots: CiphertextsHash([4u8; 64]),
+            mix1: CiphertextsHash([5u8; 64]),
+            mix2: CiphertextsHash([6u8; 64]),
+            plaintexts: PlaintextsHash([7u8; 64]),
+            dfactors: DecryptionFactorsHashes(hashes_add(hashes_init([8u8; 64]), [9u8; 64])),
+        }
+    }
+
+    // Trustees 1 and 2 (1-based) are selected; trustee 0 (0-based) mixes first
+    // and posts the plaintexts, trustee 1 produces the last mix.
+    fn verified_mix_chain(h: &Hashes) -> Vec<Predicate> {
+        let selected = trustees_add(trustees_init(1), 2);
+        vec![
+            Predicate::ConfigurationSignedAll(h.cfg, VERIFIER_INDEX, NUM_TRUSTEES, THRESHOLD),
+            Predicate::PublicKeySignedAll(h.cfg, h.pk, h.shares),
+            Predicate::Ballots(h.cfg, BATCH, h.ballots, h.pk, selected),
+            Predicate::Mix(h.cfg, BATCH, h.ballots, h.mix1, 1, 0),
+            Predicate::Mix(h.cfg, BATCH, h.mix1, h.mix2, 2, 1),
+            Predicate::MixSigned(h.cfg, BATCH, h.ballots, h.mix1, VERIFIER_INDEX),
+            Predicate::MixSigned(h.cfg, BATCH, h.mix1, h.mix2, VERIFIER_INDEX),
+        ]
+    }
+
+    fn plaintexts(h: &Hashes, cipher_h: CiphertextsHash, signer_t: TrusteePosition) -> Predicate {
+        Predicate::Plaintexts(
+            h.cfg,
+            BATCH,
+            h.plaintexts,
+            h.dfactors,
+            cipher_h,
+            h.pk,
+            signer_t,
+        )
+    }
+
+    fn plaintexts_signed(
+        h: &Hashes,
+        cipher_h: CiphertextsHash,
+        signer_t: TrusteePosition,
+    ) -> Predicate {
+        Predicate::PlaintextsSigned(
+            h.cfg,
+            BATCH,
+            h.plaintexts,
+            h.dfactors,
+            cipher_h,
+            h.pk,
+            signer_t,
+        )
+    }
+
+    #[test]
+    fn verified_requires_verifier_plaintexts_signature() {
+        let h = hashes();
+        let mut predicates = verified_mix_chain(&h);
+        predicates.push(plaintexts(&h, h.mix2, 0));
+        predicates.push(plaintexts_signed(&h, h.mix2, 1));
+
+        let (_, targets, verified) = S.run(&predicates);
+
+        assert_eq!(targets.len(), 1);
+        assert!(verified.is_empty());
+    }
+
+    #[test]
+    fn verified_with_verifier_plaintexts_signature() {
+        let h = hashes();
+        let mut predicates = verified_mix_chain(&h);
+        predicates.push(plaintexts(&h, h.mix2, 0));
+        predicates.push(plaintexts_signed(&h, h.mix2, VERIFIER_INDEX));
+
+        let (_, _, verified) = S.run(&predicates);
+
+        assert_eq!(verified.len(), 1);
+        let v = verified.iter().next().expect("one verified batch");
+        assert_eq!(v.1, BATCH);
+        assert_eq!(v.2, h.ballots);
+        assert_eq!(v.3, h.mix2);
+        assert_eq!(v.4, h.pk);
+        assert_eq!(v.5, h.plaintexts);
+    }
+
+    #[test]
+    fn verified_rejects_plaintexts_not_over_last_mix() {
+        let h = hashes();
+        let other = CiphertextsHash([10u8; 64]);
+        let mut predicates = verified_mix_chain(&h);
+        predicates.push(plaintexts(&h, other, 0));
+        predicates.push(plaintexts_signed(&h, other, VERIFIER_INDEX));
+
+        let (_, _, verified) = S.run(&predicates);
+
+        assert!(verified.is_empty());
     }
 }
