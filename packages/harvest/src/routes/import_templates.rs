@@ -30,6 +30,18 @@ pub struct ImportTemplatesOutput {
     document_id: String,
 }
 
+fn authorize_import_templates(
+    claims: &jwt::JwtClaims,
+    input: &ImportTemplatesInput,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::TEMPLATE_WRITE],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/import-templates", format = "json", data = "<input>")]
 pub async fn import_templates_route(
@@ -37,15 +49,10 @@ pub async fn import_templates_route(
     input: Json<ImportTemplatesInput>,
 ) -> Result<Json<ImportTemplatesOutput>, (Status, String)> {
     let body = input.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TEMPLATE_WRITE],
-    )?;
+    authorize_import_templates(&claims, &body)?;
 
     match provide_hasura_transaction(|hasura_transaction| {
-        let tenant_id = claims.hasura_claims.tenant_id.clone();
+        let tenant_id = body.tenant_id.clone();
         let document_id = body.document_id.clone();
         Box::pin(async move {
             // Your async code here
@@ -69,5 +76,40 @@ pub async fn import_templates_route(
             error_msg: Some(err.to_string()),
             document_id: body.document_id,
         })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID, OTHER_TENANT_ID,
+    };
+
+    fn input(tenant_id: &str) -> ImportTemplatesInput {
+        ImportTemplatesInput {
+            tenant_id: tenant_id.to_string(),
+            document_id: "document".to_string(),
+            sha256: None,
+        }
+    }
+
+    #[test]
+    fn import_templates_rejects_tenant_other_than_callers() {
+        let claims =
+            admin_claims(CALLER_TENANT_ID, &["communication-template-write"]);
+        let result =
+            authorize_import_templates(&claims, &input(OTHER_TENANT_ID));
+        assert_eq!(result.unwrap_err().0, Status::Unauthorized);
+    }
+
+    #[test]
+    fn import_templates_accepts_callers_tenant() {
+        let claims =
+            admin_claims(CALLER_TENANT_ID, &["communication-template-write"]);
+        assert!(
+            authorize_import_templates(&claims, &input(CALLER_TENANT_ID))
+                .is_ok()
+        );
     }
 }

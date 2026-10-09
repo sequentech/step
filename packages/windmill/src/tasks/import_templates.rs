@@ -11,9 +11,52 @@ use sequent_core::types::hasura::core::Template;
 use sequent_core::util::integrity_check::integrity_check;
 
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use std::io::Seek;
+use std::io::{Read, Seek};
 use tracing::{info, instrument};
 use uuid::Uuid;
+
+fn parse_templates_csv<R: Read>(reader: R, tenant_id: &str) -> Result<Vec<Template>> {
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(b',')
+        .has_headers(false)
+        .from_reader(reader);
+
+    let mut templates: Vec<Template> = vec![];
+
+    for result in rdr.records() {
+        let record = result.map_err(|e| "Error reading CSV record: {:e?}")?;
+
+        let template_alias = record.get(0).unwrap_or("");
+        let row_tenant_id = record.get(1).unwrap_or("");
+        let template_content = record.get(2).unwrap_or("");
+        let created_by = record.get(3).unwrap_or("");
+        let labels = record.get(4).unwrap_or("");
+        let annotations = record.get(5).unwrap_or("");
+        let created_at = record.get(6).unwrap_or("");
+        let updated_at = record.get(7).unwrap_or("");
+        let communication_method = record.get(8).unwrap_or("");
+        let template_type = record.get(9).unwrap_or("");
+
+        if parse_uuid_v4(row_tenant_id).is_err() {
+            tracing::warn!("Invalid UUID for tenant_id: {}", row_tenant_id);
+            continue;
+        }
+        templates.push(Template {
+            alias: template_alias.to_string(),
+            tenant_id: tenant_id.to_string(),
+            template: deserialize_str(template_content).unwrap_or_default(),
+            created_by: created_by.to_string(),
+            labels: Some(serde_json::Value::String(labels.to_string())),
+            annotations: Some(serde_json::Value::String(annotations.to_string())),
+            created_at: Some(created_at.parse().unwrap_or_default()),
+            updated_at: Some(updated_at.parse().unwrap_or_default()),
+            communication_method: communication_method.to_string(),
+            r#type: template_type.to_string(),
+        });
+    }
+
+    Ok(templates)
+}
 
 #[instrument(err)]
 pub async fn import_templates_task(
@@ -44,49 +87,40 @@ pub async fn import_templates_task(
         }
     }
 
-    let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b',')
-        .has_headers(false)
-        .from_reader(temp_file);
-
-    let mut templates: Vec<Template> = vec![];
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| "Error reading CSV record: {:e?}")?;
-
-        let template_alias = record.get(0).unwrap_or("");
-        let tenant_id = record.get(1).unwrap_or("");
-        let template_content = record.get(2).unwrap_or("");
-        let created_by = record.get(3).unwrap_or("");
-        let labels = record.get(4).unwrap_or("");
-        let annotations = record.get(5).unwrap_or("");
-        let created_at = record.get(6).unwrap_or("");
-        let updated_at = record.get(7).unwrap_or("");
-        let communication_method = record.get(8).unwrap_or("");
-        let template_type = record.get(9).unwrap_or("");
-
-        let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
-            Ok(uuid) => uuid.to_string(),
-            Err(_) => {
-                tracing::warn!("Invalid UUID for tenant_id: {}", tenant_id);
-                continue;
-            }
-        };
-        templates.push(Template {
-            alias: template_alias.to_string(),
-            tenant_id: tenant_id_parsed,
-            template: deserialize_str(template_content).unwrap_or_default(),
-            created_by: created_by.to_string(),
-            labels: Some(serde_json::Value::String(labels.to_string())),
-            annotations: Some(serde_json::Value::String(annotations.to_string())),
-            created_at: Some(created_at.parse().unwrap_or_default()),
-            updated_at: Some(updated_at.parse().unwrap_or_default()),
-            communication_method: communication_method.to_string(),
-            r#type: template_type.to_string(),
-        });
-    }
+    let templates = parse_templates_csv(temp_file, &tenant_id)?;
 
     insert_templates(hasura_transaction, &templates).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TASK_TENANT_ID: &str = "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
+    const ROW_TENANT_ID: &str = "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
+
+    fn csv_with_row_tenant(row_tenant_id: &str) -> String {
+        format!(
+            "alias,tenant_id,template,created_by,labels,annotations,created_at,updated_at,communication_method,type\n\
+             welcome,{row_tenant_id},{{}},admin,,,,,EMAIL,BALLOT_RECEIPT\n"
+        )
+    }
+
+    #[test]
+    fn imported_templates_belong_to_task_tenant() {
+        let csv = csv_with_row_tenant(ROW_TENANT_ID);
+        let templates = parse_templates_csv(csv.as_bytes(), TASK_TENANT_ID).unwrap();
+        assert_eq!(templates.len(), 1);
+        assert_eq!(templates[0].tenant_id, TASK_TENANT_ID);
+        assert_eq!(templates[0].alias, "welcome");
+    }
+
+    #[test]
+    fn header_row_is_not_imported() {
+        let csv = csv_with_row_tenant(TASK_TENANT_ID);
+        let templates = parse_templates_csv(csv.as_bytes(), TASK_TENANT_ID).unwrap();
+        assert_eq!(templates.len(), 1);
+    }
 }
