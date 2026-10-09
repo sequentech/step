@@ -10,13 +10,15 @@ use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use keycloak::types::RealmRepresentation;
 use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
+use sequent_core::util::temp_path::generate_temp_file;
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use std::io::Write;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use zip::write::FileOptions;
+
+const EXPORT_TENANT_CONFIG_PREFIX: &str = "export-tenant-config-";
 
 pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<NamedTempFile> {
     // Serialize the data into JSON string
@@ -73,12 +75,11 @@ pub async fn process_export_zip(
     hasura_transaction: &Transaction<'_>,
 ) -> Result<()> {
     // Temporary file path for the ZIP archive
-    let zip_filename = format!("export-tenant-config-{}.zip", tenant_id);
-    let zip_path = env::temp_dir().join(&zip_filename);
+    let zip_filename = format!("{EXPORT_TENANT_CONFIG_PREFIX}{tenant_id}.zip");
 
     // Create a new ZIP file
-    let zip_file =
-        File::create(&zip_path).map_err(|e| anyhow!("Error creating ZIP file: {e:?}"))?;
+    let zip_file = generate_temp_file(EXPORT_TENANT_CONFIG_PREFIX, ".zip")
+        .map_err(|e| anyhow!("Error creating ZIP file: {e:?}"))?;
     let mut zip_writer = zip::ZipWriter::new(zip_file);
     let options: FileOptions<()> =
         FileOptions::default().compression_method(zip::CompressionMethod::DEFLATE);
@@ -160,13 +161,13 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Error copying roles_permissions config file to ZIP: {e:?}"))?;
 
     // Finalize the ZIP file
-    zip_writer
+    let zip_file = zip_writer
         .finish()
         .map_err(|e| anyhow!("Error finalizing ZIP file: {e:?}"))?;
 
-    let upload_path = &zip_path;
+    let upload_path = zip_file.path();
 
-    let zip_size = std::fs::metadata(&upload_path)
+    let zip_size = std::fs::metadata(upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
 
@@ -183,9 +184,6 @@ pub async fn process_export_zip(
         false,
     )
     .await?;
-
-    // Clean up the ZIP file
-    std::fs::remove_file(&zip_path).map_err(|e| anyhow!("Error removing ZIP file: {e:?}"))?;
 
     Ok(())
 }
