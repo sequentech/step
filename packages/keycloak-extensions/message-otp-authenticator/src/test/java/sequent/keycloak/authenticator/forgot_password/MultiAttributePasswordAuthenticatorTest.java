@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.common.ClientConnection;
 import org.keycloak.common.util.Time;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.hash.PasswordHashProvider;
@@ -41,7 +42,9 @@ import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserCredentialModel;
@@ -51,6 +54,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.UserSessionProvider;
+import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
@@ -743,6 +747,187 @@ class MultiAttributePasswordAuthenticatorTest {
     assertTrue(result.attributableUser().isEmpty());
   }
 
+  @Mock private KeycloakContext keycloakContext;
+  @Mock private ClientConnection clientConnection;
+  @Mock private KeycloakUriInfo uriInfo;
+
+  private void bruteForceProtectedRequest() {
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    lenient().when(session.loginFailures()).thenReturn(loginFailures);
+    lenient().when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    lenient().when(session.getContext()).thenReturn(keycloakContext);
+    lenient().when(keycloakContext.getConnection()).thenReturn(clientConnection);
+    lenient().when(keycloakContext.getUri()).thenReturn(uriInfo);
+  }
+
+  private void verifyCharged(UserModel user) {
+    verify(bruteForceProtector)
+        .failedLogin(realm, user, clientConnection, uriInfo, PasswordCredentialModel.TYPE);
+  }
+
+  private void verifyNotCharged(UserModel user) {
+    verify(bruteForceProtector, never()).failedLogin(eq(realm), eq(user), any(), any(), any());
+  }
+
+  @Test
+  void sharedTuple_wrongPassword_chargesEveryViableCandidate() {
+    bruteForceProtectedRequest();
+    for (MultiAttributeCredentialResolver.MatchPolicy policy :
+        MultiAttributeCredentialResolver.MatchPolicy.values()) {
+      UserModel alice = mockUser("alice", "alice-pw", true);
+      UserModel bob = mockUser("bob", "bob-pw", true);
+      UserModel carol = mockUser("carol", "carol-pw", true);
+      when(userProvider.searchForUserStream(
+              realm,
+              Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+              0,
+              DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+          .thenAnswer(invocation -> Stream.of(alice, bob, carol));
+      lockTemporarily(carol);
+
+      Resolution result = resolveDateOfBirth("wrong", policy);
+
+      assertTrue(result.authenticatedUser().isEmpty(), policy.name());
+      assertTrue(result.attributableUser().isEmpty(), policy.name());
+      verifyCharged(alice);
+      verifyCharged(bob);
+      verifyNotCharged(carol);
+    }
+  }
+
+  @Test
+  void sharedTuple_ambiguousPassword_chargesEveryViableCandidate() {
+    bruteForceProtectedRequest();
+    UserModel alice = mockUser("alice", "shared-pw", true);
+    UserModel bob = mockUser("bob", "shared-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenReturn(Stream.of(alice, bob));
+
+    Resolution result =
+        resolveDateOfBirth(
+            "shared-pw", MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    verifyCharged(alice);
+    verifyCharged(bob);
+  }
+
+  @Test
+  void sharedTuple_successfulLogin_chargesNoCandidate() {
+    bruteForceProtectedRequest();
+    for (MultiAttributeCredentialResolver.MatchPolicy policy :
+        MultiAttributeCredentialResolver.MatchPolicy.values()) {
+      UserModel alice = mockUser("alice", "alice-pw", true);
+      UserModel bob = mockUser("bob", "bob-pw", true);
+      when(userProvider.searchForUserStream(
+              realm,
+              Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+              0,
+              DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+          .thenAnswer(invocation -> Stream.of(alice, bob));
+
+      assertEquals(bob, resolveDateOfBirth("bob-pw", policy).authenticatedUser().orElse(null));
+      verifyNotCharged(alice);
+      verifyNotCharged(bob);
+    }
+  }
+
+  @Test
+  void sharedTuple_tupleOnlyPolicy_chargesNoCandidate() {
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    when(session.loginFailures()).thenReturn(loginFailures);
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenReturn(Stream.of(alice, bob));
+
+    Resolution result =
+        authenticator.resolveAuthenticatedUser(
+            session,
+            realm,
+            List.of("dateOfBirth"),
+            valuesOf("dateOfBirth", "19900101"),
+            "wrong",
+            new MultiAttributeCredentialResolver.ThrottleConfig(
+                10,
+                10,
+                60,
+                DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS,
+                MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.TUPLE_ONLY),
+            MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    assertTrue(result.attributableUser().isEmpty());
+    verify(session, never()).getProvider(BruteForceProtector.class);
+  }
+
+  @Test
+  void sharedTuple_realmWithoutBruteForceDetection_chargesNoCandidate() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenReturn(Stream.of(alice, bob));
+
+    Resolution result =
+        resolveDateOfBirth("wrong", MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    verify(session, never()).getProvider(BruteForceProtector.class);
+  }
+
+  @Test
+  void sharedCandidateFailurePolicy_fromString_nullOrBlank_defaultsToChargeViableCandidates() {
+    assertEquals(
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES,
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.fromString(null));
+    assertEquals(
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES,
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.fromString(" "));
+  }
+
+  @Test
+  void sharedCandidateFailurePolicy_fromString_caseInsensitive() {
+    assertEquals(
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.TUPLE_ONLY,
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.fromString("tuple_only"));
+  }
+
+  @Test
+  void sharedCandidateFailurePolicy_fromString_unknownValue_throws() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.fromString("bogus"));
+  }
+
+  @Test
+  void throttleConfig_sharedCandidateFailurePolicy_readFromConfigWithDefault() {
+    AuthenticatorConfigModel config = new AuthenticatorConfigModel();
+    config.setConfig(new HashMap<>());
+    assertEquals(
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES,
+        Utils.getThrottleConfig(config).sharedCandidateFailurePolicy());
+    assertEquals(
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES,
+        MultiAttributeCredentialResolver.ThrottleConfig.defaults().sharedCandidateFailurePolicy());
+
+    config.getConfig().put(Utils.SHARED_CANDIDATE_FAILURE_POLICY, "TUPLE_ONLY");
+    assertEquals(
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.TUPLE_ONLY,
+        Utils.getThrottleConfig(config).sharedCandidateFailurePolicy());
+  }
+
   @Test
   void realmNotBruteForceProtected_neverConsultsProtector() {
     UserModel user = mockUser("user-1", "correct-horse", true);
@@ -1275,6 +1460,22 @@ class MultiAttributePasswordAuthenticatorTest {
     // The user-facing description must actually carry the safety warning, not just exist as a
     // config option - this is the requirement this whole feature was added under.
     assertTrue(matchPolicyProp.getHelpText().toLowerCase().contains("unique"));
+  }
+
+  @Test
+  void factory_configPropertiesIncludeSharedCandidateFailurePolicy() {
+    ProviderConfigProperty policyProp =
+        new MultiAttributePasswordAuthenticator()
+            .getConfigProperties().stream()
+                .filter(prop -> Utils.SHARED_CANDIDATE_FAILURE_POLICY.equals(prop.getName()))
+                .findFirst()
+                .orElseThrow();
+
+    assertEquals(
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES
+            .name(),
+        policyProp.getDefaultValue());
+    assertEquals(List.of("CHARGE_VIABLE_CANDIDATES", "TUPLE_ONLY"), policyProp.getOptions());
   }
 
   // ── Rendering: HTML5 input type resolved from the realm's User Profile ──
