@@ -144,12 +144,12 @@ const SupportMaterialsScreen: React.FC = () => {
                     <Typography variant="body1" sx={{color: theme.palette.customGrey.contrastText}}>
                         {stringToHtml(
                             materialsTitles
-                                ? (translateFromPresentation(
+                                ? translateFromPresentation(
                                       materialsTitles,
                                       "materialsSubtitle",
                                       i18n.language,
                                       {defaultLanguageCode}
-                                  ) ?? "-")
+                                  ) ?? "-"
                                 : ""
                         )}
                     </Typography>

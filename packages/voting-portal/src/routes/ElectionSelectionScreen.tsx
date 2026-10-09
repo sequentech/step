@@ -488,8 +488,8 @@ const ElectionSelectionScreen: React.FC = () => {
                                       electionIds: errorMsgElectionIds,
                                   })
                                 : alertMsg
-                                  ? stringToHtml(t(`electionSelectionScreen.alerts.${alertMsg}`))
-                                  : ""}
+                                ? stringToHtml(t(`electionSelectionScreen.alerts.${alertMsg}`))
+                                : ""}
                         </Alert>
                     ) : (
                         <Typography

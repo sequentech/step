@@ -64,11 +64,11 @@ describe("translateFromPresentation", () => {
     })
 
     it("ignores malformed unrelated translations when the requested value is valid", () => {
-        const malformedPresentation = {
+        const malformedPresentation = ({
             i18n: {
                 en: {name: "Election X", sort_hint: 2},
             },
-        } as unknown as Parameters<typeof translateFromPresentation>[0]
+        } as unknown) as Parameters<typeof translateFromPresentation>[0]
 
         expect(isTranslatablePresentation(malformedPresentation)).toBe(false)
         expect(translateFromPresentation(malformedPresentation, "name", "en")).toBe("Election X")

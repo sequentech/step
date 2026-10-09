@@ -79,8 +79,8 @@ const getPresentation = <K extends string>(
         "i18n" in object && object.i18n
             ? object
             : "presentation" in object
-              ? object.presentation
-              : object
+            ? object.presentation
+            : object
     return isRecord(value) ? (value as TranslatablePresentation) : undefined
 }
 
