@@ -6,10 +6,10 @@ schema {
 
 """whether this query should be cached (Hasura Cloud only)"""
 directive @cached(
-  """refresh the cache entry"""
-  refresh: Boolean! = false
   """measured in seconds"""
   ttl: Int! = 60
+  """refresh the cache entry"""
+  refresh: Boolean! = false
 ) on QUERY
 
 type AcknowledgeSupportMaterialsOutput {
@@ -854,8 +854,15 @@ input RestorePrivateKeyInput {
   tally_session_id: String!
 }
 
+enum RestorePrivateKeyOutcome {
+  ALREADY_RESTORED
+  INVALID
+  RESTORED
+}
+
 type RestorePrivateKeyOutput {
   is_valid: Boolean!
+  outcome: RestorePrivateKeyOutcome!
 }
 
 enum ResultsPublicationStatus {
@@ -5034,6 +5041,7 @@ type query_root {
   getElectionEventStats(object: ElectionEventStatsInput!): ElectionEventStatsOutput
   """get election event stats"""
   getElectionStats(object: ElectionStatsInput!): ElectionStatsOutput
+  get_ballot_files_urls(election_event_id: String!): jsonb!
   get_document_password(document_id: String!): DocumentPasswordOutput!
   """list permissions"""
   get_permissions(body: GetPermissionsInput!): GetPermissionsOutput!
@@ -7842,6 +7850,8 @@ type ballot_style {
   ballot_signature: bytea
   created_at: timestamptz
   deleted_at: timestamptz
+  """An object relationship"""
+  election: election
   election_event_id: uuid!
   election_id: uuid!
   id: uuid!
@@ -7891,6 +7901,7 @@ input ballot_style_bool_exp {
   ballot_signature: bytea_comparison_exp
   created_at: timestamptz_comparison_exp
   deleted_at: timestamptz_comparison_exp
+  election: election_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   id: uuid_comparison_exp
@@ -7945,6 +7956,7 @@ input ballot_style_insert_input {
   ballot_signature: bytea
   created_at: timestamptz
   deleted_at: timestamptz
+  election: election_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   id: uuid
@@ -8014,6 +8026,7 @@ input ballot_style_order_by {
   ballot_signature: order_by
   created_at: order_by
   deleted_at: order_by
+  election: election_order_by
   election_event_id: order_by
   election_id: order_by
   id: order_by
@@ -11222,6 +11235,15 @@ type election_mutation_response {
   affected_rows: Int!
   """data from the rows affected by the mutation"""
   returning: [election!]!
+}
+
+"""
+input type for inserting object relation for remote table "sequent_backend.election"
+"""
+input election_obj_rel_insert_input {
+  data: election_insert_input!
+  """upsert condition"""
+  on_conflict: election_on_conflict
 }
 
 """
@@ -18017,6 +18039,10 @@ input scheduled_event_bool_exp {
 unique or primary key constraints on table "sequent_backend.scheduled_event"
 """
 enum scheduled_event_constraint {
+  """
+  unique or primary key constraint on columns "task_id", "tenant_id", "election_event_id"
+  """
+  scheduled_event_active_voting_task_idx
   """
   unique or primary key constraint on columns "id"
   """
