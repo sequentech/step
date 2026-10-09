@@ -23,8 +23,19 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - labels
@@ -39,8 +50,19 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - labels
@@ -55,8 +77,19 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - labels
@@ -71,8 +104,19 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - labels
@@ -113,8 +157,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -130,8 +185,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-create
     - comment: ""
       permission:
@@ -147,8 +213,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-delete
     - comment: ""
       permission:
@@ -164,8 +241,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-export
     - comment: ""
       permission:
@@ -181,8 +269,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-import
     - comment: ""
       permission:
@@ -198,8 +297,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-read
     - comment: ""
       permission:
@@ -215,8 +325,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-upsert
     - comment: ""
       permission:
@@ -232,8 +353,19 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-write
     - comment: ""
       permission:
@@ -273,8 +405,19 @@ update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - labels
@@ -286,12 +429,36 @@ update_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
-          check: null
+          check:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - labels
@@ -303,14 +470,36 @@ update_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-upsert
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - labels
@@ -322,8 +511,19 @@ update_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-write
     - comment: ""
       permission:
@@ -344,20 +544,53 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-delete
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - contest_id:
+                              _is_null: true
+                        - contest:
+                              election:
+                                  _or:
+                                      - permission_label:
+                                            _is_null: true
+                                      - permission_label:
+                                            _in: X-Hasura-Permission-Labels
       role: area-write
     - comment: ""
       permission:
