@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
+use crate::services::jwt_verification::verify_bearer;
 use crate::services::keycloak::{
     get_third_party_client_access_token, KeycloakAdminClient,
     PubKeycloakAdminToken,
@@ -51,7 +52,7 @@ impl<'r> FromRequest<'r> for AuthHeaders {
                 value: headers.get_one("authorization").unwrap().to_string(),
             })
         } else {
-            warn!("AuthHeaders guard: headers: {headers:?}");
+            warn!("AuthHeaders guard: missing authentication");
             Outcome::Error((Status::Unauthorized, ()))
         }
     }
@@ -68,21 +69,25 @@ impl<'r> FromRequest<'r> for JwtClaims {
         match headers.get_one("authorization") {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
-                    Some(token) => match decode_jwt(token) {
-                        Ok(jwt) => Outcome::Success(jwt),
-                        Err(err) => {
-                            warn!("JwtClaims guard: decode_jwt error {err:?}");
-                            Outcome::Error((Status::Unauthorized, ()))
+                    Some(token) => {
+                        match verify_bearer(token).await.and_then(|claims| {
+                            serde_json::from_value(claims).map_err(Into::into)
+                        }) {
+                            Ok(jwt) => Outcome::Success(jwt),
+                            Err(_) => {
+                                warn!("JwtClaims guard: invalid bearer token");
+                                Outcome::Error((Status::Unauthorized, ()))
+                            }
                         }
-                    },
+                    }
                     None => {
-                        warn!("JwtClaims guard: not a bearer token: {authorization:?}");
+                        warn!("JwtClaims guard: missing bearer token");
                         Outcome::Error((Status::Unauthorized, ()))
                     }
                 }
             }
             None => {
-                warn!("JwtClaims guard: headers: {headers:?}");
+                warn!("JwtClaims guard: missing authentication");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
@@ -146,7 +151,7 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     let mut missing_headers = vec![];
     for header in required_headers {
         if !headers.contains(header) {
-            warn!("DatafixClaims guard: Missing {header} header");
+            warn!("DatafixClaims guard: missing required {header} header");
             missing_headers.push(header);
         }
     }
@@ -213,7 +218,7 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-#[instrument(skip(lst_acc_tkn, client_secret))]
+#[instrument(skip_all)]
 async fn read_access_token(
     client_id: &str,
     client_secret: &str,
@@ -246,7 +251,7 @@ async fn read_access_token(
 }
 
 /// Request a new access token and writes it to the cache
-#[instrument(err, skip(lst_acc_tkn, client_secret))]
+#[instrument(err, skip_all)]
 async fn request_access_token(
     client_id: String,
     client_secret: String,
@@ -331,14 +336,18 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             }
         };
 
-        match decode_jwt(&token_resp.access_token) {
+        match verify_bearer(&token_resp.access_token)
+            .await
+            .and_then(|claims| {
+                serde_json::from_value(claims).map_err(Into::into)
+            }) {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
                 jwt_claims,
                 tenant_id,
                 datafix_event_id,
             }),
-            Err(err) => {
-                warn!("DatafixClaims guard: decode_jwt error {err:?}");
+            Err(_) => {
+                warn!("DatafixClaims guard: invalid bearer token");
                 Outcome::Error((Status::Unauthorized, ()))
             }
         }
