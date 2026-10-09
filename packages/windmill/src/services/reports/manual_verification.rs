@@ -164,8 +164,8 @@ async fn get_manual_verification_url(
         "{keycloak_url}/realms/tenant-{tenant_id}-event-{election_event_id}/manual-verification/generate-link"
     );
 
-    let keycloak = KeycloakAdminClient::new().await?;
-    let service_token = keycloak.client.token_supplier.get(&keycloak_url).await?;
+    let keycloak = KeycloakAdminClient::pub_new().await?;
+    let service_token = keycloak.token_supplier.get(&keycloak_url).await?;
     let client = reqwest::Client::new();
 
     info!("Requesting HTTP GET {:?}", generate_token_url);
