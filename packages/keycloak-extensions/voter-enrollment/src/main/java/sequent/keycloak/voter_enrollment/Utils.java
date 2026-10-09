@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
@@ -66,6 +67,23 @@ public class Utils {
   private static final List<String> DEFAULT_KEYS_USERDATA =
       List.of(UserModel.FIRST_NAME, UserModel.LAST_NAME, UserModel.EMAIL, UserModel.USERNAME);
   private static final String USER_ID = "userId";
+
+  /**
+   * Notes that only authenticators set: the one-time code and link state, the verified email flag
+   * and the verification outcome. A form field with one of these names is not stored as a note.
+   */
+  private static final Set<String> RESERVED_NOTES =
+      Set.of(
+          sequent.keycloak.authenticator.Utils.CODE,
+          sequent.keycloak.authenticator.Utils.CODE_TTL,
+          sequent.keycloak.authenticator.Utils.OTL_VISITED,
+          sequent.keycloak.authenticator.Utils.EMAIL_VERIFIED,
+          LookupAndUpdateUser.VERIFICATION_COMPLETED,
+          LookupAndUpdateUser.VERIFICATION_STATUS,
+          LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
+          LookupAndUpdateUser.VERIFICATION_MISSMATCHED_FIELDS,
+          LookupAndUpdateUser.FIELDS_MATCH,
+          KEYS_USERDATA);
 
   String escapeJson(String value) {
     return value != null
@@ -117,6 +135,10 @@ public class Utils {
 
     formData.forEach(
         (key, value) -> {
+          if (RESERVED_NOTES.contains(key)) {
+            log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved field {0}", key);
+            return;
+          }
           String values = Utils.serializeUserdataKeys(formData.get(key));
           log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
           sessionModel.setAuthNote(key, values);
