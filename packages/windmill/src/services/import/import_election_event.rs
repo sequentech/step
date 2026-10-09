@@ -22,7 +22,10 @@ use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
-use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
+use ::keycloak::types::{
+    ComponentExportRepresentation, GroupRepresentation, ProtocolMapperRepresentation,
+    RealmRepresentation,
+};
 use anyhow::{anyhow, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
@@ -59,7 +62,7 @@ use sequent_core::util::version::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -112,6 +115,7 @@ use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
 use sequent_core::types::keycloak::{
     CERTIFICATES_IDP_ALIAS, DEFAULT_IVR_SERVICE_CLIENT_ID, IVR_VOTING_CLIENT_ID,
+    TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
@@ -228,6 +232,361 @@ pub async fn upsert_b3_and_elog(
 #[instrument(err)]
 pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> {
     read_realm_config_from_s3(KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY).await
+}
+
+/// Claim namespace that Keycloak protocol mappers use to emit Hasura session
+/// variables (roles and tenant). A mapper writing under this namespace decides
+/// which roles and tenant a token is accepted with, so only the platform
+/// template may define these on an imported event realm.
+const HASURA_CLAIM_NAMESPACE: &str = "https://hasura.io/jwt/claims";
+/// Protocol-mapper config key holding the claim a mapper writes.
+const PROTOCOL_MAPPER_CLAIM_NAME_KEY: &str = "claim.name";
+/// Prefix of the per-realm composite role Keycloak generates for every realm.
+const DEFAULT_REALM_ROLE_PREFIX: &str = "default-roles-";
+/// Identity-provider mapper types that grant a role or set an attribute
+/// outright, bypassing the user's own roles and attributes.
+const HARDCODED_ROLE_IDP_MAPPER: &str = "hardcoded-role-idp-mapper";
+const HARDCODED_ATTRIBUTE_IDP_MAPPER: &str = "hardcoded-attribute-idp-mapper";
+
+/// How an uploaded election-event realm's token-claim authority (realm roles,
+/// Hasura claim mappers and identity-provider mappers) is reconciled against
+/// the platform template before the realm is applied to Keycloak. Modeled as
+/// an enum so further reconciliation modes can be added without touching call
+/// sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ImportedRealmReconciliation {
+    /// Keep only the token-claim authority the platform template defines and
+    /// log every element removed from the uploaded realm. Platform exports
+    /// contain only template elements, so they are applied unchanged.
+    #[default]
+    AlignWithTemplate,
+    /// Reject the import when the uploaded realm carries token-claim authority
+    /// the platform template does not define, instead of removing it.
+    RejectForeignClaims,
+}
+
+/// True when a protocol mapper writes a Hasura session variable or runs a
+/// script, i.e. it can set the roles or tenant a token carries.
+fn is_claim_authority_mapper(mapper: &ProtocolMapperRepresentation) -> bool {
+    if mapper
+        .protocol_mapper
+        .as_deref()
+        .is_some_and(|kind| kind.contains("script"))
+    {
+        return true;
+    }
+    mapper
+        .config
+        .as_ref()
+        .and_then(|config| config.get(PROTOCOL_MAPPER_CLAIM_NAME_KEY))
+        // Keycloak stores the namespace with the dot escaped
+        // (`https://hasura\.io/jwt/claims`); compare without backslashes.
+        .is_some_and(|claim_name| {
+            claim_name
+                .replace('\\', "")
+                .starts_with(HASURA_CLAIM_NAMESPACE)
+        })
+}
+
+/// A protocol mapper compared by its effect rather than its per-realm id.
+fn claim_mapper_key(
+    mapper: &ProtocolMapperRepresentation,
+) -> (String, String, BTreeMap<String, String>) {
+    (
+        mapper.name.clone().unwrap_or_default(),
+        mapper.protocol_mapper.clone().unwrap_or_default(),
+        mapper
+            .config
+            .clone()
+            .map(|config| config.into_iter().collect())
+            .unwrap_or_default(),
+    )
+}
+
+/// A realm role is allowed on an imported realm when the platform template
+/// defines it, or it is the realm's own generated default composite.
+fn realm_role_allowed(name: &str, allowed: &HashSet<String>) -> bool {
+    allowed.contains(name) || name.starts_with(DEFAULT_REALM_ROLE_PREFIX)
+}
+
+/// Drop every realm-role reference a group (and its subgroups) makes to a role
+/// the template does not define.
+fn strip_group_realm_roles(
+    group: &mut GroupRepresentation,
+    allowed: &HashSet<String>,
+    discarded: &mut Vec<String>,
+) {
+    let group_name = group
+        .name
+        .clone()
+        .unwrap_or_else(|| "<unknown>".to_string());
+    if let Some(roles) = group.realm_roles.as_mut() {
+        roles.retain(|name| {
+            let keep = realm_role_allowed(name, allowed);
+            if !keep {
+                discarded.push(format!(
+                    "realm role '{name}' assigned to group '{group_name}'"
+                ));
+            }
+            keep
+        });
+    }
+    if let Some(sub_groups) = group.sub_groups.as_mut() {
+        for sub_group in sub_groups.iter_mut() {
+            strip_group_realm_roles(sub_group, allowed, discarded);
+        }
+    }
+}
+
+/// Reconcile an uploaded election-event realm against the platform template so
+/// that only the template's realm roles, Hasura claim mappers and
+/// identity-provider mappers survive. This prevents an imported realm from
+/// granting roles (such as `service-account` or `admin-user`) or minting
+/// Hasura claims that the platform never intended an event realm to carry.
+#[instrument(skip(imported, template))]
+fn sanitize_imported_event_realm(
+    imported: &RealmRepresentation,
+    template: &RealmRepresentation,
+    reconciliation: ImportedRealmReconciliation,
+) -> Result<RealmRepresentation> {
+    let mut realm = imported.clone();
+    let mut discarded: Vec<String> = Vec::new();
+
+    let allowed_realm_roles: HashSet<String> = template
+        .roles
+        .as_ref()
+        .and_then(|roles| roles.realm.as_ref())
+        .map(|realm_roles| {
+            realm_roles
+                .iter()
+                .filter_map(|role| role.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // 1. Realm roles: keep only the template's roles and the default composite.
+    if let Some(roles) = realm.roles.as_mut() {
+        if let Some(realm_roles) = roles.realm.as_mut() {
+            realm_roles.retain(|role| {
+                let name = role.name.as_deref().unwrap_or_default();
+                let keep = realm_role_allowed(name, &allowed_realm_roles);
+                if !keep {
+                    discarded.push(format!("realm role '{name}'"));
+                }
+                keep
+            });
+            for role in realm_roles.iter_mut() {
+                if let Some(composites) = role.composites.as_mut() {
+                    if let Some(realm_composites) = composites.realm.as_mut() {
+                        realm_composites
+                            .retain(|name| realm_role_allowed(name, &allowed_realm_roles));
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Default role composite references.
+    if let Some(default_role) = realm.default_role.as_mut() {
+        if let Some(composites) = default_role.composites.as_mut() {
+            if let Some(realm_composites) = composites.realm.as_mut() {
+                realm_composites.retain(|name| realm_role_allowed(name, &allowed_realm_roles));
+            }
+        }
+    }
+
+    // 3. Role assignments on users.
+    if let Some(users) = realm.users.as_mut() {
+        for user in users.iter_mut() {
+            let username = user
+                .username
+                .clone()
+                .unwrap_or_else(|| "<unknown>".to_string());
+            if let Some(user_roles) = user.realm_roles.as_mut() {
+                user_roles.retain(|name| {
+                    let keep = realm_role_allowed(name, &allowed_realm_roles);
+                    if !keep {
+                        discarded
+                            .push(format!("realm role '{name}' assigned to user '{username}'"));
+                    }
+                    keep
+                });
+            }
+        }
+    }
+
+    // 4. Role assignments on groups.
+    if let Some(groups) = realm.groups.as_mut() {
+        for group in groups.iter_mut() {
+            strip_group_realm_roles(group, &allowed_realm_roles, &mut discarded);
+        }
+    }
+
+    // 5. Scope mappings that reference dropped roles.
+    if let Some(scope_mappings) = realm.scope_mappings.as_mut() {
+        for mapping in scope_mappings.iter_mut() {
+            if let Some(roles) = mapping.roles.as_mut() {
+                roles.retain(|name| realm_role_allowed(name, &allowed_realm_roles));
+            }
+        }
+    }
+
+    // 6. Claim mappers on clients: a client the template defines keeps only the
+    //    template's Hasura mappers; any other client carries none.
+    let template_client_claim_mappers: HashMap<String, Vec<ProtocolMapperRepresentation>> =
+        template
+            .clients
+            .as_ref()
+            .map(|clients| {
+                clients
+                    .iter()
+                    .filter_map(|client| {
+                        let client_id = client.client_id.clone()?;
+                        let mappers = client
+                            .protocol_mappers
+                            .as_ref()
+                            .map(|mappers| {
+                                mappers
+                                    .iter()
+                                    .filter(|mapper| is_claim_authority_mapper(mapper))
+                                    .cloned()
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        Some((client_id, mappers))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+    if let Some(clients) = realm.clients.as_mut() {
+        for client in clients.iter_mut() {
+            let client_id = client.client_id.clone().unwrap_or_default();
+            let existing = client.protocol_mappers.take().unwrap_or_default();
+            let (claim_mappers, mut kept): (Vec<_>, Vec<_>) = existing
+                .into_iter()
+                .partition(|mapper| is_claim_authority_mapper(mapper));
+
+            match template_client_claim_mappers.get(&client_id) {
+                Some(template_mappers) => {
+                    let template_keys: HashSet<_> =
+                        template_mappers.iter().map(claim_mapper_key).collect();
+                    let mut present_keys: HashSet<_> = HashSet::new();
+                    for mapper in claim_mappers {
+                        let key = claim_mapper_key(&mapper);
+                        if template_keys.contains(&key) {
+                            present_keys.insert(key);
+                            kept.push(mapper);
+                        } else {
+                            discarded.push(format!(
+                                "claim mapper '{}' on client '{client_id}'",
+                                mapper.name.as_deref().unwrap_or("<unnamed>")
+                            ));
+                        }
+                    }
+                    for template_mapper in template_mappers {
+                        if !present_keys.contains(&claim_mapper_key(template_mapper)) {
+                            let mut restored = template_mapper.clone();
+                            restored.id = None;
+                            kept.push(restored);
+                        }
+                    }
+                }
+                None => {
+                    for mapper in claim_mappers {
+                        discarded.push(format!(
+                            "claim mapper '{}' on client '{client_id}'",
+                            mapper.name.as_deref().unwrap_or("<unnamed>")
+                        ));
+                    }
+                }
+            }
+            client.protocol_mappers = Some(kept);
+        }
+    }
+
+    // 7. Claim mappers on client scopes: the template defines none, so drop any.
+    if let Some(client_scopes) = realm.client_scopes.as_mut() {
+        for scope in client_scopes.iter_mut() {
+            let scope_name = scope.name.clone().unwrap_or_default();
+            if let Some(mappers) = scope.protocol_mappers.as_mut() {
+                mappers.retain(|mapper| {
+                    let drop = is_claim_authority_mapper(mapper);
+                    if drop {
+                        discarded.push(format!(
+                            "claim mapper '{}' on client scope '{scope_name}'",
+                            mapper.name.as_deref().unwrap_or("<unnamed>")
+                        ));
+                    }
+                    !drop
+                });
+            }
+        }
+    }
+
+    // 8. Identity-provider mappers that hardcode a dropped role or the tenant.
+    if let Some(idp_mappers) = realm.identity_provider_mappers.as_mut() {
+        idp_mappers.retain(|mapper| {
+            let mapper_type = mapper
+                .identity_provider_mapper
+                .as_deref()
+                .unwrap_or_default();
+            let drop = match mapper_type {
+                HARDCODED_ROLE_IDP_MAPPER => mapper
+                    .config
+                    .as_ref()
+                    .and_then(|config| config.get("role"))
+                    .map(|role| !realm_role_allowed(role, &allowed_realm_roles))
+                    .unwrap_or(true),
+                HARDCODED_ATTRIBUTE_IDP_MAPPER => mapper
+                    .config
+                    .as_ref()
+                    .and_then(|config| {
+                        config
+                            .get("attribute")
+                            .or_else(|| config.get("attribute.name"))
+                    })
+                    .map(|attribute| {
+                        attribute == TENANT_ID_ATTR_NAME
+                            || attribute
+                                .replace('\\', "")
+                                .starts_with(HASURA_CLAIM_NAMESPACE)
+                    })
+                    .unwrap_or(false),
+                _ => false,
+            };
+            if drop {
+                discarded.push(format!(
+                    "identity-provider mapper '{}'",
+                    mapper.name.as_deref().unwrap_or("<unnamed>")
+                ));
+            }
+            !drop
+        });
+    }
+
+    if !discarded.is_empty() {
+        match reconciliation {
+            ImportedRealmReconciliation::RejectForeignClaims => {
+                return Err(anyhow!(
+                    "Imported election-event realm carries token-claim \
+                     elements not defined by the platform template: {}",
+                    discarded.join(", ")
+                ));
+            }
+            ImportedRealmReconciliation::AlignWithTemplate => {
+                tracing::warn!(
+                    "Removed {} token-claim element(s) from the imported \
+                     election-event realm not defined by the platform \
+                     template: {}",
+                    discarded.len(),
+                    discarded.join(", ")
+                );
+            }
+        }
+    }
+
+    Ok(realm)
 }
 
 #[instrument(skip(realm))]
@@ -357,11 +716,11 @@ pub async fn upsert_keycloak_realm(
     keycloak_event_realm: Option<RealmRepresentation>,
     default_locale: Option<String>,
 ) -> Result<()> {
-    let mut realm = if let Some(realm) = keycloak_event_realm.clone() {
-        realm
+    let mut realm = if let Some(uploaded) = keycloak_event_realm.clone() {
+        let template = read_default_election_event_realm().await?;
+        sanitize_imported_event_realm(&uploaded, &template, ImportedRealmReconciliation::default())?
     } else {
-        let realm = read_default_election_event_realm().await?;
-        realm
+        read_default_election_event_realm().await?
     };
 
     if let Some(default_language) = default_locale {
@@ -2002,5 +2361,184 @@ mod tests {
             .await
             .expect("no password, no decryption");
         assert_eq!(fs::read(file.path()).unwrap(), b"plain");
+    }
+}
+
+#[cfg(test)]
+mod imported_realm_sanitization_tests {
+    use super::*;
+    use ::keycloak::types::{ClientRepresentation, RoleRepresentation, UserRepresentation};
+
+    const EVENT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+    );
+
+    fn template_realm() -> RealmRepresentation {
+        serde_json::from_str(EVENT_REALM_TEMPLATE).expect("event realm template parses")
+    }
+
+    fn realm_role_names(realm: &RealmRepresentation) -> HashSet<String> {
+        realm
+            .roles
+            .as_ref()
+            .and_then(|roles| roles.realm.as_ref())
+            .map(|realm_roles| {
+                realm_roles
+                    .iter()
+                    .filter_map(|role| role.name.clone())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn hardcoded_hasura_role_mapper(name: &str, role: &str) -> ProtocolMapperRepresentation {
+        let config = HashMap::from([
+            (
+                PROTOCOL_MAPPER_CLAIM_NAME_KEY.to_string(),
+                format!("https://hasura\\.io/jwt/claims.{name}"),
+            ),
+            ("claim.value".to_string(), role.to_string()),
+            ("jsonType.label".to_string(), "String".to_string()),
+        ]);
+        ProtocolMapperRepresentation {
+            name: Some(name.to_string()),
+            protocol: Some("openid-connect".to_string()),
+            protocol_mapper: Some("oidc-hardcoded-claim-mapper".to_string()),
+            config: Some(config),
+            ..Default::default()
+        }
+    }
+
+    /// Build a realm that adds Hasura admin roles, a user holding them and a
+    /// client minting admin claims on top of the platform template.
+    fn realm_with_injected_claims() -> RealmRepresentation {
+        let mut realm = template_realm();
+
+        if let Some(roles) = realm.roles.as_mut() {
+            let realm_roles = roles.realm.get_or_insert_with(Vec::new);
+            for name in ["service-account", "admin-user"] {
+                realm_roles.push(RoleRepresentation {
+                    name: Some(name.to_string()),
+                    ..Default::default()
+                });
+            }
+        }
+
+        realm
+            .users
+            .get_or_insert_with(Vec::new)
+            .push(UserRepresentation {
+                username: Some("attacker".to_string()),
+                enabled: Some(true),
+                realm_roles: Some(vec![
+                    "service-account".to_string(),
+                    "admin-user".to_string(),
+                ]),
+                ..Default::default()
+            });
+
+        realm
+            .clients
+            .get_or_insert_with(Vec::new)
+            .push(ClientRepresentation {
+                client_id: Some("rogue-client".to_string()),
+                public_client: Some(true),
+                direct_access_grants_enabled: Some(true),
+                protocol: Some("openid-connect".to_string()),
+                protocol_mappers: Some(vec![hardcoded_hasura_role_mapper(
+                    "x-hasura-default-role",
+                    "service-account",
+                )]),
+                ..Default::default()
+            });
+
+        realm
+    }
+
+    fn client<'a>(realm: &'a RealmRepresentation, client_id: &str) -> &'a ClientRepresentation {
+        realm
+            .clients
+            .as_ref()
+            .expect("realm has clients")
+            .iter()
+            .find(|client| client.client_id.as_deref() == Some(client_id))
+            .expect("client present")
+    }
+
+    fn client_claim_mapper_count(realm: &RealmRepresentation, client_id: &str) -> usize {
+        client(realm, client_id)
+            .protocol_mappers
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .filter(|mapper| is_claim_authority_mapper(mapper))
+            .count()
+    }
+
+    #[test]
+    fn aligning_drops_injected_admin_roles_and_claim_mappers() {
+        let template = template_realm();
+        let sanitized = sanitize_imported_event_realm(
+            &realm_with_injected_claims(),
+            &template,
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds");
+
+        let roles = realm_role_names(&sanitized);
+        assert!(!roles.contains("service-account"));
+        assert!(!roles.contains("admin-user"));
+
+        let attacker = sanitized
+            .users
+            .as_ref()
+            .unwrap()
+            .iter()
+            .find(|user| user.username.as_deref() == Some("attacker"))
+            .expect("attacker user kept");
+        let attacker_roles = attacker.realm_roles.clone().unwrap_or_default();
+        assert!(!attacker_roles.contains(&"service-account".to_string()));
+        assert!(!attacker_roles.contains(&"admin-user".to_string()));
+
+        assert_eq!(client_claim_mapper_count(&sanitized, "rogue-client"), 0);
+    }
+
+    #[test]
+    fn aligning_keeps_platform_template_claim_mappers() {
+        let template = template_realm();
+        let sanitized = sanitize_imported_event_realm(
+            &template,
+            &template,
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds");
+
+        assert_eq!(realm_role_names(&sanitized), realm_role_names(&template));
+        assert_eq!(
+            client_claim_mapper_count(&sanitized, "voting-portal"),
+            client_claim_mapper_count(&template, "voting-portal"),
+        );
+    }
+
+    #[test]
+    fn rejecting_mode_leaves_a_legitimate_template_untouched() {
+        let template = template_realm();
+        assert!(sanitize_imported_event_realm(
+            &template,
+            &template,
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn rejecting_mode_refuses_injected_claims() {
+        let template = template_realm();
+        assert!(sanitize_imported_event_realm(
+            &realm_with_injected_claims(),
+            &template,
+            ImportedRealmReconciliation::RejectForeignClaims,
+        )
+        .is_err());
     }
 }

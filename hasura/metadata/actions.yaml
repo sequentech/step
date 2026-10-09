@@ -1322,7 +1322,6 @@ actions:
               template_engine: Kriti
               version: 2
       permissions:
-          - role: election-event-read
           - role: election-event-write
           - role: area-write
           - role: admin-user
