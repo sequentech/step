@@ -85,6 +85,14 @@ public class Utils {
           LookupAndUpdateUser.FIELDS_MATCH,
           KEYS_USERDATA);
 
+  /**
+   * Whether a submitted form field is stored as a note and listed in {@link #KEYS_USERDATA}: its
+   * name is not reserved and does not contain the list separator.
+   */
+  private static boolean isStoredFormField(String key) {
+    return !RESERVED_NOTES.contains(key) && !key.contains(KEYS_USERDATA_SEPARATOR);
+  }
+
   String escapeJson(String value) {
     return value != null
         ? value.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
@@ -126,10 +134,10 @@ public class Utils {
     // Lookup user by attributes using form data
     UserModel user = Utils.lookupUserByFormData(context, searchAttributesList, formData);
 
-    Map<Boolean, List<String>> fieldsByReserved =
-        formData.keySet().stream().collect(Collectors.partitioningBy(RESERVED_NOTES::contains));
-    List<String> storedFields = fieldsByReserved.get(false);
-    List<String> ignoredFields = fieldsByReserved.get(true);
+    Map<Boolean, List<String>> fieldsByStored =
+        formData.keySet().stream().collect(Collectors.partitioningBy(Utils::isStoredFormField));
+    List<String> storedFields = fieldsByStored.get(true);
+    List<String> ignoredFields = fieldsByStored.get(false);
 
     // We store each key
     String keys = Utils.serializeUserdataKeys(storedFields);
@@ -145,7 +153,7 @@ public class Utils {
           sessionModel.setAuthNote(key, values);
         });
     if (!ignoredFields.isEmpty()) {
-      log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved fields {0}", ignoredFields);
+      log.warnv("storeUserDataInAuthSessionNotes: ignoring fields {0}", ignoredFields);
     }
 
     sessionModel.setAuthNote(USER_ID, user.getId());
@@ -235,9 +243,7 @@ public class Utils {
   }
 
   private static String serializeUserdataKeys(Collection<String> keys, String separator) {
-    final StringBuilder key = new StringBuilder();
-    keys.forEach((s -> key.append(separator).append(s)));
-    return key.deleteCharAt(0).toString();
+    return String.join(separator, keys);
   }
 
   private static String serializeUserdataKeys(Collection<String> keys) {

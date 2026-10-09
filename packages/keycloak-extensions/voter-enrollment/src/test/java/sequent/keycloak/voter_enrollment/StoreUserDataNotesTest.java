@@ -45,18 +45,11 @@ class StoreUserDataNotesTest {
   /**
    * Profile attributes and other form fields such as the password and terms acceptance must still
    * reach the notes the later authenticators read, while the notes those authenticators own keep
-   * only the values they set themselves and stay out of the list of stored form fields.
+   * only the values they set themselves. Neither those names nor names containing the list
+   * separator may appear in the list of stored form fields.
    */
   @Test
   void formFieldsBecomeNotesExceptAuthenticatorNotes() {
-    FormContext context = mock(FormContext.class);
-    HttpRequest request = mock(HttpRequest.class);
-    AuthenticationSessionModel authSession = mock(AuthenticationSessionModel.class);
-    KeycloakSession session = mock(KeycloakSession.class);
-    RealmModel realm = mock(RealmModel.class);
-    UserProvider users = mock(UserProvider.class);
-    UserModel user = mock(UserModel.class);
-
     MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
     formData.add(UserModel.FIRST_NAME, "Ana");
     formData.add(UserModel.EMAIL, "voter@example.com");
@@ -64,6 +57,51 @@ class StoreUserDataNotesTest {
     formData.add("termsAccepted", "on");
     AUTHENTICATOR_NOTES.forEach(note -> formData.add(note, "99999999999999"));
     formData.add("keyUserdata", "code");
+    formData.add("lastName;code", "Ana");
+
+    AuthenticationSessionModel authSession = storeNotes(formData);
+
+    verify(authSession).setAuthNote(UserModel.FIRST_NAME, "Ana");
+    verify(authSession).setAuthNote(UserModel.EMAIL, "voter@example.com");
+    verify(authSession).setAuthNote(RegistrationPage.FIELD_PASSWORD, "secret");
+    verify(authSession).setAuthNote("termsAccepted", "on");
+    verify(authSession).setAuthNote("userId", "voter-id");
+    AUTHENTICATOR_NOTES.forEach(
+        note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
+    verify(authSession, never()).setAuthNote(eq("lastName;code"), anyString());
+    ArgumentCaptor<String> storedFields = ArgumentCaptor.forClass(String.class);
+    verify(authSession).setAuthNote(eq("keyUserdata"), storedFields.capture());
+    assertEquals(
+        Set.of(
+            UserModel.FIRST_NAME,
+            UserModel.EMAIL,
+            RegistrationPage.FIELD_PASSWORD,
+            "termsAccepted"),
+        Set.of(storedFields.getValue().split(";")));
+  }
+
+  /** A submission made only of reserved names stores an empty field list instead of failing. */
+  @Test
+  void onlyAuthenticatorNotesStoreAnEmptyFieldList() {
+    MultivaluedMap<String, String> formData = new MultivaluedHashMap<>();
+    AUTHENTICATOR_NOTES.forEach(note -> formData.add(note, "99999999999999"));
+
+    AuthenticationSessionModel authSession = storeNotes(formData);
+
+    verify(authSession).setAuthNote("keyUserdata", "");
+    verify(authSession).setAuthNote("userId", "voter-id");
+    AUTHENTICATOR_NOTES.forEach(
+        note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
+  }
+
+  private static AuthenticationSessionModel storeNotes(MultivaluedMap<String, String> formData) {
+    FormContext context = mock(FormContext.class);
+    HttpRequest request = mock(HttpRequest.class);
+    AuthenticationSessionModel authSession = mock(AuthenticationSessionModel.class);
+    KeycloakSession session = mock(KeycloakSession.class);
+    RealmModel realm = mock(RealmModel.class);
+    UserProvider users = mock(UserProvider.class);
+    UserModel user = mock(UserModel.class);
 
     when(context.getHttpRequest()).thenReturn(request);
     when(request.getDecodedFormParameters()).thenReturn(formData);
@@ -75,22 +113,6 @@ class StoreUserDataNotesTest {
     when(user.getId()).thenReturn("voter-id");
 
     Utils.storeUserDataInAuthSessionNotes(context, List.of(UserModel.FIRST_NAME));
-
-    verify(authSession).setAuthNote(UserModel.FIRST_NAME, "Ana");
-    verify(authSession).setAuthNote(UserModel.EMAIL, "voter@example.com");
-    verify(authSession).setAuthNote(RegistrationPage.FIELD_PASSWORD, "secret");
-    verify(authSession).setAuthNote("termsAccepted", "on");
-    verify(authSession).setAuthNote("userId", "voter-id");
-    AUTHENTICATOR_NOTES.forEach(
-        note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
-    ArgumentCaptor<String> storedFields = ArgumentCaptor.forClass(String.class);
-    verify(authSession).setAuthNote(eq("keyUserdata"), storedFields.capture());
-    assertEquals(
-        Set.of(
-            UserModel.FIRST_NAME,
-            UserModel.EMAIL,
-            RegistrationPage.FIELD_PASSWORD,
-            "termsAccepted"),
-        Set.of(storedFields.getValue().split(";")));
+    return authSession;
   }
 }
