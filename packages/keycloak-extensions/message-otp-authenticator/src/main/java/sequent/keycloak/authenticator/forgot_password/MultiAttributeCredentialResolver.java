@@ -479,6 +479,9 @@ public final class MultiAttributeCredentialResolver {
             : Resolution.lockedOut(candidate, lockoutStates.get(candidate));
       }
       // As in resolved(), a lockout among several candidates stays a generic failure.
+      if (viableCandidates.size() == 1) {
+        return Resolution.failureAttributedTo(viableCandidates.get(0));
+      }
       return sharedFailure(session, realm, viableCandidates, throttleConfig);
     }
 
