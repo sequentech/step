@@ -251,7 +251,7 @@ public class Utils {
   }
 
   private static List<String> deserializeUserdataKeys(String key, String separator) {
-    if (key == null) {
+    if (key == null || key.isEmpty()) {
       return Collections.emptyList();
     }
     return List.of(key.split(separator));

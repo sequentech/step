@@ -4,6 +4,7 @@
 package sequent.keycloak.voter_enrollment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.FormContext;
 import org.keycloak.authentication.forms.RegistrationPage;
 import org.keycloak.http.HttpRequest;
@@ -92,6 +94,17 @@ class StoreUserDataNotesTest {
     verify(authSession).setAuthNote("userId", "voter-id");
     AUTHENTICATOR_NOTES.forEach(
         note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
+  }
+
+  /** An empty stored field list reads back as no fields, not as one field with an empty name. */
+  @Test
+  void emptyFieldListReadsBackAsNoFields() {
+    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    AuthenticationSessionModel authSession = mock(AuthenticationSessionModel.class);
+    when(context.getAuthenticationSession()).thenReturn(authSession);
+    when(authSession.getAuthNote("keyUserdata")).thenReturn("");
+
+    assertTrue(Utils.getAttributeValuesFromAuthNote(context, "keyUserdata").isEmpty());
   }
 
   private static AuthenticationSessionModel storeNotes(MultivaluedMap<String, String> formData) {
