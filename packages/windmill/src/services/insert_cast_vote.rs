@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
+use crate::postgres::ballot_style::get_published_ballot_styles;
 use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
@@ -18,10 +19,13 @@ use anyhow::{anyhow, Context, Result};
 use b3::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
+use dashmap::DashMap;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
+use once_cell::sync::Lazy;
 use sequent_core::ballot::verify_ballot_signature;
+use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::{
@@ -46,6 +50,7 @@ use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Serializer;
+use std::collections::HashSet;
 use std::time::Instant;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
@@ -58,6 +63,10 @@ use strand::zkp::Zkp;
 use strum_macros::Display;
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
+
+/// The votable contest ids of each published ballot style. A ballot style
+/// never changes once it is published.
+static PUBLISHED_STYLE_CONTEST_IDS: Lazy<DashMap<Uuid, HashSet<String>>> = Lazy::new(DashMap::new);
 
 /// Emits one duration even when a phase fails or its future is cancelled.
 struct CastVotePhase {
@@ -338,6 +347,8 @@ pub enum CastVoteError {
     #[serde(rename = "ballot_id_mismatch")]
     #[strum(to_string = "ballot_id_mismatch")]
     BallotIdMismatch(String),
+    #[serde(rename = "ballot_style_mismatch")]
+    BallotStyleMismatch(String),
     #[serde(rename = "unknown_error")]
     UnknownError(String),
 }
@@ -400,10 +411,19 @@ pub async fn try_insert_cast_vote(
         false
     };
 
+    let style_contest_ids = get_style_contest_ids(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &input.election_id.to_string(),
+        area_id,
+    )
+    .await?;
+
     let hash_result = if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input, voter_id)
+        deserialize_and_check_multi_ballot(&input, voter_id, &style_contest_ids)
     } else {
-        deserialize_and_check_ballot(&input, voter_id)
+        deserialize_and_check_ballot(&input, voter_id, &style_contest_ids)
     };
 
     let (pseudonym_h, vote_h, voter_signature_data) = match hash_result {
@@ -559,6 +579,7 @@ pub async fn try_insert_cast_vote(
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
+    style_contest_ids: &HashSet<String>,
 ) -> Result<
     (
         PseudonymHash,
@@ -602,6 +623,13 @@ pub fn deserialize_and_check_ballot(
         .deserialize_contests()
         .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
 
+    check_ballot_contests(
+        hashable_ballot_contests
+            .iter()
+            .map(|contest| &contest.contest_id),
+        style_contest_ids,
+    )?;
+
     hashable_ballot_contests
         .iter()
         .map(check_popk)
@@ -627,6 +655,7 @@ pub fn deserialize_and_check_ballot(
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
+    style_contest_ids: &HashSet<String>,
 ) -> Result<
     (
         PseudonymHash,
@@ -670,6 +699,11 @@ pub fn deserialize_and_check_multi_ballot(
     let hashable_multi_ballot_contests = hashable_multi_ballot
         .deserialize_contests()
         .map_err(|e| CastVoteError::DeserializeContestsFailed(e.to_string()))?;
+
+    check_ballot_contests(
+        &hashable_multi_ballot_contests.contest_ids,
+        style_contest_ids,
+    )?;
 
     check_popk_multi(&hashable_multi_ballot_contests)
         .map_err(|e| CastVoteError::PokValidationFailed(e.to_string()))?;
@@ -1060,6 +1094,90 @@ fn map_insert_error(error: anyhow::Error) -> CastVoteError {
         ),
         _ => CastVoteError::InsertFailed(format!("{error:#}")),
     }
+}
+
+fn votable_contest_ids(ballot_eml: &str) -> Result<HashSet<String>, CastVoteError> {
+    let ballot_style: BallotStyle = deserialize_str(ballot_eml)
+        .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    Ok(ballot_style
+        .votable_contests()
+        .map(|contest| contest.id.clone())
+        .collect())
+}
+
+/// The contests the tally reads a ciphertext for in every ballot of this area
+/// and election: the votable contests of the ballot styles published for them.
+#[instrument(skip(hasura_transaction), err)]
+async fn get_style_contest_ids(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+) -> Result<HashSet<String>, CastVoteError> {
+    let mut styles = get_published_ballot_styles(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        false,
+    )
+    .await
+    .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    if styles
+        .iter()
+        .any(|style| !PUBLISHED_STYLE_CONTEST_IDS.contains_key(&style.id))
+    {
+        styles = get_published_ballot_styles(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            election_id,
+            area_id,
+            true,
+        )
+        .await
+        .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    }
+
+    let mut contest_ids = HashSet::new();
+    for style in styles {
+        if let Some(cached) = PUBLISHED_STYLE_CONTEST_IDS.get(&style.id) {
+            contest_ids.extend(cached.iter().cloned());
+            continue;
+        }
+        let ballot_eml = style.ballot_eml.ok_or_else(|| {
+            CastVoteError::CheckStatusInternalFailed(format!(
+                "Published ballot style {} has no ballot EML",
+                style.id
+            ))
+        })?;
+        let style_contest_ids = votable_contest_ids(&ballot_eml)?;
+        contest_ids.extend(style_contest_ids.iter().cloned());
+        PUBLISHED_STYLE_CONTEST_IDS.insert(style.id, style_contest_ids);
+    }
+    Ok(contest_ids)
+}
+
+/// The tally reads one ciphertext per contest of the voter's ballot style, so
+/// a ballot has to carry each of them.
+fn check_ballot_contests<'a>(
+    ballot_contest_ids: impl IntoIterator<Item = &'a String>,
+    style_contest_ids: &HashSet<String>,
+) -> Result<(), CastVoteError> {
+    let ballot_contest_ids: HashSet<&String> = ballot_contest_ids.into_iter().collect();
+    let mut missing: Vec<&String> = style_contest_ids
+        .iter()
+        .filter(|contest_id| !ballot_contest_ids.contains(contest_id))
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+    missing.sort();
+    Err(CastVoteError::BallotStyleMismatch(format!(
+        "The ballot does not include contests {missing:?} of the voter's ballot style"
+    )))
 }
 
 #[instrument(skip_all, err)]

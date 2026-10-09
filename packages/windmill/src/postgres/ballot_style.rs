@@ -292,3 +292,68 @@ pub async fn get_publication_ballot_styles(
 
     Ok(styles)
 }
+
+pub struct PublishedBallotStyle {
+    pub id: Uuid,
+    pub ballot_eml: Option<String>,
+}
+
+/// The ballot styles published for an area and election. `ballot_eml` is read
+/// only when `with_ballot_eml` asks for it, since it is large.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_published_ballot_styles(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    election_id: &str,
+    area_id: &str,
+    with_ballot_eml: bool,
+) -> Result<Vec<PublishedBallotStyle>> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            SELECT
+                style.id,
+                CASE WHEN $5 THEN style.ballot_eml END AS ballot_eml
+            FROM sequent_backend.ballot_style AS style
+            JOIN sequent_backend.ballot_publication AS publication ON
+                publication.id = style.ballot_publication_id AND
+                publication.tenant_id = style.tenant_id AND
+                publication.election_event_id = style.election_event_id
+            WHERE
+                style.tenant_id = $1 AND
+                style.election_event_id = $2 AND
+                style.election_id = $3 AND
+                style.area_id = $4 AND
+                style.deleted_at IS NULL AND
+                publication.is_generated IS TRUE AND
+                publication.published_at IS NOT NULL AND
+                publication.deleted_at IS NULL;
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
+
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &parse_uuid_v4(area_id)?,
+                &with_ballot_eml,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+
+    rows.into_iter()
+        .map(|row| {
+            Ok(PublishedBallotStyle {
+                id: row.try_get("id")?,
+                ballot_eml: row.try_get("ballot_eml")?,
+            })
+        })
+        .collect()
+}

@@ -292,6 +292,11 @@ pub async fn insert_cast_vote(
                 &msg,
                 ErrorCode::BallotIdMismatch,
             ),
+            CastVoteError::BallotStyleMismatch(_) => ErrorResponse::new(
+                Status::BadRequest,
+                ErrorCode::PokValidationFailed.to_string().as_str(),
+                ErrorCode::PokValidationFailed,
+            ),
         }
     })?;
 
