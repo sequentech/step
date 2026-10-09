@@ -393,7 +393,7 @@ public class AuthorizedElectionsUserAttributeMapper extends AbstractOIDCProtocol
     }
     try {
       JsonNode accessToken = TOKEN_RESPONSE_MAPPER.readTree(responseBody).path("access_token");
-      if (!accessToken.isTextual() || accessToken.asText().isEmpty()) {
+      if (!accessToken.isTextual() || accessToken.asText().isBlank()) {
         return Optional.empty();
       }
       return Optional.of(accessToken.asText());
