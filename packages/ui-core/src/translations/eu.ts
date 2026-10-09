@@ -158,7 +158,7 @@ const basqueTranslation: TranslationType = {
             electionWebsite: "Txartelaren Webgunea",
             countdown:
                 "Hauteskundeak {{years}} urte, {{months}} hilabete, {{weeks}} aste, {{days}} egun, {{hours}} ordu, {{minutes}} minutu, {{seconds}} segundu barru hasiko dira",
-            openElection: "Ireki",
+            openElection: "Irekita",
             closedElection: "Itxita",
             voted: "Bozkatua",
             notVoted: "Bozkatu gabe",
