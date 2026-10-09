@@ -41,6 +41,9 @@ use uuid::Uuid;
 pub const VALIDATE_ID_ATTR_NAME: &str = "sequent.read-only.id-card-number-validated";
 pub const DELEGATE_TO_ATTR_NAME: &str = "delegate-vote-to";
 pub const VALIDATE_ID_REGISTERED_VOTER: &str = "VERIFIED";
+/// Transaction-local table holding the voters with a valid ballot in the
+/// election and area being tallied.
+const VOTERS_WITH_VALID_BALLOT_TABLE: &str = "tally_voters_with_valid_ballot";
 
 /// A voter's current Sequent-side state, as far as reconciliation cares.
 #[derive(Debug, Clone)]
@@ -345,7 +348,7 @@ pub enum VoterMultiplicityColumn {
     VoteWeight,
 }
 
-#[instrument(skip(keycloak_transaction), err)]
+#[instrument(skip(keycloak_transaction, voters_with_valid_ballot), err)]
 pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -353,26 +356,57 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
     election_alias: &str,
     output_file: &PathBuf,
     multiplicity_column: VoterMultiplicityColumn,
+    voters_with_valid_ballot: &[String],
 ) -> Result<()> {
+    // COPY does not support parameters so we have to add them using format.
+    // Validate area_id as v4 UUID before interpolating into SQL.
+    parse_uuid_v4(area_id)?;
+    let realm_escaped = escape_sql_literal(realm);
+    let area_id_escaped = escape_sql_literal(area_id);
+    let election_alias_escaped = escape_sql_literal(election_alias);
+
     // At most one extra column is emitted, always at index 1. Both variants are
     // correlated scalar subqueries rather than joins so that `GROUP BY u.id`
     // still holds.
     let multiplicity_statement = match multiplicity_column {
         VoterMultiplicityColumn::DelegateCount => {
+            // A delegator must be a voter of this realm, area and election who
+            // names only this delegate and has no valid ballot of their own.
             let no_service_account_delegators = service_account_exclusion("delegator");
             format!(
                 r#"
             ,(
                 SELECT
-                    COUNT(delegator.id)
+                    COUNT(DISTINCT delegator.id)
                 FROM
                     user_entity AS delegator
                 JOIN
                     user_attribute AS ua_delegate ON delegator.id = ua_delegate.user_id
+                JOIN
+                    user_attribute AS ua_delegator_area ON delegator.id = ua_delegator_area.user_id AND ua_delegator_area.name = '{AREA_ID_ATTR_NAME}'
+                LEFT JOIN
+                    user_attribute AS ua_delegator_elections ON delegator.id = ua_delegator_elections.user_id AND ua_delegator_elections.name = '{AUTHORIZED_ELECTION_IDS_NAME}'
                 WHERE
+                    delegator.realm_id = u.realm_id AND
                     {no_service_account_delegators} AND
+                    delegator.enabled IS TRUE AND
                     ua_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
-                    ua_delegate.value = u.username
+                    ua_delegate.value = u.username AND
+                    ua_delegator_area.value = '{area_id_escaped}' AND
+                    (ua_delegator_elections.value = '{election_alias_escaped}' OR ua_delegator_elections.value IS NULL) AND
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM user_attribute AS ua_other_delegate
+                        WHERE
+                            ua_other_delegate.user_id = delegator.id AND
+                            ua_other_delegate.name = '{DELEGATE_TO_ATTR_NAME}' AND
+                            ua_other_delegate.value IS DISTINCT FROM u.username
+                    ) AND
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE} AS voted
+                        WHERE voted.voter_id = delegator.id
+                    )
             ) AS delegate_count
         "#
             )
@@ -402,12 +436,26 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
         VoterMultiplicityColumn::None => "".to_string(),
     };
 
-    // COPY does not support parameters so we have to add them using format.
-    // Validate area_id as v4 UUID before interpolating into SQL.
-    parse_uuid_v4(area_id)?;
-    let realm_escaped = escape_sql_literal(realm);
-    let area_id_escaped = escape_sql_literal(area_id);
-    let election_alias_escaped = escape_sql_literal(election_alias);
+    if multiplicity_column == VoterMultiplicityColumn::DelegateCount {
+        keycloak_transaction
+            .batch_execute(&format!(
+                "CREATE TEMP TABLE IF NOT EXISTS {VOTERS_WITH_VALID_BALLOT_TABLE} \
+                 (voter_id TEXT PRIMARY KEY) ON COMMIT DROP; \
+                 TRUNCATE pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE};"
+            ))
+            .await
+            .context("Error creating the table of voters with a valid ballot")?;
+        keycloak_transaction
+            .execute(
+                &format!(
+                    "INSERT INTO pg_temp.{VOTERS_WITH_VALID_BALLOT_TABLE} (voter_id) \
+                     SELECT DISTINCT unnest($1::text[])"
+                ),
+                &[&voters_with_valid_ballot],
+            )
+            .await
+            .context("Error loading the voters with a valid ballot")?;
+    }
 
     let no_service_accounts = service_account_exclusion("u");
 
@@ -2046,6 +2094,99 @@ mod tests {
         .await
         .is_err());
         transaction.rollback().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through KEYCLOAK_DB__*"]
+    async fn delegate_count_only_counts_eligible_delegators_without_a_ballot() -> Result<()> {
+        const AREA_ID: &str = "10000000-0000-4000-8000-00000000000a";
+        const OTHER_AREA_ID: &str = "10000000-0000-4000-8000-00000000000b";
+        const ELECTION_ALIAS: &str = "election-a";
+
+        let pool = crate::services::database::generate_keycloak_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction
+            .batch_execute(&format!(
+                r#"
+                CREATE TEMP TABLE realm (id TEXT PRIMARY KEY, name TEXT) ON COMMIT DROP;
+                CREATE TEMP TABLE user_entity (
+                    id TEXT PRIMARY KEY,
+                    realm_id TEXT,
+                    username TEXT,
+                    enabled BOOLEAN,
+                    service_account_client_link TEXT
+                ) ON COMMIT DROP;
+                CREATE TEMP TABLE user_attribute (
+                    id SERIAL PRIMARY KEY,
+                    user_id TEXT,
+                    name TEXT,
+                    value TEXT
+                ) ON COMMIT DROP;
+                INSERT INTO realm (id, name) VALUES ('realm-a', 'event-a'), ('realm-b', 'event-b');
+                INSERT INTO user_entity (id, realm_id, username, enabled, service_account_client_link)
+                VALUES ('bob', 'realm-a', 'bob', true, NULL),
+                       ('zoe', 'realm-a', 'zoe', true, NULL),
+                       ('voted', 'realm-a', 'voted', true, NULL),
+                       ('disabled', 'realm-a', 'disabled', false, NULL),
+                       ('other-area', 'realm-a', 'other-area', true, NULL),
+                       ('other-election', 'realm-a', 'other-election', true, NULL),
+                       ('this-election', 'realm-a', 'this-election', true, NULL),
+                       ('repeated', 'realm-a', 'repeated', true, NULL),
+                       ('two-delegates', 'realm-a', 'two-delegates', true, NULL),
+                       ('eligible', 'realm-a', 'eligible', true, NULL),
+                       ('service', 'realm-a', 'service', true, 'client'),
+                       ('other-realm', 'realm-b', 'other-realm', true, NULL);
+                INSERT INTO user_attribute (user_id, name, value)
+                SELECT id, '{AREA_ID_ATTR_NAME}', '{AREA_ID}' FROM user_entity WHERE id <> 'other-area';
+                INSERT INTO user_attribute (user_id, name, value)
+                VALUES ('other-area', '{AREA_ID_ATTR_NAME}', '{OTHER_AREA_ID}'),
+                       ('other-election', '{AUTHORIZED_ELECTION_IDS_NAME}', 'election-b'),
+                       ('this-election', '{AUTHORIZED_ELECTION_IDS_NAME}', '{ELECTION_ALIAS}'),
+                       ('voted', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('disabled', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('other-area', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('other-election', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('this-election', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('repeated', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('repeated', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('two-delegates', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('two-delegates', '{DELEGATE_TO_ATTR_NAME}', 'zoe'),
+                       ('eligible', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('service', '{DELEGATE_TO_ATTR_NAME}', 'bob'),
+                       ('other-realm', '{DELEGATE_TO_ATTR_NAME}', 'bob');
+                "#
+            ))
+            .await?;
+
+        let output_file = tempfile::NamedTempFile::new()?;
+        list_keycloak_enabled_users_by_area_id_and_authorized_elections(
+            &transaction,
+            "event-a",
+            AREA_ID,
+            ELECTION_ALIAS,
+            &output_file.path().to_path_buf(),
+            VoterMultiplicityColumn::DelegateCount,
+            &["bob".to_string(), "voted".to_string()],
+        )
+        .await?;
+        transaction.rollback().await?;
+
+        let delegate_counts: HashMap<String, u64> = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_reader(output_file.reopen()?)
+            .records()
+            .map(|record| {
+                let record = record?;
+                Ok((record[0].to_string(), record[1].parse()?))
+            })
+            .collect::<Result<_>>()?;
+
+        // Only repeated, this-election and eligible transfer their vote.
+        assert_eq!(delegate_counts.get("bob"), Some(&3));
+        assert_eq!(delegate_counts.get("zoe"), Some(&0));
+        assert_eq!(delegate_counts.get("other-election"), None);
         Ok(())
     }
 }

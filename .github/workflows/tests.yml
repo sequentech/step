@@ -129,6 +129,13 @@ jobs:
           -- --ignored --exact
         working-directory: packages/windmill
 
+      - name: Run PostgreSQL-backed delegate-count regression
+        run: >-
+          cargo test
+          services::users::tests::delegate_count_only_counts_eligible_delegators_without_a_ballot
+          -- --ignored --exact
+        working-directory: packages/windmill
+
   # ===========================================================================
   # JOB: run-frontend-tests
   # ===========================================================================
