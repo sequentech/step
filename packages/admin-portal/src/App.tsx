@@ -13,7 +13,6 @@ import React, {useContext, useEffect, useState} from "react"
 import {ElectionEventBaseTabs} from "./resources/ElectionEvent/ElectionEventBaseTabs"
 
 import {CreateAreaContest} from "./resources/AreaContest/CreateAreaContest"
-import {CreateBallotStyle} from "./resources/BallotStyle/CreateBallotStyle"
 import {CreateCandidate} from "./resources/Candidate/CreateCandidate"
 import {CreateContest} from "./resources/Contest/CreateContest"
 import {CreateDocument} from "./resources/Document/CreateDocument"
@@ -36,7 +35,6 @@ import {fullAdminTheme} from "./services/AdminTheme"
 import {SettingsScreen} from "./screens/SettingsScreen"
 import {ListUsers} from "./resources/User/ListUsers"
 import {CustomLayout} from "./components/CustomLayout"
-import {EditBallotStyle} from "./resources/BallotStyle/EditBallotStyle"
 import {EditAreaContest} from "./resources/AreaContest/EditAreaContest"
 import {EditTenant} from "./resources/Tenant/EditTenant"
 import {CreateTenant} from "./resources/Tenant/CreateTenant"
@@ -211,9 +209,7 @@ const App: React.FC<AppProps> = () => {
                 />
                 <Resource
                     name="sequent_backend_ballot_style"
-                    edit={EditBallotStyle}
                     list={ListBallotStyle}
-                    create={CreateBallotStyle}
                     options={{label: "Ballot Styles"}}
                 />
                 <Resource name="sequent_backend_certificate_authority" />
