@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_tally
 title: Tally Ceremony
+description: "This ceremony ensures that only a quorum of trustees can reconstruct the private key for decryption, preserving security throughout the election lifecycle."
 ---
 
 <!--

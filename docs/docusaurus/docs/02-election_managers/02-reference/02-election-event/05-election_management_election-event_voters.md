@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_voters
 title: Voters
+description: "This section displays the currently configured voters for this Election Event."
 ---
 
 <!--

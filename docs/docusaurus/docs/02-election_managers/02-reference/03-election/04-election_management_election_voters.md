@@ -1,6 +1,7 @@
 ---
 id: election_management_election_voters
 title: Voters
+description: "This section explains how to view and assign voters to a specific Election."
 ---
 
 <!--

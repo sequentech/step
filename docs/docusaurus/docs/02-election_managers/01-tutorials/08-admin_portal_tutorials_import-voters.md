@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_import-voters
 title: Import Voter List
+description: "Import the voter list of an election event from a CSV file: the columns, the formats and the checks."
 ---
 
 <!--
