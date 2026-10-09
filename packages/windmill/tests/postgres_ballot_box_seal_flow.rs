@@ -8,9 +8,10 @@
 //! sealed box gets the closed-voting error, and the sealer and publisher
 //! seal, sign, post and publish each box once.
 //!
-//! Needs `HASURA_DB__*`, `IMMUDB_*` and `MASTER_SECRET` (the stack's
-//! `.devcontainer/.env`). The census and the public bucket are the test's
-//! own ([`TestEnvironment`]); the signing key is the event's real protocol
+//! Needs `HASURA_DB__*` and `IMMUDB_*` (the stack's `.devcontainer/.env`,
+//! or the immudb service of the CI jobs) and sets its own `MASTER_SECRET`.
+//! The census and the public bucket are the test's own
+//! ([`TestEnvironment`]); the signing key is the event's real protocol
 //! manager key from the database vault.
 
 #![recursion_limit = "256"]
@@ -34,7 +35,7 @@ use sequent_core::ballot::{
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::sync::Mutex;
+use std::sync::{Mutex, Once};
 use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
 use windmill::postgres::ballot_box_seal::{
@@ -65,6 +66,12 @@ use windmill::services::voting_status::update_election_status;
 const ADMIN: &str = "admin";
 const QUARTER_HOUR_SECS: u64 = 15 * 60;
 const BOARD_ATTEMPTS: u32 = 10;
+
+/// The secrets of an event are encrypted with the deployment's master secret.
+fn master_secret() {
+    static SET: Once = Once::new();
+    SET.call_once(|| std::env::set_var("MASTER_SECRET", "5a".repeat(32)));
+}
 
 /// The census, the public bucket and the key: the key is the event's
 /// real one, the rest is the test's.
@@ -322,6 +329,7 @@ async fn world(options: Options) -> World {
         .await
         .unwrap();
     }
+    master_secret();
     create_protocol_manager_keys(&tx, &tenant.to_string(), &event.to_string(), &board)
         .await
         .unwrap();

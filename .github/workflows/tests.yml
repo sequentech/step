@@ -223,6 +223,10 @@ jobs:
       DEFAULT_SQL_LIMIT: "20"
       DEFAULT_SQL_BATCH_SIZE: "1000"
       CARGO_BUILD_JOBS: "2"
+      # The ballot box seal tests post to boards of their own on this server.
+      IMMUDB_USER: "immudb"
+      IMMUDB_PASSWORD: "immudb"
+      IMMUDB_SERVER_URL: "http://127.0.0.1:3323"
     services:
       postgres:
         image: postgres:16
@@ -237,6 +241,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      immudb:
+        image: codenotary/immudb:1.9.6
+        ports:
+          - 3323:3322
+        options: >-
+          --health-cmd "/usr/local/bin/immuadmin status"
+          --health-interval 2s
+          --health-timeout 10s
+          --health-retries 60
     steps:
       # The test binaries of this package fill the runner's disk, which then
       # has no room for the broker image of the audit delivery tests.
