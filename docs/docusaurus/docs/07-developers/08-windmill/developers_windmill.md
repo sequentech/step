@@ -13,7 +13,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 Windmill builds receipt tracker links from `VOTING_PORTAL_URL` and the ballot's
 authorized tenant, election event, election and ballot ID. Configure an absolute
 HTTP(S) base URL without credentials, query parameters or a fragment; a path
-prefix and trailing slash are supported. When `KIOSK_VOTING_PORTAL_URL` is set,
+prefix and trailing slash are supported. Both portal settings ignore surrounding
+whitespace and report their setting name when validation fails.
+When `KIOSK_VOTING_PORTAL_URL` is set,
 a receipt requested from that origin uses the configured kiosk base instead.
 Selecting a distinct configured kiosk origin also restores the fixed `?kiosk`
 login flag for older portal requests that omitted their query string.
