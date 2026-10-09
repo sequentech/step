@@ -292,6 +292,38 @@ impl Target {
     }
 }
 
+#[derive(Debug, PartialEq)]
+struct MixChainChecks {
+    start_valid: bool,
+    end_valid: bool,
+    length_valid: bool,
+}
+
+impl MixChainChecks {
+    fn new(
+        mixes: &[[u8; 64]],
+        target_ballots_h: &[u8; 64],
+        verified_ballots_h: &[u8; 64],
+        decryption_input_h: &[u8; 64],
+        threshold: usize,
+    ) -> Self {
+        let start_valid = mixes
+            .first()
+            .is_some_and(|first| first == target_ballots_h && first == verified_ballots_h);
+        let end_valid = mixes
+            .get(threshold)
+            .is_some_and(|last| last == decryption_input_h);
+        // subtract one since the number of hashes includes the source and the target, eg ballots => mix1 => mix2 has length 3, but threshold = 2
+        let length_valid = mixes.len().checked_sub(1) == Some(threshold);
+
+        MixChainChecks {
+            start_valid,
+            end_valid,
+            length_valid,
+        }
+    }
+}
+
 impl Verified {
     fn add_results<C: Ctx>(
         &self,
@@ -320,23 +352,20 @@ impl Verified {
             *pk_h == Some(target.get_pk_h()),
             &dbg_hash(&target.get_pk_h().0),
         );
+        let mix_checks = MixChainChecks::new(
+            &filtered_mixes,
+            &target.get_ballots_h().0,
+            &self.get_ballots_h().0,
+            &self.get_decryption_input_h().0,
+            cfg.threshold,
+        );
         child.add_result(
             Check::MIX_START_VALID,
-            filtered_mixes[0] == target.get_ballots_h().0
-                && filtered_mixes[0] == self.get_ballots_h().0,
+            mix_checks.start_valid,
             &dbg_hash(&target.get_ballots_h().0),
         );
-        child.add_result(
-            Check::MIX_END_VALID,
-            filtered_mixes[cfg.threshold] == self.get_decryption_input_h().0,
-            &cfg.threshold,
-        );
-        // subtract one since the number of hashes includes the source and the target, eg ballots => mix1 => mix2 has length 3, but threshold = 2
-        child.add_result(
-            Check::MIX_VALID,
-            filtered_mixes.len() - 1 == cfg.threshold,
-            &cfg.threshold,
-        );
+        child.add_result(Check::MIX_END_VALID, mix_checks.end_valid, &cfg.threshold);
+        child.add_result(Check::MIX_VALID, mix_checks.length_valid, &cfg.threshold);
         // This is already certified by the datalog predicates
         child.add_result(Check::MIX_UNIQUE_VALID, true, &filtered_mixes.len());
         child.add_result(
@@ -514,5 +543,60 @@ impl std::fmt::Display for VerificationResult {
         writeln!(f, "[{}] checks pass ({} batches)", checks, batches)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BALLOTS_H: [u8; 64] = [1u8; 64];
+    const MIX_1_H: [u8; 64] = [2u8; 64];
+    const MIX_2_H: [u8; 64] = [3u8; 64];
+
+    #[test]
+    fn test_mix_chain_checks_valid_chain() {
+        let checks = MixChainChecks::new(
+            &[BALLOTS_H, MIX_1_H, MIX_2_H],
+            &BALLOTS_H,
+            &BALLOTS_H,
+            &MIX_2_H,
+            2,
+        );
+        assert_eq!(
+            checks,
+            MixChainChecks {
+                start_valid: true,
+                end_valid: true,
+                length_valid: true,
+            }
+        );
+    }
+
+    #[test]
+    fn test_mix_chain_checks_no_mixes_fails_without_panicking() {
+        let checks = MixChainChecks::new(&[], &BALLOTS_H, &BALLOTS_H, &MIX_2_H, 2);
+        assert_eq!(
+            checks,
+            MixChainChecks {
+                start_valid: false,
+                end_valid: false,
+                length_valid: false,
+            }
+        );
+    }
+
+    #[test]
+    fn test_mix_chain_checks_too_few_mixes_fails_without_panicking() {
+        let checks =
+            MixChainChecks::new(&[BALLOTS_H, MIX_1_H], &BALLOTS_H, &BALLOTS_H, &MIX_1_H, 2);
+        assert_eq!(
+            checks,
+            MixChainChecks {
+                start_valid: true,
+                end_valid: false,
+                length_valid: false,
+            }
+        );
     }
 }
