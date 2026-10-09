@@ -7,4 +7,7 @@ mod env_var_master_secret;
 mod hashicorp_vault;
 pub mod vault;
 
+#[cfg(test)]
+mod tests;
+
 pub use vault::*;
