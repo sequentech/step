@@ -52,11 +52,20 @@ type Query {
 }
 
 type Query {
-    task_queues_throughput(queue: String!, hours: Int, bucket_minutes: Int): jsonb!
+    task_queues_throughput(
+        queue: String!
+        hours: Int
+        bucket_minutes: Int
+    ): jsonb!
 }
 
 type Query {
-    task_queues_messages(queue: String!, state: String!, before: String, limit: Int): jsonb!
+    task_queues_messages(
+        queue: String!
+        state: String!
+        before: String
+        limit: Int
+    ): jsonb!
 }
 
 type Query {
@@ -64,7 +73,10 @@ type Query {
 }
 
 type Mutation {
-    task_queues_dead_letters(operation: String!, message_ids: [String!]!): jsonb!
+    task_queues_dead_letters(
+        operation: String!
+        message_ids: [String!]!
+    ): jsonb!
 }
 
 type Mutation {

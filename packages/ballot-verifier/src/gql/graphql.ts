@@ -1779,8 +1779,6 @@ export type Mutation_Root = {
     update_sequent_backend_candidate_many?: Maybe<
         Array<Maybe<Sequent_Backend_Candidate_Mutation_Response>>
     >
-        Array<Maybe<Sequent_Backend_Cast_Vote_Mutation_Response>>
-    >
     /** update data of the table: "sequent_backend.certificate_authority" */
     update_sequent_backend_certificate_authority?: Maybe<Sequent_Backend_Certificate_Authority_Mutation_Response>
     /** update single row of the table: "sequent_backend.certificate_authority" */
