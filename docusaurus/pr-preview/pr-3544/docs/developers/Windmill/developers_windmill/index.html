@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">Developers Windmill | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3544/docs/developers/Windmill/developers_windmill"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Windmill | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3544/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3544/docs/developers/Windmill/developers_windmill"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3544/docs/developers/Windmill/developers_windmill" hreflang="en"><link data-rh="true" rel="alternate" href="https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3544/docs/developers/Windmill/developers_windmill" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Windmill","item":"https://your-docusaurus-site.example.com/docusaurus/pr-preview/pr-3544/docs/developers/Windmill/developers_windmill"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3544/assets/css/styles.53e65a5a.css">
-<script src="/docusaurus/pr-preview/pr-3544/assets/js/runtime~main.c474d626.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3544/assets/js/runtime~main.e70d4dd1.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3544/assets/js/main.43fcb058.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,7 +15,9 @@
 <p>Windmill builds receipt tracker links from <code>VOTING_PORTAL_URL</code> and the ballot&#x27;s
 authorized tenant, election event, election and ballot ID. Configure an absolute
 HTTP(S) base URL without credentials, query parameters or a fragment; a path
-prefix and trailing slash are supported. When <code>KIOSK_VOTING_PORTAL_URL</code> is set,
+prefix and trailing slash are supported. Both portal settings ignore surrounding
+whitespace and report their setting name when validation fails.
+When <code>KIOSK_VOTING_PORTAL_URL</code> is set,
 a receipt requested from that origin uses the configured kiosk base instead.
 Selecting a distinct configured kiosk origin also restores the fixed <code>?kiosk</code>
 login flag for older portal requests that omitted their query string.</p>
