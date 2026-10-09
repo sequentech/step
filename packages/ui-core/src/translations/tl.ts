@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const tagalogTranslation: TranslationType = {
     translations: {
         language: "Tagalog",
-        welcome: "Simulan natin: I-import ang auditable na balota..",
         breadcrumbSteps: {
             select: "Pumili ng Tagasuri",
             import: "I-import ang Data",
