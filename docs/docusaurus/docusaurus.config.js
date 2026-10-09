@@ -1,5 +1,9 @@
 // @ts-check
 
+// Docusaurus builds one site per locale and sets this variable for each.
+const locale = process.env.DOCUSAURUS_CURRENT_LOCALE || 'en';
+const docsVersion = require('./docs-version');
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Sequent Online Voting',
@@ -8,13 +12,24 @@ const config = {
   baseUrl: process.env.BASE_URL || '/',
   favicon: 'img/favicon.ico',
 
+  customFields: {
+    docsVersion: docsVersion.name,
+    docsSites: docsVersion.sites,
+    manualHome: docsVersion.manualHome,
+  },
+
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
 
-  // i18n, if you ever need it:
+  // The site language selector. Untranslated pages fall back to the English source.
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    // DOCS_LOCALES=en builds only English (PR previews).
+    locales: (process.env.DOCS_LOCALES || 'en,es').split(','),
+    localeConfigs: {
+      en: {label: 'English', htmlLang: 'en'},
+      es: {label: 'Español', htmlLang: 'es'},
+    },
   },
   presets: [
     [
@@ -59,12 +74,30 @@ const config = {
             label: 'Docs',
           },
           {
+            // Each branch publishes its own site; this menu links them
+            // (src/components/VersionSitesNavbarItem).
+            type: 'custom-versionSites',
+            position: 'right',
+          },
+          {
+            type: 'localeDropdown',
+            position: 'right',
+          },
+          {
             href: 'https://github.com/sequentech',
             label: 'GitHub',
             position: 'right',
           },
         ],
       },
+      ...(locale === 'es' && {
+        announcementBar: {
+          id: 'es-translation-in-progress',
+          content:
+            'La traducción al español está en curso. Las páginas sin traducir se muestran en inglés.',
+          isCloseable: true,
+        },
+      }),
       footer: {
         style: 'dark',
         copyright: `Copyright © ${new Date().getFullYear()} Sequent`,
