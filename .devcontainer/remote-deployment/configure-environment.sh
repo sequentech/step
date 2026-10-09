@@ -125,6 +125,10 @@ sed -i.bak "s|minio-[a-zA-Z0-9_-]*\.\${DOMAIN}|minio-$SUBDOMAIN_SUFFIX.\${DOMAIN
 sed -i.bak "s|^VOTING_PORTAL_HOSTNAME=.*|VOTING_PORTAL_HOSTNAME=voting-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 sed -i.bak "s|^ADMIN_PORTAL_HOSTNAME=.*|ADMIN_PORTAL_HOSTNAME=admin-$SUBDOMAIN_SUFFIX.\${DOMAIN}|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
+# Point the default tenant realm's admin-portal client at the admin portal
+ADMIN_PORTAL_URL="https://admin-$SUBDOMAIN_SUFFIX.$DOMAIN"
+jq --arg url "$ADMIN_PORTAL_URL" '(.clients[] | select(.clientId == "admin-portal")) |= (.rootUrl = $url | .baseUrl = $url | .redirectUris = [$url + "/*"])' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
+
 # Step 4: Configure nginx
 echo "[4/4] Configuring nginx reverse proxy..."
 
