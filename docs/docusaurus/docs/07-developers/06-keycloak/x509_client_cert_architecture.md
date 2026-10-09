@@ -141,6 +141,10 @@ KC_SPI_X509CERT_LOOKUP_NGINX_SSL_CLIENT_CERT: Cf-Tls-Client-Cert
 KC_SPI_X509CERT_LOOKUP_NGINX_TRUST_PROXY_VERIFICATION: "false"
 
 HARVEST_DOMAIN: "harvest:8400"
+# Base URL of harvest as seen from Keycloak. When it is not set, Keycloak uses
+# http://<HARVEST_DOMAIN>. See "Harvest endpoint and TLS policy" below.
+HARVEST_URL: "https://harvest:8400"
+HARVEST_TLS_POLICY: "REQUIRE_TLS"
 ```
 
 ### nginx mTLS proxy (dev only)
@@ -168,11 +172,32 @@ provider. It fetches CA certificates per election event realm from Harvest.
 fetches:
 
 ```
-http://<HARVEST_DOMAIN>/election-event/<eventId>/certificate-authorities/pem
+<harvest base URL>/election-event/<eventId>/certificate-authorities/pem
 ```
 
 Results are cached in-memory keyed by realm ID. If the Harvest fetch fails,
 Keycloak logs a warning and falls back to the JVM default truststore.
+
+### Harvest endpoint and TLS policy
+
+The truststore provider and the voter enrollment authenticator
+(`lookup-and-update-user`) resolve the harvest base URL the same way
+(`packages/keycloak-extensions/harvest-endpoint/`):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `HARVEST_URL` | unset | Base URL with scheme, for example `https://harvest:8400`. Takes precedence over `HARVEST_DOMAIN`. |
+| `HARVEST_DOMAIN` | | `host:port` of harvest. Used as `http://<HARVEST_DOMAIN>` when `HARVEST_URL` is not set. |
+| `HARVEST_TLS_POLICY` | `PLAINTEXT_ALLOWED` | `PLAINTEXT_ALLOWED` accepts `http` and `https`. `REQUIRE_TLS` accepts only an `https` base URL. |
+
+With `REQUIRE_TLS` and a base URL that is not `https`, the `url` truststore
+provider fails at Keycloak startup and enrollment requests to harvest are
+refused. Keycloak validates the harvest server certificate against the default
+truststore of its JVM, so the CA that issued it must be trusted there.
+
+To move an existing deployment to TLS: serve harvest over HTTPS (directly or
+through a TLS-terminating proxy or service mesh), set `HARVEST_URL` to the
+`https` URL, and then set `HARVEST_TLS_POLICY=REQUIRE_TLS`.
 
 ### Harvest CA Bundle Storage
 

@@ -239,8 +239,9 @@ Each election event realm needs the X.509 authenticator flow configured.
 The `url-truststore-provider` (`packages/keycloak-extensions/url-truststore-provider/`)
 replaces Keycloak's built-in `file` truststore provider with a `url` provider that:
 
-1. Constructs a per-realm CA bundle URL from `HARVEST_DOMAIN` and the election
-   event ID extracted from the realm name (`tenant-{UUID}-event-{UUID}`).
+1. Constructs a per-realm CA bundle URL from the harvest base URL
+   (`HARVEST_URL`, or `http://<HARVEST_DOMAIN>` when it is not set) and the
+   election event ID extracted from the realm name (`tenant-{UUID}-event-{UUID}`).
 2. Fetches the PEM bundle from Harvest at first use and caches it by realm ID.
 3. Refreshes the cached bundle in the background at a configurable interval
    (`KC_SPI_TRUSTSTORE_URL_REFRESH_INTERVAL_SECONDS`).

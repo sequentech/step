@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
@@ -67,6 +68,7 @@ import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.harvest.HarvestEndpoint;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -88,6 +90,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String VERIFICATION_STATUS = "verificationStatus";
   private static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
   private static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
+  private static final String VERIFY_APPLICATION_PATH = "/verify-application";
+  private static final String ERROR_VERIFIED_USER_MISMATCH =
+      "Verified user does not match the applicant data";
 
   // Enumerate the rejection reasons
   private enum VerificationRejectionReason {
@@ -119,7 +124,6 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private String keycloakUrl = System.getenv("KEYCLOAK_URL");
   private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
   private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
-  private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
   @Override
@@ -438,6 +442,21 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
         return;
       }
+    }
+
+    if (!ApplicantMatcher.matchesApplicant(
+        user, applicantDataMap, parseAttributesList(searchAttributes))) {
+      log.error("authenticate(): verified user does not match the applicant data");
+      context.getAuthenticationSession().removeAuthNote(VERIFICATION_COMPLETED);
+      context.getEvent().error(ERROR_VERIFIED_USER_MISMATCH);
+      context.attempted();
+      context.failureChallenge(
+          AuthenticationFlowError.INTERNAL_ERROR,
+          context
+              .form()
+              .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      return;
     }
 
     // If an user was found proceed with the normal flow. Set the current user.
@@ -962,7 +981,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String labels)
       throws IOException, InterruptedException {
     HttpClient client = HttpClient.newHttpClient();
-    String url = "http://" + this.harvestUrl + "/verify-application";
+    String url = verifyApplicationUrl(System::getenv);
     String requestBody =
         String.format(
             "{\"tenant_id\": \"%s\", \"election_event_id\": \"%s\", \"area_id\": \"%s\", \"applicant_id\": \"%s\", \"applicant_data\" : %s, \"annotations\": %s, \"labels\": \"%s\"}",
@@ -985,6 +1004,19 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     log.infov("Verification response: {0}", response);
 
     return response;
+  }
+
+  static String verifyApplicationUrl(UnaryOperator<String> environment) throws IOException {
+    return HarvestEndpoint.fromEnvironment(environment)
+        .orElseThrow(
+            () ->
+                new IOException(
+                    "Neither "
+                        + HarvestEndpoint.ENV_HARVEST_URL
+                        + " nor "
+                        + HarvestEndpoint.ENV_HARVEST_DOMAIN
+                        + " is set"))
+        .url(VERIFY_APPLICATION_PATH);
   }
 
   public void authenticate(String tenantId) {
