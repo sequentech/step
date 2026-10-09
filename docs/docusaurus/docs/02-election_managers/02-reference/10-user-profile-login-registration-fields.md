@@ -2,6 +2,7 @@
 id: user_profile_login_registration_fields
 title: Configuring Login and Registration Fields
 sidebar_position: 10
+description: "The fields on the registration page and on the attribute-based login page are generated from the realm's User Profile configuration in Keycloak."
 ---
 
 <!--
@@ -338,7 +339,7 @@ Renders the password box as fixed-length digit groups. It remains the voter's or
 password, and applies to the login page and to the registration form in login mode with a password
 field. Set `credential-input-policy` to `structured` (or its equivalent alias `pattern`) to enable it; the pattern, placeholder, input
 behaviour and rollout steps are covered in
-[Structured PIN login](../../07-developers/06-keycloak/structured_pin_login.md).
+[Structured PIN login](/docs/developers/keycloak/structured_pin_login).
 
 ---
 
@@ -349,12 +350,12 @@ behaviour and rollout steps are covered in
 | Feature | Configured with | Effect |
 |---|---|---|
 | [Attribute-based login](../01-tutorials/101-admin_portal_tutorials_multi-attribute-password-login.md) | **Multi-Attribute + Password Form** authenticator | Replaces the username field with User Profile attribute fields |
-| [Structured PIN](../../07-developers/06-keycloak/structured_pin_login.md) | `credential-input-*` realm attributes | Password box becomes fixed-length digit groups |
+| [Structured PIN](/docs/developers/keycloak/structured_pin_login) | `credential-input-*` realm attributes | Password box becomes fixed-length digit groups |
 | Locked username | Realm attribute `loginHintUsernamePolicy` = `READ_ONLY` | Username is prefilled and read-only |
-| [Digital certificate login](../../07-developers/06-keycloak/x509_client_cert_architecture.md) | Realm attribute `voter-certificate-policy` = `enabled` | Shows the **digital-certificates** provider button; hidden while `disabled` |
+| [Digital certificate login](/docs/developers/keycloak/x509_client_cert_architecture) | Realm attribute `voter-certificate-policy` = `enabled` | Shows the **digital-certificates** provider button; hidden while `disabled` |
 | Other identity providers | Keycloak **Identity providers** | Each enabled provider adds a button below the form |
-| [OID4VP (digital wallet)](../../07-developers/06-keycloak/oid4vp_testing_guide.md) | OID4VP identity provider | Uses its own QR / wallet page |
-| [IdP-initiated SSO](../../07-developers/06-keycloak/idp_initiated_sso_design_implementation.md) | SAML/OIDC identity provider | Login page is skipped |
+| [OID4VP (digital wallet)](/docs/developers/keycloak/oid4vp_testing_guide) | OID4VP identity provider | Uses its own QR / wallet page |
+| [IdP-initiated SSO](/docs/developers/keycloak/idp_initiated_sso_design_implementation) | SAML/OIDC identity provider | Login page is skipped |
 | Remember me | Realm setting **Remember me** | Adds the checkbox |
 | Forgot password | Realm setting **Forgot password** | Adds the reset link |
 | Registration link | Realm setting **User registration** | Adds the register link |

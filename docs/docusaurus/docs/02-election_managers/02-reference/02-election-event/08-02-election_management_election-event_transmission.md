@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_transmission
 title: Transmission
+description: "The Transmission module under the Tally tab enables sending election results to external servers that have been predefined in the system environment."
 ---
 
 <!--

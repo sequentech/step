@@ -2,6 +2,7 @@
 id: acclaimed_contests
 title: Acclaimed Contests
 sidebar_position: 11
+description: "An acclaimed contest is decided before voting: its configured candidates are elected without a vote."
 ---
 
 <!--
@@ -100,9 +101,9 @@ data and does not change ballot hashing, signature checks, re-encoding checks,
 or Ballot ID comparison. A fully acclaimed election has no auditable ballot to
 open in the verifier.
 
-See [Audit your Vote](../../03-voters/01-tutorials/03-voter_audit_ballot.md) for
+See [Audit your Vote](/docs/voters/tutorials/voter_audit_ballot) for
 the complete voter audit procedure and
-[Ballot Encoding Specification](../../05-reference/07-ballot_encoding.md) for
+[Ballot Encoding Specification](/docs/reference/ballot_encoding) for
 the encoding rules.
 
 ## Tally and results
@@ -126,7 +127,7 @@ Tally sheets are rejected for acclaimed contests because paper, postal, and
 other external votes cannot be added to a contest that was decided without a
 vote.
 
-See [Generating Results](../../05-reference/04-tally_deep_dive/06-tally_results.md)
+See [Generating Results](/docs/reference/tally_deep_dive/tally_results)
 for the canonical tally result shape.
 
 ## Summary

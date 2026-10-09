@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_archive-elections
 title: Active/Archive Elections
+description: "The Sequent Admin Portal allows you to manage the visibility of your electoral events by categorizing them as either Active or Archived."
 ---
 
 <!--

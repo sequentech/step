@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_ballot-boxes
 title: Ballot Boxes (Tally Sheets)
+description: "This tutorial explains how to digitalize results from non-electronic voting channels (such as Paper or Postal ballots) using Ballot Boxes, and how to review and approve them so they are included in…"
 ---
 
 <!--

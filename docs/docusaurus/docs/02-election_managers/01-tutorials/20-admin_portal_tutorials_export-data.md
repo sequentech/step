@@ -1,6 +1,7 @@
 ---
 id: admin_portal_tutorials_export-data
 title: Export Data
+description: "Export the voters of an election event to a CSV file, or include them in an election event archive, with or without the secret voter fields."
 ---
 
 <!--
