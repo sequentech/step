@@ -63,9 +63,17 @@ pub mod infer {
 
         // We have shares up to trustee n if we have shares up to trustee n - 1
         // and the shares from trustee n.
-        shares_acc(cfg_hash, shares_hashes.add(*shares, *sender), sender) <--
+        shares_acc(cfg_hash, accumulated, sender) <--
             shares(cfg_hash, shares, sender),
-            shares_acc(cfg_hash, shares_hashes, sender - 1);
+            shares_acc(cfg_hash, shares_hashes, sender - 1),
+            if let Ok(accumulated) = shares_hashes.add(*shares, *sender);
+
+        // Shares that cannot be accumulated (a dealing body another trustee
+        // already posted) halt the protocol.
+        error(format!("shares accumulator: {}", err)) <--
+            shares(cfg_hash, shares, sender),
+            shares_acc(cfg_hash, shares_hashes, sender - 1),
+            if let Err(err) = shares_hashes.add(*shares, *sender);
 
         // All shares received once we have shares up to trustee_count.
         shares_all(cfg_hash, shares) <--
