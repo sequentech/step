@@ -380,6 +380,7 @@ public class MultiAttributePasswordDirectGrantAuthenticator
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
             Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
+        Utils.sharedCandidateFailurePolicyProperty(),
         matchPolicy);
   }
 
