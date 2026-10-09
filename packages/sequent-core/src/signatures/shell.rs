@@ -32,8 +32,9 @@ pub fn build_command<S: AsRef<OsStr>>(program: &str, args: &[S]) -> Command {
 }
 
 /// Runs a command and returns its stdout. Fails if the command does not
-/// exit successfully. The arguments are never logged nor included in the
-/// error, since they may carry secrets.
+/// exit successfully. Neither the arguments nor stderr are logged or
+/// included in the error, since a failing program may echo a secret
+/// argument.
 #[instrument(skip(command), err)]
 pub fn run_command(mut command: Command) -> Result<String> {
     let program = command.get_program().to_string_lossy().to_string();
@@ -41,11 +42,7 @@ pub fn run_command(mut command: Command) -> Result<String> {
         .output()
         .with_context(|| format!("Failed to run {program}"))?;
     if !output.status.success() {
-        return Err(anyhow!(
-            "{program} failed with {}: {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr)
-        ));
+        return Err(anyhow!("{program} failed with {}", output.status));
     }
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
@@ -65,6 +62,16 @@ mod tests {
     #[test]
     fn test_run_command_fails_on_non_zero_exit() {
         assert!(run_command(build_command::<&str>("false", &[])).is_err());
+    }
+
+    #[test]
+    fn test_run_command_error_omits_stderr() {
+        let error = run_command(build_command(
+            "sh",
+            &["-c", "echo \"$0\" >&2; exit 1", "secret-password"],
+        ))
+        .unwrap_err();
+        assert!(!format!("{error:?}").contains("secret-password"));
     }
 
     #[test]

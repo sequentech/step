@@ -6,6 +6,9 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::plugins::{
+    PLUGIN_DOCUMENT_ID_KEY, PLUGIN_TASK_EXECUTION_KEY,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::str::FromStr;
@@ -96,7 +99,7 @@ pub async fn plugin_routes(
         .map_err(|e| (Status::InternalServerError, e.to_string()))?;
 
         route_data.insert(
-            "task_execution".to_string(),
+            PLUGIN_TASK_EXECUTION_KEY.to_string(),
             serde_json::Value::String(
                 serde_json::to_string(&task_execution).map_err(|e| {
                     (Status::InternalServerError, e.to_string())
@@ -108,7 +111,7 @@ pub async fn plugin_routes(
             Some(true) => {
                 let doc_id = Uuid::new_v4().to_string();
                 route_data.insert(
-                    "document_id".to_string(),
+                    PLUGIN_DOCUMENT_ID_KEY.to_string(),
                     serde_json::Value::String(doc_id.clone()),
                 );
                 Some(doc_id)
