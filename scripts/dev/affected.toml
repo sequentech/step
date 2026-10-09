@@ -614,7 +614,7 @@ runner = "cargo"
 cost = "fast"
 cwd = "packages"
 # Every election_config gate and monitoring, or their suites never run.
-command = "cargo test --locked -p sequent-core --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring"
+command = "cargo test --locked -p sequent-core --features keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring,areas"
 focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "keycloak,default_features,election_config_xlsx,election_config_templates,election_config_archive,monitoring"]
 workflows = ["tests.yml"]
 actions = ["setup-rust-tests", "setup-rust-cache"]
