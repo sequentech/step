@@ -42,7 +42,8 @@ pub enum AccumulatorError {
     Conflict { index: TrusteeIndex },
     /// The value is already held at another trustee index.
     Duplicate { index: TrusteeIndex },
-    /// The trustee index does not fit in the accumulator.
+    /// The trustee index is `0`, which is not a trustee, or does not fit in
+    /// the accumulator.
     OutOfRange { index: TrusteeIndex },
 }
 
@@ -83,10 +84,14 @@ impl<T: Ord + std::fmt::Debug + Clone> AccumulatorSet<T> {
     ///
     /// Idempotent for an identical `(value, index)` pair. Fails if `index`
     /// already holds a *different* value, if `rhs` already appears at another
-    /// index, or if `index` does not fit in the accumulator. The values come
-    /// from board messages, so the datalog rules turn a failure into an `error`
-    /// fact, which halts the protocol like the `collides` rule does.
+    /// index, or if `index` is `0` or does not fit in the accumulator. The
+    /// values come from board messages, so the datalog rules turn a failure
+    /// into an `error` fact, which halts the protocol like the `collides` rule
+    /// does.
     pub(crate) fn add(&self, rhs: T, index: TrusteeIndex) -> Result<Self, AccumulatorError> {
+        if index == 0 {
+            return Err(AccumulatorError::OutOfRange { index });
+        }
         let slot = self
             .values
             .get(index)
@@ -147,6 +152,17 @@ mod tests {
             acc.add(10, 2),
             Err(AccumulatorError::Duplicate { index: 2 })
         );
+    }
+
+    #[test]
+    fn add_rejects_index_zero() {
+        let acc = AccumulatorSet::new(10);
+
+        assert_eq!(
+            acc.add(20, 0),
+            Err(AccumulatorError::OutOfRange { index: 0 })
+        );
+        assert_eq!(acc.extract(), vec![10]);
     }
 
     #[test]
