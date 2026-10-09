@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,7 +82,7 @@ public class Utils {
           LookupAndUpdateUser.VERIFICATION_COMPLETED,
           LookupAndUpdateUser.VERIFICATION_STATUS,
           LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
-          LookupAndUpdateUser.VERIFICATION_MISSMATCHED_FIELDS,
+          LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
           LookupAndUpdateUser.FIELDS_MATCH,
           KEYS_USERDATA);
 
@@ -133,16 +134,20 @@ public class Utils {
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
+    List<String> ignoredFields = new ArrayList<>();
     formData.forEach(
         (key, value) -> {
           if (RESERVED_NOTES.contains(key)) {
-            log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved field {0}", key);
+            ignoredFields.add(key);
             return;
           }
           String values = Utils.serializeUserdataKeys(formData.get(key));
           log.debug("storeUserDataInAuthSessionNotes: setAuthNote(" + key + ", " + values + ")");
           sessionModel.setAuthNote(key, values);
         });
+    if (!ignoredFields.isEmpty()) {
+      log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved fields {0}", ignoredFields);
+    }
 
     sessionModel.setAuthNote(USER_ID, user.getId());
   }

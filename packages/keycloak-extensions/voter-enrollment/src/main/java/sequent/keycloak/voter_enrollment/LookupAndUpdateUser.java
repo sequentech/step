@@ -87,7 +87,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String VERIFICATION_COMPLETED = "verificationCompleted";
   public static final String VERIFICATION_STATUS = "verificationStatus";
   static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
-  static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
+  static final String VERIFICATION_MISMATCHED_FIELDS = "verificationMismatchedFields";
   static final String FIELDS_MATCH = "fields_match";
 
   // Enumerate the rejection reasons
@@ -140,7 +140,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String rejectionReason =
           context.getAuthenticationSession().getAuthNote(VERIFICATION_REJECTION_REASON);
       String verificationMismatchedFields =
-          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISSMATCHED_FIELDS);
+          context.getAuthenticationSession().getAuthNote(VERIFICATION_MISMATCHED_FIELDS);
 
       log.infov("authenticate(): verificationStatus {0}", verificationStatus);
       log.infov("authenticate(): rejectionReason {0}", rejectionReason);
@@ -365,7 +365,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       try {
         context
             .getAuthenticationSession()
-            .setAuthNote(VERIFICATION_MISSMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
+            .setAuthNote(VERIFICATION_MISMATCHED_FIELDS, om.writeValueAsString(mismatchedFields));
       } catch (JsonProcessingException e) {
         e.printStackTrace();
         throw new IllegalStateException(e);

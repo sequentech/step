@@ -81,7 +81,7 @@ public class Utils {
   public final String SENDER_ID = "senderId";
   public final String ONE_TIME_LINK = "one-time-link";
   public final String OTL_VISITED = "one-time-link.visited";
-  public final String EMAIL_VERIFIED = "Email verified";
+  public static final String EMAIL_VERIFIED = "Email verified";
   public static final String USER_ID = "userId";
   public final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
@@ -390,6 +390,10 @@ public class Utils {
     }
   }
 
+  /**
+   * Records a successful event that the event listener publishes as a communication sent to the
+   * user, with the message body as its text.
+   */
   private <T> void logCommunications(T context, String body) {
     EventBuilder event = getEvent(context);
     if (event != null) {
