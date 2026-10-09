@@ -200,6 +200,7 @@ mod tests {
     const NUM_TRUSTEES: TrusteeCount = 3;
     const THRESHOLD: Threshold = 2;
 
+    /// One distinct hash for each artifact of the batch.
     struct Hashes {
         cfg: ConfigurationHash,
         pk: PublicKeyHash,
@@ -211,6 +212,8 @@ mod tests {
         dfactors: DecryptionFactorsHashes,
     }
 
+    /// Fixed, pairwise distinct hashes, so that a rule joining the wrong
+    /// artifacts cannot match by accident.
     fn hashes() -> Hashes {
         Hashes {
             cfg: ConfigurationHash([1u8; 64]),
@@ -224,8 +227,9 @@ mod tests {
         }
     }
 
-    // Trustees 1 and 2 (1-based) are selected; trustee 0 (0-based) mixes first
-    // and posts the plaintexts, trustee 1 produces the last mix.
+    /// Predicates for a batch whose two mixes the verifier has checked and
+    /// signed. Trustees 1 and 2 (1-based) are selected; trustee 0 (0-based)
+    /// mixes first and posts the plaintexts, trustee 1 produces the last mix.
     fn verified_mix_chain(h: &Hashes) -> Vec<Predicate> {
         let selected = trustees_add(trustees_init(1), 2);
         vec![
@@ -239,6 +243,8 @@ mod tests {
         ]
     }
 
+    /// A `Plaintexts` statement for the batch, decrypted from `cipher_h` and
+    /// posted by `signer_t`.
     fn plaintexts(h: &Hashes, cipher_h: CiphertextsHash, signer_t: TrusteePosition) -> Predicate {
         Predicate::Plaintexts(
             h.cfg,
@@ -251,6 +257,8 @@ mod tests {
         )
     }
 
+    /// A `PlaintextsSigned` statement over the same plaintexts as
+    /// `plaintexts`, signed by `signer_t`.
     fn plaintexts_signed(
         h: &Hashes,
         cipher_h: CiphertextsHash,
@@ -267,6 +275,8 @@ mod tests {
         )
     }
 
+    /// Plaintexts over the last verified mix that only a trustee has signed
+    /// keep the batch target but do not verify the batch.
     #[test]
     fn verified_requires_verifier_plaintexts_signature() {
         let h = hashes();
@@ -280,6 +290,9 @@ mod tests {
         assert!(verified.is_empty());
     }
 
+    /// Once the verifier has signed the plaintexts over the last mix it
+    /// checked, the batch is verified with the ballots, last mix, key and
+    /// plaintexts of the chain.
     #[test]
     fn verified_with_verifier_plaintexts_signature() {
         let h = hashes();
@@ -298,6 +311,8 @@ mod tests {
         assert_eq!(v.5, h.plaintexts);
     }
 
+    /// Plaintexts decrypted from ciphertexts other than the last verified mix
+    /// do not verify the batch, even with the verifier's signature.
     #[test]
     fn verified_rejects_plaintexts_not_over_last_mix() {
         let h = hashes();
