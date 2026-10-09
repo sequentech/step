@@ -7,7 +7,11 @@ import React, {useEffect, useContext, useMemo} from "react"
 import {Outlet, ScrollRestoration, useLocation, useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
-import {EVotingPortalCountdownPolicy, IElectionEventPresentation} from "@sequentech/ui-core"
+import {
+    EVotingPortalCountdownPolicy,
+    IElectionEventPresentation,
+    sanitizePresentationCss,
+} from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
@@ -97,6 +101,15 @@ const App = () => {
 
         return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
     })
+    const css = ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""
+    const customCss = useMemo(
+        () =>
+            sanitizePresentationCss(css, {
+                baseUrl: document.baseURI,
+                publicBucketUrl: globalSettings.PUBLIC_BUCKET_URL,
+            }),
+        [css, globalSettings.PUBLIC_BUCKET_URL]
+    )
     useEffect(() => {
         if (location.pathname === "/") {
             throw new VotingPortalError(VotingPortalErrorType.NO_ELECTION_EVENT)
@@ -130,7 +143,7 @@ const App = () => {
     return (
         <StyledApp
             className="voting-portal app-root"
-            customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
+            customCss={customCss}
         >
             <ScrollRestoration />
             <ApolloWrapper>

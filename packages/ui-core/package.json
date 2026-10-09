@@ -28,6 +28,7 @@
     "i18next": "^21.8.16",
     "i18next-browser-languagedetector": "^6.1.4",
     "moderndash": "^3.7.3",
+    "postcss": "^8.5.10",
     "qrcode.react": "3.1.0",
     "react-scripts": "5.0.1",
     "sanitize-html": ">=2.12.1"
