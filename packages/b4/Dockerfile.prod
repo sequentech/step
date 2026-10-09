@@ -116,9 +116,10 @@ RUN set -eux; \
       echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
     } > /etc/apt/sources.list
 
-# The package manager's logs carry the time of the build, so they are removed in
-# the layer that writes them: two builds of the same commit must give the same
-# layer (sequentech/meta#13625).
+# What the package manager leaves behind that differs on every build is removed
+# in the layer that writes it, so that two builds of the same commit give the
+# same layer (sequentech/meta#13625): its logs, which carry the time, and the
+# linker's auxiliary cache, which only speeds up the next ldconfig.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
@@ -138,7 +139,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && unzip vault.zip -d /usr/local/bin/ \
     && rm -f vault.zip \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log
+    && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log \
+        /var/cache/ldconfig/aux-cache
 
 COPY --from=builder /app/target/release/b4 /usr/bin/b4
 
