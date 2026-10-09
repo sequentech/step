@@ -60,6 +60,7 @@ class StoreUserDataNotesTest {
     AUTHENTICATOR_NOTES.forEach(note -> formData.add(note, "99999999999999"));
     formData.add("keyUserdata", "code");
     formData.add("lastName;code", "Ana");
+    formData.add("userId", "other-voter-id");
 
     AuthenticationSessionModel authSession = storeNotes(formData);
 
@@ -71,6 +72,7 @@ class StoreUserDataNotesTest {
     AUTHENTICATOR_NOTES.forEach(
         note -> verify(authSession, never()).setAuthNote(eq(note), anyString()));
     verify(authSession, never()).setAuthNote(eq("lastName;code"), anyString());
+    verify(authSession, never()).setAuthNote("userId", "other-voter-id");
     ArgumentCaptor<String> storedFields = ArgumentCaptor.forClass(String.class);
     verify(authSession).setAuthNote(eq("keyUserdata"), storedFields.capture());
     assertEquals(

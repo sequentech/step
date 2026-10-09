@@ -69,8 +69,9 @@ public class Utils {
   private static final String USER_ID = "userId";
 
   /**
-   * Notes that only authenticators set: the one-time code and link state, the verified email flag
-   * and the verification outcome. A form field with one of these names is not stored as a note.
+   * Notes that only authenticators set: the one-time code and link state, the verified email flag,
+   * the verification outcome, the stored field list and the matched user. A form field with one of
+   * these names is not stored as a note.
    */
   private static final Set<String> RESERVED_NOTES =
       Set.of(
@@ -83,7 +84,8 @@ public class Utils {
           LookupAndUpdateUser.VERIFICATION_REJECTION_REASON,
           LookupAndUpdateUser.VERIFICATION_MISMATCHED_FIELDS,
           LookupAndUpdateUser.FIELDS_MATCH,
-          KEYS_USERDATA);
+          KEYS_USERDATA,
+          USER_ID);
 
   /**
    * Whether a submitted form field is stored as a note and listed in {@link #KEYS_USERDATA}: its
