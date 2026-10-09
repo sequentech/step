@@ -7,6 +7,7 @@ use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
+use reqwest::Url;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::util::temp_path::*;
@@ -143,6 +144,30 @@ impl TemplateRenderer for ManualVerificationTemplate {
     }
 }
 
+fn build_generate_link_url(
+    keycloak_url: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: &str,
+    redirect_uri: &str,
+) -> Result<Url> {
+    let mut url = Url::parse(keycloak_url).context("Invalid KEYCLOAK_URL")?;
+    url.path_segments_mut()
+        .map_err(|_| anyhow!("KEYCLOAK_URL cannot be used as a base URL"))?
+        .pop_if_empty()
+        .extend([
+            "realms",
+            &format!("tenant-{tenant_id}-event-{election_event_id}"),
+            "manual-verification",
+            "generate-link",
+        ]);
+    url.query_pairs_mut()
+        .clear()
+        .append_pair("userId", voter_id)
+        .append_pair("redirectUri", redirect_uri);
+    Ok(url)
+}
+
 /// Function to get the manual verification URL
 #[instrument(err)]
 async fn get_manual_verification_url(
@@ -158,9 +183,13 @@ async fn get_manual_verification_url(
     // Redirect to login
     let login_url = format!("{base_url}/tenant/{tenant_id}/event/{election_event_id}/login");
 
-    let generate_token_url = format!(
-        "{keycloak_url}/realms/tenant-{tenant_id}-event-{election_event_id}/manual-verification/generate-link?userId={voter_id}&redirectUri={login_url}"
-    );
+    let generate_token_url = build_generate_link_url(
+        &keycloak_url,
+        tenant_id,
+        election_event_id,
+        voter_id,
+        &login_url,
+    )?;
 
     let client = reqwest::Client::new();
 
@@ -173,4 +202,62 @@ async fn get_manual_verification_url(
     let response_body: ManualVerificationOutput = response.json().await?;
 
     Ok(response_body.link)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn generate_link_url_encodes_voter_id_and_redirect_uri() {
+        let voter_id = "voter&admin=true#frag+1";
+        let redirect_uri = "https://portal.example.com/tenant/t/event/e/login?a=b&c=d";
+        let url = build_generate_link_url(
+            "https://keycloak.example.com",
+            "t1",
+            "e1",
+            voter_id,
+            redirect_uri,
+        )
+        .unwrap();
+
+        assert_eq!(
+            url.path(),
+            "/realms/tenant-t1-event-e1/manual-verification/generate-link"
+        );
+        assert_eq!(url.fragment(), None);
+        let pairs: Vec<(String, String)> = url.query_pairs().into_owned().collect();
+        assert_eq!(
+            pairs,
+            vec![
+                ("userId".to_string(), voter_id.to_string()),
+                ("redirectUri".to_string(), redirect_uri.to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn generate_link_url_keeps_keycloak_path_prefix() {
+        let url = build_generate_link_url(
+            "https://keycloak.example.com/auth/",
+            "t1",
+            "e1",
+            "voter",
+            "https://portal.example.com/login",
+        )
+        .unwrap();
+
+        assert_eq!(
+            url.path(),
+            "/auth/realms/tenant-t1-event-e1/manual-verification/generate-link"
+        );
+        let pairs: HashMap<String, String> = url.query_pairs().into_owned().collect();
+        assert_eq!(pairs.get("userId").map(String::as_str), Some("voter"));
+    }
+
+    #[test]
+    fn generate_link_url_rejects_invalid_keycloak_url() {
+        assert!(build_generate_link_url("not a url", "t1", "e1", "voter", "https://x").is_err());
+    }
 }
