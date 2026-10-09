@@ -798,6 +798,7 @@ services:
     image: sequentech.local/braid
     volumes:
       - trustee1_data:/opt/braid
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee1.toml:/opt/braid/trustee1.toml:ro"
     # TODO: be able to reuse the `sequentech.local/cargo-packages` image
     build:
       context: ../packages/
@@ -805,6 +806,7 @@ services:
     environment:
         TRUSTEE_NAME: trustee1
         TRUSTEE_CONFIG_PATH: ${TRUSTEE1_CONFIG}
+        TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -821,6 +823,7 @@ services:
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee2
     volumes:
       - trustee2_data:/opt/braid
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee2.toml:/opt/braid/trustee2.toml:ro"
     # depending on the `trustee1` container to ensure that the
     # `sequentech.local/braid` image is locally build, so that we can reuse
     # it:
@@ -830,6 +833,7 @@ services:
     environment:
         TRUSTEE_NAME: trustee2
         TRUSTEE_CONFIG_PATH: ${TRUSTEE2_CONFIG}
+        TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
         IGNORE_BOARDS: ${IGNORE_BOARDS}
         SECRETS_BACKEND: ${SECRETS_BACKEND}
         VAULT_SERVER_URL: ${VAULT_SERVER_URL}
@@ -843,6 +847,7 @@ services:
   #   container_name: trustee3
   #   volumes:
   #     - trustee3_data:/opt/braid
+  #     - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/braid/scripts/trustee3.toml:/opt/braid/trustee3.toml:ro"
   #   # depending on the `trustee1` container to ensure that the
   #   # `sequentech.local/braid` image is locally build, so that we can reuse
   #   # it:
@@ -852,6 +857,7 @@ services:
   #   environment:
   #       TRUSTEE_NAME: trustee3
   #       TRUSTEE_CONFIG_PATH: ${TRUSTEE3_CONFIG}
+  #       TRUSTEE_SAMPLE_KEYS_POLICY: ${TRUSTEE_SAMPLE_KEYS_POLICY:-Allow}
   #       IGNORE_BOARDS: ${IGNORE_BOARDS}
   #       SECRETS_BACKEND: ${SECRETS_BACKEND}
   #       VAULT_SERVER_URL: ${VAULT_SERVER_URL}

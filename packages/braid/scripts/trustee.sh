@@ -13,6 +13,20 @@ cd /opt/braid
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
 SECRETS_BACKEND=${SECRETS_BACKEND:-"Awssecretsmanager"} # Default to Awssecretsmanager if not set
 SECRETS_BACKEND_LOWER=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
+TRUSTEE_SAMPLE_KEYS_POLICY=${TRUSTEE_SAMPLE_KEYS_POLICY:-"Deny"} # Allow or Deny
+TRUSTEE_SAMPLE_KEYS_POLICY_LOWER=$(echo "$TRUSTEE_SAMPLE_KEYS_POLICY" | tr '[:upper:]' '[:lower:]')
+if [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" != "allow" ] && [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" != "deny" ]; then
+    echo "Error: Unsupported TRUSTEE_SAMPLE_KEYS_POLICY: $TRUSTEE_SAMPLE_KEYS_POLICY"
+    exit 1
+fi
+
+# signing_key_pk of the sample configurations in packages/braid/scripts
+SAMPLE_SIGNING_KEYS_PK=(
+    "MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs="
+    "MCowBQYDK2VwAyEA50mtZzCBnubUwMhRkKyGomrUCBGgvEsbu79D3Cckjbc="
+    "MCowBQYDK2VwAyEAfV2aRBpnR8Bm2MnorCwcR9ywjudNlFCqSZu6SGmuMcY="
+)
+
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
     echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
     exit 1
@@ -122,7 +136,22 @@ handle_trustee_config() {
     grep key_pk "$TRUSTEE_CONFIG_PATH"
 }
 
+check_sample_keys() {
+    local sample_pk
+    for sample_pk in "${SAMPLE_SIGNING_KEYS_PK[@]}"; do
+        if grep -qF -- "$sample_pk" "$TRUSTEE_CONFIG_PATH"; then
+            if [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" = "allow" ]; then
+                log "Using a sample configuration from packages/braid/scripts (TRUSTEE_SAMPLE_KEYS_POLICY=Allow)"
+                return
+            fi
+            echo "Error: $TRUSTEE_CONFIG_PATH is a sample configuration from packages/braid/scripts. Replace it with a newly generated configuration, or set TRUSTEE_SAMPLE_KEYS_POLICY=Allow for local development."
+            exit 1
+        fi
+    done
+}
+
 handle_trustee_config
+check_sample_keys
 
 # Run trustee with the generated or fetched config
 trustee --b4-url "$B4_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"
