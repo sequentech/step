@@ -4,25 +4,6 @@ table:
 insert_permissions:
     - comment: ""
       permission:
-          check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
-          columns:
-              - id
-              - tenant_id
-              - election_event_id
-              - common_name
-              - subject
-              - issuer_common_name
-              - issuer
-              - not_before
-              - not_after
-              - fingerprint_sha256
-              - serial_number
-              - pem
-      role: admin-user
-    - comment: ""
-      permission:
           check: {}
           columns:
               - id
