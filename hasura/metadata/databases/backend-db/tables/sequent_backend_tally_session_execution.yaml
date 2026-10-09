@@ -1,12 +1,31 @@
 table:
     name: tally_session_execution
     schema: sequent_backend
+object_relationships:
+    - name: tally_session
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: election_event_id
+                  tally_session_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: tally_session
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - tally_session:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _contained_in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - created_at
@@ -60,8 +79,15 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - tally_session:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _contained_in: X-Hasura-Permission-Labels
       role: admin-ceremony
     - comment: ""
       permission:
@@ -82,8 +108,15 @@ select_permissions:
               - tenant_id
               - documents
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - tally_session:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -124,15 +157,29 @@ select_permissions:
               - tally_session_id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - tally_session:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _contained_in: X-Hasura-Permission-Labels
       role: trustee-ceremony
 update_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - tally_session:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _contained_in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - created_at
@@ -148,8 +195,15 @@ update_permissions:
               - tenant_id
               - documents
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - tally_session:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -174,8 +228,15 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - tally_session:
+                        _or:
+                            - permission_label:
+                                  _is_null: true
+                            - permission_label:
+                                  _contained_in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
