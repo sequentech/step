@@ -15,6 +15,47 @@ use crate::messages::statement::StatementType;
 
 use crate::messages::newtypes::*;
 
+#[cfg(test)]
+mod authentication_tests {
+    use super::*;
+    use crate::messages::protocol_manager::ProtocolManager;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+
+    #[test]
+    fn verification_rejects_modified_artifact_with_valid_statement_signature() {
+        let manager = ProtocolManager::<RistrettoCtx>::new(StrandSignatureSk::gen().unwrap());
+        let trustees = (0..2)
+            .map(|_| StrandSignaturePk::from_sk(&StrandSignatureSk::gen().unwrap()).unwrap())
+            .collect();
+        let cfg = Configuration::<RistrettoCtx>::new(
+            1,
+            StrandSignaturePk::from_sk(&manager.signing_key).unwrap(),
+            trustees,
+            2,
+            PhantomData,
+        );
+        let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
+        selected[0] = 1;
+        selected[1] = 2;
+        let mut message = Message::ballots_msg(
+            &cfg,
+            1,
+            &Ballots::new(vec![]),
+            selected,
+            PublicKeyHash([0; 64]),
+            &manager,
+        )
+        .unwrap();
+        assert!(message.verify(&cfg).is_ok());
+        message.artifact.as_mut().unwrap().push(1);
+        assert!(
+            message.verify(&cfg).is_err(),
+            "the artifact must match its signed hash"
+        );
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Message
 ///////////////////////////////////////////////////////////////////////////
@@ -332,53 +373,36 @@ impl Message {
                 "Received message with mismatched configuration hash"
             ));
         }
-        assert_eq!(config_hash, st_cfg_h);
-
-        // Statement-only message
-        if self.artifact.is_none() {
-            return Ok(VerifiedMessage::new(trustee, self.statement.clone(), None));
+        // Privileged statement kinds must be authorized even without an artifact.
+        if matches!(kind, StatementType::Configuration | StatementType::Ballots)
+            && trustee != PROTOCOL_MANAGER_INDEX
+        {
+            return Err(anyhow!(
+                "Configuration and ballots must be signed by protocol manager"
+            ));
         }
-        let artifact = self.artifact.as_ref().expect("impossible");
-        // Use this to move the bytes out of self to avoid copying below (artifact.clone())
-        // This will require taking ownership of self in the method signature
-        // let artifact = self.artifact.take().unwrap();
 
-        // Artifact present
-
-        let artifact_hash = strand::hash::hash_to_array(&artifact)?;
-        // If the cfg_h field matches the artifact, the artifact must be Configuration
-        if st_cfg_h == artifact_hash {
-            assert!(kind == StatementType::Configuration);
-            if trustee != PROTOCOL_MANAGER_INDEX {
-                return Err(anyhow!("Configuration must be signed by protocol manager"));
+        if let Some(artifact) = &self.artifact {
+            let expected = match &self.statement {
+                Statement::Configuration(_, h) => h.0,
+                Statement::Channel(_, _, h) => h.0,
+                Statement::Shares(_, _, h) => h.0,
+                Statement::PublicKey(_, _, h, _, _) => h.0,
+                Statement::Ballots(_, _, _, h, _, _) => h.0,
+                Statement::Mix(_, _, _, _, h, _) => h.0,
+                Statement::DecryptionFactors(_, _, _, h, _, _) => h.0,
+                Statement::Plaintexts(_, _, _, h, _, _, _) => h.0,
+                _ => return Err(anyhow!("Statement-only message has an unexpected artifact")),
+            };
+            if strand::hash::hash_to_array(artifact)? != expected {
+                return Err(anyhow!("Artifact does not match its signed hash"));
             }
-
-            // FIXME remove this potentially expensive clone
-            // See above line: let artifact = self.artifact.take().unwrap();
-            Ok(VerifiedMessage::new(
-                trustee,
-                self.statement.clone(),
-                Some(artifact.clone()),
-            ))
-        } else {
-            // If the statement type were configuration, cfg_hash should have matched the artifact above
-            assert!(kind != StatementType::Configuration);
-
-            if kind == StatementType::Ballots {
-                if trustee != PROTOCOL_MANAGER_INDEX {
-                    return Err(anyhow!("Ballots must be signed by protocol manager"));
-                }
-            }
-
-            let _ = verify_artifact(&configuration, &kind, &artifact)?;
-            // FIXME remove this potentially expensive clone
-            // See above line: let artifact = self.artifact.take().unwrap();
-            Ok(VerifiedMessage::new(
-                trustee,
-                self.statement.clone(),
-                Some(artifact.clone()),
-            ))
         }
+        Ok(VerifiedMessage::new(
+            trustee,
+            self.statement.clone(),
+            self.artifact.clone(),
+        ))
     }
 
     /// Clone this message.
@@ -394,27 +418,6 @@ impl Message {
 
         Ok(ret)
     }
-}
-
-// Placeholder for possible further verifications
-fn verify_artifact<C: Ctx>(
-    _cfg: &Configuration<C>,
-    kind: &StatementType,
-    _data: &Vec<u8>,
-) -> Result<()> {
-    match kind {
-        StatementType::Ballots => {}
-        StatementType::Channel => {}
-        StatementType::DecryptionFactors => {}
-        StatementType::Mix => {}
-        StatementType::Plaintexts => {}
-        StatementType::PublicKey => {}
-        StatementType::Shares => {}
-        StatementType::Configuration => {}
-        _ => {}
-    }
-
-    Ok(())
 }
 
 ///////////////////////////////////////////////////////////////////////////
