@@ -276,6 +276,34 @@ pub struct GenerateReportResponse {
     pub task_execution: TasksExecution,
 }
 
+const REPORT_NOT_FOUND: &str = "Report not found";
+
+fn authorize_generate_report(
+    claims: &JwtClaims,
+    input: &GenerateReportBody,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::REPORT_READ],
+    )
+}
+
+fn ensure_report_event(
+    report_election_event_id: &str,
+    requested_election_event_id: Option<&str>,
+) -> Result<(), (Status, String)> {
+    match requested_election_event_id {
+        Some(election_event_id)
+            if election_event_id != report_election_event_id =>
+        {
+            Err((Status::NotFound, REPORT_NOT_FOUND.to_string()))
+        }
+        _ => Ok(()),
+    }
+}
+
 #[instrument(skip(claims))]
 #[post("/generate-report", format = "json", data = "<body>")]
 pub async fn generate_report(
@@ -284,12 +312,7 @@ pub async fn generate_report(
 ) -> Result<Json<GenerateReportResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::REPORT_READ],
-    )?;
+    authorize_generate_report(&claims, &input)?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -330,7 +353,11 @@ pub async fn generate_report(
             format!("Error getting report by id: {e:?}"),
         )
     })?
-    .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    .ok_or_else(|| (Status::NotFound, REPORT_NOT_FOUND.to_string()))?;
+    ensure_report_event(
+        &report.election_event_id,
+        input.election_event_id.as_deref(),
+    )?;
     let report_type =
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
@@ -486,4 +513,69 @@ pub async fn encrypt_report_route(
         .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod generate_report_scope_tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin, SUPER_ADMIN_TENANT_ID,
+    };
+
+    fn request(tenant_id: &str) -> GenerateReportBody {
+        GenerateReportBody {
+            report_id: "report".into(),
+            tenant_id: tenant_id.into(),
+            report_mode: GenerateReportMode::REAL,
+            election_event_id: Some("event".into()),
+        }
+    }
+
+    fn report_reader(tenant_id: &str) -> JwtClaims {
+        admin(tenant_id, &[Permissions::REPORT_READ.to_string()])
+    }
+
+    #[test]
+    fn generate_report_requires_access_to_the_requested_tenant() {
+        assert_eq!(
+            authorize_generate_report(
+                &report_reader("tenant-a"),
+                &request("tenant-b")
+            )
+            .unwrap_err()
+            .0,
+            Status::Unauthorized
+        );
+        assert!(authorize_generate_report(
+            &report_reader("tenant-a"),
+            &request("tenant-a")
+        )
+        .is_ok());
+        assert!(authorize_generate_report(
+            &report_reader(SUPER_ADMIN_TENANT_ID),
+            &request("tenant-b")
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn generate_report_requires_report_read() {
+        assert!(authorize_generate_report(
+            &admin("tenant-a", &[]),
+            &request("tenant-a")
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn generate_report_rejects_an_election_event_other_than_the_reports() {
+        assert_eq!(
+            ensure_report_event("event", Some("other-event"))
+                .unwrap_err()
+                .0,
+            Status::NotFound
+        );
+        assert!(ensure_report_event("event", Some("event")).is_ok());
+        assert!(ensure_report_event("event", None).is_ok());
+    }
 }

@@ -15,6 +15,7 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::election;
+use windmill::postgres::election_event::get_election_event_by_id_if_exist;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_election_event::upsert_b3_and_elog;
 
@@ -54,6 +55,17 @@ pub async fn create_election(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    get_election_event_by_id_if_exist(
+        &hasura_transaction,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?
+    .ok_or_else(|| {
+        (Status::NotFound, "Election event not found".to_string())
+    })?;
 
     let election = election::create_election(
         &hasura_transaction,
