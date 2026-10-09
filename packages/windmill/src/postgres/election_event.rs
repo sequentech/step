@@ -182,8 +182,6 @@ pub async fn get_election_event_by_id_if_exist(
     Ok((election_event))
 }
 
-/// Returns all the Election events as ElectionEventDatafix
-#[instrument(err, skip_all)]
 /// Whether an election event with this ID exists in any tenant.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn election_event_id_exists(
@@ -199,6 +197,8 @@ pub async fn election_event_id_exists(
         .is_empty())
 }
 
+/// Returns all the Election events as ElectionEventDatafix
+#[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

@@ -137,8 +137,8 @@ pub enum Command {
     Report {
         /// Completed or interrupted run directory.
         directory: PathBuf,
-        /// Environment variable containing a read-only PostgreSQL DSN of the electoral-log
-        /// database, whose ballot box holds the event's votes.
+        /// Environment variable containing a read-only PostgreSQL DSN of the event's
+        /// electoral-log database, whose ballot box holds its votes.
         #[arg(long)]
         dsn_env: Option<String>,
         /// Open the standalone report with the configured browser opener.

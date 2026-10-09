@@ -100,7 +100,7 @@ SELECT seq, id FROM ballot;
 - **Prepared once per connection.** Each connection prepares the statement the first time it accepts a vote. Parsing and planning it for every vote halved the throughput (section 9.1).
 - **Unique ballot IDs.** A ballot ID already used in the event fails the whole statement, so the voter's count does not change either.
 - **Answers:** `insert_failed_exceeds_allowed_revotes`, `check_votes_in_other_areas_failed` or `insert_failed`, and on success a cast vote with the ballot's ID.
-- **Marked first:** before the statement, Windmill marks the event in the base database's catalog as having ballot activity, at most once every 10 seconds per process (section 5).
+- **Marked first:** before the statement, Harvest, which accepts the vote, marks the event in the base database's catalog as having ballot activity, at most once every 10 seconds per process (section 5).
 - **What is durable when the voter gets the receipt:** the ballot, the voter's count and the queue entry, in the event's database, with synchronous commit. Until the sequencer appends the vote, no checkpoint covers it.
 - **Schema upgrades:** the tables are part of `schema.sql`, which the backend applies when it creates an event's database.
 

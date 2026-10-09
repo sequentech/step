@@ -128,6 +128,44 @@ pub async fn get_electoral_log_checkpoints(
         .collect()
 }
 
+/// Checkpoints published of these logs by any election event of any tenant, with the
+/// event that published each.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_checkpoints_of_logs(
+    hasura_transaction: &Transaction<'_>,
+    log_uids: &[Uuid],
+) -> Result<Vec<(Uuid, PublishedCheckpoint)>> {
+    let rows = hasura_transaction
+        .query(
+            r#"
+            SELECT election_event_id, board_name, log_uid, tree_size, root, reason,
+                signer_pk, signature
+            FROM sequent_backend.electoral_log_checkpoint
+            WHERE log_uid = ANY($1)
+            ORDER BY tree_size, created_at
+            "#,
+            &[&log_uids],
+        )
+        .await
+        .context("Error reading the checkpoints of electoral logs")?;
+    rows.into_iter()
+        .map(|row| {
+            Ok((
+                row.try_get("election_event_id")?,
+                PublishedCheckpoint {
+                    board_name: row.try_get("board_name")?,
+                    log_uid: row.try_get("log_uid")?,
+                    tree_size: row.try_get("tree_size")?,
+                    root: row.try_get("root")?,
+                    reason: row.try_get("reason")?,
+                    signer_pk: row.try_get("signer_pk")?,
+                    signature: row.try_get("signature")?,
+                },
+            ))
+        })
+        .collect()
+}
+
 /// Size of the largest checkpoint published of one of an election event's logs, if any.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_last_published_tree_size(

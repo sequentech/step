@@ -12,7 +12,10 @@
 //! everything a checkpoint commits to is in it.
 
 use super::ballot_box::canonical_uuid;
-use super::postgres::{LogScope, PostgresConnection, PostgresStore};
+use super::console::check_role_name;
+use super::postgres::{
+    LogScope, PostgresConnection, PostgresStore, BACKUP_USER_ENV, READER_USER_ENV,
+};
 use crate::{
     domain::{ElectoralLogMessage, LogEntry, LogQuery},
     ports::ElectoralLogStore,
@@ -44,6 +47,8 @@ pub const MAX_DATABASE_NAME_BYTES: usize = 63;
 const DATABASE_NAME_SEPARATOR: &str = "_";
 /// Text before the event ID at the end of an election event's board name.
 const BOARD_EVENT_MARKER: &str = "event";
+/// Text before the start of the tenant ID in an election event's board name.
+const BOARD_TENANT_MARKER: &str = "tenant";
 /// Length of an election event ID without hyphens.
 const EVENT_HEX_LEN: usize = 32;
 /// Connections idle for longer are closed.
@@ -145,6 +150,19 @@ pub fn event_of_board(board: &str) -> Result<String> {
     canonical_uuid(hex).map_err(|_| invalid())
 }
 
+/// Whether a board name names the tenant: the text between its last `tenant` and
+/// `event` is the start of the tenant ID without hyphens.
+fn board_names_tenant(board: &str, tenant_id: &str) -> bool {
+    let Some(end) = board.rfind(BOARD_EVENT_MARKER) else {
+        return false;
+    };
+    let Some(start) = board[..end].rfind(BOARD_TENANT_MARKER) else {
+        return false;
+    };
+    let prefix = &board[start + BOARD_TENANT_MARKER.len()..end];
+    !prefix.is_empty() && tenant_id.replace('-', "").starts_with(prefix)
+}
+
 /// Whether `database` is named as an election event's database of base database
 /// `base`.
 fn is_event_database_of(base: &str, database: &str) -> bool {
@@ -160,8 +178,14 @@ fn is_event_database_of(base: &str, database: &str) -> bool {
 }
 
 impl EventDatabases {
-    /// Read the `ELECTORAL_LOG_PG_*` variables.
+    /// Read the `ELECTORAL_LOG_PG_*` variables. Refuses reader and backup roles that
+    /// event databases could not be granted to, before any is created.
     pub fn from_env() -> Result<Self> {
+        for role in PostgresConnection::read_roles() {
+            check_role_name(&role).with_context(|| {
+                format!("{READER_USER_ENV} and {BACKUP_USER_ENV} must be lowercase role names")
+            })?;
+        }
         Self::new(
             PostgresConnection::from_env()?,
             positive_env(EVENT_POOL_SIZE_ENV, DEFAULT_EVENT_POOL_SIZE)?,
@@ -298,8 +322,13 @@ impl EventDatabases {
                 "REVOKE CONNECT, TEMPORARY ON DATABASE {quoted} FROM PUBLIC"
             ))
             .await?;
-        let store = self.open(&event, &database)?;
-        self.apply_schema_to(&client, &store, &database).await?;
+        // Cached only once registered, so a failed creation leaves no store behind.
+        let schema_store = self.inner.connection.store_of(&database, 1)?;
+        let applied = self
+            .apply_schema_to(&client, &schema_store, &database)
+            .await;
+        schema_store.close();
+        applied?;
         client
             .execute(
                 "INSERT INTO electoral_log_events (election_event_id, tenant_id, database_name) \
@@ -308,8 +337,8 @@ impl EventDatabases {
             )
             .await
             .with_context(|| format!("Error registering the database of election event {event}"))?;
-        Self::unlock(&client).await?;
-        Ok(store)
+        Self::release(client).await;
+        self.open(&event, &database)
     }
 
     /// A connection of its own to the base database holding the lock that makes the
@@ -331,11 +360,15 @@ impl EventDatabases {
         Ok(client)
     }
 
-    async fn unlock(client: &tokio_postgres::Client) -> Result<()> {
-        client
+    /// Release the lock of `locked_client`. Closing the connection releases it too, so
+    /// a failed unlock only logs.
+    async fn release(client: tokio_postgres::Client) {
+        if let Err(error) = client
             .execute("SELECT pg_advisory_unlock($1)", &[&CREATE_DATABASE_LOCK])
-            .await?;
-        Ok(())
+            .await
+        {
+            tracing::warn!("Error releasing the event database lock: {error}");
+        }
     }
 
     /// Apply the schema to a registered event's database again, and let the reader
@@ -388,18 +421,18 @@ impl EventDatabases {
         let event = canonical_uuid(election_event_id)?;
         let tenant = canonical_uuid(tenant_id)?;
         let client = self.locked_client().await?;
-        if let Some(entry) = self.event(&event).await? {
-            ensure!(
-                entry.tenant_id == tenant,
-                "Election event {event} is registered to tenant {}, not {tenant}",
-                entry.tenant_id
-            );
-        }
-        let database = self.database_name(&event)?;
-        if let Some((store, _)) = self.lock_open().stores.remove(&event) {
-            store.close();
-        }
-        self.lock_marked().remove(&event);
+        let database = match self.event(&event).await? {
+            Some(entry) => {
+                ensure!(
+                    entry.tenant_id == tenant,
+                    "Election event {event} is registered to tenant {}, not {tenant}",
+                    entry.tenant_id
+                );
+                entry.database_name
+            }
+            None => self.database_name(&event)?,
+        };
+        self.forget(&event);
         client
             .batch_execute(&format!(
                 "DROP DATABASE IF EXISTS {} WITH (FORCE)",
@@ -413,7 +446,18 @@ impl EventDatabases {
                 &[&event],
             )
             .await?;
-        Self::unlock(&client).await
+        // A request of this process may have opened the database again meanwhile.
+        self.forget(&event);
+        Self::release(client).await;
+        Ok(())
+    }
+
+    /// Close and drop the cached pool of an event and its ballot activity throttle.
+    fn forget(&self, event: &str) {
+        if let Some((store, _)) = self.lock_open().stores.remove(event) {
+            store.close();
+        }
+        self.lock_marked().remove(event);
     }
 
     /// The catalog entry of an election event.
@@ -668,8 +712,21 @@ impl EventDatabases {
 /// it; reads of a board that is not read nothing.
 #[async_trait]
 impl ElectoralLogStore for EventDatabases {
+    /// Refuses a board that names another tenant than its event's.
     async fn create_board(&self, board: &str) -> Result<()> {
-        self.board_store(board).await?.create_board(board).await
+        let event = event_of_board(board)?;
+        let entry = self
+            .event(&event)
+            .await?
+            .with_context(|| format!("Election event {event} has no electoral-log database"))?;
+        ensure!(
+            board_names_tenant(board, &entry.tenant_id),
+            "Board {board} does not name tenant {} of election event {event}",
+            entry.tenant_id
+        );
+        self.open(&event, &entry.database_name)?
+            .create_board(board)
+            .await
     }
 
     async fn delete_board(&self, board: &str) -> Result<()> {
@@ -717,6 +774,30 @@ mod tests {
                 .unwrap(),
             "0d1b2c3d-4e5f-4071-8293-a4b5c6d7e8f9"
         );
+    }
+
+    #[test]
+    fn boards_name_their_tenant_by_the_start_of_its_id() {
+        let board = "devtenant90505c8a23a94cdf2event0d1b2c3d4e5f40718293a4b5c6d7e8f9";
+        assert!(board_names_tenant(
+            board,
+            "90505c8a-23a9-4cdf-2b1e-0123456789ab"
+        ));
+        for tenant in [
+            "90505c8a-23a9-4cdf-3b1e-0123456789ab",
+            "10505c8a-23a9-4cdf-2b1e-0123456789ab",
+        ] {
+            assert!(!board_names_tenant(board, tenant), "{tenant}");
+        }
+        for board in [
+            "devevent0d1b2c3d4e5f40718293a4b5c6d7e8f9",
+            "devtenantevent0d1b2c3d4e5f40718293a4b5c6d7e8f9",
+        ] {
+            assert!(
+                !board_names_tenant(board, "90505c8a-23a9-4cdf-2b1e-0123456789ab"),
+                "{board}"
+            );
+        }
     }
 
     #[test]

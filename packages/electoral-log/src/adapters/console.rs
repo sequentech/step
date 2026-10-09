@@ -153,6 +153,8 @@ struct TableQuery {
 
 /// Separates the key's columns in a cursor.
 const CURSOR_SEPARATOR: char = '/';
+/// Rows a console query fetches at a time.
+const QUERY_FETCH_ROWS: i32 = 100;
 
 fn table_query(table: ConsoleTable) -> TableQuery {
     match table {
@@ -480,14 +482,7 @@ impl PostgresStore {
     /// Let `role` read every table and sequence of the database, those created later
     /// included. Run by the database's owner.
     pub async fn grant_read(&self, role: &str) -> Result<()> {
-        ensure!(
-            !role.is_empty()
-                && role
-                    .chars()
-                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-                && !role.starts_with(|c: char| c.is_ascii_digit()),
-            "Invalid PostgreSQL role name {role:?}"
-        );
+        check_role_name(role)?;
         self.client()
             .await?
             .batch_execute(&format!(
@@ -619,15 +614,29 @@ pub struct QueryResult {
     pub elapsed_ms: u64,
 }
 
+/// Refuse a role name that would need quoting: roles are granted by name.
+pub fn check_role_name(role: &str) -> Result<()> {
+    ensure!(
+        !role.is_empty()
+            && role
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            && !role.starts_with(|c: char| c.is_ascii_digit()),
+        "Invalid PostgreSQL role name {role:?}"
+    );
+    Ok(())
+}
+
 /// Run one SQL query in a read-only transaction, with a time limit, and return at
-/// most `max_rows` of its rows. Only a query that can be a subquery runs: a `SELECT`,
-/// `VALUES`, `TABLE` or `WITH` without data-modifying statements. Use a connection of
-/// its own, of a role that can only read, and close it afterwards, so that nothing the
-/// query sets outlives it.
+/// most `max_rows` of its rows, of at most `max_bytes` of JSON in all. Only a query
+/// that can be a subquery runs: a `SELECT`, `VALUES`, `TABLE` or `WITH` without
+/// data-modifying statements. Use a connection of its own, of a role that can only
+/// read, and close it afterwards, so that nothing the query sets outlives it.
 pub async fn run_read_only_query(
     client: &mut tokio_postgres::Client,
     sql: &str,
     max_rows: usize,
+    max_bytes: usize,
     timeout: Duration,
 ) -> Result<QueryResult> {
     let sql = sql
@@ -655,23 +664,42 @@ pub async fn run_read_only_query(
         !columns.is_empty(),
         "Only queries that return rows run: SELECT, VALUES, TABLE or WITH"
     );
-    let found = transaction
-        .query(
-            &format!(
-                "SELECT row_to_json(q)::text FROM ({sql}\n) q LIMIT {}",
-                max_rows + 1
-            ),
-            &[],
-        )
+    // Rows are fetched a batch at a time, each cut by the server to just over the byte
+    // limit, so a query of large rows stops once the limit is reached.
+    let limited = transaction
+        .prepare(&format!(
+            "SELECT left(row_to_json(q)::text, {}) FROM ({sql}\n) q LIMIT {}",
+            max_bytes + 1,
+            max_rows + 1
+        ))
         .await
         .map_err(|error| anyhow!(query_error(&error)))?;
+    let portal = transaction
+        .bind(&limited, &[])
+        .await
+        .map_err(|error| anyhow!(query_error(&error)))?;
+    let mut texts = Vec::new();
+    let mut bytes = 0;
+    let mut truncated = false;
+    'fetch: loop {
+        let batch = transaction
+            .query_portal(&portal, QUERY_FETCH_ROWS)
+            .await
+            .map_err(|error| anyhow!(query_error(&error)))?;
+        if batch.is_empty() {
+            break;
+        }
+        for row in &batch {
+            let text: String = row.try_get(0)?;
+            bytes += text.len();
+            if texts.len() == max_rows || bytes > max_bytes {
+                truncated = true;
+                break 'fetch;
+            }
+            texts.push(text);
+        }
+    }
     transaction.rollback().await?;
-    let truncated = found.len() > max_rows;
-    let texts = found
-        .iter()
-        .take(max_rows)
-        .map(|row| row.try_get::<_, String>(0))
-        .collect::<Result<Vec<_>, _>>()?;
     Ok(QueryResult {
         rows: Rows {
             rows: json_rows(&columns, texts)?,

@@ -11,13 +11,15 @@
 //! the new event and starts the new event's board with a record that continues the
 //! exported board.
 use crate::postgres::electoral_log_checkpoint::{
-    get_electoral_log_checkpoints, insert_electoral_log_checkpoint, PublishedCheckpoint,
+    get_checkpoints_of_logs, get_electoral_log_checkpoints, insert_electoral_log_checkpoint,
+    PublishedCheckpoint,
 };
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_store;
 use crate::types::documents::EDocuments;
 use anyhow::{anyhow, ensure, Context, Result};
 use deadpool_postgres::Transaction;
+use electoral_log::adapters::events::event_of_board;
 use electoral_log::adapters::transfer::{
     ExportManifest, ExportedLog, ExportedRecord, ImportedLog, SignedCheckpoint, EXPORT_FORMAT_V1,
 };
@@ -88,6 +90,31 @@ fn published_of(
                 && u64::try_from(row.tree_size).is_ok_and(|size| size <= log.checkpoint.tree_size)
         })
         .map(signed_checkpoint)
+        .collect()
+}
+
+/// Checkpoints that this environment published of the exported logs, each by the
+/// election event the log is the board of, which the export cannot have forged.
+/// Copies that imports recorded for other events are left out.
+async fn anchors_of(
+    hasura_transaction: &Transaction<'_>,
+    manifest: &ExportManifest,
+) -> Result<Vec<Checkpoint>> {
+    let log_uids: Vec<uuid::Uuid> = manifest
+        .logs
+        .iter()
+        .map(|log| log.checkpoint.log_uid)
+        .collect();
+    get_checkpoints_of_logs(hasura_transaction, &log_uids)
+        .await?
+        .into_iter()
+        .filter(|(election_event_id, published)| {
+            event_of_board(&published.board_name)
+                .ok()
+                .and_then(|event| uuid::Uuid::parse_str(&event).ok())
+                == Some(*election_event_id)
+        })
+        .map(|(_, published)| Ok(signed_checkpoint(&published)?.checkpoint))
         .collect()
 }
 
@@ -169,8 +196,9 @@ pub async fn import_electoral_log(
             )
         })
     });
+    let anchors = anchors_of(hasura_transaction, &manifest).await?;
     let store = get_event_store(election_event_id).await?;
-    let logs = store.import_logs(&manifest, &mut lines).await?;
+    let logs = store.import_logs(&manifest, &mut lines, &anchors).await?;
     for log in &manifest.logs {
         for signed in &log.published {
             let published = published_checkpoint(signed)?;

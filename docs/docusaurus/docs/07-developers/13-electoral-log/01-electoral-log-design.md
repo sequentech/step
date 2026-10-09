@@ -113,7 +113,7 @@ flowchart LR
 | Hasura's database, schema `sequent_backend` | `electoral_log_checkpoint`: published checkpoints | Hasura's database role |
 
 - **Why a database per event:** everything a checkpoint of an event commits to is in one database, which is backed up, restored, copied and dropped with the event. An event's queries, locks, vacuum and statistics do not touch other events' data, and a console query reads one event (section 9.6).
-- **Names:** an event's database is named after the base database and the event, so the base name has at most 30 bytes of lowercase letters, digits and underscores (PostgreSQL names have at most 63). The application role creates the database, revokes `CONNECT` from `PUBLIC`, applies the schema and lets the reader role connect and read (section 14.2).
+- **Names:** an event's database is named after the base database and the event, so the base name has at most 30 bytes of lowercase letters, digits and underscores (PostgreSQL names have at most 63). The reader and backup roles are granted by name, so Windmill and Harvest refuse names that are not lowercase letters, digits and underscores before creating any database. The application role creates the database, revokes `CONNECT` from `PUBLIC`, applies the schema and lets the reader role connect and read (section 14.2).
 - **Separate checkpoints:** keeping published checkpoints in a different database, owned by a different role, means that someone who can change only the electoral-log databases cannot rewrite history that a published checkpoint covers without the audit noticing. It does not help against the backend itself, which has credentials for both databases and the key that signs checkpoints (section 12.3).
 
 ### 5.2 Tables
@@ -206,7 +206,7 @@ Section 13 lists the queries these indexes do not cover.
 
 ### 5.5 Deleting an event
 
-Deleting an election event drops its database, with its board, the logs it continues, the records, leaves and subtrees, and its ballot box with its ballots ([ballot box](03-electoral-log-ballot-box.md), section 3.1), and removes it from the catalog. `DROP DATABASE … WITH (FORCE)` closes the connections other processes still have to it. Later deliveries to that board fail instead of silently recreating it. Published checkpoints are deleted with the event in the Hasura database.
+Deleting an election event drops its database, with its board, the logs it continues, the records, leaves and subtrees, and its ballot box with its ballots ([ballot box](03-electoral-log-ballot-box.md), section 3.1), and removes it from the catalog. `DROP DATABASE … WITH (FORCE)` closes the connections other processes still have to it. The drop runs only once the event's deletion is committed in the Hasura database, because it cannot be rolled back: if the deletion fails, the database is kept, and if the drop fails, `electoral-log-admin drop-event-database` runs it again. When creating or importing an event fails, the database created for it is dropped, also when the failure came before it was registered in the catalog. Later deliveries to that board fail instead of silently recreating it. Published checkpoints are deleted with the event in the Hasura database.
 
 ## 6. Writing: how a record is appended
 
@@ -433,7 +433,7 @@ The `id` column only keys the log's leaves and subtrees in its database. Checkpo
 
 ### 7.10 Logs written before subtrees were stored
 
-Earlier builds of this feature stored leaves but not subtrees. Those logs are marked by a nonzero size with the empty-tree root. Checkpoints, proofs and appends refuse them with a "must be rebuilt" error until `electoral-log-admin backfill-nodes` recomputes their subtrees and root from the leaves. Run without `--board`, it rebuilds every such log, accepting whatever leaves are stored.
+Earlier builds of this feature stored leaves but not subtrees. Those logs are marked by a nonzero size with the empty-tree root. Checkpoints, proofs and appends refuse them with a "must be rebuilt" error until `electoral-log-admin backfill-nodes` recomputes their subtrees and root from the leaves. Run with `--election-event-id` and without `--board`, it rebuilds every such log of the event's database, accepting whatever leaves are stored.
 
 On a log that already has a root, a rebuild repairs missing or damaged subtrees, but only when the stored root is the root of the leaves or of some prefix of them. Otherwise it refuses. This guards against repairing accidental damage into a new history. It is not a defence against tampering: someone who can write the database can set the stored root to the empty-tree root, or to the root of an unchanged prefix, and the rebuild then accepts changed leaves. A "must be rebuilt" error on a log written by the current build is therefore a warning sign; audit it against published and saved checkpoints before any rebuild (section 14.6).
 
@@ -571,12 +571,13 @@ The import stores each log under its name and identity in the new event's databa
 
 1. It refuses a log already in the database and a published checkpoint whose signature does not verify with the key it names.
 2. It appends the records in order. The record commitments do not depend on the database (section 7.2), so the leaves are those of the export.
-3. It recomputes the tree and refuses the logs unless the root at the exported size, and at the size of every published checkpoint, equals theirs. A changed, missing, repeated or reordered record therefore stores nothing.
-4. It seals the logs, so they take no more records.
+3. It refuses the export if it leaves out what the records commit to: every `ElectoralLogCheckpointV2` record of a log about itself must be among the log's published checkpoints, with the same root, and every log after the first must hold an `ElectoralLogContinuation` record committing to the name, identity, size and root of the log before it.
+4. It recomputes the tree and refuses the logs unless the root at the exported size, at the size of every published checkpoint, and at the size of every checkpoint this environment published of the log itself (its *anchors*: rows of `electoral_log_checkpoint` of the event the log is the board of, up to the exported size) equals theirs. A changed, missing, repeated or reordered record therefore stores nothing.
+5. It seals the logs, so they take no more records.
 
 The import then stores the published checkpoints for the new event, with the source event's signatures, and starts the new event's board with an `ElectoralLogContinuation` record that commits to the name, identity, size and root of the board it continues, as exported. A proof of an imported record verifies against a checkpoint published or saved before the export, and the new event's checkpoints cover the continuation. Exporting the new event carries its board and every log it continues, so a chain of imports keeps the whole history.
 
-- **What it does not prove:** the source checkpoints' signatures are checked against the keys they name, not against a key the importer trusts, which only the source environment or a copy kept by an auditor can provide (section 8.4). Records exported after the board's last published checkpoint are covered by the exported root alone, which the import recomputes but no source signature vouches for.
+- **What it does not prove:** the source checkpoints' signatures are checked against the keys they name, not against a key the importer trusts, which only the source environment or a copy kept by an auditor can provide (section 8.4). An export from another environment can therefore be rewritten consistently, records, roots, checkpoints and signatures together, and only the anchors of an import in the source environment, or checkpoints held outside it, show it. Records exported after the board's last published checkpoint are covered by the exported root alone, which the import recomputes but no source signature vouches for.
 - **Older exports** without the logs' files are imported from the activity-log CSV: the rows get new record IDs, delivery IDs and leaves in the new event's board, so the source event's checkpoints and proofs do not apply to them. The signed message bytes and the `created` value are taken from the CSV as given.
 
 ### 9.4 Proof API
@@ -643,7 +644,6 @@ electoral-log-admin create-board --board BOARD
 electoral-log-admin delete-board --board BOARD
 electoral-log-admin audit --board BOARD [--checkpoint saved-checkpoint.json]
 electoral-log-admin backfill-nodes --election-event-id EVENT [--board BOARD]
-electoral-log-admin move-to-event-databases --tenant-id TENANT [--tenant-id …] [--source-database DB]
 ```
 
 Run them from `packages/` with `cargo run -p electoral-log --bin electoral-log-admin -- <command>`.
@@ -657,7 +657,7 @@ The admin portal's **Electoral Log** page (`/electoral-log-console`) lets admini
 | `electoral_log_console_page` (`POST /electoral-log-console/page`) | `electoral-log-console-read` | A page of a table |
 | `electoral_log_console_record` (`POST /electoral-log-console/record`) | `electoral-log-console-read` | One record with its message decoded |
 | `electoral_log_console_tenants` (`POST /electoral-log-console/tenants`) | `electoral-log-console-read`, in the super-admin tenant | Every tenant with its election events and their elections |
-| `electoral_log_console_query` (`POST /electoral-log-console/query`) | `electoral-log-console-query` and `electoral-log-personal-data-read`, in the super-admin tenant | Up to 1,000 rows of a read-only query on the database of the `election_event_id` of `tenant_id`, or the server's error |
+| `electoral_log_console_query` (`POST /electoral-log-console/query`) | `electoral-log-console-query` and `electoral-log-personal-data-read`, in the super-admin tenant | Up to 1,000 rows, and 10 MiB, of a read-only query on the database of the `election_event_id` of `tenant_id`, or the server's error |
 
 - **Tenants:** pages and records read the user's own tenant unless the request names another with `tenant_id`, which only users of the super-admin tenant (`SUPER_ADMIN_TENANT_ID`) may do. Harvest checks that the election event belongs to that tenant. The super-admin tenant cannot list other tenants' events through Hasura, so the portal reads them from `electoral_log_console_tenants`.
 
@@ -669,7 +669,7 @@ The admin portal's **Electoral Log** page (`/electoral-log-console`) lets admini
 - **Personal data:** usernames and voters' IP addresses and countries. Without `electoral-log-personal-data-read`, pages show `hidden` in the `username`, `voter_ip` and `voter_country` columns, and records show `hidden` for every `username` and for the cast votes' `ip: …` and `country: …` values.
 - **Queries** read one election event's database, chosen with its tenant on the Query tab, so a query cannot join several events. Only users of the super-admin tenant run them; Harvest checks that the event belongs to the tenant. Without the reader role, the console answers that queries are not available.
   - Harvest connects to the event's database as `ELECTORAL_LOG_PG_READER_USER`, a role with `CONNECT` and `SELECT` on each event's database and nothing else, on a connection of its own that closes after the query. The query runs in a `READ ONLY` transaction with a 30-second `statement_timeout`, which Harvest rolls back.
-  - Harvest wraps the query as `SELECT row_to_json(q)::text FROM (…) q LIMIT 1001`, so only a statement that can be a subquery runs: `SELECT`, `VALUES`, `TABLE`, or `WITH` without data-modifying statements. It accepts up to 20,000 characters and returns at most 1,000 rows, saying when there were more.
+  - Harvest wraps the query as `SELECT left(row_to_json(q)::text, …) FROM (…) q LIMIT 1001`, so only a statement that can be a subquery runs: `SELECT`, `VALUES`, `TABLE`, or `WITH` without data-modifying statements. It accepts up to 20,000 characters and fetches the rows through a cursor, 100 at a time, up to 1,000 rows or 10 MiB of JSON, saying when there were more.
   - A query reads personal data as stored, which is why it also needs `electoral-log-personal-data-read`.
   - Harvest logs each query with the user, their tenant and the queried tenant and event at INFO level. Queries are not recorded in the electoral log.
 - **Export:** the portal writes CSV in the browser: the current page of a table, or all the rows a query returned.
@@ -845,6 +845,7 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 | `ELECTORAL_LOG_PG_OPEN_EVENTS` | Event databases a process keeps pools of; 16 when unset. Opening another drops the pool used least recently |
 | `ELECTORAL_LOG_PG_READER_USER` | The role of console queries (section 9.6). Windmill and Harvest let it connect to and read each event database they create, and Harvest connects as it. Unset, queries are not available |
 | `ELECTORAL_LOG_PG_READER_PASSWORD` | Harvest only: the reader role's password |
+| `ELECTORAL_LOG_PG_BACKUP_USER` | Optional role of the backups (section 14.3). Windmill and Harvest let it connect to and read each event database they create |
 | `ELECTORAL_LOG_PG_SSLMODE` | `disable`, `require` (default) or `verify-full` |
 | `ELECTORAL_LOG_PG_SSLROOTCERT` | Optional CA file for `verify-full` |
 | `ELECTORAL_LOG_BATCH_SIZE` | Maximum events per dispatcher batch; 1,000 when unset or empty |
@@ -871,15 +872,11 @@ A load test filled one board to 20 million records on a PostgreSQL server with 1
 - **A database per election event:** Windmill or Harvest creates an event's database with its board, when the event is created or imported (section 5.1), so the application role needs `CREATEDB`. Creations and drops take turns on a session advisory lock in the base database, held by a connection of their own, waiting at most two minutes for it. Creating an event that is already registered to the tenant returns its database without running DDL on it. The base database holds only the catalog.
 - **Development (Compose):** on an empty data directory, the `postgres` service creates the role with `CREATEDB`, the base database with its catalog and the console's reader role `electoral_log_reader` (read-only by default, with a 30-second statement timeout), with `.devcontainer/postgresql/init-electoral-log.sh`. On an existing volume, refresh the service's environment and mounts, then run `docker exec postgres sh /docker-entrypoint-initdb.d/20-electoral-log.sh`. The script creates what is missing and does not rotate an existing password.
 - **Cloud:** companion changes in the `gitops` repository create the password, the role with `CREATEDB`, the base database, the reader role, and backups of every event database. Apply its `client-secrets` module before `client-postgres-init`, then create the catalog as the database owner (`electoral-log-admin init`). The new-environment templates in the `beyond` repository provide the endpoint, database, role, pool settings and the `electoral-log-db-credentials` ExternalSecret mapping, and the reader role to Windmill and Harvest.
-- **Schema upgrades:** `init` is idempotent, and the backend applies an event database's schema when it creates it. After deploying a build that changes the schema, run `upgrade-event-databases` to apply it to every existing event's database, or to one with `--election-event-id`. After upgrading a database written by an earlier build, run `backfill-nodes` before starting producers (section 7.10).
-- **From one database to a database per event:** `electoral-log-admin move-to-event-databases --tenant-id …`, with every tenant's ID, moves each event's boards and ballot box out of the base database, or `--source-database`, into a database of its own. It appends each board's records in log order, so they are committed again under a new log identity: checkpoints published before the move do not verify, and the Hasura migration that adds `log_uid` deletes them. An event is removed from the source only once its copy has every record and ballot and audits clean, and a move that stops can be run again. It reports the events it left, such as boards of a tenant not listed.
-  - Run it with Windmill and Harvest stopped: a record appended or a ballot accepted in the source while its event moves is deleted with the source's copy.
-  - An election event's database is refused as the source.
-  - A moved event with a ballot box is marked for ballot activity, so its queued and pending ballots are found ([ballot box](03-electoral-log-ballot-box.md)).
+- **Schema upgrades:** `init` is idempotent, and the backend applies an event database's schema when it creates it. After deploying a build that changes the schema, run `upgrade-event-databases` to apply it to every existing event's database, or to one with `--election-event-id`. It goes on past an event that fails, and reports how many it upgraded and which failed. After upgrading a database written by an earlier build, run `backfill-nodes` before starting producers (section 7.10).
 
 ### 14.3 Backups
 
-Back up every event database, and the base database with its catalog; a backup must take each event's `trellis_logs`, `trellis_leaves` and `trellis_nodes` together with its records, or it fails the right-edge check or the audit. Event databases are created while the system runs, so the backup job must list them rather than name them: `electoral-log-admin list-event-databases`, or the databases named `<base>_` followed by 32 hexadecimal digits. Published checkpoints live in the Hasura database's backups. Restoring an older backup of the log makes it diverge from newer published checkpoints. That is expected; it is exactly what checkpoints detect.
+Back up every event database, and the base database with its catalog, as the owner or as the role of `ELECTORAL_LOG_PG_BACKUP_USER`, because event databases revoke `CONNECT` from `PUBLIC`; a backup must take each event's `trellis_logs`, `trellis_leaves` and `trellis_nodes` together with its records, or it fails the right-edge check or the audit. Event databases are created while the system runs, so the backup job must list them rather than name them: `electoral-log-admin list-event-databases`, or the databases named `<base>_` followed by 32 hexadecimal digits. Published checkpoints live in the Hasura database's backups. Restoring an older backup of the log makes it diverge from newer published checkpoints. That is expected; it is exactly what checkpoints detect.
 
 ### 14.4 Rollout from ImmuDB
 
@@ -946,7 +943,7 @@ A board whose stored tree fails the right-edge check refuses every append (secti
 | Tree arithmetic: every root, inclusion proof and consistency proof compared byte for byte with `ct-merkle` | `packages/trellis` | `cargo test -p trellis --lib` |
 | Record encoding golden vector, checkpoint signing, audit findings and annotations | `packages/electoral-log` unit tests | `cargo test -p electoral-log` |
 | PostgreSQL contract tests | `packages/electoral-log/tests/postgres.rs` and the plan test in `src/adapters/postgres.rs` | `ELECTORAL_LOG_TEST_DATABASE_URL=… cargo test -p electoral-log --lib --test postgres -- --ignored --test-threads=1` |
-| Event databases: creation, routing, tenant isolation, ballot activity marks, exports and imports with their roots, refused tampering, moving events out of a shared database | `packages/electoral-log/tests/events.rs` | `ELECTORAL_LOG_PG_*=… cargo test -p electoral-log --test events -- --ignored --test-threads=1`, with a role that may create databases |
+| Event databases: creation, routing, tenant isolation, ballot activity marks, exports and imports with their roots, refused tampering | `packages/electoral-log/tests/events.rs` | `ELECTORAL_LOG_PG_*=… cargo test -p electoral-log --test events -- --ignored --test-threads=1`, with a role that may create databases |
 | Windmill wiring: records written through Windmill pass an audit | Windmill `postgres_wiring_tests` | `cargo test -p windmill postgres_wiring_tests --lib -- --ignored --test-threads=1` |
 | Queued events: batch limits, delivery IDs, which events are set aside, one lookup per election event, the dead-letter message format | Windmill unit tests in `tasks::electoral_log` and `services::electoral_log_dead_letter` | `cargo test -p windmill --lib -- tasks::electoral_log electoral_log_dead_letter` |
 | Load and query plans at scale | `packages/electoral-log/examples/load_test.rs` | See the [load test page](02-electoral-log-load-test.md) |
@@ -999,7 +996,7 @@ Performance and operation:
 - Windmill shares each event's pool, without a wait timeout, between appends and audits.
 - Every process keeps up to `ELECTORAL_LOG_PG_EVENT_POOL_SIZE` × `ELECTORAL_LOG_PG_OPEN_EVENTS` connections to event databases; many processes need `max_connections` or a pooler sized for them.
 - A console query reads one election event's database: it cannot compare events.
-- An import's checkpoints are signed by the source event's key, which the importing environment cannot vouch for (section 9.3).
+- An import's checkpoints are signed by the source event's key, which the importing environment cannot vouch for, unless it published them itself (section 9.3).
 - An import that fails drops the database it created for the new event; if dropping fails too, the database stays until `drop-event-database` removes it.
 - A long audit holds a snapshot that slows concurrent appends.
 - An automatic recount that starts while an audit runs can drop the audit's summary line from the latest tally execution; the result remains on the audit task.
@@ -1007,7 +1004,6 @@ Performance and operation:
 
 - Console queries are recorded in Harvest's logs, not in the electoral log, and the console's CSV export covers one page of a table at a time.
 - Event databases created before `ELECTORAL_LOG_PG_READER_USER` was set let the reader role read them after `electoral-log-admin upgrade-event-databases` runs with it set.
-- Installations that ran the removed `per-tenant` layout move those databases' events with `move-to-event-databases --source-database`, one tenant database at a time.
 
 ## 18. Code map
 

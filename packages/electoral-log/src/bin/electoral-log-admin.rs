@@ -5,7 +5,6 @@ use clap::{Parser, ValueEnum};
 use electoral_log::{
     adapters::{
         events::{event_of_board, EventDatabases},
-        migration::move_to_event_databases,
         postgres::LogScope,
     },
     ports::ElectoralLogStore,
@@ -25,13 +24,8 @@ struct Cli {
     /// continues, whose names are those of the source event's boards.
     #[arg(long)]
     election_event_id: Option<String>,
-    /// A tenant ID; `move-to-event-databases` takes every tenant's.
-    #[arg(long = "tenant-id")]
-    tenant_ids: Vec<String>,
-    /// Database `move-to-event-databases` moves events out of; by default the base
-    /// database, `ELECTORAL_LOG_PG_DATABASE`.
     #[arg(long)]
-    source_database: Option<String>,
+    tenant_id: Option<String>,
     #[arg(long)]
     record_id: Option<i64>,
     #[arg(long)]
@@ -55,9 +49,6 @@ enum Action {
     ListEventDatabases,
     /// List the logs of an election event's database.
     Logs,
-    /// Move the events of a database that holds several, as the single electoral-log
-    /// database did, into databases of their own (`--tenant-id` for every tenant).
-    MoveToEventDatabases,
     CreateBoard,
     DeleteBoard,
     Checkpoint,
@@ -104,25 +95,13 @@ async fn main() -> Result<()> {
         (None, None) => None,
     };
     let event_required = || event.clone().context("--election-event-id is required");
-    let tenant_required = || args.tenant_ids.first().context("--tenant-id is required");
+    let tenant_required = || args.tenant_id.as_deref().context("--tenant-id is required");
     match args.action {
         Action::Init => return databases.initialize().await,
         Action::CreateEventDatabase => {
             databases
                 .create_event(tenant_required()?, &event_required()?)
                 .await?;
-            return Ok(());
-        }
-        Action::MoveToEventDatabases => {
-            anyhow::ensure!(!args.tenant_ids.is_empty(), "--tenant-id is required");
-            let connection = databases.connection();
-            let source = args
-                .source_database
-                .as_deref()
-                .unwrap_or(connection.database());
-            let report = move_to_event_databases(&databases, source, &args.tenant_ids).await?;
-            output(&report)?;
-            anyhow::ensure!(report.skipped.is_empty(), "Some events were not moved");
             return Ok(());
         }
         Action::DropEventDatabase => {
@@ -140,10 +119,18 @@ async fn main() -> Result<()> {
                     .map(|entry| entry.election_event_id)
                     .collect(),
             };
+            let mut failed = Vec::new();
             for event in &events {
-                databases.apply_schema(event).await?;
+                if let Err(error) = databases.apply_schema(event).await {
+                    eprintln!("Error upgrading the database of election event {event}: {error:#}");
+                    failed.push(event.clone());
+                }
             }
-            return output(&events);
+            output(
+                &serde_json::json!({ "upgraded": events.len() - failed.len(), "failed": failed }),
+            )?;
+            anyhow::ensure!(failed.is_empty(), "Some event databases were not upgraded");
+            return Ok(());
         }
         Action::ListEventDatabases => {
             let events: Vec<_> = databases

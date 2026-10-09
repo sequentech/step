@@ -35,6 +35,8 @@ const DEFAULT_PAGE_ROWS: i64 = 25;
 const QUERY_MAX_ROWS: usize = 1_000;
 /// How long a query may run. The Hasura action waits a little longer.
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30);
+/// Most bytes of JSON rows a query returns.
+const QUERY_MAX_BYTES: usize = 10 * 1024 * 1024;
 /// The longest query accepted, in characters.
 const QUERY_MAX_CHARACTERS: usize = 20_000;
 
@@ -194,6 +196,9 @@ async fn event_board(
             ErrorCode::UuidParseFailed,
         ));
     }
+    if parse_uuid_v4(tenant_id).is_err() {
+        return Err(bad_request("Invalid tenant ID"));
+    }
     let mut client = get_hasura_pool()
         .await
         .get()
@@ -224,6 +229,14 @@ async fn event_board(
     })
 }
 
+fn no_electoral_log() -> JsonError {
+    ErrorResponse::new(
+        Status::NotFound,
+        "Election event has no electoral log",
+        ErrorCode::ElectoralLogNotFound,
+    )
+}
+
 /// The electoral-log database of an election event.
 async fn event_store(
     election_event_id: &str,
@@ -234,11 +247,7 @@ async fn event_store(
         .await
         .map_err(internal_error)?
     {
-        return Err(ErrorResponse::new(
-            Status::NotFound,
-            "Election event has no electoral log",
-            ErrorCode::ElectoralLogNotFound,
-        ));
+        return Err(no_electoral_log());
     }
     databases
         .store(election_event_id)
@@ -525,6 +534,13 @@ pub async fn electoral_log_console_query(
         "Electoral-log console query"
     );
     let databases = get_event_databases().await.map_err(internal_error)?;
+    if !databases
+        .has_event(&input.election_event_id)
+        .await
+        .map_err(internal_error)?
+    {
+        return Err(no_electoral_log());
+    }
     let mut client =
         match databases.reader_client(&input.election_event_id).await {
             Ok(client) => client,
@@ -542,6 +558,7 @@ pub async fn electoral_log_console_query(
         &mut client,
         &sql,
         QUERY_MAX_ROWS,
+        QUERY_MAX_BYTES,
         QUERY_TIMEOUT,
     )
     .await
@@ -611,8 +628,13 @@ mod tests {
     }
 
     const OWN_TENANT: &str = "6f1c3a6e-2a61-4d6b-9a52-3f0f8a3c2b10";
+    const SUPER_ADMIN_TENANT: &str = "90505c8a-23a9-4cdf-a2b1-0123456789ab";
 
     fn admin(roles: &[&str]) -> JwtClaims {
+        admin_of(OWN_TENANT, roles)
+    }
+
+    fn admin_of(tenant: &str, roles: &[&str]) -> JwtClaims {
         serde_json::from_value(serde_json::json!({
             "exp": 1, "iat": 0, "jti": "test", "iss": "test",
             "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
@@ -620,7 +642,7 @@ mod tests {
             "email_verified": true,
             "https://hasura.io/jwt/claims": {
                 "x-hasura-default-role": "admin-user",
-                "x-hasura-tenant-id": OWN_TENANT,
+                "x-hasura-tenant-id": tenant,
                 "x-hasura-user-id": "admin",
                 "x-hasura-allowed-roles": roles,
             }
@@ -655,6 +677,51 @@ mod tests {
             authorize_tenant(&reader, OWN_TENANT, vec![read.clone()]).is_ok()
         );
         assert!(authorize_tenant(&admin(&[]), OWN_TENANT, vec![read]).is_err());
+    }
+
+    #[test]
+    fn only_users_of_the_super_admin_tenant_read_and_query_other_tenants() {
+        std::env::set_var("SUPER_ADMIN_TENANT_ID", SUPER_ADMIN_TENANT);
+        let other = Uuid::new_v4().to_string();
+        let read = Permissions::ELECTORAL_LOG_CONSOLE_READ;
+        let reader = read.to_string();
+        assert!(authorize_tenant(
+            &admin(&[&reader]),
+            &other,
+            vec![read.clone()]
+        )
+        .is_err());
+        assert!(authorize_tenant(
+            &admin_of(SUPER_ADMIN_TENANT, &[&reader]),
+            &other,
+            vec![read.clone()]
+        )
+        .is_ok());
+        assert!(authorize_tenant(
+            &admin_of(SUPER_ADMIN_TENANT, &[]),
+            &other,
+            vec![read]
+        )
+        .is_err());
+
+        let query = vec![
+            Permissions::ELECTORAL_LOG_CONSOLE_QUERY,
+            Permissions::ELECTORAL_LOG_PERSONAL_DATA_READ,
+        ];
+        let names: Vec<String> =
+            query.iter().map(ToString::to_string).collect();
+        let roles: Vec<&str> = names.iter().map(String::as_str).collect();
+        assert!(authorize_super_admin(&admin(&roles), query.clone()).is_err());
+        assert!(authorize_super_admin(
+            &admin_of(SUPER_ADMIN_TENANT, &roles),
+            query.clone()
+        )
+        .is_ok());
+        assert!(authorize_super_admin(
+            &admin_of(SUPER_ADMIN_TENANT, &roles[..1]),
+            query
+        )
+        .is_err());
     }
 
     #[test]

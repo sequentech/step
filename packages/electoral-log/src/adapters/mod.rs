@@ -6,6 +6,5 @@ pub mod ballot_box_reads;
 pub mod ballot_box_status;
 pub mod console;
 pub mod events;
-pub mod migration;
 pub mod postgres;
 pub mod transfer;

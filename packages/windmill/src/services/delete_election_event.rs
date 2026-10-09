@@ -4,6 +4,8 @@
 use super::jwks::remove_realm_jwks;
 use super::protocol_manager::{get_b3_pgsql_client, get_election_board};
 use crate::postgres::election::get_elections;
+use crate::postgres::election_event::election_event_id_exists;
+use crate::services::database::get_hasura_pool;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_event_databases;
 use anyhow::{anyhow, Context, Result};
@@ -93,6 +95,41 @@ pub async fn delete_election_event_electoral_log(
         .await?
         .drop_event(tenant_id, election_event_id)
         .await
+}
+
+/// After creating or importing an election event failed, drop the electoral-log
+/// database created for it, which the rolled-back Hasura transaction no longer has,
+/// also when the failure came before the database was registered. The database is
+/// kept when an election event with that ID exists in any tenant, or when it is
+/// registered to another tenant. Failures are logged.
+pub async fn drop_uncommitted_event_database(tenant_id: &str, election_event_id: &str) {
+    let dropped: Result<bool> = async {
+        let mut client = get_hasura_pool().await.get().await?;
+        let transaction = client.build_transaction().read_only(true).start().await?;
+        let exists = election_event_id_exists(&transaction, election_event_id).await?;
+        transaction.commit().await?;
+        if exists {
+            return Ok(false);
+        }
+        let databases = get_event_databases().await?;
+        if let Some(entry) = databases.event(election_event_id).await? {
+            if uuid::Uuid::parse_str(&entry.tenant_id)? != uuid::Uuid::parse_str(tenant_id)? {
+                return Ok(false);
+            }
+        }
+        databases.drop_event(tenant_id, election_event_id).await?;
+        Ok(true)
+    }
+    .await;
+    match dropped {
+        Ok(true) => info!(
+            "Dropped the electoral-log database, if any, of the uncreated election event {election_event_id}"
+        ),
+        Ok(false) => {}
+        Err(error) => tracing::error!(
+            "Could not drop the electoral-log database of the uncreated election event {election_event_id}: {error:?}"
+        ),
+    }
 }
 
 #[instrument(err)]

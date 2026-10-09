@@ -21,7 +21,7 @@ use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -1284,7 +1284,13 @@ pub async fn process_document(
         electoral_log_entry(EDocuments::ELECTORAL_LOG_MANIFEST),
         electoral_log_entry(EDocuments::ELECTORAL_LOG_RECORDS),
     );
-    let imports_electoral_log = matches!(electoral_log_files, (Some(_), Some(_)));
+    let imports_electoral_log = match electoral_log_files {
+        (Some(_), Some(_)) => true,
+        (None, None) => false,
+        // Only together do they replace the activity logs, so one alone is incomplete.
+        (Some(_), None) => bail!("The export has the electoral-log manifest but not its records"),
+        (None, Some(_)) => bail!("The export has the electoral-log records but not their manifest"),
+    };
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {

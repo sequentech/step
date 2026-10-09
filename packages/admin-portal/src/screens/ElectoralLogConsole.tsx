@@ -330,8 +330,24 @@ const TablesTab: React.FC<{superAdmin: boolean}> = ({superAdmin}) => {
         setPosition(FIRST_PAGE)
     }
 
+    // An event and its filters belong to one tenant: start over when the tenant changes,
+    // here or in the tenant switcher, before any request pairs it with the old event.
+    const [eventsTenant, setEventsTenant] = useState(tenantId)
+    if (eventsTenant !== tenantId) {
+        setEventsTenant(tenantId)
+        setEventId("")
+        setDraft({})
+        setFilters({})
+        setInvalid([])
+        setRecordPosition(null)
+        restart()
+    }
+
     useEffect(() => {
         if (!eventId) {
+            setPage(null)
+            setError(null)
+            setLoading(false)
             return
         }
         let cancelled = false
@@ -460,13 +476,7 @@ const TablesTab: React.FC<{superAdmin: boolean}> = ({superAdmin}) => {
                             labelId="electoral-log-tenant"
                             label={t("electoralLogConsole.tenant")}
                             value={tenants.some((tenant) => tenant.id === tenantId) ? tenantId : ""}
-                            onChange={(e) => {
-                                setChosenTenant(e.target.value)
-                                setEventId("")
-                                setDraft({})
-                                setFilters({})
-                                restart()
-                            }}
+                            onChange={(e) => setChosenTenant(e.target.value)}
                         >
                             {tenants.map((tenant) => (
                                 <MenuItem key={tenant.id} value={tenant.id}>
@@ -634,6 +644,14 @@ const QueryTab: React.FC = () => {
     const events = tenantEvents(tenants, tenantId)
     const ready = !!tenantId && !!eventId && !!sql.trim()
 
+    // Results belong to the event that produced them.
+    const chooseEvent = (tenant: string, event: string) => {
+        setTenantId(tenant)
+        setEventId(event)
+        setResult(null)
+        setError(null)
+    }
+
     const run = async () => {
         if (running || !ready) {
             return
@@ -685,10 +703,8 @@ const QueryTab: React.FC = () => {
                         labelId="electoral-log-query-tenant"
                         label={t("electoralLogConsole.tenant")}
                         value={tenants.some((tenant) => tenant.id === tenantId) ? tenantId : ""}
-                        onChange={(e) => {
-                            setTenantId(e.target.value)
-                            setEventId("")
-                        }}
+                        disabled={running}
+                        onChange={(e) => chooseEvent(e.target.value, "")}
                     >
                         {tenants.map((tenant) => (
                             <MenuItem key={tenant.id} value={tenant.id}>
@@ -705,7 +721,8 @@ const QueryTab: React.FC = () => {
                         labelId="electoral-log-query-event"
                         label={t("electoralLogConsole.electionEvent")}
                         value={events.some((event) => event.id === eventId) ? eventId : ""}
-                        onChange={(e) => setEventId(e.target.value)}
+                        disabled={running}
+                        onChange={(e) => chooseEvent(tenantId, e.target.value)}
                     >
                         {events.map((event) => (
                             <MenuItem key={event.id} value={event.id}>

@@ -11,12 +11,17 @@
 use super::postgres::{insert_records, PostgresStore, COLUMNS};
 use crate::{
     domain::{ElectoralLogMessage, LogEntry},
-    messages::newtypes::ElectoralLogCheckpointReason,
+    messages::{
+        message::Message,
+        newtypes::{ElectoralLogCheckpointReason, ElectoralLogContinuation},
+        statement::{StatementBody, StatementType},
+    },
     proofs::{verify_checkpoint_signature, Checkpoint, LogIdentity, LogState, LogSummary, Uuid},
 };
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
+use strand::serialization::StrandDeserialize;
 use tokio_postgres::IsolationLevel;
 use trellis::journal::{audit_tree, create_log, seal, INSERT_CHUNK};
 
@@ -150,12 +155,65 @@ impl ExportManifest {
     }
 }
 
+/// What a log's records commit to about logs: the checkpoints of itself it recorded
+/// and the logs it continues.
+#[derive(Default)]
+struct RecordedCommitments {
+    /// Size and hex root of each checkpoint of the log recorded in it.
+    checkpoints: Vec<(u64, String)>,
+    continuations: Vec<ElectoralLogContinuation>,
+}
+
+impl RecordedCommitments {
+    /// Read the commitments of a record of `log`, if it is a checkpoint or a
+    /// continuation.
+    fn read(&mut self, log: &LogIdentity, entry: &LogEntry) -> Result<()> {
+        let kind = &entry.message.statement_kind;
+        if *kind != StatementType::ElectoralLogCheckpoint.to_string()
+            && *kind != StatementType::ElectoralLogContinuation.to_string()
+        {
+            return Ok(());
+        }
+        let message = Message::strand_deserialize(&entry.message.message).map_err(|error| {
+            anyhow!(
+                "A {kind} record of log {} cannot be decoded: {error:?}",
+                log.name
+            )
+        })?;
+        match message.statement.body {
+            StatementBody::ElectoralLogCheckpointV2(checkpoint)
+                if Uuid::parse_str(&checkpoint.log_uid).ok() == Some(log.uid) =>
+            {
+                self.checkpoints
+                    .push((checkpoint.tree_size, checkpoint.root));
+            }
+            StatementBody::ElectoralLogContinuation(continuation) => {
+                self.continuations.push(continuation);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// Whether the log continues the log whose last checkpoint is `previous`.
+    fn continues(&self, previous: &Checkpoint) -> bool {
+        self.continuations.iter().any(|continuation| {
+            continuation.previous_log_name == previous.log_name
+                && Uuid::parse_str(&continuation.previous_log_uid).ok() == Some(previous.log_uid)
+                && continuation.tree_size == previous.tree_size
+                && continuation.root == hex::encode(&previous.root)
+        })
+    }
+}
+
 /// An imported log and its root, as stored.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ImportedLog {
     pub checkpoint: Checkpoint,
     /// Exported checkpoints the import checked its roots against.
     pub verified_checkpoints: usize,
+    /// Checkpoints of the importing environment the import checked its roots against.
+    pub anchored_checkpoints: usize,
 }
 
 impl PostgresStore {
@@ -241,10 +299,18 @@ impl PostgresStore {
     /// roots at the sizes of its published checkpoints must equal theirs, whose
     /// signatures must verify; otherwise nothing is stored. A log that already exists
     /// in the database is refused.
+    ///
+    /// The export cannot leave out checkpoints its records name: every checkpoint a log
+    /// records of itself must be among its published checkpoints, and every log after
+    /// the first must record that it continues the log before it. `anchors` are
+    /// checkpoints of the exported logs that the importing environment published
+    /// itself; the log's roots at their sizes, up to its exported size, must equal
+    /// theirs.
     pub async fn import_logs(
         &self,
         manifest: &ExportManifest,
         records: &mut (dyn Iterator<Item = Result<ExportedRecord>> + Send),
+        anchors: &[Checkpoint],
     ) -> Result<Vec<ImportedLog>> {
         ensure!(
             manifest.format == EXPORT_FORMAT_V1,
@@ -255,8 +321,16 @@ impl PostgresStore {
         let tx = client.transaction().await?;
         let mut records = records.peekable();
         let mut imported = Vec::with_capacity(manifest.logs.len());
+        let mut previous: Option<&Checkpoint> = None;
         for exported in &manifest.logs {
             let log = LogIdentity::of(&exported.checkpoint);
+            let anchors: Vec<&Checkpoint> = anchors
+                .iter()
+                .filter(|anchor| {
+                    LogIdentity::of(anchor) == log
+                        && anchor.tree_size <= exported.checkpoint.tree_size
+                })
+                .collect();
             for published in &exported.published {
                 ensure!(
                     LogIdentity::of(&published.checkpoint) == log,
@@ -291,6 +365,7 @@ impl PostgresStore {
             )
             .await?;
             let mut pending = Vec::with_capacity(INSERT_CHUNK);
+            let mut recorded = RecordedCommitments::default();
             let mut count = 0_u64;
             while let Some(record) = records.next_if(|record| match record {
                 Ok(record) => record.log_name == log.name,
@@ -302,7 +377,9 @@ impl PostgresStore {
                     "A record of log {} names another log identity",
                     log.name
                 );
-                pending.push(record.entry()?);
+                let entry = record.entry()?;
+                recorded.read(&log, &entry)?;
+                pending.push(entry);
                 count += 1;
                 if pending.len() >= INSERT_CHUNK {
                     insert_records(&tx, &log, &mut pending).await?;
@@ -310,10 +387,31 @@ impl PostgresStore {
             }
             insert_records(&tx, &log, &mut pending).await?;
             let tx_ref: &tokio_postgres::Transaction<'_> = &tx;
+            for (size, root) in &recorded.checkpoints {
+                ensure!(
+                    exported.published.iter().any(|published| {
+                        published.checkpoint.tree_size == *size
+                            && hex::encode(&published.checkpoint.root) == *root
+                    }),
+                    "Log {} records a checkpoint at size {size} that the export does not \
+                     carry",
+                    log.name
+                );
+            }
+            if let Some(previous) = previous {
+                ensure!(
+                    recorded.continues(previous),
+                    "Log {} does not record that it continues log {} at size {}",
+                    log.name,
+                    previous.log_name,
+                    previous.tree_size
+                );
+            }
             let sizes: Vec<u64> = exported
                 .published
                 .iter()
                 .map(|published| published.checkpoint.tree_size)
+                .chain(anchors.iter().map(|anchor| anchor.tree_size))
                 .chain([exported.checkpoint.tree_size])
                 .collect();
             let tree = audit_tree(tx_ref, &log.name, &sizes).await?;
@@ -335,6 +433,7 @@ impl PostgresStore {
                 .published
                 .iter()
                 .map(|published| &published.checkpoint)
+                .chain(anchors.iter().copied())
                 .chain([&exported.checkpoint])
             {
                 match tree.roots.get(&checkpoint.tree_size) {
@@ -357,7 +456,9 @@ impl PostgresStore {
             imported.push(ImportedLog {
                 checkpoint,
                 verified_checkpoints: exported.published.len(),
+                anchored_checkpoints: anchors.len(),
             });
+            previous = Some(&exported.checkpoint);
         }
         if let Some(record) = records.next() {
             let record = record?;

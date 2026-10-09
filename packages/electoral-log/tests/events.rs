@@ -6,13 +6,17 @@
 use anyhow::Result;
 use electoral_log::{
     adapters::{
-        ballot_box::{AcceptBallot, AcceptOutcome, BallotStatus},
         events::{ActivityMark, EventDatabases},
-        migration::move_to_event_databases,
         postgres::{LogScope, PostgresStore},
         transfer::{ExportManifest, ExportedRecord, SignedCheckpoint, EXPORT_FORMAT_V1},
     },
-    messages::newtypes::ElectoralLogCheckpointReason,
+    messages::{
+        message::{Message, SigningData},
+        newtypes::{
+            ElectoralLogCheckpointReason, ElectoralLogCheckpointV2, ElectoralLogContinuation,
+            EventIdString,
+        },
+    },
     ports::ElectoralLogStore,
     proofs::{checkpoint_signing_bytes, LogState},
     service::BoardClient,
@@ -96,6 +100,9 @@ async fn event_databases_are_created_routed_and_dropped() -> Result<()> {
         .await?
         .is_empty());
     assert!(client.append(&foreign, &entries(5..6)).await.is_err());
+    // Nor can it be created in the event's database.
+    assert!(client.create_board(&foreign).await.is_err());
+    assert!(!client.has_board(&foreign).await?);
     // A board of an event without a database neither.
     let unknown = self::board(&tenant, &Uuid::new_v4());
     assert!(!client.has_board(&unknown).await?);
@@ -114,6 +121,21 @@ async fn event_databases_are_created_routed_and_dropped() -> Result<()> {
     assert!(!databases.has_event(&event_id).await?);
     assert!(!client.has_board(&board).await?);
     databases.drop_event(&tenant.to_string(), &event_id).await?;
+
+    // A database a failed creation left unregistered is dropped too.
+    let unregistered = Uuid::new_v4().to_string();
+    let name = databases.database_name(&unregistered)?;
+    let catalog = databases.catalog().client().await?;
+    catalog
+        .batch_execute(&format!("CREATE DATABASE \"{name}\""))
+        .await?;
+    databases
+        .drop_event(&tenant.to_string(), &unregistered)
+        .await?;
+    assert!(catalog
+        .query_opt("SELECT 1 FROM pg_database WHERE datname = $1", &[&name])
+        .await?
+        .is_none());
     Ok(())
 }
 
@@ -214,10 +236,59 @@ async fn import(
     store: &PostgresStore,
     manifest: &ExportManifest,
     records: &[ExportedRecord],
+    anchors: &[electoral_log::proofs::Checkpoint],
 ) -> Result<Vec<electoral_log::adapters::transfer::ImportedLog>> {
     store
-        .import_logs(manifest, &mut records.iter().cloned().map(anyhow::Ok))
+        .import_logs(
+            manifest,
+            &mut records.iter().cloned().map(anyhow::Ok),
+            anchors,
+        )
         .await
+}
+
+/// A signed record, as Windmill appends it.
+fn signed_entry(delivery: &str, message: &Message) -> Result<LogEntry> {
+    Ok(LogEntry {
+        delivery_id: delivery.into(),
+        message: ElectoralLogMessage::try_from(message)?,
+    })
+}
+
+/// The record of a checkpoint published of the log, as Windmill appends it.
+fn checkpoint_entry(
+    sd: &SigningData,
+    checkpoint: &electoral_log::proofs::Checkpoint,
+) -> Result<LogEntry> {
+    let message = Message::electoral_log_checkpoint_message(
+        EventIdString("event".into()),
+        ElectoralLogCheckpointV2 {
+            log_uid: checkpoint.log_uid.hyphenated().to_string(),
+            tree_size: checkpoint.tree_size,
+            root: hex::encode(&checkpoint.root),
+            reason: ElectoralLogCheckpointReason::Periodic,
+        },
+        sd,
+    )?;
+    signed_entry(&format!("checkpoint-{}", checkpoint.tree_size), &message)
+}
+
+/// The record that a board continues the log whose last checkpoint is `previous`.
+fn continuation_entry(
+    sd: &SigningData,
+    previous: &electoral_log::proofs::Checkpoint,
+) -> Result<LogEntry> {
+    let message = Message::electoral_log_continuation_message(
+        EventIdString("event".into()),
+        ElectoralLogContinuation {
+            previous_log_name: previous.log_name.clone(),
+            previous_log_uid: previous.log_uid.hyphenated().to_string(),
+            tree_size: previous.tree_size,
+            root: hex::encode(&previous.root),
+        },
+        sd,
+    )?;
+    signed_entry(&format!("continuation-{}", previous.log_uid), &message)
 }
 
 #[tokio::test]
@@ -225,8 +296,10 @@ async fn import(
 async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Result<()> {
     let databases = databases()?;
     let tenant = Uuid::new_v4();
-    let [source_event, target_event, tampered_event] =
-        [Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
+    let [source_event, target_event, tampered_event, chained_event, unlinked_event] =
+        [(); 5].map(|_| Uuid::new_v4());
+    let key = StrandSignatureSk::generate()?;
+    let sd = SigningData::new(key.clone(), "", key.clone());
     let source_board = board(&tenant, &source_event);
     let source = databases
         .create_event(&tenant.to_string(), &source_event.to_string())
@@ -240,14 +313,15 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
         .await?;
     let journal = source.journal();
     let early = journal.checkpoint(&source_board).await?;
+    // The publication of `early` is recorded in the log.
     source
         .append(
             &source_board,
-            &mut entries(7..12).into_iter().map(anyhow::Ok),
+            &mut std::iter::once(checkpoint_entry(&sd, &early))
+                .chain(entries(7..11).into_iter().map(anyhow::Ok)),
         )
         .await?;
     let late = journal.checkpoint(&source_board).await?;
-    let key = StrandSignatureSk::generate()?;
     let (records, mut manifest) = export(&source).await?;
     assert_eq!(records.len(), 12);
     assert_eq!(manifest.logs.len(), 1);
@@ -258,10 +332,12 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
     let target = databases
         .create_event(&tenant.to_string(), &target_event.to_string())
         .await?;
-    let imported = import(&target, &manifest, &records).await?;
+    // `early` is a checkpoint this environment published itself.
+    let imported = import(&target, &manifest, &records, std::slice::from_ref(&early)).await?;
     assert_eq!(imported.len(), 1);
     assert_eq!(imported[0].checkpoint, late);
     assert_eq!(imported[0].verified_checkpoints, 2);
+    assert_eq!(imported[0].anchored_checkpoints, 1);
     let logs = target.logs().await?;
     assert_eq!(logs.len(), 1);
     assert_eq!(logs[0].state, LogState::Sealed);
@@ -273,7 +349,7 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
         )
         .await
         .is_err());
-    assert!(import(&target, &manifest, &records).await.is_err());
+    assert!(import(&target, &manifest, &records, &[]).await.is_err());
     // A proof from the imported copy verifies against a checkpoint of the source.
     let id = target
         .query_scope(LogScope::Database, &LogQuery::default())
@@ -309,129 +385,94 @@ async fn exported_logs_import_with_their_roots_and_tampering_is_refused() -> Res
     let mut other_root = manifest.clone();
     other_root.logs[0].published[0].checkpoint.root = vec![7; 32];
     other_root.logs[0].published[0] = sign(&key, &other_root.logs[0].published[0].checkpoint)?;
-    for (manifest, records) in [
-        (&manifest, &changed),
-        (&manifest, &reordered),
-        (&manifest, &missing),
-        (&forged, &records),
-        (&other_root, &records),
+    // The log records the publication of `early`, so the export cannot leave it out.
+    let mut unpublished = manifest.clone();
+    unpublished.logs[0].published.remove(0);
+    let other_anchor = electoral_log::proofs::Checkpoint {
+        root: vec![7; 32],
+        ..early.clone()
+    };
+    for (manifest, records, anchors) in [
+        (&manifest, &changed, vec![]),
+        (&manifest, &reordered, vec![]),
+        (&manifest, &missing, vec![]),
+        (&forged, &records, vec![]),
+        (&other_root, &records, vec![]),
+        (&unpublished, &records, vec![]),
+        (&manifest, &records, vec![other_anchor]),
     ] {
-        assert!(import(&tampered, manifest, records).await.is_err());
+        assert!(import(&tampered, manifest, records, &anchors)
+            .await
+            .is_err());
         assert!(
             tampered.logs().await?.is_empty(),
             "a refused import stored a log"
         );
     }
-    for event in [source_event, target_event, tampered_event] {
-        databases
-            .drop_event(&tenant.to_string(), &event.to_string())
-            .await?;
-    }
-    Ok(())
-}
 
-#[tokio::test]
-#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
-async fn events_move_out_of_a_shared_database_with_their_ballots() -> Result<()> {
-    let databases = databases()?;
-    // A database holding several events, as the single electoral-log database did.
-    let shared = format!(
-        "{}_shared_{}",
-        databases.connection().database(),
-        &Uuid::new_v4().simple().to_string()[..8]
-    );
-    databases
-        .catalog()
-        .client()
-        .await?
-        .batch_execute(&format!("CREATE DATABASE {shared}"))
+    // An export of the imported event holds the sealed log, then the event's board,
+    // which records that it continues the sealed log.
+    let target_board = board(&tenant, &target_event);
+    target.create_board(&target_board).await?;
+    target
+        .append(
+            &target_board,
+            &mut std::iter::once(continuation_entry(&sd, &late))
+                .chain(entries(20..22).into_iter().map(anyhow::Ok)),
+        )
         .await?;
-    let source = databases.connection().store_of(&shared, 2)?;
-    source.initialize().await?;
-    let tenant = Uuid::new_v4();
-    let events = [Uuid::new_v4(), Uuid::new_v4()];
-    for (n, event) in events.iter().enumerate() {
-        let board = board(&tenant, event);
-        source.create_board(&board).await?;
-        source
-            .append(
-                &board,
-                &mut entries(0..(3 + n as i64)).into_iter().map(anyhow::Ok),
-            )
-            .await?;
-        source.create_ballot_box(&event.to_string()).await?;
-        let event = event.to_string();
-        let (election, area) = (Uuid::new_v4().to_string(), Uuid::new_v4().to_string());
-        let ballot_id = format!("{n:064x}");
-        let outcome = source
-            .accept_ballot(&AcceptBallot {
-                election_event_id: &event,
-                election_id: &election,
-                area_id: &area,
-                voter_id: "voter",
-                ballot_id: &ballot_id,
-                format: "hashable-ballot",
-                content: "ciphertext",
-                voter_signature: None,
-                pseudonym_hash: &[1; 64],
-                ballot_hash: &[2; 64],
-                voting_channel: "ONLINE",
-                status: BallotStatus::Valid,
-                voter_ip: None,
-                voter_country: None,
-                username: Some("voter"),
-                allowed_votes: 1,
-            })
-            .await?;
-        assert!(matches!(outcome, AcceptOutcome::Accepted { .. }));
-    }
-    let unknown_tenant = Uuid::new_v4();
-    let stranded = Uuid::new_v4();
-    source
-        .create_board(&board(&unknown_tenant, &stranded))
+    let (chain_records, mut chain_manifest) = export(&target).await?;
+    assert_eq!(chain_manifest.logs.len(), 2);
+    chain_manifest.logs[0].published = manifest.logs[0].published.clone();
+    let chained = databases
+        .create_event(&tenant.to_string(), &chained_event.to_string())
         .await?;
+    let imported = import(
+        &chained,
+        &chain_manifest,
+        &chain_records,
+        std::slice::from_ref(&early),
+    )
+    .await?;
+    assert_eq!(imported.len(), 2);
+    assert_eq!(imported[0].anchored_checkpoints, 1);
 
-    // An event's database is refused as the source.
-    let event_database = databases.database_name(&events[0].to_string())?;
+    // A board that does not record the log before it is refused.
+    let unlinked = databases
+        .create_event(&tenant.to_string(), &unlinked_event.to_string())
+        .await?;
+    import(&unlinked, &manifest, &records, &[]).await?;
+    let unlinked_board = board(&tenant, &unlinked_event);
+    unlinked.create_board(&unlinked_board).await?;
+    unlinked
+        .append(
+            &unlinked_board,
+            &mut entries(30..32).into_iter().map(anyhow::Ok),
+        )
+        .await?;
+    let (unlinked_records, mut unlinked_manifest) = export(&unlinked).await?;
+    unlinked_manifest.logs[0].published = manifest.logs[0].published.clone();
+    let error = import(&tampered, &unlinked_manifest, &unlinked_records, &[])
+        .await
+        .expect_err("a log that continues nothing was imported");
     assert!(
-        move_to_event_databases(&databases, &event_database, &[tenant.to_string()])
-            .await
-            .is_err()
+        error
+            .to_string()
+            .contains("does not record that it continues"),
+        "{error:#}"
     );
-    let report = move_to_event_databases(&databases, &shared, &[tenant.to_string()]).await?;
-    assert_eq!(report.moved.len(), 2, "{report:?}");
-    assert_eq!(report.skipped.len(), 1, "{report:?}");
-    let activity = databases.events_with_ballot_activity().await?;
-    for (n, event) in events.iter().enumerate() {
-        // The moved ballots waiting for the sequencer are found by the mark.
-        assert!(activity
-            .iter()
-            .any(|activity| activity.election_event_id == event.to_string()));
-        let board = board(&tenant, event);
-        let target = databases.store(&event.to_string()).await?;
-        assert_eq!(
-            target.count(&board, &LogQuery::default()).await?,
-            3 + n as i64
-        );
-        assert!(target.audit(&board, &[]).await?.is_clean());
-        assert!(target.has_ballot_box(&event.to_string()).await?);
-        assert_eq!(target.pending_count(&event.to_string()).await?, 1);
-        assert!(!source.has_board(&board).await?);
-        assert!(!source.has_ballot_box(&event.to_string()).await?);
+    assert!(tampered.logs().await?.is_empty());
+
+    for event in [
+        source_event,
+        target_event,
+        tampered_event,
+        chained_event,
+        unlinked_event,
+    ] {
         databases
             .drop_event(&tenant.to_string(), &event.to_string())
             .await?;
     }
-    // Running it again moves nothing more.
-    let again = move_to_event_databases(&databases, &shared, &[tenant.to_string()]).await?;
-    assert!(again.moved.is_empty());
-    source.close();
-    drop(source);
-    databases
-        .catalog()
-        .client()
-        .await?
-        .batch_execute(&format!("DROP DATABASE {shared} WITH (FORCE)"))
-        .await?;
     Ok(())
 }
