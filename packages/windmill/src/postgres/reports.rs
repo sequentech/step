@@ -202,6 +202,43 @@ pub async fn update_report_last_document_time(
 }
 
 #[instrument(skip(hasura_transaction), err)]
+pub async fn deactivate_report_schedule(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+) -> Result<()> {
+    let tenant_uuid: Uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: Uuid = parse_uuid_v4(id).with_context(|| "Error parsing id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".report
+            SET
+                cron_config = jsonb_set(cron_config, '{is_active}', 'false'::jsonb)
+            WHERE
+                tenant_id = $1
+                AND id = $2
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
+
+    let affected_rows = hasura_transaction
+        .execute(&statement, &[&tenant_uuid, &id_uuid])
+        .await
+        .map_err(|err| anyhow!("Error deactivating report schedule: {err}"))?;
+
+    if affected_rows == 0 {
+        return Err(anyhow!("No report found with the given tenant_id and id"));
+    }
+
+    Ok(())
+}
+
+#[instrument(skip(hasura_transaction), err)]
 pub async fn get_report_by_id(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
