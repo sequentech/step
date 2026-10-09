@@ -12,7 +12,7 @@ use std::time::Instant;
 
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 
 use b4::messages::artifact::{Ballots, Configuration, Plaintexts};
@@ -20,10 +20,12 @@ use b4::messages::message::Message;
 use b4::messages::newtypes::PublicKeyHash;
 use b4::messages::newtypes::MAX_TRUSTEES;
 use b4::messages::newtypes::NULL_TRUSTEE;
+use b4::messages::newtypes::VERIFIER_INDEX;
 use b4::messages::protocol_manager::ProtocolManager;
 
 use crate::native::test::vector_board::VectorBoard;
 use crate::native::test::vector_session::VectorSession;
+use crate::protocol::predicate::Predicate;
 use crate::protocol::trustee::Trustee;
 
 const ALL_TRUSTEES: [usize; MAX_TRUSTEES] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -49,6 +51,9 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     }
 }
 
+/// Runs the protocol on an in-memory board with the given selected trustees,
+/// checks that every batch decrypts to the encrypted plaintexts, and that the
+/// verifier then verifies every batch.
 fn run_protocol_test<C: Ctx + 'static>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
@@ -147,6 +152,8 @@ fn run_protocol_test<C: Ctx + 'static>(
             assert!(expected == actual);
             info!("Match ok on plaintexts for batch {}", i + 1);
         }
+        let board = data.lock().unwrap().clone();
+        assert_eq!(verified_batches(&test.cfg, &board)?, batches);
     } else {
         error!("No plaintexts found");
         panic!();
@@ -180,6 +187,47 @@ fn run_protocol_test<C: Ctx + 'static>(
     info!("***************************************************************");
 
     Ok(())
+}
+
+/// Runs a verifier trustee over the board, then the verify datalog over the
+/// board and the verifier's own statements, returning the number of batches
+/// it verifies.
+fn verified_batches<C: Ctx>(cfg: &Configuration<C>, board: &VectorBoard) -> Result<usize> {
+    let messages = board
+        .messages
+        .iter()
+        .map(|m| Ok((Message::strand_deserialize(&m.message)?, m.id)))
+        .collect::<Result<Vec<(Message, i64)>>>()?;
+
+    let mut predicates = vec![Predicate::get_verifier_bootstrap_predicate(cfg)?];
+    for (message, _) in messages.iter().skip(1) {
+        let verified = message.verify(cfg)?;
+        predicates.push(Predicate::from_statement::<C>(
+            &verified.statement,
+            verified.signer_position,
+            cfg,
+        )?);
+    }
+
+    let mut verifier = Trustee::<C, crate::native::board::NoOpStorage>::new(
+        "Verifier".to_string(),
+        "foo".to_string(),
+        StrandSignatureSk::generate()?,
+        strand::symm::gen_key(),
+        crate::native::board::NoOpStorage::new(),
+        None,
+    );
+    for message in verifier.verify(messages)? {
+        predicates.push(Predicate::from_statement::<C>(
+            &message.statement,
+            VERIFIER_INDEX,
+            cfg,
+        )?);
+    }
+
+    let (_, _, verified) = crate::native::verify::datalog::S.run(&predicates);
+
+    Ok(verified.len())
 }
 
 pub struct ProtocolTest<C: Ctx> {
