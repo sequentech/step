@@ -279,8 +279,9 @@ out, a failed attempt can't be attributed to a single account. **Shared-candidat
   limits repeated failures for those values.
 
 With the default, a voter who mistypes their password also adds a failure to the other voters who
-share the same attribute value(s), and enough failures can temporarily lock them all out, within
-the realm's **Brute Force Detection** settings (failure factor, wait increment and maximum wait).
+share the same attribute value(s), and enough failures can lock them all out, as the realm's
+**Brute Force Detection** settings (failure factor, wait increment, maximum wait and permanent
+lockout) determine.
 Prefer tuning those realm settings, or configuring a second identifying attribute so that fewer
 voters share the same values, over switching to `TUPLE_ONLY`. Existing authenticator
 configurations that don't set this option use the default.
