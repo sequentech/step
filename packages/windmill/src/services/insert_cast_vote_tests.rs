@@ -423,3 +423,142 @@ fn jwt_authentication_seconds_preserve_grace_eligibility() {
         assert!(voter_authentication_time(invalid).is_err());
     }
 }
+
+mod ballot_style_contests {
+    use super::*;
+    use sequent_core::ballot::{BallotStyle, Contest};
+    use sequent_core::encrypt::{encrypt_decoded_contest, encrypt_decoded_multi_contest};
+    use sequent_core::fixtures::ballot_codec::{
+        get_test_contest, get_test_decoded_vote_contest, get_writein_ballot_style,
+    };
+    use std::collections::HashSet;
+
+    const VOTER_ID: &str = "voter";
+    const OTHER_CONTEST_ID: &str = "8d5b1c4e-2a3f-4e6b-9c7d-0e1f2a3b4c5d";
+
+    fn ballot_style() -> BallotStyle {
+        BallotStyle {
+            contests: vec![get_test_contest()],
+            ..get_writein_ballot_style()
+        }
+    }
+
+    fn contest_ids(ids: &[&str]) -> HashSet<String> {
+        ids.iter().map(|id| id.to_string()).collect()
+    }
+
+    fn style_contest_ids() -> HashSet<String> {
+        contest_ids(&[get_test_contest().id.as_str()])
+    }
+
+    fn single_input(signed: &SignedHashableBallot) -> InsertCastVoteInput {
+        let hashable = HashableBallot::try_from(signed).unwrap();
+        InsertCastVoteInput {
+            ballot_id: hash_ballot(&hashable).unwrap(),
+            election_id: Uuid::new_v4(),
+            content: serde_json::to_string(signed).unwrap(),
+        }
+    }
+
+    fn signed_single_ballot() -> SignedHashableBallot {
+        let auditable = encrypt_decoded_contest::<RistrettoCtx>(
+            &RistrettoCtx,
+            &vec![get_test_decoded_vote_contest()],
+            &ballot_style(),
+        )
+        .unwrap();
+        SignedHashableBallot::try_from(&auditable).unwrap()
+    }
+
+    fn multi_input() -> InsertCastVoteInput {
+        let auditable = encrypt_decoded_multi_contest::<RistrettoCtx>(
+            &RistrettoCtx,
+            &vec![get_test_decoded_vote_contest()],
+            &ballot_style(),
+        )
+        .unwrap();
+        let signed = SignedHashableMultiBallot::try_from(&auditable).unwrap();
+        let hashable = HashableMultiBallot::try_from(&signed).unwrap();
+        InsertCastVoteInput {
+            ballot_id: hash_multi_ballot(&hashable).unwrap(),
+            election_id: Uuid::new_v4(),
+            content: serde_json::to_string(&signed).unwrap(),
+        }
+    }
+
+    #[test]
+    fn ballot_with_every_style_contest_is_accepted() {
+        let input = single_input(&signed_single_ballot());
+
+        assert!(deserialize_and_check_ballot(&input, VOTER_ID, &style_contest_ids()).is_ok());
+    }
+
+    #[test]
+    fn ballot_missing_a_style_contest_is_rejected() {
+        let input = single_input(&signed_single_ballot());
+        let style_contest_ids = contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID]);
+
+        assert!(matches!(
+            deserialize_and_check_ballot(&input, VOTER_ID, &style_contest_ids),
+            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(OTHER_CONTEST_ID)
+        ));
+    }
+
+    #[test]
+    fn ballot_without_contests_is_rejected() {
+        let signed = SignedHashableBallot {
+            contests: vec![],
+            ..signed_single_ballot()
+        };
+        let input = single_input(&signed);
+
+        assert!(matches!(
+            deserialize_and_check_ballot(&input, VOTER_ID, &style_contest_ids()),
+            Err(CastVoteError::BallotStyleMismatch(_))
+        ));
+    }
+
+    #[test]
+    fn multi_ballot_with_every_style_contest_is_accepted() {
+        assert!(
+            deserialize_and_check_multi_ballot(&multi_input(), VOTER_ID, &style_contest_ids())
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn acclaimed_contests_are_not_required_from_the_ballot() {
+        let acclaimed = Contest {
+            id: OTHER_CONTEST_ID.to_string(),
+            is_acclaimed: Some(true),
+            ..get_test_contest()
+        };
+        let style = BallotStyle {
+            contests: vec![get_test_contest(), acclaimed],
+            ..ballot_style()
+        };
+
+        assert_eq!(
+            votable_contest_ids(&serde_json::to_string(&style).unwrap()).unwrap(),
+            style_contest_ids()
+        );
+    }
+
+    #[test]
+    fn malformed_published_ballot_style_is_an_internal_error() {
+        assert!(matches!(
+            votable_contest_ids("{\"contests\": 1}"),
+            Err(CastVoteError::CheckStatusInternalFailed(_))
+        ));
+    }
+
+    #[test]
+    fn multi_ballot_missing_a_style_contest_is_rejected() {
+        let style_contest_ids = contest_ids(&[&get_test_contest().id, OTHER_CONTEST_ID]);
+
+        assert!(matches!(
+            deserialize_and_check_multi_ballot(&multi_input(), VOTER_ID, &style_contest_ids),
+            Err(CastVoteError::BallotStyleMismatch(message)) if message.contains(OTHER_CONTEST_ID)
+        ));
+    }
+}
