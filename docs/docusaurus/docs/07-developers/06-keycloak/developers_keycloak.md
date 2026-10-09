@@ -297,8 +297,9 @@ optional claim; their keys still come from the exact issuer realm. Signing keys 
 over the configured internal connection and cached for five minutes. Requests
 fail authentication when a needed signing key cannot be retrieved.
 
-Trusted issuer bases are `KEYCLOAK_URL`, `KEYCLOAK_PUBLIC_URL` and the optional
-`KIOSK_KEYCLOAK_URL`. Deployments using additional frontend aliases must supply
+`KEYCLOAK_URL` is a required trusted issuer base. `KEYCLOAK_PUBLIC_URL` is
+optional and needed when tokens use that public URL as their issuer;
+`KIOSK_KEYCLOAK_URL` is likewise optional for kiosk issuers. Deployments using additional frontend aliases must supply
 their exact HTTP(S) base URLs in the comma-separated `HARVEST_JWT_ISSUER_URLS`
 setting, including any `/auth` prefix. These URLs select accepted issuers;
 key downloads always use the internal `KEYCLOAK_URL`. The checked-in local and

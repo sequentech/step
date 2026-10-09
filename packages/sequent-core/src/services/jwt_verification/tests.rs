@@ -20,7 +20,7 @@ fn claims() -> Value {
 }
 
 fn keys() -> JwkSet {
-    serde_json::from_str(include_str!("test-jwks.json")).unwrap()
+    serde_json::from_str(include_str!("fixtures/test-jwks.json")).unwrap()
 }
 
 fn token(claims: &Value) -> String {
@@ -29,7 +29,8 @@ fn token(claims: &Value) -> String {
     encode(
         &header,
         claims,
-        &EncodingKey::from_rsa_pem(include_bytes!("test-key.pem")).unwrap(),
+        &EncodingKey::from_rsa_pem(include_bytes!("fixtures/test-key.pem"))
+            .unwrap(),
     )
     .unwrap()
 }
@@ -210,6 +211,45 @@ async fn signed_public_and_kiosk_tokens_use_internal_keys_and_cached_requests()
 }
 
 #[tokio::test]
+async fn failed_key_refresh_preserves_only_unexpired_keys() {
+    let (internal, served) =
+        key_server("503 Service Unavailable", String::new(), "").await;
+    let realm = "tenant-one-event-election";
+    let cache_key = format!("{internal}/realms/{realm}");
+    let entry = Arc::new(Mutex::new(CachedKeys {
+        keys: Some(Arc::new(keys())),
+        fetched: Some(
+            Instant::now() - REFRESH_INTERVAL - Duration::from_secs(1),
+        ),
+        ..CachedKeys::default()
+    }));
+    cache()
+        .lock()
+        .await
+        .insert(cache_key, (Instant::now(), Arc::clone(&entry)));
+    assert!(realm_keys(&internal, realm, "rotated-key").await.is_err());
+    served.await.unwrap();
+    let valid = token(&claims());
+    assert!(verify_bearer_with_config(
+        &valid,
+        &["https://keycloak.example"],
+        &internal
+    )
+    .await
+    .is_ok());
+    // A failed refresh must never extend the lifetime of the previous keys.
+    entry.lock().await.fetched =
+        Some(Instant::now() - CACHE_TTL - Duration::from_secs(1));
+    assert!(verify_bearer_with_config(
+        &valid,
+        &["https://keycloak.example"],
+        &internal
+    )
+    .await
+    .is_err());
+}
+
+#[tokio::test]
 async fn key_fetch_redirects_and_oversized_bodies_are_rejected() {
     let (internal, served) = key_server(
         "302 Found",
@@ -235,33 +275,27 @@ fn authenticated(_claims: crate::services::jwt::JwtClaims) -> &'static str {
 #[tokio::test]
 async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
     use rocket::http::{Header, Status};
+    // Run the real guard in its own test process so its environment cannot race
+    // with parallel tests that read Keycloak configuration.
+    const ISOLATED: &str = "SEQUENT_JWT_GUARD_TEST_ISOLATED";
+    if std::env::var_os(ISOLATED).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "services::jwt_verification::tests::request_guard_rejects_forged_tokens_and_accepts_signed_tokens"])
+            .env(ISOLATED, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "Isolated guard test failed: {}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
     let (internal, served) =
         key_server("200 OK", serde_json::to_string(&keys()).unwrap(), "").await;
-    struct RestoreEnvironment(Vec<(&'static str, Option<String>)>);
-    impl Drop for RestoreEnvironment {
-        fn drop(&mut self) {
-            for (name, value) in &self.0 {
-                if let Some(value) = value {
-                    std::env::set_var(name, value);
-                } else {
-                    std::env::remove_var(name);
-                }
-            }
-        }
-    }
-    let variables = [
-        ("KEYCLOAK_URL", internal.as_str()),
-        ("KEYCLOAK_PUBLIC_URL", "https://keycloak.example"),
-    ];
-    let _restore = RestoreEnvironment(
-        variables
-            .iter()
-            .map(|(name, _)| (*name, std::env::var(name).ok()))
-            .collect(),
-    );
-    for (name, value) in variables {
-        std::env::set_var(name, value);
-    }
+    std::env::set_var("KEYCLOAK_URL", &internal);
+    std::env::set_var("KEYCLOAK_PUBLIC_URL", "https://keycloak.example");
     let client = rocket::local::asynchronous::Client::tracked(
         rocket::build().mount("/", rocket::routes![authenticated]),
     )
@@ -293,4 +327,7 @@ async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
             .status(),
         Status::Ok
     );
+    std::env::set_var("KIOSK_KEYCLOAK_URL", "not-a-url");
+    let error = verify_bearer(&valid).await.unwrap_err();
+    assert!(format!("{error:#}").contains("KIOSK_KEYCLOAK_URL"));
 }
