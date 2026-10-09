@@ -786,6 +786,18 @@ async fn map_plaintext_data(
 
     // convert board messages into messages
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
+    let manager =
+        protocol_manager::get_protocol_manager::<strand::backend::ristretto::RistrettoCtx>(
+            hasura_transaction,
+            &tenant_id,
+            Some(&election_event_id),
+            &bulletin_board,
+        )
+        .await?;
+    let manager_pk = strand::signature::StrandSignaturePk::from_sk(&manager.signing_key)?;
+    let trusted_config = b3::messages::trusted_board::verify_board::<
+        strand::backend::ristretto::RistrettoCtx,
+    >(&messages, &manager_pk)?;
     print_messages(&messages, &bulletin_board)?;
 
     let new_ballots_messages = upsert_ballots_messages(
@@ -847,6 +859,7 @@ async fn map_plaintext_data(
     let has_next_plaintext = messages.iter().any(|message| {
         message.statement.get_timestamp() >= next_timestamp
             && message.statement.get_kind() == StatementType::Plaintexts
+            && b3::messages::trusted_board::plaintexts_agreed(message, &messages, &trusted_config)
             && batch_ids.contains(&(message.statement.get_batch_number() as i64))
     });
 
@@ -883,6 +896,11 @@ async fn map_plaintext_data(
         .iter()
         .filter(|message| {
             message.statement.get_kind() == StatementType::Plaintexts
+                && b3::messages::trusted_board::plaintexts_agreed(
+                    message,
+                    &messages,
+                    &trusted_config,
+                )
                 && batch_ids.contains(&(message.statement.get_batch_number() as i64))
         })
         .collect();
