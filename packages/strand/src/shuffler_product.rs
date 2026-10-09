@@ -527,17 +527,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let N = es.rows().len();
         let width = es.width();
 
-        let h_generators = &self.generators[1..];
-        let h_initial = &self.generators[0];
-
         if N != e_primes.rows().len() {
             return Err(StrandError::Generic(
                 "N != e_primes.rows().len()".to_string(),
-            ));
-        }
-        if N != h_generators.len() {
-            return Err(StrandError::Generic(
-                "N != h_generators.len()".to_string(),
             ));
         }
         if N <= 0 {
@@ -549,6 +541,41 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             return Err(StrandError::Generic(
                 "Cannot check proof on 0-width ciphertexts".to_string(),
             ));
+        }
+
+        // Serialization validates individual values, not relationships between
+        // the proof, generators and ciphertext matrix. Reject inconsistent
+        // dimensions before the indexed verification loops below.
+        if width != e_primes.width() {
+            return Err(StrandError::Generic(
+                "Shuffled ciphertext width does not match the original"
+                    .to_string(),
+            ));
+        }
+        let (h_initial, h_generators) =
+            self.generators.split_first().ok_or_else(|| {
+                StrandError::Generic("Missing shuffle generators".to_string())
+            })?;
+        if N != h_generators.len() {
+            return Err(StrandError::Generic(
+                "N != h_generators.len()".to_string(),
+            ));
+        }
+        for (field, length, expected) in [
+            ("permutation commitments", proof.cs.0.len(), N),
+            ("commitment chain", proof.c_hats.0.len(), N),
+            ("response chain", proof.s.s_hats.0.len(), N),
+            ("permutation responses", proof.s.s_primes.0.len(), N),
+            ("verification commitments", proof.t.t_hats.0.len(), N),
+            ("first column commitments", proof.t.t4_1s.len(), width),
+            ("second column commitments", proof.t.t4_2s.len(), width),
+            ("column responses", proof.s.s4s.len(), width),
+        ] {
+            if length != expected {
+                return Err(StrandError::Generic(format!(
+                    "Invalid product shuffle proof: {field} length {length}, expected {expected}"
+                )));
+            }
         }
 
         let us: Vec<C::X> =
@@ -921,3 +948,97 @@ impl<C: Ctx> BorshDeserialize for ShuffleProof<C> {
         })
     }
 }*/
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backend::ristretto::RistrettoCtx;
+    use crate::elgamal::PrivateKey;
+    use crate::serialization::StrandDeserialize;
+    use crate::util;
+
+    const LABEL: &[u8] = b"fixture";
+
+    #[test]
+    fn check_proof_rejects_incomplete_proofs_rows_and_columns() {
+        type Proof = ShuffleProof<RistrettoCtx>;
+        let ctx = RistrettoCtx;
+        let secret = PrivateKey::gen(&ctx);
+        let public = secret.get_pk();
+        let original = util::random_product_ciphertexts(3, 2, &ctx);
+        let generators = ctx.generators(4, b"fixture generators").unwrap();
+        let shuffler = Shuffler::new(&public, &generators, &ctx);
+        let (shuffled, randomness, permutation) =
+            shuffler.gen_shuffle(&original);
+        let proof = shuffler
+            .gen_proof(&original, &shuffled, randomness, &permutation, LABEL)
+            .unwrap();
+        assert!(shuffler
+            .check_proof(&proof, &original, &shuffled, LABEL)
+            .unwrap());
+
+        let mutations: [(&str, fn(&mut Proof)); 10] = [
+            ("missing permutation commitments", |p| p.cs.0.clear()),
+            ("extra permutation commitment", |p| {
+                p.cs.0.push(p.cs.0[0].clone())
+            }),
+            ("missing commitment chain", |p| p.c_hats.0.clear()),
+            ("missing response chain", |p| p.s.s_hats.0.clear()),
+            ("missing permutation responses", |p| p.s.s_primes.0.clear()),
+            ("missing verification commitments", |p| p.t.t_hats.0.clear()),
+            ("truncated verification commitments", |p| {
+                p.t.t_hats.0.truncate(1)
+            }),
+            ("missing first column commitments", |p| p.t.t4_1s.clear()),
+            ("missing second column commitments", |p| p.t.t4_2s.clear()),
+            ("missing column responses", |p| p.s.s4s.clear()),
+        ];
+        for (description, mutate) in mutations {
+            let mut malformed = proof.clone();
+            mutate(&mut malformed);
+            let malformed = Proof::strand_deserialize(
+                &malformed.strand_serialize().unwrap(),
+            )
+            .unwrap();
+            assert!(
+                shuffler
+                    .check_proof(&malformed, &original, &shuffled, LABEL)
+                    .is_err(),
+                "{description}"
+            );
+        }
+        for invalid_generators in [vec![], generators[..2].to_vec()] {
+            let invalid = Shuffler::new(&public, &invalid_generators, &ctx);
+            assert!(invalid
+                .check_proof(&proof, &original, &shuffled, LABEL)
+                .is_err());
+        }
+        let fewer_rows =
+            StrandRectangle::new(shuffled.rows()[..2].to_vec()).unwrap();
+        assert!(shuffler
+            .check_proof(&proof, &original, &fewer_rows, LABEL)
+            .is_err());
+        let fewer_columns = StrandRectangle::new(
+            shuffled
+                .rows()
+                .iter()
+                .map(|row| row[..1].to_vec())
+                .collect(),
+        )
+        .unwrap();
+        assert!(shuffler
+            .check_proof(&proof, &original, &fewer_columns, LABEL)
+            .is_err());
+        let empty = StrandRectangle::new_unchecked(vec![]);
+        let empty_generators = generators[..1].to_vec();
+        let empty_shuffler = Shuffler::new(&public, &empty_generators, &ctx);
+        assert!(empty_shuffler
+            .check_proof(&proof, &empty, &empty, LABEL)
+            .is_err());
+        let zero_width =
+            StrandRectangle::new(vec![vec![], vec![], vec![]]).unwrap();
+        assert!(shuffler
+            .check_proof(&proof, &zero_width, &zero_width, LABEL)
+            .is_err());
+    }
+}
