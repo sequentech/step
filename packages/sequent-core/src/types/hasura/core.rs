@@ -242,6 +242,34 @@ impl DocumentAnnotations {
             .as_ref()
             .is_some_and(|access| access.voter_secret_attributes)
     }
+
+    /// Adds the voter secret read requirement to stored annotations, keeping
+    /// the document password and every other field.
+    pub fn restrict_to_voter_secret_readers(
+        annotations: Option<Value>,
+    ) -> Result<Value> {
+        let mut fields = match annotations {
+            None | Some(Value::Null) => serde_json::Map::new(),
+            Some(Value::Object(fields)) => fields,
+            Some(other) => {
+                return Err(anyhow!(
+                    "Document annotations must be an object, found: {other}"
+                ))
+            }
+        };
+        let current: Self =
+            serde_json::from_value(Value::Object(fields.clone()))?;
+        let restricted = serde_json::to_value(Self {
+            access: Some(DocumentAccess {
+                voter_secret_attributes: true,
+                ..current.access.unwrap_or_default()
+            }),
+        })?;
+        if let Value::Object(restricted_fields) = restricted {
+            fields.extend(restricted_fields);
+        }
+        Ok(Value::Object(fields))
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
@@ -300,6 +328,56 @@ mod document_annotations_tests {
             serde_json::to_value(&annotations).unwrap(),
             json!({"access": {"voter_secret_attributes": true}})
         );
+    }
+
+    #[test]
+    fn restricts_uploaded_import_source_to_voter_secret_readers() {
+        let annotations =
+            DocumentAnnotations::restrict_to_voter_secret_readers(None)
+                .unwrap();
+
+        assert_eq!(
+            annotations,
+            json!({"access": {"voter_secret_attributes": true}})
+        );
+        assert!(serde_json::from_value::<DocumentAnnotations>(annotations)
+            .unwrap()
+            .requires_voter_secret_attribute_read());
+    }
+
+    #[test]
+    fn restricting_to_voter_secret_readers_keeps_other_annotations() {
+        let annotations =
+            DocumentAnnotations::restrict_to_voter_secret_readers(Some(
+                json!({
+                    "access": {"password_secret_id": "secret-id"},
+                    "source": "upload",
+                }),
+            ))
+            .unwrap();
+
+        assert_eq!(
+            annotations,
+            json!({
+                "access": {
+                    "password_secret_id": "secret-id",
+                    "voter_secret_attributes": true,
+                },
+                "source": "upload",
+            })
+        );
+    }
+
+    #[test]
+    fn restricting_to_voter_secret_readers_rejects_non_object_annotations() {
+        assert!(DocumentAnnotations::restrict_to_voter_secret_readers(Some(
+            json!("restricted")
+        ))
+        .is_err());
+        assert!(DocumentAnnotations::restrict_to_voter_secret_readers(Some(
+            json!({"access": "restricted"})
+        ))
+        .is_err());
     }
 }
 
