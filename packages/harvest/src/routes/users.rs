@@ -14,6 +14,7 @@ use rocket::response::{Responder, Result as ResponseResult};
 use rocket::serde::json::Json;
 use rocket::Request;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
     get_user_profile_validation_errors, is_keycloak_bad_request,
@@ -232,6 +233,11 @@ pub async fn delete_user(
     body: Json<DeleteUserBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_DELETE
     } else {
@@ -303,6 +309,11 @@ pub async fn delete_users(
     body: Json<DeleteUsersBody>,
 ) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_DELETE
     } else {
@@ -1241,6 +1252,11 @@ pub async fn edit_user(
     body: Json<EditUserBody>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let password_only = input.election_event_id.is_some()
         && input.password.is_some()
         && input.enabled.is_none()
@@ -1673,6 +1689,11 @@ pub async fn get_user(
     body: Json<GetUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let required_perm: Permissions = if input.election_event_id.is_some() {
         Permissions::VOTER_READ
     } else {
@@ -1731,6 +1752,11 @@ pub async fn reveal_voter_secret_attribute(
     body: Json<RevealSecretAttributeBody>,
 ) -> Result<Json<RevealSecretAttributeOutput>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(
+        &input.tenant_id,
+        Some(input.election_event_id.as_str()),
+    )
+    .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
