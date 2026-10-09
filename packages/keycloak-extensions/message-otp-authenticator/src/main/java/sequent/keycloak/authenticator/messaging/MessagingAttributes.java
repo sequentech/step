@@ -12,6 +12,7 @@ import lombok.experimental.UtilityClass;
 public class MessagingAttributes {
   // User attributes
   public final String MESSAGE_CHANNEL = "sequent.read-only.message-channel";
+  public final String MESSAGE_NUMBER = "sequent.read-only.message-number";
   public final String WHATSAPP_NUMBER = "sequent.read-only.whatsapp-number";
   public final String VIBER_NUMBER = "sequent.read-only.viber-number";
   public final String MESSENGER_ID = "sequent.read-only.messenger-id";

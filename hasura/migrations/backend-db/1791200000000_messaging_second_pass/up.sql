@@ -1,0 +1,111 @@
+-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+-- SPDX-License-Identifier: AGPL-3.0-only
+
+-- Messaging second pass (meta#13755).
+
+-- The event's messaging configuration. Only the messaging_config_save
+-- action writes it, so the configuration can't be changed around its
+-- validation. Replaces the `messaging:config` annotation, which is copied
+-- below once and then left untouched.
+CREATE TABLE "sequent_backend"."messaging_event_config"
+(
+    "tenant_id"         uuid        NOT NULL,
+    "election_event_id" uuid        NOT NULL,
+    "config"            jsonb       NOT NULL,
+    "version"           integer     NOT NULL DEFAULT 1,
+    "updated_at"        timestamptz NOT NULL DEFAULT now(),
+    "updated_by"        text,
+    PRIMARY KEY ("election_event_id"),
+    UNIQUE ("tenant_id", "election_event_id"),
+    FOREIGN KEY ("tenant_id")
+        REFERENCES "sequent_backend"."tenant" ("id")
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    FOREIGN KEY ("tenant_id", "election_event_id")
+        REFERENCES "sequent_backend"."election_event" ("tenant_id", "id")
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+);
+
+-- The annotation holds the configuration as a JSON string. One that doesn't
+-- parse is reported and skipped: the event then has no configuration, as
+-- the code already treated it.
+DO $$
+DECLARE
+    event record;
+BEGIN
+    FOR event IN
+        SELECT "tenant_id", "id", "annotations" ->> 'messaging:config' AS "raw"
+        FROM "sequent_backend"."election_event"
+        WHERE "annotations" ? 'messaging:config'
+          AND "tenant_id" IS NOT NULL
+    LOOP
+        BEGIN
+            INSERT INTO "sequent_backend"."messaging_event_config"
+                ("tenant_id", "election_event_id", "config", "updated_by")
+            VALUES (event."tenant_id", event."id", event."raw"::jsonb, 'migration')
+            ON CONFLICT ("election_event_id") DO NOTHING;
+        EXCEPTION WHEN invalid_text_representation THEN
+            RAISE NOTICE 'messaging:config of election event % is not JSON; not copied', event."id";
+        END;
+    END LOOP;
+END $$;
+
+-- Shared per-account sending capacity, for bulk workers and OTP sends in
+-- every process. Updated with one UPDATE ... RETURNING per take.
+CREATE TABLE "sequent_backend"."messaging_rate_bucket"
+(
+    "account_id"  uuid             NOT NULL,
+    "tokens"      double precision NOT NULL,
+    "refilled_at" timestamptz      NOT NULL DEFAULT now(),
+    PRIMARY KEY ("account_id"),
+    FOREIGN KEY ("account_id")
+        REFERENCES "sequent_backend"."messaging_account" ("id")
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+-- When a Messenger recipient last pressed Get Started or opened a referral
+-- for an account. Opens the 24 hour window; voter text no longer does, and
+-- inbound messages are no longer stored. Keyed by the recipient's digest,
+-- like the ledger.
+CREATE TABLE "sequent_backend"."messenger_contact"
+(
+    "tenant_id"           uuid        NOT NULL,
+    "account_id"          uuid        NOT NULL,
+    "destination_digest"  text        NOT NULL,
+    "last_get_started_at" timestamptz NOT NULL,
+    "updated_at"          timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY ("account_id", "destination_digest"),
+    FOREIGN KEY ("tenant_id")
+        REFERENCES "sequent_backend"."tenant" ("id")
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    FOREIGN KEY ("account_id")
+        REFERENCES "sequent_backend"."messaging_account" ("id")
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+-- Ledger: same-channel retries, never-sent vs maybe-sent, reconciliation
+-- backoff, and billing.
+ALTER TABLE "sequent_backend"."message"
+    ADD COLUMN "next_retry_at"      timestamptz,
+    ADD COLUMN "dispatched_at"      timestamptz,
+    ADD COLUMN "last_reconciled_at" timestamptz,
+    ADD COLUMN "billing_category"   text,
+    ADD COLUMN "billable"           boolean;
+
+CREATE INDEX "message_retry_due"
+    ON "sequent_backend"."message" ("next_retry_at")
+    WHERE "next_retry_at" IS NOT NULL;
+CREATE INDEX "message_unresolved_keyset"
+    ON "sequent_backend"."message" ("created_at", "id")
+    WHERE "state" IN ('QUEUED', 'UNKNOWN');
+
+-- Voters' messages are no longer kept: delete the ones already stored.
+DELETE FROM "sequent_backend"."message" WHERE "direction" = 'INBOUND';
+
+-- The Messenger linking word is gone; the column stays, unused.
+ALTER TABLE "sequent_backend"."messenger_link"
+    ALTER COLUMN "link_word_digest" DROP NOT NULL;
