@@ -109,6 +109,8 @@ FROM debian:bookworm@sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318
 #
 # 2.1.1 is the current open-source release; the 1.21 line is enterprise-only.
 ARG VAULT_VERSION=2.1.1
+# Pinned for the same reason: the unversioned URL is whatever AWS released last.
+ARG AWSCLI_VERSION=2.37.11
 # Resolve apt against the pinned snapshot rather than the live mirror.
 ARG DEBIAN_SNAPSHOT
 RUN set -eux; \
@@ -119,6 +121,9 @@ RUN set -eux; \
       echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
     } > /etc/apt/sources.list
 
+# The package manager's logs carry the time of the build, so they are removed in
+# the layer that writes them: two builds of the same commit must give the same
+# layer (sequentech/meta#13625).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
@@ -130,7 +135,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         arm64) aws_arch=aarch64; vault_arch=arm64 ;; \
         *) echo "unsupported architecture: $arch" >&2; exit 1 ;; \
     esac \
-    && curl "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip" -o "awscliv2.zip" \
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}-${AWSCLI_VERSION}.zip" -o "awscliv2.zip" \
     && unzip -o awscliv2.zip \
     && ./aws/install \
     && rm -f awscliv2.zip \
@@ -138,7 +143,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && unzip vault.zip -d /usr/local/bin/ \
     && rm -f vault.zip \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log
 
 COPY --from=builder /app/target/release/main /usr/bin/trustee
 COPY --from=builder /app/target/release/verify /usr/bin/verify

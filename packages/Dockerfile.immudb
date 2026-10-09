@@ -62,7 +62,9 @@ FROM --platform=$TARGETPLATFORM alpine:3.24@sha256:294b683cb724975bec92580e1e685
 # is superseded the build fails loudly and the pin is bumped, which is a new
 # release identity rather than a silent change. Versions are per base image --
 # this stage is alpine:3.24, the builder above is Alpine 3.21 via golang:1.22.
-RUN apk add --no-cache ca-certificates=20260909-r0 bash=5.3.9-r1
+# apk logs the time of the install; removed so the layer is the same every build.
+RUN apk add --no-cache ca-certificates=20260909-r0 bash=5.3.9-r1 \
+    && rm -f /var/log/apk.log
 
 # copy freshly-built, arch-correct binaries
 COPY --from=builder /src/immudb /usr/sbin/immudb

@@ -109,9 +109,12 @@ RUN set -eux; \
       echo "deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main"; \
     } > /etc/apt/sources.list
 
+# The package manager's logs carry the time of the build, so they are removed in
+# the layer that writes them: two builds of the same commit must give the same
+# layer (sequentech/meta#13625).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/log/alternatives.log
 RUN update-ca-certificates
 
 # Use Docker build arguments to determine the architecture
@@ -149,7 +152,8 @@ RUN case "${TARGETARCH}" in \
     && mv jdk-${JAVA_VERSION} /usr/local/ \
     && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
     && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
-    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash \
+    && rm -f /var/log/alternatives.log
 
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=builder /app/target/release/main /usr/local/bin/main
