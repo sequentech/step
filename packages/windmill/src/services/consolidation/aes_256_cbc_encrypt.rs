@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use sequent_core::signatures::shell::run_shell_command;
 use std::process::Command;
 use tracing::{info, instrument};
 

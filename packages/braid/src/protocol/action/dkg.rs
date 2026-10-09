@@ -71,13 +71,7 @@ pub(super) fn sign_channels<C: Ctx>(
         "Unexpected number of channels"
     );
 
-    for (i, h) in channels_hs
-        .0
-        .iter()
-        .filter(|h| **h != NULL_HASH)
-        .enumerate()
-    {
-        let hash = *h;
+    for (i, hash) in datalog::hashes_present(&channels_hs.0) {
         let channel = trustee.get_channel(&ChannelHash(hash), i)?;
         let pk_element = channel.channel_pk.clone();
         let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
@@ -267,8 +261,7 @@ fn compute_pk_<C: Ctx>(
     let mut verification_keys = vec![C::E::mul_identity(); *num_t];
 
     // Iterate over sender shares
-    for (i, _h) in shares_hs.0.iter().filter(|h| **h != NULL_HASH).enumerate() {
-        let share_h = shares_hs.0[i];
+    for (i, share_h) in datalog::hashes_present(&shares_hs.0) {
         let share = trustee.get_shares(&SharesHash(share_h), i)?;
 
         pk = pk.mul(&share.commitments[0]).modp(&ctx);

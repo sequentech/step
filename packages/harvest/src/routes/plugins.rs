@@ -7,7 +7,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
@@ -37,6 +37,19 @@ pub struct PluginsRouteTaskOutput {
     task_execution: TasksExecution,
 }
 
+fn route_data_object(
+    data: Value,
+) -> Result<Map<String, Value>, (Status, String)> {
+    match data {
+        Value::Object(map) => Ok(map),
+        Value::Null => Ok(Map::new()),
+        _ => Err((
+            Status::BadRequest,
+            "Plugin route data must be a JSON object".to_string(),
+        )),
+    }
+}
+
 #[instrument(skip(claims))]
 #[post("/plugin", format = "json", data = "<body>")]
 pub async fn plugin_routes(
@@ -54,12 +67,15 @@ pub async fn plugin_routes(
         .await
         .map_err(|e| (Status::InternalServerError, e.to_string()))?;
 
-    let mut route_data = input.data;
+    let mut route_data = route_data_object(input.data)?;
 
     let claims_json_string: String = serde_json::to_string(&claims)
-        .expect("Failed to serialize JwtClaims to string");
+        .map_err(|e| (Status::InternalServerError, e.to_string()))?;
 
-    route_data["claims"] = serde_json::Value::String(claims_json_string);
+    route_data.insert(
+        "claims".to_string(),
+        serde_json::Value::String(claims_json_string),
+    );
 
     let task = plugin_manager.get_route_task_handler(&input.path);
     let task_name = input.task_execution.clone();
@@ -79,16 +95,22 @@ pub async fn plugin_routes(
         .await
         .map_err(|e| (Status::InternalServerError, e.to_string()))?;
 
-        route_data["task_execution"] = serde_json::Value::String(
-            serde_json::to_string(&task_execution)
-                .expect("Failed to serialize task_execution to string"),
+        route_data.insert(
+            "task_execution".to_string(),
+            serde_json::Value::String(
+                serde_json::to_string(&task_execution).map_err(|e| {
+                    (Status::InternalServerError, e.to_string())
+                })?,
+            ),
         );
 
         let document_id = match input.generate_document {
             Some(true) => {
                 let doc_id = Uuid::new_v4().to_string();
-                route_data["document_id"] =
-                    serde_json::Value::String(doc_id.clone());
+                route_data.insert(
+                    "document_id".to_string(),
+                    serde_json::Value::String(doc_id.clone()),
+                );
                 Some(doc_id)
             }
             _ => None,
@@ -98,7 +120,7 @@ pub async fn plugin_routes(
         let _task = celery_app
         .send_task(execute_plugin_task::new(
             task,
-            route_data,
+            Value::Object(route_data),
             task_execution.clone(),
             document_id.clone()
         ))
@@ -123,10 +145,37 @@ pub async fn plugin_routes(
         }))
     } else {
         let res = plugin_manager
-            .call_route(&input.path, route_data.to_string())
+            .call_route(&input.path, Value::Object(route_data).to_string())
             .await
             .map_err(|e| (Status::InternalServerError, e.to_string()))?;
 
         Ok(Json(PluginsRouteOutput { data: res }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn route_data_rejects_non_object_values() {
+        for data in [json!([1, 2, 3]), json!("data"), json!(42), json!(true)] {
+            let (status, _) = route_data_object(data).unwrap_err();
+            assert_eq!(status, Status::BadRequest);
+        }
+    }
+
+    #[test]
+    fn route_data_accepts_objects() {
+        let route_data =
+            route_data_object(json!({"election_event_id": "e1"})).unwrap();
+        assert_eq!(route_data.get("election_event_id"), Some(&json!("e1")));
+        assert_eq!(route_data.len(), 1);
+    }
+
+    #[test]
+    fn route_data_treats_null_as_empty_object() {
+        assert!(route_data_object(Value::Null).unwrap().is_empty());
     }
 }
