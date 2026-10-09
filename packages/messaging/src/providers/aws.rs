@@ -208,6 +208,8 @@ impl ChannelSender for SnsSender {
 pub struct SesSender {
     client: aws_sdk_sesv2::Client,
     from: String,
+    /// Receipts only with a notification topic.
+    capabilities: ProviderCapabilities,
 }
 
 impl SesSender {
@@ -221,7 +223,12 @@ impl SesSender {
         else {
             return Err(anyhow!("not an SES account"));
         };
+        let capabilities = account
+            .sender
+            .capabilities(MessageChannel::EMAIL)
+            .ok_or_else(|| anyhow!("not an SES account"))?;
         Ok(SesSender {
+            capabilities,
             client: aws_sdk_sesv2::Client::new(
                 &sdk_config(account, region.as_ref(), endpoints).await,
             ),
@@ -261,9 +268,7 @@ impl SesSender {
 #[async_trait]
 impl ChannelSender for SesSender {
     fn capabilities(&self) -> ProviderCapabilities {
-        MessagingProvider::AWS_SES
-            .capabilities(MessageChannel::EMAIL)
-            .unwrap_or_else(|| unreachable!("SES declares its own channel"))
+        self.capabilities.clone()
     }
 
     async fn send(&self, message: &OutboundMessage) -> SendOutcome {

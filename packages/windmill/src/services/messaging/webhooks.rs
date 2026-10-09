@@ -5,32 +5,37 @@
 //! Provider callbacks. The account comes from the URL's webhook key, never
 //! from the payload, and each provider's own verification runs before
 //! anything is read. Callbacks never authenticate a voter.
+//!
+//! Only statuses, Messenger's Get Started and referrals are used. Messages
+//! voters write are acknowledged and dropped: nothing they send is stored
+//! or answered.
 
 use super::accounts::runtime_account;
-use super::config::get_event_messaging_config;
-use super::dispatch::{deliver, Delivery, Dispatcher, FallbackPolicy, Recipient};
+use super::audit::post_attempt_outcomes_or_warn;
+use super::dispatch::Dispatcher;
 use super::keys::{tenant_key, TenantKey};
 use super::links::bind_referral;
 use crate::postgres::messaging::{
     deliver_messages_up_to, find_message_by_provider_id, find_message_by_reference,
-    get_messaging_account_by_webhook_key, inbound_exists, insert_message, last_auto_reply_at,
-    transition_message, MessagingAccount, NewMessage, StateChange, AUTO_REPLY_ALIAS,
+    get_messaging_account_by_webhook_key, record_messenger_contact, transition_message,
+    MessagingAccount, StateChange,
 };
 use anyhow::Result;
-use chrono::{Duration, Utc};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
+use messaging::attempts::next_retry_at;
 use messaging::destination::Destination;
+use messaging::providers::infobip::{verify_report_authorization, ReportCredentials};
 use messaging::webhooks::sns::{is_sns_url, is_trusted_certificate_url, ses_events, SnsEnvelope};
 use messaging::webhooks::{
-    http, infobip, meta, DeliveredUpTo, InboundMessage, StatusReport, WebhookEvent,
+    infobip, meta, report_failure_kind, DeliveredUpTo, StatusReport, WebhookEvent,
 };
 use sequent_core::types::messaging::{
-    AccountSender, CredentialName, MessageAttemptState, MessageChannel, MessageContent,
-    MessageDirection, MessagePurpose, MessagingProvider,
+    AccountSender, BillingCategory, CredentialName, MessageAttemptState, MessageChannel,
+    MessagePurpose, MessageReason, MessagingProvider,
 };
-use std::collections::BTreeMap;
+use serde_json::Value;
 use tracing::{info, instrument, warn};
-use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum WebhookOutcome {
@@ -110,11 +115,17 @@ pub async fn meta_events(
     Ok(WebhookOutcome::Accepted)
 }
 
+/// Infobip Viber delivery reports. They come only through the account's
+/// Infobip subscription, whose Basic auth (`authorization`, forwarded by the
+/// webhook component) must be the account's report credentials, compared in
+/// constant time. A report without it, with another one, or for an account
+/// whose report credentials were never generated is refused unread.
 #[instrument(skip_all, err)]
 pub async fn viber_events(
     client: &mut DbClient,
     dispatcher: &Dispatcher,
     webhook_key: &str,
+    authorization: Option<&str>,
     body: &[u8],
 ) -> Result<WebhookOutcome> {
     let Some(account) =
@@ -122,6 +133,21 @@ pub async fn viber_events(
     else {
         return Ok(WebhookOutcome::NotFound);
     };
+    let expected = match (
+        credential(client, &account, CredentialName::REPORT_USERNAME).await?,
+        credential(client, &account, CredentialName::REPORT_PASSWORD).await?,
+    ) {
+        (Some(username), Some(password)) => Some(ReportCredentials { username, password }),
+        _ => None,
+    };
+    if let Err(refusal) = verify_report_authorization(authorization, expected.as_ref()) {
+        warn!(
+            "Viber report for account {} refused: {}",
+            account.id,
+            refusal.reason()
+        );
+        return Ok(WebhookOutcome::Unauthorized);
+    }
     let events = infobip::parse_events(body)?;
     apply_events(client, dispatcher, &account, events).await?;
     Ok(WebhookOutcome::Accepted)
@@ -181,6 +207,23 @@ pub async fn aws_events(
     Ok(WebhookOutcome::Accepted)
 }
 
+/// What a provider's billing evidence says: WhatsApp's `pricing`
+/// (`billable`, `category`) or Infobip's `price`.
+fn billing_from_report(billing: Option<&Value>) -> (Option<BillingCategory>, Option<bool>) {
+    let Some(billing) = billing else {
+        return (None, None);
+    };
+    let category = billing["category"]
+        .as_str()
+        .and_then(BillingCategory::from_report);
+    let billable = billing["billable"].as_bool().or_else(|| {
+        billing["price"]["pricePerMessage"]
+            .as_f64()
+            .map(|price| price > 0.0)
+    });
+    (category, billable)
+}
+
 async fn apply_status(
     client: &mut DbClient,
     account: &MessagingAccount,
@@ -199,14 +242,34 @@ async fn apply_status(
         tx.commit().await?;
         return Ok(());
     };
+    let failure = (report.state == MessageAttemptState::FAILED)
+        .then(|| report_failure_kind(account.provider, report.error_code.as_deref()));
+    let mut error = report
+        .error_code
+        .as_ref()
+        .map(|code| format!("provider code {code}"));
+    // A failure the provider reports later is retried on the same channel
+    // like one reported at once, if it may pass.
+    let mut retry_at = failure.and_then(|kind| {
+        next_retry_at(
+            message.purpose.unwrap_or(MessagePurpose::NOTICE),
+            message.attempt,
+            kind,
+            Utc::now(),
+        )
+    });
+    if retry_at.is_some() && message.template_alias.is_none() {
+        retry_at = None;
+        error = Some(MessageReason::NO_STORED_TEMPLATE.to_string());
+    }
+    let (billing_category, billable) = billing_from_report(report.billing.as_ref());
     let change = StateChange {
-        error: report
-            .error_code
-            .as_ref()
-            .map(|code| format!("provider code {code}")),
-        failure: (report.state == MessageAttemptState::FAILED)
-            .then_some(messaging::sender::FailureKind::PERMANENT),
+        error,
+        failure,
         billing: report.billing.clone(),
+        billing_category,
+        billable,
+        next_retry_at: retry_at,
         ..Default::default()
     };
     if transition_message(&tx, &message.id, report.state, &change)
@@ -219,119 +282,30 @@ async fn apply_status(
     Ok(())
 }
 
-/// Records an incoming message (metadata only) and, at most once a day per
-/// recipient, answers with the event's configured reply.
-async fn apply_inbound(
+/// Records a Messenger recipient's Get Started or referral: the 24-hour
+/// window opens. Only this opens it; text the voter writes doesn't.
+async fn record_contact(
     client: &mut DbClient,
-    dispatcher: &Dispatcher,
     account: &MessagingAccount,
-    inbound: &InboundMessage,
+    page_scoped_id: &str,
+    at: Option<DateTime<Utc>>,
 ) -> Result<()> {
-    let Ok(destination) = Destination::parse(account.channel, &inbound.from) else {
+    let Ok(destination) = Destination::parse(MessageChannel::MESSENGER, page_scoped_id) else {
         return Ok(());
     };
     let tx = client.transaction().await?;
-    if !inbound.provider_message_id.is_empty()
-        && inbound_exists(&tx, &account.id, &inbound.provider_message_id).await?
-    {
-        tx.commit().await?;
-        return Ok(());
-    }
     let key = tenant_key(&tx, &account.tenant_id, TenantKey::Destination).await?;
-    let digest = destination.digest(&key)?;
-    // The event of the latest message to this recipient, for its reply text.
-    let event: Option<(Option<Uuid>, Option<String>)> = tx
-        .query_opt(
-            r#"
-            SELECT election_event_id, voter_id FROM sequent_backend.message
-            WHERE account_id = $1 AND destination_digest = $2 AND direction = 'OUTBOUND'
-            ORDER BY created_at DESC LIMIT 1
-            "#,
-            &[&account.id, &digest],
-        )
-        .await?
-        .map(|row| (row.get(0), row.get(1)));
-    let (election_event_id, voter_id) = event.unwrap_or((None, None));
-    insert_message(
+    // Never later than now, so a skewed timestamp can't stretch the window.
+    let at = at.map_or_else(Utc::now, |at| at.min(Utc::now()));
+    record_messenger_contact(
         &tx,
-        &NewMessage {
-            tenant_id: account.tenant_id,
-            election_event_id,
-            voter_id: voter_id.clone(),
-            account_id: Some(account.id),
-            channel: account.channel,
-            direction: MessageDirection::INBOUND,
-            purpose: None,
-            template_alias: None,
-            language: None,
-            masked_destination: destination.masked(),
-            destination_digest: digest.clone(),
-            destination_country: destination.calling_code().map(str::to_string),
-            logical_key: None,
-            attempt: 1,
-            state: MessageAttemptState::DELIVERED,
-            provider_message_id: (!inbound.provider_message_id.is_empty())
-                .then(|| inbound.provider_message_id.clone()),
-            error: None,
-            failure: None,
-        },
+        &account.tenant_id,
+        &account.id,
+        &destination.digest(&key)?,
+        at,
     )
     .await?;
-    let reply = match &election_event_id {
-        Some(event) => get_event_messaging_config(&tx, &account.tenant_id, event)
-            .await?
-            .and_then(|config| {
-                config
-                    .reply_text
-                    .get("en")
-                    .or_else(|| config.reply_text.values().next())
-                    .cloned()
-            }),
-        None => None,
-    };
-    let recently_replied = last_auto_reply_at(&tx, &account.id, &digest)
-        .await?
-        .is_some_and(|at| Utc::now() - at < Duration::hours(24));
     tx.commit().await?;
-    let (Some(text), false) = (reply, recently_replied) else {
-        return Ok(());
-    };
-    let today = Utc::now().format("%Y-%m-%d");
-    deliver(
-        client,
-        dispatcher,
-        &Delivery {
-            tenant_id: account.tenant_id,
-            election_event_id,
-            purpose: MessagePurpose::NOTICE,
-            first_channel: account.channel,
-            fallback: FallbackPolicy::NONE,
-            recipient: Recipient {
-                voter_id,
-                destinations: BTreeMap::from([(account.channel, inbound.from.clone())]),
-                verified: vec![account.channel],
-                election_ids: vec![],
-            },
-            contents: BTreeMap::from([(
-                account.channel,
-                MessageContent {
-                    subject: None,
-                    text,
-                    html: None,
-                    template_parameters: vec![],
-                    code: None,
-                },
-            )]),
-            language: None,
-            template_alias: Some(AUTO_REPLY_ALIAS.to_string()),
-            logical_key: format!("{AUTO_REPLY_ALIAS}:{}:{digest}:{today}", account.id),
-            expires_at: None,
-            account_id: Some(account.id),
-            template_key: Some(AUTO_REPLY_ALIAS.to_string()),
-            provider_templates: BTreeMap::new(),
-        },
-    )
-    .await?;
     Ok(())
 }
 
@@ -344,19 +318,30 @@ pub async fn apply_events(
     for event in events {
         let result = match &event {
             WebhookEvent::Status(report) => apply_status(client, account, report).await,
-            WebhookEvent::Inbound(inbound) => {
-                apply_inbound(client, dispatcher, account, inbound).await
+            WebhookEvent::MessengerGetStarted(contact)
+                if account.channel == MessageChannel::MESSENGER =>
+            {
+                record_contact(client, account, &contact.page_scoped_id, contact.at).await
             }
-            WebhookEvent::MessengerReferral(referral) => {
-                if account.channel == MessageChannel::MESSENGER {
-                    record_interaction(client, account, referral).await?;
-                    bind_referral(client, dispatcher, account, referral)
-                        .await
-                        .map(|_| ())
-                } else {
-                    Ok(())
+            WebhookEvent::MessengerReferral(referral)
+                if account.channel == MessageChannel::MESSENGER =>
+            {
+                // The window opens before the code that follows is sent.
+                match record_contact(client, account, &referral.page_scoped_id, referral.at).await {
+                    Ok(()) => match bind_referral(client, dispatcher, account, referral).await {
+                        Ok(Some(sent)) => {
+                            let tx = client.transaction().await?;
+                            post_attempt_outcomes_or_warn(&tx, &sent.recorded, None, None).await;
+                            tx.commit().await?;
+                            Ok(())
+                        }
+                        Ok(None) => Ok(()),
+                        Err(error) => Err(error),
+                    },
+                    Err(error) => Err(error),
                 }
             }
+            WebhookEvent::MessengerGetStarted(_) | WebhookEvent::MessengerReferral(_) => Ok(()),
             WebhookEvent::DeliveredUpTo(delivered) => {
                 apply_delivered_up_to(client, account, delivered).await
             }
@@ -389,81 +374,34 @@ async fn apply_delivered_up_to(
     Ok(())
 }
 
-/// Callbacks of a provider described by configuration, as a JSON body or
-/// as query parameters. `headers` have lowercase names.
-#[instrument(skip_all, err)]
-pub async fn http_events(
-    client: &mut DbClient,
-    dispatcher: &Dispatcher,
-    webhook_key: &str,
-    headers: &BTreeMap<String, String>,
-    query: &BTreeMap<String, String>,
-    body: &[u8],
-) -> Result<WebhookOutcome> {
-    let Some(account) =
-        account_for_key(client, webhook_key, &[MessagingProvider::HTTP_API]).await?
-    else {
-        return Ok(WebhookOutcome::NotFound);
-    };
-    let AccountSender::HTTP_API(api) = &account.sender else {
-        return Ok(WebhookOutcome::NotFound);
-    };
-    let Some(reports) = &api.reports else {
-        return Ok(WebhookOutcome::NotFound);
-    };
-    let secret = credential(client, &account, CredentialName::WEBHOOK_SECRET).await?;
-    if !http::verify(&reports.auth, secret.as_deref(), headers, body) {
-        return Ok(WebhookOutcome::Unauthorized);
-    }
-    let payload = if body.iter().all(u8::is_ascii_whitespace) {
-        http::query_as_json(query)
-    } else {
-        match serde_json::from_slice(body) {
-            Ok(payload) => payload,
-            Err(_) => return Ok(WebhookOutcome::Unauthorized),
-        }
-    };
-    let events = http::parse_events(reports, &payload);
-    apply_events(client, dispatcher, &account, events).await?;
-    Ok(WebhookOutcome::Accepted)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use messaging::sender::FailureKind;
+    use serde_json::json;
 
-/// A referral opens the conversation window even without a message.
-async fn record_interaction(
-    client: &mut DbClient,
-    account: &MessagingAccount,
-    referral: &messaging::webhooks::MessengerReferral,
-) -> Result<()> {
-    let Ok(destination) = Destination::parse(MessageChannel::MESSENGER, &referral.page_scoped_id)
-    else {
-        return Ok(());
-    };
-    let tx = client.transaction().await?;
-    let key = tenant_key(&tx, &account.tenant_id, TenantKey::Destination).await?;
-    insert_message(
-        &tx,
-        &NewMessage {
-            tenant_id: account.tenant_id,
-            election_event_id: None,
-            voter_id: None,
-            account_id: Some(account.id),
-            channel: MessageChannel::MESSENGER,
-            direction: MessageDirection::INBOUND,
-            purpose: None,
-            template_alias: None,
-            language: None,
-            masked_destination: destination.masked(),
-            destination_digest: destination.digest(&key)?,
-            destination_country: None,
-            logical_key: None,
-            attempt: 1,
-            state: MessageAttemptState::DELIVERED,
-            provider_message_id: None,
-            error: None,
-            failure: None,
-        },
-    )
-    .await?;
-    tx.commit().await?;
-    Ok(())
+    #[test]
+    fn billing_evidence_is_read_from_reports() {
+        assert_eq!(
+            billing_from_report(Some(
+                &json!({"billable": true, "category": "authentication"})
+            )),
+            (Some(BillingCategory::AUTHENTICATION), Some(true))
+        );
+        assert_eq!(
+            billing_from_report(Some(
+                &json!({"price": {"pricePerMessage": 0.02, "currency": "EUR"}})
+            )),
+            (None, Some(true))
+        );
+        assert_eq!(billing_from_report(None), (None, None));
+    }
+
+    #[test]
+    fn late_failures_keep_their_classification() {
+        assert_eq!(
+            report_failure_kind(MessagingProvider::WHATSAPP_CLOUD_API, Some("130429")),
+            FailureKind::TRANSIENT
+        );
+    }
 }

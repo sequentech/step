@@ -1,12 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {EChannelSelection, EMessageChannel} from "@/types/messaging"
-import {ITemplateMethod} from "@/types/templates"
+import {EMessageChannel} from "@/types/messaging"
 import {
     buildSendTemplatePayload,
     missingChannelContent,
-    templatesForChannelSelection,
+    sendableTemplates,
 } from "./sendTemplatePayload"
 
 const content = {
@@ -26,14 +25,10 @@ const base = {
 }
 
 describe("buildSendTemplatePayload", () => {
-    it("sends each voter's channel without a single method", () => {
-        const payload = buildSendTemplatePayload({
-            ...base,
-            channelSelection: EChannelSelection.VOTER_PREFERENCE,
-            communicationMethod: ITemplateMethod.SMS,
-        })
-        expect(payload.channel_selection).toBe(EChannelSelection.VOTER_PREFERENCE)
-        expect(payload.communication_method).toBeUndefined()
+    it("sends the content of every channel, with no channel choice", () => {
+        const payload = buildSendTemplatePayload(base)
+        expect("channel_selection" in payload).toBe(false)
+        expect("communication_method" in payload).toBe(false)
         expect(payload.email).toEqual(content.email)
         expect(payload.sms).toEqual(content.sms)
         expect(payload.whatsapp).toEqual(content.whatsapp)
@@ -43,25 +38,9 @@ describe("buildSendTemplatePayload", () => {
         expect(payload.secret_attribute_names).toEqual(["passport"])
     })
 
-    it("sends one channel with only that channel's content", () => {
-        const payload = buildSendTemplatePayload({
-            ...base,
-            channelSelection: EChannelSelection.SINGLE_CHANNEL,
-            communicationMethod: ITemplateMethod.WHATSAPP,
-        })
-        expect(payload.channel_selection).toBe(EChannelSelection.SINGLE_CHANNEL)
-        expect(payload.communication_method).toBe(ITemplateMethod.WHATSAPP)
-        expect(payload.whatsapp).toEqual(content.whatsapp)
-        expect(payload.email).toBeUndefined()
-        expect(payload.sms).toBeUndefined()
-        expect(payload.messenger).toBeUndefined()
-    })
-
     it("names the provider's template and language when they are set", () => {
         const payload = buildSendTemplatePayload({
             ...base,
-            channelSelection: EChannelSelection.VOTER_PREFERENCE,
-            communicationMethod: ITemplateMethod.SMS,
             content: {
                 ...content,
                 whatsapp: {
@@ -91,14 +70,12 @@ describe("buildSendTemplatePayload", () => {
         const payload = buildSendTemplatePayload({
             ...base,
             alias: "reminder",
-            channelSelection: EChannelSelection.SINGLE_CHANNEL,
-            communicationMethod: ITemplateMethod.WHATSAPP,
         })
         expect(payload.alias).toBe("reminder")
     })
 })
 
-describe("templatesForChannelSelection", () => {
+describe("sendableTemplates", () => {
     const rows = [
         {
             communication_method: "EMAIL",
@@ -108,24 +85,11 @@ describe("templatesForChannelSelection", () => {
         {communication_method: "DOCUMENT", template: {alias: "receipt", selected_methods: {}}},
     ]
 
-    it("offers SMS templates for an SMS send, including multi-method ones", () => {
-        expect(
-            templatesForChannelSelection(
-                rows,
-                EChannelSelection.SINGLE_CHANNEL,
-                ITemplateMethod.SMS
-            ).map((row) => row.template.alias)
-        ).toEqual(["both", "legacy-sms"])
-    })
-
-    it("offers every messaging template for each voter's channel", () => {
-        expect(
-            templatesForChannelSelection(
-                rows,
-                EChannelSelection.VOTER_PREFERENCE,
-                ITemplateMethod.EMAIL
-            ).map((row) => row.template.alias)
-        ).toEqual(["both", "legacy-sms"])
+    it("offers every template that sends a message, not documents", () => {
+        expect(sendableTemplates(rows).map((row) => row.template.alias)).toEqual([
+            "both",
+            "legacy-sms",
+        ])
     })
 })
 

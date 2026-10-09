@@ -35,12 +35,53 @@ class MessageOtpTemplateTest {
   }
 
   @Test
-  void theCodePageParsesAndOffersTheChannelControls() throws IOException {
+  void theCodePageParsesAndOffersNoOtherChannel() throws IOException {
     String template = parsed(TEMPLATE);
-    assertTrue(template.contains("name=\"channel\" value=\"${option}\""));
+    assertFalse(template.contains("name=\"channel\""));
+    assertFalse(template.contains("otherWay"));
+    assertFalse(template.contains("messageOtp.choose."));
+    assertFalse(template.contains("messengerWord"));
     assertTrue(template.contains("name=\"messengerStatus\" value=\"true\""));
     assertTrue(template.contains("msg(\"messageOtp.delivery.unknown\")"));
-    assertTrue(template.contains("msg(\"messageOtp.otherWay.title\")"));
+  }
+
+  @Test
+  void theCodePagesOfferOnlyARestartOnceTheAttemptsAreUsedUp() throws IOException {
+    for (Path page : new Path[] {TEMPLATE, BASE_LOGIN.resolve("message-otp.enter-otp.ftl")}) {
+      String template = parsed(page);
+      assertTrue(template.contains("(attemptsExhausted!false)"), page.toString());
+      assertTrue(template.contains("href=\"${url.loginRestartFlowUrl}\""), page.toString());
+      assertTrue(template.contains("msg(\"messageOtp.auth.restart\")"), page.toString());
+    }
+  }
+
+  @Test
+  void theMessengerPagesShowTheQrCodeOpenMessengerAndGetStarted() throws IOException {
+    for (Path page : new Path[] {TEMPLATE, BASE_LOGIN.resolve("message-otp.enter-otp.ftl")}) {
+      String template = parsed(page);
+      assertTrue(template.contains("src=\"${messengerQr}\""), page.toString());
+      assertTrue(template.contains("msg(\"messageOtp.messenger.open\")"), page.toString());
+      assertTrue(template.contains("msg(\"messageOtp.messenger.getStarted\")"), page.toString());
+      assertTrue(template.contains("msg(\"messageOtp.messenger.scanStep1\")"), page.toString());
+    }
+  }
+
+  /** The QR code is drawn on the server, as an SVG data URI of the m.me link. */
+  @Test
+  void theQrCodeIsRendered() {
+    String link = "https://m.me/synthetic?ref=ref-1";
+    String uri = MessengerQr.dataUri(link).orElseThrow();
+    assertTrue(uri.startsWith(MessengerQr.DATA_URI_PREFIX));
+    String svg =
+        new String(
+            java.util.Base64.getDecoder()
+                .decode(uri.substring(MessengerQr.DATA_URI_PREFIX.length())),
+            java.nio.charset.StandardCharsets.UTF_8);
+    assertTrue(svg.startsWith("<svg xmlns=\"http://www.w3.org/2000/svg\""));
+    assertTrue(svg.contains("<path fill=\"#000\" d=\"M"));
+    assertFalse(svg.contains(link));
+    assertTrue(MessengerQr.dataUri("javascript:alert(1)").isEmpty());
+    assertTrue(MessengerQr.dataUri(null).isEmpty());
   }
 
   @Test
@@ -51,12 +92,13 @@ class MessageOtpTemplateTest {
     assertTrue(contactCode.contains("name=\"messengerStatus\" value=\"true\""));
   }
 
+  /** KC-R4: every send starts the countdown on the code pages, a failed one too. */
   @Test
-  void aFailedSendDoesNotStartTheCountdownOnTheCodePages() throws IOException {
+  void aFailedSendStartsTheCountdownOnTheCodePages() throws IOException {
     for (Path page : new Path[] {TEMPLATE, BASE_LOGIN.resolve("message-otp.enter-otp.ftl")}) {
       String template = parsed(page);
-      assertTrue(template.contains("(deliveryState!'') == 'FAILED'"), page.toString());
-      assertTrue(template.contains("if (sendFailed === \"true\")"), page.toString());
+      assertFalse(template.contains("sendFailed"), page.toString());
+      assertTrue(template.contains("resendTimerStarted!codeJustSent"), page.toString());
     }
   }
 
@@ -67,7 +109,7 @@ class MessageOtpTemplateTest {
     assertTrue(template.contains("name=\"contact\""));
     assertTrue(template.contains("name=\"sequent.message-consent\""));
     assertTrue(template.contains("value=\"${messagingConsentVersion}:${option}\""));
-    assertTrue(template.contains("name=\"sequent.notice-channel\""));
+    assertFalse(template.contains("sequent.notice-channel"));
   }
 
   private static String poll(String state, String link) throws Exception {

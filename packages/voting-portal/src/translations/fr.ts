@@ -9,6 +9,9 @@ const frenchTranslation: TranslationType = {
             error: "Le portail de vote n’a pas pu démarrer. Veuillez réessayer.",
             retry: "Réessayer",
         },
+        contactChannel: {
+            change: "Modifier la façon dont nous vous contactons",
+        },
         common: {
             goBack: "Retour",
             showMore: "Afficher plus",

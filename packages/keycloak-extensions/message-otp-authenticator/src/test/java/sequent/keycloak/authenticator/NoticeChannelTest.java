@@ -4,8 +4,8 @@
 
 package sequent.keycloak.authenticator;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -83,13 +82,12 @@ class NoticeChannelTest {
     when(sender.delivers(any())).thenCallRealMethod();
     when(sender.send(any())).thenReturn(new SendMessageResponse("m-1", "ACCEPTED", null));
     when(sms.send(anyString(), anyString(), anyList(), any(), any(), any())).thenReturn("sent");
-    notes.put(MessagingAttributes.FORM_WHATSAPP_NUMBER, WHATSAPP);
     notes.put(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD, PHONE);
   }
 
-  private void enrolledWith(MessageChannel verified, MessageChannel notices) {
+  private void enrolledWith(MessageChannel verified, String destination) {
     notes.put(MessagingAttributes.NOTE_VERIFIED_CHANNEL, verified.name());
-    notes.put(MessagingAttributes.FORM_NOTICE_CHANNEL, notices.name());
+    notes.put(MessagingAttributes.NOTE_VERIFIED_DESTINATION, destination);
   }
 
   private void sendPending(Utils.MessageCourier courier) throws Exception {
@@ -106,8 +104,8 @@ class NoticeChannelTest {
   }
 
   @Test
-  void aNoticeGoesToTheVerifiedMessagingAppTheVoterChose() throws Exception {
-    enrolledWith(MessageChannel.WHATSAPP, MessageChannel.WHATSAPP);
+  void aNoticeGoesToTheVerifiedChannelOnly() throws Exception {
+    enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
     sendPending(Utils.MessageCourier.BOTH);
 
     ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
@@ -125,6 +123,15 @@ class NoticeChannelTest {
   }
 
   @Test
+  void aFormFieldCannotChooseWhereNoticesGo() throws Exception {
+    notes.put(MessagingAttributes.FORM_OTP_CHANNEL, MessageChannel.WHATSAPP.name());
+    sendPending(Utils.MessageCourier.CHOSEN);
+    verify(sender, never()).send(any());
+    verify(sms)
+        .send(eq(PHONE), eq(Utils.SEND_PENDING_SMS_I18N_KEY), anyList(), any(), any(), any());
+  }
+
+  @Test
   void everyNoticeKeepsTheMessageKeyTheAdminPortalBindsTemplatesTo() {
     assertEquals("messageSuccessSms", Utils.SEND_SUCCESS_SMS_I18N_KEY);
     assertEquals("messageSuccessSmsKiosk", Utils.SEND_SUCCESS_SMS_I18N_KEY_KIOSK);
@@ -139,71 +146,51 @@ class NoticeChannelTest {
         sequent.keycloak.authenticator.forgot_password.Utils.NEW_PASSWORD_MESSAGE_KEY);
   }
 
+  /** KC-R6: the reset page names neither the channel nor whether the account exists. */
   @Test
-  void theResetLinkTextNamesTheChannelThatCarriedIt() {
-    org.keycloak.models.utils.FormMessage app =
-        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification.successMessage(
-            Optional.of(MessageChannel.WHATSAPP), "WhatsApp", "voter@example.test");
-    assertEquals("forgotPassword.success.channel.message", app.getMessage());
-    assertArrayEquals(new Object[] {"WhatsApp"}, app.getParameters());
-
-    org.keycloak.models.utils.FormMessage email =
-        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification.successMessage(
-            Optional.empty(), null, "voter@example.test");
-    assertEquals("forgotPassword.success.display.message", email.getMessage());
-    assertArrayEquals(new Object[] {"email"}, email.getParameters());
-
-    org.keycloak.models.utils.FormMessage sms =
-        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification.successMessage(
-            Optional.empty(), null, null);
-    assertArrayEquals(new Object[] {"sms"}, sms.getParameters());
+  void theResetPageIsTheSameForEveryone() {
+    org.keycloak.models.utils.FormMessage message =
+        sequent.keycloak.authenticator.forgot_password.ResetCredentialNotification.successMessage();
+    assertEquals("forgotPassword.success.contact.message", message.getMessage());
+    assertTrue(message.getParameters() == null || message.getParameters().length == 0);
   }
 
   @Test
-  void anOtpChoiceAloneDoesNotRouteNotices() throws Exception {
-    notes.put(MessagingAttributes.NOTE_VERIFIED_CHANNEL, MessageChannel.WHATSAPP.name());
-    sendPending(Utils.MessageCourier.SMS);
-    verify(sender, never()).send(any());
-    verify(sms)
-        .send(eq(PHONE), eq(Utils.SEND_PENDING_SMS_I18N_KEY), anyList(), any(), any(), any());
-  }
-
-  @Test
-  void anUnverifiedChoiceIsIgnored() throws Exception {
-    enrolledWith(MessageChannel.SMS, MessageChannel.WHATSAPP);
-    sendPending(Utils.MessageCourier.SMS);
-    verify(sender, never()).send(any());
-    verify(sms).send(eq(PHONE), anyString(), anyList(), any(), any(), any());
-  }
-
-  @Test
-  void aChannelTheEventDoesNotUseForNoticesIsIgnored() throws Exception {
-    notes.put(MessagingAttributes.FORM_VIBER_NUMBER, WHATSAPP);
-    enrolledWith(MessageChannel.VIBER, MessageChannel.VIBER);
-    sendPending(Utils.MessageCourier.SMS);
-    verify(sender, never()).send(any());
-    verify(sms).send(eq(PHONE), anyString(), anyList(), any(), any(), any());
-  }
-
-  @Test
-  void aConfirmedFailureFallsBackToTheConfiguredCourier() throws Exception {
-    enrolledWith(MessageChannel.WHATSAPP, MessageChannel.WHATSAPP);
+  void aConfirmedFailureIsRecordedAndNeverSentElsewhere() throws Exception {
+    enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
     when(sender.send(any())).thenReturn(new SendMessageResponse(null, "FAILED", "rejected-422"));
     sendPending(Utils.MessageCourier.SMS);
-    verify(sms).send(eq(PHONE), anyString(), anyList(), any(), any(), any());
+    verify(sender).send(any());
+    verifyNoInteractions(sms);
   }
 
   @Test
   void anUnknownOutcomeIsNotResentElsewhere() throws Exception {
-    enrolledWith(MessageChannel.WHATSAPP, MessageChannel.WHATSAPP);
+    enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
     when(sender.send(any())).thenReturn(new SendMessageResponse("m-1", "UNKNOWN", "timeout"));
     sendPending(Utils.MessageCourier.SMS);
     verifyNoInteractions(sms);
   }
 
   @Test
-  void theChosenCourierSendsOneNotice() throws Exception {
-    enrolledWith(MessageChannel.SMS, MessageChannel.SMS);
+  void aChannelTheEventDoesNotUseForNoticesIsNotSentAnywhere() throws Exception {
+    enrolledWith(MessageChannel.VIBER, WHATSAPP);
+    sendPending(Utils.MessageCourier.SMS);
+    verify(sender, never()).send(any());
+    verifyNoInteractions(sms);
+  }
+
+  @Test
+  void withoutAMessageSenderAnAppVoterGetsNothingElsewhere() throws Exception {
+    when(session.getProvider(MessageSenderProvider.class)).thenReturn(null);
+    enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
+    sendPending(Utils.MessageCourier.SMS);
+    verifyNoInteractions(sms);
+  }
+
+  @Test
+  void theChosenCourierSendsOneNoticeOnTheVotersSmsNumber() throws Exception {
+    enrolledWith(MessageChannel.SMS, "+639171234567");
     Utils.sendManualCommunication(
         session,
         realm,
@@ -214,35 +201,62 @@ class NoticeChannelTest {
         new HashMap<>(),
         NoticeRecipient.fromEnrollment(authSession, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
         context);
+    verify(sms, times(1)).send(eq("+639171234567"), anyString(), anyList(), any(), any(), any());
+    verify(sender, never()).send(any());
+  }
+
+  @Test
+  void aRealmWithoutMessagingKeepsItsConfiguredCourier() throws Exception {
+    sendPending(Utils.MessageCourier.BOTH);
     verify(sms).send(eq(PHONE), anyString(), anyList(), any(), any(), any());
     verify(sender, never()).send(any());
   }
 
   @Test
-  void withTheDefaultSenderNoticesKeepTheirCourier() throws Exception {
-    when(session.getProvider(MessageSenderProvider.class)).thenReturn(null);
-    enrolledWith(MessageChannel.WHATSAPP, MessageChannel.WHATSAPP);
-    sendPending(Utils.MessageCourier.SMS);
-    verify(sms).send(eq(PHONE), anyString(), anyList(), any(), any(), any());
+  void aSavedVotersNoticesFollowTheirOneChannel() {
+    UserModel user = mock(UserModel.class);
+    Map<String, java.util.List<String>> attributes = new HashMap<>();
+    when(user.getAttributeStream(anyString()))
+        .thenAnswer(i -> attributes.getOrDefault(i.getArgument(0), java.util.List.of()).stream());
+    when(user.getEmail()).thenReturn("voter@example.test");
+    attributes.put(MessagingAttributes.MESSAGE_CHANNEL, java.util.List.of("WHATSAPP"));
+    attributes.put(MessagingAttributes.MESSAGE_NUMBER, java.util.List.of(WHATSAPP));
+    NoticeRecipient recipient =
+        NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    assertEquals(MessageChannel.WHATSAPP, recipient.channel().get().channel());
+    assertEquals(WHATSAPP, recipient.channel().get().destination());
+
+    attributes.clear();
+    assertEquals(
+        Optional.of(MessageChannel.EMAIL),
+        NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD)
+            .channel()
+            .map(c -> c.channel()));
   }
 
+  /** U8: a temporary password goes to the voter's channel, and never by email as well. */
   @Test
-  void aSavedVotersChoiceMustBeVerified() {
+  void aTemporaryPasswordGoesOnlyToTheVotersChannel() throws Exception {
+    when(session.getContext().getRealm()).thenReturn(realm);
     UserModel user = mock(UserModel.class);
-    when(user.getFirstAttribute(MessagingAttributes.MESSAGE_CHANNEL)).thenReturn("WHATSAPP");
-    when(user.getFirstAttribute(MessagingAttributes.WHATSAPP_NUMBER)).thenReturn(WHATSAPP);
-    when(user.getAttributeStream(MessagingAttributes.VERIFIED_CHANNELS))
-        .thenAnswer(i -> Stream.of("SMS"));
-    when(user.getAttributeStream(MessagingAttributes.AUTHORIZED_ELECTIONS))
-        .thenAnswer(i -> Stream.of());
-    assertEquals(
-        Optional.empty(),
-        NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD).preferred());
+    Map<String, java.util.List<String>> attributes = new HashMap<>();
+    attributes.put(MessagingAttributes.MESSAGE_CHANNEL, java.util.List.of("WHATSAPP"));
+    attributes.put(MessagingAttributes.MESSAGE_NUMBER, java.util.List.of(WHATSAPP));
+    when(user.getAttributeStream(anyString()))
+        .thenAnswer(i -> attributes.getOrDefault(i.getArgument(0), java.util.List.of()).stream());
+    when(user.getEmail()).thenReturn("voter@example.test");
+    EmailTemplateProvider email = mock(EmailTemplateProvider.class, RETURNS_SELF);
+    when(session.getProvider(EmailTemplateProvider.class)).thenReturn(email);
+    when(realm.getAttribute(PublicMessagingChannels.REALM_ATTRIBUTE)).thenReturn(PROJECTION);
 
-    when(user.getAttributeStream(MessagingAttributes.VERIFIED_CHANNELS))
-        .thenAnswer(i -> Stream.of("SMS", "WHATSAPP"));
-    assertEquals(
-        Optional.of(MessageChannel.WHATSAPP),
-        NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD).preferred());
+    sequent.keycloak.authenticator.forgot_password.Utils.sendNewPasswordNotification(
+        session, user, "synthetic-temporary");
+
+    ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sender).send(request.capture());
+    assertEquals(MessageChannel.WHATSAPP, request.getValue().channel());
+    assertEquals("newPassword.message.text", request.getValue().templateKey());
+    verify(email, never()).send(anyString(), anyList(), anyString(), any());
+    verifyNoInteractions(sms);
   }
 }

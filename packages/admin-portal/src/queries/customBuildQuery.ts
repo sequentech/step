@@ -20,6 +20,7 @@ import {isString} from "lodash"
 import {COLUMNS_MAP} from "@/types/query"
 import {GetCastVotesByIp} from "./GetCastVotesByIp"
 import {GET_ELECTIONS_BY_EXTERNAL_ID} from "./GetElectionsByExternalID"
+import {LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "@/components/logs/messagingLogFilters"
 
 export interface ParamsSort {
     field: string
@@ -127,6 +128,9 @@ export const customBuildQuery =
                 "created",
                 "statement_timestamp",
                 "statement_kind",
+                // Messages a SendCommunications entry records (the Messaging tab's Failed links).
+                LOG_FILTER_CHANNEL,
+                LOG_FILTER_OUTCOME,
                 ...ELECTORAL_LOG_RANGE_FILTERS,
                 ELECTORAL_LOG_ZONE_FILTER,
                 ELECTORAL_LOG_DEFAULT_ZONE_FILTER,

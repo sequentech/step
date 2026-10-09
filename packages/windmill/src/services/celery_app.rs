@@ -55,6 +55,7 @@ use crate::tasks::manage_election_lifecycle_window::manage_election_lifecycle_wi
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
+use crate::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
 use crate::tasks::migrate_registration_flows::migrate_registration_flows;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
@@ -370,6 +371,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             sweep_signing_executions,
             refresh_staff_crls,
             migrate_registration_flows,
+            migrate_messaging_attributes,
             run_signed_action,
             manage_election_lifecycle_window,
             enforce_signed_closes_task,
@@ -381,7 +383,8 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
-            reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
+            // The messaging sweep must not wait behind bulk sends.
+            reconcile_messages::NAME => &Queue::Beat.queue_name(&slug),
             process_board::NAME => &Queue::Beat.queue_name(&slug),
             render_report::NAME => &Queue::Reports.queue_name(&slug),
             create_ballot_receipt::NAME => &Queue::Reports.queue_name(&slug),
@@ -447,6 +450,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_voter_information_letter::NAME => &Queue::Reports.queue_name(&slug),
             migrate_realm_permissions::NAME => &Queue::Short.queue_name(&slug),
             migrate_registration_flows::NAME => &Queue::Short.queue_name(&slug),
+            migrate_messaging_attributes::NAME => &Queue::Short.queue_name(&slug),
             post_signing_log_outbox::NAME => &Queue::ElectoralLogBeat.queue_name(&slug),
             expire_signing_requests::NAME => &Queue::Beat.queue_name(&slug),
             sweep_signing_executions::NAME => &Queue::Beat.queue_name(&slug),
@@ -496,4 +500,42 @@ pub async fn get_celery_connection() -> Result<Arc<Connection>> {
 
     // No connection exists, create a new one
     create_connection().await.map(|(connection, _)| connection)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    /// `task::NAME => &Queue::X` pairs of a `task_routes = [...]` list.
+    fn routes(source: &str) -> BTreeMap<String, String> {
+        let start = source.find("task_routes = [").expect("a task_routes list");
+        let list = &source[start..];
+        let end = list.find("\n        ],").expect("the end of the list");
+        list[..end]
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                let (task, queue) = line.split_once("::NAME => &Queue::")?;
+                let queue = queue.split('.').next()?;
+                Some((task.to_string(), queue.to_string()))
+            })
+            .collect()
+    }
+
+    /// Beat routes the tasks it schedules itself, and the workers route
+    /// every task: both must send a task to the same queue.
+    #[test]
+    fn beat_and_worker_routes_agree() {
+        let worker = routes(include_str!("celery_app.rs"));
+        let beat = routes(include_str!("../bin/beat.rs"));
+        assert!(beat.len() > 5, "{beat:?}");
+        for (task, queue) in &beat {
+            assert_eq!(
+                worker.get(task),
+                Some(queue),
+                "{task} goes to {queue} from beat but not from the workers"
+            );
+        }
+        assert_eq!(worker.get("reconcile_messages").map(String::as_str), Some("Beat"));
+    }
 }

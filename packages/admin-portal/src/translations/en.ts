@@ -1814,6 +1814,7 @@ const englishTranslation = {
                 "messaging-account-read": "Read messaging accounts",
                 "messaging-account-write": "Manage messaging accounts",
                 "messaging-config-write": "Configure election event messaging",
+                "messaging-config-read": "Read election event messaging",
             },
         },
         generalSettingsScreen: {
@@ -5249,10 +5250,8 @@ const englishTranslation = {
             sections: {
                 channels: "Channels",
                 templates: "Approved templates",
-                fallback: "Fallback order for notices",
                 posts: "Channels by Post",
                 postsCount: "Channels by Post ({{count}} Posts)",
-                reply: "Reply to incoming messages",
                 delivery: "Delivery status",
             },
             column: {
@@ -5265,14 +5264,12 @@ const englishTranslation = {
                 post: "Post",
                 key: "For message",
                 providerLanguage: "Provider language",
+                voters: "Voters using it",
+                sent24h: "Sent, last 24 h",
             },
             outOfWindow: {
-                label: "Outside the conversation window",
-                help: "Free-text notices are sent only while the conversation window is open: on Messenger, within 24 hours of the voter's last message. Choose Utility messages to send notices after that with an approved template. Meta must approve this for the Page (the page_utility_messaging permission and an approved UTILITY template), and that template must be bound to notices under Approved templates. With Do not send, a notice outside the window goes to the voter's next eligible channel.",
-                DISABLED: "Do not send",
-                UTILITY_MESSAGES: "Utility messages",
-                noTemplate:
-                    "No template is bound to notices on this channel yet. Add one under Approved templates; until then notices outside the window go to the voter's next eligible channel.",
+                utility:
+                    "Outside the 24-hour window, {{channel}} sends notices with the approved utility template bound to notices under Approved templates.",
             },
             templates: {
                 empty: "Choose an account that sends approved templates, such as WhatsApp, Viber or Messenger, to bind its templates here.",
@@ -5290,15 +5287,8 @@ const englishTranslation = {
                 approval: {
                     APPROVED: "Approved",
                     NOT_APPROVED: "Not approved",
-                    ADMIN_CONFIRMED: "Confirmed by an administrator",
                     NOT_CHECKED: "Approval not checked",
                 },
-            },
-            fallback: {
-                help: "When a notice cannot reach a voter on their channel, it goes to the next channel in this order that the voter has verified and their Post offers. Codes are never resent on their own: the voter chooses another way.",
-                empty: "Turn on notices for a channel to add it to the fallback order.",
-                earlier: "Move {{channel}} earlier",
-                later: "Move {{channel}} later",
             },
             posts: {
                 noChannels:
@@ -5311,13 +5301,12 @@ const englishTranslation = {
                 cell: "{{post}}: {{channel}}",
                 showing: "Showing {{shown}} of {{total}} Posts. Search to find others.",
             },
-            reply: {
-                help: "Sent when a voter writes to one of this event's accounts, at most once a day per voter.",
-                label: "Reply ({{language}})",
-            },
             delivery: {
                 empty: "No channel is in use.",
-                help: "Accepted means the provider accepted the request, not that the voter received or verified the code. Unknown means delivery is not confirmed yet. A provider without delivery reports shows delivery as unavailable.",
+                help: "Counts are per message, by the state of its latest attempt. Accepted means the provider accepted the message, not that the voter received it. Unknown means delivery is not confirmed yet; after 24 hours it is shown as Unresolved, never as failed. An account without delivery reports shows delivery as unavailable.",
+                loadError: "The message counts could not be loaded.",
+                noReceipts: "This account gets no delivery reports, so delivery can't be shown.",
+                showFailed: "Show the failed {{channel}} messages in Logs",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5334,13 +5323,14 @@ const englishTranslation = {
                     "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} cannot send outside a conversation window with this account: it has no conversation window, or its notices already need a template.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "{{channel}} is in the fallback order but does not send notices.",
-                DUPLICATE_FALLBACK_CHANNEL: "{{channel}} is in the fallback order more than once.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "{{election}} offers {{channel}}, which this event does not use.",
                 UNKNOWN_ELECTION: "{{election}} is not an election of this event.",
+                UTILITY_TEMPLATE_MISSING:
+                    "{{channel}} notices outside the 24-hour window need the approved utility template. Bind it to notices under Approved templates.",
             },
+            noReadPermission: "Reading these settings needs the messaging-config-read permission.",
+            chooseAccount: "Choose an account first.",
         },
         messaging: {
             channel: {
@@ -5357,8 +5347,8 @@ const englishTranslation = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Console (test only, nothing is sent)",
-                HTTP_API: "Custom HTTP API",
+                CONSOLE: "Console (no longer supported)",
+                HTTP_API: "Custom HTTP API (no longer supported)",
             },
             purpose: {
                 OTP: "OTPs",
@@ -5370,6 +5360,7 @@ const englishTranslation = {
                 DELIVERED: "Delivered",
                 FAILED: "Failed",
                 UNKNOWN: "Unknown",
+                UNRESOLVED: "Unresolved",
             },
             stateHelp: {
                 QUEUED: "Waiting to be handed to the provider.",
@@ -5378,6 +5369,8 @@ const englishTranslation = {
                 DELIVERED: "The provider reported the message as delivered.",
                 FAILED: "The provider confirmed the message was not delivered.",
                 UNKNOWN: "Delivery is not confirmed yet.",
+                UNRESOLVED:
+                    "Delivery couldn't be confirmed within 24 hours. This doesn't mean it failed.",
             },
             blocker: {
                 NOT_CONNECTED: "Not connected",
@@ -5385,6 +5378,7 @@ const englishTranslation = {
                 NEEDS_PROVIDER_APPROVAL: "Needs provider approval",
                 NEEDS_PRODUCTION_ACCESS: "Needs production access",
                 NEEDS_APPROVED_TEMPLATE: "Needs approved template",
+                UNSUPPORTED_PROVIDER: "Unsupported provider: replace this account",
             },
             readiness: {
                 connected: "Connected",
@@ -5394,8 +5388,6 @@ const englishTranslation = {
                 notReady: "Not ready",
                 lastCheck: "Checked {{date}}",
                 neverChecked: "Not checked yet",
-                adminConfirmed: "Confirmed by an administrator",
-                checkNotUsed: "Check not used",
             },
             approval: {
                 PENDING: "Pending provider approval",
@@ -5409,10 +5401,8 @@ const englishTranslation = {
                 SMTP_PASSWORD: "Password",
                 AWS_ACCESS_KEY_ID: "AWS access key ID",
                 AWS_SECRET_ACCESS_KEY: "AWS secret access key",
-                API_SECRET: "API secret",
-                USERNAME: "User name",
-                PASSWORD: "Password",
-                WEBHOOK_SECRET: "Webhook secret",
+                REPORT_USERNAME: "Report user name",
+                REPORT_PASSWORD: "Report password",
             },
             deliveryUnavailable: "Delivery unavailable",
             templates: {
@@ -5437,7 +5427,7 @@ const englishTranslation = {
                     "Within 24 hours of the voter's last message, Messenger sends the text below.",
                 messengerMessage: "Message within 24 hours",
                 messengerWindow:
-                    "A saved Messenger recipient is not permission to send. Outside the 24-hour window this notice is sent as a utility message when the election event allows it and an approved template is set below or bound in the event; otherwise it goes to the voter's next eligible channel. Utility messages need the page_utility_messaging permission and an approved UTILITY template on the Page.",
+                    "A saved Messenger recipient is not permission to send. Outside the 24-hour window this notice is sent with the approved utility template set below or bound in the election event; without one it isn't sent, and the failure shows with its reason. Utility messages need the page_utility_messaging permission and an approved UTILITY template on the Page.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp sends only templates that Meta approved for the account's WhatsApp Business Account. The message must match the approved template; choose what fills its parameters.",
@@ -5457,16 +5447,13 @@ const englishTranslation = {
                     VIBER: "The language code the Viber provider knows the template by, when it needs one.",
                     MESSENGER: "The language code of the approved utility template, such as en_US.",
                 },
-                approvalAdminConfirmed:
-                    "An administrator confirmed with the provider that this account's templates are approved, so the approvals of the connection check are not used.",
+                noReadPermission:
+                    "Reading the accounts needs the messaging-config-read permission.",
             },
             send: {
-                channel: "Channel",
                 eachVoter: "Each voter's channel",
-                only: "{{channel}} only",
                 eachVoterHelp:
-                    "Confirmed failures use the next eligible verified channel. Unconfirmed delivery is shown as Unknown.",
-                onlyHelp: "Every voter is sent this notification by {{channel}}.",
+                    "Each voter gets one message on their own channel. If delivery fails, it is retried on that channel and the failure shows on the event's Messaging tab. Unconfirmed delivery is shown as Unknown.",
                 channelColumn: "Channel",
                 sendsFrom: "Sends from",
                 noAccount: "No account",
@@ -5479,20 +5466,25 @@ const englishTranslation = {
                 providerLanguage: "{{channel}} provider language",
                 providerLanguageHelp:
                     "The provider's language code of that template, such as en_US.",
+                voters: "Voters",
             },
             voter: {
                 title: "Messaging",
-                preferredChannel: "Preferred channel",
-                whatsappNumber: "WhatsApp number",
-                viberNumber: "Viber number",
-                messengerConnected: "Connected",
-                messengerNotConnected: "Not connected",
-                verifiedChannels: "Verified channels",
-                noneVerified: "No verified channels",
                 notSet: "Not set",
+                channel: "Channel",
+                destination: "Sends to",
+                messengerPage: "Messenger Page",
+                consent: "Consent",
+                lastFailure: "Last failure",
+                noFailure: "None",
+                failureNeedsPermission: "Shown with the messaging-config-read permission.",
+                noChannel: "No contact on record",
             },
             logs: {
                 channel: "Channel",
+                status: "Status",
+                statusAsLogged:
+                    "The state when the entry was written; the current state needs the messaging-config-read permission.",
             },
             stats: {
                 sent: {
@@ -5501,9 +5493,12 @@ const englishTranslation = {
                     MESSENGER: "Messenger messages sent",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "From the provider's check",
-                ADMIN_CONFIRMED: "Confirmed by an administrator",
+            reason: {
+                CALLBACK_NOT_CONFIGURED: "Callback address not configured",
+                UNSUPPORTED_PROVIDER: "Unsupported provider: replace this account",
+                CREDENTIALS_FOLLOW_ENDPOINT: "Enter the credentials again for the new address",
+                NO_CONTACT_CHANNEL: "No contact channel",
+                NOT_RETRYABLE_NO_TEMPLATE: "Can't be retried: no stored template",
             },
         },
         messagingAccounts: {
@@ -5582,9 +5577,7 @@ const englishTranslation = {
                 sender: "Sender name",
                 provider_approval: "Provider approval",
                 is_default: "Default {{channel}} account for new election events",
-                readiness: "Readiness",
                 api_base_url: "Graph API base URL",
-                label: "Sender shown to voters",
             },
             fieldHelp: {
                 from_address:
@@ -5602,11 +5595,8 @@ const englishTranslation = {
                 sender: "The approved sender voters see.",
                 provider_approval:
                     "Meta allows government messaging on WhatsApp only through an approved arrangement. Choose Provider approval confirmed once Meta has approved it for this account; until then OTPs and notices cannot be enabled for it.",
-                readiness:
-                    "From the provider's check uses what the connection check finds: whether the account is connected, in production, and which templates are approved. Confirmed by an administrator is for providers whose check cannot tell: it is your statement that the account is connected, in production and has its templates approved, and it is used instead of the check.",
                 api_base_url:
                     "Only when the Graph API is not Meta's own, such as a Solution Provider's endpoint. Empty uses Meta's.",
-                label: "The name voters see as the sender of this account.",
             },
             error: {
                 REQUIRED: "Required",
@@ -5614,8 +5604,8 @@ const englishTranslation = {
                 OTP_ABOVE_TOTAL: "Cannot exceed the messages per second",
                 INVALID_CALLING_CODE: "Enter country calling codes of 1 to 3 digits, such as 63",
                 DUPLICATE_LANGUAGE: "This language already has a template for this purpose",
-                NOT_A_URL: "Enter an address starting with https:// or http://",
-                INVALID_HTTP_CONFIG: "Fix the problems shown",
+                NOT_A_URL: "Enter an address starting with https://",
+                UNSUPPORTED_PROVIDER: "Unsupported provider: replace this account",
             },
             warning: {
                 pageChange:
@@ -5674,25 +5664,20 @@ const englishTranslation = {
                 VIBER_INFOBIP: {
                     API_KEY: "The Infobip API key.",
                 },
-                HTTP_API: {
-                    API_KEY: "Optional. Requests use it as the credential API_KEY.",
-                    API_SECRET:
-                        "Optional. A second secret, and the key that signs the JWT: a PEM private key for RS256, the shared secret for HS256.",
-                    ACCESS_TOKEN: "Optional. Requests use it as the credential ACCESS_TOKEN.",
-                    USERNAME: "Optional. With the password, it forms the basic_auth placeholder.",
-                    PASSWORD: "Optional. With the user name, it forms the basic_auth placeholder.",
-                    WEBHOOK_SECRET:
-                        "Optional. The shared secret the provider's callbacks are checked with.",
-                },
             },
             webhook: {
-                title: "Delivery reports and replies",
-                description:
-                    "Enter this callback in the provider's webhook settings. Delivery reports and voters' replies arrive there.",
-                path: "Callback path",
-                pathHelp: "Add it to the public address of this platform's messaging webhooks.",
+                title: "Delivery reports",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Enter this callback URL in Meta's webhook settings. Delivery reports arrive here and are checked with the app secret.",
+                    MESSENGER_SEND_API:
+                        "Enter this callback URL in Meta's webhook settings. Delivery reports and the voter's Get Started tap arrive here and are checked with the app secret.",
+                    VIBER_INFOBIP:
+                        "Infobip sends Viber delivery reports to this callback URL through a subscription with Basic authentication.",
+                    AWS_SES:
+                        "Subscribe this callback URL (HTTPS) to the delivery notifications topic. Delivery and bounce events arrive here and are checked with Amazon's signature.",
+                },
                 afterSaving: "Shown after saving",
-                copyPath: "Copy callback path",
                 tokenSet: "Set · replaced {{date}}",
                 tokenMissing: "Not generated yet",
                 tokenAfterSaving: "Generated after saving",
@@ -5703,8 +5688,11 @@ const englishTranslation = {
                 copyToken: "Copy verify token",
                 tokenDone: "Done",
                 tokenError: "The verify token could not be generated.",
-                httpHelp:
-                    "A custom HTTP API may post its reports as JSON, or send them as a GET request; its query parameters are then read as a flat object, with pointers such as /status.",
+                url: "Callback URL",
+                copyUrl: "Copy callback URL",
+                needsWrite: "Shown to administrators who can manage messaging accounts.",
+                loading: "Loading…",
+                unavailable: "Not available",
             },
             copy: {
                 success: "Copied",
@@ -5736,101 +5724,21 @@ const englishTranslation = {
                 languageHelp:
                     "For a provider that sends approved templates, enter the provider's language code of the template, such as en_US.",
             },
-            http: {
-                title: "Custom HTTP API",
-                description:
-                    "Describes a provider by its HTTP requests: another Viber partner, a WhatsApp Solution Provider's own API, an SMS gateway. Requests are JSON; their URL, headers and body may hold the placeholders of the reference below.",
-                phoneFormat: "Phone number format",
-                phoneFormatHelp: "How the recipient's phone number is written in a request.",
-                phoneFormatOption: {
-                    E164: "With the plus sign: +639171234567",
-                    DIGITS: "Digits only: 639171234567",
-                },
-                templateRequired: "Purposes that need an approved template",
-                templateRequiredHelp:
-                    "A ticked purpose is sent only with a template the provider approved, bound in the election event. The other purposes are sent as free text.",
-                approvedLanguages: "Approved template languages for {{purpose}}",
-                approvedLanguagesHelp:
-                    "The language codes with an approved template, as confirmed with the provider, separated by commas: en, tl. The connection check reports them.",
-                conversationWindow: "Conversation window (hours)",
-                conversationWindowHelp:
-                    "Hours after the recipient's last message during which free text may be sent. Empty when the provider has no such window.",
-                messageIdPointer: "Message ID in the send response",
-                messageIdPointerHelp:
-                    "A JSON pointer to the provider's message ID in the answer to the send request, such as /message_id. Delivery reports are matched with it.",
-                notConfigured: "Not configured.",
-                thisSection: "This section",
-                add: "Add: {{section}}",
-                remove: "Remove: {{section}}",
-                section: {
-                    SEND: "Send request",
-                    CHECK: "Connection check request",
-                    TOKEN: "Token request",
-                    JWT: "Signed token (JWT)",
-                    REPORTS: "Delivery reports and replies",
-                    RECONCILE: "Message lookup request",
-                },
-                sectionHelp: {
-                    SEND: "The request that sends one message: method (POST when left out), url, headers and body.",
-                    CHECK: "Optional. A request that succeeds, with a 2xx answer, when the credentials work. The connection check runs it.",
-                    TOKEN: "Optional. Gets a short-lived token before sending, such as OAuth client credentials: request, token_pointer (where the token is in the answer) and lifetime_seconds. Requests use it with the token placeholder.",
-                    JWT: "Optional. A token signed for each request with the API secret credential: algorithm (RS256 or HS256), claims (iat, exp and jti are added) and lifetime_seconds. Requests use it with the jwt placeholder.",
-                    REPORTS:
-                        "Optional. How to read what the provider sends to the callback: auth, items_pointer (where the list of reports is; the whole payload when left out), status (message_id_pointer, state_pointer, states mapping each provider value to QUEUED, ACCEPTED, DELIVERED, FAILED or UNKNOWN, and error_pointer) and inbound_from_pointer (where the sender of a reply is). auth has a kind: URL_KEY (only the callback's secret address), HEADER_SECRET (a header equal to the webhook secret), HMAC_SHA256 (a header with the HMAC of the body under the webhook secret, with prefix, encoding HEX or BASE64, and signed when more than the body is signed) or JWT_HS256 (a header with a bearer JWT signed with the webhook secret).",
-                    RECONCILE:
-                        "Optional. Asks the provider about one message whose outcome is unknown: request and status, which is read like the status of the delivery reports.",
-                },
-                problem: {
-                    NOT_AN_OBJECT: "{{path}} must be an object.",
-                    MISSING_URL: "{{path}} is required: the address of the request.",
-                    INVALID_METHOD: "{{path}} must be an HTTP method, such as POST or GET.",
-                    INVALID_HEADERS:
-                        "{{path}} must be text: headers is an object of header names and text values.",
-                    UNKNOWN_FIELD: "{{path}} is not a field of this section.",
-                    UNKNOWN_PLACEHOLDER:
-                        "{{path}} uses a placeholder that does not exist. See the placeholder reference.",
-                    INVALID_POINTER:
-                        "{{path}} must be a JSON pointer starting with /, such as /data/id.",
-                    INVALID_STATES:
-                        "{{path}} must map a provider status value to QUEUED, ACCEPTED, DELIVERED, FAILED or UNKNOWN; at least one is needed.",
-                    INVALID_AUTH:
-                        "{{path}} is not valid: kind is URL_KEY, HEADER_SECRET, HMAC_SHA256 or JWT_HS256; header is required except for URL_KEY; encoding is HEX or BASE64.",
-                    INVALID_LIFETIME: "{{path}} must be a whole number of seconds above 0.",
-                    INVALID_ALGORITHM: "{{path}} must be RS256 or HS256.",
-                    INVALID_CLAIMS: "{{path}} must be an object.",
-                    INVALID_HOURS: "{{path}} must be a whole number of hours above 0.",
-                },
-                placeholders: {
-                    title: "Placeholder reference",
-                    help: "Written between double curly braces in the URL, a header value or any text of the body. Each is replaced when the request is made.",
-                },
-                placeholder: {
-                    to: "The recipient: phone number, email address or Page-scoped ID.",
-                    text: "The message as plain text.",
-                    subject: "The subject, for email.",
-                    html: "The message as HTML, for email.",
-                    code: "The one-time code, for OTPs.",
-                    template: "The provider template bound in the election event.",
-                    language: "The provider's language code of the template.",
-                    message_id: "The provider's message ID, in a message lookup request.",
-                    callback_url: "The public address of this account's callback.",
-                    param: "One template parameter by its position: 1, 2, 3 and so on.",
-                    credential:
-                        "A credential of this account by name: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD or WEBHOOK_SECRET.",
-                    basic_auth:
-                        "The user name and password, encoded for an Authorization: Basic header.",
-                    token: "The token obtained with the token request.",
-                    jwt: "The signed token described under Signed token (JWT).",
-                    parameters:
-                        "Alone as a body value, it becomes the list of all template parameters.",
-                    named_parameters:
-                        "Alone as a body value, it becomes an object of the parameters written as @name=value.",
-                },
-                example: {
-                    title: "Worked example: a Viber partner",
-                    description:
-                        "The partner takes a JSON POST authenticated with the API key as a bearer token, answers with the message's ID under message_id, and posts delivery reports with a secret header. Use it as a starting point and change the address and field names to the provider's.",
-                    use: "Use this example",
+            unsupported:
+                "Unsupported provider: replace this account. Its provider is no longer supported, so it can't send. Add an account for this channel with a supported provider, choose it in the election events that use this one, then delete this account.",
+            reports: {
+                label: "Report credentials",
+                missing: "Not generated yet",
+                generate: "Generate report credentials",
+                title: "Report credentials",
+                once: "Enter these in the Infobip subscription now. They are shown only once; generating new ones replaces them.",
+                copyUsername: "Copy report user name",
+                copyPassword: "Copy report password",
+                error: "The report credentials could not be generated.",
+                step: {
+                    subscription: "In Infobip, create a subscription for Viber delivery reports.",
+                    url: "Set its URL to this account's callback URL.",
+                    auth: "Choose Basic authentication and enter the report user name and password.",
                 },
             },
         },

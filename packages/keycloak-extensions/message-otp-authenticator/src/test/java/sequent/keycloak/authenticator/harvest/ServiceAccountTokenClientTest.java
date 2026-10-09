@@ -24,6 +24,8 @@ class ServiceAccountTokenClientTest {
   private static final String TOKEN = "synthetic-access-token";
   private final AtomicReference<String> requestPath = new AtomicReference<>();
   private final AtomicReference<String> requestBody = new AtomicReference<>();
+  private final java.util.concurrent.atomic.AtomicInteger requests =
+      new java.util.concurrent.atomic.AtomicInteger();
   private HttpServer server;
 
   private String serve(int status, String body) throws IOException {
@@ -31,6 +33,7 @@ class ServiceAccountTokenClientTest {
     server.createContext(
         "/",
         exchange -> {
+          requests.incrementAndGet();
           requestPath.set(exchange.getRequestURI().getPath());
           requestBody.set(
               new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
@@ -91,5 +94,65 @@ class ServiceAccountTokenClientTest {
         new ServiceAccountTokenClient(url, "service-account", SECRET);
 
     assertThrows(IOException.class, () -> client.fetchAccessToken("tenant-1"));
+  }
+
+  /** A clock the test moves forward. */
+  private static final class MovableClock extends java.time.Clock {
+    private java.time.Instant now = java.time.Instant.parse("2026-10-09T10:00:00Z");
+
+    void advance(java.time.Duration by) {
+      now = now.plus(by);
+    }
+
+    @Override
+    public java.time.ZoneId getZone() {
+      return java.time.ZoneOffset.UTC;
+    }
+
+    @Override
+    public java.time.Clock withZone(java.time.ZoneId zone) {
+      return this;
+    }
+
+    @Override
+    public java.time.Instant instant() {
+      return now;
+    }
+  }
+
+  @Test
+  void aTokenIsReusedUntilShortlyBeforeItExpires() throws Exception {
+    String url = serve(200, "{\"access_token\":\"" + TOKEN + "\",\"expires_in\":300}");
+    MovableClock clock = new MovableClock();
+    ServiceAccountTokenClient client =
+        new ServiceAccountTokenClient(url, "service-account", SECRET, clock);
+
+    assertEquals(TOKEN, client.fetchAccessToken("tenant-1"));
+    clock.advance(java.time.Duration.ofSeconds(200));
+    assertEquals(TOKEN, client.fetchAccessToken("tenant-1"));
+    assertEquals(1, requests.get());
+
+    clock.advance(java.time.Duration.ofSeconds(80));
+    assertEquals(TOKEN, client.fetchAccessToken("tenant-1"));
+    assertEquals(2, requests.get());
+
+    assertEquals(TOKEN, client.fetchAccessToken("tenant-2"));
+    assertEquals(3, requests.get());
+  }
+
+  @Test
+  void aTokenWithoutALifetimeIsNotCached() throws Exception {
+    String url = serve(200, "{\"access_token\":\"" + TOKEN + "\"}");
+    ServiceAccountTokenClient client =
+        new ServiceAccountTokenClient(url, "service-account", SECRET);
+    client.fetchAccessToken("tenant-1");
+    client.fetchAccessToken("tenant-1");
+    assertEquals(2, requests.get());
+  }
+
+  @Test
+  void theTokenEndpointHasTimeouts() {
+    assertEquals(java.time.Duration.ofSeconds(5), ServiceAccountTokenClient.CONNECT_TIMEOUT);
+    assertEquals(java.time.Duration.ofSeconds(10), ServiceAccountTokenClient.READ_TIMEOUT);
   }
 }

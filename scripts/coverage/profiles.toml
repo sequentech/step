@@ -238,6 +238,20 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.wrap-map-err.scope_exceptions]
 
+[profiles.messaging-webhooks]
+package = "messaging-webhooks"
+features = []
+limitations = [
+    "Library tests drive the component through Rocket's local client against a loopback stand-in for harvest; the relay envelope and signature are measured in the messaging crate.",
+    "Process startup (environment and launch) is excluded; the configuration it reads and the Rocket it launches are measured through the library.",
+    "Branch coverage and a deployed harvest are separate scopes.",
+]
+issue = "https://github.com/sequentech/meta/issues/13755"
+
+[profiles.messaging-webhooks.excluded_files]
+"src/main.rs" = "Process startup only: reads the environment and launches the library's Rocket; Config::from_vars and build are measured."
+"src/tests.rs" = "Standalone unit-test module under cfg(test); the routes, relay and configuration remain measured."
+
 [profiles.harvest]
 package = "harvest"
 features = []

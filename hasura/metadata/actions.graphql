@@ -987,6 +987,8 @@ input ElectoralLogFilter {
     created_to: String
     statement_timestamp_from: String
     statement_timestamp_to: String
+    channel: String
+    outcome: String
 }
 
 input ElectoralLogOrderBy {
@@ -2862,8 +2864,8 @@ type Mutation {
         sender: jsonb!
         limits: jsonb
         provider_approval: String
-        readiness: String
         is_default: Boolean
+        credentials: jsonb
     ): MessagingAccountOutput
 }
 
@@ -2876,7 +2878,18 @@ type Mutation {
         id: uuid!
         credentials: jsonb!
         generate_verify_token: Boolean
+        generate_report_credentials: Boolean
     ): ReplaceMessagingAccountCredentialsOutput
+}
+
+type Query {
+    messaging_account_callback_url(
+        account_id: uuid!
+    ): MessagingAccountCallbackUrlOutput
+}
+
+type Query {
+    messaging_event_stats(election_event_id: uuid!): MessagingEventStatsOutput
 }
 
 type Mutation {
@@ -2902,15 +2915,42 @@ type Mutation {
 
 type MessagingAccountOutput {
     id: uuid!
+    callback_url: String
+    callback_reason: String
 }
 
 type ReplaceMessagingAccountCredentialsOutput {
     replaced: [String!]!
     verify_token: String
+    report_username: String
+    report_password: String
 }
 
 type CheckMessagingAccountOutput {
     status: jsonb!
+    callback_url: String
+    callback_reason: String
+}
+
+type MessagingAccountCallbackUrlOutput {
+    callback_url: String
+    reason: String
+}
+
+type MessagingEventStatsOutput {
+    channels: [MessagingChannelStats!]!
+}
+
+type MessagingChannelStats {
+    channel: String!
+    voters: Int
+    sent_last_24h: Int!
+    queued: Int!
+    accepted: Int!
+    delivered: Int!
+    failed: Int!
+    unknown: Int!
+    unresolved: Int!
 }
 
 type TestMessagingAccountOutput {

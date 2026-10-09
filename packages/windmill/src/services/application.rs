@@ -11,11 +11,17 @@ use crate::postgres::application::get_permission_label_from_post;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
+use crate::services::database::get_hasura_pool;
+use crate::services::messaging::audit::post_attempt_outcomes_or_warn;
+use crate::services::messaging::dispatch::{
+    deliver, record_without_channel, Delivery, Dispatcher, Recipient,
+};
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
+use crate::services::reports::template_time::insert_template_time_variables;
 use crate::services::reports::template_time::NotificationTimeContext;
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
-use crate::tasks::send_template::{send_template, send_template_email_or_sms};
+use crate::tasks::send_template::{first_attribute, get_variables, render_contents};
 use crate::types::application::ApplicationRejectReason;
 use crate::types::application::NoMatchingVoterPolicy;
 use crate::{
@@ -28,16 +34,22 @@ use deadpool_postgres::Transaction;
 use keycloak::types::CredentialRepresentation;
 use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
 use sequent_core::serialization::deserialize_with_path::*;
+use sequent_core::services::generate_urls::AuthAction;
+use sequent_core::types::messaging::{MessageChannel, MessageContent, MessagePurpose};
+use sequent_core::types::voter_channel::voter_channel;
 
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::translation_scopes::template_translations;
 use sequent_core::services::translations::DEFAULT_LANG;
 use sequent_core::types::hasura::core::Application;
-use sequent_core::types::keycloak::{User, MOBILE_PHONE_ATTR_NAME};
-use sequent_core::types::templates::{
-    ChannelSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
+use sequent_core::types::keycloak::{
+    User, AREA_ID_ATTR_NAME, LOCALE_ATTR_NAME, MESSAGE_CHANNEL_ATTR_NAME,
+    MESSAGE_CONSENT_ATTR_NAME, MESSAGE_NUMBER_ATTR_NAME, MESSENGER_ID_ATTR_NAME,
+    MESSENGER_PAGE_ATTR_NAME, MOBILE_PHONE_ATTR_NAME, VERIFIED_CHANNELS_ATTR_NAME,
+    VIBER_NUMBER_ATTR_NAME, WHATSAPP_NUMBER_ATTR_NAME,
 };
+use sequent_core::types::templates::{EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -911,6 +923,7 @@ pub async fn confirm_application(
     let mut attributes: HashMap<String, Vec<String>> = applicant_data
         .iter()
         .filter(|(key, _value)| attributes_to_store.contains(key))
+        .filter(|(key, _value)| !VERIFIED_CHANNEL_ATTRIBUTES.contains(&key.as_str()))
         .map(|(key, value)| {
             (
                 key.to_owned(),
@@ -922,6 +935,8 @@ pub async fn confirm_application(
             )
         })
         .collect();
+    // The verified channel, whatever the form's update list says.
+    attributes.extend(verified_channel_attributes(&applicant_data));
 
     let client = KeycloakAdminClient::new()
         .await
@@ -980,6 +995,7 @@ pub async fn confirm_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
+        id,
         user_id,
         admin_id,
         &user,
@@ -1030,19 +1046,18 @@ pub async fn reject_application(
     let username = applicant_data.get("username").map(String::from);
     let email = applicant_data.get("email").map(String::from);
 
-    let phone_number: Option<String> = applicant_data.get(MOBILE_PHONE_ATTR_NAME).map(String::from);
-
-    let attributes = match phone_number {
-        Some(phone_number) => {
-            let mut attr: HashMap<String, Vec<String>> = HashMap::new();
-            attr.insert(
-                MOBILE_PHONE_ATTR_NAME.to_string(),
-                vec![phone_number.clone()],
-            );
-            Some(attr)
-        }
-        None => None,
-    };
+    // The phone number and the verified channel, so the result goes to
+    // the applicant's one channel.
+    let attr: HashMap<String, Vec<String>> = std::iter::once(MOBILE_PHONE_ATTR_NAME)
+        .chain(VERIFIED_CHANNEL_ATTRIBUTES)
+        .filter_map(|name| {
+            applicant_data
+                .get(name)
+                .filter(|value| !value.is_empty())
+                .map(|value| (name.to_string(), vec![value.clone()]))
+        })
+        .collect();
+    let attributes = (!attr.is_empty()).then_some(attr);
 
     let user = User {
         id: None,
@@ -1061,6 +1076,7 @@ pub async fn reject_application(
         hasura_transaction,
         tenant_id,
         election_event_id,
+        id,
         user_id,
         admin_id,
         &user,
@@ -1072,33 +1088,118 @@ pub async fn reject_application(
     Ok(application)
 }
 
+/// The applicant data keys that carry the verified channel, written by
+/// Keycloak from its own notes (never from form fields). On acceptance they
+/// replace the voter's channel attributes.
+const VERIFIED_CHANNEL_ATTRIBUTES: [&str; 5] = [
+    MESSAGE_CHANNEL_ATTR_NAME,
+    MESSAGE_NUMBER_ATTR_NAME,
+    MESSENGER_ID_ATTR_NAME,
+    MESSENGER_PAGE_ATTR_NAME,
+    MESSAGE_CONSENT_ATTR_NAME,
+];
+
+/// First-release channel attributes, removed when the voter's channel is
+/// written: Keycloak merges attributes, so leaving one out doesn't remove
+/// it.
+const REPLACED_CHANNEL_ATTRIBUTES: [&str; 3] = [
+    VERIFIED_CHANNELS_ATTR_NAME,
+    WHATSAPP_NUMBER_ATTR_NAME,
+    VIBER_NUMBER_ATTR_NAME,
+];
+
+/// The verified channel carried by an application, as the attributes to
+/// write on the voter: the five channel attributes it has, and the
+/// first-release ones emptied. Nothing when the application carries no
+/// channel.
+fn verified_channel_attributes(
+    applicant_data: &serde_json::Map<String, Value>,
+) -> HashMap<String, Vec<String>> {
+    let mut attributes: HashMap<String, Vec<String>> = VERIFIED_CHANNEL_ATTRIBUTES
+        .iter()
+        .filter_map(|name| {
+            let value = applicant_data.get(*name)?;
+            let value = value
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| value.to_string());
+            (!value.is_empty()).then(|| (name.to_string(), vec![value]))
+        })
+        .collect();
+    if attributes.contains_key(MESSAGE_CHANNEL_ATTR_NAME) {
+        for name in REPLACED_CHANNEL_ATTRIBUTES {
+            attributes.insert(name.to_string(), vec![]);
+        }
+    }
+    attributes
+}
+
+/// The application result's content on `channel`: the email for email, the
+/// SMS text for the other channels (an approved template, where the channel
+/// needs one, comes from the event's bindings).
+async fn application_result_content(
+    channel: MessageChannel,
+    verdict: ApplicationStatus,
+    presentation: ElectionEventPresentation,
+    variables: &serde_json::Map<String, Value>,
+) -> Result<Option<MessageContent>> {
+    let method = match channel {
+        MessageChannel::EMAIL => TemplateMethod::EMAIL,
+        _ => TemplateMethod::SMS,
+    };
+    let (email, sms) =
+        get_application_response_communication(Some(method), verdict, presentation).await?;
+    let body = SendTemplateBody {
+        audience_selection: None,
+        audience_voter_ids: None,
+        communication_method: None,
+        schedule_now: None,
+        schedule_date: None,
+        email,
+        sms,
+        whatsapp: None,
+        viber: None,
+        messenger: None,
+        channel_selection: Default::default(),
+        send_id: None,
+        document: None,
+        name: None,
+        alias: None,
+        pdf_options: None,
+        report_options: None,
+        secret_attribute_names: Vec::new(),
+        schedule_local: None,
+        schedule_timezone: None,
+    };
+    let contents = render_contents(&body, variables).map_err(|err| anyhow!("{err:?}"))?;
+    let source = match channel {
+        MessageChannel::EMAIL => MessageChannel::EMAIL,
+        _ => MessageChannel::SMS,
+    };
+    Ok(contents.get(&source).cloned())
+}
+
+/// Sends the result of a reviewed application, accepted or rejected, on the
+/// voter's one channel through the message ledger, and logs the attempt.
+/// No other channel is tried; a voter without a channel gets one FAILED
+/// record.
 #[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    application_id: &str,
     user_id: &str,
     admin_id: &str,
     user: &User,
     response_verdict: ApplicationStatus,
 ) -> Result<()> {
-    // Check if voter provided email otherwise use SMS
-    let communication_method = if user.email.is_some() {
-        Some(EMAIL)
-    } else if user
-        .attributes
-        .as_ref()
-        .and_then(|attributes| attributes.get(MOBILE_PHONE_ATTR_NAME))
-        .and_then(|values| values.first())
-        .map(|value| value.to_string())
-        .is_some()
-    {
-        Some(SMS)
-    } else {
-        None
-    };
-
-    // Get the presentation to obtain the default language and presentation.i18n
+    if !matches!(
+        response_verdict,
+        ApplicationStatus::ACCEPTED | ApplicationStatus::REJECTED
+    ) {
+        return Ok(());
+    }
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -1107,80 +1208,100 @@ pub async fn send_application_communication_response(
         .clone()
         .map(deserialize_value)
         .unwrap_or(Ok(ElectionEventPresentation::default()))?;
+    let tenant_uuid = Uuid::parse_str(tenant_id)?;
+    let event_uuid = Uuid::parse_str(election_event_id)?;
+    // A rejected applicant has no voter account yet.
+    let voter_id = user
+        .id
+        .clone()
+        .or_else(|| (response_verdict == ApplicationStatus::ACCEPTED).then(|| user_id.to_string()));
+    let logical_key = format!("application:{application_id}:{response_verdict}");
+    let language = first_attribute(user, LOCALE_ATTR_NAME).cloned();
+    let dispatcher = Dispatcher::global().await?;
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
 
-    let (email_config, sms_config) = get_application_response_communication(
-        communication_method.clone(),
-        response_verdict.clone(),
-        presentation,
-    )
-    .await?;
-
-    match response_verdict {
-        ApplicationStatus::ACCEPTED => {
-            let user_ids = vec![user_id.to_string()];
-            // Send confirmation email or SMS
-            let payload: SendTemplateBody = SendTemplateBody {
-                audience_selection: Some(SELECTED),
-                audience_voter_ids: Some(user_ids),
-                communication_method,
-                schedule_now: Some(true),
-                schedule_date: None,
-                email: email_config,
-                sms: sms_config,
-                whatsapp: None,
-                viber: None,
-                messenger: None,
-                channel_selection: ChannelSelection::SINGLE_CHANNEL,
-                send_id: None,
-                document: None,
-                name: None,
-                alias: None,
-                pdf_options: None,
-                report_options: None,
-                secret_attribute_names: Vec::new(),
-                schedule_local: None,
-                schedule_timezone: None,
-            };
-
-            let celery_app = get_celery_app().await;
-
-            let task = celery_app
-                .send_task(send_template::new(
-                    payload,
-                    tenant_id.to_string(),
-                    admin_id.to_string(),
-                    Some(election_event_id.to_string()),
-                ))
-                .await?;
-            event!(Level::INFO, "Sent SEND_TEMPLATE task {}", task.task_id);
+    let result = match voter_channel(user.email.as_deref(), user.attributes.as_ref()) {
+        None => {
+            record_without_channel(
+                &mut client,
+                tenant_uuid,
+                Some(event_uuid),
+                voter_id,
+                MessagePurpose::NOTICE,
+                None,
+                language,
+                &logical_key,
+            )
+            .await?
         }
-
-        ApplicationStatus::REJECTED => {
+        Some(found) => {
             let time_context =
                 NotificationTimeContext::load(hasura_transaction, tenant_id, &election_event)
                     .await
                     .with_context(|| "Error loading the notification times")?;
-            let email_sender = EmailSender::new().await?;
-            let sms_sender = SmsSender::new().await?;
-            send_template_email_or_sms(
-                hasura_transaction,
+            let mut variables = get_variables(
                 user,
-                &None,
-                tenant_id,
-                None,
-                &email_config, // EmailConfig
-                &sms_config,   // SmsConfig
-                &email_sender,
-                &sms_sender,
-                communication_method.clone(),
-                &time_context,
+                Some(election_event.clone()),
+                tenant_id.to_string(),
+                AuthAction::Login,
             )
-            .await
-            .map_err(|err| anyhow!("Error sending email or sms: {err}"))?;
+            .map_err(|err| anyhow!("{err:?}"))?;
+            insert_template_time_variables(
+                &mut variables,
+                time_context
+                    .variables_for(first_attribute(user, AREA_ID_ATTR_NAME).map(String::as_str)),
+            );
+            let content = application_result_content(
+                found.channel,
+                response_verdict.clone(),
+                presentation,
+                &variables,
+            )
+            .await?;
+            deliver(
+                &mut client,
+                dispatcher,
+                &Delivery {
+                    tenant_id: tenant_uuid,
+                    election_event_id: Some(event_uuid),
+                    purpose: MessagePurpose::NOTICE,
+                    recipient: Recipient {
+                        voter_id,
+                        channel: found.channel,
+                        destination: found.destination,
+                        election_ids: vec![],
+                    },
+                    content,
+                    language,
+                    // Rendered from the event's presentation, not a stored
+                    // template: a transient failure isn't retried.
+                    template_alias: None,
+                    logical_key,
+                    expires_at: None,
+                    account_id: None,
+                    template_key: Some(format!(
+                        "application-{}",
+                        response_verdict.to_string().to_lowercase()
+                    )),
+                    provider_template: None,
+                },
+            )
+            .await?
         }
-        _ => {}
-    }
-
+    };
+    info!(state = %result.state, reason = ?result.reason, "application result message");
+    post_attempt_outcomes_or_warn(
+        hasura_transaction,
+        &result.recorded,
+        user.username.clone(),
+        first_attribute(user, AREA_ID_ATTR_NAME).cloned(),
+    )
+    .await;
+    let _ = admin_id;
     Ok(())
 }
 

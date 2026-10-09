@@ -29,10 +29,10 @@ use windmill::tasks::migrate_realm_permissions::{
     migrate_realm_permissions, migrate_realms, migrated_roles, retry_countdown, RunOnce,
 };
 
-/// The English labels Users and Roles shows for the signing permissions,
-/// read from the admin portal's translations: the migration gives each
-/// role its label as its description.
-fn signing_labels_in_the_portal() -> BTreeMap<String, String> {
+/// The English labels Users and Roles shows for the migrated permissions
+/// (signing and messaging), read from the admin portal's translations: the
+/// migration gives each role its label as its description.
+fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
     include_str!("../../admin-portal/src/translations/en.ts")
         .lines()
         .filter_map(|line| {
@@ -40,21 +40,22 @@ fn signing_labels_in_the_portal() -> BTreeMap<String, String> {
             let key = key.trim_matches('"');
             // Other screens have keys like `signing-key-usage`; only
             // permissions count.
-            let signing = Permissions::from_str(key).is_ok()
+            let migrated = Permissions::from_str(key).is_ok()
                 && (key == "election-event-signatures-tab"
                     || key.starts_with("signing-")
-                    || key.starts_with("sign-"));
+                    || key.starts_with("sign-")
+                    || key.starts_with("messaging-"));
             let value = value.trim_end_matches(',');
-            (signing && value.starts_with('"'))
+            (migrated && value.starts_with('"'))
                 .then(|| (key.to_string(), value.trim_matches('"').to_string()))
         })
         .collect()
 }
 
 #[test]
-fn the_migration_adds_the_signing_permissions_with_their_labels() {
-    let expected = signing_labels_in_the_portal();
-    assert_eq!(expected.len(), 21, "{expected:?}");
+fn the_migration_adds_the_signing_and_messaging_permissions_with_their_labels() {
+    let expected = migrated_labels_in_the_portal();
+    assert_eq!(expected.len(), 25, "{expected:?}");
     let roles: BTreeMap<String, String> = migrated_roles()
         .into_iter()
         .map(|role| (role.name.unwrap(), role.description.unwrap()))
@@ -83,8 +84,8 @@ fn import(realm: &str, status: u16, body: Value) -> Exchange {
 async fn every_tenant_realm_gets_the_roles_it_lacks_and_nothing_else() {
     let tenants = ["tenant-one".to_string(), "tenant-two".to_string()];
     let peer = HttpServer::start(vec![
-        import("tenant-tenant-one", 200, json!({"added": 21, "skipped": 0})),
-        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 21})),
+        import("tenant-tenant-one", 200, json!({"added": 25, "skipped": 0})),
+        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 25})),
     ]);
     let migrated = migrate_realms(&peer.public_client(), &tenants)
         .await
@@ -95,14 +96,14 @@ async fn every_tenant_realm_gets_the_roles_it_lacks_and_nothing_else() {
             (
                 "tenant-tenant-one".to_string(),
                 PartialImportSummary {
-                    added: 21,
+                    added: 25,
                     ..Default::default()
                 }
             ),
             (
                 "tenant-tenant-two".to_string(),
                 PartialImportSummary {
-                    skipped: 21,
+                    skipped: 25,
                     ..Default::default()
                 }
             ),
@@ -124,7 +125,7 @@ async fn a_realm_that_fails_does_not_stop_the_others_and_fails_the_run() {
     let tenants = ["missing".to_string(), "present".to_string()];
     let peer = HttpServer::start(vec![
         import("tenant-missing", 404, json!({"error": "Realm not found."})),
-        import("tenant-present", 200, json!({"added": 21})),
+        import("tenant-present", 200, json!({"added": 25})),
     ]);
     let error = migrate_realms(&peer.public_client(), &tenants)
         .await
@@ -170,7 +171,7 @@ async fn the_realm_of_every_tenant_in_the_database_is_migrated() {
     let peer = HttpServer::start(
         tenants
             .iter()
-            .map(|tenant| import(&format!("tenant-{tenant}"), 200, json!({"added": 21})))
+            .map(|tenant| import(&format!("tenant-{tenant}"), 200, json!({"added": 25})))
             .collect(),
     );
     let migrated = migrate_realms(&peer.public_client(), &tenant_ids)

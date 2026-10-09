@@ -6,6 +6,9 @@ import React, {useContext, useMemo} from "react"
 import {useParams} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import Stack from "@mui/material/Stack"
+import Box from "@mui/material/Box"
+import Button from "@mui/material/Button"
+import ContactPhoneOutlinedIcon from "@mui/icons-material/ContactPhoneOutlined"
 import {useTranslation} from "react-i18next"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
 import {
@@ -17,7 +20,7 @@ import {
 } from "@sequentech/ui-core"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
-import {AuthContext} from "../providers/AuthContextProvider"
+import {AuthContext, AuthContextValues} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {TenantEventType} from ".."
 import {useAppSelector} from "../store/hooks"
@@ -56,8 +59,33 @@ const StyledAppWrapper = styled(Stack)<{customCss: string}>`
     ${({customCss}) => customCss}
 `
 
+/** "Change how we contact you", next to the voter's profile and sign-out. */
+const ChangeContactButton: React.FC<{onClick: () => void}> = ({onClick}) => {
+    const {t} = useTranslation()
+    return (
+        <Button
+            className="change-contact-button"
+            onClick={onClick}
+            aria-label={t("contactChannel.change")}
+            startIcon={<ContactPhoneOutlinedIcon aria-hidden />}
+            sx={{textTransform: "none", minWidth: 0}}
+        >
+            <Box
+                component="span"
+                className="change-contact-label"
+                sx={{display: {xs: "none", md: "inline"}}}
+            >
+                {t("contactChannel.change")}
+            </Box>
+        </Button>
+    )
+}
+
 const HeaderWithContext: React.FC = () => {
-    const authContext = useContext(AuthContext)
+    // A context without it (one that can't reach Keycloak, such as the embedded preview) offers
+    // no contact change.
+    const authContext: AuthContextValues = useContext(AuthContext)
+    const {changeContactChannel} = authContext
     const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
 
@@ -110,6 +138,11 @@ const HeaderWithContext: React.FC = () => {
             }}
             onChangeLanguage={onChangeLanguage}
             accessibilitySettingsPolicy={presentation?.voter_accessibility_settings_policy}
+            actions={
+                authContext.isAuthenticated && changeContactChannel !== undefined ? (
+                    <ChangeContactButton onClick={() => void changeContactChannel()} />
+                ) : undefined
+            }
         />
     )
 }

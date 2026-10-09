@@ -11,7 +11,7 @@ import {IPermissions} from "@/types/keycloak"
 import {EMessageAttemptState, IMessagingAccount} from "@/types/messaging"
 import {SettingsMessaging} from "./SettingsMessaging"
 import {TENANT_RESOURCE, settingsTenant} from "./__stories__/SettingsFixture"
-import {SMS_ACCOUNT_ID, messagingAccounts} from "./__stories__/MessagingFixture"
+import {SMS_ACCOUNT_ID, callbackUrlHandler, messagingAccounts} from "./__stories__/MessagingFixture"
 
 type EReads = "records" | "loading" | "error"
 
@@ -56,6 +56,7 @@ const meta = {
             DeleteMessagingAccount: () => ({
                 data: {delete_messaging_account: {id: SMS_ACCOUNT_ID}},
             }),
+            MessagingAccountCallbackUrl: callbackUrlHandler,
         })
         await graphql.ready
     },
@@ -85,14 +86,33 @@ export const Accounts: Story = {
         const sms = await accountRow(canvasElement, "Council SMS")
         await expect(within(sms).getByText("The account is in the SMS sandbox.")).toBeVisible()
         await expect(within(sms).getAllByText("Needs production access").length).toBe(2)
+        // An account of a removed provider, once confirmed by an administrator: unsupported.
         const partner = await accountRow(canvasElement, "Partner gateway")
-        await expect(within(partner).getByText("Custom HTTP API")).toBeVisible()
-        await expect(within(partner).getByText("Confirmed by an administrator")).toBeVisible()
-        await expect(within(partner).getByText("Ready for OTP")).toBeVisible()
-        await expect(within(partner).getByText("Check not used")).toBeVisible()
-        expect(within(partner).queryByText("Not connected")).toBeNull()
+        await expect(within(partner).getByText("Not connected")).toBeVisible()
+        await expect(
+            within(partner).getAllByText("Unsupported provider: replace this account")
+        ).toHaveLength(3)
+        expect(within(partner).queryByText("Ready for OTP")).toBeNull()
+        expect(within(partner).queryByText("Confirmed by an administrator")).toBeNull()
+        expect(within(partner).queryByRole("button", {name: /Check the connection/})).toBeNull()
+        await expect(
+            within(partner).getByRole("button", {name: "Delete Partner gateway"})
+        ).toBeVisible()
         const messenger = await accountRow(canvasElement, "Council Page")
         await expect(within(messenger).getByText("Not checked yet")).toBeVisible()
+        // Channel order: WhatsApp, Viber, Messenger, SMS, Email.
+        const names = within(canvasElement)
+            .getAllByRole("row")
+            .slice(1)
+            .map((row) => row.querySelectorAll("td")[1]?.textContent)
+        await expect(names).toEqual([
+            "Council WhatsApp",
+            "Council Viber",
+            "Partner gateway",
+            "Council Page",
+            "Council SMS",
+            "Council email",
+        ])
         expect(graphql.calls[0]).toMatchObject({
             name: "GetMessagingAccounts",
             variables: {tenantId: TENANT_ID},
@@ -165,7 +185,7 @@ export const AddAccount: Story = {
         await accountRow(canvasElement, "Council SMS")
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Add account"}))
         const drawer = within(await within(document.body).findByRole("presentation"))
-        await expect(await drawer.findByRole("textbox", {name: /From address/})).toBeVisible()
+        await expect(await drawer.findByRole("textbox", {name: /Phone number ID/})).toBeVisible()
     },
 }
 

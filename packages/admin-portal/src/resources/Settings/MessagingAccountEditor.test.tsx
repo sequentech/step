@@ -7,7 +7,6 @@ import {fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {
     EMessageChannel,
-    EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
     EReadinessPolicy,
@@ -15,18 +14,26 @@ import {
 } from "@/types/messaging"
 import {MessagingAccountEditor} from "./MessagingAccountEditor"
 
+const CALLBACK_URL = "https://callbacks.example.org/webhooks/meta/" + "a".repeat(64)
+
 const mockUpsert = jest.fn()
 const mockReplace = jest.fn()
 const mockNotify = jest.fn()
+const mockCallback = jest.fn()
 jest.mock("@apollo/client", () => ({
     gql: jest.fn(() => ({})),
     useMutation: (document: {name: string}) => [
         document.name === "upsert" ? mockUpsert : mockReplace,
     ],
+    useQuery: (_document: unknown, options: {skip?: boolean}) =>
+        options.skip ? {data: undefined, loading: false} : mockCallback(options),
 }))
 jest.mock("@/queries/UpsertMessagingAccount", () => ({UPSERT_MESSAGING_ACCOUNT: {name: "upsert"}}))
 jest.mock("@/queries/ReplaceMessagingAccountCredentials", () => ({
     REPLACE_MESSAGING_ACCOUNT_CREDENTIALS: {name: "replace"},
+}))
+jest.mock("@/queries/MessagingAccountCallbackUrl", () => ({
+    MESSAGING_ACCOUNT_CALLBACK_URL: {name: "callback"},
 }))
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
@@ -43,12 +50,12 @@ const messenger = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccoun
     tenant_id: "tenant-1",
     channel: EMessageChannel.MESSENGER,
     provider: EMessagingProvider.MESSENGER_SEND_API,
-    name: "COMELEC Page",
+    name: "Staff Association Page",
     sender: {
         provider: EMessagingProvider.MESSENGER_SEND_API,
         page_id: "1234",
-        page_name: "COMELEC Overseas Voting",
-        page_username: "comelec",
+        page_name: "Staff Association",
+        page_username: "staffassociation",
         api_version: "v23.0",
         api_base_url: null,
     },
@@ -56,7 +63,6 @@ const messenger = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccoun
     limits: {allowed_calling_codes: []},
     provider_approval: EProviderApproval.PENDING,
     status: null,
-    webhook_key: "hook-1",
     is_default: false,
     ...overrides,
 })
@@ -64,41 +70,121 @@ const messenger = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccoun
 const renderEditor = (account?: IMessagingAccount, canWrite = true) => {
     const onChanged = jest.fn()
     const onClose = jest.fn()
+    const onCreated = jest.fn()
     render(
         <MessagingAccountEditor
             account={account}
             canWrite={canWrite}
             onChanged={onChanged}
+            onCreated={onCreated}
             onClose={onClose}
         />
     )
-    return {onChanged, onClose}
+    return {onChanged, onClose, onCreated}
 }
 
 beforeEach(() => {
     mockUpsert.mockReset()
     mockReplace.mockReset()
     mockNotify.mockReset()
+    mockCallback.mockReset()
+    mockCallback.mockReturnValue({
+        data: {messaging_account_callback_url: {callback_url: CALLBACK_URL, reason: null}},
+        loading: false,
+    })
 })
 
 it("renders only the selected provider's identifiers", () => {
     renderEditor(messenger())
     expect(screen.getByLabelText(/messagingAccounts.field.page_id/)).toHaveValue("1234")
-    expect(screen.getByLabelText(/messagingAccounts.field.page_username/)).toHaveValue("comelec")
+    expect(screen.getByLabelText(/messagingAccounts.field.page_username/)).toHaveValue(
+        "staffassociation"
+    )
     expect(screen.queryByLabelText(/messagingAccounts.field.from_address/)).toBeNull()
     expect(screen.queryByLabelText(/messagingAccounts.field.phone_number_id/)).toBeNull()
-    expect(screen.getByLabelText("messagingAccounts.webhook.path")).toHaveValue(
-        "/webhooks/meta/hook-1"
+})
+
+it("shows the full callback URL the backend gives, and Messenger's own description", () => {
+    renderEditor(messenger())
+    expect(screen.getByLabelText("messagingAccounts.webhook.url")).toHaveValue(CALLBACK_URL)
+    expect(mockCallback).toHaveBeenCalledWith(
+        expect.objectContaining({variables: {accountId: "account-1"}})
+    )
+    expect(
+        screen.getByText("messagingAccounts.webhook.description.MESSENGER_SEND_API")
+    ).toBeInTheDocument()
+    expect(screen.getByRole("button", {name: "messagingAccounts.webhook.generate"})).toBeVisible()
+})
+
+it("shows the backend's reason when there is no callback URL", () => {
+    mockCallback.mockReturnValue({
+        data: {
+            messaging_account_callback_url: {
+                callback_url: null,
+                reason: "Callback address not configured",
+            },
+        },
+        loading: false,
+    })
+    renderEditor(messenger())
+    expect(screen.getByLabelText("messagingAccounts.webhook.url")).toHaveValue(
+        "messaging.reason.CALLBACK_NOT_CONFIGURED"
     )
 })
 
-it("starts a new account with the email provider's fields", () => {
+it("starts a new account with the WhatsApp provider's fields, callback URL after saving", () => {
     renderEditor()
-    expect(screen.getByLabelText(/messagingAccounts.field.from_address/)).toBeInTheDocument()
-    expect(
-        screen.getByLabelText(/messagingAccounts.field.notification_topic_arn/)
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText(/messagingAccounts.field.phone_number_id/)).toBeInTheDocument()
     expect(screen.queryByLabelText(/messagingAccounts.field.page_id/)).toBeNull()
+    expect(screen.getByLabelText("messagingAccounts.webhook.url")).toHaveValue(
+        "messagingAccounts.webhook.afterSaving"
+    )
+    expect(mockCallback).not.toHaveBeenCalled()
+})
+
+it("generates Viber's report credentials and shows them once with the steps", async () => {
+    mockReplace.mockResolvedValue({
+        data: {
+            replace_messaging_account_credentials: {
+                replaced: ["REPORT_USERNAME", "REPORT_PASSWORD"],
+                verify_token: null,
+                report_username: "reports-1",
+                report_password: "generated-secret",
+            },
+        },
+    })
+    const {onChanged} = renderEditor(
+        messenger({
+            channel: EMessageChannel.VIBER,
+            provider: EMessagingProvider.VIBER_INFOBIP,
+            sender: {
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                base_url: "https://x.api.infobip.com",
+                sender: "Staff Association",
+            },
+            credentials: {API_KEY: {replaced_at: "2026-09-30T10:00:00Z"}},
+        })
+    )
+    expect(screen.queryByLabelText("messaging.credential.REPORT_PASSWORD")).toBeNull()
+    expect(screen.queryByText(/APP_SECRET/)).toBeNull()
+    expect(screen.getAllByText("messagingAccounts.reports.step.auth")).toHaveLength(1)
+    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.reports.generate"}))
+    await waitFor(() =>
+        expect(screen.getByLabelText("messaging.credential.REPORT_PASSWORD")).toHaveValue(
+            "generated-secret"
+        )
+    )
+    expect(mockReplace).toHaveBeenCalledWith({
+        variables: {
+            id: "account-1",
+            credentials: {},
+            generateVerifyToken: false,
+            generateReportCredentials: true,
+        },
+    })
+    expect(screen.getByLabelText("messaging.credential.REPORT_USERNAME")).toHaveValue("reports-1")
+    expect(screen.getAllByText("messagingAccounts.reports.step.auth")).toHaveLength(2)
+    expect(onChanged).toHaveBeenCalled()
 })
 
 it("never shows a set credential, only when it was replaced", () => {
@@ -138,7 +224,7 @@ it("saves the account, then only the credentials that were typed", async () => {
         variables: {
             id: "account-1",
             channel: EMessageChannel.MESSENGER,
-            name: "COMELEC Page",
+            name: "Staff Association Page",
             sender: messenger().sender,
             limits: {
                 messages_per_second: null,
@@ -146,7 +232,6 @@ it("saves the account, then only the credentials that were typed", async () => {
                 allowed_calling_codes: [],
             },
             providerApproval: null,
-            readiness: EReadinessPolicy.PROVIDER_CHECK,
             isDefault: false,
         },
     })
@@ -156,22 +241,49 @@ it("saves the account, then only the credentials that were typed", async () => {
     expect(onChanged).toHaveBeenCalled()
 })
 
-it("saves a readiness confirmed by an administrator and a Graph API base URL", async () => {
+it("offers no readiness choice, and saves a Graph API base URL", async () => {
     mockUpsert.mockResolvedValue({data: {upsert_messaging_account: {id: "account-1"}}})
     const {onClose} = renderEditor(
         messenger({readiness: EReadinessPolicy.ADMIN_CONFIRMED, status: null})
     )
-    expect(screen.getByText("messagingAccounts.fieldHelp.readiness")).toBeInTheDocument()
-    expect(screen.getByText("messaging.readinessPolicy.ADMIN_CONFIRMED")).toBeInTheDocument()
+    expect(screen.queryByLabelText(/messagingAccounts.field.readiness/)).toBeNull()
     fireEvent.change(screen.getByLabelText(/messagingAccounts.field.api_base_url/), {
         target: {value: "https://graph.bsp.example"},
     })
     fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
     await waitFor(() => expect(onClose).toHaveBeenCalled())
-    expect(mockUpsert.mock.calls[0][0].variables).toMatchObject({
-        readiness: EReadinessPolicy.ADMIN_CONFIRMED,
-        sender: {api_base_url: "https://graph.bsp.example"},
+    const variables = mockUpsert.mock.calls[0][0].variables
+    expect(variables).toMatchObject({sender: {api_base_url: "https://graph.bsp.example"}})
+    expect("readiness" in variables).toBe(false)
+})
+
+it("keeps a new account with a callback open to show its callback URL", async () => {
+    mockUpsert.mockResolvedValue({
+        data: {
+            upsert_messaging_account: {
+                id: "account-9",
+                callback_url: CALLBACK_URL,
+                callback_reason: null,
+            },
+        },
     })
+    const {onClose, onCreated} = renderEditor()
+    for (const [field, value] of [
+        ["messagingAccounts.field.name", "Staff Association WhatsApp"],
+        ["messagingAccounts.field.business_account_id", "1"],
+        ["messagingAccounts.field.phone_number_id", "2"],
+        ["messagingAccounts.field.display_phone_number", "+34 600 000 214"],
+    ]) {
+        fireEvent.change(screen.getByLabelText(new RegExp(field)), {target: {value}})
+    }
+    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+    await waitFor(() =>
+        expect(onCreated).toHaveBeenCalledWith("account-9", {
+            callback_url: CALLBACK_URL,
+            reason: null,
+        })
+    )
+    expect(onClose).not.toHaveBeenCalled()
 })
 
 it("leaves WhatsApp's provider approval to the administrator", () => {
@@ -195,31 +307,19 @@ it("leaves WhatsApp's provider approval to the administrator", () => {
     )
 })
 
-it("describes a custom HTTP API and shows its callback", () => {
+it("shows an account of a removed provider as unsupported, to be replaced, not saved", () => {
     renderEditor(
         messenger({
             channel: EMessageChannel.VIBER,
             provider: EMessagingProvider.HTTP_API,
-            sender: {
-                provider: EMessagingProvider.HTTP_API,
-                label: "COMELEC",
-                send: {url: "https://partner.example/{{recipient}}"},
-                template_required_for: [EMessagePurpose.OTP],
-            },
+            sender: {provider: EMessagingProvider.HTTP_API, label: "Old partner"},
             credentials: {},
         })
     )
-    expect(screen.getByLabelText(/messagingAccounts.field.label/)).toHaveValue("COMELEC")
-    expect(screen.getByText("messagingAccounts.http.section.SEND")).toBeInTheDocument()
-    expect(screen.getByRole("alert")).toHaveTextContent(
-        "messagingAccounts.http.problem.UNKNOWN_PLACEHOLDER"
-    )
-    expect(screen.getByLabelText("messaging.credential.WEBHOOK_SECRET")).toBeInTheDocument()
-    expect(screen.getByLabelText("messagingAccounts.webhook.path")).toHaveValue(
-        "/webhooks/http/hook-1"
-    )
-    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
-    expect(mockUpsert).not.toHaveBeenCalled()
+    expect(screen.getByRole("alert")).toHaveTextContent("messagingAccounts.unsupported")
+    expect(screen.queryByRole("button", {name: "messagingAccounts.editor.save"})).toBeNull()
+    expect(screen.queryByLabelText("messagingAccounts.webhook.url")).toBeNull()
+    expect(screen.queryByText(/messagingAccounts.http/)).toBeNull()
 })
 
 it("does not save an invalid form and names the problem", () => {
@@ -247,4 +347,9 @@ it("is read-only without the write permission", () => {
     expect(screen.getByLabelText(/messagingAccounts.field.page_id/)).toBeDisabled()
     expect(screen.queryByRole("button", {name: "messagingAccounts.editor.save"})).toBeNull()
     expect(screen.queryByRole("button", {name: "messagingAccounts.webhook.generate"})).toBeNull()
+    // The callback URL action needs messaging-account-write: not read, and the reason is said.
+    expect(mockCallback).not.toHaveBeenCalled()
+    expect(screen.getByLabelText("messagingAccounts.webhook.url")).toHaveValue(
+        "messagingAccounts.webhook.needsWrite"
+    )
 })

@@ -12,6 +12,7 @@ COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
 COPY ./wrap-map-err ./wrap-map-err
+COPY ./messaging ./messaging
 COPY ./velvet ./velvet
 
 RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/

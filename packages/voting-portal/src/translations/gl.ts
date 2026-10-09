@@ -10,6 +10,9 @@ const galegoTranslation: TranslationType = {
             error: "Non se puido iniciar o portal de votación. Téntao de novo.",
             retry: "Tentar de novo",
         },
+        contactChannel: {
+            change: "Cambiar como contactamos con vostede",
+        },
         common: {
             goBack: "Volver",
             showMore: "Mostrar Máis",

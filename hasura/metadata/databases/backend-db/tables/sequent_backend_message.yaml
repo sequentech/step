@@ -1,6 +1,9 @@
 table:
     name: message
     schema: sequent_backend
+# The delivery ledger. Provider ids, billing and the destination digest are
+# for the backend; administrators read states through
+# `messaging-config-read`.
 select_permissions:
     - comment: ""
       permission:
@@ -8,11 +11,9 @@ select_permissions:
               - accepted_at
               - account_id
               - attempt
-              - billing
               - channel
               - created_at
               - delivered_at
-              - destination_country
               - direction
               - election_event_id
               - error
@@ -21,7 +22,6 @@ select_permissions:
               - id
               - language
               - masked_destination
-              - provider_message_id
               - purpose
               - state
               - template_alias
@@ -32,7 +32,7 @@ select_permissions:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
-      role: admin-user
+      role: messaging-config-read
     - comment: ""
       permission:
           columns:
@@ -89,6 +89,8 @@ select_permissions:
               - tenant_id
               - updated_at
               - voter_id
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           allow_aggregations: true
       role: service-account

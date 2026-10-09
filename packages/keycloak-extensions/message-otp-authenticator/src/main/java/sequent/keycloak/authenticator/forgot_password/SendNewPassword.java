@@ -22,13 +22,14 @@ import org.keycloak.models.*;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.services.ServicesLogger;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
 public class SendNewPassword implements Authenticator, AuthenticatorFactory {
+  /** "If an account exists, we sent a temporary password to its contact." */
+  static final String NEUTRAL_SENT_MESSAGE_KEY = "newPassword.success.neutral.message";
 
   public static final String PROVIDER_ID = "forgot-password-send-new-password";
 
@@ -45,7 +46,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
     // obtaining the user, the user will be null. just reset login for with
     // a success message
     if (user == null) {
-      context.forkWithSuccessMessage(new FormMessage(Messages.EMAIL_SENT));
+      context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
       return;
     }
 
@@ -67,7 +68,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
     if (userEmail == null || userEmail.trim().length() == 0) {
       event.user(user).detail(Details.USERNAME, attemptedUsername).error(Errors.INVALID_EMAIL);
 
-      context.forkWithSuccessMessage(new FormMessage(Messages.EMAIL_SENT));
+      context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
       return;
     }
 
@@ -93,15 +94,15 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
           .detail(Details.EMAIL, attemptedEmail)
           .detail(Details.CODE_ID, authenticationSession.getParentSession().getId())
           .success();
-      context.forkWithSuccessMessage(new FormMessage(Messages.EMAIL_SENT));
-    } catch (EmailException error) {
+      context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
+    } catch (EmailException | java.io.IOException error) {
       event
           .clone()
           .event(EventType.SEND_RESET_PASSWORD)
           .detail(Details.USERNAME, attemptedUsername)
           .user(user)
           .error(Errors.EMAIL_SEND_FAILED);
-      ServicesLogger.LOGGER.failedToSendPwdResetEmail(error);
+      log.warn("The temporary password could not be sent; not sent elsewhere");
       Response challenge =
           context
               .form()

@@ -14,6 +14,7 @@ use crate::adapters::memory::identity::LocalIdentityAdmin;
 use crate::adapters::memory::monitoring_audit::MemoryConfigAudit;
 use crate::adapters::memory::monitoring_renderer::MemoryRenderer;
 use crate::adapters::memory::monitoring_snapshots::MemorySnapshots;
+use crate::adapters::memory::service_keys::StaticServiceKeys;
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
 use crate::adapters::memory::vault::MemoryVault;
@@ -21,8 +22,10 @@ use crate::adapters::monitoring_snapshots::WindmillMonitoringSnapshots;
 use crate::ports::database::DatabasePools;
 use crate::ports::monitoring_renderer::MonitoringRenderer;
 use crate::ports::monitoring_snapshots::MonitoringSnapshots;
+use crate::routes::messaging::MessagingRelay;
 use crate::services::dependencies::{HarvestServices, MonitoringCache};
 use crate::services::monitoring_config_cache::MonitoringConfigs;
+use crate::services::service_auth::ServiceKeys;
 use crate::test_claims::Claims;
 use deadpool_postgres::{Pool, Runtime};
 use rocket::http::{ContentType, Header, Status};
@@ -46,10 +49,16 @@ mod schema;
 #[path = "rows.rs"]
 pub mod rows;
 
+#[path = "service_tokens.rs"]
+pub mod service_tokens;
+
 /// Core's bounded HTTP peer, standing in for Keycloak.
 #[path = "../../../sequent-core/tests/support/http.rs"]
 #[allow(dead_code)]
 pub mod http;
+
+/// The relay secret route tests sign relayed callbacks with.
+pub const RELAY_SECRET: &[u8] = b"synthetic-relay-secret";
 
 pub struct Services {
     pub cast_votes: Arc<ScriptedCastVotes>,
@@ -69,6 +78,8 @@ pub struct Services {
     /// Windmill's snapshot tables instead of the fake.
     pub live_snapshots: bool,
     pub ledger: Arc<MemoryTaskLedger>,
+    /// The realm keys service tokens are verified with.
+    pub service_keys: Arc<StaticServiceKeys>,
     pub tasks: MemoryTaskQueue,
     pub vault: Arc<MemoryVault>,
     pub signing: SigningServices,
@@ -103,6 +114,7 @@ impl Services {
             monitoring_snapshots: Default::default(),
             live_snapshots: false,
             ledger: Default::default(),
+            service_keys: Default::default(),
             tasks: Default::default(),
             vault: Default::default(),
             signing: SigningServices {
@@ -115,6 +127,13 @@ impl Services {
             },
             signing_roles: Arc::new(KeycloakSigningRoleAdmin),
         }
+    }
+
+    /// Trusts tokens `signer` signs for `tenant_id`'s realm, as Keycloak
+    /// would publish its key.
+    pub fn trust(&self, tenant_id: &str, signer: &service_tokens::RealmSigner) {
+        self.service_keys
+            .publish(&service_tokens::realm(tenant_id), signer.jwks());
     }
 
     pub fn with_signing(mut self, signing: SigningServices) -> Self {
@@ -214,6 +233,10 @@ impl Services {
             documents: self.documents.clone(),
             electoral_log: self.electoral_log.clone(),
             identity: self.identity.clone(),
+            messaging_relay: MessagingRelay::new(
+                Some(RELAY_SECRET),
+                messaging::relay::DEFAULT_MAX_BODY_BYTES,
+            ),
             monitoring_audit: self.monitoring_audit.clone(),
             monitoring_cache: self.monitoring_cache.clone(),
             monitoring_configs: self.monitoring_configs.clone(),
@@ -224,6 +247,7 @@ impl Services {
             },
             monitoring_snapshots,
             ledger: self.ledger.clone(),
+            service_keys: Arc::new(ServiceKeys::new(self.service_keys.clone())),
             tasks: Arc::new(self.tasks.clone()),
             vault: self.vault.clone(),
             signing: self.signing.clone(),
@@ -296,6 +320,22 @@ fn unreachable_pool() -> Pool {
 
 pub fn bearer(claims: &Claims) -> Header<'static> {
     Header::new("Authorization", claims.bearer())
+}
+
+/// POST a JSON body with this `Authorization` value.
+pub async fn post_as<'c>(
+    client: &'c Client,
+    path: &'static str,
+    authorization: &str,
+    body: &Value,
+) -> LocalResponse<'c> {
+    client
+        .post(path)
+        .header(ContentType::JSON)
+        .header(Header::new("Authorization", authorization.to_string()))
+        .body(body.to_string())
+        .dispatch()
+        .await
 }
 
 /// POST a JSON body as the given caller.

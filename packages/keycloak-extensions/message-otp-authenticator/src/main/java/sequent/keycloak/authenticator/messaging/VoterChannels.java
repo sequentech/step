@@ -6,10 +6,7 @@ package sequent.keycloak.authenticator.messaging;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -17,8 +14,6 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
-import org.keycloak.sessions.AuthenticationSessionModel;
-import sequent.keycloak.authenticator.Utils;
 
 /** Which channels can reach a voter, and where. */
 @UtilityClass
@@ -59,93 +54,6 @@ public class VoterChannels {
         .orElse(LEGACY_OTP_CHANNELS);
   }
 
-  /**
-   * Channels a code may be sent on, in display order.
-   *
-   * @param verified the voter's verified channels at sign-in; empty while enrolling, when the
-   *     contact is new and the code verifies it
-   */
-  public List<MessageChannel> eligibleForOtp(
-      List<MessageChannel> offered,
-      MessageSenderProvider sender,
-      Map<MessageChannel, String> contacts,
-      Optional<Set<MessageChannel>> verified) {
-    List<MessageChannel> eligible = new ArrayList<>();
-    for (MessageChannel channel : offered) {
-      boolean reachable =
-          contacts.containsKey(channel)
-              || (channel == MessageChannel.MESSENGER && verified.isEmpty());
-      boolean allowed = verified.map(set -> set.contains(channel)).orElse(true);
-      if (deliverable(sender, channel) && reachable && allowed) {
-        eligible.add(channel);
-      }
-    }
-    return eligible;
-  }
-
-  /** The voter's contacts by channel; blank values are left out. */
-  public Map<MessageChannel, String> contacts(UserModel user, String mobileAttribute) {
-    Map<MessageChannel, String> contacts = new EnumMap<>(MessageChannel.class);
-    put(contacts, MessageChannel.EMAIL, user.getEmail());
-    put(contacts, MessageChannel.SMS, user.getFirstAttribute(mobileAttribute));
-    put(
-        contacts,
-        MessageChannel.WHATSAPP,
-        user.getFirstAttribute(MessagingAttributes.WHATSAPP_NUMBER));
-    put(contacts, MessageChannel.VIBER, user.getFirstAttribute(MessagingAttributes.VIBER_NUMBER));
-    put(
-        contacts,
-        MessageChannel.MESSENGER,
-        user.getFirstAttribute(MessagingAttributes.MESSENGER_ID));
-    return contacts;
-  }
-
-  /** The contacts entered during enrollment, kept as authentication notes. */
-  public Map<MessageChannel, String> enrollmentContacts(
-      AuthenticationSessionModel authSession, String mobileAttribute) {
-    Map<MessageChannel, String> contacts = new EnumMap<>(MessageChannel.class);
-    put(contacts, MessageChannel.EMAIL, authSession.getAuthNote("email"));
-    put(contacts, MessageChannel.SMS, authSession.getAuthNote(mobileAttribute));
-    put(
-        contacts,
-        MessageChannel.WHATSAPP,
-        authSession.getAuthNote(MessagingAttributes.FORM_WHATSAPP_NUMBER));
-    put(
-        contacts,
-        MessageChannel.VIBER,
-        authSession.getAuthNote(MessagingAttributes.FORM_VIBER_NUMBER));
-    return contacts;
-  }
-
-  private void put(Map<MessageChannel, String> contacts, MessageChannel channel, String value) {
-    if (value != null && !value.isBlank()) {
-      contacts.put(channel, value.trim());
-    }
-  }
-
-  /**
-   * The voter's verified channels. Voters saved before channels were tracked keep their email and
-   * mobile number, which their earlier codes went to.
-   */
-  public Set<MessageChannel> verified(UserModel user, String mobileAttribute) {
-    List<String> values =
-        user.getAttributeStream(MessagingAttributes.VERIFIED_CHANNELS).collect(Collectors.toList());
-    Set<MessageChannel> verified = EnumSet.noneOf(MessageChannel.class);
-    if (values.isEmpty()) {
-      if (present(user.getEmail())) {
-        verified.add(MessageChannel.EMAIL);
-      }
-      if (present(user.getFirstAttribute(mobileAttribute))) {
-        verified.add(MessageChannel.SMS);
-      }
-      return verified;
-    }
-    for (String value : values) {
-      MessageChannel.parse(value).ifPresent(verified::add);
-    }
-    return verified;
-  }
-
   /** The voter's elections, which restrict the channels their Post offers. */
   public Set<String> elections(UserModel user) {
     return user.getAttributeStream(MessagingAttributes.AUTHORIZED_ELECTIONS)
@@ -157,16 +65,71 @@ public class VoterChannels {
     return value != null && E164.matcher(value).matches();
   }
 
-  /** The destination as shown on the code page. Messenger IDs mean nothing to voters. */
+  /**
+   * The destination as shown to the voter: a number keeps its country code and last three digits
+   * ({@code +966 ••• ••• 567}), an email address its first two characters and its domain ({@code
+   * ma••••••••@example.com}). Messenger IDs mean nothing to voters and are not shown.
+   */
   public String mask(MessageChannel channel, String destination) {
-    if (destination == null) {
+    if (destination == null || destination.isBlank()) {
       return "";
     }
     return switch (channel) {
-      case EMAIL -> Utils.obscureEmail(destination);
-      case SMS, WHATSAPP, VIBER -> Utils.obscurePhoneNumber(destination);
+      case EMAIL -> maskEmail(destination.trim());
+      case SMS, WHATSAPP, VIBER -> maskNumber(destination.trim());
       case MESSENGER -> "";
     };
+  }
+
+  private final String HIDDEN = "\u2022";
+
+  /** Country calling codes of two digits (ITU-T E.164 zones); 1 and 7 have one, others three. */
+  private final Set<String> TWO_DIGIT_CODES =
+      Set.of(
+          "20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43", "44", "45", "46",
+          "47", "48", "49", "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63",
+          "64", "65", "66", "81", "82", "84", "86", "90", "91", "92", "93", "94", "95", "98");
+
+  /** The length of the country calling code a number in E.164 starts with. */
+  int callingCodeLength(String digits) {
+    if (digits.startsWith("1") || digits.startsWith("7")) {
+      return 1;
+    }
+    if (digits.length() >= 2 && TWO_DIGIT_CODES.contains(digits.substring(0, 2))) {
+      return 2;
+    }
+    return 3;
+  }
+
+  String maskNumber(String number) {
+    String digits = number.startsWith("+") ? number.substring(1) : number;
+    if (!digits.matches("[0-9]{4,}")) {
+      return HIDDEN.repeat(3);
+    }
+    int codeLength = Math.min(callingCodeLength(digits), digits.length() - 1);
+    String code = digits.substring(0, codeLength);
+    String national = digits.substring(codeLength);
+    if (national.length() <= 3) {
+      return "+" + code + " " + HIDDEN.repeat(national.length());
+    }
+    int hidden = national.length() - 3;
+    StringBuilder groups = new StringBuilder();
+    int first = hidden % 3 == 0 ? 3 : hidden % 3;
+    groups.append(HIDDEN.repeat(first));
+    for (int left = hidden - first; left > 0; left -= 3) {
+      groups.append(' ').append(HIDDEN.repeat(3));
+    }
+    return "+" + code + " " + groups + " " + national.substring(national.length() - 3);
+  }
+
+  String maskEmail(String email) {
+    int at = email.indexOf('@');
+    if (at <= 0) {
+      return HIDDEN.repeat(3);
+    }
+    String local = email.substring(0, at);
+    int shown = Math.min(2, Math.max(1, local.length() - 1));
+    return local.substring(0, shown) + HIDDEN.repeat(local.length() - shown) + email.substring(at);
   }
 
   public List<String> names(Collection<MessageChannel> channels) {

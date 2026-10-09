@@ -5,6 +5,7 @@ import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import {ArrowIcon, UserIcon} from "../icons"
 import {CredentialFieldPosition, RegistrationFormMode, type SequentRegistration} from "../KcContext"
+import ChannelChoice, {asksForChannel} from "../enrollment/ChannelChoice"
 import CredentialFields from "../enrollment/CredentialFields"
 import type {EnrollmentPageProps} from "../enrollment/pageProps"
 import ProfileFields, {useProfileForm} from "../enrollment/ProfileFields"
@@ -45,6 +46,16 @@ export default function Register(props: EnrollmentPageProps<"register.ftl">) {
         passwordRequired,
         position: registration.credentialFieldPosition,
     })
+    // The channel choice follows the Post and the email fields, as "How we contact you" does in
+    // the ticket's form; without either, it ends the form.
+    const channelAnchor = !asksForChannel(kcContext)
+        ? undefined
+        : ([...attributes]
+              .reverse()
+              .find((attribute) =>
+                  ["email", kcContext.messagingPostAttribute].includes(attribute.name)
+              )?.name ?? null)
+    const channelChoice = channelAnchor !== undefined && <ChannelChoice form={form} />
     // Keycloak's own registration form asks for the password once and is no step of an enrollment.
     const enrolling = registration.formMode === RegistrationFormMode.Registration
     const credentials = passwordRequired && (
@@ -88,10 +99,14 @@ export default function Register(props: EnrollmentPageProps<"register.ftl">) {
                 {placement.first && credentials}
                 <ProfileFields
                     form={form}
-                    afterField={(attribute) =>
-                        !placement.first && attribute.name === placement.anchor && credentials
-                    }
+                    afterField={(attribute) => (
+                        <>
+                            {attribute.name === channelAnchor && channelChoice}
+                            {!placement.first && attribute.name === placement.anchor && credentials}
+                        </>
+                    )}
                 />
+                {channelAnchor === null && channelChoice}
                 <div id="kc-form-buttons" className="auth-actions">
                     <Button
                         type="submit"

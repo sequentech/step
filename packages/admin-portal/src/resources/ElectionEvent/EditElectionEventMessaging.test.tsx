@@ -12,6 +12,7 @@ import {
     EOutOfWindowPolicy,
     EProviderApproval,
     EReadinessPolicy,
+    IChannelMessageStats,
     IEventMessagingConfig,
     IMessagingAccount,
 } from "@/types/messaging"
@@ -34,6 +35,10 @@ jest.mock("react-admin", () => ({
     useRecordContext: () => undefined,
     useRefresh: () => jest.fn(),
 }))
+jest.mock("react-router-dom", () => ({
+    useLocation: () => ({pathname: "/sequent_backend_election_event/event-1", search: ""}),
+    useNavigate: () => jest.fn(),
+}))
 jest.mock("@apollo/client", () => ({
     gql: jest.fn(),
     useMutation: () => [jest.fn(), {loading: false}],
@@ -53,6 +58,9 @@ jest.mock("@/providers/AuthContextProvider", () => ({
 }))
 jest.mock("@/hooks/useMessagingAccounts", () => ({
     useMessagingAccounts: () => ({accounts: [], loading: false}),
+}))
+jest.mock("@/hooks/useEventMessagingConfig", () => ({
+    useEventMessagingConfig: () => ({config: undefined, loading: false, refetch: jest.fn()}),
 }))
 jest.mock("@/components/styles/ElectionHeaderStyles", () => ({
     ElectionHeaderStyles: {AccordionTitle: "span"},
@@ -94,7 +102,10 @@ const configWith = (
         account_id,
         purposes,
         templates: [],
-        out_of_window: EOutOfWindowPolicy.DISABLED,
+        out_of_window:
+            channel === EMessageChannel.MESSENGER
+                ? EOutOfWindowPolicy.UTILITY_MESSAGES
+                : EOutOfWindowPolicy.DISABLED,
     })),
 })
 
@@ -142,7 +153,63 @@ describe("MessagingChannels", () => {
         fireEvent.click(notices)
         const next: IEventMessagingConfig = onChange.mock.calls[0][0]
         expect(next.channels[0].purposes).toEqual([EMessagePurpose.NOTICE])
-        expect(next.notice_fallback).toEqual([EMessageChannel.SMS])
+        // No fallback order: a notice goes only to each voter's own channel.
+        expect(Object.keys(next)).not.toContain("notice_fallback")
+    })
+
+    it("says to choose the account when the channel has accounts but none is chosen", () => {
+        render(
+            <MessagingChannels
+                config={emptyEventMessagingConfig()}
+                accounts={[account({})]}
+                errors={[]}
+                canEdit
+                onChange={jest.fn()}
+            />
+        )
+        expect(purposeSwitch(EMessageChannel.SMS, EMessagePurpose.OTP)).toBeDisabled()
+        expect(
+            within(row(EMessageChannel.SMS)).getAllByText("messagingEvent.chooseAccount")
+        ).toHaveLength(2)
+    })
+
+    it("shows an account of a removed provider as unsupported, never ready", () => {
+        render(
+            <MessagingChannels
+                config={configWith([[EMessageChannel.SMS, "console-1", []]])}
+                accounts={[
+                    account({
+                        id: "console-1",
+                        provider: EMessagingProvider.CONSOLE,
+                        sender: {provider: EMessagingProvider.CONSOLE},
+                    }),
+                ]}
+                errors={[]}
+                canEdit
+                onChange={jest.fn()}
+            />
+        )
+        expect(purposeSwitch(EMessageChannel.SMS, EMessagePurpose.OTP)).toBeDisabled()
+        expect(
+            within(row(EMessageChannel.SMS)).getAllByText(/messaging.blocker.UNSUPPORTED_PROVIDER/)
+        ).toHaveLength(2)
+    })
+
+    it("lists the channels in channel order", () => {
+        render(
+            <MessagingChannels
+                config={emptyEventMessagingConfig()}
+                accounts={[]}
+                errors={[]}
+                canEdit
+                onChange={jest.fn()}
+            />
+        )
+        expect(
+            Array.from(document.querySelectorAll("tr[data-channel]")).map((tr) =>
+                tr.getAttribute("data-channel")
+            )
+        ).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
     })
 
     it("asks for an account when a channel has none", () => {
@@ -209,22 +276,20 @@ const messenger = account({
     },
 })
 
-describe("the out-of-window policy", () => {
-    const renderChannels = (config: IEventMessagingConfig, canEdit = true) => {
-        const onChange = jest.fn()
+describe("Messenger outside the 24-hour window", () => {
+    const renderChannels = (config: IEventMessagingConfig, errors = []) => {
         render(
             <MessagingChannels
                 config={config}
                 accounts={[account({}), messenger, whatsapp]}
-                errors={[]}
-                canEdit={canEdit}
-                onChange={onChange}
+                errors={errors}
+                canEdit
+                onChange={jest.fn()}
             />
         )
-        return onChange
     }
 
-    it("is a choice on a channel with a window and free-text notices, and nowhere else", () => {
+    it("uses the utility template, with no Do not send choice, on Messenger only", () => {
         renderChannels(
             configWith([
                 [EMessageChannel.SMS, "sms-1", []],
@@ -233,57 +298,30 @@ describe("the out-of-window policy", () => {
             ])
         )
         expect(
-            within(row(EMessageChannel.MESSENGER)).getByText("messagingEvent.outOfWindow.help")
+            within(row(EMessageChannel.MESSENGER)).getByText(/messagingEvent.outOfWindow.utility/)
         ).toBeVisible()
+        expect(screen.queryByRole("combobox", {name: /outOfWindow/})).toBeNull()
         expect(
-            within(row(EMessageChannel.MESSENGER)).getByRole("combobox", {
-                name: /messagingEvent.outOfWindow.label/,
-            })
-        ).not.toHaveAttribute("aria-disabled")
-        expect(
-            within(row(EMessageChannel.SMS)).queryByText("messagingEvent.outOfWindow.help")
+            within(row(EMessageChannel.SMS)).queryByText(/messagingEvent.outOfWindow.utility/)
         ).toBeNull()
         expect(
-            within(row(EMessageChannel.WHATSAPP)).queryByText("messagingEvent.outOfWindow.help")
+            within(row(EMessageChannel.WHATSAPP)).queryByText(/messagingEvent.outOfWindow.utility/)
         ).toBeNull()
     })
 
-    it("asks for a notice template once utility messages are chosen", () => {
-        const utility = configWith([
-            [EMessageChannel.MESSENGER, "page-1", [EMessagePurpose.NOTICE]],
-        ])
-        utility.channels[0].out_of_window = EOutOfWindowPolicy.UTILITY_MESSAGES
-        renderChannels(utility)
-        expect(screen.getByRole("status")).toHaveTextContent(
-            "messagingEvent.outOfWindow.noTemplate"
-        )
-    })
-
-    it("stops asking when a notice template is bound", () => {
-        const utility = configWith([
-            [EMessageChannel.MESSENGER, "page-1", [EMessagePurpose.NOTICE]],
-        ])
-        utility.channels[0].out_of_window = EOutOfWindowPolicy.UTILITY_MESSAGES
-        utility.channels[0].templates = [
-            {purpose: EMessagePurpose.NOTICE, language: "en", provider_template: "vote_reminder"},
-        ]
-        renderChannels(utility)
-        expect(screen.queryByRole("status")).toBeNull()
-    })
-
-    it("is read only without the permission", () => {
+    it("shows the blocker under Messenger's notices when no utility template is bound", () => {
         renderChannels(
             configWith([[EMessageChannel.MESSENGER, "page-1", [EMessagePurpose.NOTICE]]]),
-            false
+            [{kind: "UTILITY_TEMPLATE_MISSING", channel: EMessageChannel.MESSENGER}] as never
         )
-        expect(
-            screen.getByRole("combobox", {name: /messagingEvent.outOfWindow.label/})
-        ).toHaveAttribute("aria-disabled", "true")
+        expect(within(row(EMessageChannel.MESSENGER)).getByRole("alert")).toHaveTextContent(
+            "messagingEvent.error.UTILITY_TEMPLATE_MISSING"
+        )
     })
 })
 
-describe("readiness confirmed by an administrator", () => {
-    it("lets a purpose be switched on without a check", () => {
+describe("no readiness confirmed by an administrator", () => {
+    it("keeps a stored ADMIN_CONFIRMED account to the provider's check", () => {
         render(
             <MessagingChannels
                 config={configWith([[EMessageChannel.WHATSAPP, "wa-1", []]])}
@@ -300,7 +338,7 @@ describe("readiness confirmed by an administrator", () => {
                 onChange={jest.fn()}
             />
         )
-        expect(purposeSwitch(EMessageChannel.WHATSAPP, EMessagePurpose.OTP)).toBeEnabled()
+        expect(purposeSwitch(EMessageChannel.WHATSAPP, EMessagePurpose.OTP)).toBeDisabled()
     })
 })
 
@@ -381,13 +419,6 @@ describe("MessagingTemplateBindings", () => {
         expect(group().getByRole("alert")).toHaveTextContent("messagingEvent.templates.incomplete")
     })
 
-    it("shows the administrator's confirmation rather than a check result", () => {
-        renderBindings(bound(), {
-            accounts: [{...whatsapp, readiness: EReadinessPolicy.ADMIN_CONFIRMED}],
-        })
-        expect(group().getByText("messagingEvent.templates.approval.ADMIN_CONFIRMED")).toBeVisible()
-    })
-
     it("offers Messenger its templates for utility messages", () => {
         renderBindings(configWith([[EMessageChannel.MESSENGER, "page-1", []]]))
         expect(screen.getByText(/messagingEvent.templates.noneOptional/)).toBeVisible()
@@ -407,19 +438,41 @@ describe("MessagingTemplateBindings", () => {
 })
 
 describe("MessagingDeliveryStatus", () => {
-    it("shows delivery as unavailable for a provider without receipts, never 0", () => {
+    const stats = (overrides: Partial<IChannelMessageStats>): IChannelMessageStats => ({
+        channel: EMessageChannel.SMS,
+        voters: 40,
+        sent_last_24h: 6,
+        queued: 0,
+        accepted: 4,
+        delivered: 0,
+        failed: 2,
+        unknown: 1,
+        unresolved: 3,
+        ...overrides,
+    })
+    const config = configWith([
+        [EMessageChannel.SMS, "sms-1", [EMessagePurpose.NOTICE]],
+        [EMessageChannel.WHATSAPP, "wa-1", [EMessagePurpose.NOTICE]],
+    ])
+
+    it("shows delivery as unavailable for an account without receipts, never 0", () => {
         render(
             <MessagingDeliveryStatus
-                config={configWith([
-                    [EMessageChannel.SMS, "sms-1", [EMessagePurpose.NOTICE]],
-                    [EMessageChannel.WHATSAPP, "wa-1", [EMessagePurpose.NOTICE]],
-                ])}
+                config={config}
                 accounts={[account({}), whatsapp]}
-                stats={{
-                    SMS_ACCEPTED: {aggregate: {count: 4}},
-                    WHATSAPP_DELIVERED: {aggregate: {count: 0}},
-                    WHATSAPP_ACCEPTED: {aggregate: {count: 2}},
-                }}
+                stats={[
+                    stats({}),
+                    stats({
+                        channel: EMessageChannel.WHATSAPP,
+                        voters: 9,
+                        sent_last_24h: 8,
+                        accepted: 2,
+                        delivered: 5,
+                        failed: 0,
+                        unknown: 0,
+                        unresolved: 0,
+                    }),
+                ]}
             />
         )
         const sms = within(row(EMessageChannel.SMS))
@@ -427,6 +480,65 @@ describe("MessagingDeliveryStatus", () => {
         expect(sms.getByText("4")).toBeVisible()
         const whatsappRow = within(row(EMessageChannel.WHATSAPP))
         expect(whatsappRow.queryByText("messaging.deliveryUnavailable")).toBeNull()
-        expect(whatsappRow.getByText("2")).toBeVisible()
+        expect(whatsappRow.getByText("5")).toBeVisible()
+    })
+
+    it("shows voters, the last 24 hours and Unresolved apart, in channel order", () => {
+        render(
+            <MessagingDeliveryStatus
+                config={config}
+                accounts={[account({}), whatsapp]}
+                stats={[stats({})]}
+            />
+        )
+        expect(
+            Array.from(document.querySelectorAll("tr[data-channel]")).map((tr) =>
+                tr.getAttribute("data-channel")
+            )
+        ).toEqual(["WHATSAPP", "SMS"])
+        const cells = Array.from(row(EMessageChannel.SMS).querySelectorAll("td")).map(
+            (cell) => cell.textContent
+        )
+        expect(cells).toEqual([
+            "messaging.channel.SMS",
+            "40",
+            "6",
+            "0",
+            "4",
+            "messaging.deliveryUnavailable",
+            "2",
+            "1",
+            "3",
+        ])
+    })
+
+    it("links Failed to the channel's failed messages in Logs", () => {
+        const onShowFailed = jest.fn()
+        render(
+            <MessagingDeliveryStatus
+                config={config}
+                accounts={[account({}), whatsapp]}
+                stats={[stats({})]}
+                onShowFailed={onShowFailed}
+            />
+        )
+        fireEvent.click(
+            screen.getByRole("button", {name: /messagingEvent.delivery.showFailed.*SMS/})
+        )
+        expect(onShowFailed).toHaveBeenCalledWith(EMessageChannel.SMS)
+    })
+
+    it("says the counts are unavailable instead of showing 0", () => {
+        render(
+            <MessagingDeliveryStatus
+                config={config}
+                accounts={[account({}), whatsapp]}
+                unavailable
+                onShowFailed={jest.fn()}
+            />
+        )
+        expect(screen.getByRole("status")).toHaveTextContent("messagingEvent.delivery.loadError")
+        expect(screen.queryByRole("button", {name: /showFailed/})).toBeNull()
+        expect(within(row(EMessageChannel.SMS)).queryByText("0")).toBeNull()
     })
 })

@@ -6,6 +6,7 @@ package sequent.keycloak.authenticator.messaging;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 /**
  * Body of harvest's {@code POST /messages/send}. The template key says which message this is, so
@@ -24,7 +25,36 @@ public record SendMessageRequest(
     @JsonProperty("content") MessageContent content,
     @JsonProperty("logical_key") String logicalKey,
     @JsonProperty("expires_at") String expiresAt,
-    @JsonProperty("template_key") String templateKey) {
+    @JsonProperty("template_key") String templateKey,
+    @JsonProperty("election_ids") List<String> electionIds) {
+
+  /** A request without the voter's elections: codes, which are not restricted by Post. */
+  public SendMessageRequest(
+      String tenantId,
+      String electionEventId,
+      String voterId,
+      MessageChannel channel,
+      MessagePurpose purpose,
+      String destination,
+      String language,
+      MessageContent content,
+      String logicalKey,
+      String expiresAt,
+      String templateKey) {
+    this(
+        tenantId,
+        electionEventId,
+        voterId,
+        channel,
+        purpose,
+        destination,
+        language,
+        content,
+        logicalKey,
+        expiresAt,
+        templateKey,
+        null);
+  }
 
   @Override
   public String toString() {

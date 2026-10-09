@@ -21,6 +21,8 @@ RUST = (
     "strand",
     "immu-board",
     "immudb-rs",
+    "messaging",
+    "messaging-webhooks",
     "sequent-core",
     "step-cli",
     "velvet",

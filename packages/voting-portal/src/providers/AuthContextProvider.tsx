@@ -18,6 +18,11 @@ import {getKioskAwareUrl, getKioskPortalRedirectUrl} from "../utils/kioskUrls"
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
  */
+// The Keycloak required action that verifies a new channel and replaces the voter's old one.
+export const CONTACT_CHANGE_ACTION = "message-channel-ra"
+// It asks for a recent sign-in: older than this, Keycloak signs the voter in again first.
+export const CONTACT_CHANGE_MAX_AGE_SECONDS = 300
+
 export interface AuthContextValues {
     /**
      * Is Auth Context has been fully initialized
@@ -83,6 +88,9 @@ export interface AuthContextValues {
     isGoldUser: () => boolean
 
     reauthWithGold: (redirectUri: string) => Promise<void>
+
+    /** Starts Keycloak's contact change ({@link CONTACT_CHANGE_ACTION}) after a recent sign-in. */
+    changeContactChannel?: () => Promise<void>
 }
 
 interface UserProfile {
@@ -379,6 +387,19 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }
 
+    const changeContactChannel = async (): Promise<void> => {
+        try {
+            await keycloak?.login({
+                action: CONTACT_CHANGE_ACTION,
+                maxAge: CONTACT_CHANGE_MAX_AGE_SECONDS,
+                redirectUri: window.location.href,
+                locale: toBCP47(i18n.language),
+            })
+        } catch (error) {
+            console.error("The contact change could not start:", error)
+        }
+    }
+
     useEffect(() => {
         async function loadProfile() {
             if (!keycloak) {
@@ -514,6 +535,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 keycloakAccessToken,
                 isGoldUser,
                 reauthWithGold,
+                changeContactChannel,
             }}
         >
             {initializationFailed ? <StartupError /> : props.children}

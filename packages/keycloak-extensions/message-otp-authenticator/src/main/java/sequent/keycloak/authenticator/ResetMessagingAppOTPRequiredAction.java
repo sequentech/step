@@ -8,7 +8,10 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import lombok.extern.jbosslog.JBossLog;
@@ -20,6 +23,9 @@ import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RequiredActionConfigModel;
+import org.keycloak.models.UserModel;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.messaging.MessageAttemptState;
@@ -32,33 +38,42 @@ import sequent.keycloak.authenticator.messaging.VerifiedContacts;
 import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 /**
- * Lets an authenticated voter add or replace a WhatsApp number, a Viber number or a Messenger
- * connection, among the messaging apps the realm uses for codes.
+ * "Change how we contact you" ({@code message-channel-ra}): an authenticated voter replaces their
+ * one channel with another of their Post's channels.
  *
  * <ol>
- *   <li>The voter picks the app, enters the number (WhatsApp, Viber) and agrees to its messages.
- *   <li>A code goes to that contact through the message sender; Messenger uses a one-time link.
- *   <li>A correct code saves the contact the way enrollment does.
+ *   <li>The voter picks the channel, enters the number (WhatsApp, Viber, SMS) and agrees to its
+ *       messages. Email uses the account's address; Messenger needs no number.
+ *   <li>A code goes to that contact; Messenger uses a one-time link and Get Started.
+ *   <li>A correct code replaces all five channel attributes, the way enrollment saves them.
  * </ol>
  *
- * A required action only runs for a voter who already signed in, so holding a new number is never
- * enough to attach it to an account. Codes follow the resend timer and the attempt limit of the
- * message OTP authenticator.
+ * The action needs a recent sign-in (max auth age, 300 s by default), so holding an open session is
+ * not enough to take over a voter's codes. Codes follow this action's own configuration: lifetime,
+ * resend timer and the attempt limit, which a resend never resets.
  */
 @AutoService(RequiredActionFactory.class)
 @JBossLog
 public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequiredAction
     implements RequiredActionFactory {
-  public static final String PROVIDER_ID = "messaging-app-otp-ra";
+  public static final String PROVIDER_ID = "message-channel-ra";
+
+  /** The first release's id, still served (see {@link LegacyMessagingAppOTPRequiredAction}). */
+  public static final String LEGACY_PROVIDER_ID = "messaging-app-otp-ra";
+
+  /** Seconds since sign-in after which the voter must sign in again to change the contact. */
+  public static final int MAX_AUTH_AGE_SECONDS = 300;
+
+  static final String CHANNEL_PARAM = "channel";
   static final String CONTACT_PARAM = "contact";
   static final String ENTRY_FTL = "message-otp.enter-app-contact.ftl";
 
   @Override
   protected String getProviderId() {
-    return PROVIDER_ID;
+    return getId();
   }
 
-  /** The app whose code is pending; no note means the voter is still choosing. */
+  /** The channel whose code is pending; no note means the voter is still choosing. */
   @Override
   protected String getNoteKey(AuthenticationSessionModel authSession) {
     return MessagingAttributes.NOTE_RESET_CHANNEL;
@@ -77,6 +92,28 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
   @Override
   protected String getEntryFtl() {
     return ENTRY_FTL;
+  }
+
+  /**
+   * This action's own code settings: the message OTP defaults, overridden by the configuration of
+   * this action in the realm. They never come from a sign-in or enrollment step.
+   */
+  @Override
+  protected AuthenticatorConfigModel codeConfig(RequiredActionContext context) {
+    Map<String, String> config = new HashMap<>(MessageOTPAuthenticatorFactory.getConfigMap(null));
+    RequiredActionConfigModel own =
+        context.getRealm() == null
+            ? null
+            : context.getRealm().getRequiredActionConfigByAlias(getProviderId());
+    if (own != null && own.getConfig() != null) {
+      config.putAll(own.getConfig());
+    }
+    config.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.CHOSEN.name());
+    config.putIfAbsent(Utils.TEL_USER_ATTRIBUTE, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    AuthenticatorConfigModel model = new AuthenticatorConfigModel();
+    model.setAlias(getProviderId());
+    model.setConfig(config);
+    return model;
   }
 
   @Override
@@ -99,24 +136,38 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
       return false;
     }
     if (offered(context).isEmpty()) {
-      log.info("No messaging app is used for codes in this realm");
-      context.getAuthenticationSession().removeRequiredAction(PROVIDER_ID);
+      log.info("No contact channel is offered for codes to this voter; nothing to change");
+      context.getAuthenticationSession().removeRequiredAction(getProviderId());
       context.ignore();
       return false;
     }
     return true;
   }
 
-  /** The messaging apps the voter's Post offers codes on that the sender delivers. */
+  /**
+   * The channels the voter's Post offers codes on, in the ticket's order, that something delivers.
+   * Email is the account's own address, so it is offered only when the account has one.
+   */
   static List<MessageChannel> offered(RequiredActionContext context) {
     MessageSenderProvider sender = VoterChannels.sender(context.getSession());
-    return VoterChannels.offeredForOtp(
-            PublicMessagingChannels.fromRealm(context.getRealm()),
-            VoterChannels.elections(context.getUser()))
-        .stream()
-        .filter(VerifiedContacts.MESSAGING_APPS::contains)
-        .filter(sender::delivers)
-        .toList();
+    UserModel user = context.getUser();
+    Optional<PublicMessagingChannels> projection =
+        PublicMessagingChannels.fromRealm(context.getRealm());
+    if (projection.isEmpty()) {
+      return List.of();
+    }
+    List<MessageChannel> offered = new ArrayList<>();
+    for (MessageChannel channel :
+        VoterChannels.offeredForOtp(projection, VoterChannels.elections(user))) {
+      if (!VoterChannels.deliverable(sender, channel)) {
+        continue;
+      }
+      if (channel == MessageChannel.EMAIL && blank(user.getEmail())) {
+        continue;
+      }
+      offered.add(channel);
+    }
+    return offered;
   }
 
   @Override
@@ -125,15 +176,14 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     MultivaluedMap<String, String> parameters = context.getHttpRequest().getDecodedFormParameters();
     Optional<MessageChannel> chosen =
-        MessageChannel.parse(parameters.getFirst(MessageOTPAuthenticator.CHANNEL_PARAM))
-            .filter(offered(context)::contains);
+        MessageChannel.parse(parameters.getFirst(CHANNEL_PARAM)).filter(offered(context)::contains);
     if (chosen.isEmpty()) {
       entryError(context, config, form -> form.setError("messaging.channelChoice.required"));
       return;
     }
     MessageChannel channel = chosen.get();
     String number = null;
-    if (channel != MessageChannel.MESSENGER) {
+    if (VerifiedContacts.NUMBER_CHANNELS.contains(channel)) {
       String entered = parameters.getFirst(CONTACT_PARAM);
       number = entered == null ? null : entered.trim();
       if (!VoterChannels.isE164(number)) {
@@ -163,15 +213,14 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
 
     clearEntry(authSession, noteKey);
     authSession.setAuthNote(MessagingAttributes.FORM_OTP_CHANNEL, channel.name());
-    if (channel == MessageChannel.WHATSAPP) {
-      authSession.setAuthNote(MessagingAttributes.FORM_WHATSAPP_NUMBER, number);
-    } else if (channel == MessageChannel.VIBER) {
-      authSession.setAuthNote(MessagingAttributes.FORM_VIBER_NUMBER, number);
+    switch (channel) {
+      case WHATSAPP -> authSession.setAuthNote(MessagingAttributes.FORM_WHATSAPP_NUMBER, number);
+      case VIBER -> authSession.setAuthNote(MessagingAttributes.FORM_VIBER_NUMBER, number);
+      case SMS -> authSession.setAuthNote(Utils.telUserAttribute(config), number);
+      case EMAIL -> authSession.setAuthNote("email", context.getUser().getEmail());
+      case MESSENGER -> {}
     }
-    authSession.setAuthNote(MessagingAttributes.FORM_MESSAGE_CONSENT, consent);
-    if (channel.name().equals(parameters.getFirst(MessagingAttributes.FORM_NOTICE_CHANNEL))) {
-      authSession.setAuthNote(MessagingAttributes.FORM_NOTICE_CHANNEL, channel.name());
-    }
+    authSession.setAuthNote(MessagingAttributes.NOTE_VERIFIED_CONSENT, consent);
     authSession.setAuthNote(noteKey, channel.name());
 
     MessageAttemptState state;
@@ -191,13 +240,15 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
       log.warn("The code for the new contact could not be sent");
       state = MessageAttemptState.FAILED;
     }
+    authSession.setAuthNote(MessagingAttributes.NOTE_DELIVERY_STATE, state.name());
     if (state == MessageAttemptState.FAILED) {
       clearEntry(authSession, noteKey);
       entryError(
           context, config, form -> form.setError(ErrorType.SEND_ERROR.toString(getI18nPrefix())));
       return;
     }
-    context.challenge(createOTPForm(context, null, config));
+    context.challenge(
+        createOTPForm(context, form -> form.setAttribute("resendTimerStarted", true), config));
   }
 
   private void entryError(
@@ -216,38 +267,47 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
             MessagingAttributes.FORM_WHATSAPP_NUMBER,
             MessagingAttributes.FORM_VIBER_NUMBER,
             MessagingAttributes.FORM_MESSAGE_CONSENT,
-            MessagingAttributes.FORM_NOTICE_CHANNEL,
+            MessageOTPAuthenticator.MOBILE_NUMBER_FIELD,
+            "email",
+            MessagingAttributes.NOTE_VERIFIED_CONSENT,
             MessagingAttributes.NOTE_VERIFIED_CHANNEL,
+            MessagingAttributes.NOTE_VERIFIED_DESTINATION,
             MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID,
-            MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE)) {
+            MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE,
+            MessagingAttributes.NOTE_CODE_CHANNEL,
+            MessagingAttributes.NOTE_CODE_DESTINATION)) {
       authSession.removeAuthNote(note);
     }
     Utils.clearMessengerLink(authSession);
   }
 
-  /** Messenger: harvest confirms the link of this session and code, and names the account. */
+  /**
+   * The code must be the one sent to the pending channel. Messenger: harvest confirms the link of
+   * this session and code, and names the account.
+   */
   @Override
   protected Optional<String> confirmVerified(RequiredActionContext context, String value) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (!value.equals(authSession.getAuthNote(MessagingAttributes.NOTE_CODE_CHANNEL))) {
+      return Optional.of(ErrorType.CODE_INVALID.toString(getI18nPrefix()));
+    }
     if (!MessageChannel.MESSENGER.name().equals(value)) {
       return Optional.empty();
     }
-    AuthenticationSessionModel authSession = context.getAuthenticationSession();
     Optional<MessengerLinkStatus> confirmed =
         Utils.confirmedMessengerLink(context.getSession(), authSession);
-    if (confirmed.isEmpty()) {
+    if (confirmed.isEmpty() || confirmed.get().pageId() == null) {
       Utils.clearMessengerLink(authSession);
       return Optional.of("messageOtp.messenger.notConfirmed");
     }
     authSession.setAuthNote(
         MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID, confirmed.get().pageScopedId());
-    if (confirmed.get().pageId() != null) {
-      authSession.setAuthNote(
-          MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE, confirmed.get().pageId());
-    }
+    authSession.setAuthNote(
+        MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE, confirmed.get().pageId());
     return Optional.empty();
   }
 
-  /** Other voters who already use the verified contact on the same app. */
+  /** Other voters who already use the verified contact. */
   @Override
   protected int usersWithSameValue(RequiredActionContext context, String value) {
     Optional<MessageChannel> channel = MessageChannel.parse(value);
@@ -255,8 +315,16 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
       return 0;
     }
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
-    String attribute = userAttribute(channel.get());
-    String contact = pendingContact(authSession, channel.get());
+    String attribute =
+        switch (channel.get()) {
+          case WHATSAPP, VIBER, SMS -> MessagingAttributes.MESSAGE_NUMBER;
+          case MESSENGER -> MessagingAttributes.MESSENGER_ID;
+          case EMAIL -> null;
+        };
+    String contact =
+        channel.get() == MessageChannel.MESSENGER
+            ? authSession.getAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID)
+            : authSession.getAuthNote(MessagingAttributes.NOTE_CODE_DESTINATION);
     if (attribute == null || contact == null) {
       return 0;
     }
@@ -270,25 +338,6 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
             .count();
   }
 
-  private static String userAttribute(MessageChannel channel) {
-    return switch (channel) {
-      case WHATSAPP -> MessagingAttributes.WHATSAPP_NUMBER;
-      case VIBER -> MessagingAttributes.VIBER_NUMBER;
-      case MESSENGER -> MessagingAttributes.MESSENGER_ID;
-      case EMAIL, SMS -> null;
-    };
-  }
-
-  private static String pendingContact(
-      AuthenticationSessionModel authSession, MessageChannel channel) {
-    return switch (channel) {
-      case WHATSAPP -> authSession.getAuthNote(MessagingAttributes.FORM_WHATSAPP_NUMBER);
-      case VIBER -> authSession.getAuthNote(MessagingAttributes.FORM_VIBER_NUMBER);
-      case MESSENGER -> authSession.getAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID);
-      case EMAIL, SMS -> null;
-    };
-  }
-
   @Override
   protected void createCredential(RequiredActionContext context) {
     MessageOTPCredentialProvider credentials =
@@ -299,15 +348,17 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     }
   }
 
+  /** Replaces the voter's channel with the one the code verified. */
   @Override
   protected void saveVerifiedValue(RequiredActionContext context, String value) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     RealmModel realm = context.getRealm();
-    authSession.setAuthNote(MessagingAttributes.NOTE_VERIFIED_CHANNEL, value);
+    MessageChannel.parse(value)
+        .ifPresent(channel -> MessageOTPAuthenticator.recordVerified(authSession, channel));
     VerifiedContacts.persist(
         context.getUser(),
         authSession,
-        Utils.telUserAttribute(Utils.getConfig(realm).orElse(null)),
+        Utils.getRealmName(realm),
         VerifiedContacts.consentVersion(realm),
         Instant.now());
     clearEntry(authSession, getNoteKey(authSession));
@@ -324,6 +375,10 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     form.setAttribute("messagingChannels", VoterChannels.names(offered));
     form.setAttribute("messagingOrganization", Utils.getRealmName(realm));
     form.setAttribute("messagingConsentVersion", VerifiedContacts.consentVersion(realm));
+    if (offered.contains(MessageChannel.EMAIL)) {
+      form.setAttribute(
+          "messagingEmail", VoterChannels.mask(MessageChannel.EMAIL, context.getUser().getEmail()));
+    }
     if (offered.contains(MessageChannel.MESSENGER)) {
       PublicMessagingChannels.fromRealm(realm)
           .flatMap(PublicMessagingChannels::messengerPage)
@@ -332,43 +387,35 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     return super.createEntryForm(context, formConsumer, config);
   }
 
+  /** The code page names the channel and shows the destination masked, never in full. */
   @Override
   protected void decorateOtpForm(RequiredActionContext context, LoginFormsProvider form) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     Optional<MessageChannel> pending =
         MessageChannel.parse(authSession.getAuthNote(getNoteKey(authSession)));
     if (pending.isEmpty()) {
+      form.setAttribute("contact", "");
       return;
     }
     MessageChannel channel = pending.get();
     Optional<PublicMessagingChannels> projection =
         PublicMessagingChannels.fromRealm(context.getRealm());
-    String contact =
-        channel == MessageChannel.MESSENGER ? null : pendingContact(authSession, channel);
-    form.setAttribute("contact", contact == null ? "" : contact);
+    String masked =
+        VoterChannels.mask(
+            channel, authSession.getAuthNote(MessagingAttributes.NOTE_CODE_DESTINATION));
+    form.setAttribute("contact", masked);
+    form.setAttribute("address", masked);
     form.setAttribute("channel", channel.name());
     projection
         .flatMap(channels -> channels.senderLabel(channel))
         .ifPresent(label -> form.setAttribute("senderLabel", label));
-    setNote(form, "deliveryState", authSession, MessagingAttributes.NOTE_DELIVERY_STATE);
-    if (channel == MessageChannel.MESSENGER) {
-      projection
-          .flatMap(PublicMessagingChannels::messengerPage)
-          .ifPresent(page -> form.setAttribute("messengerPage", page.displayName()));
-      setNote(form, "messengerLink", authSession, MessagingAttributes.NOTE_MESSENGER_LINK);
-      setNote(form, "messengerWord", authSession, MessagingAttributes.NOTE_MESSENGER_WORD);
-      setNote(form, "messengerState", authSession, MessagingAttributes.NOTE_MESSENGER_STATE);
+    String deliveryState = authSession.getAuthNote(MessagingAttributes.NOTE_DELIVERY_STATE);
+    if (deliveryState != null) {
+      form.setAttribute("deliveryState", deliveryState);
     }
-  }
-
-  private static void setNote(
-      LoginFormsProvider form,
-      String attribute,
-      AuthenticationSessionModel authSession,
-      String note) {
-    String value = authSession.getAuthNote(note);
-    if (value != null) {
-      form.setAttribute(attribute, value);
+    if (channel == MessageChannel.MESSENGER) {
+      MessageOTPAuthenticator.setMessengerAttributes(
+          form, authSession, projection, context.getRealm());
     }
   }
 
@@ -377,12 +424,45 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     return InitiatedActionSupport.SUPPORTED;
   }
 
+  /** A recent sign-in is required; the realm entry's {@code max_auth_age} may change it. */
+  @Override
+  public int getMaxAuthAge() {
+    return MAX_AUTH_AGE_SECONDS;
+  }
+
+  @Override
+  public boolean isConfigurable() {
+    return true;
+  }
+
+  /** {@code max_auth_age}, then this action's own code settings. */
+  @Override
+  public List<ProviderConfigProperty> getConfigMetadata() {
+    List<ProviderConfigProperty> properties =
+        new ArrayList<>(RequiredActionFactory.MAX_AUTH_AGE_CONFIG_PROPERTIES);
+    List<String> codeSettings =
+        List.of(
+            Utils.CODE_TTL,
+            Utils.CODE_LENGTH,
+            Utils.RESEND_ACTIVATION_TIMER,
+            Utils.MAX_CODE_ATTEMPTS,
+            Utils.VALID_COUNTRY_CODES,
+            Utils.MAX_RECEIVER_REUSE);
+    for (ProviderConfigProperty property :
+        new MessageOTPAuthenticatorFactory().getConfigProperties()) {
+      if (codeSettings.contains(property.getName())) {
+        properties.add(property);
+      }
+    }
+    return properties;
+  }
+
   @Override
   public void evaluateTriggers(RequiredActionContext context) {}
 
   @Override
   public String getDisplayText() {
-    return "Add or replace a messaging app for codes";
+    return "Change how we contact you";
   }
 
   @Override
@@ -399,5 +479,9 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
   @Override
   public String getId() {
     return PROVIDER_ID;
+  }
+
+  private static boolean blank(String value) {
+    return value == null || value.isBlank();
   }
 }

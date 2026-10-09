@@ -306,15 +306,21 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/list-user-roles", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user_id": USER_ID}, [VOTER_READ, ROLE_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Voter, "/locate-ballot", {"election_event_id": EVENT_ID, "election_id": ELECTION_ID, "ballot_id": "0abc12"}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/manage-election-dates", {"election_event_id": EVENT_ID, "event_processor": "START_VOTING_PERIOD"}, [SCHEDULED_EVENT_WRITE], BACKEND, UNAUTHORIZED_JSON),
-        case!(UuidTenant, "/messages/link", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "auth_session": "s", "challenge": "c", "code": "123456", "language": "en", "content": {"text": "123456", "template_parameters": []}, "expires_at": "2099-01-01T00:00:00Z"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messages/link/confirm", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messages/link/status", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
-        case!(UuidTenant, "/messages/send", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": USER_ID, "channel": "SMS", "purpose": "NOTICE", "destination": "+34600000000", "language": "en", "content": {"text": "hello", "template_parameters": []}, "logical_key": "k"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
+        // Only a token its tenant realm signed passes (service_auth tests);
+        // an unsigned one never does, whatever roles it names.
+        case!(UuidTenant, "/messages/link", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "auth_session": "s", "challenge": "c", "code": "123456", "language": "en", "content": {"text": "123456", "template_parameters": []}, "expires_at": "2099-01-01T00:00:00Z"}, [], UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messages/link/confirm", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [], UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messages/link/status", {"tenant_id": UUID_TENANT_ID, "reference": "r", "auth_session": "s", "challenge": "c"}, [], UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messages/send", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": USER_ID, "channel": "SMS", "purpose": "NOTICE", "destination": "+34600000000", "language": "en", "content": {"text": "hello", "template_parameters": []}, "logical_key": "k"}, [], UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/messaging/accounts/callback-url", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/messaging/accounts/check", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/messaging/accounts/credentials", {"id": ELECTION_ID, "credentials": {}}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/messaging/accounts/delete", {"id": ELECTION_ID}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/messaging/accounts/test", {"id": ELECTION_ID, "purpose": "NOTICE", "destination": "+34600000000"}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/messaging/accounts/upsert", {"name": "SMS", "sender": {"provider": "AWS_SNS", "sender_id": null, "origination_number": null, "region": null}}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
+        // Signed by the webhook component's relay secret, never by claims:
+        // any bearer is refused before the body is read.
+        case!(Admin, "/messaging/callbacks", {}, [], UNAUTHORIZED_JSON),
         case!(UuidTenant, "/messaging/event-config", {"election_event_id": UUID_EVENT_ID, "config": {"version": 1}}, [MESSAGING_CONFIG_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, BACKEND),

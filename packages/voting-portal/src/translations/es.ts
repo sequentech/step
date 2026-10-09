@@ -9,6 +9,9 @@ const spanishTranslation: TranslationType = {
             error: "No se pudo iniciar el portal de votación. Inténtelo de nuevo.",
             retry: "Intentar de nuevo",
         },
+        contactChannel: {
+            change: "Cambiar cómo le contactamos",
+        },
         common: {
             goBack: "Regresar",
             showMore: "Mostrar más",

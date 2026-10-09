@@ -9,13 +9,13 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use messaging::sender::FailureKind;
 use sequent_core::types::messaging::{
-    AccountCheck, AccountLimits, AccountSender, CredentialName, CredentialRecord,
-    MessageAttemptState, MessageChannel, MessageDirection, MessagePurpose, MessagingProvider,
-    MessengerLinkState, ProviderApproval, ReadinessPolicy,
+    AccountCheck, AccountLimits, AccountSender, BillingCategory, CredentialName, CredentialRecord,
+    MessageAttemptState, MessageChannel, MessageDirection, MessagePurpose, MessageReason,
+    MessagingProvider, MessengerLinkState, ProviderApproval, ProviderSupport, ReadinessPolicy,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use tokio_postgres::row::Row;
@@ -98,14 +98,65 @@ pub struct AccountSettings {
     pub is_default: bool,
 }
 
+/// Refusal of an address change that keeps the stored credentials: they
+/// would be sent to the new address.
+pub const ENDPOINT_CREDENTIALS_REASON: &str = "Enter the credentials again for the new address";
+/// Refusal of an account API address that isn't `https`.
+pub const ENDPOINT_HTTPS_REASON: &str = "The provider address must start with https://";
+
+/// The address an account's credentials are sent to, when the account
+/// names one: the Graph API base, the Infobip base or the SMTP server.
+pub fn account_endpoint(sender: &AccountSender) -> Option<&str> {
+    match sender {
+        AccountSender::WHATSAPP_CLOUD_API { api_base_url, .. }
+        | AccountSender::MESSENGER_SEND_API { api_base_url, .. } => api_base_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|url| !url.is_empty()),
+        AccountSender::VIBER_INFOBIP { base_url, .. } => Some(base_url.trim()),
+        AccountSender::SMTP { server_url, .. } => Some(server_url.trim()),
+        _ => None,
+    }
+}
+
+/// Whether moving an account from `current` to `next` sends its stored
+/// credentials somewhere new without them being entered again. Every
+/// credential the provider needs to send must be among `reentered`.
+pub fn endpoint_change_refusal(
+    current: &AccountSender,
+    next: &AccountSender,
+    reentered: &BTreeSet<CredentialName>,
+) -> Option<&'static str> {
+    let changed = account_endpoint(current).map(|url| url.trim_end_matches('/'))
+        != account_endpoint(next).map(|url| url.trim_end_matches('/'));
+    let all_reentered = next
+        .provider()
+        .required_credentials()
+        .iter()
+        .all(|name| reentered.contains(name));
+    (changed && !all_reentered).then_some(ENDPOINT_CREDENTIALS_REASON)
+}
+
 impl AccountSettings {
     fn validate(&self) -> Result<()> {
         let provider = self.sender.provider();
+        if provider.support() == ProviderSupport::UNSUPPORTED {
+            return Err(anyhow!(MessageReason::UNSUPPORTED_PROVIDER.as_str()));
+        }
         if self.sender.capabilities(self.channel).is_none() {
             return Err(anyhow!("{provider} cannot send {}", self.channel));
         }
         if self.name.trim().is_empty() {
             return Err(anyhow!("the account needs a name"));
+        }
+        // API addresses carry the account's credentials: never in clear.
+        // SMTP servers name their own scheme (smtp, smtps).
+        if provider != MessagingProvider::SMTP {
+            if let Some(url) = account_endpoint(&self.sender) {
+                if !url.to_ascii_lowercase().starts_with("https://") {
+                    return Err(anyhow!(ENDPOINT_HTTPS_REASON));
+                }
+            }
         }
         Ok(())
     }
@@ -161,7 +212,7 @@ pub async fn insert_messaging_account(
                 &settings.provider_approval.to_string(),
                 &webhook_key,
                 &settings.is_default,
-                &settings.readiness.to_string(),
+                &settings.readiness.effective().to_string(),
             ],
         )
         .await?;
@@ -169,13 +220,28 @@ pub async fn insert_messaging_account(
 }
 
 /// Updates an account. Changing the provider is refused: its credentials
-/// would not apply.
-#[instrument(skip(tx, settings), err)]
+/// would not apply. Changing the address its credentials are sent to is
+/// refused too ([`ENDPOINT_CREDENTIALS_REASON`]): use
+/// [`update_messaging_account_reentering`] with the new credentials.
 pub async fn update_messaging_account(
     tx: &Transaction<'_>,
     tenant_id: &Uuid,
     id: &Uuid,
     settings: &AccountSettings,
+) -> Result<Option<MessagingAccount>> {
+    update_messaging_account_reentering(tx, tenant_id, id, settings, &BTreeSet::new()).await
+}
+
+/// [`update_messaging_account`] where the caller replaces `reentered`
+/// credentials in the same transaction, so the address may change when
+/// they cover every credential the provider sends with.
+#[instrument(skip(tx, settings), err)]
+pub async fn update_messaging_account_reentering(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    id: &Uuid,
+    settings: &AccountSettings,
+    reentered: &BTreeSet<CredentialName>,
 ) -> Result<Option<MessagingAccount>> {
     settings.validate()?;
     let Some(current) = get_messaging_account(tx, tenant_id, id).await? else {
@@ -185,6 +251,9 @@ pub async fn update_messaging_account(
         return Err(anyhow!(
             "the provider and channel of an account cannot change; add another account"
         ));
+    }
+    if let Some(reason) = endpoint_change_refusal(&current.sender, &settings.sender, reentered) {
+        return Err(anyhow!(reason));
     }
     if settings.is_default {
         clear_other_defaults(tx, tenant_id, settings.channel, id).await?;
@@ -206,7 +275,7 @@ pub async fn update_messaging_account(
                 &serde_json::to_value(&settings.limits)?,
                 &settings.provider_approval.to_string(),
                 &settings.is_default,
-                &settings.readiness.to_string(),
+                &settings.readiness.effective().to_string(),
             ],
         )
         .await?;
@@ -323,6 +392,68 @@ pub async fn delete_messaging_account(
         == 1)
 }
 
+/// An election event's stored messaging configuration. Only
+/// `update_event_messaging_config` (after validation) and the event import
+/// write it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredEventConfig {
+    pub config: Value,
+    pub version: i32,
+    pub updated_at: DateTime<Utc>,
+    pub updated_by: Option<String>,
+}
+
+#[instrument(skip(tx), err)]
+pub async fn get_messaging_event_config(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+) -> Result<Option<StoredEventConfig>> {
+    let row = tx
+        .query_opt(
+            r#"
+            SELECT config, version, updated_at, updated_by
+            FROM sequent_backend.messaging_event_config
+            WHERE tenant_id = $1 AND election_event_id = $2
+            "#,
+            &[tenant_id, election_event_id],
+        )
+        .await?;
+    Ok(row.map(|row| StoredEventConfig {
+        config: row.get("config"),
+        version: row.get("version"),
+        updated_at: row.get("updated_at"),
+        updated_by: row.get("updated_by"),
+    }))
+}
+
+/// Stores the event's configuration, counting each save in `version`.
+#[instrument(skip(tx, config), err)]
+pub async fn upsert_messaging_event_config(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    config: &Value,
+    updated_by: Option<&str>,
+) -> Result<()> {
+    tx.execute(
+        r#"
+        INSERT INTO sequent_backend.messaging_event_config
+            (tenant_id, election_event_id, config, updated_by)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (election_event_id) DO UPDATE
+        SET config = EXCLUDED.config,
+            updated_by = EXCLUDED.updated_by,
+            version = sequent_backend.messaging_event_config.version + 1,
+            updated_at = now()
+        WHERE sequent_backend.messaging_event_config.tenant_id = EXCLUDED.tenant_id
+        "#,
+        &[tenant_id, election_event_id, config, &updated_by],
+    )
+    .await?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct MessageRecord {
     pub id: Uuid,
@@ -337,6 +468,8 @@ pub struct MessageRecord {
     pub language: Option<String>,
     pub masked_destination: String,
     pub destination_digest: String,
+    /// ISO 3166-1 alpha-2. Rows from the first release hold the calling
+    /// code instead.
     pub destination_country: Option<String>,
     pub logical_key: Option<String>,
     pub attempt: i32,
@@ -345,6 +478,13 @@ pub struct MessageRecord {
     pub error: Option<String>,
     pub failure: Option<FailureKind>,
     pub billing: Option<Value>,
+    pub billing_category: Option<String>,
+    pub billable: Option<bool>,
+    /// For a transient failure that will be retried: when.
+    pub next_retry_at: Option<DateTime<Utc>>,
+    /// When the attempt was handed to the provider. `None`: never sent.
+    pub dispatched_at: Option<DateTime<Utc>>,
+    pub last_reconciled_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -374,6 +514,11 @@ impl TryFrom<Row> for MessageRecord {
             error: row.try_get("error")?,
             failure: parse_optional_enum(&row, "failure")?,
             billing: row.try_get("billing")?,
+            billing_category: row.try_get("billing_category")?,
+            billable: row.try_get("billable")?,
+            next_retry_at: row.try_get("next_retry_at")?,
+            dispatched_at: row.try_get("dispatched_at")?,
+            last_reconciled_at: row.try_get("last_reconciled_at")?,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
         })
@@ -387,65 +532,81 @@ pub struct NewMessage {
     pub voter_id: Option<String>,
     pub account_id: Option<Uuid>,
     pub channel: MessageChannel,
-    pub direction: MessageDirection,
     pub purpose: Option<MessagePurpose>,
     pub template_alias: Option<String>,
     pub language: Option<String>,
     pub masked_destination: String,
     pub destination_digest: String,
+    /// ISO 3166-1 alpha-2, for phone numbers.
     pub destination_country: Option<String>,
     pub logical_key: Option<String>,
     pub attempt: i32,
     pub state: MessageAttemptState,
     pub provider_message_id: Option<String>,
-    /// For attempts refused before reaching the provider.
+    /// For attempts refused before reaching the provider: one
+    /// [`sequent_core::types::messaging::MessageReason`] or preflight code.
     pub error: Option<String>,
     pub failure: Option<FailureKind>,
+    pub billing_category: Option<BillingCategory>,
 }
 
-/// Inserts a message. With a logical key, a second insert of the same
-/// attempt returns `None` instead of a duplicate.
+/// Inserts an outgoing attempt. With a logical key, a second insert of the
+/// same attempt returns `None` instead of a duplicate. Earlier attempts of
+/// the same message stop waiting for a retry: this is the retry.
 #[instrument(skip(tx, message), err)]
 pub async fn insert_message(
     tx: &Transaction<'_>,
     message: &NewMessage,
 ) -> Result<Option<MessageRecord>> {
-    tx.query_opt(
-        r#"
-        INSERT INTO sequent_backend.message
-            (tenant_id, election_event_id, voter_id, account_id, channel, direction,
-             purpose, template_alias, language, masked_destination, destination_digest,
-             destination_country, logical_key, attempt, state, provider_message_id,
-             error, failure, failed_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-                $17, $18, CASE WHEN $15 = 'FAILED' THEN now() END)
-        ON CONFLICT (tenant_id, logical_key, attempt) DO NOTHING
-        RETURNING *
-        "#,
-        &[
-            &message.tenant_id,
-            &message.election_event_id,
-            &message.voter_id,
-            &message.account_id,
-            &message.channel.to_string(),
-            &message.direction.to_string(),
-            &message.purpose.map(|p| p.to_string()),
-            &message.template_alias,
-            &message.language,
-            &message.masked_destination,
-            &message.destination_digest,
-            &message.destination_country,
-            &message.logical_key,
-            &message.attempt,
-            &message.state.to_string(),
-            &message.provider_message_id,
-            &message.error,
-            &message.failure.map(|f| f.to_string()),
-        ],
-    )
-    .await?
-    .map(TryInto::try_into)
-    .transpose()
+    let inserted: Option<MessageRecord> = tx
+        .query_opt(
+            r#"
+            INSERT INTO sequent_backend.message
+                (tenant_id, election_event_id, voter_id, account_id, channel, direction,
+                 purpose, template_alias, language, masked_destination, destination_digest,
+                 destination_country, logical_key, attempt, state, provider_message_id,
+                 error, failure, billing_category, failed_at)
+            VALUES ($1, $2, $3, $4, $5, 'OUTBOUND', $6, $7, $8, $9, $10, $11, $12, $13, $14,
+                    $15, $16, $17, $18, CASE WHEN $14 = 'FAILED' THEN now() END)
+            ON CONFLICT (tenant_id, logical_key, attempt) DO NOTHING
+            RETURNING *
+            "#,
+            &[
+                &message.tenant_id,
+                &message.election_event_id,
+                &message.voter_id,
+                &message.account_id,
+                &message.channel.to_string(),
+                &message.purpose.map(|p| p.to_string()),
+                &message.template_alias,
+                &message.language,
+                &message.masked_destination,
+                &message.destination_digest,
+                &message.destination_country,
+                &message.logical_key,
+                &message.attempt,
+                &message.state.to_string(),
+                &message.provider_message_id,
+                &message.error,
+                &message.failure.map(|f| f.to_string()),
+                &message.billing_category.map(|c| c.to_string()),
+            ],
+        )
+        .await?
+        .map(TryInto::try_into)
+        .transpose()?;
+    if let (Some(_), Some(logical_key)) = (&inserted, &message.logical_key) {
+        tx.execute(
+            r#"
+            UPDATE sequent_backend.message SET next_retry_at = NULL, updated_at = now()
+            WHERE tenant_id = $1 AND logical_key = $2 AND attempt < $3
+              AND next_retry_at IS NOT NULL
+            "#,
+            &[&message.tenant_id, logical_key, &message.attempt],
+        )
+        .await?;
+    }
+    Ok(inserted)
 }
 
 #[instrument(skip(tx), err)]
@@ -468,6 +629,14 @@ pub async fn list_attempts(
     .collect()
 }
 
+#[instrument(skip(tx), err)]
+pub async fn get_message(tx: &Transaction<'_>, id: &Uuid) -> Result<Option<MessageRecord>> {
+    tx.query_opt("SELECT * FROM sequent_backend.message WHERE id = $1", &[id])
+        .await?
+        .map(TryInto::try_into)
+        .transpose()
+}
+
 /// States an attempt may be in before moving to `to`.
 fn predecessors(to: MessageAttemptState) -> Vec<String> {
     MessageAttemptState::iter()
@@ -479,10 +648,16 @@ fn predecessors(to: MessageAttemptState) -> Vec<String> {
 /// What changes with a state transition.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct StateChange {
+    /// Kept when `None`: an existing provider ID is never replaced by
+    /// Step's own reference.
     pub provider_message_id: Option<String>,
     pub error: Option<String>,
     pub failure: Option<FailureKind>,
     pub billing: Option<Value>,
+    pub billing_category: Option<BillingCategory>,
+    pub billable: Option<bool>,
+    /// Moving to FAILED: when the retry on the same channel is due.
+    pub next_retry_at: Option<DateTime<Utc>>,
 }
 
 /// Moves an attempt to `to` only if its current state allows it, so late or
@@ -499,10 +674,13 @@ pub async fn transition_message(
         r#"
         UPDATE sequent_backend.message
         SET state = $2,
-            provider_message_id = COALESCE($4, provider_message_id),
+            provider_message_id = COALESCE(provider_message_id, $4),
             error = COALESCE($5, error),
             billing = COALESCE($6, billing),
             failure = COALESCE($7, failure),
+            billing_category = COALESCE($8, billing_category),
+            billable = COALESCE($9::boolean, billable),
+            next_retry_at = CASE WHEN $2 = 'FAILED' THEN $10::timestamptz END,
             updated_at = now(),
             accepted_at = CASE WHEN $2 = 'ACCEPTED' THEN now() ELSE accepted_at END,
             delivered_at = CASE WHEN $2 = 'DELIVERED' THEN now() ELSE delivered_at END,
@@ -518,11 +696,31 @@ pub async fn transition_message(
             &change.error,
             &change.billing,
             &change.failure.map(|f| f.to_string()),
+            &change.billing_category.map(|c| c.to_string()),
+            &change.billable,
+            &change.next_retry_at,
         ],
     )
     .await?
     .map(TryInto::try_into)
     .transpose()
+}
+
+/// Records that a queued attempt is being handed to the provider. `false`
+/// when it is no longer queued (the sweep found it stale): then it must
+/// not be sent.
+#[instrument(skip(tx), err)]
+pub async fn mark_dispatched(tx: &Transaction<'_>, id: &Uuid) -> Result<bool> {
+    Ok(tx
+        .execute(
+            r#"
+            UPDATE sequent_backend.message SET dispatched_at = now(), updated_at = now()
+            WHERE id = $1 AND state = 'QUEUED' AND dispatched_at IS NULL
+            "#,
+            &[id],
+        )
+        .await?
+        == 1)
 }
 
 #[instrument(skip(tx), err)]
@@ -596,89 +794,224 @@ pub async fn deliver_messages_up_to(
         .await?)
 }
 
-/// Whether an inbound message with this provider ID was already recorded.
+/// Records a Messenger recipient's Get Started or referral, which opens the
+/// 24-hour window. Written before the code that follows it is sent.
 #[instrument(skip(tx), err)]
-pub async fn inbound_exists(
+pub async fn record_messenger_contact(
     tx: &Transaction<'_>,
+    tenant_id: &Uuid,
     account_id: &Uuid,
-    provider_message_id: &str,
-) -> Result<bool> {
-    Ok(tx
-        .query_opt(
-            r#"
-            SELECT 1 FROM sequent_backend.message
-            WHERE account_id = $1 AND provider_message_id = $2 AND direction = 'INBOUND'
-            "#,
-            &[account_id, &provider_message_id],
-        )
-        .await?
-        .is_some())
+    destination_digest: &str,
+    at: DateTime<Utc>,
+) -> Result<()> {
+    tx.execute(
+        r#"
+        INSERT INTO sequent_backend.messenger_contact
+            (tenant_id, account_id, destination_digest, last_get_started_at)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (account_id, destination_digest) DO UPDATE
+        SET last_get_started_at = GREATEST(
+                messenger_contact.last_get_started_at, EXCLUDED.last_get_started_at),
+            updated_at = now()
+        "#,
+        &[tenant_id, account_id, &destination_digest, &at],
+    )
+    .await?;
+    Ok(())
 }
 
-/// When the recipient last wrote to the account.
+/// When the recipient last pressed Get Started or opened a referral for the
+/// account. Text the recipient writes doesn't count: it isn't kept.
 #[instrument(skip(tx), err)]
-pub async fn last_inbound_at(
+pub async fn last_get_started_at(
     tx: &Transaction<'_>,
     account_id: &Uuid,
     destination_digest: &str,
 ) -> Result<Option<DateTime<Utc>>> {
     Ok(tx
-        .query_one(
+        .query_opt(
             r#"
-            SELECT max(created_at) AS at FROM sequent_backend.message
-            WHERE account_id = $1 AND destination_digest = $2 AND direction = 'INBOUND'
+            SELECT last_get_started_at FROM sequent_backend.messenger_contact
+            WHERE account_id = $1 AND destination_digest = $2
             "#,
             &[account_id, &destination_digest],
         )
         .await?
-        .try_get("at")?)
+        .map(|row| row.try_get("last_get_started_at"))
+        .transpose()?)
 }
 
-/// When the account last sent an automatic reply to this recipient.
-#[instrument(skip(tx), err)]
-pub async fn last_auto_reply_at(
-    tx: &Transaction<'_>,
-    account_id: &Uuid,
-    destination_digest: &str,
-) -> Result<Option<DateTime<Utc>>> {
-    Ok(tx
-        .query_one(
-            r#"
-            SELECT max(created_at) AS at FROM sequent_backend.message
-            WHERE account_id = $1 AND destination_digest = $2
-              AND direction = 'OUTBOUND' AND template_alias = $3
-            "#,
-            &[account_id, &destination_digest, &AUTO_REPLY_ALIAS],
-        )
-        .await?
-        .try_get("at")?)
-}
+/// Where a keyset page of the ledger ends: the last row's `(created_at,
+/// id)`, or of `(next_retry_at, id)` for due retries.
+pub type LedgerKey = (DateTime<Utc>, Uuid);
 
-/// `template_alias` of automatic replies to incoming messages.
-pub const AUTO_REPLY_ALIAS: &str = "auto-reply";
-
-/// Attempts whose outcome is not known yet: unknown ones, and queued ones
-/// older than `stale_before`, which a worker may have dispatched before it
-/// stopped.
+/// Queued attempts created before `stale_before`, a page at a time: their
+/// worker stopped before recording the outcome.
 #[instrument(skip(tx), err)]
-pub async fn list_unresolved_messages(
+pub async fn list_stale_queued(
     tx: &Transaction<'_>,
     stale_before: DateTime<Utc>,
+    after: Option<LedgerKey>,
     limit: i64,
 ) -> Result<Vec<MessageRecord>> {
+    let (after_at, after_id) = after.unzip();
     tx.query(
         r#"
         SELECT * FROM sequent_backend.message
-        WHERE direction = 'OUTBOUND'
-          AND (state = 'UNKNOWN' OR (state = 'QUEUED' AND created_at < $1))
-        ORDER BY created_at
-        LIMIT $2
+        WHERE state = 'QUEUED' AND direction = 'OUTBOUND' AND created_at < $1
+          AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3))
+        ORDER BY created_at, id
+        LIMIT $4
         "#,
-        &[&stale_before, &limit],
+        &[&stale_before, &after_at, &after_id, &limit],
     )
     .await?
     .into_iter()
     .map(TryInto::try_into)
+    .collect()
+}
+
+/// Unknown outcomes worth asking the provider about, a page at a time:
+/// through an account of one of `providers` (those that can reconcile),
+/// newer than `newer_than` (older ones are Unresolved), and not asked about
+/// since `asked_before`. Rows that can't be resolved are never selected, so
+/// they can't starve the ones that can.
+#[instrument(skip(tx), err)]
+pub async fn list_reconcilable_unknown(
+    tx: &Transaction<'_>,
+    providers: &[String],
+    newer_than: DateTime<Utc>,
+    asked_before: DateTime<Utc>,
+    after: Option<LedgerKey>,
+    limit: i64,
+) -> Result<Vec<MessageRecord>> {
+    let (after_at, after_id) = after.unzip();
+    tx.query(
+        r#"
+        SELECT message.* FROM sequent_backend.message AS message
+        JOIN sequent_backend.messaging_account AS account
+          ON account.id = message.account_id
+        WHERE message.state = 'UNKNOWN' AND message.direction = 'OUTBOUND'
+          AND account.provider = ANY($1)
+          AND message.created_at >= $2
+          AND (message.last_reconciled_at IS NULL OR message.last_reconciled_at < $3)
+          AND ($4::timestamptz IS NULL OR (message.created_at, message.id) > ($4, $5))
+        ORDER BY message.created_at, message.id
+        LIMIT $6
+        "#,
+        &[
+            &providers,
+            &newer_than,
+            &asked_before,
+            &after_at,
+            &after_id,
+            &limit,
+        ],
+    )
+    .await?
+    .into_iter()
+    .map(TryInto::try_into)
+    .collect()
+}
+
+/// Notes that the provider was asked about an attempt, for the backoff.
+#[instrument(skip(tx), err)]
+pub async fn mark_reconciled(tx: &Transaction<'_>, id: &Uuid) -> Result<()> {
+    tx.execute(
+        "UPDATE sequent_backend.message SET last_reconciled_at = now() WHERE id = $1",
+        &[id],
+    )
+    .await?;
+    Ok(())
+}
+
+/// Failed attempts whose same-channel retry is due at `now`, a page at a
+/// time.
+#[instrument(skip(tx), err)]
+pub async fn list_due_retries(
+    tx: &Transaction<'_>,
+    now: DateTime<Utc>,
+    after: Option<LedgerKey>,
+    limit: i64,
+) -> Result<Vec<MessageRecord>> {
+    let (after_at, after_id) = after.unzip();
+    tx.query(
+        r#"
+        SELECT * FROM sequent_backend.message
+        WHERE next_retry_at IS NOT NULL AND next_retry_at <= $1 AND state = 'FAILED'
+          AND ($2::timestamptz IS NULL OR (next_retry_at, id) > ($2, $3))
+        ORDER BY next_retry_at, id
+        LIMIT $4
+        "#,
+        &[&now, &after_at, &after_id, &limit],
+    )
+    .await?
+    .into_iter()
+    .map(TryInto::try_into)
+    .collect()
+}
+
+/// Gives up the scheduled retry of a failed attempt, with the reason.
+#[instrument(skip(tx), err)]
+pub async fn cancel_retry(tx: &Transaction<'_>, id: &Uuid, reason: &str) -> Result<()> {
+    tx.execute(
+        r#"
+        UPDATE sequent_backend.message
+        SET next_retry_at = NULL, error = $2, updated_at = now()
+        WHERE id = $1 AND state = 'FAILED'
+        "#,
+        &[id, &reason],
+    )
+    .await?;
+    Ok(())
+}
+
+/// Messages (not attempts) of an event by channel and outcome, from the
+/// ledger, so replayed jobs never count twice. Each logical message counts
+/// once, by its latest attempt; an unknown outcome older than
+/// `unresolved_before` is counted as `UNRESOLVED`, never as failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LedgerCount {
+    pub channel: MessageChannel,
+    /// A [`MessageAttemptState`], or `UNRESOLVED`.
+    pub outcome: String,
+    pub messages: i64,
+}
+
+#[instrument(skip(tx), err)]
+pub async fn count_event_messages(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    since: Option<DateTime<Utc>>,
+    unresolved_before: DateTime<Utc>,
+) -> Result<Vec<LedgerCount>> {
+    tx.query(
+        r#"
+        SELECT channel, outcome, count(*) AS messages FROM (
+            SELECT DISTINCT ON (COALESCE(logical_key, id::text))
+                channel,
+                CASE WHEN state = 'UNKNOWN' AND created_at < $4 THEN 'UNRESOLVED'
+                     ELSE state END AS outcome
+            FROM sequent_backend.message
+            WHERE tenant_id = $1 AND election_event_id = $2 AND direction = 'OUTBOUND'
+              AND ($3::timestamptz IS NULL OR created_at >= $3)
+            ORDER BY COALESCE(logical_key, id::text), attempt DESC
+        ) AS latest
+        GROUP BY channel, outcome
+        ORDER BY channel, outcome
+        "#,
+        &[tenant_id, election_event_id, &since, &unresolved_before],
+    )
+    .await?
+    .into_iter()
+    .map(|row| {
+        Ok(LedgerCount {
+            channel: parse_enum(&row, "channel")?,
+            outcome: row.try_get("outcome")?,
+            messages: row.try_get("messages")?,
+        })
+    })
     .collect()
 }
 
@@ -689,7 +1022,6 @@ pub struct MessengerLink {
     pub election_event_id: Option<Uuid>,
     pub account_id: Uuid,
     pub reference_digest: String,
-    pub link_word_digest: String,
     pub auth_session_digest: String,
     pub challenge_digest: String,
     pub encrypted_payload: Option<Vec<u8>>,
@@ -710,7 +1042,6 @@ impl TryFrom<Row> for MessengerLink {
             election_event_id: row.try_get("election_event_id")?,
             account_id: row.try_get("account_id")?,
             reference_digest: row.try_get("reference_digest")?,
-            link_word_digest: row.try_get("link_word_digest")?,
             auth_session_digest: row.try_get("auth_session_digest")?,
             challenge_digest: row.try_get("challenge_digest")?,
             encrypted_payload: row.try_get("encrypted_payload")?,
@@ -729,7 +1060,6 @@ pub struct NewMessengerLink {
     pub election_event_id: Option<Uuid>,
     pub account_id: Uuid,
     pub reference_digest: String,
-    pub link_word_digest: String,
     pub auth_session_digest: String,
     pub challenge_digest: String,
     pub encrypted_payload: Vec<u8>,
@@ -757,10 +1087,10 @@ pub async fn insert_messenger_link(
     tx.query_one(
         r#"
         INSERT INTO sequent_backend.messenger_link
-            (tenant_id, election_event_id, account_id, reference_digest, link_word_digest,
+            (tenant_id, election_event_id, account_id, reference_digest,
              auth_session_digest, challenge_digest, encrypted_payload, language, state,
              expires_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING', $9)
         RETURNING *
         "#,
         &[
@@ -768,7 +1098,6 @@ pub async fn insert_messenger_link(
             &link.election_event_id,
             &link.account_id,
             &link.reference_digest,
-            &link.link_word_digest,
             &link.auth_session_digest,
             &link.challenge_digest,
             &link.encrypted_payload,
@@ -799,23 +1128,21 @@ pub async fn get_messenger_link_by_reference(
     .transpose()
 }
 
-/// The pending link of this account a voter starts from the chat, by its
-/// reference or its link word.
+/// The pending link of this account a voter opened from the chat, by its
+/// reference.
 #[instrument(skip_all, err)]
 pub async fn get_pending_messenger_link(
     tx: &Transaction<'_>,
     account_id: &Uuid,
-    reference_digest: Option<&str>,
-    link_word_digest: Option<&str>,
+    reference_digest: &str,
 ) -> Result<Option<MessengerLink>> {
     tx.query_opt(
         r#"
         SELECT * FROM sequent_backend.messenger_link
-        WHERE account_id = $1 AND state = 'PENDING'
-          AND (reference_digest = $2 OR link_word_digest = $3)
+        WHERE account_id = $1 AND state = 'PENDING' AND reference_digest = $2
         FOR UPDATE
         "#,
-        &[account_id, &reference_digest, &link_word_digest],
+        &[account_id, &reference_digest],
     )
     .await?
     .map(TryInto::try_into)

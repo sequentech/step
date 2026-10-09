@@ -1831,6 +1831,7 @@ const basqueTranslation: TranslationType = {
                 "messaging-account-read": "Mezularitza-kontuak ikusi",
                 "messaging-account-write": "Mezularitza-kontuak kudeatu",
                 "messaging-config-write": "Hauteskunde-gertaeraren mezularitza konfiguratu",
+                "messaging-config-read": "Hauteskunde-gertaeraren mezularitza irakurri",
             },
         },
         generalSettingsScreen: {
@@ -5311,10 +5312,8 @@ const basqueTranslation: TranslationType = {
             sections: {
                 channels: "Kanalak",
                 templates: "Txantiloi onartuak",
-                fallback: "Jakinarazpenen ordezko ordena",
                 posts: "Kanalak Post-eko",
                 postsCount: "Kanalak Post-eko ({{count}} Post)",
-                reply: "Sarrerako mezuei erantzuna",
                 delivery: "Entregaren egoera",
             },
             column: {
@@ -5327,14 +5326,12 @@ const basqueTranslation: TranslationType = {
                 post: "Post",
                 key: "Mezu honetarako",
                 providerLanguage: "Hornitzailearen hizkuntza",
+                voters: "Erabiltzen duten hautesleak",
+                sent24h: "Bidaliak, azken 24 h",
             },
             outOfWindow: {
-                label: "Elkarrizketa-leihotik kanpo",
-                help: "Testu libreko jakinarazpenak elkarrizketa-leihoa irekita dagoen bitartean soilik bidaltzen dira: Messenger-en, hauteslearen azken mezutik 24 orduko epean. Aukeratu Utilitate-mezuak jakinarazpenak geroago txantiloi onartu batekin bidaltzeko. Meta-k onartu behar du orriarentzat (page_utility_messaging baimena eta onartutako UTILITY txantiloi bat), eta txantiloi horrek jakinarazpenei lotuta egon behar du Txantiloi onartuak atalean. Ez bidali aukerarekin, leihotik kanpoko jakinarazpena hauteslearen hurrengo kanal erabilgarrira doa.",
-                DISABLED: "Ez bidali",
-                UTILITY_MESSAGES: "Utilitate-mezuak",
-                noTemplate:
-                    "Oraindik ez dago txantiloirik lotuta kanal honetako jakinarazpenei. Gehitu bat Txantiloi onartuak atalean; bitartean, leihotik kanpoko jakinarazpenak hauteslearen hurrengo kanal erabilgarrira doaz.",
+                utility:
+                    "24 orduko leihotik kanpo, {{channel}} kanalak Txantiloi onartuak atalean jakinarazpenei lotutako utilitate-txantiloi onartuarekin bidaltzen ditu jakinarazpenak.",
             },
             templates: {
                 empty: "Aukeratu txantiloi onartuak bidaltzen dituen kontu bat, hala nola WhatsApp, Viber edo Messenger, bere txantiloiak hemen lotzeko.",
@@ -5353,15 +5350,8 @@ const basqueTranslation: TranslationType = {
                 approval: {
                     APPROVED: "Onartua",
                     NOT_APPROVED: "Onartu gabea",
-                    ADMIN_CONFIRMED: "Administratzaile batek berretsia",
                     NOT_CHECKED: "Onarpena egiaztatu gabe",
                 },
-            },
-            fallback: {
-                help: "Jakinarazpen batek hautesle bat bere kanalean iritsi ezin duenean, hautesleak egiaztatu duen eta bere Post-ak eskaintzen duen ordena honetako hurrengo kanalera doa. Kodeak ez dira inoiz berez berriro bidaltzen: hautesleak beste modu bat aukeratzen du.",
-                empty: "Aktibatu kanal baten jakinarazpenak ordezko ordenara gehitzeko.",
-                earlier: "Eraman {{channel}} aurrerago",
-                later: "Eraman {{channel}} atzerago",
             },
             posts: {
                 noChannels:
@@ -5376,13 +5366,14 @@ const basqueTranslation: TranslationType = {
                 showing:
                     "{{total}} Post-etatik {{shown}} erakusten dira. Bilatu besteak aurkitzeko.",
             },
-            reply: {
-                help: "Hautesle batek gertaera honetako kontu batera idazten duenean bidaltzen da, gehienez egunean behin hautesleko.",
-                label: "Erantzuna ({{language}})",
-            },
             delivery: {
                 empty: "Ez da kanalik erabiltzen.",
-                help: "Onartua esan nahi du hornitzaileak eskaera onartu duela, ez hautesleak kodea jaso edo egiaztatu duela. Ezezaguna esan nahi du entrega ez dagoela oraindik berretsita. Entrega-txostenik gabeko hornitzaileak entrega ez erabilgarri gisa erakusten du.",
+                help: "Zenbaketak mezuko dira, azken saiakeraren egoeraren arabera. Onartua esan nahi du hornitzaileak mezua onartu duela, ez hautesleak jaso duela. Ezezaguna esan nahi du entrega ez dagoela oraindik berretsita; 24 ordu igarotakoan Ebatzi gabe gisa erakusten da, inoiz ez huts egindako gisa. Entrega-txostenik gabeko kontu batek entrega ez erabilgarri gisa erakusten du.",
+                loadError: "Ezin izan dira mezuen zenbaketak kargatu.",
+                noReceipts:
+                    "Kontu honek ez du entrega-txostenik jasotzen; beraz, ezin da entrega erakutsi.",
+                showFailed:
+                    "Erakutsi {{channel}} kanalean huts egin duten mezuak Egunkariak atalean",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5398,14 +5389,14 @@ const basqueTranslation: TranslationType = {
                     "{{channel}} txantiloia ({{purpose}}, {{language}}) ez dago hornitzaileak onartuta.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} kanalak ezin du elkarrizketa-leihotik kanpo bidali kontu honekin: ez du elkarrizketa-leihorik, edo bere jakinarazpenek dagoeneko txantiloi bat behar dute.",
-                FALLBACK_CHANNEL_NOT_ENABLED:
-                    "{{channel}} ordezko ordenan dago baina ez du jakinarazpenik bidaltzen.",
-                DUPLICATE_FALLBACK_CHANNEL:
-                    "{{channel}} behin baino gehiagotan dago ordezko ordenan.",
                 ELECTION_CHANNEL_NOT_ENABLED:
                     "{{election}}-ek {{channel}} eskaintzen du, eta gertaera honek ez du erabiltzen.",
                 UNKNOWN_ELECTION: "{{election}} ez da gertaera honetako hauteskunde bat.",
+                UTILITY_TEMPLATE_MISSING:
+                    "{{channel}} kanalaren jakinarazpenek, 24 orduko leihotik kanpo, utilitate-txantiloi onartua behar dute. Lotu jakinarazpenei Txantiloi onartuak atalean.",
             },
+            noReadPermission: "Ezarpen hauek irakurtzeko messaging-config-read baimena behar da.",
+            chooseAccount: "Aukeratu lehenik kontu bat.",
         },
         messaging: {
             channel: {
@@ -5422,8 +5413,8 @@ const basqueTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
-                CONSOLE: "Kontsola (probak soilik, ez da ezer bidaltzen)",
-                HTTP_API: "HTTP API pertsonalizatua",
+                CONSOLE: "Kontsola (jada ez da onartzen)",
+                HTTP_API: "HTTP API pertsonalizatua (jada ez da onartzen)",
             },
             purpose: {
                 OTP: "Kodeak",
@@ -5435,6 +5426,7 @@ const basqueTranslation: TranslationType = {
                 DELIVERED: "Entregatua",
                 FAILED: "Huts egin du",
                 UNKNOWN: "Ezezaguna",
+                UNRESOLVED: "Ebatzi gabe",
             },
             stateHelp: {
                 QUEUED: "Hornitzaileari emateko zain.",
@@ -5443,6 +5435,8 @@ const basqueTranslation: TranslationType = {
                 DELIVERED: "Hornitzaileak mezua entregatu dela jakinarazi du.",
                 FAILED: "Hornitzaileak berretsi du mezua ez dela entregatu.",
                 UNKNOWN: "Entrega ez dago oraindik berretsita.",
+                UNRESOLVED:
+                    "Ezin izan da entrega 24 orduren barruan berretsi. Horrek ez du esan nahi huts egin duenik.",
             },
             blocker: {
                 NOT_CONNECTED: "Konektatu gabe",
@@ -5450,6 +5444,7 @@ const basqueTranslation: TranslationType = {
                 NEEDS_PROVIDER_APPROVAL: "Hornitzailearen onarpena behar du",
                 NEEDS_PRODUCTION_ACCESS: "Ekoizpen-sarbidea behar du",
                 NEEDS_APPROVED_TEMPLATE: "Txantiloi onartua behar du",
+                UNSUPPORTED_PROVIDER: "Hornitzaile ez onartua: ordeztu kontu hau",
             },
             readiness: {
                 connected: "Konektatuta",
@@ -5459,8 +5454,6 @@ const basqueTranslation: TranslationType = {
                 notReady: "Ez dago prest",
                 lastCheck: "Egiaztatua: {{date}}",
                 neverChecked: "Oraindik egiaztatu gabe",
-                adminConfirmed: "Administratzaile batek berretsia",
-                checkNotUsed: "Egiaztapena ez da erabiltzen",
             },
             approval: {
                 PENDING: "Hornitzailearen onarpenaren zain",
@@ -5474,10 +5467,8 @@ const basqueTranslation: TranslationType = {
                 SMTP_PASSWORD: "Pasahitza",
                 AWS_ACCESS_KEY_ID: "AWS sarbide-gakoaren IDa",
                 AWS_SECRET_ACCESS_KEY: "AWS sarbide-gako sekretua",
-                API_SECRET: "APIaren sekretua",
-                USERNAME: "Erabiltzaile-izena",
-                PASSWORD: "Pasahitza",
-                WEBHOOK_SECRET: "Webhookaren sekretua",
+                REPORT_USERNAME: "Txostenen erabiltzaile-izena",
+                REPORT_PASSWORD: "Txostenen pasahitza",
             },
             deliveryUnavailable: "Entrega ez dago erabilgarri",
             templates: {
@@ -5502,7 +5493,7 @@ const basqueTranslation: TranslationType = {
                     "Hautesleak azken mezua bidali eta 24 orduko epean, Messenger-ek beheko testua bidaltzen du.",
                 messengerMessage: "24 orduko epeko mezua",
                 messengerWindow:
-                    "Gordetako Messenger hartzaile bat ez da bidaltzeko baimena. 24 orduko leihotik kanpo jakinarazpen hau utilitate-mezu gisa bidaltzen da, hauteskunde-gertaerak baimentzen duenean eta txantiloi onartu bat behean ezarrita edo gertaeran lotuta dagoenean; bestela, hauteslearen hurrengo kanal erabilgarrira doa. Utilitate-mezuek page_utility_messaging baimena eta onartutako UTILITY txantiloi bat behar dituzte orrian.",
+                    "Gordetako Messenger hartzaile bat ez da bidaltzeko baimena. 24 orduko leihotik kanpo jakinarazpen hau behean ezarritako edo hauteskunde-gertaeran lotutako utilitate-txantiloi onartuarekin bidaltzen da; halakorik gabe ez da bidaltzen, eta hutsegitea bere arrazoiarekin erakusten da. Utilitate-mezuek page_utility_messaging baimena eta orrian onartutako UTILITY txantiloi bat behar dituzte.",
                 intro: {
                     WHATSAPP:
                         "WhatsApp-ek Meta-k WhatsApp Business kontuarentzat onartutako txantiloiak soilik bidaltzen ditu. Mezuak txantiloi onartuarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak.",
@@ -5523,16 +5514,12 @@ const basqueTranslation: TranslationType = {
                     MESSENGER:
                         "Onartutako utilitate-txantiloiaren hizkuntza-kodea, adibidez en_US.",
                 },
-                approvalAdminConfirmed:
-                    "Administratzaile batek hornitzailearekin berretsi du kontu honen txantiloiak onartuta daudela; beraz, konexio-egiaztapenaren onarpenak ez dira erabiltzen.",
+                noReadPermission: "Kontuak irakurtzeko messaging-config-read baimena behar da.",
             },
             send: {
-                channel: "Kanala",
                 eachVoter: "Hautesle bakoitzaren kanala",
-                only: "{{channel}} soilik",
                 eachVoterHelp:
-                    "Berretsitako hutsegiteek hurrengo kanal egiaztatu erabilgarria erabiltzen dute. Berretsi gabeko entrega Ezezaguna gisa erakusten da.",
-                onlyHelp: "Jakinarazpen hau hautesle bakoitzari {{channel}} bidez bidaltzen zaio.",
+                    "Hautesle bakoitzak mezu bat jasotzen du bere kanalean. Entregak huts egiten badu, kanal berean berriro saiatzen da, eta hutsegitea gertaeraren Mezularitza fitxan erakusten da. Berretsi gabeko entrega Ezezaguna gisa erakusten da.",
                 channelColumn: "Kanala",
                 sendsFrom: "Honetatik bidaltzen da",
                 noAccount: "Konturik ez",
@@ -5545,20 +5532,25 @@ const basqueTranslation: TranslationType = {
                 providerLanguage: "{{channel}} hornitzailearen hizkuntza",
                 providerLanguageHelp:
                     "Hornitzaileak txantiloi horretarako duen hizkuntza-kodea, adibidez en_US.",
+                voters: "Hautesleak",
             },
             voter: {
                 title: "Mezularitza",
-                preferredChannel: "Kanal hobetsia",
-                whatsappNumber: "WhatsApp zenbakia",
-                viberNumber: "Viber zenbakia",
-                messengerConnected: "Konektatuta",
-                messengerNotConnected: "Konektatu gabe",
-                verifiedChannels: "Kanal egiaztatuak",
-                noneVerified: "Ez dago kanal egiaztaturik",
                 notSet: "Ezarri gabe",
+                channel: "Kanala",
+                destination: "Hona bidaltzen da",
+                messengerPage: "Messenger orria",
+                consent: "Onespena",
+                lastFailure: "Azken hutsegitea",
+                noFailure: "Bat ere ez",
+                failureNeedsPermission: "messaging-config-read baimenarekin erakusten da.",
+                noChannel: "Ez dago kontakturik erregistratuta",
             },
             logs: {
                 channel: "Kanala",
+                status: "Egoera",
+                statusAsLogged:
+                    "Sarrera idatzi zeneko egoera; uneko egoerak messaging-config-read baimena behar du.",
             },
             stats: {
                 sent: {
@@ -5567,9 +5559,12 @@ const basqueTranslation: TranslationType = {
                     MESSENGER: "Bidalitako Messenger mezuak",
                 },
             },
-            readinessPolicy: {
-                PROVIDER_CHECK: "Hornitzailearen egiaztapenaren arabera",
-                ADMIN_CONFIRMED: "Administratzaile batek berretsia",
+            reason: {
+                CALLBACK_NOT_CONFIGURED: "Itzulera-helbidea ez dago konfiguratuta",
+                UNSUPPORTED_PROVIDER: "Hornitzaile ez onartua: ordeztu kontu hau",
+                CREDENTIALS_FOLLOW_ENDPOINT: "Idatzi berriro kredentzialak helbide berrirako",
+                NO_CONTACT_CHANNEL: "Ez dago harremanetarako kanalik",
+                NOT_RETRYABLE_NO_TEMPLATE: "Ezin da berriro saiatu: ez dago gordetako txantiloirik",
             },
         },
         messagingAccounts: {
@@ -5648,9 +5643,7 @@ const basqueTranslation: TranslationType = {
                 sender: "Igorlearen izena",
                 provider_approval: "Hornitzailearen onarpena",
                 is_default: "{{channel}} kontu lehenetsia hauteskunde-gertaera berrietarako",
-                readiness: "Prestasuna",
                 api_base_url: "Graph API oinarrizko URLa",
-                label: "Hautesleei erakusten zaien igorlea",
             },
             fieldHelp: {
                 from_address:
@@ -5670,11 +5663,8 @@ const basqueTranslation: TranslationType = {
                 sender: "Hautesleek ikusten duten igorle onartua.",
                 provider_approval:
                     "Meta-k gobernuen WhatsApp mezularitza onartutako akordio baten bidez soilik baimentzen du. Aukeratu Hornitzailearen onarpena berretsita Meta-k kontu honetarako onartu duenean; bitartean, ezin dira kodeak eta jakinarazpenak gaitu kontu honetan.",
-                readiness:
-                    "Hornitzailearen egiaztapenaren arabera aukerak konexio-egiaztapenak aurkitzen duena erabiltzen du: kontua konektatuta dagoen, ekoizpenean dagoen eta zein txantiloi dauden onartuta. Administratzaile batek berretsia aukera egiaztapenak hori jakin ezin duen hornitzaileentzat da: zure adierazpena da kontua konektatuta dagoela, ekoizpenean dagoela eta bere txantiloiak onartuta dituela, eta egiaztapenaren ordez erabiltzen da.",
                 api_base_url:
                     "Graph API Meta-rena ez denean soilik, adibidez soluzio-hornitzaile baten amaiera-puntua. Hutsik badago, Meta-rena erabiltzen da.",
-                label: "Hautesleek kontu honen igorle gisa ikusten duten izena.",
             },
             error: {
                 REQUIRED: "Derrigorrezkoa",
@@ -5684,8 +5674,8 @@ const basqueTranslation: TranslationType = {
                     "Idatzi 1etik 3 digitura bitarteko herrialde-aurrezenbakiak, adibidez 63",
                 DUPLICATE_LANGUAGE:
                     "Hizkuntza honek badu dagoeneko txantiloi bat helburu honetarako",
-                NOT_A_URL: "Idatzi https:// edo http:// hasten den helbide bat",
-                INVALID_HTTP_CONFIG: "Konpondu adierazitako arazoak",
+                NOT_A_URL: "Idatzi https:// hasten den helbide bat",
+                UNSUPPORTED_PROVIDER: "Hornitzaile ez onartua: ordeztu kontu hau",
             },
             warning: {
                 pageChange:
@@ -5746,27 +5736,20 @@ const basqueTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Infobip API gakoa.",
                 },
-                HTTP_API: {
-                    API_KEY: "Aukerakoa. Eskaerek API_KEY kredentzial gisa erabiltzen dute.",
-                    API_SECRET:
-                        "Aukerakoa. Bigarren sekretu bat, eta JWT sinatzen duen gakoa: PEM gako pribatu bat RS256rako, sekretu partekatua HS256rako.",
-                    ACCESS_TOKEN:
-                        "Aukerakoa. Eskaerek ACCESS_TOKEN kredentzial gisa erabiltzen dute.",
-                    USERNAME: "Aukerakoa. Pasahitzarekin batera, basic_auth leku-marka osatzen du.",
-                    PASSWORD:
-                        "Aukerakoa. Erabiltzaile-izenarekin batera, basic_auth leku-marka osatzen du.",
-                    WEBHOOK_SECRET:
-                        "Aukerakoa. Hornitzailearen itzulera-deiak egiaztatzeko erabiltzen den sekretu partekatua.",
-                },
             },
             webhook: {
-                title: "Entrega-txostenak eta erantzunak",
-                description:
-                    "Idatzi itzulera-helbide hau hornitzailearen webhook ezarpenetan. Entrega-txostenak eta hautesleen erantzunak hara iristen dira.",
-                path: "Itzulera-bidea",
-                pathHelp: "Gehitu plataforma honen mezularitza-webhooken helbide publikoari.",
+                title: "Entrega-txostenak",
+                description: {
+                    WHATSAPP_CLOUD_API:
+                        "Idatzi itzulera-URL hau Metaren webhook ezarpenetan. Entrega-txostenak hona iristen dira eta aplikazioaren sekretuarekin egiaztatzen dira.",
+                    MESSENGER_SEND_API:
+                        "Idatzi itzulera-URL hau Metaren webhook ezarpenetan. Entrega-txostenak eta hautesleak Hasi botoian egindako sakatzea hona iristen dira eta aplikazioaren sekretuarekin egiaztatzen dira.",
+                    VIBER_INFOBIP:
+                        "Infobip-ek Viber-en entrega-txostenak itzulera-URL honetara bidaltzen ditu, Basic autentifikazioa duen harpidetza baten bidez.",
+                    AWS_SES:
+                        "Harpidetu itzulera-URL hau (HTTPS) entrega-jakinarazpenen gaiari. Entrega- eta errebote-gertaerak hona iristen dira eta Amazonen sinadurarekin egiaztatzen dira.",
+                },
                 afterSaving: "Gorde ondoren erakusten da",
-                copyPath: "Kopiatu itzulera-bidea",
                 tokenSet: "Ezarrita · ordeztua {{date}}",
                 tokenMissing: "Oraindik sortu gabe",
                 tokenAfterSaving: "Gorde ondoren sortzen da",
@@ -5777,8 +5760,12 @@ const basqueTranslation: TranslationType = {
                 copyToken: "Kopiatu egiaztatze-tokena",
                 tokenDone: "Eginda",
                 tokenError: "Ezin izan da egiaztatze-tokena sortu.",
-                httpHelp:
-                    "HTTP API pertsonalizatu batek bere txostenak JSON gisa bidal ditzake, edo GET eskaera gisa; orduan, bere kontsulta-parametroak objektu lau gisa irakurtzen dira, /status bezalako erakusleekin.",
+                url: "Itzulera-URLa",
+                copyUrl: "Kopiatu itzulera-URLa",
+                needsWrite:
+                    "Mezularitza-kontuak kudea ditzaketen administratzaileei erakusten zaie.",
+                loading: "Kargatzen…",
+                unavailable: "Ez dago erabilgarri",
             },
             copy: {
                 success: "Kopiatuta",
@@ -5810,104 +5797,22 @@ const basqueTranslation: TranslationType = {
                 languageHelp:
                     "Txantiloi onartuak bidaltzen dituen hornitzaile baterako, idatzi hornitzaileak txantiloirako duen hizkuntza-kodea, adibidez en_US.",
             },
-            http: {
-                title: "HTTP API pertsonalizatua",
-                description:
-                    "Hornitzaile bat bere HTTP eskaeren bidez deskribatzen du: beste Viber bazkide bat, WhatsApp soluzio-hornitzaile baten API propioa, SMS pasabide bat. Eskaerak JSON dira; haien URLak, goiburuek eta gorputzak beheko erreferentziako leku-markak izan ditzakete.",
-                phoneFormat: "Telefono-zenbakiaren formatua",
-                phoneFormatHelp: "Nola idazten den hartzailearen telefono-zenbakia eskaera batean.",
-                phoneFormatOption: {
-                    E164: "Plus ikurrarekin: +639171234567",
-                    DIGITS: "Digituak soilik: 639171234567",
-                },
-                templateRequired: "Txantiloi onartua behar duten helburuak",
-                templateRequiredHelp:
-                    "Markatutako helburu bat hornitzaileak onartutako txantiloi batekin soilik bidaltzen da, hauteskunde-gertaeran lotuta. Gainerako helburuak testu libre gisa bidaltzen dira.",
-                approvedLanguages: "Txantiloi onartua duten hizkuntzak: {{purpose}}",
-                approvedLanguagesHelp:
-                    "Txantiloi onartua duten hizkuntza-kodeak, hornitzailearekin berretsi bezala, komaz bereizita: en, tl. Konexio-egiaztapenak horien berri ematen du.",
-                conversationWindow: "Elkarrizketa-leihoa (orduak)",
-                conversationWindowHelp:
-                    "Hartzailearen azken mezuaren ondoren testu librea bidal daitekeen orduak. Hutsik hornitzaileak horrelako leihorik ez duenean.",
-                messageIdPointer: "Mezuaren IDa bidalketaren erantzunean",
-                messageIdPointerHelp:
-                    "Bidalketa-eskaeraren erantzunean hornitzailearen mezu-IDa non dagoen adierazten duen JSON erakuslea, adibidez /message_id. Entrega-txostenak harekin parekatzen dira.",
-                notConfigured: "Konfiguratu gabe.",
-                thisSection: "Atal hau",
-                add: "Gehitu: {{section}}",
-                remove: "Kendu: {{section}}",
-                section: {
-                    SEND: "Bidalketa-eskaera",
-                    CHECK: "Konexio-egiaztapenaren eskaera",
-                    TOKEN: "Token-eskaera",
-                    JWT: "Token sinatua (JWT)",
-                    REPORTS: "Entrega-txostenak eta erantzunak",
-                    RECONCILE: "Mezu baten kontsulta-eskaera",
-                },
-                sectionHelp: {
-                    SEND: "Mezu bat bidaltzen duen eskaera: method (POST, zehazten ez bada), url, headers eta body.",
-                    CHECK: "Aukerakoa. Kredentzialek funtzionatzen dutenean 2xx erantzunarekin ongi amaitzen den eskaera. Konexio-egiaztapenak exekutatzen du.",
-                    TOKEN: "Aukerakoa. Iraupen laburreko token bat lortzen du bidali aurretik, adibidez OAuth bezero-kredentzialekin: request, token_pointer (tokena erantzunean non dagoen) eta lifetime_seconds. Eskaerek token leku-markarekin erabiltzen dute.",
-                    JWT: "Aukerakoa. Eskaera bakoitzerako APIaren sekretua kredentzialarekin sinatutako token bat: algorithm (RS256 edo HS256), claims (iat, exp eta jti gehitzen dira) eta lifetime_seconds. Eskaerek jwt leku-markarekin erabiltzen dute.",
-                    REPORTS:
-                        "Aukerakoa. Hornitzaileak itzulera-helbidera bidaltzen duena nola irakurri: auth, items_pointer (txostenen zerrenda non dagoen; eduki osoa, zehazten ez bada), status (message_id_pointer, state_pointer, states, hornitzailearen balio bakoitza QUEUED, ACCEPTED, DELIVERED, FAILED edo UNKNOWN balioarekin lotzen duena, eta error_pointer) eta inbound_from_pointer (erantzun baten igorlea non dagoen). auth-ek kind bat du: URL_KEY (itzulera-helbide sekretua soilik), HEADER_SECRET (webhookaren sekretuaren berdina den goiburu bat), HMAC_SHA256 (gorputzaren HMAC duen goiburu bat, webhookaren sekretuarekin kalkulatua, prefix-arekin, HEX edo BASE64 encoding-arekin, eta signed gorputza baino gehiago sinatzen denean) edo JWT_HS256 (webhookaren sekretuarekin sinatutako bearer JWT bat duen goiburu bat).",
-                    RECONCILE:
-                        "Aukerakoa. Emaitza ezezaguna duen mezu bati buruz galdetzen dio hornitzaileari: request eta status, entrega-txostenen status bezala irakurtzen dena.",
-                },
-                problem: {
-                    NOT_AN_OBJECT: "{{path}} objektu bat izan behar da.",
-                    MISSING_URL: "{{path}} derrigorrezkoa da: eskaeraren helbidea.",
-                    INVALID_METHOD:
-                        "{{path}} HTTP metodo bat izan behar da, adibidez POST edo GET.",
-                    INVALID_HEADERS:
-                        "{{path}} testua izan behar da: headers goiburu-izenen eta testu-balioen objektu bat da.",
-                    UNKNOWN_FIELD: "{{path}} ez da atal honetako eremu bat.",
-                    UNKNOWN_PLACEHOLDER:
-                        "{{path}} eremuak existitzen ez den leku-marka bat erabiltzen du. Ikusi leku-marken erreferentzia.",
-                    INVALID_POINTER:
-                        "{{path}} / karaktereaz hasten den JSON erakusle bat izan behar da, adibidez /data/id.",
-                    INVALID_STATES:
-                        "{{path}} eremuak hornitzailearen egoera-balio bat QUEUED, ACCEPTED, DELIVERED, FAILED edo UNKNOWN balioarekin lotu behar du; gutxienez bat behar da.",
-                    INVALID_AUTH:
-                        "{{path}} ez da baliozkoa: kind URL_KEY, HEADER_SECRET, HMAC_SHA256 edo JWT_HS256 da; header derrigorrezkoa da URL_KEY kasuan izan ezik; encoding HEX edo BASE64 da.",
-                    INVALID_LIFETIME:
-                        "{{path}} 0 baino handiagoa den segundo kopuru oso bat izan behar da.",
-                    INVALID_ALGORITHM: "{{path}} RS256 edo HS256 izan behar da.",
-                    INVALID_CLAIMS: "{{path}} objektu bat izan behar da.",
-                    INVALID_HOURS:
-                        "{{path}} 0 baino handiagoa den ordu kopuru oso bat izan behar da.",
-                },
-                placeholders: {
-                    title: "Leku-marken erreferentzia",
-                    help: "Giltza bikoitzen artean idazten dira URLan, goiburu baten balioan edo gorputzeko edozein testutan. Bakoitza eskaera egitean ordezten da.",
-                },
-                placeholder: {
-                    to: "Hartzailea: telefono-zenbakia, helbide elektronikoa edo orriaren esparruko IDa.",
-                    text: "Mezua testu soil gisa.",
-                    subject: "Gaia, posta elektronikorako.",
-                    html: "Mezua HTML gisa, posta elektronikorako.",
-                    code: "Erabilera bakarreko kodea, kodeetarako.",
-                    template: "Hauteskunde-gertaeran lotutako hornitzailearen txantiloia.",
-                    language: "Hornitzaileak txantiloirako duen hizkuntza-kodea.",
-                    message_id: "Hornitzailearen mezu-IDa, mezu baten kontsulta-eskaeran.",
-                    callback_url: "Kontu honen itzulera-helbide publikoa.",
-                    param: "Txantiloiaren parametro bat bere posizioaren arabera: 1, 2, 3 eta abar.",
-                    credential:
-                        "Kontu honen kredentzial bat bere izenaren arabera: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD edo WEBHOOK_SECRET.",
-                    basic_auth:
-                        "Erabiltzaile-izena eta pasahitza, Authorization: Basic goiburu baterako kodetuta.",
-                    token: "Token-eskaerarekin lortutako tokena.",
-                    jwt: "Token sinatua (JWT) atalean deskribatutako token sinatua.",
-                    parameters:
-                        "Gorputzeko balio gisa bakarrik dagoenean, txantiloiaren parametro guztien zerrenda bihurtzen da.",
-                    named_parameters:
-                        "Gorputzeko balio gisa bakarrik dagoenean, @izena=balioa gisa idatzitako parametroen objektu bat bihurtzen da.",
-                },
-                example: {
-                    title: "Adibide osoa: Viber bazkide bat",
-                    description:
-                        "Bazkideak JSON POST bat jasotzen du, API gakoarekin bearer token gisa autentifikatua, mezuaren IDarekin erantzuten du message_id eremuan, eta entrega-txostenak goiburu sekretu batekin bidaltzen ditu. Erabili abiapuntu gisa, eta aldatu helbidea eta eremu-izenak hornitzailearenekin.",
-                    use: "Erabili adibide hau",
+            unsupported:
+                "Hornitzaile ez onartua: ordeztu kontu hau. Bere hornitzailea jada ez da onartzen; beraz, ezin du bidali. Gehitu kanal honetarako kontu bat hornitzaile onartu batekin, aukeratu hau erabiltzen duten hauteskunde-gertaeretan, eta ondoren ezabatu kontu hau.",
+            reports: {
+                label: "Txostenen kredentzialak",
+                missing: "Oraindik sortu gabe",
+                generate: "Sortu txostenen kredentzialak",
+                title: "Txostenen kredentzialak",
+                once: "Idatzi orain Infobip-eko harpidetzan. Behin bakarrik erakusten dira; berriak sortzeak ordeztu egiten ditu.",
+                copyUsername: "Kopiatu txostenen erabiltzaile-izena",
+                copyPassword: "Kopiatu txostenen pasahitza",
+                error: "Ezin izan dira txostenen kredentzialak sortu.",
+                step: {
+                    subscription:
+                        "Infobip-en, sortu harpidetza bat Viber-en entrega-txostenetarako.",
+                    url: "Ezarri haren URLa kontu honen itzulera-URLa gisa.",
+                    auth: "Aukeratu Basic autentifikazioa eta idatzi txostenen erabiltzaile-izena eta pasahitza.",
                 },
             },
         },

@@ -1,9 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+#![recursion_limit = "256"]
 
-//! Sending through the ledger, provider callbacks, Messenger links and
-//! reconciliation, against the real schema and a loopback provider. Each
-//! test commits like production does, under a tenant of its own.
+//! Sending through the ledger, provider callbacks, Messenger links and the
+//! sweep, against the real schema and a loopback provider. Each test
+//! commits like production does, under a tenant of its own.
+//!
+//! Accounts and event configurations are written directly, so these tests
+//! don't depend on how they are validated or where the configuration is
+//! read from (both the first release's annotation and the table are
+//! written).
 
 #[path = "support/schema.rs"]
 mod schema;
@@ -14,30 +20,27 @@ use hmac::{Hmac, Mac};
 use messaging::providers::Endpoints;
 use messaging::test_server::{Reply, TestServer};
 use sequent_core::types::messaging::{
-    AccountCheck, AccountLimits, AccountSender, CreateMessengerLinkRequest, CredentialName,
-    EventChannelConfig, EventMessagingConfig, MessageAttemptState, MessageChannel, MessageContent,
-    MessagePurpose, MessengerLinkRequest, MessengerLinkState, OutOfWindowPolicy, ProviderApproval,
-    ReadinessPolicy, TemplateBinding,
+    AccountCheck, AccountSender, CreateMessengerLinkRequest, CredentialName, EventChannelConfig,
+    EventMessagingConfig, MessageAttemptState, MessageChannel, MessageContent, MessagePurpose,
+    MessageReason, MessengerLinkRequest, MessengerLinkState, OutOfWindowPolicy, TemplateBinding,
 };
-use serde_json::json;
+use serde_json::{json, Value};
 use sha2::Sha256;
 use std::collections::BTreeMap;
 use uuid::Uuid;
-use windmill::postgres::messaging::{
-    insert_messaging_account, list_attempts, update_messaging_account,
-    update_messaging_account_status, AccountSettings, MessagingAccount,
-};
+use windmill::postgres::messaging::list_attempts;
 use windmill::services::messaging::accounts::replace_credentials;
-use windmill::services::messaging::config::{save_event_messaging_config, SaveOutcome};
+use windmill::services::messaging::audit::MessageKind;
 use windmill::services::messaging::dispatch::{
-    deliver, Delivery, DeliveryResult, Dispatcher, FallbackPolicy, Recipient,
+    deliver, record_without_channel, Delivery, DeliveryResult, Dispatcher, Recipient,
 };
 use windmill::services::messaging::links::{confirm_link, create_link, link_status, LinkError};
 use windmill::services::messaging::reconcile::reconcile_messages;
-use windmill::services::messaging::webhooks::{http_events, meta_events, WebhookOutcome};
+use windmill::services::messaging::webhooks::{meta_events, WebhookOutcome};
 
 const MASTER_SECRET: &str = "0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526272829";
 const APP_SECRET: &str = "synthetic-app-secret";
+const PSID: &str = "6543210";
 
 fn id(seed: u32, n: u32) -> Uuid {
     Uuid::parse_str(&format!("{seed:08x}-0000-4000-8000-{n:012x}")).unwrap()
@@ -50,127 +53,191 @@ struct World {
 
 async fn world(pool: &Pool, seed: u32) -> World {
     std::env::set_var("MASTER_SECRET", MASTER_SECRET);
+    // Messenger codes need the webhook component's address (Get Started
+    // arrives through it).
+    std::env::set_var(
+        "MESSAGING_WEBHOOKS_PUBLIC_URL",
+        "https://callbacks.example.org",
+    );
     let world = World {
         tenant: id(seed, 1),
         event: id(seed, 2),
     };
-    let mut client = pool.get().await.unwrap();
-    let tx = client.transaction().await.unwrap();
-    tx.execute(
-        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
-        &[&world.tenant, &format!("tenant-{}", world.tenant)],
-    )
-    .await
-    .unwrap();
-    tx.execute(
-        "INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol)
-         VALUES ($1, $2, 'RSA256')",
-        &[&world.event, &world.tenant],
-    )
-    .await
-    .unwrap();
-    tx.commit().await.unwrap();
+    let client = pool.get().await.unwrap();
+    client
+        .execute(
+            "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+            &[&world.tenant, &format!("tenant-{}", world.tenant)],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol)
+             VALUES ($1, $2, 'RSA256')",
+            &[&world.event, &world.tenant],
+        )
+        .await
+        .unwrap();
     world
 }
 
-fn ready() -> AccountCheck {
+fn ready(approved: &[MessagePurpose]) -> AccountCheck {
     AccountCheck {
         connected: true,
         production_access: true,
+        approved_templates: approved
+            .iter()
+            .map(|purpose| (*purpose, vec!["en".to_string()]))
+            .collect(),
         ..Default::default()
     }
 }
 
+/// A ready account, written directly.
 async fn account(
     client: &mut Client,
     world: &World,
     channel: MessageChannel,
-    sender: AccountSender,
+    sender: Value,
     key: &str,
-) -> MessagingAccount {
-    let tx = client.transaction().await.unwrap();
-    let account = insert_messaging_account(
-        &tx,
-        &world.tenant,
-        &AccountSettings {
-            channel,
-            name: format!("{channel} account"),
-            sender,
-            limits: AccountLimits::default(),
-            provider_approval: ProviderApproval::PENDING,
-            readiness: ReadinessPolicy::PROVIDER_CHECK,
-            is_default: false,
-        },
-        key,
-    )
-    .await
-    .unwrap();
-    update_messaging_account_status(&tx, &world.tenant, &account.id, &ready())
+    credentials: &[(CredentialName, &str)],
+) -> Uuid {
+    let provider = sender["provider"].as_str().unwrap().to_string();
+    let account: Uuid = client
+        .query_one(
+            r#"
+            INSERT INTO sequent_backend.messaging_account
+                (tenant_id, channel, provider, name, sender, limits, status, webhook_key)
+            VALUES ($1, $2, $3, $4, $5, '{}'::jsonb, $6, $7)
+            RETURNING id
+            "#,
+            &[
+                &world.tenant,
+                &channel.to_string(),
+                &provider,
+                &format!("{channel} account"),
+                &sender,
+                &serde_json::to_value(ready(&[MessagePurpose::OTP, MessagePurpose::NOTICE]))
+                    .unwrap(),
+                &key,
+            ],
+        )
         .await
+        .unwrap()
+        .get(0);
+    if !credentials.is_empty() {
+        let tx = client.transaction().await.unwrap();
+        replace_credentials(
+            &tx,
+            &world.tenant,
+            &account,
+            &credentials
+                .iter()
+                .map(|(name, value)| (*name, value.to_string()))
+                .collect(),
+            false,
+        )
+        .await
+        .unwrap()
         .unwrap();
-    tx.commit().await.unwrap();
+        tx.commit().await.unwrap();
+    }
     account
 }
 
-async fn messenger_account(client: &mut Client, world: &World, key: &str) -> MessagingAccount {
-    let account = account(
+async fn viber_account(client: &mut Client, world: &World, base_url: &str, key: &str) -> Uuid {
+    let sender = AccountSender::VIBER_INFOBIP {
+        base_url: base_url.to_string(),
+        sender: "Elections".to_string(),
+        approved_templates: BTreeMap::from([
+            (
+                MessagePurpose::NOTICE,
+                BTreeMap::from([("en".to_string(), "tpl-notice".to_string())]),
+            ),
+            (
+                MessagePurpose::OTP,
+                BTreeMap::from([("en".to_string(), "tpl-otp".to_string())]),
+            ),
+        ]),
+    };
+    account(
+        client,
+        world,
+        MessageChannel::VIBER,
+        serde_json::to_value(sender).unwrap(),
+        key,
+        &[(CredentialName::API_KEY, "key-1")],
+    )
+    .await
+}
+
+async fn messenger_account(client: &mut Client, world: &World, key: &str) -> Uuid {
+    let sender = AccountSender::MESSENGER_SEND_API {
+        page_id: "page-1".to_string(),
+        page_name: Some("Elections".to_string()),
+        page_username: Some("elections".to_string()),
+        api_version: "v23.0".to_string(),
+        api_base_url: None,
+    };
+    account(
         client,
         world,
         MessageChannel::MESSENGER,
-        AccountSender::MESSENGER_SEND_API {
-            page_id: "page-1".to_string(),
-            page_name: Some("COMELEC".to_string()),
-            page_username: Some("comelec".to_string()),
-            api_version: "v23.0".to_string(),
-            api_base_url: None,
-        },
+        serde_json::to_value(sender).unwrap(),
         key,
-    )
-    .await;
-    let tx = client.transaction().await.unwrap();
-    replace_credentials(
-        &tx,
-        &world.tenant,
-        &account.id,
-        &BTreeMap::from([
-            (CredentialName::ACCESS_TOKEN, "page-token".to_string()),
-            (CredentialName::APP_SECRET, APP_SECRET.to_string()),
-        ]),
-        true,
+        &[
+            (CredentialName::ACCESS_TOKEN, "page-token"),
+            (CredentialName::APP_SECRET, APP_SECRET),
+        ],
     )
     .await
-    .unwrap()
-    .unwrap();
-    tx.commit().await.unwrap();
-    account
 }
 
-async fn configure(
-    client: &mut Client,
-    world: &World,
-    channels: Vec<(MessageChannel, &MessagingAccount, Vec<MessagePurpose>)>,
-    fallback: Vec<MessageChannel>,
-) {
-    let config = EventMessagingConfig {
-        channels: channels
-            .into_iter()
-            .map(|(channel, account, purposes)| EventChannelConfig {
-                channel,
-                account_id: account.id.to_string(),
-                purposes,
-                templates: vec![],
-                out_of_window: OutOfWindowPolicy::DISABLED,
-            })
-            .collect(),
-        notice_fallback: fallback,
-        ..Default::default()
-    };
-    let tx = client.transaction().await.unwrap();
-    let outcome = save_event_messaging_config(&tx, &world.tenant, &world.event, &config)
+fn channel(
+    channel: MessageChannel,
+    account: &Uuid,
+    purposes: &[MessagePurpose],
+) -> EventChannelConfig {
+    EventChannelConfig {
+        channel,
+        account_id: account.to_string(),
+        purposes: purposes.to_vec(),
+        templates: vec![],
+        out_of_window: OutOfWindowPolicy::DISABLED,
+    }
+}
+
+/// Writes the event's configuration where the first release read it (the
+/// annotation) and where it is read now (the table).
+async fn configure(client: &mut Client, world: &World, config: EventMessagingConfig) {
+    let config = serde_json::to_value(&config).unwrap();
+    client
+        .execute(
+            "UPDATE sequent_backend.election_event
+             SET annotations = jsonb_build_object('messaging:config', $3::jsonb::text)
+             WHERE tenant_id = $1 AND id = $2",
+            &[&world.tenant, &world.event, &config],
+        )
         .await
         .unwrap();
-    assert!(matches!(outcome, SaveOutcome::Saved(_)), "{outcome:?}");
-    tx.commit().await.unwrap();
+    client
+        .execute(
+            "INSERT INTO sequent_backend.messaging_event_config
+                (tenant_id, election_event_id, config)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (election_event_id) DO UPDATE SET config = EXCLUDED.config",
+            &[&world.tenant, &world.event, &config],
+        )
+        .await
+        .unwrap();
+}
+
+fn config(channels: Vec<EventChannelConfig>) -> EventMessagingConfig {
+    EventMessagingConfig {
+        channels,
+        ..Default::default()
+    }
 }
 
 fn content(text: &str) -> MessageContent {
@@ -183,31 +250,25 @@ fn content(text: &str) -> MessageContent {
     }
 }
 
-fn notice(world: &World, key: &str, destinations: BTreeMap<MessageChannel, String>) -> Delivery {
-    let channels: Vec<MessageChannel> = destinations.keys().copied().collect();
+fn notice(world: &World, key: &str, channel: MessageChannel, destination: &str) -> Delivery {
     Delivery {
         tenant_id: world.tenant,
         election_event_id: Some(world.event),
         purpose: MessagePurpose::NOTICE,
-        first_channel: channels[0],
-        fallback: FallbackPolicy::EVENT_ORDER,
         recipient: Recipient {
             voter_id: Some("voter-1".to_string()),
-            destinations,
-            verified: channels.clone(),
+            channel,
+            destination: destination.to_string(),
             election_ids: vec![],
         },
-        contents: channels
-            .iter()
-            .map(|c| (*c, content("Voting opens tomorrow.")))
-            .collect(),
+        content: Some(content("Voting opens tomorrow.")),
         language: Some("en".to_string()),
         template_alias: Some("reminder".to_string()),
         logical_key: key.to_string(),
         expires_at: None,
         account_id: None,
         template_key: None,
-        provider_templates: BTreeMap::new(),
+        provider_template: None,
     }
 }
 
@@ -228,50 +289,112 @@ fn sign(body: &[u8]) -> String {
     format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
 }
 
+fn meta_dispatcher(server: &TestServer) -> Dispatcher {
+    Dispatcher::new(Endpoints {
+        meta_graph: Some(server.base_url.clone()),
+        ..Endpoints::default()
+    })
+    .unwrap()
+}
+
+/// A signed Messenger webhook with these events.
+async fn messenger_webhook(
+    client: &mut Client,
+    dispatcher: &Dispatcher,
+    key: &str,
+    events: Vec<Value>,
+) -> WebhookOutcome {
+    let body =
+        json!({"object": "page", "entry": [{"id": "page-1", "messaging": events}]}).to_string();
+    meta_events(
+        client,
+        dispatcher,
+        key,
+        Some(&sign(body.as_bytes())),
+        body.as_bytes(),
+    )
+    .await
+    .unwrap()
+}
+
+fn get_started() -> Value {
+    json!({"sender": {"id": PSID}, "recipient": {"id": "page-1"},
+           "timestamp": Utc::now().timestamp_millis(),
+           "postback": {"title": "Get Started", "payload": "GET_STARTED"}})
+}
+
+const MASKED: &str = "+63 \u{2022}\u{2022}\u{2022} \u{2022}\u{2022}\u{2022} 567";
+
 #[tokio::test]
-async fn an_accepted_notice_is_recorded_once_and_never_resent() {
+async fn an_accepted_notice_is_recorded_once_and_logged_once() {
     let pool = schema::pool().await;
     let world = world(&pool, 0x6001).await;
     let mut client = pool.get().await.unwrap();
-    let sms = account(
-        &mut client,
-        &world,
-        MessageChannel::SMS,
-        AccountSender::CONSOLE {},
-        "w6001",
-    )
+    let server = TestServer::start(vec![Reply::Json(
+        200,
+        json!({"messages": [{"messageId": "ib-1"}]}),
+    )])
     .await;
+    let viber = viber_account(&mut client, &world, &server.base_url, "w6001").await;
     configure(
         &mut client,
         &world,
-        vec![(MessageChannel::SMS, &sms, vec![MessagePurpose::NOTICE])],
-        vec![],
+        config(vec![channel(
+            MessageChannel::VIBER,
+            &viber,
+            &[MessagePurpose::NOTICE],
+        )]),
     )
     .await;
     let dispatcher = Dispatcher::new(Endpoints::default()).unwrap();
     let delivery = notice(
         &world,
-        "send-1:voter-1",
-        BTreeMap::from([(MessageChannel::SMS, "+639171234567".to_string())]),
+        "send-template:s1:voter-1",
+        MessageChannel::VIBER,
+        "+639171234567",
     );
 
     let first = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
     assert_eq!(first.state, MessageAttemptState::ACCEPTED);
+    assert!(first.newly_sent());
+    // The electoral log entry of the attempt: masked receiver, account,
+    // provider, purpose, kind, attempt and outcome.
+    assert_eq!(first.recorded.len(), 1);
+    let logged: Value = serde_json::from_str(&first.recorded[0].log_body()).unwrap();
+    assert_eq!(
+        logged,
+        json!({
+            "channel": "viber",
+            "account_id": viber.to_string(),
+            "provider": "VIBER_INFOBIP",
+            "purpose": "NOTICE",
+            "kind": "BULK_NOTICE",
+            "message_id": first.message_id.unwrap().to_string(),
+            "attempt": 1,
+            "outcome": "ACCEPTED",
+            "receiver": MASKED,
+        })
+    );
+    assert_eq!(first.recorded[0].kind, MessageKind::BULK_NOTICE);
+
     let replay = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
     assert_eq!(replay.message_id, first.message_id);
-    assert_eq!(
-        attempts(&mut client, &world, "send-1:voter-1").await,
-        vec![(MessageChannel::SMS, MessageAttemptState::ACCEPTED)]
-    );
-    let masked: String = client
+    assert!(replay.recorded.is_empty());
+    assert_eq!(server.requests().len(), 1);
+    let row = client
         .query_one(
-            "SELECT masked_destination FROM sequent_backend.message WHERE id = $1",
+            "SELECT masked_destination, destination_country, billing_category
+             FROM sequent_backend.message WHERE id = $1",
             &[&first.message_id.unwrap()],
         )
         .await
-        .unwrap()
-        .get(0);
-    assert_eq!(masked, "+63******4567");
+        .unwrap();
+    assert_eq!(row.get::<_, String>(0), MASKED);
+    assert_eq!(row.get::<_, Option<String>>(1).as_deref(), Some("PH"));
+    assert_eq!(
+        row.get::<_, Option<String>>(2).as_deref(),
+        Some("TRANSACTIONAL")
+    );
 }
 
 #[tokio::test]
@@ -279,43 +402,135 @@ async fn expired_codes_are_recorded_as_failed_and_never_sent() {
     let pool = schema::pool().await;
     let world = world(&pool, 0x6002).await;
     let mut client = pool.get().await.unwrap();
-    let sms = account(
-        &mut client,
-        &world,
-        MessageChannel::SMS,
-        AccountSender::CONSOLE {},
-        "w6002",
-    )
-    .await;
+    let server = TestServer::start(vec![]).await;
+    let viber = viber_account(&mut client, &world, &server.base_url, "w6002").await;
     configure(
         &mut client,
         &world,
-        vec![(MessageChannel::SMS, &sms, vec![MessagePurpose::OTP])],
-        vec![],
+        config(vec![channel(
+            MessageChannel::VIBER,
+            &viber,
+            &[MessagePurpose::OTP],
+        )]),
     )
     .await;
     let dispatcher = Dispatcher::new(Endpoints::default()).unwrap();
     let mut code = notice(
         &world,
-        "otp-1",
-        BTreeMap::from([(MessageChannel::SMS, "+639171234567".to_string())]),
+        "keycloak:otp-1",
+        MessageChannel::VIBER,
+        "+639171234567",
     );
     code.purpose = MessagePurpose::OTP;
-    code.fallback = FallbackPolicy::NONE;
     code.expires_at = Some(Utc::now() - Duration::seconds(1));
-    code.contents.get_mut(&MessageChannel::SMS).unwrap().code = Some("482619".to_string());
+    code.content.as_mut().unwrap().code = Some("482619".to_string());
 
     let result = deliver(&mut client, &dispatcher, &code).await.unwrap();
     assert_eq!(result.state, MessageAttemptState::FAILED);
     assert_eq!(result.reason.as_deref(), Some("CODE_EXPIRED"));
+    assert_eq!(result.next_retry_at, None);
     assert_eq!(
-        attempts(&mut client, &world, "otp-1").await,
-        vec![(MessageChannel::SMS, MessageAttemptState::FAILED)]
+        attempts(&mut client, &world, "keycloak:otp-1").await,
+        vec![(MessageChannel::VIBER, MessageAttemptState::FAILED)]
     );
+    assert!(server.requests().is_empty());
 }
 
 #[tokio::test]
-async fn a_confirmed_failure_falls_back_and_a_lost_answer_waits() {
+async fn a_channel_the_post_does_not_offer_fails_once_and_nothing_goes_elsewhere() {
+    let pool = schema::pool().await;
+    let world = world(&pool, 0x600a).await;
+    let mut client = pool.get().await.unwrap();
+    let server = TestServer::start(vec![]).await;
+    let viber = viber_account(&mut client, &world, &server.base_url, "w600a").await;
+    let mut event_config = config(vec![channel(
+        MessageChannel::VIBER,
+        &viber,
+        &[MessagePurpose::NOTICE],
+    )]);
+    event_config.election_channels =
+        BTreeMap::from([("post-1".to_string(), vec![MessageChannel::SMS])]);
+    configure(&mut client, &world, event_config).await;
+    let dispatcher = Dispatcher::new(Endpoints::default()).unwrap();
+
+    // The voter's Post offers SMS only: their Viber notice fails, and no
+    // SMS is sent instead.
+    let mut restricted = notice(
+        &world,
+        "send-template:s2:voter-1",
+        MessageChannel::VIBER,
+        "+639171234567",
+    );
+    restricted.recipient.election_ids = vec!["post-1".to_string()];
+    let result = deliver(&mut client, &dispatcher, &restricted)
+        .await
+        .unwrap();
+    assert_eq!(result.state, MessageAttemptState::FAILED);
+    assert_eq!(
+        result.reason.as_deref(),
+        Some(MessageReason::CHANNEL_NOT_OFFERED_FOR_NOTICES.as_str())
+    );
+    assert_eq!(result.recorded.len(), 1);
+    // Not offered at all for the event: the same one reason.
+    let whatsapp = notice(
+        &world,
+        "send-template:s2:voter-2",
+        MessageChannel::WHATSAPP,
+        "+639171234568",
+    );
+    let result = deliver(&mut client, &dispatcher, &whatsapp).await.unwrap();
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("Channel not offered for notices")
+    );
+    // A replay records nothing new.
+    assert!(deliver(&mut client, &dispatcher, &whatsapp)
+        .await
+        .unwrap()
+        .recorded
+        .is_empty());
+    assert_eq!(
+        attempts(&mut client, &world, "send-template:s2:voter-1").await,
+        vec![(MessageChannel::VIBER, MessageAttemptState::FAILED)]
+    );
+    assert_eq!(
+        attempts(&mut client, &world, "send-template:s2:voter-2").await,
+        vec![(MessageChannel::WHATSAPP, MessageAttemptState::FAILED)]
+    );
+    assert!(server.requests().is_empty());
+}
+
+async fn record_no_channel(client: &mut Client, world: &World) -> DeliveryResult {
+    record_without_channel(
+        client,
+        world.tenant,
+        Some(world.event),
+        Some("voter-9".to_string()),
+        MessagePurpose::NOTICE,
+        Some("reminder".to_string()),
+        None,
+        "send-template:s3:voter-9",
+    )
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn a_voter_without_a_channel_gets_one_failed_record() {
+    let pool = schema::pool().await;
+    let world = world(&pool, 0x600b).await;
+    let mut client = pool.get().await.unwrap();
+    let first: DeliveryResult = record_no_channel(&mut client, &world).await;
+    assert_eq!(first.state, MessageAttemptState::FAILED);
+    assert_eq!(first.reason.as_deref(), Some("No contact channel"));
+    assert_eq!(first.recorded.len(), 1);
+    let replay = record_no_channel(&mut client, &world).await;
+    assert_eq!(replay.message_id, first.message_id);
+    assert!(replay.recorded.is_empty());
+}
+
+#[tokio::test]
+async fn a_confirmed_failure_stays_on_its_channel_and_a_lost_answer_waits() {
     let pool = schema::pool().await;
     let world = world(&pool, 0x6003).await;
     let mut client = pool.get().await.unwrap();
@@ -328,92 +543,60 @@ async fn a_confirmed_failure_falls_back_and_a_lost_answer_waits() {
     ])
     .await;
     let messenger = messenger_account(&mut client, &world, "w6003").await;
-    let sms = account(
-        &mut client,
-        &world,
-        MessageChannel::SMS,
-        AccountSender::CONSOLE {},
-        "w6003-sms",
-    )
-    .await;
+    let sms = viber_account(&mut client, &world, &server.base_url, "w6003-viber").await;
     configure(
         &mut client,
         &world,
-        vec![
-            (
+        config(vec![
+            channel(
                 MessageChannel::MESSENGER,
                 &messenger,
-                vec![MessagePurpose::NOTICE],
+                &[MessagePurpose::NOTICE],
             ),
-            (MessageChannel::SMS, &sms, vec![MessagePurpose::NOTICE]),
-        ],
-        vec![MessageChannel::SMS],
+            channel(MessageChannel::VIBER, &sms, &[MessagePurpose::NOTICE]),
+        ]),
     )
     .await;
-    let dispatcher = Dispatcher::new(Endpoints {
-        meta_graph: server.base_url.clone(),
-        aws: None,
-    })
-    .unwrap();
-    // The voter wrote to the Page, so the conversation window is open.
-    let referral = json!({"object": "page", "entry": [{"id": "page-1", "messaging": [
-        {"sender": {"id": "6543210"}, "recipient": {"id": "page-1"}, "timestamp": Utc::now().timestamp_millis(),
-         "message": {"mid": "m_in_1", "text": "hello"}}
-    ]}]})
-    .to_string();
+    let dispatcher = meta_dispatcher(&server);
+    // The voter pressed Get Started: the conversation window is open.
     assert_eq!(
-        meta_events(
-            &mut client,
-            &dispatcher,
-            "w6003",
-            Some(&sign(referral.as_bytes())),
-            referral.as_bytes()
-        )
-        .await
-        .unwrap(),
+        messenger_webhook(&mut client, &dispatcher, "w6003", vec![get_started()]).await,
         WebhookOutcome::Accepted
     );
 
-    let mut delivery = notice(
+    let delivery = notice(
         &world,
-        "send-2:voter-1",
-        BTreeMap::from([
-            (MessageChannel::MESSENGER, "6543210".to_string()),
-            (MessageChannel::SMS, "+639171234567".to_string()),
-        ]),
+        "send-template:s4:voter-1",
+        MessageChannel::MESSENGER,
+        PSID,
     );
-    delivery.first_channel = MessageChannel::MESSENGER;
     let result = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
-    assert_eq!(result.state, MessageAttemptState::ACCEPTED);
-    assert_eq!(result.channel, Some(MessageChannel::SMS));
+    assert_eq!(result.state, MessageAttemptState::FAILED);
+    assert_eq!(result.channel, MessageChannel::MESSENGER);
+    assert_eq!(result.next_retry_at, None);
     assert_eq!(
-        attempts(&mut client, &world, "send-2:voter-1").await,
-        vec![
-            (MessageChannel::MESSENGER, MessageAttemptState::FAILED),
-            (MessageChannel::SMS, MessageAttemptState::ACCEPTED),
-        ]
+        attempts(&mut client, &world, "send-template:s4:voter-1").await,
+        vec![(MessageChannel::MESSENGER, MessageAttemptState::FAILED)]
     );
 
     // The provider takes the second message but its answer is lost.
-    let mut lost = notice(
+    let lost = notice(
         &world,
-        "send-3:voter-1",
-        BTreeMap::from([
-            (MessageChannel::MESSENGER, "6543210".to_string()),
-            (MessageChannel::SMS, "+639171234567".to_string()),
-        ]),
+        "send-template:s5:voter-1",
+        MessageChannel::MESSENGER,
+        PSID,
     );
-    lost.first_channel = MessageChannel::MESSENGER;
-    let first: DeliveryResult = deliver(&mut client, &dispatcher, &lost).await.unwrap();
+    let first = deliver(&mut client, &dispatcher, &lost).await.unwrap();
     assert_eq!(first.state, MessageAttemptState::UNKNOWN);
     let again = deliver(&mut client, &dispatcher, &lost).await.unwrap();
     assert_eq!(again.message_id, first.message_id);
     assert_eq!(again.state, MessageAttemptState::UNKNOWN);
+    assert!(again.recorded.is_empty());
     assert_eq!(
-        attempts(&mut client, &world, "send-3:voter-1").await,
+        attempts(&mut client, &world, "send-template:s5:voter-1").await,
         vec![(MessageChannel::MESSENGER, MessageAttemptState::UNKNOWN)]
     );
-    // Two sends reached the provider: no retry and no fallback for the lost one.
+    // Two sends reached the provider: no retry, and never another channel.
     assert_eq!(server.requests().len(), 2);
 }
 
@@ -427,37 +610,20 @@ async fn signed_reports_update_attempts_and_unsigned_ones_are_refused() {
     configure(
         &mut client,
         &world,
-        vec![(
+        config(vec![channel(
             MessageChannel::MESSENGER,
             &messenger,
-            vec![MessagePurpose::NOTICE],
-        )],
-        vec![],
+            &[MessagePurpose::NOTICE],
+        )]),
     )
     .await;
-    let dispatcher = Dispatcher::new(Endpoints {
-        meta_graph: server.base_url.clone(),
-        aws: None,
-    })
-    .unwrap();
-    let inbound = json!({"object": "page", "entry": [{"id": "page-1", "messaging": [
-        {"sender": {"id": "6543210"}, "recipient": {"id": "page-1"}, "timestamp": Utc::now().timestamp_millis(),
-         "message": {"mid": "m_in_2", "text": "hi"}}
-    ]}]})
-    .to_string();
-    meta_events(
-        &mut client,
-        &dispatcher,
-        "w6004",
-        Some(&sign(inbound.as_bytes())),
-        inbound.as_bytes(),
-    )
-    .await
-    .unwrap();
+    let dispatcher = meta_dispatcher(&server);
+    messenger_webhook(&mut client, &dispatcher, "w6004", vec![get_started()]).await;
     let delivery = notice(
         &world,
-        "send-4:voter-1",
-        BTreeMap::from([(MessageChannel::MESSENGER, "6543210".to_string())]),
+        "send-template:s6:voter-1",
+        MessageChannel::MESSENGER,
+        PSID,
     );
     assert_eq!(
         deliver(&mut client, &dispatcher, &delivery)
@@ -466,9 +632,11 @@ async fn signed_reports_update_attempts_and_unsigned_ones_are_refused() {
             .state,
         MessageAttemptState::ACCEPTED
     );
+    // Within the window: a reply, not the utility template.
+    assert_eq!(server.requests()[0].json()["messaging_type"], "RESPONSE");
 
     let report = json!({"object": "page", "entry": [{"id": "page-1", "messaging": [
-        {"sender": {"id": "6543210"}, "recipient": {"id": "page-1"}, "timestamp": Utc::now().timestamp_millis(),
+        {"sender": {"id": PSID}, "recipient": {"id": "page-1"}, "timestamp": Utc::now().timestamp_millis(),
          "delivery": {"mids": ["m_out_1"], "watermark": Utc::now().timestamp_millis()}}
     ]}]})
     .to_string();
@@ -497,7 +665,7 @@ async fn signed_reports_update_attempts_and_unsigned_ones_are_refused() {
         WebhookOutcome::NotFound
     );
     assert_eq!(
-        attempts(&mut client, &world, "send-4:voter-1").await,
+        attempts(&mut client, &world, "send-template:s6:voter-1").await,
         vec![(MessageChannel::MESSENGER, MessageAttemptState::ACCEPTED)]
     );
     assert_eq!(
@@ -513,8 +681,61 @@ async fn signed_reports_update_attempts_and_unsigned_ones_are_refused() {
         WebhookOutcome::Accepted
     );
     assert_eq!(
-        attempts(&mut client, &world, "send-4:voter-1").await,
+        attempts(&mut client, &world, "send-template:s6:voter-1").await,
         vec![(MessageChannel::MESSENGER, MessageAttemptState::DELIVERED)]
+    );
+}
+
+#[tokio::test]
+async fn messages_voters_write_are_dropped_and_open_no_window() {
+    let pool = schema::pool().await;
+    let world = world(&pool, 0x600c).await;
+    let mut client = pool.get().await.unwrap();
+    let server = TestServer::start(vec![]).await;
+    let messenger = messenger_account(&mut client, &world, "w600c").await;
+    configure(
+        &mut client,
+        &world,
+        config(vec![channel(
+            MessageChannel::MESSENGER,
+            &messenger,
+            &[MessagePurpose::NOTICE],
+        )]),
+    )
+    .await;
+    let dispatcher = meta_dispatcher(&server);
+    let text = json!({"sender": {"id": PSID}, "recipient": {"id": "page-1"},
+                      "timestamp": Utc::now().timestamp_millis(),
+                      "message": {"mid": "m_in_1", "text": "hello"}});
+    assert_eq!(
+        messenger_webhook(&mut client, &dispatcher, "w600c", vec![text]).await,
+        WebhookOutcome::Accepted
+    );
+    let stored: i64 = client
+        .query_one(
+            "SELECT (SELECT count(*) FROM sequent_backend.message WHERE tenant_id = $1)
+                  + (SELECT count(*) FROM sequent_backend.messenger_contact WHERE tenant_id = $1)",
+            &[&world.tenant],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(stored, 0);
+    // So a notice outside the window needs the utility template, which the
+    // event didn't bind: nothing reaches the provider.
+    let delivery = notice(
+        &world,
+        "send-template:s7:voter-1",
+        MessageChannel::MESSENGER,
+        PSID,
+    );
+    let result = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
+    assert_eq!(result.state, MessageAttemptState::FAILED);
+    assert!(server.requests().is_empty());
+    // No automatic reply either.
+    assert_eq!(
+        attempts(&mut client, &world, "send-template:s7:voter-1").await,
+        vec![(MessageChannel::MESSENGER, MessageAttemptState::FAILED)]
     );
 }
 
@@ -528,19 +749,14 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
     configure(
         &mut client,
         &world,
-        vec![(
+        config(vec![channel(
             MessageChannel::MESSENGER,
             &messenger,
-            vec![MessagePurpose::OTP],
-        )],
-        vec![],
+            &[MessagePurpose::OTP],
+        )]),
     )
     .await;
-    let dispatcher = Dispatcher::new(Endpoints {
-        meta_graph: server.base_url.clone(),
-        aws: None,
-    })
-    .unwrap();
+    let dispatcher = meta_dispatcher(&server);
 
     let created = create_link(
         &mut client,
@@ -551,14 +767,14 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
             challenge: "challenge-digest".to_string(),
             code: "482619".to_string(),
             language: Some("en".to_string()),
-            content: content("Your COMELEC verification code is 482619."),
+            content: content("Your verification code is 482619."),
             expires_at: (Utc::now() + Duration::minutes(30)).to_rfc3339(),
         },
     )
     .await
     .unwrap()
     .unwrap();
-    assert!(created.link.starts_with("https://m.me/comelec?ref="));
+    assert!(created.link.starts_with("https://m.me/elections?ref="));
     let lifetime = chrono::DateTime::parse_from_rfc3339(&created.expires_at)
         .unwrap()
         .with_timezone(&Utc)
@@ -579,7 +795,6 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
             .state,
         MessengerLinkState::PENDING
     );
-    // Not before the code was sent, and never from another session.
     assert_eq!(
         confirm_link(&mut client, &request("session-digest"))
             .await
@@ -589,42 +804,34 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
         MessengerLinkState::PENDING
     );
 
-    let referral = json!({"object": "page", "entry": [{"id": "page-1", "messaging": [
-        {"sender": {"id": "6543210"}, "recipient": {"id": "page-1"}, "timestamp": Utc::now().timestamp_millis(),
-         "referral": {"ref": created.reference, "source": "SHORTLINK", "type": "OPEN_THREAD"}}
-    ]}]})
-    .to_string();
-    meta_events(
-        &mut client,
-        &dispatcher,
-        "w6005",
-        Some(&sign(referral.as_bytes())),
-        referral.as_bytes(),
-    )
-    .await
-    .unwrap();
+    // Typing something in the chat links nothing: there is no link word.
+    let typed = json!({"sender": {"id": PSID}, "recipient": {"id": "page-1"},
+                       "timestamp": Utc::now().timestamp_millis(),
+                       "message": {"mid": "m_in", "text": created.reference}});
+    messenger_webhook(&mut client, &dispatcher, "w6005", vec![typed]).await;
+    assert!(server.requests().is_empty());
+
+    // Get Started with the reference: the window opens before the code is
+    // sent, so the code goes out as a reply, not refused as out of window.
+    let referral = json!({"sender": {"id": PSID}, "recipient": {"id": "page-1"},
+                          "timestamp": Utc::now().timestamp_millis(),
+                          "postback": {"title": "Get Started", "payload": "GET_STARTED",
+                                       "referral": {"ref": created.reference, "source": "SHORTLINK",
+                                                    "type": "OPEN_THREAD"}}});
+    messenger_webhook(&mut client, &dispatcher, "w6005", vec![referral]).await;
     let sent = &server.requests()[0];
-    assert_eq!(sent.json()["recipient"]["id"], "6543210");
+    assert_eq!(sent.json()["recipient"]["id"], PSID);
+    assert_eq!(sent.json()["messaging_type"], "RESPONSE");
     assert!(sent.json()["message"]["text"]
         .as_str()
         .unwrap()
         .contains("482619"));
 
     // A replay of the same referral from another conversation is ignored.
-    let replay = json!({"object": "page", "entry": [{"id": "page-1", "messaging": [
-        {"sender": {"id": "999"}, "recipient": {"id": "page-1"}, "timestamp": Utc::now().timestamp_millis(),
-         "referral": {"ref": created.reference}}
-    ]}]})
-    .to_string();
-    meta_events(
-        &mut client,
-        &dispatcher,
-        "w6005",
-        Some(&sign(replay.as_bytes())),
-        replay.as_bytes(),
-    )
-    .await
-    .unwrap();
+    let replay = json!({"sender": {"id": "999"}, "recipient": {"id": "page-1"},
+                        "timestamp": Utc::now().timestamp_millis(),
+                        "referral": {"ref": created.reference}});
+    messenger_webhook(&mut client, &dispatcher, "w6005", vec![replay]).await;
     assert_eq!(server.requests().len(), 1);
 
     assert_eq!(
@@ -638,7 +845,7 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
         .unwrap()
         .unwrap();
     assert_eq!(confirmed.state, MessengerLinkState::CONFIRMED);
-    assert_eq!(confirmed.page_scoped_id.as_deref(), Some("6543210"));
+    assert_eq!(confirmed.page_scoped_id.as_deref(), Some(PSID));
     assert_eq!(confirmed.page_id.as_deref(), Some("page-1"));
     let again = confirm_link(&mut client, &request("session-digest"))
         .await
@@ -659,7 +866,7 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
 }
 
 #[tokio::test]
-async fn stale_queued_attempts_become_unknown() {
+async fn a_stopped_worker_leaves_never_sent_attempts_failed_and_maybe_sent_ones_unknown() {
     let pool = schema::pool().await;
     let world = world(&pool, 0x6006).await;
     let mut client = pool.get().await.unwrap();
@@ -667,10 +874,17 @@ async fn stale_queued_attempts_become_unknown() {
         .execute(
             r#"
             INSERT INTO sequent_backend.message
-                (tenant_id, election_event_id, channel, direction, purpose, masked_destination,
-                 destination_digest, logical_key, attempt, state, created_at)
-            VALUES ($1, $2, 'SMS', 'OUTBOUND', 'NOTICE', '+63******4567', 'd', 'stale-1', 1,
-                    'QUEUED', now() - interval '1 hour')
+                (tenant_id, election_event_id, channel, direction, purpose, template_alias,
+                 masked_destination, destination_digest, logical_key, attempt, state,
+                 created_at, dispatched_at)
+            VALUES
+                ($1, $2, 'SMS', 'OUTBOUND', 'NOTICE', 'reminder', '-', 'd',
+                 'send-template:stale:never', 1, 'QUEUED', now() - interval '5 minutes', NULL),
+                ($1, $2, 'SMS', 'OUTBOUND', 'NOTICE', 'reminder', '-', 'd',
+                 'send-template:stale:maybe', 1, 'QUEUED', now() - interval '5 minutes',
+                 now() - interval '5 minutes'),
+                ($1, $2, 'SMS', 'OUTBOUND', 'NOTICE', 'reminder', '-', 'd',
+                 'send-template:stale:fresh', 1, 'QUEUED', now(), NULL)
             "#,
             &[&world.tenant, &world.event],
         )
@@ -678,24 +892,37 @@ async fn stale_queued_attempts_become_unknown() {
         .unwrap();
     let dispatcher = Dispatcher::new(Endpoints::default()).unwrap();
     let summary = reconcile_messages(&mut client, &dispatcher).await.unwrap();
-    assert!(summary.marked_unknown >= 1);
+    assert!(summary.never_sent >= 1 && summary.maybe_sent >= 1);
     assert_eq!(
-        attempts(&mut client, &world, "stale-1").await,
+        attempts(&mut client, &world, "send-template:stale:never").await,
+        vec![(MessageChannel::SMS, MessageAttemptState::FAILED)]
+    );
+    assert_eq!(
+        attempts(&mut client, &world, "send-template:stale:maybe").await,
         vec![(MessageChannel::SMS, MessageAttemptState::UNKNOWN)]
     );
-}
-
-async fn save_config(
-    client: &mut Client,
-    world: &World,
-    config: &EventMessagingConfig,
-) -> SaveOutcome {
-    let tx = client.transaction().await.unwrap();
-    let outcome = save_event_messaging_config(&tx, &world.tenant, &world.event, config)
+    assert_eq!(
+        attempts(&mut client, &world, "send-template:stale:fresh").await,
+        vec![(MessageChannel::SMS, MessageAttemptState::QUEUED)]
+    );
+    let never = client
+        .query_one(
+            "SELECT error, failure, next_retry_at IS NOT NULL FROM sequent_backend.message
+             WHERE tenant_id = $1 AND logical_key = 'send-template:stale:never'",
+            &[&world.tenant],
+        )
         .await
         .unwrap();
-    tx.commit().await.unwrap();
-    outcome
+    assert_eq!(
+        never.get::<_, Option<String>>(0).as_deref(),
+        Some("The worker stopped before sending")
+    );
+    assert_eq!(
+        never.get::<_, Option<String>>(1).as_deref(),
+        Some("TRANSIENT")
+    );
+    // Never sent, so it is retried on the same channel.
+    assert!(never.get::<_, bool>(2));
 }
 
 #[tokio::test]
@@ -705,11 +932,10 @@ async fn a_bound_template_goes_out_as_a_utility_message_outside_the_window() {
     let mut client = pool.get().await.unwrap();
     let server = TestServer::start(vec![Reply::Json(200, json!({"message_id": "m_util"}))]).await;
     let messenger = messenger_account(&mut client, &world, "w6007").await;
-    let config = EventMessagingConfig {
-        channels: vec![EventChannelConfig {
-            channel: MessageChannel::MESSENGER,
-            account_id: messenger.id.to_string(),
-            purposes: vec![MessagePurpose::NOTICE],
+    configure(
+        &mut client,
+        &world,
+        config(vec![EventChannelConfig {
             templates: vec![
                 TemplateBinding {
                     purpose: MessagePurpose::NOTICE,
@@ -726,32 +952,28 @@ async fn a_bound_template_goes_out_as_a_utility_message_outside_the_window() {
                     provider_language: Some("en_US".to_string()),
                 },
             ],
-            out_of_window: OutOfWindowPolicy::UTILITY_MESSAGES,
-        }],
-        ..Default::default()
-    };
-    assert!(matches!(
-        save_config(&mut client, &world, &config).await,
-        SaveOutcome::Saved(_)
-    ));
-    let dispatcher = Dispatcher::new(Endpoints {
-        meta_graph: server.base_url.clone(),
-        aws: None,
-    })
-    .unwrap();
+            // The first release's "do not send": Messenger now always uses
+            // the utility template outside the window.
+            out_of_window: OutOfWindowPolicy::DISABLED,
+            ..channel(
+                MessageChannel::MESSENGER,
+                &messenger,
+                &[MessagePurpose::NOTICE],
+            )
+        }]),
+    )
+    .await;
+    let dispatcher = meta_dispatcher(&server);
 
-    // The voter never wrote to the Page: there is no conversation window.
+    // The voter never pressed Get Started: there is no conversation window.
     let mut delivery = notice(
         &world,
-        "send-7:voter-1",
-        BTreeMap::from([(MessageChannel::MESSENGER, "6543210".to_string())]),
+        "send-template:s8:voter-1",
+        MessageChannel::MESSENGER,
+        PSID,
     );
     delivery.template_key = Some("reminder".to_string());
-    delivery
-        .contents
-        .get_mut(&MessageChannel::MESSENGER)
-        .unwrap()
-        .template_parameters = vec!["Ana".to_string()];
+    delivery.content.as_mut().unwrap().template_parameters = vec!["Ana".to_string()];
     let result = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
     assert_eq!(result.state, MessageAttemptState::ACCEPTED);
     let body = server.requests()[0].json();
@@ -762,145 +984,52 @@ async fn a_bound_template_goes_out_as_a_utility_message_outside_the_window() {
         body["message"]["template"]["components"][0]["parameters"][0]["text"],
         "Ana"
     );
+    let category: Option<String> = client
+        .query_one(
+            "SELECT billing_category FROM sequent_backend.message WHERE id = $1",
+            &[&result.message_id.unwrap()],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    assert_eq!(category.as_deref(), Some("UTILITY"));
 }
 
 #[tokio::test]
-async fn a_configured_provider_sends_and_its_signed_reports_are_applied() {
+async fn a_removed_provider_loads_and_cannot_send() {
     let pool = schema::pool().await;
     let world = world(&pool, 0x6008).await;
     let mut client = pool.get().await.unwrap();
-    let server = TestServer::start(vec![Reply::Json(200, json!({"id": "partner-77"}))]).await;
-    let sender: AccountSender = serde_json::from_value(json!({
-        "provider": "HTTP_API",
-        "label": "COMELEC",
-        "send": {
-            "url": format!("{}/viber/send", server.base_url),
-            "headers": {"Authorization": "Bearer {{credential.API_KEY}}"},
-            "body": {"to": "{{to}}", "templateId": "{{template}}", "lang": "{{language}}",
-                     "params": "{{parameters}}", "reference": "{{message_id}}"}
-        },
-        "message_id_pointer": "/id",
-        "phone_format": "DIGITS",
-        "template_required_for": ["OTP", "NOTICE"],
-        "reports": {
-            "auth": {"kind": "HEADER_SECRET", "header": "X-Partner-Secret"},
-            "status": {"message_id_pointer": "/reference", "state_pointer": "/status",
-                       "states": {"delivered": "DELIVERED", "failed": "FAILED"}}
-        }
-    }))
-    .unwrap();
-    let viber = account(&mut client, &world, MessageChannel::VIBER, sender, "w6008").await;
-    let tx = client.transaction().await.unwrap();
-    replace_credentials(
-        &tx,
-        &world.tenant,
-        &viber.id,
-        &BTreeMap::from([
-            (CredentialName::API_KEY, "partner-key".to_string()),
-            (CredentialName::WEBHOOK_SECRET, "hook-secret".to_string()),
-        ]),
-        false,
-    )
-    .await
-    .unwrap()
-    .unwrap();
-    // The provider has no check an administrator trusts: readiness is
-    // confirmed by hand.
-    update_messaging_account(
-        &tx,
-        &world.tenant,
-        &viber.id,
-        &AccountSettings {
-            channel: viber.channel,
-            name: viber.name.clone(),
-            sender: viber.sender.clone(),
-            limits: AccountLimits::default(),
-            provider_approval: ProviderApproval::PENDING,
-            readiness: ReadinessPolicy::ADMIN_CONFIRMED,
-            is_default: false,
-        },
-    )
-    .await
-    .unwrap()
-    .unwrap();
-    update_messaging_account_status(&tx, &world.tenant, &viber.id, &AccountCheck::default())
-        .await
-        .unwrap();
-    tx.commit().await.unwrap();
-    let config = EventMessagingConfig {
-        channels: vec![EventChannelConfig {
-            channel: MessageChannel::VIBER,
-            account_id: viber.id.to_string(),
-            purposes: vec![MessagePurpose::NOTICE],
-            templates: vec![TemplateBinding {
-                purpose: MessagePurpose::NOTICE,
-                key: None,
-                language: "en".to_string(),
-                provider_template: "tpl-notice".to_string(),
-                provider_language: None,
-            }],
-            out_of_window: OutOfWindowPolicy::DISABLED,
-        }],
-        ..Default::default()
-    };
-    assert!(matches!(
-        save_config(&mut client, &world, &config).await,
-        SaveOutcome::Saved(_)
-    ));
-    let dispatcher = Dispatcher::new(Endpoints::default()).unwrap();
-
-    let delivery = notice(
+    let viber = account(
+        &mut client,
         &world,
-        "send-8:voter-1",
-        BTreeMap::from([(MessageChannel::VIBER, "+639171234567".to_string())]),
+        MessageChannel::VIBER,
+        json!({
+            "provider": "HTTP_API",
+            "label": "Partner",
+            "send": {"url": "https://partner.example.org/send", "body": {"to": "{{to}}"}},
+            "message_id_pointer": "/id",
+        }),
+        "w6008",
+        &[],
+    )
+    .await;
+    // Through the account itself: an event configuration naming it no
+    // longer offers the channel (the send-time check drops it).
+    let dispatcher = Dispatcher::new(Endpoints::default()).unwrap();
+    let mut delivery = notice(
+        &world,
+        "account-test:9",
+        MessageChannel::VIBER,
+        "+639171234567",
     );
+    delivery.election_event_id = None;
+    delivery.account_id = Some(viber);
     let result = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
-    assert_eq!(result.state, MessageAttemptState::ACCEPTED);
-    let request = &server.requests()[0];
-    assert_eq!(request.header("authorization"), Some("Bearer partner-key"));
+    assert_eq!(result.state, MessageAttemptState::FAILED);
     assert_eq!(
-        request.json(),
-        json!({"to": "639171234567", "templateId": "tpl-notice", "lang": "en",
-               "params": [], "reference": "send-8:voter-1:1"})
-    );
-
-    // The partner echoes Step's own reference in its report.
-    let report = json!({"reference": "send-8:voter-1:1", "status": "delivered"}).to_string();
-    let headers =
-        |secret: &str| BTreeMap::from([("x-partner-secret".to_string(), secret.to_string())]);
-    assert_eq!(
-        http_events(
-            &mut client,
-            &dispatcher,
-            "w6008",
-            &headers("wrong"),
-            &BTreeMap::new(),
-            report.as_bytes()
-        )
-        .await
-        .unwrap(),
-        WebhookOutcome::Unauthorized
-    );
-    assert_eq!(
-        attempts(&mut client, &world, "send-8:voter-1").await,
-        vec![(MessageChannel::VIBER, MessageAttemptState::ACCEPTED)]
-    );
-    assert_eq!(
-        http_events(
-            &mut client,
-            &dispatcher,
-            "w6008",
-            &headers("hook-secret"),
-            &BTreeMap::new(),
-            report.as_bytes()
-        )
-        .await
-        .unwrap(),
-        WebhookOutcome::Accepted
-    );
-    assert_eq!(
-        attempts(&mut client, &world, "send-8:voter-1").await,
-        vec![(MessageChannel::VIBER, MessageAttemptState::DELIVERED)]
+        result.reason.as_deref(),
+        Some("Unsupported provider: replace this account")
     );
 }
 
@@ -909,23 +1038,23 @@ async fn a_test_send_through_one_account_needs_no_event_configuration() {
     let pool = schema::pool().await;
     let world = world(&pool, 0x6009).await;
     let mut client = pool.get().await.unwrap();
-    let viber = account(
-        &mut client,
-        &world,
-        MessageChannel::VIBER,
-        AccountSender::CONSOLE {},
-        "w6009",
-    )
+    let server = TestServer::start(vec![Reply::Json(
+        200,
+        json!({"messages": [{"messageId": "ib-test"}]}),
+    )])
     .await;
+    let viber = viber_account(&mut client, &world, &server.base_url, "w6009").await;
     let dispatcher = Dispatcher::new(Endpoints::default()).unwrap();
     let mut delivery = notice(
         &world,
         "account-test:1",
-        BTreeMap::from([(MessageChannel::VIBER, "+639171234567".to_string())]),
+        MessageChannel::VIBER,
+        "+639171234567",
     );
     delivery.election_event_id = None;
-    delivery.account_id = Some(viber.id);
+    delivery.account_id = Some(viber);
     let result = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
     assert_eq!(result.state, MessageAttemptState::ACCEPTED);
-    assert_eq!(result.channel, Some(MessageChannel::VIBER));
+    assert_eq!(result.channel, MessageChannel::VIBER);
+    assert_eq!(result.recorded[0].kind, MessageKind::ACCOUNT_TEST);
 }

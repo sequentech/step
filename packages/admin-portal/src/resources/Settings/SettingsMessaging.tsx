@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useContext, useMemo, useState} from "react"
 import {useMutation} from "@apollo/client"
 import {useGetOne, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -37,15 +37,17 @@ import {IPermissions} from "@/types/keycloak"
 import {
     EMessagePurpose,
     EReadinessBlocker,
-    EReadinessPolicy,
     IMessagingAccount,
+    MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
 } from "@/types/messaging"
-import {accountSenderLabel} from "@/services/messaging"
+import {accountSenderLabel, accountUnsupported} from "@/services/messaging"
+import {reasonText} from "@/services/messagingReasons"
 import {CHECK_MESSAGING_ACCOUNT} from "@/queries/CheckMessagingAccount"
 import {DELETE_MESSAGING_ACCOUNT} from "@/queries/DeleteMessagingAccount"
 import {accountReadiness} from "./messagingAccountForm"
 import {
+    ICallbackResult,
     MESSAGING_ACCOUNT_EDITOR_TITLE,
     MessagingAccountEditor,
     formatDate,
@@ -77,7 +79,20 @@ export const ReadinessCell: React.FC<IReadinessCellProps> = ({ready, label, reas
     </Box>
 )
 
-type IDrawerState = {kind: "CLOSED"} | {kind: "ADD"} | {kind: "EDIT"; account: IMessagingAccount}
+type IDrawerState =
+    | {kind: "CLOSED"}
+    | {kind: "ADD"}
+    | {kind: "EDIT"; account: IMessagingAccount}
+    /** Just created: reopened once the list has it, to show its callback URL. */
+    | {kind: "CREATED"; id: string; callback: ICallbackResult}
+
+/** Accounts in channel order, then by name. */
+export const sortAccounts = (accounts: IMessagingAccount[]): IMessagingAccount[] =>
+    [...accounts].sort(
+        (a, b) =>
+            MESSAGE_CHANNELS.indexOf(a.channel) - MESSAGE_CHANNELS.indexOf(b.channel) ||
+            a.name.localeCompare(b.name)
+    )
 
 export const SettingsMessaging: React.FC = () => {
     const {t, i18n} = useTranslation()
@@ -85,7 +100,8 @@ export const SettingsMessaging: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.MESSAGING_ACCOUNT_WRITE)
-    const {accounts, loading, error, refetch} = useMessagingAccounts()
+    const {accounts: unsorted, loading, error, refetch} = useMessagingAccounts()
+    const accounts = useMemo(() => sortAccounts(unsorted), [unsorted])
     const {data: tenant} = useGetOne(
         "sequent_backend_tenant",
         {id: tenantId},
@@ -131,6 +147,14 @@ export const SettingsMessaging: React.FC = () => {
             notify(t("messagingAccounts.delete.error"), {type: "error"})
         }
     }
+
+    // A new account with a callback is shown again once saved, with its callback URL.
+    const created = async (id: string, callback: ICallbackResult | null) => {
+        await reload()
+        setDrawer(callback ? {kind: "CREATED", id, callback} : {kind: "CLOSED"})
+    }
+    const createdAccount =
+        drawer.kind === "CREATED" ? accounts.find((account) => account.id === drawer.id) : undefined
 
     const blockerLabels = (blockers: EReadinessBlocker[]) =>
         blockers.map((blocker) => t(`messaging.blocker.${blocker}`))
@@ -192,8 +216,7 @@ export const SettingsMessaging: React.FC = () => {
                         <TableBody>
                             {accounts.map((account) => {
                                 const readiness = accountReadiness(account)
-                                const adminConfirmed =
-                                    readiness.policy === EReadinessPolicy.ADMIN_CONFIRMED
+                                const unsupported = accountUnsupported(account)
                                 return (
                                     <TableRow key={account.id}>
                                         <TableCell>
@@ -220,11 +243,13 @@ export const SettingsMessaging: React.FC = () => {
                                             ) : null}
                                         </TableCell>
                                         <TableCell>
-                                            {adminConfirmed ? (
+                                            {unsupported ? (
                                                 <ReadinessCell
-                                                    ready
-                                                    label={t("messaging.readiness.adminConfirmed")}
-                                                    reasons={[]}
+                                                    ready={false}
+                                                    label={t("messaging.readiness.notConnected")}
+                                                    reasons={[
+                                                        t("messaging.blocker.UNSUPPORTED_PROVIDER"),
+                                                    ]}
                                                 />
                                             ) : (
                                                 <ReadinessCell
@@ -237,7 +262,7 @@ export const SettingsMessaging: React.FC = () => {
                                                     reasons={
                                                         !readiness.connected &&
                                                         account.status?.reason
-                                                            ? [account.status.reason]
+                                                            ? [reasonText(t, account.status.reason)]
                                                             : []
                                                     }
                                                 />
@@ -261,16 +286,14 @@ export const SettingsMessaging: React.FC = () => {
                                         })}
                                         <TableCell>
                                             <Typography variant="caption" color="text.secondary">
-                                                {adminConfirmed
-                                                    ? t("messaging.readiness.checkNotUsed")
-                                                    : account.status?.checked_at
-                                                      ? t("messaging.readiness.lastCheck", {
-                                                            date: formatDate(
-                                                                account.status.checked_at,
-                                                                i18n.language
-                                                            ),
-                                                        })
-                                                      : t("messaging.readiness.neverChecked")}
+                                                {account.status?.checked_at
+                                                    ? t("messaging.readiness.lastCheck", {
+                                                          date: formatDate(
+                                                              account.status.checked_at,
+                                                              i18n.language
+                                                          ),
+                                                      })
+                                                    : t("messaging.readiness.neverChecked")}
                                             </Typography>
                                         </TableCell>
                                         <TableCell sx={{whiteSpace: "nowrap"}}>
@@ -302,39 +325,53 @@ export const SettingsMessaging: React.FC = () => {
                                             </Tooltip>
                                             {canWrite && (
                                                 <>
-                                                    <Tooltip
-                                                        title={t("messagingAccounts.action.check")}
-                                                    >
-                                                        <span>
-                                                            <IconButton
-                                                                aria-label={t(
-                                                                    "messagingAccounts.action.checkNamed",
-                                                                    {
-                                                                        name: account.name,
-                                                                    }
+                                                    {unsupported ? null : (
+                                                        <>
+                                                            <Tooltip
+                                                                title={t(
+                                                                    "messagingAccounts.action.check"
                                                                 )}
-                                                                disabled={checking === account.id}
-                                                                onClick={() => check(account)}
                                                             >
-                                                                <SyncIcon />
-                                                            </IconButton>
-                                                        </span>
-                                                    </Tooltip>
-                                                    <Tooltip
-                                                        title={t("messagingAccounts.action.test")}
-                                                    >
-                                                        <IconButton
-                                                            aria-label={t(
-                                                                "messagingAccounts.action.testNamed",
-                                                                {
-                                                                    name: account.name,
-                                                                }
-                                                            )}
-                                                            onClick={() => setTesting(account)}
-                                                        >
-                                                            <SendIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
+                                                                <span>
+                                                                    <IconButton
+                                                                        aria-label={t(
+                                                                            "messagingAccounts.action.checkNamed",
+                                                                            {
+                                                                                name: account.name,
+                                                                            }
+                                                                        )}
+                                                                        disabled={
+                                                                            checking === account.id
+                                                                        }
+                                                                        onClick={() =>
+                                                                            check(account)
+                                                                        }
+                                                                    >
+                                                                        <SyncIcon />
+                                                                    </IconButton>
+                                                                </span>
+                                                            </Tooltip>
+                                                            <Tooltip
+                                                                title={t(
+                                                                    "messagingAccounts.action.test"
+                                                                )}
+                                                            >
+                                                                <IconButton
+                                                                    aria-label={t(
+                                                                        "messagingAccounts.action.testNamed",
+                                                                        {
+                                                                            name: account.name,
+                                                                        }
+                                                                    )}
+                                                                    onClick={() =>
+                                                                        setTesting(account)
+                                                                    }
+                                                                >
+                                                                    <SendIcon />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </>
+                                                    )}
                                                     <Tooltip
                                                         title={t("messagingAccounts.action.delete")}
                                                     >
@@ -363,7 +400,7 @@ export const SettingsMessaging: React.FC = () => {
 
             <Drawer
                 anchor="right"
-                open={drawer.kind !== "CLOSED"}
+                open={drawer.kind !== "CLOSED" && (drawer.kind !== "CREATED" || !!createdAccount)}
                 onClose={() => setDrawer({kind: "CLOSED"})}
                 slotProps={{
                     paper: {
@@ -372,15 +409,26 @@ export const SettingsMessaging: React.FC = () => {
                     },
                 }}
             >
-                {drawer.kind !== "CLOSED" && (
+                {drawer.kind === "ADD" || drawer.kind === "EDIT" ? (
                     <MessagingAccountEditor
                         key={drawer.kind === "EDIT" ? drawer.account.id : "new"}
                         account={drawer.kind === "EDIT" ? drawer.account : undefined}
                         canWrite={canWrite}
                         onChanged={reload}
+                        onCreated={created}
                         onClose={() => setDrawer({kind: "CLOSED"})}
                     />
-                )}
+                ) : null}
+                {drawer.kind === "CREATED" && createdAccount ? (
+                    <MessagingAccountEditor
+                        key={createdAccount.id}
+                        account={createdAccount}
+                        canWrite={canWrite}
+                        initialCallback={drawer.callback}
+                        onChanged={reload}
+                        onClose={() => setDrawer({kind: "CLOSED"})}
+                    />
+                ) : null}
             </Drawer>
 
             {testing && (

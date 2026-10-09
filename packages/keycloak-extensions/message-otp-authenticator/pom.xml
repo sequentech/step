@@ -97,6 +97,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<scope>compile</scope>
 		</dependency>
 
+		<!-- QR code of the Messenger link, rendered server-side. Keycloak ships zxing 3.4.0
+			 (/opt/keycloak/lib/lib/main/com.google.zxing.core-3.4.0.jar), so it is not bundled. -->
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>3.4.0</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- JUnit 5 -->
 		<dependency>
 			<groupId>org.freemarker</groupId>

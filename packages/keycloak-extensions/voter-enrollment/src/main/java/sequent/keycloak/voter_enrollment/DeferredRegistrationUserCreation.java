@@ -812,6 +812,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList);
 
     if (asksForChannel(configMap) && !formMode.equals(FormMode.LOGIN.getValue())) {
+      EnrollmentChannels.recordConsent(
+          context.getAuthenticationSession(),
+          context.getHttpRequest().getDecodedFormParameters(),
+          EnrollmentChannels.consentVersion(context.getRealm()));
       context
           .getAuthenticationSession()
           .setAuthNote(
@@ -853,6 +857,25 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     RealmModel realm = context.getRealm();
     List<MessageChannel> offered = offeredChannels(context, configMap, formData);
     form.setAttribute("messagingChannels", VoterChannels.names(offered));
+    // Each Post's channels, so the page shows the selected Post's and refreshes them when the Post
+    // changes; the server checks the submitted Post again.
+    String postAttribute = configMap.get(POST_ELECTION_ATTRIBUTE);
+    Map<String, List<String>> byPost =
+        EnrollmentChannels.channelsByPost(context.getSession(), realm, postAttribute);
+    form.setAttribute("messagingChannelsByPost", byPost);
+    form.setAttribute("messagingChannelsByPostJson", toJson(byPost));
+    if (postAttribute != null && !postAttribute.isBlank()) {
+      form.setAttribute("messagingPostAttribute", postAttribute);
+    }
+    // Every channel some Post offers, so the page can say when a Post offers fewer.
+    Set<String> anyPost = new java.util.HashSet<>(VoterChannels.names(offered));
+    byPost.values().forEach(anyPost::addAll);
+    form.setAttribute(
+        "messagingAllChannels",
+        sequent.keycloak.authenticator.messaging.VoterChannel.CHANNEL_ORDER.stream()
+            .map(Enum::name)
+            .filter(anyPost::contains)
+            .toList());
     form.setAttribute(
         "messagingOrganization", sequent.keycloak.authenticator.Utils.getRealmName(realm));
     form.setAttribute("messagingConsentVersion", EnrollmentChannels.consentVersion(realm));
@@ -860,6 +883,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
       PublicMessagingChannels.fromRealm(realm)
           .flatMap(PublicMessagingChannels::messengerPage)
           .ifPresent(page -> form.setAttribute("messagingPage", page.displayName()));
+    }
+  }
+
+  private static String toJson(Object value) {
+    try {
+      return org.keycloak.util.JsonSerialization.writeValueAsString(value);
+    } catch (java.io.IOException e) {
+      return "{}";
     }
   }
 

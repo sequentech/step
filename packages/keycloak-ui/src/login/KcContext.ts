@@ -26,9 +26,19 @@ export enum MessageChannel {
     Messenger = "MESSENGER",
 }
 
-export enum OtpView {
-    Code = "CODE",
-    Choose = "CHOOSE",
+// The ticket's order for every list of channels: WhatsApp, Viber, Messenger, SMS, Email.
+export const CHANNEL_ORDER: readonly MessageChannel[] = [
+    MessageChannel.WhatsApp,
+    MessageChannel.Viber,
+    MessageChannel.Messenger,
+    MessageChannel.Sms,
+    MessageChannel.Email,
+]
+
+/** The known channels of a list, once each, in the ticket's order. */
+export function inChannelOrder(channels: readonly string[] | undefined): MessageChannel[] {
+    const given = new Set(channels ?? [])
+    return CHANNEL_ORDER.filter((channel) => given.has(channel))
 }
 
 export enum DeliveryState {
@@ -153,6 +163,28 @@ export type EnrollmentOutcome = {
 
 type EnrollmentFinish = {
     enrollmentOutcome?: EnrollmentOutcome
+    // Where the result of the enrollment goes: the verified channel and its masked contact.
+    noticeChannel?: MessageChannel
+    noticeAddress?: string
+}
+
+// The channel choice of the enrollment form, when the flow asks for one.
+export type MessagingChoice = {
+    // The channels of the submitted Post (every restricted election's common channels before one
+    // is chosen).
+    messagingChannels?: MessageChannel[]
+    // Each Post's channels, by the option value of the Post attribute, so the list follows the
+    // Post the voter picks.
+    messagingChannelsByPost?: Record<string, MessageChannel[]>
+    // The profile attribute that names the voter's Post.
+    messagingPostAttribute?: string
+    messagingOrganization?: string
+    messagingConsentVersion?: string
+    // The Facebook Page's name, when the Post offers Messenger.
+    messagingPage?: string
+    // What the voter submitted in these fields, when the form comes back with errors
+    // (context.ftl's bridge of register.formData).
+    messagingFormData?: Record<string, string | undefined>
 }
 
 // context.ftl serializes the authenticator's Java enum as its wire value.
@@ -162,19 +194,24 @@ export type KcContextExtensionPerPage = {
         courier?: MessageCourier
         isOtl: boolean
         codeJustSent?: boolean
+        // A send was attempted now, delivered or not: the resend countdown starts.
+        resendTimerStarted?: boolean
         resendTimer?: string
         ttl?: string
         codeLength?: string
-        // Only with the CHOSEN courier: the channel in use and the voter's other channels.
-        otpView?: OtpView
+        // Only with the CHOSEN courier: the voter's one channel. There is no other way: the
+        // voter changes the channel through the contact-change required action.
         channel?: MessageChannel
-        otherWayChannels?: MessageChannel[]
-        channelAddresses?: Partial<Record<MessageChannel, string>>
         deliveryState?: DeliveryState
         senderLabel?: string
+        // The realm's limit of wrong codes was reached: the authentication session is finished,
+        // only starting again helps, and a resend never resets the count.
+        attemptsExhausted?: boolean
         messengerPage?: string
+        // The m.me link with the one-time reference, and the same link as a QR image (a data URI)
+        // drawn by Keycloak.
         messengerLink?: string
-        messengerWord?: string
+        messengerQr?: string
         messengerState?: MessengerLinkState
         // With the code progress policy, which of the flow's codes this is, from 1.
         codeRequest?: number
@@ -196,7 +233,7 @@ export type KcContextExtensionPerPage = {
     "register.ftl": {
         // Absent on pages rendered without context.ftl's bridge.
         sequentRegistration?: SequentRegistration
-    }
+    } & MessagingChoice
     "registration-finish.ftl": EnrollmentFinish
     "registration-manual-finish.ftl": EnrollmentFinish
     "registration-rejected-finish.ftl": EnrollmentFinish

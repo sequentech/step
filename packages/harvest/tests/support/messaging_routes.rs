@@ -2,13 +2,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Messaging routes on the migrated test database: sending accounts and
-//! their credentials, Keycloak's sending and Messenger link calls, provider
-//! webhooks and the event configuration. Messages leave through the console
-//! provider, so nothing reaches a network.
+//! their credentials, Keycloak's sending and Messenger link calls (with
+//! realm-signed service tokens), provider callbacks relayed by the webhook
+//! component and the event configuration. Messages leave through Amazon SNS
+//! at the loopback provider (`messaging::test_server`), reached through the
+//! deployment's AWS endpoint as a real deployment would set it, so nothing
+//! reaches a network.
 
+use super::{MessagingRelay, MetaHub, RelaySecret};
 use crate::route_services::rows::{self, Event};
-use crate::route_services::{bearer, http, json, post, text, Services};
+use crate::route_services::service_tokens::RealmSigner;
+use crate::route_services::{
+    http, json, post, post_as, text, Services, RELAY_SECRET,
+};
 use crate::test_claims::Claims;
+use messaging::providers::AWS_ENDPOINT_URL_ENV;
+use messaging::relay::{
+    self, CallbackEnvelope, CallbackMethod, CallbackProvider, RelayResponse,
+};
+use messaging::test_server::{Reply, TestServer};
 use rocket::http::{ContentType, Header, Status};
 use rocket::local::asynchronous::{Client, LocalResponse};
 use sequent_core::types::messaging::REALM_ATTR_MESSAGING;
@@ -44,17 +56,59 @@ fn keycloak(tenant_id: &str) -> Claims {
         .roles([Permissions::SERVICE_ACCOUNT])
 }
 
+/// Keycloak's service token for `tenant_id`, signed by a realm key the
+/// route services trust.
+fn service_token(services: &Services, tenant_id: &str) -> String {
+    let signer = RealmSigner::shared();
+    services.trust(tenant_id, signer);
+    signer.sign(&keycloak(tenant_id), tenant_id)
+}
+
 fn uuid(id: &str) -> Uuid {
     Uuid::parse_str(id).expect("fixture ids are UUIDs")
 }
 
-fn console(channel: &str) -> Value {
+/// The default SMS account, sending through Amazon SNS.
+fn texts(name: &str) -> Value {
     json!({
-        "channel": channel,
-        "name": format!("{channel} console"),
-        "sender": {"provider": "CONSOLE"},
+        "channel": "SMS",
+        "name": name,
+        "sender": {
+            "provider": "AWS_SNS",
+            "sender_id": "Elections",
+            "origination_number": null,
+            "region": "eu-west-1",
+        },
         "is_default": true,
     })
+}
+
+/// SNS's answer to a Publish.
+fn published(message_id: &str) -> Reply {
+    Reply::Raw(
+        200,
+        "text/xml",
+        format!(
+            r#"<PublishResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>{message_id}</MessageId></PublishResult><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></PublishResponse>"#
+        ),
+    )
+}
+
+/// SNS's answer to the account check: out of the SMS sandbox.
+fn in_production() -> Reply {
+    Reply::Raw(
+        200,
+        "text/xml",
+        r#"<GetSMSSandboxAccountStatusResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><GetSMSSandboxAccountStatusResult><IsInSandbox>false</IsInSandbox></GetSMSSandboxAccountStatusResult><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></GetSMSSandboxAccountStatusResponse>"#.to_string(),
+    )
+}
+
+/// The loopback provider, as the deployment's AWS endpoint. The dispatcher
+/// reads it once per process: only in an isolated test.
+async fn sns_answering(replies: Vec<Reply>) -> TestServer {
+    let server = TestServer::start(replies).await;
+    std::env::set_var(AWS_ENDPOINT_URL_ENV, &server.base_url);
+    server
 }
 
 fn sns(name: &str) -> Value {
@@ -71,7 +125,6 @@ fn messenger() -> Value {
             "page_username": "elections",
             "api_version": "v23.0",
         },
-        "readiness": "ADMIN_CONFIRMED",
     })
 }
 
@@ -89,6 +142,25 @@ fn http_api(reports: bool) -> Value {
         }});
     }
     json!({"channel": "SMS", "name": "Gateway", "sender": sender})
+}
+
+/// The default SMS account with the AWS keys the SDK signs with.
+async fn texts_account(client: &Client, event: &Event) -> String {
+    let id = account(client, event, texts("Texts")).await;
+    let (status, replaced) = json(
+        credentials(
+            client,
+            event,
+            json!({"id": id, "credentials": {
+                "AWS_ACCESS_KEY_ID": "AKIDEXAMPLE",
+                "AWS_SECRET_ACCESS_KEY": "synthetic-secret",
+            }}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{replaced}");
+    id
 }
 
 /// A stored account: its id.
@@ -167,28 +239,45 @@ async fn stored_account(
 }
 
 /// Store the event's messaging configuration as the save does, without
-/// publishing it to a realm.
+/// validating it or publishing it to a realm.
 async fn configure(services: &Services, event: &Event, config: Value) {
     rows::execute(
         &services.hasura,
-        "UPDATE sequent_backend.election_event
-         SET annotations = jsonb_build_object('messaging:config', $2::text)
-         WHERE id = $1",
-        &[&uuid(&event.election_event_id), &config.to_string()],
+        "INSERT INTO sequent_backend.messaging_event_config
+             (tenant_id, election_event_id, config)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (election_event_id) DO UPDATE SET config = EXCLUDED.config",
+        &[
+            &uuid(&event.tenant_id),
+            &uuid(&event.election_event_id),
+            &config,
+        ],
     )
     .await;
 }
 
 async fn stored_config(services: &Services, event: &Event) -> Option<Value> {
-    let raw: Option<String> = rows::query(
+    rows::query(
         &services.hasura,
-        "SELECT annotations ->> 'messaging:config'
-         FROM sequent_backend.election_event WHERE id = $1",
+        "SELECT config FROM sequent_backend.messaging_event_config
+         WHERE election_event_id = $1",
         &[&uuid(&event.election_event_id)],
     )
-    .await[0]
-        .get(0);
-    raw.map(|raw| serde_json::from_str(&raw).expect("a stored configuration"))
+    .await
+    .first()
+    .map(|row| row.get(0))
+}
+
+/// Mark an account as checked and in production, as a passing check would.
+async fn checked(services: &Services, account_id: &str) {
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.messaging_account
+         SET status = '{\"connected\": true, \"production_access\": true}'
+         WHERE id = $1",
+        &[&uuid(account_id)],
+    )
+    .await;
 }
 
 /// Make every credential of the tenant's accounts undecipherable.
@@ -218,10 +307,17 @@ fn notice(event: &Event, logical_key: &str) -> Value {
 
 async fn send<'c>(
     client: &'c Client,
+    services: &Services,
     tenant_id: &str,
     body: &Value,
 ) -> LocalResponse<'c> {
-    post(client, "/messages/send", &keycloak(tenant_id), body).await
+    post_as(
+        client,
+        "/messages/send",
+        &service_token(services, tenant_id),
+        body,
+    )
+    .await
 }
 
 fn link(event: &Event, expires_in: chrono::Duration) -> Value {
@@ -247,22 +343,15 @@ fn link_request(tenant_id: &str, reference: &str, session: &str) -> Value {
 }
 
 /// `X-Hub-Signature-256` of `body` under the app secret.
-fn signature(body: &str) -> Header<'static> {
+fn hub_signature(body: &[u8]) -> String {
     let key = openssl::pkey::PKey::hmac(APP_SECRET.as_bytes()).unwrap();
     let mut signer = openssl::sign::Signer::new(
         openssl::hash::MessageDigest::sha256(),
         &key,
     )
     .unwrap();
-    let mac = signer.sign_oneshot_to_vec(body.as_bytes()).unwrap();
-    Header::new(
-        "X-Hub-Signature-256",
-        format!("sha256={}", hex::encode(mac)),
-    )
-}
-
-async fn callback(client: &Client, path: String, body: &str) -> Status {
-    client.post(path).body(body).dispatch().await.status()
+    let mac = signer.sign_oneshot_to_vec(body).unwrap();
+    format!("sha256={}", hex::encode(mac))
 }
 
 #[rocket::async_test]
@@ -272,19 +361,19 @@ async fn accounts_take_their_providers_channel_and_one_default_per_channel() {
     let event = rows::event(&services.hasura).await;
 
     // Amazon SNS only sends SMS, whatever channel the request names.
-    let mut texts = sns("Texts");
-    texts["channel"] = json!("EMAIL");
-    texts["is_default"] = json!(true);
-    let id = account(&client, &event, texts).await;
+    let mut first = sns("Texts");
+    first["channel"] = json!("EMAIL");
+    first["is_default"] = json!(true);
+    let id = account(&client, &event, first).await;
     assert_eq!(
         stored_account(&services, &id).await,
         ("SMS".into(), "Texts".into(), true)
     );
 
-    let other = account(&client, &event, console("SMS")).await;
+    let other = account(&client, &event, texts("Other texts")).await;
     assert_eq!(
         stored_account(&services, &other).await,
-        ("SMS".into(), "SMS console".into(), true)
+        ("SMS".into(), "Other texts".into(), true)
     );
 
     let mut renamed = sns("Texts (Lisbon)");
@@ -325,6 +414,12 @@ async fn account_changes_that_cannot_be_stored_are_refused() {
             Status::BadRequest,
             "this provider needs a channel",
         ),
+        // Removed providers: a stored account loads, a new one is refused.
+        (
+            json!({"channel": "SMS", "name": "Console", "sender": {"provider": "CONSOLE"}}),
+            Status::BadRequest,
+            "Unsupported provider: replace this account",
+        ),
         (sns("  "), Status::BadRequest, "the account needs a name"),
         (
             with_id(sns("Texts"), "not-a-uuid"),
@@ -337,7 +432,13 @@ async fn account_changes_that_cannot_be_stored_are_refused() {
             "unknown account",
         ),
         (
-            with_id(console("SMS"), &id),
+            with_id(
+                json!({"name": "Mail", "sender": {
+                    "provider": "SMTP", "from_address": "elections@example.org",
+                    "from_name": null, "server_url": "smtps://smtp.example.org",
+                }}),
+                &id,
+            ),
             Status::BadRequest,
             "the provider and channel of an account cannot change; add another account",
         ),
@@ -424,7 +525,10 @@ async fn replaced_credentials_are_named_and_the_verify_token_shown_once() {
     assert_eq!(status, Status::Ok, "{replaced}");
     assert_eq!(
         replaced,
-        json!({"replaced": ["ACCESS_TOKEN"], "verify_token": null})
+        json!({
+            "replaced": ["ACCESS_TOKEN"], "verify_token": null,
+            "report_username": null, "report_password": null,
+        })
     );
     // Values never reach the account row, only when each was replaced.
     let recorded: Value = rows::query(
@@ -449,7 +553,7 @@ async fn credentials_an_account_cannot_use_are_refused() {
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let id = account(&client, &event, console("SMS")).await;
+    let id = account(&client, &event, texts("Texts")).await;
 
     for (body, status, message) in [
         (
@@ -460,12 +564,12 @@ async fn credentials_an_account_cannot_use_are_refused() {
         (
             json!({"id": id, "credentials": {"API_KEY": "x"}}),
             Status::BadRequest,
-            "CONSOLE accounts do not use API_KEY",
+            "AWS_SNS accounts do not use API_KEY",
         ),
         (
             json!({"id": id, "credentials": {}, "generate_verify_token": true}),
             Status::BadRequest,
-            "CONSOLE accounts have no verify token",
+            "AWS_SNS accounts have no verify token",
         ),
         (
             json!({"id": Uuid::new_v4(), "credentials": {}}),
@@ -488,10 +592,14 @@ async fn credentials_an_account_cannot_use_are_refused() {
 
 #[rocket::async_test]
 async fn an_account_check_stores_what_the_provider_answered() {
+    if !isolated("routes::messaging::route_tests::an_account_check_stores_what_the_provider_answered") {
+        return;
+    }
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let id = account(&client, &event, console("SMS")).await;
+    let sns = sns_answering(vec![in_production()]).await;
+    let id = texts_account(&client, &event).await;
     let check = |id: String| {
         let (client, claims) = (&client, admin(&event));
         async move {
@@ -517,6 +625,7 @@ async fn an_account_check_stores_what_the_provider_answered() {
     .await[0]
         .get(0);
     assert_eq!(stored, checked["status"]);
+    assert_eq!(sns.requests().len(), 1);
 
     assert_eq!(
         text(check(Uuid::new_v4().to_string()).await).await,
@@ -538,10 +647,14 @@ async fn an_account_check_stores_what_the_provider_answered() {
 
 #[rocket::async_test]
 async fn a_test_message_goes_through_the_chosen_account() {
+    if !isolated("routes::messaging::route_tests::a_test_message_goes_through_the_chosen_account") {
+        return;
+    }
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let id = account(&client, &event, console("SMS")).await;
+    let sns = sns_answering(vec![published("sns-1"), published("sns-2")]).await;
+    let id = texts_account(&client, &event).await;
     let test = |body: Value| {
         let (client, claims) = (&client, admin(&event));
         async move { post(client, "/messaging/accounts/test", &claims, &body).await }
@@ -577,12 +690,17 @@ async fn a_test_message_goes_through_the_chosen_account() {
             (
                 "NOTICE".into(),
                 "account-test".into(),
-                "+34*****0001".into()
+                "+34 ••• ••• 001".into()
             ),
-            ("OTP".into(), "account-test".into(), "+34*****0001".into()),
+            (
+                "OTP".into(),
+                "account-test".into(),
+                "+34 ••• ••• 001".into()
+            ),
         ]
     );
 
+    assert_eq!(sns.requests().len(), 2);
     let (status, refused) = json(
         test(json!({"id": id, "purpose": "NOTICE", "destination": "nobody"}))
             .await,
@@ -616,19 +734,35 @@ async fn a_test_message_goes_through_the_chosen_account() {
 
 #[rocket::async_test]
 async fn keycloak_sends_a_message_once_per_logical_key() {
+    if !isolated("routes::messaging::route_tests::keycloak_sends_a_message_once_per_logical_key") {
+        return;
+    }
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    account(&client, &event, console("SMS")).await;
+    let sns = sns_answering(vec![published("sns-1"), published("sns-2")]).await;
+    texts_account(&client, &event).await;
 
     let (status, first) = json(
-        send(&client, &event.tenant_id, &notice(&event, "enrolled")).await,
+        send(
+            &client,
+            &services,
+            &event.tenant_id,
+            &notice(&event, "enrolled"),
+        )
+        .await,
     )
     .await;
     assert_eq!(status, Status::Ok, "{first}");
     assert_eq!(first["state"], "ACCEPTED", "{first}");
     let (_, replay) = json(
-        send(&client, &event.tenant_id, &notice(&event, "enrolled")).await,
+        send(
+            &client,
+            &services,
+            &event.tenant_id,
+            &notice(&event, "enrolled"),
+        )
+        .await,
     )
     .await;
     assert_eq!(replay, first);
@@ -639,7 +773,7 @@ async fn keycloak_sends_a_message_once_per_logical_key() {
     code["content"]["code"] = json!("482619");
     code["expires_at"] = json!("2099-01-01T00:00:00+02:00");
     let (status, sent) =
-        json(send(&client, &event.tenant_id, &code).await).await;
+        json(send(&client, &services, &event.tenant_id, &code).await).await;
     assert_eq!(status, Status::Ok, "{sent}");
     assert_eq!(sent["state"], "ACCEPTED", "{sent}");
 
@@ -654,6 +788,8 @@ async fn keycloak_sends_a_message_once_per_logical_key() {
     .map(|row| row.get(0))
     .collect();
     assert_eq!(keys, vec!["keycloak:code-1", "keycloak:enrolled"]);
+    // The replay wasn't sent again.
+    assert_eq!(sns.requests().len(), 2);
 }
 
 #[rocket::async_test]
@@ -677,44 +813,46 @@ async fn messages_that_cannot_be_sent_are_refused_or_reported_as_failed() {
         ),
     ] {
         assert_eq!(
-            text(send(&client, &event.tenant_id, &body).await).await,
+            text(send(&client, &services, &event.tenant_id, &body).await).await,
             (Status::BadRequest, message.to_string()),
             "{body}"
         );
     }
-    assert_eq!(
-        text(
-            send(
-                &client,
-                "not-a-uuid",
-                &edited("tenant_id", json!("not-a-uuid"))
+    // The token's tenant must be the request's.
+    for tenant_id in ["not-a-uuid".to_string(), Uuid::new_v4().to_string()] {
+        assert_eq!(
+            text(
+                send(
+                    &client,
+                    &services,
+                    &event.tenant_id,
+                    &edited("tenant_id", json!(tenant_id))
+                )
+                .await
             )
-            .await
-        )
-        .await,
-        (Status::BadRequest, "invalid identifier".to_string())
-    );
+            .await,
+            (
+                Status::Forbidden,
+                "The request is for another tenant".to_string()
+            )
+        );
+    }
 
-    // Without an event configuration only email and SMS are offered.
-    assert_eq!(
-        json(
-            send(
-                &client,
-                &event.tenant_id,
-                &edited("channel", json!("VIBER"))
-            )
-            .await
+    // Without an event configuration only email and SMS are offered: one
+    // FAILED record, with its reason.
+    let (status, refused) = json(
+        send(
+            &client,
+            &services,
+            &event.tenant_id,
+            &edited("channel", json!("VIBER")),
         )
         .await,
-        (
-            Status::Ok,
-            json!({
-                "message_id": "",
-                "state": "FAILED",
-                "reason": "no eligible channel",
-            })
-        )
-    );
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{refused}");
+    assert_eq!(refused["state"], "FAILED", "{refused}");
+    assert_eq!(refused["reason"], "Channel not offered for notices");
 
     configure(
         &services,
@@ -724,18 +862,21 @@ async fn messages_that_cannot_be_sent_are_refused_or_reported_as_failed() {
         }]}),
     )
     .await;
-    assert_eq!(
-        text(
-            send(
-                &client,
-                &event.tenant_id,
-                &edited("election_event_id", json!(event.election_event_id)),
-            )
-            .await
+    // A stored channel whose account no longer exists isn't sent through
+    // (send-time check of the configuration's references).
+    let (status, refused) = json(
+        send(
+            &client,
+            &services,
+            &event.tenant_id,
+            &edited("election_event_id", json!(event.election_event_id)),
         )
         .await,
-        (Status::InternalServerError, "internal error".to_string())
-    );
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{refused}");
+    assert_eq!(refused["state"], "FAILED", "{refused}");
+    assert!(refused["reason"].is_string(), "{refused}");
 }
 
 #[rocket::async_test]
@@ -753,10 +894,10 @@ async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sen
         }]}),
     )
     .await;
-    let service = keycloak(&event.tenant_id);
+    let service = service_token(&services, &event.tenant_id);
 
     let (status, created) = json(
-        post(
+        post_as(
             &client,
             "/messages/link",
             &service,
@@ -771,7 +912,11 @@ async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sen
         created["link"],
         format!("https://m.me/elections?ref={reference}")
     );
-    assert_eq!(created["link_word"].as_str().unwrap().len(), 9);
+    // No linking word any more: referral and Get Started only.
+    assert!(
+        created.get("link_word").map_or(true, Value::is_null),
+        "{created}"
+    );
 
     let own = link_request(&event.tenant_id, reference, "session-digest");
     let pending = json!({
@@ -779,7 +924,7 @@ async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sen
     });
     for path in ["/messages/link/status", "/messages/link/confirm"] {
         assert_eq!(
-            json(post(&client, path, &service, &own).await).await,
+            json(post_as(&client, path, &service, &own).await).await,
             (Status::Ok, pending.clone()),
             "{path}"
         );
@@ -788,7 +933,7 @@ async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sen
             link_request(&event.tenant_id, "unknown", "session-digest"),
         ] {
             assert_eq!(
-                text(post(&client, path, &service, &other).await).await,
+                text(post_as(&client, path, &service, &other).await).await,
                 (Status::NotFound, "unknown link".to_string()),
                 "{path}: {other}"
             );
@@ -805,7 +950,7 @@ async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sen
     )
     .await;
     assert_eq!(
-        json(post(&client, "/messages/link/confirm", &service, &own).await)
+        json(post_as(&client, "/messages/link/confirm", &service, &own).await)
             .await,
         (
             Status::Ok,
@@ -817,7 +962,7 @@ async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sen
         )
     );
     let (_, status) =
-        json(post(&client, "/messages/link/status", &service, &own).await)
+        json(post_as(&client, "/messages/link/status", &service, &own).await)
             .await;
     assert_eq!(status["state"], "CONFIRMED");
 }
@@ -827,11 +972,11 @@ async fn messenger_links_need_an_event_that_offers_messenger_for_codes() {
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let service = keycloak(&event.tenant_id);
+    let service = service_token(&services, &event.tenant_id);
 
     assert_eq!(
         text(
-            post(
+            post_as(
                 &client,
                 "/messages/link",
                 &service,
@@ -847,7 +992,7 @@ async fn messenger_links_need_an_event_that_offers_messenger_for_codes() {
     );
     assert_eq!(
         text(
-            post(
+            post_as(
                 &client,
                 "/messages/link",
                 &service,
@@ -862,24 +1007,102 @@ async fn messenger_links_need_an_event_that_offers_messenger_for_codes() {
         )
     );
 
-    // A tenant that is no UUID has no link key to look references up with.
-    let stranger = keycloak("not-a-uuid");
+    // Another tenant's links are out of the token's reach.
     for path in ["/messages/link/status", "/messages/link/confirm"] {
-        assert_eq!(
-            text(
-                post(
-                    &client,
-                    path,
-                    &stranger,
-                    &link_request("not-a-uuid", "reference", "session-digest"),
+        for tenant_id in ["not-a-uuid".to_string(), Uuid::new_v4().to_string()]
+        {
+            assert_eq!(
+                text(
+                    post_as(
+                        &client,
+                        path,
+                        &service,
+                        &link_request(
+                            &tenant_id,
+                            "reference",
+                            "session-digest"
+                        ),
+                    )
+                    .await
                 )
-                .await
-            )
-            .await,
-            (Status::InternalServerError, "internal error".to_string()),
-            "{path}"
-        );
+                .await,
+                (
+                    Status::Forbidden,
+                    "The request is for another tenant".to_string()
+                ),
+                "{path}"
+            );
+        }
     }
+}
+
+/// A provider callback as the webhook component relays it: the provider's
+/// answer when harvest gave one (HTTP 200), else harvest's status.
+async fn relayed(
+    client: &Client,
+    provider: CallbackProvider,
+    method: CallbackMethod,
+    key: &str,
+    query: &str,
+    headers: &[(&str, &str)],
+    body: &[u8],
+) -> Result<RelayResponse, Status> {
+    let envelope = CallbackEnvelope::new(
+        provider,
+        key,
+        method,
+        query,
+        headers.iter().copied(),
+        body,
+        chrono::Utc::now(),
+    );
+    let payload = serde_json::to_vec(&envelope).expect("an envelope");
+    let signature =
+        relay::sign(RELAY_SECRET, chrono::Utc::now().timestamp(), &payload);
+    let response = client
+        .post(relay::CALLBACKS_PATH)
+        .header(ContentType::JSON)
+        .header(Header::new(relay::RELAY_SIGNATURE_HEADER, signature))
+        .body(payload)
+        .dispatch()
+        .await;
+    if response.status() == Status::Ok {
+        Ok(response.into_json().await.expect("a relay response"))
+    } else {
+        Err(response.status())
+    }
+}
+
+/// The status the provider gets, when harvest answered.
+fn provider_status(
+    answer: Result<RelayResponse, Status>,
+) -> Result<u16, Status> {
+    answer.map(|answer| answer.status)
+}
+
+/// A Meta POST, signed or not.
+async fn meta_post(
+    client: &Client,
+    key: &str,
+    signature: Option<&str>,
+    body: &[u8],
+) -> Result<u16, Status> {
+    let headers: Vec<(&str, &str)> = signature
+        .map(|signature| ("x-hub-signature-256", signature))
+        .into_iter()
+        .collect();
+    provider_status(
+        relayed(
+            client,
+            CallbackProvider::META,
+            CallbackMethod::POST,
+            key,
+            "",
+            &headers,
+            body,
+        )
+        .await,
+    )
 }
 
 #[rocket::async_test]
@@ -889,34 +1112,71 @@ async fn the_meta_subscription_echoes_the_challenge_for_the_verify_token() {
     let event = rows::event(&services.hasura).await;
     let (id, token) = meta_account(&client, &event).await;
     let key = webhook_key(&services, &id).await;
-    let subscribe = |key: &str, token: &str| {
-        let uri = format!(
-            "/webhooks/meta/{key}?hub.mode=subscribe&hub.verify_token={token}&hub.challenge=1158201444"
-        );
+    let query = |token: &str| {
+        format!(
+            "hub.mode=subscribe&hub.verify_token={token}&hub.challenge=1158201444"
+        )
+    };
+    let subscribe = |key: String, query: String| {
         let client = &client;
         async move {
-            let response = client.get(uri).dispatch().await;
-            (response.status(), response.into_string().await)
+            relayed(
+                client,
+                CallbackProvider::META,
+                CallbackMethod::GET,
+                &key,
+                &query,
+                &[],
+                b"",
+            )
+            .await
         }
     };
 
+    // The challenge goes back as plain text, for the component to pass on.
     assert_eq!(
-        subscribe(&key, &token).await,
-        (Status::Ok, Some("1158201444".to_string()))
+        subscribe(key.clone(), query(&token)).await,
+        Ok(RelayResponse::text(200, "1158201444"))
     );
-    assert_eq!(subscribe(&key, "guessed").await.0, Status::Forbidden);
-    assert_eq!(subscribe("unknown-key", &token).await.0, Status::Forbidden);
+    // Meta may percent-encode the names.
     assert_eq!(
-        client
-            .get(format!("/webhooks/meta/{key}"))
-            .dispatch()
+        subscribe(key.clone(), query(&token).replace('.', "%2E")).await,
+        Ok(RelayResponse::text(200, "1158201444"))
+    );
+    for (key, query, status) in [
+        (key.clone(), query("guessed"), 403),
+        (key.clone(), String::new(), 403),
+        (messaging::link::new_reference(), query(&token), 403),
+        ("unknown-key".to_string(), query(&token), 404),
+    ] {
+        assert_eq!(
+            provider_status(subscribe(key.clone(), query.clone()).await),
+            Ok(status),
+            "{key} {query}"
+        );
+    }
+    // Only Meta has a handshake.
+    assert_eq!(
+        provider_status(
+            relayed(
+                &client,
+                CallbackProvider::VIBER,
+                CallbackMethod::GET,
+                &key,
+                &query(&token),
+                &[],
+                b"",
+            )
             .await
-            .status(),
-        Status::Forbidden
+        ),
+        Ok(405)
     );
 
     corrupt_credentials(&services, &event).await;
-    assert_eq!(subscribe(&key, &token).await.0, Status::InternalServerError);
+    assert_eq!(
+        subscribe(key, query(&token)).await,
+        Err(Status::InternalServerError)
+    );
 }
 
 #[rocket::async_test]
@@ -928,40 +1188,65 @@ async fn meta_events_are_accepted_only_with_the_app_secrets_signature() {
     let key = webhook_key(&services, &id).await;
     let unsigned = account(&client, &event, messenger()).await;
     let unsigned_key = webhook_key(&services, &unsigned).await;
-    let deliver = |key: &str, body: &'static str, signed: Option<&str>| {
-        let mut request = client.post(format!("/webhooks/meta/{key}"));
-        if let Some(signed) = signed {
-            request = request.header(signature(signed));
-        }
-        async move { request.body(body).dispatch().await.status() }
-    };
 
-    let page = r#"{"object":"page","entry":[]}"#;
-    assert_eq!(deliver(&key, page, Some(page)).await, Status::Ok);
-    assert_eq!(deliver(&key, page, None).await, Status::Unauthorized);
+    // Meta escapes slashes and non-ASCII characters, and signs those exact
+    // bytes: the relayed body must be checked as it was sent.
+    let page =
+        "{\"object\":\"page\",\"entry\":[],\"note\":\"a\\/b \\u00f1 \u{f1}\"}";
+    let signed = hub_signature(page.as_bytes());
     assert_eq!(
-        deliver(&key, page, Some("another body")).await,
-        Status::Unauthorized
+        meta_post(&client, &key, Some(&signed), page.as_bytes()).await,
+        Ok(200)
+    );
+    assert_eq!(
+        meta_post(&client, &key, None, page.as_bytes()).await,
+        Ok(401)
+    );
+    assert_eq!(
+        meta_post(
+            &client,
+            &key,
+            Some(&hub_signature(b"another body")),
+            page.as_bytes()
+        )
+        .await,
+        Ok(401)
+    );
+    // The same JSON, re-encoded, is not what Meta signed.
+    let reencoded = page.replace("\\/", "/");
+    assert_eq!(
+        meta_post(&client, &key, Some(&signed), reencoded.as_bytes()).await,
+        Ok(401)
     );
     // An account without an app secret cannot verify anything.
     assert_eq!(
-        deliver(&unsigned_key, page, Some(page)).await,
-        Status::Unauthorized
+        meta_post(&client, &unsigned_key, Some(&signed), page.as_bytes()).await,
+        Ok(401)
     );
-    assert_eq!(
-        deliver("unknown-key", page, Some(page)).await,
-        Status::NotFound
-    );
-    // A signed payload of a WhatsApp account is not this Page's.
+    for unknown in [messaging::link::new_reference(), "unknown-key".into()] {
+        assert_eq!(
+            meta_post(&client, &unknown, Some(&signed), page.as_bytes()).await,
+            Ok(404),
+            "{unknown}"
+        );
+    }
+    // A signed payload of a WhatsApp account is not this Page's: harvest
+    // fails it, and the component has the provider retry.
     let whatsapp = r#"{"object":"whatsapp_business_account","entry":[]}"#;
     assert_eq!(
-        deliver(&key, whatsapp, Some(whatsapp)).await,
-        Status::InternalServerError
+        meta_post(
+            &client,
+            &key,
+            Some(&hub_signature(whatsapp.as_bytes())),
+            whatsapp.as_bytes()
+        )
+        .await,
+        Err(Status::InternalServerError)
     );
 }
 
 #[rocket::async_test]
-async fn viber_reports_are_accepted_on_the_accounts_webhook_key() {
+async fn viber_reports_are_accepted_with_the_subscriptions_basic_auth() {
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
@@ -970,95 +1255,106 @@ async fn viber_reports_are_accepted_on_the_accounts_webhook_key() {
         &event,
         json!({"name": "Viber", "sender": {
             "provider": "VIBER_INFOBIP",
-            "base_url": "http://127.0.0.1:1",
+            "base_url": "https://127.0.0.1:1",
             "sender": "Elections",
         }}),
     )
     .await;
     let key = webhook_key(&services, &id).await;
     let report = r#"{"results":[{"messageId":"m-1","status":{"groupName":"DELIVERED"}}]}"#;
+    let viber =
+        |key: String, authorization: Option<String>, body: &'static str| {
+            let client = &client;
+            async move {
+                let mut headers =
+                    vec![("content-type", "application/json".to_string())];
+                if let Some(authorization) = authorization {
+                    headers.push(("authorization", authorization));
+                }
+                let headers: Vec<(&str, &str)> =
+                    headers.iter().map(|(n, v)| (*n, v.as_str())).collect();
+                provider_status(
+                    relayed(
+                        client,
+                        CallbackProvider::VIBER,
+                        CallbackMethod::POST,
+                        &key,
+                        "",
+                        &headers,
+                        body.as_bytes(),
+                    )
+                    .await,
+                )
+            }
+        };
+    let basic = |user: &str, password: &str| {
+        use base64::Engine;
+        Some(format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD
+                .encode(format!("{user}:{password}"))
+        ))
+    };
 
-    assert_eq!(
-        callback(&client, format!("/webhooks/viber/{key}"), report).await,
-        Status::Ok
-    );
-    assert_eq!(
-        callback(&client, "/webhooks/viber/unknown-key".into(), report).await,
-        Status::NotFound
-    );
-    assert_eq!(
-        callback(&client, format!("/webhooks/viber/{key}"), "not json").await,
-        Status::InternalServerError
-    );
-    // The key of another provider's account is not a Viber key.
-    let (page, _) = meta_account(&client, &event).await;
-    let page_key = webhook_key(&services, &page).await;
-    assert_eq!(
-        callback(&client, format!("/webhooks/viber/{page_key}"), report).await,
-        Status::NotFound
-    );
-}
-
-#[rocket::async_test]
-async fn configured_providers_report_with_a_body_or_with_query_parameters() {
-    let services = services().await;
-    let client = services.client().await;
-    let event = rows::event(&services.hasura).await;
-    let id = account(&client, &event, http_api(true)).await;
-    let key = webhook_key(&services, &id).await;
-    let silent = account(&client, &event, http_api(false)).await;
-    let silent_key = webhook_key(&services, &silent).await;
-    let report = r#"{"id":"m-1","status":"delivered"}"#;
-
-    assert_eq!(
-        callback(&client, format!("/webhooks/http/{key}?batch=1"), report)
-            .await,
-        Status::Ok
-    );
-    assert_eq!(
-        client
-            .get(format!("/webhooks/http/{key}?id=m-1&status=delivered"))
-            .header(Header::new("X-Provider", "gateway"))
-            .dispatch()
-            .await
-            .status(),
-        Status::Ok
-    );
-    assert_eq!(
-        callback(&client, format!("/webhooks/http/{key}"), "not json").await,
-        Status::Unauthorized
-    );
-    // An account that declares no reports takes no callbacks.
-    for key in [silent_key.as_str(), "unknown-key"] {
-        assert_eq!(
-            callback(&client, format!("/webhooks/http/{key}"), report).await,
-            Status::NotFound
-        );
-        assert_eq!(
-            client
-                .get(format!("/webhooks/http/{key}"))
-                .dispatch()
-                .await
-                .status(),
-            Status::NotFound
-        );
-    }
-
-    let (status, replaced) = json(
+    // Before the report credentials are generated, nothing is accepted.
+    assert_eq!(viber(key.clone(), basic("a", "b"), report).await, Ok(401));
+    let (status, generated) = json(
         credentials(
             &client,
             &event,
-            json!({"id": id, "credentials": {"WEBHOOK_SECRET": "shared"}}),
+            json!({"id": id, "credentials": {}, "generate_report_credentials": true}),
         )
         .await,
     )
     .await;
-    assert_eq!(status, Status::Ok, "{replaced}");
-    corrupt_credentials(&services, &event).await;
-    assert_eq!(
-        callback(&client, format!("/webhooks/http/{key}"), report).await,
-        Status::InternalServerError
+    assert_eq!(status, Status::Ok, "{generated}");
+    let (user, password) = (
+        generated["report_username"].as_str().unwrap().to_string(),
+        generated["report_password"].as_str().unwrap().to_string(),
     );
+    assert_eq!(
+        generated["replaced"],
+        json!(["REPORT_USERNAME", "REPORT_PASSWORD"])
+    );
+    let authorization = basic(&user, &password);
+
+    assert_eq!(
+        viber(key.clone(), authorization.clone(), report).await,
+        Ok(200)
+    );
+    for refused in [None, basic(&user, "wrong"), basic("other", &password)] {
+        assert_eq!(viber(key.clone(), refused, report).await, Ok(401));
+    }
+    for unknown in [messaging::link::new_reference(), "unknown-key".into()] {
+        assert_eq!(
+            viber(unknown, authorization.clone(), report).await,
+            Ok(404)
+        );
+    }
+    assert_eq!(
+        viber(key.clone(), authorization.clone(), "not json").await,
+        Err(Status::InternalServerError)
+    );
+    // Generated, never entered.
+    assert_eq!(
+        text(
+            credentials(
+                &client,
+                &event,
+                json!({"id": id, "credentials": {"REPORT_PASSWORD": "chosen"}}),
+            )
+            .await
+        )
+        .await,
+        (
+            Status::BadRequest,
+            "REPORT_PASSWORD is generated, not entered".to_string()
+        )
+    );
+    // The key of another provider's account is not a Viber key.
+    let (page, _) = meta_account(&client, &event).await;
+    let page_key = webhook_key(&services, &page).await;
+    assert_eq!(viber(page_key, authorization, report).await, Ok(404));
 }
 
 #[rocket::async_test]
@@ -1080,38 +1376,184 @@ async fn ses_notifications_need_the_accounts_topic() {
         ses(json!("arn:aws:sns:eu-west-1:000000000000:ses-events")),
     )
     .await;
+    // SNS posts its envelope as text/plain.
+    let sns = |key: String| {
+        let client = &client;
+        async move {
+            provider_status(
+                relayed(
+                    client,
+                    CallbackProvider::AWS,
+                    CallbackMethod::POST,
+                    &key,
+                    "",
+                    &[
+                        ("content-type", "text/plain; charset=UTF-8"),
+                        ("x-amz-sns-message-type", "Notification"),
+                    ],
+                    b"{}",
+                )
+                .await,
+            )
+        }
+    };
 
     for id in [no_topic, with_topic] {
         let key = webhook_key(&services, &id).await;
-        assert_eq!(
-            callback(&client, format!("/webhooks/aws/{key}"), "{}").await,
-            Status::Unauthorized
-        );
+        assert_eq!(sns(key).await, Ok(401));
     }
-    assert_eq!(
-        callback(&client, "/webhooks/aws/unknown-key".into(), "{}").await,
-        Status::NotFound
-    );
+    assert_eq!(sns(messaging::link::new_reference()).await, Ok(404));
 }
 
 #[rocket::async_test]
-async fn webhook_bodies_over_the_limit_are_refused_unread() {
-    let services = Services::without_database();
-    let client = services.client().await;
-    let body = "x".repeat(512 * 1024 + 1);
-
-    for path in [
-        "/webhooks/meta/key",
-        "/webhooks/viber/key",
-        "/webhooks/http/key",
-        "/webhooks/aws/key",
-    ] {
-        assert_eq!(
-            callback(&client, path.to_string(), &body).await,
-            Status::PayloadTooLarge,
-            "{path}"
-        );
+async fn the_callback_url_is_the_webhook_components() {
+    if !isolated("routes::messaging::route_tests::the_callback_url_is_the_webhook_components") {
+        return;
     }
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let callback_url = |id: String| {
+        let (client, claims) = (&client, admin(&event));
+        async move {
+            json(
+                post(
+                    client,
+                    "/messaging/accounts/callback-url",
+                    &claims,
+                    &json!({ "id": id }),
+                )
+                .await,
+            )
+            .await
+        }
+    };
+    let (page, _) = meta_account(&client, &event).await;
+    let key = webhook_key(&services, &page).await;
+    let texts = account(&client, &event, sns("Texts")).await;
+
+    let upsert_page = || {
+        let (client, claims) = (&client, admin(&event));
+        let body = json!({"id": page, "name": "Page", "sender": messenger()["sender"]});
+        async move {
+            json(
+                post(client, "/messaging/accounts/upsert", &claims, &body)
+                    .await,
+            )
+            .await
+        }
+    };
+
+    std::env::remove_var(relay::WEBHOOKS_PUBLIC_URL_ENV);
+    assert_eq!(
+        callback_url(page.clone()).await,
+        (
+            Status::Ok,
+            json!({
+                "callback_url": null,
+                "reason": "Callback address not configured",
+            })
+        )
+    );
+    let (status, upserted) = upsert_page().await;
+    assert_eq!(status, Status::Ok, "{upserted}");
+    assert_eq!(
+        upserted["callback_reason"],
+        "Callback address not configured"
+    );
+    assert_eq!(upserted.get("callback_url"), None, "{upserted}");
+    let (status, upserted) = json(
+        post(
+            &client,
+            "/messaging/accounts/upsert",
+            &admin(&event),
+            &sns("More texts"),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{upserted}");
+    assert_eq!(upserted.get("callback_reason"), None, "{upserted}");
+
+    std::env::set_var(
+        relay::WEBHOOKS_PUBLIC_URL_ENV,
+        "https://callbacks.example.org/",
+    );
+    assert_eq!(
+        callback_url(page.clone()).await,
+        (
+            Status::Ok,
+            json!({
+                "callback_url": CallbackProvider::META.callback_url("https://callbacks.example.org", &key),
+                "reason": null,
+            })
+        )
+    );
+    // SMS through SNS takes no callbacks.
+    assert_eq!(
+        callback_url(texts).await,
+        (Status::Ok, json!({"callback_url": null, "reason": null}))
+    );
+    assert_eq!(
+        text(
+            callback_url_text(&client, &event, Uuid::new_v4().to_string())
+                .await
+        )
+        .await,
+        (Status::NotFound, "unknown account".to_string())
+    );
+    let (status, upserted) = upsert_page().await;
+    assert_eq!(status, Status::Ok, "{upserted}");
+    assert_eq!(upserted.get("callback_reason"), None, "{upserted}");
+    assert_eq!(
+        upserted["callback_url"],
+        CallbackProvider::META
+            .callback_url("https://callbacks.example.org", &key)
+    );
+}
+
+async fn callback_url_text<'c>(
+    client: &'c Client,
+    event: &Event,
+    id: String,
+) -> LocalResponse<'c> {
+    post(
+        client,
+        "/messaging/accounts/callback-url",
+        &admin(event),
+        &json!({ "id": id }),
+    )
+    .await
+}
+
+#[test]
+fn the_meta_handshake_query_is_url_decoded() {
+    assert_eq!(
+        MetaHub::parse(
+            "hub.mode=subscribe&hub%2Everify_token=a%2Bb+c&hub.challenge=12&x=1&&novalue"
+        ),
+        MetaHub {
+            mode: Some("subscribe".into()),
+            verify_token: Some("a+b c".into()),
+            challenge: Some("12".into()),
+        }
+    );
+    assert_eq!(MetaHub::parse(""), MetaHub::default());
+}
+
+#[test]
+fn without_a_relay_secret_callbacks_are_not_configured() {
+    for secret in [None, Some(&b""[..])] {
+        assert!(matches!(
+            MessagingRelay::new(secret, 1024).secret,
+            RelaySecret::NotConfigured
+        ));
+    }
+    let relay = MessagingRelay::new(Some(b"secret"), 1024);
+    assert!(
+        matches!(relay.secret, RelaySecret::Configured(ref s) if s == b"secret")
+    );
+    assert_eq!(relay.envelope_limit, relay::envelope_limit(1024));
 }
 
 #[rocket::async_test]
@@ -1119,7 +1561,7 @@ async fn an_invalid_event_configuration_is_reported_and_not_stored() {
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let unchecked = account(&client, &event, console("SMS")).await;
+    let unchecked = account(&client, &event, texts("Texts")).await;
     let unknown = Uuid::new_v4().to_string();
     let save = |election_event_id: String, config: Value| {
         let (client, claims) = (&client, admin(&event));
@@ -1254,18 +1696,8 @@ async fn a_saved_event_configuration_is_stored_only_once_its_realm_publishes_it(
     ]);
     std::env::set_var("KEYCLOAK_URL", &peer.url);
     let client = services.client().await;
-    let id = account(&client, &event, console("SMS")).await;
-    let (status, checked) = json(
-        post(
-            &client,
-            "/messaging/accounts/check",
-            &admin(&event),
-            &json!({ "id": id }),
-        )
-        .await,
-    )
-    .await;
-    assert_eq!(status, Status::Ok, "{checked}");
+    let id = account(&client, &event, texts("Texts")).await;
+    checked(&services, &id).await;
     let config = json!({
         "version": 1,
         "channels": [
@@ -1314,7 +1746,7 @@ async fn a_saved_event_configuration_is_stored_only_once_its_realm_publishes_it(
         json!([{
             "channel": "SMS",
             "purposes": ["NOTICE"],
-            "sender_label": null,
+            "sender_label": "Elections",
             "messenger_page": null,
         }])
     );
@@ -1347,7 +1779,8 @@ async fn changes_whose_commit_fails_are_not_reported_as_done() {
     std::env::set_var("KEYCLOAK_URL", &peer.url);
     let client = services.client().await;
     let (id, _) = meta_account(&client, &event).await;
-    let console = account(&client, &event, console("SMS")).await;
+    let _sns = sns_answering(vec![in_production()]).await;
+    let texts = texts_account(&client, &event).await;
     let before = stored_account(&services, &id).await;
     // This process has the database to itself: from here on, every commit
     // that touched an account or an event fails.
@@ -1363,6 +1796,10 @@ async fn changes_whose_commit_fails_are_not_reported_as_done() {
          AFTER UPDATE ON sequent_backend.election_event
          DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
          EXECUTE FUNCTION sequent_backend.refuse_commit()",
+        "CREATE CONSTRAINT TRIGGER refuse_commit
+         AFTER INSERT OR UPDATE ON sequent_backend.messaging_event_config
+         DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+         EXECUTE FUNCTION sequent_backend.refuse_commit()",
     ] {
         rows::execute(&services.hasura, statement, &[]).await;
     }
@@ -1373,7 +1810,7 @@ async fn changes_whose_commit_fails_are_not_reported_as_done() {
             "/messaging/accounts/credentials",
             json!({"id": id, "credentials": {"ACCESS_TOKEN": "rotated"}}),
         ),
-        ("/messaging/accounts/check", json!({ "id": console })),
+        ("/messaging/accounts/check", json!({ "id": texts })),
         ("/messaging/accounts/delete", json!({ "id": id })),
         (
             "/messaging/event-config",
@@ -1413,43 +1850,37 @@ async fn messaging_routes_answer_without_a_database() {
         election_event_id: Uuid::new_v4().to_string(),
     };
     let id = Uuid::new_v4().to_string();
-    let service = keycloak(&event.tenant_id);
+    let service = service_token(&services, &event.tenant_id);
     let reference =
         link_request(&event.tenant_id, "reference", "session-digest");
 
-    for (path, claims, body) in [
-        ("/messages/send", &service, notice(&event, "k")),
-        (
-            "/messages/link",
-            &service,
-            link(&event, chrono::Duration::minutes(5)),
-        ),
-        ("/messages/link/status", &service, reference.clone()),
-        ("/messages/link/confirm", &service, reference),
-        ("/messaging/accounts/upsert", &admin(&event), sns("Texts")),
-        (
-            "/messaging/accounts/delete",
-            &admin(&event),
-            json!({ "id": id }),
-        ),
+    for (path, body) in [
+        ("/messages/send", notice(&event, "k")),
+        ("/messages/link", link(&event, chrono::Duration::minutes(5))),
+        ("/messages/link/status", reference.clone()),
+        ("/messages/link/confirm", reference),
+    ] {
+        assert_eq!(
+            text(post_as(&client, path, &service, &body).await).await,
+            (Status::InternalServerError, "internal error".to_string()),
+            "{path}"
+        );
+    }
+    for (path, body) in [
+        ("/messaging/accounts/upsert", sns("Texts")),
+        ("/messaging/accounts/delete", json!({ "id": id })),
         (
             "/messaging/accounts/credentials",
-            &admin(&event),
             json!({"id": id, "credentials": {"API_KEY": "x"}}),
         ),
-        (
-            "/messaging/accounts/check",
-            &admin(&event),
-            json!({ "id": id }),
-        ),
+        ("/messaging/accounts/check", json!({ "id": id })),
+        ("/messaging/accounts/callback-url", json!({ "id": id })),
         (
             "/messaging/accounts/test",
-            &admin(&event),
             json!({"id": id, "purpose": "NOTICE", "destination": PHONE}),
         ),
         (
             "/messaging/event-config",
-            &admin(&event),
             json!({
                 "election_event_id": event.election_event_id,
                 "config": {"version": 1},
@@ -1457,38 +1888,25 @@ async fn messaging_routes_answer_without_a_database() {
         ),
     ] {
         assert_eq!(
-            text(post(&client, path, claims, &body).await).await,
+            text(post(&client, path, &admin(&event), &body).await).await,
             (Status::InternalServerError, "internal error".to_string()),
             "{path}"
         );
     }
 
-    // Providers retry a callback that was not taken.
-    for path in [
-        "/webhooks/meta/key",
-        "/webhooks/viber/key",
-        "/webhooks/http/key",
-        "/webhooks/aws/key",
+    // A callback that was not taken gets 503 from the component, and the
+    // provider retries it.
+    let key = messaging::link::new_reference();
+    for (provider, method) in [
+        (CallbackProvider::META, CallbackMethod::GET),
+        (CallbackProvider::META, CallbackMethod::POST),
+        (CallbackProvider::VIBER, CallbackMethod::POST),
+        (CallbackProvider::AWS, CallbackMethod::POST),
     ] {
         assert_eq!(
-            client
-                .post(path)
-                .header(ContentType::JSON)
-                .header(bearer(&service))
-                .body("{}")
-                .dispatch()
-                .await
-                .status(),
-            Status::ServiceUnavailable,
-            "{path}"
+            relayed(&client, provider, method, &key, "", &[], b"{}").await,
+            Err(Status::ServiceUnavailable),
+            "{provider} {method}"
         );
     }
-    assert_eq!(
-        client.get("/webhooks/http/key").dispatch().await.status(),
-        Status::ServiceUnavailable
-    );
-    assert_eq!(
-        client.get("/webhooks/meta/key").dispatch().await.status(),
-        Status::InternalServerError
-    );
 }

@@ -121,6 +121,16 @@ pub struct ImportElectionEventSchema {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_matrix: Option<Value>,
 
+    /// The event's messaging configuration (`messaging_event_config`).
+    ///
+    /// Absent (older bundles, or an event without one): nothing is imported,
+    /// and the event sends email and SMS as events without one do. It names
+    /// the tenant's sending accounts, which aren't part of the bundle: the
+    /// import keeps their ids, and a channel whose account the importing
+    /// tenant lacks shows as an unknown account until it is chosen again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messaging_config: Option<Value>,
+
     /// The platform version that wrote the bundle.
     ///
     /// Defaults to the first version that recorded one, so bundles predating the

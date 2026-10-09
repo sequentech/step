@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useGetList, useNotify, useRecordContext, useRefresh} from "react-admin"
+import {useGetList, useNotify, useRecordContext} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
+import {useLocation, useNavigate} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {
     Accordion,
@@ -17,6 +18,7 @@ import {
     Chip,
     FormControlLabel,
     IconButton,
+    Link,
     MenuItem,
     Switch,
     Table,
@@ -30,9 +32,7 @@ import {
 import AddIcon from "@mui/icons-material/Add"
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward"
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward"
-import {ChannelIcon, ChannelLabel} from "@sequentech/ui-essentials"
+import {ChannelLabel} from "@sequentech/ui-essentials"
 import {
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
@@ -42,8 +42,13 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMessagingAccounts} from "@/hooks/useMessagingAccounts"
+import {useEventMessagingConfig} from "@/hooks/useEventMessagingConfig"
+import {roleContext, useMessagingReadRole} from "@/hooks/useMessagingReadRole"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
-import {GET_MESSAGE_DELIVERY_STATS} from "@/queries/GetMessageDeliveryStats"
+import {
+    GET_MESSAGING_EVENT_STATS,
+    IGetMessagingEventStatsResult,
+} from "@/queries/GetMessagingEventStats"
 import {UPDATE_EVENT_MESSAGING_CONFIG} from "@/queries/UpdateEventMessagingConfig"
 import {IPermissions} from "@/types/keycloak"
 import {
@@ -53,31 +58,27 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EOutOfWindowPolicy,
+    IChannelMessageStats,
     IEventMessagingConfig,
     IMessagingAccount,
     IMessagingConfigError,
     ITemplateBinding,
     KEYCLOAK_NOTICE_MESSAGE_KEYS,
     KEYCLOAK_OTP_MESSAGE_KEYS,
-    MESSAGE_ATTEMPT_STATES,
     MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
-    MESSAGING_CONFIG_ANNOTATION,
 } from "@/types/messaging"
 import {
     accountCapabilities,
     accountSummary,
     deliverySummary,
-    parseEventMessagingConfig,
     purposeReadiness,
-    supportsOutOfWindow,
     validateEventMessagingConfig,
 } from "@/services/messaging"
 import {
     EBindingApproval,
     EMessagingErrorArea,
     IBindingPosition,
-    IDeliveryStatsResponse,
     IMessagingErrorLocation,
     activeChannels,
     addTemplateBinding,
@@ -85,19 +86,17 @@ import {
     electionChannelsOf,
     errorsAt,
     incompleteBindings,
-    moveFallback,
-    parseDeliveryStats,
     parseMessagingConfigErrors,
     preparedConfig,
     removeTemplateBinding,
     setChannelAccount,
-    setOutOfWindow,
-    setReplyText,
+    statsByChannel,
     templateChannels,
     toggleElectionChannel,
     togglePurpose,
     updateTemplateBinding,
 } from "./eventMessagingConfig"
+import {logsFilterSearch} from "@/components/logs/messagingLogFilters"
 
 const POSTS_SHOWN = 15
 
@@ -267,22 +266,15 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
                                 ) : (
                                     <Helper>{t("messagingEvent.noAccount")}</Helper>
                                 )}
-                                {entry &&
-                                (supportsOutOfWindow(capabilities) ||
-                                    entry.out_of_window !== EOutOfWindowPolicy.DISABLED) ? (
-                                    <OutOfWindowPolicySelect
-                                        channel={channel}
-                                        value={entry.out_of_window}
-                                        noticeTemplateBound={entry.templates.some(
-                                            (binding) =>
-                                                binding.purpose === EMessagePurpose.NOTICE &&
-                                                !!binding.provider_template.trim()
-                                        )}
-                                        canEdit={canEdit}
-                                        onChange={(policy) =>
-                                            onChange(setOutOfWindow(config, channel, policy))
-                                        }
-                                    />
+                                {entry?.out_of_window === EOutOfWindowPolicy.UTILITY_MESSAGES ? (
+                                    <Typography
+                                        variant="caption"
+                                        sx={{display: "block", color: "text.secondary", mt: 1}}
+                                    >
+                                        {t("messagingEvent.outOfWindow.utility", {
+                                            channel: channelName,
+                                        })}
+                                    </Typography>
                                 ) : null}
                                 <MessagingErrors
                                     errors={at({area: EMessagingErrorArea.CHANNEL, channel})}
@@ -292,9 +284,9 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
                                 const enabled = entry?.purposes.includes(purpose) ?? false
                                 const blockers = account
                                     ? purposeReadiness(
+                                          account.provider,
                                           capabilities,
                                           account.provider_approval,
-                                          account.readiness,
                                           account.status,
                                           purpose,
                                           null
@@ -335,6 +327,14 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
                                                 />
                                             }
                                         />
+                                        {!account && options.length ? (
+                                            <Typography
+                                                variant="caption"
+                                                sx={{display: "block", color: "text.secondary"}}
+                                            >
+                                                {t("messagingEvent.chooseAccount")}
+                                            </Typography>
+                                        ) : null}
                                         {account && blockers.length ? (
                                             <Typography
                                                 variant="caption"
@@ -372,62 +372,8 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
     )
 }
 
-export interface OutOfWindowPolicySelectProps {
-    channel: EMessageChannel
-    value: EOutOfWindowPolicy
-    /** Whether a template is bound for notices, which utility messages are sent with. */
-    noticeTemplateBound: boolean
-    canEdit: boolean
-    onChange: (policy: EOutOfWindowPolicy) => void
-}
-
-/** How a channel with a conversation window sends notices once the window has closed. */
-export const OutOfWindowPolicySelect: React.FC<OutOfWindowPolicySelectProps> = ({
-    channel,
-    value,
-    noticeTemplateBound,
-    canEdit,
-    onChange,
-}) => {
-    const {t} = useTranslation()
-    return (
-        <Box sx={{marginTop: 1.5}}>
-            <TextField
-                select
-                size="small"
-                fullWidth
-                disabled={!canEdit}
-                label={t("messagingEvent.outOfWindow.label", {
-                    channel: t(`messaging.channel.${channel}`),
-                })}
-                value={value}
-                onChange={(event) => onChange(event.target.value as EOutOfWindowPolicy)}
-            >
-                {Object.values(EOutOfWindowPolicy).map((policy) => (
-                    <MenuItem key={policy} value={policy}>
-                        {t(`messagingEvent.outOfWindow.${policy}`)}
-                    </MenuItem>
-                ))}
-            </TextField>
-            <Typography variant="caption" sx={{display: "block", color: "text.secondary"}}>
-                {t("messagingEvent.outOfWindow.help")}
-            </Typography>
-            {value === EOutOfWindowPolicy.UTILITY_MESSAGES && !noticeTemplateBound ? (
-                <Typography
-                    variant="caption"
-                    role="status"
-                    sx={{display: "block", color: "warning.dark"}}
-                >
-                    {t("messagingEvent.outOfWindow.noTemplate")}
-                </Typography>
-            ) : null}
-        </Box>
-    )
-}
-
 const APPROVAL_COLOR: Record<EBindingApproval, "success" | "default"> = {
     [EBindingApproval.APPROVED]: "success",
-    [EBindingApproval.ADMIN_CONFIRMED]: "success",
     [EBindingApproval.NOT_APPROVED]: "default",
     [EBindingApproval.NOT_CHECKED]: "default",
 }
@@ -713,86 +659,6 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
     )
 }
 
-export interface MessagingFallbackOrderProps {
-    config: IEventMessagingConfig
-    errors: IMessagingConfigError[]
-    canEdit: boolean
-    onChange: TOnChange
-}
-
-/** The order notices try the voter's other verified channels in. Never used for codes. */
-export const MessagingFallbackOrder: React.FC<MessagingFallbackOrderProps> = ({
-    config,
-    errors,
-    canEdit,
-    onChange,
-}) => {
-    const {t} = useTranslation()
-    const order = config.notice_fallback
-    return (
-        <>
-            <Helper>{t("messagingEvent.fallback.help")}</Helper>
-            {order.length ? (
-                <Box
-                    component="ol"
-                    sx={{display: "flex", gap: 1, flexWrap: "wrap", padding: 0, margin: 0}}
-                >
-                    {order.map((channel, index) => {
-                        const name = t(`messaging.channel.${channel}`)
-                        return (
-                            <Box
-                                component="li"
-                                key={channel}
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 0.5,
-                                    border: 1,
-                                    borderColor: "divider",
-                                    borderRadius: "18px",
-                                    padding: "2px 4px 2px 10px",
-                                    listStyle: "none",
-                                }}
-                            >
-                                <Typography variant="body2" sx={{fontWeight: 500}}>
-                                    {index + 1}.
-                                </Typography>
-                                <ChannelIcon channel={channel} fontSize="small" />
-                                <Typography variant="body2">{name}</Typography>
-                                <IconButton
-                                    size="small"
-                                    aria-label={t("messagingEvent.fallback.earlier", {
-                                        channel: name,
-                                    })}
-                                    disabled={!canEdit || index === 0}
-                                    onClick={() => onChange(moveFallback(config, index, -1))}
-                                >
-                                    <ArrowUpwardIcon fontSize="inherit" />
-                                </IconButton>
-                                <IconButton
-                                    size="small"
-                                    aria-label={t("messagingEvent.fallback.later", {
-                                        channel: name,
-                                    })}
-                                    disabled={!canEdit || index === order.length - 1}
-                                    onClick={() => onChange(moveFallback(config, index, 1))}
-                                >
-                                    <ArrowDownwardIcon fontSize="inherit" />
-                                </IconButton>
-                            </Box>
-                        )
-                    })}
-                </Box>
-            ) : (
-                <Helper>{t("messagingEvent.fallback.empty")}</Helper>
-            )}
-            <MessagingErrors
-                errors={errorsAt(errors, config, {area: EMessagingErrorArea.FALLBACK})}
-            />
-        </>
-    )
-}
-
 export interface IMessagingElection {
     id: string
     name: string
@@ -924,70 +790,63 @@ export const MessagingElectionChannels: React.FC<MessagingElectionChannelsProps>
     )
 }
 
-export interface MessagingReplyTextProps {
-    config: IEventMessagingConfig
-    languages: string[]
-    canEdit: boolean
-    onChange: TOnChange
-}
-
-/** Automatic reply to incoming messages, per language. */
-export const MessagingReplyText: React.FC<MessagingReplyTextProps> = ({
-    config,
-    languages,
-    canEdit,
-    onChange,
-}) => {
-    const {t} = useTranslation()
-    return (
-        <>
-            <Helper>{t("messagingEvent.reply.help")}</Helper>
-            {languages.map((language) => (
-                <TextField
-                    key={language}
-                    multiline
-                    minRows={2}
-                    fullWidth
-                    disabled={!canEdit}
-                    label={t("messagingEvent.reply.label", {language})}
-                    value={config.reply_text[language] ?? ""}
-                    onChange={(event) =>
-                        onChange(setReplyText(config, language, event.target.value))
-                    }
-                />
-            ))}
-        </>
-    )
-}
-
 export interface MessagingDeliveryStatusProps {
     config: IEventMessagingConfig
     accounts: IMessagingAccount[]
-    stats?: IDeliveryStatsResponse | null
+    stats?: IChannelMessageStats[] | null
     loading?: boolean
+    /** The counts could not be read: the cells say so instead of showing 0. */
+    unavailable?: boolean
+    /** Opens Logs filtered to the channel's failed messages; absent without access to Logs. */
+    onShowFailed?: (channel: EMessageChannel) => void
 }
 
-/** Outbound messages per channel and state. Without receipts, delivery is unavailable, not 0. */
+/**
+ * Per channel in use: voters whose channel it is, messages sent in the last 24
+ * hours, and messages by the state of their latest attempt. Without receipts,
+ * delivery is unavailable, never 0. Unknown for more than 24 hours is shown
+ * apart as unresolved: delivery couldn't be confirmed, which isn't a failure.
+ */
 export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = ({
     config,
     accounts,
     stats,
     loading,
+    unavailable,
+    onShowFailed,
 }) => {
     const {t} = useTranslation()
-    const perChannel = useMemo(() => parseDeliveryStats(stats), [stats])
-    const channels = config.channels.map((entry) => entry.channel)
+    const perChannel = useMemo(() => statsByChannel(stats), [stats])
+    const configured = config.channels.map((entry) => entry.channel)
+    const channels = MESSAGE_CHANNELS.filter((channel) => configured.includes(channel))
     if (!channels.length) {
         return <Helper>{t("messagingEvent.delivery.empty")}</Helper>
+    }
+    const count = (value: number | null): string => {
+        if (loading || unavailable || value === null) return "–"
+        return value.toLocaleString()
     }
     return (
         <>
             <Helper>{t("messagingEvent.delivery.help")}</Helper>
+            {unavailable ? (
+                <Typography variant="caption" role="status" sx={{color: "text.secondary"}}>
+                    {t("messagingEvent.delivery.loadError")}
+                </Typography>
+            ) : null}
             <Table size="small" aria-label={t("messagingEvent.sections.delivery")}>
                 <TableHead>
                     <TableRow>
                         <TableCell>{t("messagingEvent.column.channel")}</TableCell>
-                        {MESSAGE_ATTEMPT_STATES.map((state) => (
+                        <TableCell align="right">{t("messagingEvent.column.voters")}</TableCell>
+                        <TableCell align="right">{t("messagingEvent.column.sent24h")}</TableCell>
+                        {[
+                            EMessageAttemptState.QUEUED,
+                            EMessageAttemptState.ACCEPTED,
+                            EMessageAttemptState.DELIVERED,
+                            EMessageAttemptState.FAILED,
+                            EMessageAttemptState.UNKNOWN,
+                        ].map((state) => (
                             <TableCell
                                 key={state}
                                 align="right"
@@ -996,6 +855,9 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                                 {t(`messaging.state.${state}`)}
                             </TableCell>
                         ))}
+                        <TableCell align="right" title={t("messaging.stateHelp.UNRESOLVED")}>
+                            {t("messaging.state.UNRESOLVED")}
+                        </TableCell>
                     </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1006,36 +868,48 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                               EDeliveryFeedback.UNAVAILABLE)
                             : EDeliveryFeedback.UNAVAILABLE
                         const summary = deliverySummary(perChannel[channel], feedback)
-                        const value = (state: EMessageAttemptState): string => {
-                            if (loading) return "–"
-                            switch (state) {
-                                case EMessageAttemptState.QUEUED:
-                                    return summary.queued.toLocaleString()
-                                case EMessageAttemptState.ACCEPTED:
-                                    return summary.accepted.toLocaleString()
-                                case EMessageAttemptState.DELIVERED:
-                                    return summary.delivered === null
-                                        ? t("messaging.deliveryUnavailable")
-                                        : summary.delivered.toLocaleString()
-                                case EMessageAttemptState.FAILED:
-                                    return summary.failed.toLocaleString()
-                                case EMessageAttemptState.UNKNOWN:
-                                    return summary.unknown.toLocaleString()
-                            }
-                        }
+                        const channelName = t(`messaging.channel.${channel}`)
+                        const failed = count(summary.failed)
                         return (
                             <TableRow key={channel} data-channel={channel}>
                                 <TableCell>
-                                    <ChannelLabel
-                                        channel={channel}
-                                        label={t(`messaging.channel.${channel}`)}
-                                    />
+                                    <ChannelLabel channel={channel} label={channelName} />
                                 </TableCell>
-                                {MESSAGE_ATTEMPT_STATES.map((state) => (
-                                    <TableCell key={state} align="right">
-                                        {value(state)}
-                                    </TableCell>
-                                ))}
+                                <TableCell align="right">{count(summary.voters)}</TableCell>
+                                <TableCell align="right">{count(summary.sentLast24h)}</TableCell>
+                                <TableCell align="right">{count(summary.queued)}</TableCell>
+                                <TableCell align="right">{count(summary.accepted)}</TableCell>
+                                <TableCell
+                                    align="right"
+                                    title={
+                                        summary.delivered === null
+                                            ? t("messagingEvent.delivery.noReceipts")
+                                            : undefined
+                                    }
+                                >
+                                    {summary.delivered === null
+                                        ? t("messaging.deliveryUnavailable")
+                                        : count(summary.delivered)}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {onShowFailed && !loading && !unavailable ? (
+                                        <Link
+                                            component="button"
+                                            type="button"
+                                            variant="body2"
+                                            onClick={() => onShowFailed(channel)}
+                                            aria-label={t("messagingEvent.delivery.showFailed", {
+                                                channel: channelName,
+                                            })}
+                                        >
+                                            {failed}
+                                        </Link>
+                                    ) : (
+                                        failed
+                                    )}
+                                </TableCell>
+                                <TableCell align="right">{count(summary.unknown)}</TableCell>
+                                <TableCell align="right">{count(summary.unresolved)}</TableCell>
                             </TableRow>
                         )
                     })}
@@ -1053,11 +927,18 @@ export const EditElectionEventMessaging: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {t} = useTranslation()
     const notify = useNotify()
-    const refresh = useRefresh()
+    const navigate = useNavigate()
+    const location = useLocation()
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
-    const canEdit = authContext.isAuthorized(true, tenantId, IPermissions.MESSAGING_CONFIG_WRITE)
-    const canReadMessages = authContext.isAuthorized(true, tenantId, IPermissions.NOTIFICATION_READ)
+    const readRole = useMessagingReadRole()
+    // Saving without having read the configuration would overwrite it blindly.
+    const canEdit =
+        !!readRole && authContext.isAuthorized(true, tenantId, IPermissions.MESSAGING_CONFIG_WRITE)
+    // The Failed count links to the event's Logs tab, filtered to that channel's failures.
+    const canReadLogs =
+        authContext.isAuthorized(true, tenantId, IPermissions.LOGS_READ) &&
+        authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_EVENT_LOGS_TAB)
     const {accounts, loading: accountsLoading} = useMessagingAccounts()
     const {data: elections, isLoading: electionsLoading} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
@@ -1068,23 +949,25 @@ export const EditElectionEventMessaging: React.FC = () => {
         },
         {enabled: !!record?.id}
     )
-    const {data: stats, loading: statsLoading} = useQuery<IDeliveryStatsResponse>(
-        GET_MESSAGE_DELIVERY_STATS,
-        {
-            variables: {tenantId, electionEventId: record?.id},
-            skip: !record?.id || !tenantId,
-            context: canReadMessages
-                ? {headers: {"x-hasura-role": IPermissions.NOTIFICATION_READ}}
-                : undefined,
-        }
-    )
+    const {
+        data: stats,
+        loading: statsLoading,
+        error: statsError,
+    } = useQuery<IGetMessagingEventStatsResult>(GET_MESSAGING_EVENT_STATS, {
+        variables: {electionEventId: record?.id},
+        skip: !record?.id || !readRole,
+        context: roleContext(readRole),
+    })
+    const {
+        config: initial,
+        loading: configLoading,
+        refetch: refetchConfig,
+    } = useEventMessagingConfig(record?.id)
     const [updateConfig, {loading: saving}] = useMutation<IUpdateEventMessagingConfigResult>(
         UPDATE_EVENT_MESSAGING_CONFIG,
         {context: {headers: {"x-hasura-role": IPermissions.MESSAGING_CONFIG_WRITE}}}
     )
 
-    const stored = record?.annotations?.[MESSAGING_CONFIG_ANNOTATION]
-    const initial = useMemo(() => parseEventMessagingConfig(stored), [stored])
     const [config, setConfig] = useState<IEventMessagingConfig>(initial)
     const [dirty, setDirty] = useState(false)
     const [serverErrors, setServerErrors] = useState<IMessagingConfigError[]>([])
@@ -1128,7 +1011,7 @@ export const EditElectionEventMessaging: React.FC = () => {
     )
     const clientErrors = useMemo(
         () =>
-            accountsLoading || electionsLoading
+            accountsLoading || electionsLoading || configLoading
                 ? []
                 : validateEventMessagingConfig(
                       preparedConfig(config),
@@ -1136,7 +1019,7 @@ export const EditElectionEventMessaging: React.FC = () => {
                       accounts.map(accountSummary),
                       electionList.map((election) => election.id)
                   ),
-        [config, tenantId, accounts, electionList, accountsLoading, electionsLoading]
+        [config, tenantId, accounts, electionList, accountsLoading, electionsLoading, configLoading]
     )
     const errors = [
         ...serverErrors,
@@ -1175,14 +1058,25 @@ export const EditElectionEventMessaging: React.FC = () => {
             }
             setDirty(false)
             notify(t("messagingEvent.saved"), {type: "success"})
-            refresh()
+            await refetchConfig()
         } catch (error) {
             console.error(error)
             notify(t("messagingEvent.saveError"), {type: "error"})
         }
     }
 
+    const showFailed = (channel: EMessageChannel) =>
+        navigate({pathname: location.pathname, search: logsFilterSearch(channel)})
+
     if (!record) return null
+
+    if (!readRole) {
+        return (
+            <Box sx={{padding: 2}}>
+                <Alert severity="info">{t("messagingEvent.noReadPermission")}</Alert>
+            </Box>
+        )
+    }
 
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 2, padding: 2, paddingBottom: 4}}>
@@ -1210,14 +1104,6 @@ export const EditElectionEventMessaging: React.FC = () => {
                     onChange={onChange}
                 />
             </Section>
-            <Section title={t("messagingEvent.sections.fallback")} id="messaging-fallback">
-                <MessagingFallbackOrder
-                    config={config}
-                    errors={errors}
-                    canEdit={canEdit}
-                    onChange={onChange}
-                />
-            </Section>
             <Section
                 title={t("messagingEvent.sections.postsCount", {count: electionList.length})}
                 id="messaging-posts"
@@ -1230,20 +1116,14 @@ export const EditElectionEventMessaging: React.FC = () => {
                     onChange={onChange}
                 />
             </Section>
-            <Section title={t("messagingEvent.sections.reply")} id="messaging-reply">
-                <MessagingReplyText
-                    config={config}
-                    languages={languages}
-                    canEdit={canEdit}
-                    onChange={onChange}
-                />
-            </Section>
             <Section title={t("messagingEvent.sections.delivery")} id="messaging-delivery">
                 <MessagingDeliveryStatus
                     config={config}
                     accounts={accounts}
-                    stats={stats}
+                    stats={stats?.messaging_event_stats?.channels}
                     loading={statsLoading}
+                    unavailable={!!statsError}
+                    onShowFailed={canReadLogs ? showFailed : undefined}
                 />
             </Section>
             {canEdit ? (

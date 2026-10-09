@@ -1,14 +1,27 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {IMethods, ITemplateMethod, MESSAGE_TEMPLATE_METHODS} from "@/types/templates"
+import {IMethods, ITemplateMethod} from "@/types/templates"
 import {EMessageChannel} from "@/types/messaging"
 
-/** The method a template is stored under: the first selected one, in offer order. */
+/**
+ * The order a template's stored method is chosen in. It is data, not display:
+ * it keeps the order templates were saved with before the channel order
+ * (`MESSAGE_TEMPLATE_METHODS`) changed, so saving a template stores the same method.
+ */
+const STORED_METHOD_ORDER: ITemplateMethod[] = [
+    ITemplateMethod.EMAIL,
+    ITemplateMethod.SMS,
+    ITemplateMethod.WHATSAPP,
+    ITemplateMethod.VIBER,
+    ITemplateMethod.MESSENGER,
+    ITemplateMethod.DOCUMENT,
+]
+
+/** The method a template is stored under: the first selected one. */
 export const primaryTemplateMethod = (
     selected: IMethods | null | undefined
-): ITemplateMethod | undefined =>
-    [...MESSAGE_TEMPLATE_METHODS, ITemplateMethod.DOCUMENT].find((method) => selected?.[method])
+): ITemplateMethod | undefined => STORED_METHOD_ORDER.find((method) => selected?.[method])
 
 interface ITemplateRow {
     communication_method?: string | null

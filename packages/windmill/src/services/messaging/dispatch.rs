@@ -2,15 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Sending one logical message: choosing the channel and account, recording
-//! the attempt before it leaves Step, and recording what the provider said.
+//! Sending one logical message on the recipient's one channel: choosing the
+//! account, recording the attempt before it leaves Step, and recording what
+//! the provider said. Nothing here ever tries another channel: a message
+//! that can't go out on its channel gets one FAILED row with its reason.
 
 use super::accounts::runtime_account;
+use super::audit::{AttemptOutcome, MessageKind, ENVIRONMENT_PROVIDER};
 use super::config::get_event_messaging_config;
 use super::keys::{tenant_key, TenantKey};
 use crate::postgres::messaging::{
-    get_messaging_account, insert_message, last_inbound_at, list_attempts, list_messaging_accounts,
-    transition_message, MessageRecord, MessagingAccount, NewMessage, StateChange,
+    get_message, get_messaging_account, insert_message, last_get_started_at, list_attempts,
+    list_messaging_accounts, mark_dispatched, transition_message, MessageRecord, MessagingAccount,
+    NewMessage, StateChange,
 };
 use crate::services::providers::email_sender::EmailSender;
 use crate::services::providers::sms_sender::SmsSender;
@@ -18,7 +22,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Client as DbClient;
-use messaging::attempts::{decide, AttemptRecord, Dispatch, NoticeRoute};
+use messaging::attempts::{decide, next_retry_at, AttemptRecord, Dispatch};
 use messaging::destination::Destination;
 use messaging::providers::{self, Endpoints};
 use messaging::rate_limit::RateLimiter;
@@ -26,36 +30,25 @@ use messaging::sender::{
     preflight, ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome,
 };
 use sequent_core::types::messaging::{
-    AccountCheck, AccountSender, EventMessagingConfig, MessageAttemptState, MessageChannel,
-    MessageContent, MessageDirection, MessagePurpose, MessagingProvider, OutOfWindowPolicy,
-    ProviderCapabilities,
+    AccountCheck, AccountSender, BillingCategory, DeliveryFeedback, EventMessagingConfig,
+    MessageAttemptState, MessageChannel, MessageContent, MessagePurpose, MessageReason,
+    OutOfWindowPolicy, ProviderCapabilities, RecipientKind,
 };
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::OnceCell;
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
-/// Whether a notice may move to another channel after a confirmed failure.
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FallbackPolicy {
-    /// Only the first channel.
-    NONE,
-    /// The event's notice fallback order, among the voter's verified
-    /// channels.
-    EVENT_ORDER,
-}
-
-/// Who the message goes to.
+/// Who the message goes to: one channel and its destination.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Recipient {
     pub voter_id: Option<String>,
-    /// The address on each channel the recipient can be reached on.
-    pub destinations: BTreeMap<MessageChannel, String>,
-    /// Channels whose address the voter verified.
-    pub verified: Vec<MessageChannel>,
-    /// The voter's elections, for per-election channel restrictions.
+    /// The recipient's one channel. Never replaced by another one.
+    pub channel: MessageChannel,
+    /// Phone number (E.164), email address or Page-scoped ID.
+    pub destination: String,
+    /// The voter's elections, for per-election (Post) channel restrictions.
     pub election_ids: Vec<String>,
 }
 
@@ -65,12 +58,15 @@ pub struct Delivery {
     pub tenant_id: Uuid,
     pub election_event_id: Option<Uuid>,
     pub purpose: MessagePurpose,
-    pub first_channel: MessageChannel,
-    pub fallback: FallbackPolicy,
     pub recipient: Recipient,
-    /// Rendered content per channel.
-    pub contents: BTreeMap<MessageChannel, MessageContent>,
+    /// Rendered content for the recipient's channel. `None`: the send has
+    /// none for it, and the message fails with
+    /// [`MessageReason::NO_CONTENT_FOR_CHANNEL`].
+    pub content: Option<MessageContent>,
     pub language: Option<String>,
+    /// The stored template the content was rendered from. Also what lets a
+    /// transient failure be retried later: without it the ledger has
+    /// nothing to render again.
     pub template_alias: Option<String>,
     /// Stable across retries of the same message.
     pub logical_key: String,
@@ -81,9 +77,8 @@ pub struct Delivery {
     /// Which message this is, to pick its approved template among the
     /// event's bindings: a template alias or Keycloak's message key.
     pub template_key: Option<String>,
-    /// Approved templates to use on a channel instead of the event's
-    /// binding.
-    pub provider_templates: BTreeMap<MessageChannel, ProviderTemplate>,
+    /// The approved template to use instead of the event's binding.
+    pub provider_template: Option<ProviderTemplate>,
 }
 
 /// An approved template at the provider.
@@ -97,26 +92,62 @@ pub struct ProviderTemplate {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DeliveryResult {
     pub message_id: Option<Uuid>,
-    pub channel: Option<MessageChannel>,
+    pub attempt: Option<i32>,
+    pub channel: MessageChannel,
     pub state: MessageAttemptState,
     /// Short, non-sensitive reason when not accepted.
     pub reason: Option<String>,
-    /// Retry the same channel after this long.
-    pub retry_after: Option<Duration>,
+    /// When the same-channel retry is due, if one is scheduled.
+    pub next_retry_at: Option<DateTime<Utc>>,
     /// Shown in records instead of the address.
     pub masked_destination: Option<String>,
+    /// The attempts whose outcome this call recorded, for the electoral log
+    /// and statistics. Empty when the call recorded nothing new, such as a
+    /// replayed job.
+    pub recorded: Vec<AttemptOutcome>,
 }
 
 impl DeliveryResult {
     fn from_record(record: &MessageRecord) -> DeliveryResult {
         DeliveryResult {
             message_id: Some(record.id),
-            channel: Some(record.channel),
+            attempt: Some(record.attempt),
+            channel: record.channel,
             state: record.state,
             reason: record.error.clone(),
-            retry_after: None,
+            next_retry_at: record.next_retry_at,
             masked_destination: Some(record.masked_destination.clone()),
+            recorded: vec![],
         }
+    }
+
+    /// Whether this call accepted a message that wasn't accepted before.
+    pub fn newly_sent(&self) -> bool {
+        self.recorded.iter().any(|outcome| {
+            matches!(
+                outcome.outcome,
+                MessageAttemptState::ACCEPTED | MessageAttemptState::DELIVERED
+            )
+        })
+    }
+}
+
+/// The outcome of `record` as the electoral log entry of its attempt.
+pub fn attempt_outcome(record: &MessageRecord, provider: &str) -> AttemptOutcome {
+    AttemptOutcome {
+        tenant_id: record.tenant_id,
+        election_event_id: record.election_event_id,
+        voter_id: record.voter_id.clone(),
+        message_id: record.id,
+        attempt: record.attempt,
+        channel: record.channel,
+        account_id: record.account_id,
+        provider: provider.to_string(),
+        purpose: record.purpose.unwrap_or(MessagePurpose::NOTICE),
+        kind: MessageKind::of(record.logical_key.as_deref().unwrap_or_default()),
+        outcome: record.state,
+        reason: record.error.clone(),
+        receiver: record.masked_destination.clone(),
     }
 }
 
@@ -125,7 +156,15 @@ impl DeliveryResult {
 pub struct Dispatcher {
     pub endpoints: Endpoints,
     http: reqwest::Client,
-    limiters: Mutex<HashMap<Uuid, Arc<RateLimiter>>>,
+    limiters: Mutex<
+        HashMap<
+            Uuid,
+            (
+                sequent_core::types::messaging::AccountLimits,
+                Arc<RateLimiter>,
+            ),
+        >,
+    >,
 }
 
 static DISPATCHER: OnceCell<Dispatcher> = OnceCell::const_new();
@@ -141,18 +180,27 @@ impl Dispatcher {
 
     pub async fn global() -> Result<&'static Dispatcher> {
         DISPATCHER
-            .get_or_try_init(|| async { Dispatcher::new(Endpoints::default()) })
+            .get_or_try_init(|| async { Dispatcher::new(Endpoints::from_env()) })
             .await
     }
 
+    pub fn http(&self) -> &reqwest::Client {
+        &self.http
+    }
+
+    /// The account's limiter, made again when the account's limits changed.
     fn limiter(&self, account: &MessagingAccount) -> Arc<RateLimiter> {
         let Ok(mut limiters) = self.limiters.lock() else {
             return Arc::new(RateLimiter::new(&account.limits));
         };
-        limiters
-            .entry(account.id)
-            .or_insert_with(|| Arc::new(RateLimiter::new(&account.limits)))
-            .clone()
+        match limiters.get(&account.id) {
+            Some((limits, limiter)) if *limits == account.limits => limiter.clone(),
+            _ => {
+                let limiter = Arc::new(RateLimiter::new(&account.limits));
+                limiters.insert(account.id, (account.limits.clone(), limiter.clone()));
+                limiter
+            }
+        }
     }
 }
 
@@ -165,9 +213,19 @@ struct EnvironmentSender {
 #[async_trait]
 impl ChannelSender for EnvironmentSender {
     fn capabilities(&self) -> ProviderCapabilities {
-        MessagingProvider::CONSOLE
-            .capabilities(self.channel)
-            .unwrap_or_else(|| unreachable!("the console accepts every channel"))
+        ProviderCapabilities {
+            channel: self.channel,
+            recipient: match self.channel {
+                MessageChannel::EMAIL => RecipientKind::EMAIL_ADDRESS,
+                _ => RecipientKind::PHONE_NUMBER,
+            },
+            purposes: vec![MessagePurpose::OTP, MessagePurpose::NOTICE],
+            template_required_for: vec![],
+            delivery_feedback: DeliveryFeedback::UNAVAILABLE,
+            reconciliation: false,
+            conversation_window_hours: None,
+            requires_provider_approval: false,
+        }
     }
 
     async fn send(&self, message: &OutboundMessage) -> SendOutcome {
@@ -199,7 +257,7 @@ impl ChannelSender for EnvironmentSender {
                     return refused("the SMS transport is not configured");
                 }
             },
-            _ => return refused(format!("no environment transport for {}", self.channel)),
+            _ => return refused(MessageReason::NO_ACCOUNT_FOR_CHANNEL.as_str()),
         };
         if sent {
             SendOutcome::Accepted {
@@ -241,17 +299,17 @@ async fn account_for(
         .find(|account| account.channel == channel && account.is_default))
 }
 
-/// Channels the event offers for `purpose` to this recipient. Without an
-/// event configuration, email and SMS stay available as before.
-fn eligible_channels(
+/// Channels the event offers for `purpose` to a voter of `election_ids`.
+/// Without an event configuration, email and SMS stay available as before.
+pub fn eligible_channels(
     config: Option<&EventMessagingConfig>,
     purpose: MessagePurpose,
-    recipient: &Recipient,
+    election_ids: &[String],
 ) -> Vec<MessageChannel> {
     match config {
         Some(config) => {
             let mut eligible = config.enabled_channels(purpose, None);
-            for election_id in &recipient.election_ids {
+            for election_id in election_ids {
                 let allowed = config.enabled_channels(purpose, Some(election_id));
                 eligible.retain(|channel| allowed.contains(channel));
             }
@@ -269,6 +327,7 @@ fn attempt_records(records: &[MessageRecord]) -> Vec<AttemptRecord> {
             channel: record.channel,
             state: record.state,
             failure: record.failure,
+            next_retry_at: record.next_retry_at,
         })
         .collect()
 }
@@ -281,78 +340,104 @@ fn refused(reason: impl ToString) -> SendOutcome {
     })
 }
 
-/// Sends `delivery`, following the attempt decisions until the message is
-/// accepted, its outcome is unknown, or there is nothing more to try.
+/// The time a voter's Messenger conversation stays open after Get Started.
+const MESSENGER_WINDOW_HOURS: i64 = 24;
+
+/// Records a message that has no channel at all: one FAILED row with
+/// [`MessageReason::NO_CONTACT_CHANNEL`], so staff see it. The ledger needs
+/// a channel, so the row is on email, the channel such a voter would have
+/// had (`voter_channel`'s legacy rule). A replay records nothing new.
+#[instrument(skip_all, fields(logical_key = %logical_key), err)]
+pub async fn record_without_channel(
+    client: &mut DbClient,
+    tenant_id: Uuid,
+    election_event_id: Option<Uuid>,
+    voter_id: Option<String>,
+    purpose: MessagePurpose,
+    template_alias: Option<String>,
+    language: Option<String>,
+    logical_key: &str,
+) -> Result<DeliveryResult> {
+    let tx = client.transaction().await?;
+    let inserted = insert_message(
+        &tx,
+        &NewMessage {
+            tenant_id,
+            election_event_id,
+            voter_id,
+            account_id: None,
+            channel: MessageChannel::EMAIL,
+            purpose: Some(purpose),
+            template_alias,
+            language,
+            masked_destination: "-".to_string(),
+            destination_digest: "-".to_string(),
+            destination_country: None,
+            logical_key: Some(logical_key.to_string()),
+            attempt: 1,
+            state: MessageAttemptState::FAILED,
+            provider_message_id: None,
+            error: Some(MessageReason::NO_CONTACT_CHANNEL.to_string()),
+            failure: Some(FailureKind::PERMANENT),
+            billing_category: None,
+        },
+    )
+    .await?;
+    let result = match inserted {
+        Some(record) => {
+            warn!(message_id = %record.id, "{}", MessageReason::NO_CONTACT_CHANNEL);
+            let mut result = DeliveryResult::from_record(&record);
+            result.recorded = vec![attempt_outcome(&record, ENVIRONMENT_PROVIDER)];
+            result
+        }
+        None => list_attempts(&tx, &tenant_id, logical_key)
+            .await?
+            .last()
+            .map(DeliveryResult::from_record)
+            .ok_or_else(|| anyhow!("inconsistent attempts"))?,
+    };
+    tx.commit().await?;
+    Ok(result)
+}
+
+/// Sends `delivery` on its recipient's channel, unless an earlier attempt
+/// was accepted, may have reached the provider, or failed for good, or a
+/// retry isn't due yet. A transient failure schedules the next attempt on
+/// the same channel; the retry sweep sends it.
 #[instrument(skip_all, fields(logical_key = %delivery.logical_key, purpose = %delivery.purpose), err)]
 pub async fn deliver(
     client: &mut DbClient,
     dispatcher: &Dispatcher,
     delivery: &Delivery,
 ) -> Result<DeliveryResult> {
-    // Every pass records an attempt, so this only bounds a misbehaving loop.
-    for _ in 0..16 {
+    // Only a concurrent worker recording the same attempt makes it loop.
+    for _ in 0..4 {
         let tx = client.transaction().await?;
         let config = match &delivery.election_event_id {
             Some(event) => get_event_messaging_config(&tx, &delivery.tenant_id, event).await?,
             None => None,
         };
         let records = list_attempts(&tx, &delivery.tenant_id, &delivery.logical_key).await?;
-        // A send through an explicitly chosen account, such as a test
-        // message, is not subject to an event configuration.
-        let eligible = match delivery.account_id {
-            Some(_) => vec![delivery.first_channel],
-            None => eligible_channels(config.as_ref(), delivery.purpose, &delivery.recipient),
-        };
-        let fallback = match (delivery.fallback, &config) {
-            (FallbackPolicy::EVENT_ORDER, Some(config)) => config.notice_fallback.clone(),
-            _ => vec![],
-        };
-        let route = NoticeRoute {
-            first: delivery.first_channel,
-            fallback: &fallback,
-            verified: &delivery.recipient.verified,
-            eligible: &eligible,
-        };
         let latest = records.iter().max_by_key(|r| r.attempt);
-        let (attempt, channel) = match decide(delivery.purpose, &route, &attempt_records(&records))
-        {
+        let (attempt, channel) = match decide(
+            delivery.purpose,
+            delivery.recipient.channel,
+            &attempt_records(&records),
+            Utc::now(),
+        ) {
             Dispatch::Send { attempt, channel } => (attempt, channel),
             Dispatch::AlreadySent | Dispatch::AwaitReconciliation => {
                 let current = records
                     .iter()
-                    .find(|r| {
-                        matches!(
-                            r.state,
-                            MessageAttemptState::ACCEPTED
-                                | MessageAttemptState::DELIVERED
-                                | MessageAttemptState::UNKNOWN
-                                | MessageAttemptState::QUEUED
-                        )
-                    })
+                    .find(|r| r.state != MessageAttemptState::FAILED)
                     .map(DeliveryResult::from_record);
                 tx.commit().await?;
                 return current.ok_or_else(|| anyhow!("inconsistent attempts"));
             }
-            Dispatch::RetryLater { after } => {
+            Dispatch::RetryLater { .. } | Dispatch::GiveUp => {
+                let current = latest.map(DeliveryResult::from_record);
                 tx.commit().await?;
-                let mut result = latest
-                    .map(DeliveryResult::from_record)
-                    .ok_or_else(|| anyhow!("retry without attempts"))?;
-                result.retry_after = Some(after);
-                return Ok(result);
-            }
-            Dispatch::GiveUp => {
-                tx.commit().await?;
-                return Ok(latest
-                    .map(DeliveryResult::from_record)
-                    .unwrap_or(DeliveryResult {
-                        message_id: None,
-                        channel: None,
-                        state: MessageAttemptState::FAILED,
-                        reason: Some("no eligible channel".to_string()),
-                        retry_after: None,
-                        masked_destination: None,
-                    }));
+                return current.ok_or_else(|| anyhow!("inconsistent attempts"));
             }
         };
 
@@ -362,16 +447,19 @@ pub async fn deliver(
                 .filter(|account| account.channel == channel),
             None => account_for(&tx, &delivery.tenant_id, config.as_ref(), channel).await?,
         };
+        let provider = account
+            .as_ref()
+            .map(|a| a.provider.to_string())
+            .unwrap_or_else(|| ENVIRONMENT_PROVIDER.to_string());
         let destination_key = tenant_key(&tx, &delivery.tenant_id, TenantKey::Destination).await?;
-        let raw_destination = delivery.recipient.destinations.get(&channel);
-        let destination = raw_destination.map(|raw| Destination::parse(channel, raw));
+        let destination = Destination::parse(channel, &delivery.recipient.destination);
         let (masked, digest, country) = match &destination {
-            Some(Ok(destination)) => (
+            Ok(destination) => (
                 destination.masked(),
                 destination.digest(&destination_key)?,
-                destination.calling_code().map(str::to_string),
+                destination.country().map(str::to_string),
             ),
-            _ => ("-".to_string(), "-".to_string(), None),
+            Err(_) => ("-".to_string(), "-".to_string(), None),
         };
         let mut record = NewMessage {
             tenant_id: delivery.tenant_id,
@@ -379,7 +467,6 @@ pub async fn deliver(
             voter_id: delivery.recipient.voter_id.clone(),
             account_id: account.as_ref().map(|a| a.id),
             channel,
-            direction: MessageDirection::OUTBOUND,
             purpose: Some(delivery.purpose),
             template_alias: delivery.template_alias.clone(),
             language: delivery.language.clone(),
@@ -392,28 +479,36 @@ pub async fn deliver(
             provider_message_id: None,
             error: None,
             failure: None,
+            billing_category: None,
         };
 
-        let prepared: std::result::Result<(Box<dyn ChannelSender>, OutboundMessage), String> =
+        let prepared: std::result::Result<(Box<dyn ChannelSender>, OutboundMessage, bool), String> =
             async {
-                let destination = match destination {
-                    Some(Ok(destination)) => destination,
-                    Some(Err(error)) => return Err(error.to_string()),
-                    None => return Err(format!("no {channel} address")),
-                };
+                // A send through a chosen account (a test message) is not
+                // subject to the event's channels.
+                if delivery.account_id.is_none()
+                    && !eligible_channels(
+                        config.as_ref(),
+                        delivery.purpose,
+                        &delivery.recipient.election_ids,
+                    )
+                    .contains(&channel)
+                {
+                    return Err(MessageReason::channel_not_offered(delivery.purpose).to_string());
+                }
+                let destination =
+                    destination.map_err(|_| MessageReason::INVALID_DESTINATION.to_string())?;
                 let content = delivery
-                    .contents
-                    .get(&channel)
-                    .cloned()
-                    .ok_or_else(|| format!("no {channel} content"))?;
+                    .content
+                    .clone()
+                    .ok_or_else(|| MessageReason::NO_CONTENT_FOR_CHANNEL.to_string())?;
                 let channel_config = config.as_ref().and_then(|c| c.channel(channel));
                 // The approved template and the provider's code for its
                 // language: the message's own, then the event's most
                 // specific binding, then the account's declared approvals.
                 let template: Option<ProviderTemplate> = delivery
-                    .provider_templates
-                    .get(&channel)
-                    .cloned()
+                    .provider_template
+                    .clone()
                     .or_else(|| {
                         config
                             .as_ref()
@@ -453,7 +548,7 @@ pub async fn deliver(
                     .and_then(|t| t.language.clone())
                     .or_else(|| delivery.language.clone());
                 let provider_template = template.map(|t| t.name);
-                let (sender, last_inbound): (Box<dyn ChannelSender>, _) = match &account {
+                let (sender, last_get_started): (Box<dyn ChannelSender>, _) = match &account {
                     Some(account) => {
                         let runtime = runtime_account(&tx, account)
                             .await
@@ -462,16 +557,23 @@ pub async fn deliver(
                             providers::build(&runtime, &dispatcher.http, &dispatcher.endpoints)
                                 .await
                                 .map_err(|e| e.to_string())?;
-                        let last = last_inbound_at(&tx, &account.id, &digest)
-                            .await
-                            .map_err(|e| e.to_string())?;
+                        let last = match channel {
+                            MessageChannel::MESSENGER => {
+                                last_get_started_at(&tx, &account.id, &digest)
+                                    .await
+                                    .map_err(|e| e.to_string())?
+                            }
+                            _ => None,
+                        };
                         (sender, last)
                     }
                     None if matches!(channel, MessageChannel::EMAIL | MessageChannel::SMS) => {
                         (Box::new(EnvironmentSender { channel }), None)
                     }
-                    None => return Err(format!("no {channel} account")),
+                    None => return Err(MessageReason::NO_ACCOUNT_FOR_CHANNEL.to_string()),
                 };
+                let in_window = last_get_started
+                    .is_some_and(|at| Utc::now() - at < Duration::hours(MESSENGER_WINDOW_HOURS));
                 Ok((
                     sender,
                     OutboundMessage {
@@ -483,37 +585,51 @@ pub async fn deliver(
                         provider_template,
                         idempotency_key: format!("{}:{attempt}", delivery.logical_key),
                         expires_at: delivery.expires_at,
-                        last_inbound_at: last_inbound,
+                        last_inbound_at: last_get_started,
                         out_of_window: channel_config
-                            .map(|c| c.out_of_window)
+                            .map(|c| c.effective_out_of_window())
                             .unwrap_or(OutOfWindowPolicy::DISABLED),
                     },
+                    in_window,
                 ))
             }
             .await;
-        let (sender, message) = match prepared {
-            Ok(prepared) => prepared,
-            Err(reason) => {
-                record.state = MessageAttemptState::FAILED;
-                record.error = Some(reason);
-                record.failure = Some(FailureKind::PERMANENT);
-                insert_message(&tx, &record).await?;
+        let refusal = match &prepared {
+            Ok((sender, message, _)) => {
+                let limits = account
+                    .as_ref()
+                    .map(|a| a.limits.clone())
+                    .unwrap_or_default();
+                preflight(&sender.capabilities(), &limits, message, Utc::now())
+                    .err()
+                    .map(|error| error.to_string())
+            }
+            Err(reason) => Some(reason.clone()),
+        };
+        if let Some(reason) = refusal {
+            // Refused before the provider: one FAILED row, never another
+            // channel.
+            record.state = MessageAttemptState::FAILED;
+            record.error = Some(reason);
+            record.failure = Some(FailureKind::PERMANENT);
+            let Some(failed) = insert_message(&tx, &record).await? else {
                 tx.commit().await?;
                 continue;
-            }
-        };
-        let limits = account
-            .as_ref()
-            .map(|a| a.limits.clone())
-            .unwrap_or_default();
-        if let Err(error) = preflight(&sender.capabilities(), &limits, &message, Utc::now()) {
-            record.state = MessageAttemptState::FAILED;
-            record.error = Some(error.to_string());
-            record.failure = Some(FailureKind::PERMANENT);
-            insert_message(&tx, &record).await?;
+            };
             tx.commit().await?;
-            continue;
+            info!(message_id = %failed.id, %channel, reason = ?failed.error, "message refused");
+            let mut result = DeliveryResult::from_record(&failed);
+            result.recorded = vec![attempt_outcome(&failed, &provider)];
+            return Ok(result);
         }
+        let Ok((sender, message, in_window)) = prepared else {
+            return Err(anyhow!("unreachable: refusal handled above"));
+        };
+        record.billing_category = Some(BillingCategory::expected(
+            channel,
+            delivery.purpose,
+            in_window,
+        ));
         let Some(queued) = insert_message(&tx, &record).await? else {
             // Another worker recorded this attempt first: decide again.
             tx.commit().await?;
@@ -528,8 +644,22 @@ pub async fn deliver(
             .expires_at
             .is_some_and(|expires_at| expires_at <= Utc::now())
         {
-            refused("the code expired before it could be sent")
+            // Never handed to the provider: `dispatched_at` stays empty.
+            refused(MessageReason::CODE_EXPIRED_BEFORE_SENDING.as_str())
         } else {
+            let tx = client.transaction().await?;
+            let dispatching = mark_dispatched(&tx, &queued.id).await?;
+            tx.commit().await?;
+            if !dispatching {
+                // The sweep found the attempt stale while it waited and
+                // recorded it: it is not sent.
+                let tx = client.transaction().await?;
+                let current = get_message(&tx, &queued.id).await?;
+                tx.commit().await?;
+                return current
+                    .map(|r| DeliveryResult::from_record(&r))
+                    .ok_or_else(|| anyhow!("attempt disappeared"));
+            }
             sender.send(&message).await
         };
         let change = match &outcome {
@@ -539,14 +669,26 @@ pub async fn deliver(
                 provider_message_id: provider_message_id.clone(),
                 ..Default::default()
             },
-            SendOutcome::Rejected(failure) => StateChange {
-                error: Some(match &failure.code {
+            SendOutcome::Rejected(failure) => {
+                let mut error = match &failure.code {
                     Some(code) => format!("{} ({code})", failure.reason),
                     None => failure.reason.clone(),
-                }),
-                failure: Some(failure.kind),
-                ..Default::default()
-            },
+                };
+                let mut retry_at =
+                    next_retry_at(delivery.purpose, attempt, failure.kind, Utc::now());
+                if retry_at.is_some() && delivery.template_alias.is_none() {
+                    // The ledger keeps no content: without a stored template
+                    // there is nothing to send again.
+                    retry_at = None;
+                    error = MessageReason::NO_STORED_TEMPLATE.to_string();
+                }
+                StateChange {
+                    error: Some(error),
+                    failure: Some(failure.kind),
+                    next_retry_at: retry_at,
+                    ..Default::default()
+                }
+            }
             SendOutcome::Unknown { reason } => StateChange {
                 error: Some(reason.clone()),
                 ..Default::default()
@@ -554,24 +696,25 @@ pub async fn deliver(
         };
         let tx = client.transaction().await?;
         let updated = transition_message(&tx, &queued.id, outcome.state(), &change).await?;
-        tx.commit().await?;
-        if updated.is_none() {
-            warn!(message_id = %queued.id, "a report updated the attempt before its send finished");
-        }
-        info!(message_id = %queued.id, %channel, state = %outcome.state(), "message attempt");
-        match outcome {
-            SendOutcome::Accepted { .. } | SendOutcome::Unknown { .. } => {
-                let tx = client.transaction().await?;
-                let latest = list_attempts(&tx, &delivery.tenant_id, &delivery.logical_key)
+        let current = match updated {
+            Some(updated) => updated,
+            None => {
+                warn!(message_id = %queued.id, "a report updated the attempt before its send finished");
+                get_message(&tx, &queued.id)
                     .await?
-                    .into_iter()
-                    .find(|r| r.id == queued.id)
-                    .map(|r| DeliveryResult::from_record(&r));
-                tx.commit().await?;
-                return latest.ok_or_else(|| anyhow!("attempt disappeared"));
+                    .ok_or_else(|| anyhow!("attempt disappeared"))?
             }
-            SendOutcome::Rejected(_) => continue,
-        }
+        };
+        tx.commit().await?;
+        info!(message_id = %queued.id, %channel, state = %outcome.state(), "message attempt");
+        let mut result = DeliveryResult::from_record(&current);
+        // The attempt's own outcome, even when a fast report already moved
+        // it on.
+        let mut logged = attempt_outcome(&current, &provider);
+        logged.outcome = outcome.state();
+        logged.reason = change.error.clone();
+        result.recorded = vec![logged];
+        return Ok(result);
     }
     Err(anyhow!("too many attempts for {}", delivery.logical_key))
 }

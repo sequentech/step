@@ -62,6 +62,10 @@ pub async fn create_scheduled_event(
                     format!("Invalid send-template payload: {error}"),
                 )
             })?;
+            // Refused here, with a 400, rather than when the task runs.
+            if let Some(reason) = payload.audience_refusal() {
+                return Err((Status::BadRequest, reason.to_string()));
+            }
             if !payload.secret_attribute_names.is_empty() {
                 authorize(
                     &claims,

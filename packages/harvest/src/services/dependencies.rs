@@ -9,6 +9,7 @@ use crate::adapters::electoral_log::BoardElectoralLogs;
 use crate::adapters::identity::KeycloakIdentityAdmin;
 use crate::adapters::monitoring_renderer::HttpMonitoringRenderer;
 use crate::adapters::monitoring_snapshots::WindmillMonitoringSnapshots;
+use crate::adapters::service_keys::KeycloakServiceKeys;
 use crate::adapters::task_ledger::WindmillTaskLedger;
 use crate::adapters::task_queue::CeleryTaskQueue;
 use crate::adapters::vault::WindmillVault;
@@ -22,9 +23,11 @@ use crate::ports::monitoring_snapshots::MonitoringSnapshots;
 use crate::ports::task_ledger::TaskLedger;
 use crate::ports::task_queue::TaskQueue;
 use crate::ports::vault::SecretVault;
+use crate::routes::messaging::MessagingRelay;
 use crate::services::monitoring::{DrawFailure, DrawnChart};
 use crate::services::monitoring_cache::RenderCache;
 use crate::services::monitoring_config_cache::MonitoringConfigs;
+use crate::services::service_auth::ServiceKeys;
 use sequent_core::monitoring::cadence::Cadence;
 use std::sync::Arc;
 use windmill::services::consolidation::signed_transmission_package::AnnotatedSbeis;
@@ -55,6 +58,9 @@ pub struct HarvestServices {
     pub documents: Arc<dyn DocumentStorage>,
     pub electoral_log: Arc<dyn ElectoralLogs>,
     pub identity: Arc<dyn IdentityAdmin>,
+    /// How provider callbacks relayed by the webhook component are
+    /// authenticated.
+    pub messaging_relay: MessagingRelay,
     pub monitoring_audit: Arc<dyn MonitoringConfigAudit>,
     pub monitoring_cache: Arc<MonitoringCache>,
     pub monitoring_configs: Arc<MonitoringConfigs>,
@@ -63,6 +69,9 @@ pub struct HarvestServices {
     pub monitoring_renderer: Arc<dyn MonitoringRenderer>,
     pub monitoring_snapshots: Arc<dyn MonitoringSnapshots>,
     pub ledger: Arc<dyn TaskLedger>,
+    /// The realm keys Keycloak's service tokens on `/messages/*` are
+    /// verified with.
+    pub service_keys: Arc<ServiceKeys>,
     pub tasks: Arc<dyn TaskQueue>,
     pub vault: Arc<dyn SecretVault>,
     /// What an approval checks certificates with and runs actions with.
@@ -80,6 +89,7 @@ impl HarvestServices {
             documents: Arc::new(S3DocumentStorage),
             electoral_log: Arc::new(BoardElectoralLogs),
             identity: Arc::new(KeycloakIdentityAdmin),
+            messaging_relay: MessagingRelay::from_env(),
             monitoring_audit: Arc::new(ElectoralLogConfigAudit),
             monitoring_cache: Arc::new(MonitoringCache::from_env()),
             monitoring_configs: Arc::new(MonitoringConfigs::from_env()),
@@ -89,6 +99,9 @@ impl HarvestServices {
                 databases,
             }),
             ledger: Arc::new(WindmillTaskLedger),
+            service_keys: Arc::new(ServiceKeys::new(Arc::new(
+                KeycloakServiceKeys::new(),
+            ))),
             tasks: Arc::new(CeleryTaskQueue),
             vault: Arc::new(WindmillVault),
             signing: SigningServices {

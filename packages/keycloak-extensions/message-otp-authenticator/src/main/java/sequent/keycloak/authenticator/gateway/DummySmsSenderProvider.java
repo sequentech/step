@@ -31,7 +31,10 @@ public class DummySmsSenderProvider implements SmsSenderProvider {
   @Override
   public void send(String phoneNumber, String message) throws IOException {
     log.infov("send() small: called");
-    log.infov("Simulated SMS delivery to {0}", phoneNumber);
+    log.infov(
+        "Simulated SMS delivery to {0}",
+        sequent.keycloak.authenticator.messaging.VoterChannels.mask(
+            sequent.keycloak.authenticator.messaging.MessageChannel.SMS, phoneNumber));
   }
 
   @Override

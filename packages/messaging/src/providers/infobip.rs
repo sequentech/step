@@ -4,6 +4,12 @@
 
 //! Viber Business Messages through Infobip. Step sets the message ID, so an
 //! attempt whose response was lost can be looked up by that ID.
+//!
+//! Delivery reports arrive only through the account's Infobip subscription
+//! (notification profile), whose security setting is Basic auth with a user
+//! name and password Step generates ([`new_report_credentials`]). Messages
+//! never name a per-request report URL: one could bypass the subscription's
+//! security setting.
 
 use super::{exchange, Account};
 use crate::parameters::{parse_all, TemplateParameter};
@@ -12,13 +18,93 @@ use crate::sender::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use chrono::Utc;
 use sequent_core::types::messaging::{
     AccountCheck, AccountSender, CredentialName, MessageAttemptState, MessageChannel,
     MessagePurpose, MessagingProvider, ProviderCapabilities,
 };
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+
+/// The Basic auth an Infobip report subscription sends with each report.
+/// Shown once to the administrator, then kept only in the vault.
+#[derive(Clone, PartialEq, Eq)]
+pub struct ReportCredentials {
+    pub username: String,
+    pub password: String,
+}
+
+impl std::fmt::Debug for ReportCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReportCredentials").finish_non_exhaustive()
+    }
+}
+
+/// Random report credentials for a new subscription.
+pub fn new_report_credentials() -> ReportCredentials {
+    ReportCredentials {
+        username: format!("step-reports-{}", &crate::link::new_reference()[..16]),
+        password: crate::link::new_reference(),
+    }
+}
+
+/// Why a report's `Authorization` header was refused. Each has one reason.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReportAuthRefusal {
+    /// The account has no report credentials yet.
+    NOT_CONFIGURED,
+    MISSING,
+    MALFORMED,
+    WRONG_CREDENTIALS,
+}
+
+impl ReportAuthRefusal {
+    pub fn reason(self) -> &'static str {
+        match self {
+            Self::NOT_CONFIGURED => "The account has no report credentials",
+            Self::MISSING => "The report has no Basic authorization",
+            Self::MALFORMED => "The report's authorization can't be read",
+            Self::WRONG_CREDENTIALS => "The report's credentials are wrong",
+        }
+    }
+}
+
+/// Equal-time comparison: both sides are hashed first, so neither their
+/// lengths nor their contents shape the time taken.
+fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+    openssl::memcmp::eq(&Sha256::digest(left), &Sha256::digest(right))
+}
+
+/// Checks a report's `Authorization` header against the account's report
+/// credentials.
+pub fn verify_report_authorization(
+    authorization: Option<&str>,
+    expected: Option<&ReportCredentials>,
+) -> std::result::Result<(), ReportAuthRefusal> {
+    let expected = expected
+        .filter(|c| !c.username.is_empty() && !c.password.is_empty())
+        .ok_or(ReportAuthRefusal::NOT_CONFIGURED)?;
+    let authorization = authorization.ok_or(ReportAuthRefusal::MISSING)?.trim();
+    let (scheme, encoded) = authorization
+        .split_once(' ')
+        .ok_or(ReportAuthRefusal::MALFORMED)?;
+    if !scheme.eq_ignore_ascii_case("basic") {
+        return Err(ReportAuthRefusal::MALFORMED);
+    }
+    let decoded = STANDARD
+        .decode(encoded.trim())
+        .map_err(|_| ReportAuthRefusal::MALFORMED)?;
+    let wanted = format!("{}:{}", expected.username, expected.password);
+    if constant_time_eq(&decoded, wanted.as_bytes()) {
+        Ok(())
+    } else {
+        Err(ReportAuthRefusal::WRONG_CREDENTIALS)
+    }
+}
 
 pub struct InfobipViberSender {
     account: Account,
@@ -111,7 +197,9 @@ impl ChannelSender for InfobipViberSender {
                 reason: "missing API key or approved template".to_string(),
             });
         };
-        let mut entry = json!({
+        // No `webhooks.delivery.url`: reports come only through the
+        // account's subscription, with its Basic auth.
+        let entry = json!({
             "sender": self.sender,
             "destinations": [{
                 "to": message.destination.as_str().trim_start_matches('+'),
@@ -119,9 +207,6 @@ impl ChannelSender for InfobipViberSender {
             }],
             "content": Self::content(message, template),
         });
-        if let Some(callback) = &self.account.callback_url {
-            entry["webhooks"] = json!({"delivery": {"url": callback}});
-        }
         let request = self
             .http
             .post(format!("{}/viber/2/messages", self.base_url))
@@ -227,7 +312,7 @@ mod tests {
             },
             credentials: BTreeMap::from([(CredentialName::API_KEY, "key-1".to_string())]),
             limits: AccountLimits::default(),
-            callback_url: Some("https://step.example/webhooks/viber/abc".to_string()),
+            callback_url: Some("https://callbacks.example.org/webhooks/viber/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()),
         }
     }
 
@@ -276,10 +361,86 @@ mod tests {
         assert_eq!(entry["destinations"][0]["messageId"], "logical-1:1");
         assert_eq!(entry["content"]["templateId"], "tpl-otp-en");
         assert_eq!(entry["content"]["parameters"]["pin"], "123456");
+        // The account has a callback address, and still no message names
+        // one: reports come through the subscription's Basic auth only.
+        assert!(sender.account.callback_url.is_some());
+        assert_eq!(entry.get("webhooks"), None, "{body}");
+    }
+
+    fn basic(user_and_password: &str) -> String {
+        format!("Basic {}", STANDARD.encode(user_and_password))
+    }
+
+    #[test]
+    fn reports_need_the_subscriptions_basic_auth() {
+        let expected = ReportCredentials {
+            username: "step-reports-1".to_string(),
+            password: "secret".to_string(),
+        };
         assert_eq!(
-            entry["webhooks"]["delivery"]["url"],
-            "https://step.example/webhooks/viber/abc"
+            verify_report_authorization(Some(&basic("step-reports-1:secret")), Some(&expected)),
+            Ok(())
         );
+        assert_eq!(
+            verify_report_authorization(
+                Some(&format!(
+                    "basic {}",
+                    STANDARD.encode("step-reports-1:secret")
+                )),
+                Some(&expected)
+            ),
+            Ok(())
+        );
+        for (header, refusal) in [
+            (None, ReportAuthRefusal::MISSING),
+            (
+                Some("Bearer token".to_string()),
+                ReportAuthRefusal::MALFORMED,
+            ),
+            (Some("Basic".to_string()), ReportAuthRefusal::MALFORMED),
+            (Some("Basic !!!".to_string()), ReportAuthRefusal::MALFORMED),
+            (
+                Some(basic("step-reports-1:wrong")),
+                ReportAuthRefusal::WRONG_CREDENTIALS,
+            ),
+            (
+                Some(basic("step-reports-1:secret ")),
+                ReportAuthRefusal::WRONG_CREDENTIALS,
+            ),
+            (
+                Some(basic("other:secret")),
+                ReportAuthRefusal::WRONG_CREDENTIALS,
+            ),
+            (Some(basic(":")), ReportAuthRefusal::WRONG_CREDENTIALS),
+        ] {
+            assert_eq!(
+                verify_report_authorization(header.as_deref(), Some(&expected)),
+                Err(refusal),
+                "{header:?}"
+            );
+        }
+        // Before the credentials are generated, every report is refused.
+        let empty = ReportCredentials {
+            username: String::new(),
+            password: String::new(),
+        };
+        for credentials in [None, Some(&empty)] {
+            assert_eq!(
+                verify_report_authorization(Some(&basic(":")), credentials),
+                Err(ReportAuthRefusal::NOT_CONFIGURED)
+            );
+        }
+    }
+
+    #[test]
+    fn generated_report_credentials_are_random_and_never_printed() {
+        let first = new_report_credentials();
+        let second = new_report_credentials();
+        assert_ne!(first, second);
+        assert!(first.username.starts_with("step-reports-"));
+        assert_eq!(first.password.len(), 64);
+        let printed = format!("{first:?}");
+        assert!(!printed.contains(&first.password) && !printed.contains(&first.username));
     }
 
     #[tokio::test]

@@ -25,7 +25,7 @@ use tracing::{error, info, instrument};
 
 /// The permissions the migration adds, with the English label Users and
 /// Roles shows for each, which becomes the role's description.
-pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 21] = [
+pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 25] = [
     (
         Permissions::ELECTION_EVENT_SIGNATURES_TAB,
         "Election Event Signatures Tab",
@@ -95,6 +95,22 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 21] = [
     ),
     (Permissions::SIGN_KEY_CEREMONY, "Sign: confirm a key share"),
     (Permissions::SIGN_TALLY_KEY, "Sign: contribute a key share"),
+    (
+        Permissions::MESSAGING_ACCOUNT_READ,
+        "Read messaging accounts",
+    ),
+    (
+        Permissions::MESSAGING_ACCOUNT_WRITE,
+        "Manage messaging accounts",
+    ),
+    (
+        Permissions::MESSAGING_CONFIG_WRITE,
+        "Configure election event messaging",
+    ),
+    (
+        Permissions::MESSAGING_CONFIG_READ,
+        "Read election event messaging",
+    ),
 ];
 
 /// The realm roles the migration imports: plain realm roles without ids,

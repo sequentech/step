@@ -4599,6 +4599,7 @@ dependencies = [
  "hex",
  "immudb-rs",
  "indexmap 2.14.2",
+ "jsonwebtoken",
  "keycloak",
  "lru",
  "messaging",

@@ -32,6 +32,7 @@ import {Tabs} from "@/components/Tabs"
 import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
+import {LOGS_TAB_ID} from "@/components/logs/messagingLogFilters"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -348,12 +349,10 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
     )
+    // The tab reads the configuration, accounts and ledger with messaging-config-read.
     const showMessaging =
         !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, [
-            IPermissions.MESSAGING_CONFIG_WRITE,
-            IPermissions.MESSAGING_ACCOUNT_READ,
-        ])
+        authContext.isAuthorized(true, authContext.tenantId, IPermissions.MESSAGING_CONFIG_READ)
     const showAreas =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)
@@ -551,7 +550,11 @@ export const ElectionEventTabs: React.FC = () => {
 
         // Logs
         if (showLogs) {
-            result.push({label: t("electionEventScreen.tabs.logs"), component: LogsTab})
+            result.push({
+                id: LOGS_TAB_ID,
+                label: t("electionEventScreen.tabs.logs"),
+                component: LogsTab,
+            })
         }
 
         // Events
@@ -610,6 +613,15 @@ export const ElectionEventTabs: React.FC = () => {
     ])
 
     const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
+    const logsTabIndex = tabs.findIndex((tab) => tab.id === LOGS_TAB_ID)
+
+    // The Messaging tab's Failed counts open Logs with `tabId=logs` and a filter.
+    useEffect(() => {
+        const tabId = new URLSearchParams(location.search).get("tabId")
+        if (tabId === LOGS_TAB_ID && logsTabIndex >= 0) {
+            setSelectedTab(logsTabIndex)
+        }
+    }, [location.search, logsTabIndex])
     const publishTabIndex = tabs.findIndex((tab) => tab.id === "publish")
 
     // Publish's re-authentication returns with `tabId=publish`: tab positions depend on permissions.

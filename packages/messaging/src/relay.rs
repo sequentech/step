@@ -38,6 +38,46 @@ pub const RELAY_MAX_SKEW_SECONDS: i64 = 300;
 /// Version of [`CallbackEnvelope`] this code writes and reads.
 pub const ENVELOPE_VERSION: u8 = 1;
 
+/// Largest provider body the component takes, in bytes. Read by the
+/// component, and by harvest to size the envelopes it accepts.
+pub const MAX_BODY_BYTES_ENV: &str = "MESSAGING_WEBHOOKS_MAX_BODY_BYTES";
+
+/// [`MAX_BODY_BYTES_ENV`] when it is unset: 256 KiB.
+pub const DEFAULT_MAX_BODY_BYTES: u64 = 262_144;
+
+/// Public base URL of the component, where providers send callbacks. Set on
+/// the services that show or send callback URLs (windmill, harvest), never
+/// needed by the component itself.
+pub const WEBHOOKS_PUBLIC_URL_ENV: &str = "MESSAGING_WEBHOOKS_PUBLIC_URL";
+
+/// Room for the envelope's JSON fields, the query and the forwarded headers
+/// on top of the base64 body.
+const ENVELOPE_OVERHEAD_BYTES: u64 = 64 * 1024;
+
+/// [`MAX_BODY_BYTES_ENV`] read from its raw value: the default when unset or
+/// blank.
+///
+/// # Errors
+/// When the value is not a positive whole number of bytes.
+pub fn max_body_bytes(value: Option<&str>) -> Result<u64> {
+    match value.map(str::trim).filter(|value| !value.is_empty()) {
+        None => Ok(DEFAULT_MAX_BODY_BYTES),
+        Some(value) => match value.parse::<u64>() {
+            Ok(bytes) if bytes > 0 => Ok(bytes),
+            _ => anyhow::bail!("{MAX_BODY_BYTES_ENV} must be a positive number of bytes"),
+        },
+    }
+}
+
+/// The largest envelope harvest reads for provider bodies of up to
+/// `max_body_bytes`: base64 grows the body by 4/3, so twice the body plus
+/// room for the other fields.
+pub fn envelope_limit(max_body_bytes: u64) -> u64 {
+    max_body_bytes
+        .saturating_mul(2)
+        .saturating_add(ENVELOPE_OVERHEAD_BYTES)
+}
+
 /// The only request headers the component forwards, lowercased. Viber
 /// reports authenticate with `authorization` (Basic, from the Infobip
 /// subscription); the others carry provider signatures and SNS metadata.
@@ -71,6 +111,29 @@ pub enum CallbackMethod {
     GET,
     /// Every report and event.
     POST,
+}
+
+impl CallbackProvider {
+    /// The provider's segment in the component's routes,
+    /// `/webhooks/{segment}/{key}`.
+    pub fn path_segment(self) -> &'static str {
+        match self {
+            Self::META => "meta",
+            Self::VIBER => "viber",
+            Self::AWS => "aws",
+        }
+    }
+
+    /// The callback URL an administrator enters at the provider:
+    /// `{component_url}/webhooks/{segment}/{key}`, where `component_url` is
+    /// the component's public base URL ([`WEBHOOKS_PUBLIC_URL_ENV`]).
+    pub fn callback_url(self, component_url: &str, key: &str) -> String {
+        format!(
+            "{}/webhooks/{}/{key}",
+            component_url.trim_end_matches('/'),
+            self.path_segment()
+        )
+    }
 }
 
 /// One provider callback, as the component received it.
@@ -212,6 +275,25 @@ pub fn verify(
     body: &[u8],
     now: i64,
 ) -> Result<(), RelayAuthError> {
+    let (timestamp, signature) = fresh_signature(header, now)?;
+    relay_mac(secret, timestamp, body)
+        .verify_slice(&signature)
+        .map_err(|_| RelayAuthError::BadSignature)
+}
+
+/// The checks of [`verify`] that need neither the secret nor the body: the
+/// header is present, well formed and fresh. Lets harvest refuse a request
+/// before reading its body; [`verify`] still has the final word.
+///
+/// # Errors
+/// [`RelayAuthError::MissingSignature`], `MalformedSignature` or
+/// `StaleSignature`.
+pub fn check_header(header: Option<&str>, now: i64) -> Result<(), RelayAuthError> {
+    fresh_signature(header, now).map(|_| ())
+}
+
+/// The timestamp and MAC of a present, well-formed and fresh header.
+fn fresh_signature(header: Option<&str>, now: i64) -> Result<(i64, Vec<u8>), RelayAuthError> {
     let header = header.ok_or(RelayAuthError::MissingSignature)?;
     let mut timestamp = None;
     let mut signature = None;
@@ -228,9 +310,7 @@ pub fn verify(
     if now.abs_diff(timestamp) > RELAY_MAX_SKEW_SECONDS.unsigned_abs() {
         return Err(RelayAuthError::StaleSignature);
     }
-    relay_mac(secret, timestamp, body)
-        .verify_slice(&signature)
-        .map_err(|_| RelayAuthError::BadSignature)
+    Ok((timestamp, signature))
 }
 
 #[cfg(test)]
@@ -298,6 +378,65 @@ mod tests {
         assert_eq!(back.header("content-type"), Some("application/json"));
         assert_eq!(back.headers.len(), 2);
         assert!(json.contains("\"provider\":\"META\""));
+    }
+
+    #[test]
+    fn header_check_needs_no_secret_or_body() {
+        let header = sign(SECRET, 1_000, b"payload");
+        assert_eq!(check_header(Some(&header), 1_000), Ok(()));
+        assert_eq!(
+            check_header(None, 1_000),
+            Err(RelayAuthError::MissingSignature)
+        );
+        assert_eq!(
+            check_header(Some("t=1000"), 1_000),
+            Err(RelayAuthError::MalformedSignature)
+        );
+        assert_eq!(
+            check_header(Some("t=1000,v1=zz"), 1_000),
+            Err(RelayAuthError::MalformedSignature)
+        );
+        assert_eq!(
+            check_header(Some(&header), 699),
+            Err(RelayAuthError::StaleSignature)
+        );
+    }
+
+    #[test]
+    fn body_limits() {
+        assert_eq!(max_body_bytes(None).unwrap(), DEFAULT_MAX_BODY_BYTES);
+        assert_eq!(max_body_bytes(Some(" ")).unwrap(), DEFAULT_MAX_BODY_BYTES);
+        assert_eq!(max_body_bytes(Some("1024")).unwrap(), 1024);
+        assert!(max_body_bytes(Some("0")).is_err());
+        assert!(max_body_bytes(Some("-1")).is_err());
+        assert!(max_body_bytes(Some("1k")).is_err());
+        // The envelope of a body at the limit fits harvest's limit.
+        let body = vec![0xffu8; usize::try_from(DEFAULT_MAX_BODY_BYTES).unwrap()];
+        let envelope = CallbackEnvelope::new(
+            CallbackProvider::AWS,
+            KEY,
+            CallbackMethod::POST,
+            "",
+            [("content-type", "text/plain; charset=UTF-8")],
+            &body,
+            Utc::now(),
+        );
+        let size = serde_json::to_vec(&envelope).unwrap().len() as u64;
+        assert!(size < envelope_limit(DEFAULT_MAX_BODY_BYTES));
+        assert_eq!(envelope_limit(u64::MAX), u64::MAX);
+    }
+
+    #[test]
+    fn callback_urls_follow_the_component_routes() {
+        assert_eq!(
+            CallbackProvider::META.callback_url("https://callbacks.example.org/", KEY),
+            format!("https://callbacks.example.org/webhooks/meta/{KEY}")
+        );
+        assert_eq!(
+            CallbackProvider::VIBER.callback_url("http://messaging-webhooks:8410", KEY),
+            format!("http://messaging-webhooks:8410/webhooks/viber/{KEY}")
+        );
+        assert_eq!(CallbackProvider::AWS.path_segment(), "aws");
     }
 
     #[test]

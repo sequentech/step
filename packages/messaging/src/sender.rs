@@ -28,7 +28,9 @@ pub struct OutboundMessage {
     pub idempotency_key: String,
     /// Codes only: never sent after this instant.
     pub expires_at: Option<DateTime<Utc>>,
-    /// The recipient's last message to the account, for conversation windows.
+    /// When the recipient last opened the conversation (Messenger's Get
+    /// Started or a referral), for conversation windows. Text the recipient
+    /// writes doesn't count: it isn't kept.
     pub last_inbound_at: Option<DateTime<Utc>>,
     pub out_of_window: OutOfWindowPolicy,
 }

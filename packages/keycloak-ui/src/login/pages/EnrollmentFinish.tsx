@@ -4,7 +4,7 @@ import type {ReactNode} from "react"
 import {SymbolTone} from "../Template"
 import {CheckCircleIcon, ClockIcon, WarningIcon} from "../icons"
 import type {MessageKey} from "../i18n"
-import type {EnrollmentOutcome} from "../KcContext"
+import {inChannelOrder, type EnrollmentOutcome} from "../KcContext"
 import type {EnrollmentPageProps} from "../enrollment/pageProps"
 import {dynamicText, finishedFrame, textFor} from "../scanovate/text"
 
@@ -78,6 +78,20 @@ export default function EnrollmentFinish(props: EnrollmentPageProps<FinishPageId
     const mismatches = mismatchesOf(pageId, enrollmentOutcome)
     const mismatchesTitle = text("rejectReasonListItems")
     const empty = text("empty")
+    // Where the result goes: the channel the voter verified, with its masked contact.
+    const [noticeChannel] = inChannelOrder(
+        kcContext.noticeChannel === undefined ? [] : [kcContext.noticeChannel]
+    )
+    const noticeLabel =
+        noticeChannel === undefined ? undefined : i18n.msgStr(`messageChannel.${noticeChannel}`)
+    const notice =
+        noticeLabel === undefined
+            ? undefined
+            : kcContext.noticeAddress
+              ? text("messageOtp.pending.channelAddress", noticeLabel, kcContext.noticeAddress)
+              : text("messageOtp.pending.channel", noticeLabel)
+    // The review page's own text only says "SMS or email": the channel line replaces it.
+    const showMessage = notice === undefined || pageId !== "registration-manual-finish.ftl"
 
     return (
         <Template
@@ -132,9 +146,16 @@ export default function EnrollmentFinish(props: EnrollmentPageProps<FinishPageId
                     </dl>
                 </section>
             )}
-            <p className="auth-message" lang={message.lang}>
-                {i18n.msg(finish.message)}
-            </p>
+            {showMessage && (
+                <p className="auth-message" lang={message.lang}>
+                    {i18n.msg(finish.message)}
+                </p>
+            )}
+            {notice !== undefined && (
+                <p id="notice-channel" className="auth-message" lang={notice.lang}>
+                    {notice.text}
+                </p>
+            )}
         </Template>
     )
 }

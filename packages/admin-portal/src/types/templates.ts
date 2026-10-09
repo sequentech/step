@@ -38,11 +38,11 @@ export enum ITemplateMethod {
 
 /** Methods that send a message to the voter, in the order they are offered. */
 export const MESSAGE_TEMPLATE_METHODS: ITemplateMethod[] = [
-    ITemplateMethod.EMAIL,
-    ITemplateMethod.SMS,
     ITemplateMethod.WHATSAPP,
     ITemplateMethod.VIBER,
     ITemplateMethod.MESSENGER,
+    ITemplateMethod.SMS,
+    ITemplateMethod.EMAIL,
 ]
 
 export interface IEmail {
@@ -71,6 +71,7 @@ export interface ISendTemplateBody {
     whatsapp?: IInstantMessageConfig
     viber?: IInstantMessageConfig
     messenger?: IInstantMessageConfig
+    /** Parse-only: written by the first release, ignored now. */
     channel_selection?: EChannelSelection
     pdf_options?: IPdfOptions
     selected_methods?: IMethods

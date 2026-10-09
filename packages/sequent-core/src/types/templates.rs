@@ -5,7 +5,7 @@ use headless_chrome::types::PrintToPdfOptions;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-use super::messaging::MessageChannel;
+use super::messaging::{MessageChannel, MessageReason};
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -79,7 +79,9 @@ impl TemplateMethod {
     }
 }
 
-/// Which channel each voter is reached on by a bulk send.
+/// How the first release chose the channel of each voter of a bulk send.
+/// Parse-only: payloads that carry it still parse, and it is ignored. Each
+/// voter is reached on their own one channel, and there is no override.
 #[allow(non_camel_case_types)]
 #[derive(
     Display,
@@ -94,20 +96,9 @@ impl TemplateMethod {
     Default,
 )]
 pub enum ChannelSelection {
-    /// The method of the send (`communication_method`) for every voter.
     #[default]
     SINGLE_CHANNEL,
-    /// Each voter's preferred verified channel, falling back in the event's
-    /// notice fallback order on confirmed failure.
     VOTER_PREFERENCE,
-}
-
-impl ChannelSelection {
-    /// Left out of the wire format, so payloads from before the choice
-    /// existed keep their bytes.
-    fn is_default(&self) -> bool {
-        *self == Self::default()
-    }
 }
 
 /// Content for WhatsApp, Viber and Messenger.
@@ -232,7 +223,8 @@ pub struct SendTemplateBody {
     pub viber: Option<InstantMessageConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub messenger: Option<InstantMessageConfig>,
-    #[serde(default, skip_serializing_if = "ChannelSelection::is_default")]
+    /// Parse-only (first release): ignored, and never written again.
+    #[serde(default, skip_serializing)]
     pub channel_selection: ChannelSelection,
     /// Identifies the send across its retries, so a voter already reached
     /// is not messaged again. Set by the task itself.
@@ -249,6 +241,21 @@ pub struct SendTemplateBody {
     pub schedule_local: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub schedule_timezone: Option<String>,
+}
+
+impl SendTemplateBody {
+    /// Why this send can't be scheduled, if it can't: a send to selected
+    /// voters must name at least one, or it would reach the whole realm.
+    /// Checked when the send is scheduled and again when it runs.
+    pub fn audience_refusal(&self) -> Option<MessageReason> {
+        let names_a_voter = self
+            .audience_voter_ids
+            .as_ref()
+            .is_some_and(|ids| ids.iter().any(|id| !id.trim().is_empty()));
+        (self.audience_selection == Some(AudienceSelection::SELECTED)
+            && !names_a_voter)
+            .then_some(MessageReason::SELECTED_WITHOUT_VOTERS)
+    }
 }
 
 /// Struct for the DEFAULT extra_config JSON file.
@@ -286,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn send_template_channel_choice_survives_typed_task_serialization() {
+    fn send_template_channel_choice_is_read_and_dropped() {
         let mut input: serde_json::Value =
             serde_json::from_str(LEGACY_BODY).unwrap();
         input["channel_selection"] = serde_json::json!("VOTER_PREFERENCE");
@@ -294,9 +301,28 @@ mod tests {
         input["whatsapp"] = serde_json::json!({"message": "Hi"});
         let body: SendTemplateBody = serde_json::from_value(input).unwrap();
         let queued = serde_json::to_value(body).unwrap();
-        assert_eq!(queued["channel_selection"], "VOTER_PREFERENCE");
+        // Each voter's own channel: the first release's choice isn't kept.
+        assert!(queued.get("channel_selection").is_none());
         assert_eq!(queued["send_id"], "send-1");
         assert_eq!(queued["whatsapp"]["message"], "Hi");
+    }
+
+    #[test]
+    fn selected_audiences_must_name_a_voter() {
+        use super::AudienceSelection;
+        use crate::types::messaging::MessageReason;
+        let mut body: SendTemplateBody =
+            serde_json::from_str(LEGACY_BODY).unwrap();
+        assert_eq!(body.audience_refusal(), None);
+        for ids in [None, Some(vec![]), Some(vec![" ".to_string()])] {
+            body.audience_voter_ids = ids;
+            assert_eq!(
+                body.audience_refusal(),
+                Some(MessageReason::SELECTED_WITHOUT_VOTERS)
+            );
+        }
+        body.audience_selection = Some(AudienceSelection::ALL_USERS);
+        assert_eq!(body.audience_refusal(), None);
     }
 
     #[test]

@@ -918,6 +918,19 @@ pub async fn process_election_event_file(
             .with_context(|| "Error importing the approval matrix")?;
     }
 
+    if let Some(config) = data.messaging_config.as_ref() {
+        crate::services::messaging::config::import_event_messaging_config(
+            hasura_transaction,
+            &Uuid::parse_str(&tenant_id).with_context(|| "Error parsing the tenant id")?,
+            &Uuid::parse_str(&election_event_id)
+                .with_context(|| "Error parsing the election event id")?,
+            config,
+            &replacement_map,
+        )
+        .await
+        .with_context(|| "Error importing the messaging configuration")?;
+    }
+
     if let Some(applications) = data.applications.clone() {
         insert_applications(hasura_transaction, &applications)
             .await

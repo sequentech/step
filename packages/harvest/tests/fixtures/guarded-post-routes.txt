@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 # Reviewed inventory of registered POST routes that require forwarded JWT claims.
 # Kept static: removing a guard must not silently remove its test case.
+# /messaging/callbacks takes the webhook component's relay signature instead
+# of claims, and refuses any request without it the same way.
 /acknowledge-support-materials
 /apply-reconciliation-changes
 /cast-ballot
@@ -98,11 +100,13 @@
 /messages/link/confirm
 /messages/link/status
 /messages/send
+/messaging/accounts/callback-url
 /messaging/accounts/check
 /messaging/accounts/credentials
 /messaging/accounts/delete
 /messaging/accounts/test
 /messaging/accounts/upsert
+/messaging/callbacks
 /messaging/event-config
 /miru/create-transmission-package
 /miru/send-transmission-package

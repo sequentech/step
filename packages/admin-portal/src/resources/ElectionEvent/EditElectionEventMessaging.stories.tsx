@@ -28,12 +28,10 @@ import {
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
+    IChannelMessageStats,
     IEventMessagingConfig,
     IMessagingAccount,
     IMessagingConfigError,
-    MESSAGE_ATTEMPT_STATES,
-    MESSAGE_CHANNELS,
-    MESSAGING_CONFIG_ANNOTATION,
 } from "@/types/messaging"
 import {EditElectionEventMessaging} from "./EditElectionEventMessaging"
 
@@ -64,7 +62,6 @@ const account = (
     },
     credentials: {},
     limits: {allowed_calling_codes: []},
-    webhook_key: null,
     is_default: true,
     created_at: FIXED_TIME,
     updated_at: FIXED_TIME,
@@ -192,11 +189,16 @@ const CONFIG: IEventMessagingConfig = {
             account_id: accountId(EMessageChannel.MESSENGER),
             purposes: [],
             templates: [],
-            out_of_window: EOutOfWindowPolicy.DISABLED,
+            out_of_window: EOutOfWindowPolicy.UTILITY_MESSAGES,
         },
     ],
-    notice_fallback: [EMessageChannel.EMAIL, EMessageChannel.SMS],
     election_channels: {[STORY_IDS.secondElection]: [EMessageChannel.EMAIL]},
+}
+
+/** A configuration saved before the second pass: its fallback order and replies are ignored. */
+const STORED_CONFIG = {
+    ...CONFIG,
+    notice_fallback: [EMessageChannel.EMAIL, EMessageChannel.SMS],
     reply_text: {en: "This account only sends codes and notices. Replies are not read."},
 }
 
@@ -208,32 +210,41 @@ const ELECTIONS = [
     }),
 ]
 
-const COUNTS: Record<string, number> = {
-    EMAIL_ACCEPTED: 2,
-    EMAIL_DELIVERED: 310,
-    EMAIL_FAILED: 3,
-    SMS_ACCEPTED: 120,
-    SMS_FAILED: 4,
-    SMS_UNKNOWN: 1,
-    VIBER_QUEUED: 5,
-    VIBER_DELIVERED: 41,
-}
+const stats = (
+    channel: EMessageChannel,
+    counts: Partial<IChannelMessageStats>
+): IChannelMessageStats => ({
+    channel,
+    voters: 0,
+    sent_last_24h: 0,
+    queued: 0,
+    accepted: 0,
+    delivered: 0,
+    failed: 0,
+    unknown: 0,
+    unresolved: 0,
+    ...counts,
+})
 
-// Every alias of the query is answered; those without traffic count 0.
-const STATS = Object.fromEntries(
-    MESSAGE_CHANNELS.flatMap((channel) =>
-        MESSAGE_ATTEMPT_STATES.map((state) => `${channel}_${state}`)
-    ).map((alias) => [
-        alias,
-        {
-            __typename: "sequent_backend_message_aggregate",
-            aggregate: {
-                __typename: "sequent_backend_message_aggregate_fields",
-                count: COUNTS[alias] ?? 0,
-            },
-        },
-    ])
-)
+// Per message, by the state of its latest attempt.
+const STATS: IChannelMessageStats[] = [
+    stats(EMessageChannel.EMAIL, {
+        voters: 1840,
+        sent_last_24h: 12,
+        accepted: 2,
+        delivered: 310,
+        failed: 3,
+    }),
+    stats(EMessageChannel.SMS, {
+        voters: 412,
+        sent_last_24h: 30,
+        accepted: 120,
+        failed: 4,
+        unknown: 1,
+        unresolved: 2,
+    }),
+    stats(EMessageChannel.VIBER, {voters: 96, sent_last_24h: 5, queued: 5, delivered: 41}),
+]
 
 const REJECTED: IMessagingConfigError[] = [
     {
@@ -247,17 +258,16 @@ const REJECTED: IMessagingConfigError[] = [
 
 const ALL_ROLES = [
     IPermissions.MESSAGING_CONFIG_WRITE,
-    IPermissions.MESSAGING_ACCOUNT_READ,
-    IPermissions.NOTIFICATION_READ,
+    IPermissions.MESSAGING_CONFIG_READ,
+    IPermissions.LOGS_READ,
+    IPermissions.ELECTION_EVENT_LOGS_TAB,
 ]
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
-function Fixture({roles, configured}: Scenario) {
-    const event = eventRecord(undefined, {
-        annotations: configured ? {[MESSAGING_CONFIG_ANNOTATION]: JSON.stringify(CONFIG)} : {},
-    })
+function Fixture({roles}: Scenario) {
+    const event = eventRecord()
     return (
         <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={roles}>
             <RecordContextProvider value={event}>
@@ -293,15 +303,34 @@ const meta = {
         })
         // The messaging operations are not in the generated schema yet.
         graphql = graphqlBoundary({
-            GetMessagingAccounts: () => ({
+            GetMessagingAccountSummaries: () => ({
                 data: {
-                    sequent_backend_messaging_account: ACCOUNTS.map((entry) => ({
-                        ...entry,
-                        __typename: "sequent_backend_messaging_account",
-                    })),
+                    sequent_backend_messaging_account: ACCOUNTS.map(
+                        ({credentials: _credentials, ...entry}) => ({
+                            ...entry,
+                            __typename: "sequent_backend_messaging_account",
+                        })
+                    ),
                 },
             }),
-            GetMessageDeliveryStats: () => ({data: STATS}),
+            GetEventMessagingConfig: () => ({
+                data: {
+                    sequent_backend_messaging_event_config: args.configured
+                        ? [
+                              {
+                                  __typename: "sequent_backend_messaging_event_config",
+                                  election_event_id: EVENT_ID,
+                                  config: STORED_CONFIG,
+                                  version: 1,
+                                  updated_at: FIXED_TIME,
+                              },
+                          ]
+                        : [],
+                },
+            }),
+            GetMessagingEventStats: () => ({
+                data: {messaging_event_stats: {channels: STATS}},
+            }),
             UpdateEventMessagingConfig: saveReply(args.save),
         })
         await graphql.ready
@@ -336,11 +365,8 @@ export const Populated: Story = {
             "Helper",
             "MessagingErrors",
             "MessagingChannels",
-            "OutOfWindowPolicySelect",
             "MessagingTemplateBindings",
-            "MessagingFallbackOrder",
             "MessagingElectionChannels",
-            "MessagingReplyText",
             "MessagingDeliveryStatus",
         ],
     },
@@ -354,11 +380,17 @@ export const Populated: Story = {
         expect(within(whatsapp).getAllByText(/^Missing: Needs provider approval/)).toHaveLength(2)
         const messenger = await channelRow(canvasElement, EMessageChannel.MESSENGER)
         expect(
-            within(messenger).getByText(/Choose Utility messages to send notices after that/)
+            within(messenger).getByText(/sends notices with the approved utility template/)
         ).toBeVisible()
+        expect(canvas.queryByRole("combobox", {name: /conversation window/})).toBeNull()
+        expect(canvas.queryByText(/Fallback order/)).toBeNull()
+        expect(canvas.queryByText(/Reply to incoming messages/)).toBeNull()
+        // Channel order: WhatsApp, Viber, Messenger, SMS, Email.
         expect(
-            within(messenger).getByRole("combobox", {name: "Outside the conversation window"})
-        ).not.toHaveAttribute("aria-disabled")
+            Array.from(
+                canvasElement.querySelectorAll('table[aria-label="Channels"] tr[data-channel]')
+            ).map((row) => row.getAttribute("data-channel"))
+        ).toEqual(["WHATSAPP", "VIBER", "MESSENGER", "SMS", "EMAIL"])
         await expect(canvas.getByText(/^For each message the most specific row wins/)).toBeVisible()
         const viberTemplate = within(canvas.getByRole("group", {name: "Viber template 1"}))
         await expect(viberTemplate.getByRole("combobox", {name: "Provider template"})).toHaveValue(
@@ -371,50 +403,65 @@ export const Populated: Story = {
         )
         const sms = within(delivery.getByText("SMS").closest("tr") as HTMLElement)
         await waitFor(() => expect(sms.getByText("Delivery unavailable")).toBeVisible())
+        await expect(sms.getByText("412")).toBeVisible()
+        await expect(sms.getByText("30")).toBeVisible()
+        await expect(
+            sms.getByRole("button", {name: "Show the failed SMS messages in Logs"})
+        ).toHaveTextContent("4")
+        // SES without a notification topic gets no receipts: unavailable, never 0.
+        const email = within(delivery.getByText("Email").closest("tr") as HTMLElement)
+        await expect(email.getByText("Delivery unavailable")).toBeVisible()
         const viber = within(delivery.getByText("Viber").closest("tr") as HTMLElement)
         expect(viber.getByText("41")).toBeVisible()
         expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
-        expect(graphql.calls.find(({name}) => name === "GetMessageDeliveryStats")?.headers).toEqual(
-            {"x-hasura-role": IPermissions.NOTIFICATION_READ}
-        )
+        for (const operation of [
+            "GetEventMessagingConfig",
+            "GetMessagingAccountSummaries",
+            "GetMessagingEventStats",
+        ]) {
+            expect(graphql.calls.find(({name}) => name === operation)?.headers).toEqual({
+                "x-hasura-role": IPermissions.MESSAGING_CONFIG_READ,
+            })
+        }
     },
 }
 
 export const NotConfigured: Story = {
     parameters: {
-        widgets: [
-            "Section",
-            "Helper",
-            "MessagingChannels",
-            "MessagingFallbackOrder",
-            "MessagingDeliveryStatus",
-        ],
+        widgets: ["Section", "Helper", "MessagingChannels", "MessagingDeliveryStatus"],
     },
     args: {configured: false},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("No channel is in use.")).toBeVisible()
-        await expect(
-            canvas.getByText("Turn on notices for a channel to add it to the fallback order.")
-        ).toBeVisible()
     },
 }
 
 export const ReadOnly: Story = {
-    parameters: {
-        widgets: ["MessagingChannels", "OutOfWindowPolicySelect", "MessagingTemplateBindings"],
-    },
-    args: {roles: [IPermissions.MESSAGING_ACCOUNT_READ]},
+    parameters: {widgets: ["MessagingChannels", "MessagingTemplateBindings"]},
+    args: {roles: [IPermissions.MESSAGING_CONFIG_READ]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText(/^You can view these settings/)).toBeVisible()
         const email = await channelRow(canvasElement, EMessageChannel.EMAIL)
         expect(purposeSwitch(email, "OTPs")).toBeDisabled()
-        expect(
-            canvas.getByRole("combobox", {name: "Outside the conversation window"})
-        ).toHaveAttribute("aria-disabled", "true")
         expect(canvas.queryByRole("button", {name: /^Add .* template$/})).toBeNull()
         expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
+        // Without access to Logs, Failed is a plain count.
+        expect(canvas.queryByRole("button", {name: /^Show the failed/})).toBeNull()
+    },
+}
+
+export const NoReadPermission: Story = {
+    parameters: {widgets: []},
+    args: {roles: [IPermissions.MESSAGING_CONFIG_WRITE]},
+    play: async ({canvasElement}) => {
+        await expect(
+            await within(canvasElement).findByText(
+                "Reading these settings needs the messaging-config-read permission."
+            )
+        ).toBeVisible()
+        expect(graphql.calls).toEqual([])
     },
 }
 
@@ -432,47 +479,48 @@ export const EnableNoticesAndSave: Story = {
         expect(call?.headers).toEqual({"x-hasura-role": IPermissions.MESSAGING_CONFIG_WRITE})
         const config = call?.variables.config as IEventMessagingConfig
         expect(call?.variables.electionEventId).toBe(EVENT_ID)
-        expect(config.notice_fallback).toEqual([
-            EMessageChannel.EMAIL,
-            EMessageChannel.SMS,
-            EMessageChannel.VIBER,
-        ])
+        // The stored fallback order and replies are never written again.
+        expect(Object.keys(config).sort()).toEqual(["channels", "election_channels", "version"])
         expect(
             config.channels.find(({channel}) => channel === EMessageChannel.VIBER)?.purposes
         ).toEqual([EMessagePurpose.OTP, EMessagePurpose.NOTICE])
     },
 }
 
-export const ReorderFallbackAndRestrictAPost: Story = {
-    parameters: {widgets: ["MessagingFallbackOrder", "MessagingElectionChannels"]},
+export const RestrictAPost: Story = {
+    parameters: {widgets: ["MessagingElectionChannels"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(await canvas.findByRole("button", {name: "Move SMS earlier"}))
         await userEvent.click(await canvas.findByRole("checkbox", {name: "Council: SMS"}))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Messaging settings saved.")
         const config = saveCall()?.variables.config as IEventMessagingConfig
-        expect(config.notice_fallback).toEqual([EMessageChannel.SMS, EMessageChannel.EMAIL])
         expect(config.election_channels[STORY_IDS.election]).toEqual([
-            EMessageChannel.EMAIL,
             EMessageChannel.VIBER,
+            EMessageChannel.EMAIL,
         ])
     },
 }
 
-export const UtilityMessagesWithABoundTemplate: Story = {
-    parameters: {widgets: ["OutOfWindowPolicySelect", "MessagingTemplateBindings"]},
+export const FailedOpensLogs: Story = {
+    parameters: {widgets: ["MessagingDeliveryStatus"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const failed = await canvas.findByRole("button", {
+            name: "Show the failed Email messages in Logs",
+        })
+        await expect(failed).toHaveTextContent("3")
+        await userEvent.click(failed)
+    },
+}
+
+export const MessengerUtilityTemplate: Story = {
+    parameters: {widgets: ["MessagingChannels", "MessagingTemplateBindings"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const messenger = await channelRow(canvasElement, EMessageChannel.MESSENGER)
-        await userEvent.click(
-            within(messenger).getByRole("combobox", {name: "Outside the conversation window"})
-        )
-        await userEvent.click(
-            await within(document.body).findByRole("option", {name: "Utility messages"})
-        )
         await expect(
-            await within(messenger).findByText(/^No template is bound to notices on this channel/)
+            within(messenger).getByText(/sends notices with the approved utility template/)
         ).toBeVisible()
         await expect(
             canvas.getByText(/^No templates are bound for Facebook Messenger/)
@@ -487,9 +535,6 @@ export const UtilityMessagesWithABoundTemplate: Story = {
         )
         await userEvent.type(row.getByRole("combobox", {name: "Provider template"}), "reminder")
         await userEvent.type(row.getByRole("textbox", {name: "Provider language"}), "en_US")
-        await waitFor(() =>
-            expect(within(messenger).queryByText(/^No template is bound to notices/)).toBeNull()
-        )
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Messaging settings saved.")
         const config = saveCall()?.variables.config as IEventMessagingConfig
@@ -532,17 +577,12 @@ export const IncompleteTemplateRow: Story = {
 
 export const SaveRejected: Story = {
     parameters: {
-        widgets: [
-            "MessagingErrors",
-            "MessagingTemplateBindings",
-            "MessagingElectionChannels",
-            "MessagingReplyText",
-        ],
+        widgets: ["MessagingErrors", "MessagingTemplateBindings", "MessagingElectionChannels"],
     },
     args: {save: "rejected"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.type(await canvas.findByRole("textbox", {name: "Reply (es)"}), "Hola")
+        await userEvent.click(await canvas.findByRole("checkbox", {name: "Council: SMS"}))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("The messaging settings were not saved. Fix the problems shown.")
         await expect(
@@ -557,11 +597,11 @@ export const SaveRejected: Story = {
 }
 
 export const SaveFails: Story = {
-    parameters: {widgets: ["MessagingReplyText"]},
+    parameters: {widgets: ["MessagingElectionChannels"]},
     args: {save: "fails"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.type(await canvas.findByRole("textbox", {name: "Reply (es)"}), "Hola")
+        await userEvent.click(await canvas.findByRole("checkbox", {name: "Council: SMS"}))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Could not save the messaging settings.")
         expect(canvas.getByRole("button", {name: "Save"})).toBeEnabled()

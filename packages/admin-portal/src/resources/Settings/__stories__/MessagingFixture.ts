@@ -9,7 +9,6 @@ import {
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
-    EPhoneFormat,
     EProviderApproval,
     EReadinessPolicy,
     IMessagingAccount,
@@ -53,7 +52,6 @@ export const emailAccount = (): IMessagingAccount => ({
     },
     credentials: {},
     status: checked(),
-    webhook_key: null,
     is_default: true,
 })
 
@@ -82,7 +80,6 @@ export const smsAccount = (): IMessagingAccount => ({
         checked_at: FIXED_TIME,
         reason: "The account is in the SMS sandbox.",
     },
-    webhook_key: null,
     is_default: true,
 })
 
@@ -106,7 +103,6 @@ export const whatsappAccount = (): IMessagingAccount => ({
         VERIFY_TOKEN: {replaced_at: FIXED_TIME},
     },
     status: checked({NOTICE: ["en"]}),
-    webhook_key: "wa-hook-key",
     is_default: true,
 })
 
@@ -124,7 +120,6 @@ export const viberAccount = (): IMessagingAccount => ({
     },
     credentials: {API_KEY: {replaced_at: FIXED_TIME}},
     status: checked({OTP: ["en", "es"], NOTICE: ["en"]}),
-    webhook_key: "viber-hook-key",
     is_default: true,
 })
 
@@ -143,38 +138,49 @@ export const messengerAccount = (): IMessagingAccount => ({
     },
     credentials: {ACCESS_TOKEN: {replaced_at: FIXED_TIME}},
     status: null,
-    webhook_key: "messenger-hook-key",
     is_default: false,
 })
 
-/** A provider described by configuration, whose readiness an administrator confirmed. */
+/**
+ * An account saved with the removed generic HTTP provider, whose readiness an
+ * administrator once confirmed: it still loads, as unsupported, to be replaced.
+ */
 export const partnerAccount = (): IMessagingAccount => ({
     ...base,
     id: PARTNER_ACCOUNT_ID,
     channel: EMessageChannel.VIBER,
     provider: EMessagingProvider.HTTP_API,
     name: "Partner gateway",
-    sender: {
-        provider: EMessagingProvider.HTTP_API,
-        label: "Council",
-        send: {
-            method: "POST",
-            url: "https://api.partner.admin-story.invalid/v1/viber/messages",
-            headers: {Authorization: "Bearer {{credential.API_KEY}}"},
-            body: {to: "{{to}}", template: "{{template}}", parameters: "{{parameters}}"},
-        },
-        message_id_pointer: "/message_id",
-        phone_format: EPhoneFormat.DIGITS,
-        template_required_for: [EMessagePurpose.OTP, EMessagePurpose.NOTICE],
-        approved_templates: {OTP: ["en"], NOTICE: ["en"]},
-    },
+    sender: {provider: EMessagingProvider.HTTP_API, label: "Council"},
     credentials: {API_KEY: {replaced_at: FIXED_TIME}},
     readiness: EReadinessPolicy.ADMIN_CONFIRMED,
-    status: null,
-    webhook_key: "partner-hook-key",
+    status: checked({OTP: ["en"], NOTICE: ["en"]}),
     is_default: false,
 })
 
+/**
+ * The account's full callback URL at the webhook component, as
+ * messaging_account_callback_url returns it (a 64 hex key).
+ */
+export const callbackUrl = (provider: "meta" | "viber" | "aws", accountId: string): string =>
+    `https://callbacks.example.org/webhooks/${provider}/${accountId.replace(/-/g, "").padEnd(64, "0")}`
+
+/** The callback URL action's handler for stories: one URL per account. */
+export const callbackUrlHandler = ({variables}: {variables?: Record<string, unknown>}) => {
+    const accountId = String(variables?.accountId ?? "")
+    const provider =
+        accountId === VIBER_ACCOUNT_ID ? "viber" : accountId === EMAIL_ACCOUNT_ID ? "aws" : "meta"
+    return {
+        data: {
+            messaging_account_callback_url: {
+                callback_url: callbackUrl(provider, accountId),
+                reason: null,
+            },
+        },
+    }
+}
+
+/** As the query returns them, by channel name; the list shows them in channel order. */
 export const messagingAccounts = (): IMessagingAccount[] => [
     emailAccount(),
     smsAccount(),

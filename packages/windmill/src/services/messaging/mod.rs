@@ -4,9 +4,11 @@
 
 //! Voter messaging on top of the `messaging` crate: accounts and their
 //! credentials, the event configuration, sending with the message ledger,
-//! provider callbacks, Messenger links and reconciliation.
+//! provider callbacks, Messenger links, and the sweep that retries,
+//! reconciles and flags unresolved outcomes.
 
 pub mod accounts;
+pub mod audit;
 pub mod config;
 pub mod dispatch;
 pub mod keys;

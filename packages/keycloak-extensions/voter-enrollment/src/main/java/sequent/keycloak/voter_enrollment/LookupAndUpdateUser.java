@@ -69,6 +69,7 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
+import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -135,7 +136,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private final ServiceAccountTokenClient tokenClient = ServiceAccountTokenClient.fromEnvironment();
+  /** Shared, so its token cache serves every request. */
+  private static final ServiceAccountTokenClient tokenClient = ServiceAccountTokenClient.shared();
+
+  /** 5 s to connect; each request has 10 s more. */
+  private static final java.time.Duration CONNECT_TIMEOUT = java.time.Duration.ofSeconds(5);
+
+  private static final java.time.Duration REQUEST_TIMEOUT = java.time.Duration.ofSeconds(10);
+  private static final HttpClient HARVEST_CLIENT =
+      HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
@@ -522,7 +531,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     EnrollmentChannels.persist(
         user,
         context.getAuthenticationSession(),
-        telUserAttribute(context),
+        sequent.keycloak.authenticator.Utils.getRealmName(context.getRealm()),
         EnrollmentChannels.consentVersion(context.getRealm()),
         Instant.now());
 
@@ -659,7 +668,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         context.getAuthenticationSession(), telUserAttribute(context));
   }
 
-  /** Tells the pending page which channel the enrollment result will be sent to. */
+  /**
+   * Tells the pending page where the enrollment result will be sent: {@code noticeChannel} (the
+   * voter's one channel) and {@code noticeAddress} (its destination, masked; empty for Messenger).
+   */
   private static void setNoticeChannel(AuthenticationFlowContext context) {
     MessageCourier messageCourier =
         MessageCourier.fromString(
@@ -668,8 +680,15 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       return;
     }
     enrollmentRecipient(context)
-        .expectedChannel(messageCourier)
-        .ifPresent(channel -> context.form().setAttribute("noticeChannel", channel.name()));
+        .channel()
+        .ifPresent(
+            channel ->
+                context
+                    .form()
+                    .setAttribute("noticeChannel", channel.channel().name())
+                    .setAttribute(
+                        "noticeAddress",
+                        VoterChannels.mask(channel.channel(), channel.destination())));
   }
 
   private HashMap<String, String> getMismatchedFields(
@@ -783,7 +802,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       if (attributeName.equals("email")) {
         // Only assume email is valid if it's verified
         if (user.isEmailVerified() && user.getEmail() != null && !user.getEmail().isBlank()) {
-          log.info("checkUnsetAttributes(): user has email=" + user.getEmail());
+          log.info("checkUnsetAttributes(): user has an email");
           return Optional.of("User has email attribute set but it should be unset");
         }
       } else {
@@ -1080,7 +1099,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String annotations,
       String labels)
       throws IOException, InterruptedException {
-    HttpClient client = HttpClient.newHttpClient();
+    HttpClient client = HARVEST_CLIENT;
     String url = "http://" + this.harvestUrl + "/verify-application";
     String requestBody =
         String.format(
@@ -1097,11 +1116,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             .uri(URI.create(url))
             .header("Content-Type", "application/json")
             .header("Authorization", "Bearer " + this.access_token)
+            .timeout(REQUEST_TIMEOUT)
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build();
 
     HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-    log.infov("Verification response: {0}", response);
+    log.infov("verifyApplication(): status {0}", response.statusCode());
 
     return response;
   }

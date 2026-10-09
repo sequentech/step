@@ -4,6 +4,7 @@
 
 pub mod ceremonies;
 pub mod date_time;
+pub mod dial_codes;
 pub mod error;
 #[cfg(feature = "default_features")]
 pub mod hasura;

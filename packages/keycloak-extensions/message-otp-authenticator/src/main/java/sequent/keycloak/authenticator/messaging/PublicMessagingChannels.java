@@ -170,15 +170,18 @@ public final class PublicMessagingChannels {
   /**
    * Channels enabled for the purpose that the voter's Posts offer. A Post is the ID of its election
    * or any of its labels, compared without case or surrounding spaces. When no Post is known yet,
-   * only channels that every restricted election offers.
+   * only channels that every restricted election offers. Channels come in the ticket's order:
+   * WhatsApp, Viber, Messenger, SMS, Email.
    */
   public List<MessageChannel> channelsFor(
       MessagePurpose purpose, Collection<String> posts, UnmatchedPostPolicy unmatched) {
     List<MessageChannel> result = new ArrayList<>();
-    for (Map.Entry<MessageChannel, Channel> entry : channels.entrySet()) {
-      if (entry.getValue().purposes().contains(purpose)
-          && offeredTo(entry.getKey(), posts, unmatched)) {
-        result.add(entry.getKey());
+    for (MessageChannel channel : VoterChannel.CHANNEL_ORDER) {
+      Channel entry = channels.get(channel);
+      if (entry != null
+          && entry.purposes().contains(purpose)
+          && offeredTo(channel, posts, unmatched)) {
+        result.add(channel);
       }
     }
     return result;

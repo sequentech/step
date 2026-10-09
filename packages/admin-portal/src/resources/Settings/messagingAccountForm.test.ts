@@ -12,7 +12,6 @@ import {
     IMessagingAccount,
     MESSAGE_CHANNELS,
 } from "@/types/messaging"
-import {emptyHttpApiForm, withHttpExample} from "./httpApiSender"
 import {
     EAccountFormError,
     IAccountFormValues,
@@ -55,7 +54,6 @@ const account = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccount 
     limits: {messages_per_second: 20, otp_reserved_per_second: 5, allowed_calling_codes: ["63"]},
     provider_approval: EProviderApproval.PENDING,
     status: {connected: true, production_access: true, approved_templates: {}},
-    webhook_key: "key-1",
     is_default: true,
     ...overrides,
 })
@@ -86,7 +84,7 @@ describe("senderFields", () => {
             "api_version",
             "api_base_url",
         ])
-        expect(senderFields(EMessagingProvider.HTTP_API)).toEqual([{key: "label", required: false}])
+        expect(senderFields(EMessagingProvider.HTTP_API)).toEqual([])
         expect(senderFields(EMessagingProvider.AWS_SES).map((f) => f.key)).toEqual([
             "from_address",
             "from_name",
@@ -98,18 +96,15 @@ describe("senderFields", () => {
 })
 
 describe("selectableProviders", () => {
-    it("offers the channel's providers, then the custom HTTP API and the console", () => {
+    it("offers only the channel's own adapters, never a generic or console provider", () => {
         expect(selectableProviders(EMessageChannel.EMAIL)).toEqual([
             EMessagingProvider.AWS_SES,
             EMessagingProvider.SMTP,
-            EMessagingProvider.HTTP_API,
-            EMessagingProvider.CONSOLE,
         ])
         for (const channel of MESSAGE_CHANNELS) {
-            expect(selectableProviders(channel).slice(-2)).toEqual([
-                EMessagingProvider.HTTP_API,
-                EMessagingProvider.CONSOLE,
-            ])
+            expect(selectableProviders(channel)).not.toContain(EMessagingProvider.HTTP_API)
+            expect(selectableProviders(channel)).not.toContain(EMessagingProvider.CONSOLE)
+            expect(selectableProviders(channel).length).toBeGreaterThan(0)
         }
     })
 })
@@ -125,56 +120,51 @@ describe("withChannel", () => {
         expect(Object.keys(values.sender)).toEqual(["base_url", "sender"])
     })
 
-    it("keeps a provider that serves any channel and what was entered for it", () => {
-        const custom = form(EMessagingProvider.HTTP_API, EMessageChannel.SMS, {
-            sender: {label: "COMELEC"},
-            http: withHttpExample(emptyHttpApiForm()),
+    it("keeps the provider and what was entered when it serves the channel", () => {
+        const email = form(EMessagingProvider.SMTP, EMessageChannel.EMAIL, {
+            sender: {from_address: "no-reply@example.org", from_name: "", server_url: "smtp:25"},
         })
-        const values = withChannel(custom, EMessageChannel.VIBER)
-        expect(values).toEqual({...custom, channel: EMessageChannel.VIBER})
+        expect(withChannel(email, EMessageChannel.EMAIL)).toEqual(email)
     })
 })
 
 describe("upsertAccountVariables", () => {
-    it("sends the chosen channel and readiness, and approval only where it applies", () => {
-        const custom = form(EMessagingProvider.HTTP_API, EMessageChannel.VIBER, {
+    it("sends the chosen channel, approval only where it applies, and never a readiness", () => {
+        const viber = form(EMessagingProvider.VIBER_INFOBIP, EMessageChannel.VIBER, {
             name: " Partner ",
-            sender: {label: "COMELEC"},
-            http: withHttpExample(emptyHttpApiForm()),
-            readiness: EReadinessPolicy.ADMIN_CONFIRMED,
+            sender: {base_url: "https://x.api.infobip.com", sender: "Council"},
             providerApproval: EProviderApproval.CONFIRMED,
         })
-        expect(upsertAccountVariables(null, custom)).toEqual({
+        expect(upsertAccountVariables(null, viber)).toEqual({
             id: null,
             channel: EMessageChannel.VIBER,
             name: "Partner",
-            sender: senderFromForm(custom),
-            limits: limitsFromForm(custom),
+            sender: senderFromForm(viber),
+            limits: limitsFromForm(viber),
             providerApproval: null,
-            readiness: EReadinessPolicy.ADMIN_CONFIRMED,
             isDefault: false,
         })
-        expect(senderFromForm(custom)).toMatchObject({
-            provider: EMessagingProvider.HTTP_API,
-            label: "COMELEC",
-            message_id_pointer: "/message_id",
-        })
-        const whatsapp = formFromAccount(account({provider_approval: EProviderApproval.CONFIRMED}))
-        expect(upsertAccountVariables("account-1", whatsapp)).toMatchObject({
+        const whatsapp = formFromAccount(
+            account({
+                provider_approval: EProviderApproval.CONFIRMED,
+                readiness: EReadinessPolicy.ADMIN_CONFIRMED,
+            })
+        )
+        const variables = upsertAccountVariables("account-1", whatsapp)
+        expect(variables).toMatchObject({
             id: "account-1",
             channel: EMessageChannel.WHATSAPP,
             providerApproval: EProviderApproval.CONFIRMED,
-            readiness: EReadinessPolicy.PROVIDER_CHECK,
         })
+        expect("readiness" in variables).toBe(false)
     })
 
-    it("saves the console provider for the chosen channel", () => {
-        expect(
-            upsertAccountVariables(null, form(EMessagingProvider.CONSOLE, EMessageChannel.SMS))
-        ).toMatchObject({
-            channel: EMessageChannel.SMS,
-            sender: {provider: EMessagingProvider.CONSOLE},
-        })
+    it("refuses to save an account of a removed provider: it can only be replaced", () => {
+        for (const provider of [EMessagingProvider.CONSOLE, EMessagingProvider.HTTP_API]) {
+            expect(validateAccountForm(form(provider, EMessageChannel.SMS))).toEqual({
+                provider: EAccountFormError.UNSUPPORTED_PROVIDER,
+            })
+        }
     })
 })
 
@@ -296,51 +286,29 @@ describe("the v2 fields", () => {
                 sender: {...values.sender, api_base_url: "graph.bsp.example"},
             })
         ).toEqual({"sender.api_base_url": EAccountFormError.NOT_A_URL})
-    })
-
-    it("reads the readiness of an account, the provider's check by default", () => {
-        expect(formFromAccount(account()).readiness).toBe(EReadinessPolicy.PROVIDER_CHECK)
+        // Endpoints carry the stored credentials: only https.
         expect(
-            formFromAccount(account({readiness: EReadinessPolicy.ADMIN_CONFIRMED})).readiness
-        ).toBe(EReadinessPolicy.ADMIN_CONFIRMED)
-    })
-
-    it("refuses a custom HTTP API whose requests are not valid", () => {
-        const values = form(EMessagingProvider.HTTP_API, EMessageChannel.SMS)
-        expect(validateAccountForm(values)).toEqual({
-            "http.SEND": EAccountFormError.INVALID_HTTP_CONFIG,
-        })
-        expect(validateAccountForm({...values, http: withHttpExample(emptyHttpApiForm())})).toEqual(
-            {}
-        )
-    })
-
-    it("round-trips a custom HTTP API account through the form", () => {
-        const sender = senderFromForm(
-            form(EMessagingProvider.HTTP_API, EMessageChannel.VIBER, {
-                sender: {label: "COMELEC"},
-                http: {
-                    ...withHttpExample(emptyHttpApiForm()),
-                    templateRequiredFor: [EMessagePurpose.OTP],
-                    approvedLanguages: {OTP: "en, tl", NOTICE: ""},
-                },
+            validateAccountForm({
+                ...values,
+                sender: {...values.sender, api_base_url: "http://graph.bsp.example"},
             })
-        )
-        const stored = account({
-            channel: EMessageChannel.VIBER,
-            provider: EMessagingProvider.HTTP_API,
-            sender,
-        })
-        expect(senderFromForm(formFromAccount(stored))).toEqual(sender)
+        ).toEqual({"sender.api_base_url": EAccountFormError.NOT_A_URL})
+        expect(
+            validateAccountForm(
+                form(EMessagingProvider.VIBER_INFOBIP, EMessageChannel.VIBER, {
+                    sender: {base_url: "http://x.api.infobip.com", sender: "Council"},
+                })
+            )
+        ).toEqual({"sender.base_url": EAccountFormError.NOT_A_URL})
     })
 })
 
 describe("credentialsPayload", () => {
-    it("offers a custom HTTP API its own credentials", () => {
-        const values = form(EMessagingProvider.HTTP_API, EMessageChannel.SMS, {
-            credentials: {API_KEY: "key", WEBHOOK_SECRET: "secret", SMTP_PASSWORD: "other"},
+    it("never sends Viber's generated report credentials as typed", () => {
+        const values = form(EMessagingProvider.VIBER_INFOBIP, EMessageChannel.VIBER, {
+            credentials: {API_KEY: "key", REPORT_USERNAME: "u", REPORT_PASSWORD: "p"},
         })
-        expect(credentialsPayload(values)).toEqual({API_KEY: "key", WEBHOOK_SECRET: "secret"})
+        expect(credentialsPayload(values)).toEqual({API_KEY: "key"})
     })
 
     it("sends only typed credentials the provider accepts", () => {
@@ -383,38 +351,30 @@ describe("accountReadiness", () => {
         ])
     })
 
-    it("an account confirmed by an administrator is ready once the provider approved it", () => {
+    it("reads a stored ADMIN_CONFIRMED account from the provider's check", () => {
         const confirmed = account({
             readiness: EReadinessPolicy.ADMIN_CONFIRMED,
+            provider_approval: EProviderApproval.CONFIRMED,
             status: null,
         })
-        expect(accountReadiness(confirmed).policy).toBe(EReadinessPolicy.ADMIN_CONFIRMED)
+        expect(accountReadiness(confirmed).connected).toBe(false)
         expect(accountReadiness(confirmed).purposes.OTP.blockers).toEqual([
-            EReadinessBlocker.NEEDS_PROVIDER_APPROVAL,
+            EReadinessBlocker.NOT_CONNECTED,
+            EReadinessBlocker.NEEDS_PRODUCTION_ACCESS,
+            EReadinessBlocker.NEEDS_APPROVED_TEMPLATE,
         ])
-        expect(
-            accountReadiness({...confirmed, provider_approval: EProviderApproval.CONFIRMED})
-                .purposes.OTP.blockers
-        ).toEqual([])
     })
 
-    it("uses the capabilities a custom HTTP API declares", () => {
-        const custom = account({
+    it("shows an account of a removed provider as unsupported and not connected", () => {
+        const old = account({
             channel: EMessageChannel.VIBER,
             provider: EMessagingProvider.HTTP_API,
-            sender: {
-                provider: EMessagingProvider.HTTP_API,
-                send: {url: "https://partner.example"},
-                template_required_for: [EMessagePurpose.OTP],
-            },
-            status: {
-                connected: true,
-                production_access: true,
-                approved_templates: {NOTICE: ["en"]},
-            },
+            sender: {provider: EMessagingProvider.HTTP_API, label: "Old partner"},
+            status: {connected: true, production_access: true, approved_templates: {}},
         })
-        const readiness = accountReadiness(custom)
-        expect(readiness.purposes.OTP.blockers).toEqual([EReadinessBlocker.NEEDS_APPROVED_TEMPLATE])
-        expect(readiness.purposes.NOTICE.blockers).toEqual([])
+        const readiness = accountReadiness(old)
+        expect(readiness.connected).toBe(false)
+        expect(readiness.purposes.OTP.blockers).toEqual([EReadinessBlocker.UNSUPPORTED_PROVIDER])
+        expect(readiness.purposes.NOTICE.blockers).toEqual([EReadinessBlocker.UNSUPPORTED_PROVIDER])
     })
 })

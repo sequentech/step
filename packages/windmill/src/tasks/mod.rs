@@ -45,6 +45,7 @@ pub mod manage_election_init_report;
 pub mod manage_election_lifecycle_window;
 pub mod manage_election_voting_period_end;
 pub mod manual_verification_report;
+pub mod migrate_messaging_attributes;
 pub mod migrate_realm_permissions;
 pub mod migrate_registration_flows;
 pub mod miru_plugin_tasks;

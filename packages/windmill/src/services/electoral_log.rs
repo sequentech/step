@@ -1619,6 +1619,10 @@ pub enum OrderField {
     StatementTimestampFrom,
     /// Filter only: the last minute of a range of `statement_timestamp`.
     StatementTimestampTo,
+    /// Filter only: messages sent to voters on this channel (any case).
+    Channel,
+    /// Filter only: messages sent to voters with this attempt outcome.
+    Outcome,
 }
 
 impl OrderField {
@@ -1630,6 +1634,8 @@ impl OrderField {
                 | OrderField::CreatedTo
                 | OrderField::StatementTimestampFrom
                 | OrderField::StatementTimestampTo
+                | OrderField::Channel
+                | OrderField::Outcome
         )
     }
 }
@@ -1700,6 +1706,82 @@ pub struct GetElectoralLogBody {
     pub area_ids: Option<Vec<String>>,
     pub only_with_user: Option<bool>,
     pub statement_kind: Option<StatementType>,
+    /// Only messages sent to voters, of this channel and outcome, such as
+    /// the failed WhatsApp messages the event tab links to. Also given as
+    /// the `channel` and `outcome` keys of `filter`.
+    #[serde(default)]
+    pub communications: Option<CommunicationsFilter>,
+}
+
+impl GetElectoralLogBody {
+    /// The communications filter, from `communications` or from the
+    /// `channel` and `outcome` keys of `filter`.
+    pub fn communications_filter(&self) -> Option<CommunicationsFilter> {
+        let from_filter = |field: OrderField| {
+            self.filter
+                .as_ref()
+                .and_then(|filter| filter.get(&field))
+                .map(|value| value.trim().to_string())
+                .filter(|value| !value.is_empty())
+        };
+        let channel = from_filter(OrderField::Channel);
+        let outcome = from_filter(OrderField::Outcome);
+        match (&self.communications, channel, outcome) {
+            (Some(filter), None, None) => Some(filter.clone()),
+            (given, channel, outcome) if channel.is_some() || outcome.is_some() => {
+                let given = given.clone().unwrap_or_default();
+                Some(CommunicationsFilter {
+                    channel: channel.or(given.channel),
+                    outcome: outcome.or(given.outcome),
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Selects `SendCommunications` entries by the fields of their JSON body.
+/// The message column is encrypted, so the entries are read and matched
+/// here rather than in the query.
+#[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq)]
+pub struct CommunicationsFilter {
+    /// A channel, in any case (`WHATSAPP` or `whatsapp`).
+    pub channel: Option<String>,
+    /// An attempt outcome: `ACCEPTED`, `DELIVERED`, `FAILED` or `UNKNOWN`.
+    pub outcome: Option<String>,
+}
+
+impl CommunicationsFilter {
+    /// Whether a `SendCommunications` body matches. Entries written before
+    /// the outcome existed carry `state` instead.
+    pub fn matches_body(&self, body: &str) -> bool {
+        let Ok(body) = serde_json::from_str::<serde_json::Value>(body) else {
+            return false;
+        };
+        let field = |name: &str| body[name].as_str().map(str::to_string);
+        let channel_matches = self.channel.as_ref().map_or(true, |wanted| {
+            field("channel").is_some_and(|channel| channel.eq_ignore_ascii_case(wanted))
+        });
+        let outcome_matches = self.outcome.as_ref().map_or(true, |wanted| {
+            field("outcome")
+                .or_else(|| field("state"))
+                .is_some_and(|outcome| outcome.eq_ignore_ascii_case(wanted))
+        });
+        channel_matches && outcome_matches
+    }
+
+    /// Whether an electoral log row is a matching `SendCommunications`
+    /// entry.
+    pub fn matches_row(&self, row: &ElectoralLogRow) -> bool {
+        serde_json::from_str::<serde_json::Value>(&row.message)
+            .ok()
+            .and_then(|message| {
+                message["statement"]["body"]["SendCommunications"]
+                    .as_str()
+                    .map(|body| self.matches_body(body))
+            })
+            .unwrap_or(false)
+    }
 }
 
 impl GetElectoralLogBody {
@@ -1763,6 +1845,8 @@ impl GetElectoralLogBody {
                             params.push(create_named_param(param_name, Value::Ts(end)));
                         }
                     }
+                    // Matched on the decoded message (`CommunicationsFilter`).
+                    OrderField::Channel | OrderField::Outcome => {}
                     OrderField::EventType | OrderField::LogType | OrderField::Description // these have no column but are inside of Message
                     | OrderField::Message => {} // Message column is sql BLOB type and it´s encrypted so we can't search it without expensive operations
                 }
@@ -2102,8 +2186,62 @@ impl CastVoteEntry {
     }
 }
 
+/// The entries matching a communications filter: the event's
+/// `SendCommunications` entries are read a page at a time and matched on
+/// their body, then the request's offset and limit apply.
+async fn list_communications(
+    input: GetElectoralLogBody,
+    filter: CommunicationsFilter,
+) -> Result<DataList<ElectoralLogRow>> {
+    let page = i64::from(PgConfig::from_env()?.low_sql_limit);
+    let wanted_offset = usize::try_from(input.offset.unwrap_or(0).max(0))?;
+    let wanted_limit = usize::try_from(
+        input
+            .limit
+            .unwrap_or(PgConfig::from_env()?.default_sql_limit.into())
+            .max(0),
+    )?;
+    let mut matches = vec![];
+    let mut offset = 0;
+    loop {
+        let batch = Box::pin(list_electoral_log(GetElectoralLogBody {
+            statement_kind: Some(StatementType::SendCommunications),
+            communications: None,
+            filter: input.filter.clone().map(|mut filter| {
+                filter.remove(&OrderField::Channel);
+                filter.remove(&OrderField::Outcome);
+                filter
+            }),
+            limit: Some(page),
+            offset: Some(offset),
+            ..input.clone()
+        }))
+        .await?;
+        let read = batch.items.len();
+        matches.extend(batch.items.into_iter().filter(|row| filter.matches_row(row)));
+        if (read as i64) < page {
+            break;
+        }
+        offset += page;
+    }
+    let total = i64::try_from(matches.len())?;
+    Ok(DataList {
+        items: matches
+            .into_iter()
+            .skip(wanted_offset)
+            .take(wanted_limit)
+            .collect(),
+        total: TotalAggregate {
+            aggregate: Aggregate { count: total },
+        },
+    })
+}
+
 #[instrument(err)]
 pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<ElectoralLogRow>> {
+    if let Some(filter) = input.communications_filter() {
+        return list_communications(input, filter).await;
+    }
     let mut client: Client = get_immudb_client().await?;
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(
@@ -2724,5 +2862,27 @@ mod range_filter_tests {
         let (sql, _) = body.as_sql(true).unwrap();
         assert!(sql.contains("created >= @param_created_from"), "{sql}");
         assert_eq!(body.order_by_clause(), None);
+    }
+}
+
+#[cfg(test)]
+mod communications_filter_tests {
+    use super::CommunicationsFilter;
+
+    #[test]
+    fn communications_are_matched_by_channel_and_outcome() {
+        let failed_whatsapp =
+            r#"{"channel":"whatsapp","outcome":"FAILED","receiver":"+63 ••• ••• 567"}"#;
+        let first_release = r#"{"channel":"sms","receiver":"+63*****4567","state":"ACCEPTED"}"#;
+        let filter = |channel: Option<&str>, outcome: Option<&str>| CommunicationsFilter {
+            channel: channel.map(str::to_string),
+            outcome: outcome.map(str::to_string),
+        };
+        assert!(filter(Some("WHATSAPP"), Some("FAILED")).matches_body(failed_whatsapp));
+        assert!(filter(Some("whatsapp"), None).matches_body(failed_whatsapp));
+        assert!(!filter(Some("SMS"), Some("FAILED")).matches_body(failed_whatsapp));
+        assert!(!filter(None, Some("ACCEPTED")).matches_body(failed_whatsapp));
+        assert!(filter(Some("SMS"), Some("ACCEPTED")).matches_body(first_release));
+        assert!(!filter(None, None).matches_body("not json"));
     }
 }

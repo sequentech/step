@@ -7,6 +7,9 @@ const englishTranslation = {
             error: "The voting portal could not start. Please try again.",
             retry: "Try again",
         },
+        contactChannel: {
+            change: "Change how we contact you",
+        },
         common: {
             goBack: "Back",
             showMore: "Show more",

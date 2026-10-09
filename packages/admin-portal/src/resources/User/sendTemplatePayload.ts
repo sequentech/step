@@ -1,15 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {EChannelSelection, EMessageChannel, IInstantMessageConfig} from "@/types/messaging"
-import {
-    IEmail,
-    IMethods,
-    ISmsConfig,
-    ITemplateMethod,
-    MESSAGE_TEMPLATE_METHODS,
-} from "@/types/templates"
-import {templateContentKey, templateOffersMethod} from "@/services/templateMethods"
+import {EMessageChannel, IInstantMessageConfig} from "@/types/messaging"
+import {IEmail, IMethods, ISmsConfig, MESSAGE_TEMPLATE_METHODS} from "@/types/templates"
+import {templateOffersMethod} from "@/services/templateMethods"
 
 export interface ISendContent {
     email?: IEmail
@@ -22,8 +16,6 @@ export interface ISendContent {
 export interface ISendTemplateState<Audience extends string, VoterId> {
     audienceSelection: Audience
     voterIds?: VoterId[]
-    channelSelection: EChannelSelection
-    communicationMethod: ITemplateMethod
     scheduleNow: boolean
     /** RFC 3339 instant. */
     scheduleDate?: string
@@ -36,11 +28,14 @@ export interface ISendTemplateState<Audience extends string, VoterId> {
     secretAttributeNames: string[]
 }
 
+/**
+ * What the send task takes. Each voter gets the notification on their own
+ * channel, so it carries the content for every channel and no channel choice:
+ * `channel_selection` and `communication_method` are no longer written.
+ */
 export interface ISendTemplatePayload<Audience extends string, VoterId> extends ISendContent {
     audience_selection: Audience
     audience_voter_ids?: VoterId[]
-    channel_selection: EChannelSelection
-    communication_method?: ITemplateMethod
     schedule_now: boolean
     /** RFC 3339 instant. */
     schedule_date?: string
@@ -78,36 +73,18 @@ const sendContent = (content: ISendContent): ISendContent => ({
     messenger: instantMessage(content.messenger),
 })
 
-const contentFor = (content: ISendContent, method: ITemplateMethod): ISendContent => {
-    const key = templateContentKey(method)
-    switch (key) {
-        case "email":
-        case "sms":
-        case "whatsapp":
-        case "viber":
-        case "messenger":
-            return {[key]: content[key]}
-        case "document":
-            return {}
-    }
-}
-
 export const buildSendTemplatePayload = <Audience extends string, VoterId>(
     state: ISendTemplateState<Audience, VoterId>
 ): ISendTemplatePayload<Audience, VoterId> => {
-    const single = state.channelSelection === EChannelSelection.SINGLE_CHANNEL
-    const content = sendContent(state.content)
     return {
         audience_selection: state.audienceSelection,
         audience_voter_ids: state.voterIds,
-        channel_selection: state.channelSelection,
-        communication_method: single ? state.communicationMethod : undefined,
         schedule_now: state.scheduleNow,
         schedule_date: state.scheduleDate,
         schedule_local: state.scheduleLocal,
         schedule_timezone: state.scheduleTimezone,
         ...(state.alias ? {alias: state.alias} : {}),
-        ...(single ? contentFor(content, state.communicationMethod) : content),
+        ...sendContent(state.content),
         secret_attribute_names: state.secretAttributeNames,
     }
 }
@@ -117,16 +94,10 @@ interface ITemplateRow {
     template: {alias?: string; selected_methods?: IMethods | null}
 }
 
-/** Templates that can be sent with the chosen channel selection. */
-export const templatesForChannelSelection = <Row extends ITemplateRow>(
-    rows: Row[],
-    selection: EChannelSelection,
-    method: ITemplateMethod
-): Row[] =>
+/** Templates that send a message on at least one channel. */
+export const sendableTemplates = <Row extends ITemplateRow>(rows: Row[]): Row[] =>
     rows.filter((row) =>
-        selection === EChannelSelection.SINGLE_CHANNEL
-            ? templateOffersMethod(row, method)
-            : MESSAGE_TEMPLATE_METHODS.some((candidate) => templateOffersMethod(row, candidate))
+        MESSAGE_TEMPLATE_METHODS.some((candidate) => templateOffersMethod(row, candidate))
     )
 
 const hasContent = (content: ISendContent, channel: EMessageChannel): boolean => {

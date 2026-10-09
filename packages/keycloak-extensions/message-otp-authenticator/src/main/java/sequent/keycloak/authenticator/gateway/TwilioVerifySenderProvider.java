@@ -52,7 +52,10 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
             .format(attributes.toArray());
 
     if (!messageKey.equals(Utils.SEND_CODE_SMS_I18N_KEY)) {
-      log.infov("Skipping non-OTP Twilio Verify SMS to {0}", phoneNumber);
+      log.infov(
+          "Skipping non-OTP Twilio Verify SMS to {0}",
+          sequent.keycloak.authenticator.messaging.VoterChannels.mask(
+              sequent.keycloak.authenticator.messaging.MessageChannel.SMS, phoneNumber));
       return formattedMessage;
     }
 
@@ -63,13 +66,20 @@ public class TwilioVerifySenderProvider implements SmsSenderProvider {
     }
 
     String otpCode = attributes.get(1);
-    log.infov("Sending Twilio Verify SMS to {0}", phoneNumber);
+    log.infov(
+        "Sending Twilio Verify SMS to {0}",
+        sequent.keycloak.authenticator.messaging.VoterChannels.mask(
+            sequent.keycloak.authenticator.messaging.MessageChannel.SMS, phoneNumber));
 
     Verification verification =
         Verification.creator(SERVICE_SID, phoneNumber, "sms").setCustomCode(otpCode).create();
     String sid = verification.getSid();
     authSession.setAuthNote(SID_AUTH_NOTE, sid);
-    log.infov("Sent Twilio Verify SMS to {0}, sid={1}", phoneNumber, sid);
+    log.infov(
+        "Sent Twilio Verify SMS to {0}, sid={1}",
+        sequent.keycloak.authenticator.messaging.VoterChannels.mask(
+            sequent.keycloak.authenticator.messaging.MessageChannel.SMS, phoneNumber),
+        sid);
 
     return formattedMessage;
   }

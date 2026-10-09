@@ -11,7 +11,6 @@ import static org.mockito.Mockito.*;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -21,6 +20,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.LoginFormsProvider;
@@ -31,15 +31,18 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.RequiredActionConfigModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.ThemeManager;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 import org.mockito.ArgumentCaptor;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
+import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.messaging.CreateMessengerLinkResponse;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagePurpose;
@@ -54,6 +57,7 @@ class ResetMessagingAppOTPRequiredActionTest {
   private static final String TENANT = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
   private static final String EVENT = "11111111-2222-3333-4444-555555555555";
   private static final String NEW_NUMBER = "+15550177777";
+  private static final String MASKED_NEW_NUMBER = "+1 • ••• ••• 777";
   private static final String PROJECTION =
       """
       {"version": 1, "channels": [
@@ -75,12 +79,13 @@ class ResetMessagingAppOTPRequiredActionTest {
   private final LoginFormsProvider form = mock(LoginFormsProvider.class, RETURNS_SELF);
   private final Response response = mock(Response.class);
   private final MessageSenderProvider sender = mock(MessageSenderProvider.class);
+  private final SmsSenderProvider sms = mock(SmsSenderProvider.class);
   private final UserProvider users = mock(UserProvider.class);
   private final SubjectCredentialManager credentials = mock(SubjectCredentialManager.class);
   private final Map<String, String> notes = new HashMap<>();
   private final Map<String, String> configMap = new HashMap<>();
+  private final Map<String, String> signInStepConfig = new HashMap<>();
   private final MultivaluedMap<String, String> parameters = new MultivaluedHashMap<>();
-  private final List<String> verifiedChannels = new ArrayList<>(List.of("SMS"));
 
   @BeforeEach
   void setup() throws Exception {
@@ -90,6 +95,7 @@ class ResetMessagingAppOTPRequiredActionTest {
     when(authSession.getTabId()).thenReturn("synthetic-tab");
     when(authSession.getRealm()).thenReturn(realm);
     when(realm.getName()).thenReturn("tenant-" + TENANT + "-event-" + EVENT);
+    when(realm.getDisplayName()).thenReturn("Synthetic Commission");
     when(realm.getAttribute(PublicMessagingChannels.REALM_ATTRIBUTE)).thenReturn(PROJECTION);
     when(authSession.getAuthNote(anyString())).thenAnswer(i -> notes.get(i.getArgument(0)));
     doAnswer(i -> notes.put(i.getArgument(0), i.getArgument(1)))
@@ -119,10 +125,9 @@ class ResetMessagingAppOTPRequiredActionTest {
         .thenAnswer(i -> Stream.of());
 
     when(user.getId()).thenReturn("voter-1");
+    when(user.getEmail()).thenReturn("maria.cruz@example.test");
     when(user.getFirstAttribute(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD))
         .thenReturn("+15550123456");
-    when(user.getAttributeStream(MessagingAttributes.VERIFIED_CHANNELS))
-        .thenAnswer(i -> verifiedChannels.stream());
     when(user.getAttributeStream(MessagingAttributes.AUTHORIZED_ELECTIONS))
         .thenAnswer(i -> Stream.of());
     when(user.credentialManager()).thenReturn(credentials);
@@ -135,16 +140,27 @@ class ResetMessagingAppOTPRequiredActionTest {
             Set.of(MessageChannel.WHATSAPP, MessageChannel.VIBER, MessageChannel.MESSENGER));
     when(sender.delivers(any())).thenCallRealMethod();
     when(sender.send(any())).thenReturn(new SendMessageResponse("m-1", "ACCEPTED", null));
+    when(session.getProvider(SmsSenderProvider.class)).thenReturn(sms);
+    when(sms.send(anyString(), anyString(), anyList(), any(), any(), any())).thenReturn("sent");
 
-    configMap.putAll(MessageOTPAuthenticatorFactory.getConfigMap(null));
-    configMap.put(Utils.TEL_USER_ATTRIBUTE, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    // The action's own configuration in the realm.
+    RequiredActionConfigModel own = new RequiredActionConfigModel();
+    own.setAlias(ResetMessagingAppOTPRequiredAction.PROVIDER_ID);
+    own.setConfig(configMap);
+    when(realm.getRequiredActionConfigByAlias(ResetMessagingAppOTPRequiredAction.PROVIDER_ID))
+        .thenReturn(own);
+
+    // A sign-in step with other settings, which the action must not use.
+    signInStepConfig.putAll(MessageOTPAuthenticatorFactory.getConfigMap(null));
+    signInStepConfig.put(Utils.CODE_TTL, "900");
+    signInStepConfig.put(Utils.MAX_CODE_ATTEMPTS, "50");
     AuthenticationFlowModel flow = new AuthenticationFlowModel();
     flow.setId("flow");
     AuthenticationExecutionModel execution = new AuthenticationExecutionModel();
     execution.setAuthenticator(MessageOTPAuthenticatorFactory.PROVIDER_ID);
     execution.setAuthenticatorConfig("config");
     AuthenticatorConfigModel config = new AuthenticatorConfigModel();
-    config.setConfig(configMap);
+    config.setConfig(signInStepConfig);
     when(realm.getAuthenticationFlowsStream()).thenAnswer(i -> Stream.of(flow));
     when(realm.getAuthenticationExecutionsStream("flow")).thenAnswer(i -> Stream.of(execution));
     when(realm.getAuthenticatorConfigById("config")).thenReturn(config);
@@ -166,24 +182,60 @@ class ResetMessagingAppOTPRequiredActionTest {
     action.processAction(context);
   }
 
+  private static String wrong(String code) {
+    return code.equals("000000") ? "111111" : "000000";
+  }
+
   private void resendTimerElapsed() {
-    long ttlMillis = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
+    long ttlMillis =
+        Long.parseLong(configMap.getOrDefault(Utils.CODE_TTL, Utils.CODE_TTL_DEFAULT)) * 1000L;
     notes.put(Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + ttlMillis - 61_000L));
   }
 
+  private void verifyReplacedWith(MessageChannel channel) {
+    verify(user).setSingleAttribute(MessagingAttributes.MESSAGE_CHANNEL, channel.name());
+    verify(user).removeAttribute(MessagingAttributes.VERIFIED_CHANNELS);
+    verify(user).removeAttribute(MessagingAttributes.WHATSAPP_NUMBER);
+    verify(user).removeAttribute(MessagingAttributes.VIBER_NUMBER);
+  }
+
   @Test
-  void onlyTheMessagingAppsTheRealmUsesForCodesAreOffered() {
+  void theIdIsMessageChannelRaAndTheFirstReleaseIdStillWorks() {
+    assertEquals("message-channel-ra", action.getId());
+    assertEquals("message-channel-ra", action.getProviderId());
+    LegacyMessagingAppOTPRequiredAction legacy = new LegacyMessagingAppOTPRequiredAction();
+    assertEquals("messaging-app-otp-ra", legacy.getId());
+    assertEquals("messaging-app-otp-ra", legacy.getProviderId());
+    assertEquals(legacy, legacy.create(session));
+  }
+
+  @Test
+  void theContactChangeNeedsARecentSignIn() {
+    assertEquals(300, action.getMaxAuthAge());
+    assertTrue(action.isConfigurable());
+    assertTrue(
+        action.getConfigMetadata().stream()
+            .map(ProviderConfigProperty::getName)
+            .toList()
+            .containsAll(List.of("max_auth_age", Utils.CODE_TTL, Utils.RESEND_ACTIVATION_TIMER)));
+    assertEquals(InitiatedActionSupport.SUPPORTED, action.initiatedActionSupport());
+  }
+
+  @Test
+  void thePostsChannelsAreOfferedInTheTicketsOrder() {
     action.requiredActionChallenge(context);
 
-    verify(form).setAttribute("messagingChannels", List.of("WHATSAPP", "MESSENGER"));
+    verify(form)
+        .setAttribute("messagingChannels", List.of("WHATSAPP", "MESSENGER", "SMS", "EMAIL"));
     verify(form).setAttribute("messagingPage", "Synthetic Page");
+    verify(form).setAttribute("messagingEmail", "ma••••••••@example.test");
     verify(form).createForm("message-otp.enter-app-contact.ftl");
     verify(context).challenge(response);
     verify(sender, never()).send(any());
   }
 
   @Test
-  void aRealmWithoutMessagingAppsSkipsTheAction() {
+  void aRealmWithoutMessagingSkipsTheAction() {
     when(realm.getAttribute(PublicMessagingChannels.REALM_ATTRIBUTE)).thenReturn(null);
     action.requiredActionChallenge(context);
     verify(context).ignore();
@@ -197,10 +249,10 @@ class ResetMessagingAppOTPRequiredActionTest {
   }
 
   @Test
-  void aSenderThatDoesNotDeliverTheAppsSkipsTheAction() {
+  void withoutAMessageSenderOnlySmsAndEmailAreOffered() {
     when(session.getProvider(MessageSenderProvider.class)).thenReturn(null);
     action.requiredActionChallenge(context);
-    verify(context).ignore();
+    verify(form).setAttribute("messagingChannels", List.of("SMS", "EMAIL"));
   }
 
   @Test
@@ -217,8 +269,7 @@ class ResetMessagingAppOTPRequiredActionTest {
   }
 
   @Test
-  void aNewWhatsAppNumberIsVerifiedOnWhatsAppBeforeItIsSaved() {
-    parameters.putSingle(MessagingAttributes.FORM_NOTICE_CHANNEL, "WHATSAPP");
+  void aNewWhatsAppNumberIsVerifiedAndThenReplacesTheVotersChannel() {
     parameters.putSingle("channel", "WHATSAPP");
     parameters.putSingle("contact", " " + NEW_NUMBER + " ");
     parameters.putSingle(MessagingAttributes.FORM_MESSAGE_CONSENT, "1:WHATSAPP");
@@ -238,21 +289,25 @@ class ResetMessagingAppOTPRequiredActionTest {
     assertEquals(code, request.content().code());
     verify(form).createForm("message-otp.enter-otp.ftl");
     verify(form).setAttribute("channel", "WHATSAPP");
-    verify(form).setAttribute("contact", NEW_NUMBER);
+    verify(form).setAttribute("contact", MASKED_NEW_NUMBER);
+    verify(form, never()).setAttribute("contact", NEW_NUMBER);
     verify(user, never()).setSingleAttribute(anyString(), anyString());
 
     submitCode(code);
 
-    verify(user).setSingleAttribute(MessagingAttributes.WHATSAPP_NUMBER, NEW_NUMBER);
-    verify(user).setAttribute(MessagingAttributes.VERIFIED_CHANNELS, List.of("SMS", "WHATSAPP"));
-    verify(user).setSingleAttribute(MessagingAttributes.MESSAGE_CHANNEL, "WHATSAPP");
+    verifyReplacedWith(MessageChannel.WHATSAPP);
+    verify(user).setSingleAttribute(MessagingAttributes.MESSAGE_NUMBER, NEW_NUMBER);
+    verify(user).removeAttribute(MessagingAttributes.MESSENGER_ID);
+    verify(user).removeAttribute(MessagingAttributes.MESSENGER_PAGE);
     verify(user)
         .setSingleAttribute(
             eq(MessagingAttributes.MESSAGE_CONSENT),
             argThat(
                 consent ->
-                    consent.contains("\"wording_version\":\"1\"")
-                        && consent.contains("\"channel\":\"WHATSAPP\"")));
+                    consent.contains("\"version\":\"1\"")
+                        && consent.contains("\"organization\":\"Synthetic Commission\"")
+                        && consent.contains("\"channel\":\"WHATSAPP\"")
+                        && consent.contains("\"at\":")));
     verify(user).removeRequiredAction(ResetMessagingAppOTPRequiredAction.PROVIDER_ID);
     verify(context).success();
     verify(credentials, never()).createStoredCredential(any());
@@ -262,23 +317,34 @@ class ResetMessagingAppOTPRequiredActionTest {
   }
 
   @Test
-  void noticesStayWhereTheyWereUnlessTheVoterAsks() {
-    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+  void anSmsNumberIsVerifiedBySmsAndRecordedAsTheMessageNumber() throws Exception {
+    enter(MessageChannel.SMS, NEW_NUMBER);
+    verify(sms)
+        .send(eq(NEW_NUMBER), eq(Utils.SEND_CODE_SMS_I18N_KEY), anyList(), any(), any(), any());
+    verify(sender, never()).send(any());
+
     submitCode(notes.get(Utils.CODE));
-    verify(user).setSingleAttribute(MessagingAttributes.WHATSAPP_NUMBER, NEW_NUMBER);
-    verify(user, never()).setSingleAttribute(eq(MessagingAttributes.MESSAGE_CHANNEL), any());
+    verifyReplacedWith(MessageChannel.SMS);
+    verify(user).setSingleAttribute(MessagingAttributes.MESSAGE_NUMBER, NEW_NUMBER);
+    verify(user, never())
+        .setSingleAttribute(eq(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD), anyString());
+    verify(context).success();
   }
 
   @Test
-  void consentToTheAppIsRequired() {
+  void consentToTheChannelIsRequired() {
     parameters.putSingle("channel", "WHATSAPP");
     parameters.putSingle("contact", NEW_NUMBER);
     parameters.putSingle(MessagingAttributes.FORM_MESSAGE_CONSENT, "1:VIBER");
     action.processAction(context);
+    parameters.clear();
+    parameters.putSingle("channel", "SMS");
+    parameters.putSingle("contact", NEW_NUMBER);
+    action.processAction(context);
 
     verify(sender, never()).send(any());
-    verify(form).setError(eq("messaging.consent.required"), any());
-    verify(form).createForm("message-otp.enter-app-contact.ftl");
+    verifyNoInteractions(sms);
+    verify(form, times(2)).setError(eq("messaging.consent.required"), any());
     assertNull(notes.get(MessagingAttributes.NOTE_RESET_CHANNEL));
   }
 
@@ -298,12 +364,23 @@ class ResetMessagingAppOTPRequiredActionTest {
   }
 
   @Test
-  void anAppTheRealmDoesNotUseForCodesCannotBeChosen() {
+  void aChannelThePostDoesNotOfferCannotBeChosen() {
     enter(MessageChannel.VIBER, NEW_NUMBER);
-    enter(MessageChannel.SMS, NEW_NUMBER);
+    parameters.putSingle("channel", "FAX");
+    action.processAction(context);
     verify(sender, never()).send(any());
     verify(form, times(2)).setError("messaging.channelChoice.required");
     assertNull(notes.get(Utils.CODE));
+  }
+
+  @Test
+  void theCodeSettingsAreTheActionsOwn() {
+    configMap.put(Utils.CODE_TTL, "120");
+    long before = System.currentTimeMillis();
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    long expiry = Long.parseLong(notes.get(Utils.CODE_TTL));
+    assertTrue(expiry >= before + 120_000 && expiry <= System.currentTimeMillis() + 120_000);
+    verify(form).setAttribute("ttl", "120");
   }
 
   @Test
@@ -311,17 +388,55 @@ class ResetMessagingAppOTPRequiredActionTest {
     configMap.put(Utils.MAX_CODE_ATTEMPTS, "2");
     enter(MessageChannel.WHATSAPP, NEW_NUMBER);
     String code = notes.get(Utils.CODE);
-    String wrong = code.equals("000000") ? "111111" : "000000";
 
-    submitCode(wrong);
+    submitCode(wrong(code));
     verify(form).setError("resetAppOtp.auth.error.codeInvalid");
-    submitCode(wrong);
+    submitCode(wrong(code));
     verify(form).setError("messageOtp.auth.tooManyAttempts");
+    verify(form, atLeastOnce()).setAttribute("attemptsExhausted", true);
     assertNull(notes.get(Utils.CODE));
 
     submitCode(code);
     verify(context, never()).success();
     verify(user, never()).setSingleAttribute(anyString(), anyString());
+  }
+
+  @Test
+  void fiveWrongCodesFinishTheSession() {
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    String code = notes.get(Utils.CODE);
+    for (int attempt = 0; attempt < 5; attempt++) {
+      submitCode(wrong(code));
+    }
+    resendTimerElapsed();
+    enter(MessageChannel.WHATSAPP, "+15550188888");
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    action.processAction(context);
+    verify(sender, times(1)).send(any());
+    verify(form, atLeast(3)).setAttribute("attemptsExhausted", true);
+  }
+
+  /** KC-R3 for the contact change: asking for a new code keeps the attempt count. */
+  @Test
+  void attemptsSurviveAResend() {
+    configMap.put(Utils.MAX_CODE_ATTEMPTS, "2");
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    String code = notes.get(Utils.CODE);
+    submitCode(wrong(code));
+
+    resendTimerElapsed();
+    parameters.clear();
+    parameters.putSingle("resend", "true");
+    action.processAction(context);
+    String second = notes.get(Utils.CODE);
+    assertNotNull(second);
+
+    submitCode(wrong(second));
+    verify(form, atLeastOnce()).setError("messageOtp.auth.tooManyAttempts");
+    assertNull(notes.get(Utils.CODE));
+    submitCode(second);
+    verify(context, never()).success();
   }
 
   @Test
@@ -356,15 +471,21 @@ class ResetMessagingAppOTPRequiredActionTest {
     assertNull(notes.get(MessagingAttributes.NOTE_RESET_CHANNEL));
   }
 
+  /** KC-R4: a failed send starts the resend timer, here too. */
   @Test
-  void aFailedSendCanBeRetriedAtOnce() {
-    when(sender.send(any())).thenReturn(new SendMessageResponse(null, "FAILED", "rejected-422"));
+  void aFailedSendStartsTheResendTimer() {
+    when(sender.send(any())).thenReturn(new SendMessageResponse(null, "FAILED", "rejected-429"));
     enter(MessageChannel.WHATSAPP, NEW_NUMBER);
     verify(form).setError("resetAppOtp.auth.error.sendError");
     assertNull(notes.get(Utils.CODE));
     assertNull(notes.get(MessagingAttributes.NOTE_RESET_CHANNEL));
 
     when(sender.send(any())).thenReturn(new SendMessageResponse("m-2", "ACCEPTED", null));
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    verify(sender, times(1)).send(any());
+    verify(form).setError("resetAppOtp.auth.error.resendTimer");
+
+    resendTimerElapsed();
     enter(MessageChannel.WHATSAPP, NEW_NUMBER);
     verify(sender, times(2)).send(any());
     assertNotNull(notes.get(Utils.CODE));
@@ -376,7 +497,7 @@ class ResetMessagingAppOTPRequiredActionTest {
     UserModel other = mock(UserModel.class);
     when(other.getId()).thenReturn("voter-2");
     when(users.searchForUserByUserAttributeStream(
-            realm, MessagingAttributes.WHATSAPP_NUMBER, NEW_NUMBER))
+            realm, MessagingAttributes.MESSAGE_NUMBER, NEW_NUMBER))
         .thenAnswer(i -> Stream.of(user, other));
     enter(MessageChannel.WHATSAPP, NEW_NUMBER);
     submitCode(notes.get(Utils.CODE));
@@ -387,16 +508,19 @@ class ResetMessagingAppOTPRequiredActionTest {
   }
 
   @Test
-  void aMessengerConnectionIsConfirmedByHarvestBeforeItIsSaved() throws Exception {
+  void aMessengerConnectionIsConfirmedByHarvestBeforeItReplacesTheChannel() throws Exception {
     when(sender.createMessengerLink(any()))
         .thenReturn(
             new CreateMessengerLinkResponse(
-                "ref-1", "https://m.me/synthetic?ref=ref-1", "MAPLE", "2026-10-03T10:05:00Z"));
+                "ref-1", "https://m.me/synthetic?ref=ref-1", null, "2026-10-03T10:05:00Z"));
     enter(MessageChannel.MESSENGER, null);
 
     verify(sender, never()).send(any());
     verify(form).setAttribute("messengerLink", "https://m.me/synthetic?ref=ref-1");
     verify(form).setAttribute("messengerPage", "Synthetic Page");
+    verify(form)
+        .setAttribute(
+            eq("messengerQr"), argThat((String qr) -> qr.startsWith("data:image/svg+xml;base64,")));
     String code = notes.get(Utils.CODE);
 
     when(sender.messengerLinkStatus(any()))
@@ -411,9 +535,10 @@ class ResetMessagingAppOTPRequiredActionTest {
         .thenReturn(new MessengerLinkStatus("CONFIRMED", "psid-9", "page-1"));
     submitCode(code);
 
+    verifyReplacedWith(MessageChannel.MESSENGER);
     verify(user).setSingleAttribute(MessagingAttributes.MESSENGER_ID, "psid-9");
     verify(user).setSingleAttribute(MessagingAttributes.MESSENGER_PAGE, "page-1");
-    verify(user).setAttribute(MessagingAttributes.VERIFIED_CHANNELS, List.of("SMS", "MESSENGER"));
+    verify(user).removeAttribute(MessagingAttributes.MESSAGE_NUMBER);
     verify(context).success();
   }
 
@@ -422,7 +547,7 @@ class ResetMessagingAppOTPRequiredActionTest {
     when(sender.createMessengerLink(any()))
         .thenReturn(
             new CreateMessengerLinkResponse(
-                "ref-1", "https://m.me/synthetic?ref=ref-1", "MAPLE", "2026-10-03T10:05:00Z"));
+                "ref-1", "https://m.me/synthetic?ref=ref-1", null, "2026-10-03T10:05:00Z"));
     enter(MessageChannel.MESSENGER, null);
     when(sender.confirmMessengerLink(any()))
         .thenReturn(new MessengerLinkStatus("REPLACED", null, null));

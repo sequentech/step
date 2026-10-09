@@ -11,7 +11,6 @@ export const UPSERT_MESSAGING_ACCOUNT = gql`
         $sender: jsonb!
         $limits: jsonb
         $providerApproval: String
-        $readiness: String
         $isDefault: Boolean
     ) {
         upsert_messaging_account(
@@ -21,10 +20,11 @@ export const UPSERT_MESSAGING_ACCOUNT = gql`
             sender: $sender
             limits: $limits
             provider_approval: $providerApproval
-            readiness: $readiness
             is_default: $isDefault
         ) {
             id
+            callback_url
+            callback_reason
         }
     }
 `

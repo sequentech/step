@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,7 +44,10 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
+import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
+import sequent.keycloak.authenticator.messaging.VerifiedContacts;
+import sequent.keycloak.authenticator.messaging.VoterChannel;
 
 @UtilityClass
 @JBossLog
@@ -91,8 +95,41 @@ public class Utils {
                   KEYS_USERDATA))
           .collect(Collectors.toUnmodifiableSet());
 
+  /**
+   * Form fields that become notes besides the user profile's attributes: the account fields, the
+   * password, the terms box, the identity method and the messaging channel choice.
+   */
+  static final Set<String> FORM_FIELDS =
+      Set.of(
+          UserModel.USERNAME,
+          UserModel.EMAIL,
+          UserModel.FIRST_NAME,
+          UserModel.LAST_NAME,
+          "password",
+          "password-confirm",
+          "termsAccepted",
+          "identity-method",
+          MessagingAttributes.FORM_OTP_CHANNEL,
+          MessagingAttributes.FORM_WHATSAPP_NUMBER,
+          MessagingAttributes.FORM_VIBER_NUMBER,
+          MessagingAttributes.FORM_MESSAGE_CONSENT);
+
+  /**
+   * Whether a submitted field may become an authentication note: an allowlist of the profile's
+   * attributes and {@link #FORM_FIELDS}. Notes only Keycloak sets, and the messaging channel
+   * attributes (written only after a code verified them), never come from a form.
+   */
+  static boolean isFormNote(String key, Set<String> profileAttributes) {
+    if (key == null
+        || RESERVED_NOTES.contains(key)
+        || MessagingAttributes.CONTACT_ATTRIBUTES.contains(key)) {
+      return false;
+    }
+    return FORM_FIELDS.contains(key) || profileAttributes.contains(key);
+  }
+
   static boolean isFormNote(String key) {
-    return !RESERVED_NOTES.contains(key);
+    return isFormNote(key, Set.of());
   }
 
   String escapeJson(String value) {
@@ -143,9 +180,13 @@ public class Utils {
         "storeUserDataInAuthSessionNotes: setAuthNote(" + Utils.KEYS_USERDATA + ", " + keys + ")");
     sessionModel.setAuthNote(Utils.KEYS_USERDATA, keys);
 
+    Set<String> profileAttributes =
+        getRealmUserProfileAttributes(context.getSession()).stream()
+            .map(UPAttribute::getName)
+            .collect(Collectors.toSet());
     formData.forEach(
         (key, value) -> {
-          if (!isFormNote(key)) {
+          if (!isFormNote(key, profileAttributes)) {
             log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved field {0}", key);
             return;
           }
@@ -287,6 +328,9 @@ public class Utils {
       ObjectNode attributesJson = mapper.createObjectNode();
 
       for (String attributeName : attributes.keySet()) {
+        if (MessagingAttributes.CONTACT_ATTRIBUTES.contains(attributeName)) {
+          continue;
+        }
         String value = attributes.get(attributeName).get(0);
         if (value != null) {
           attributesJson.put(attributeName, value);
@@ -305,13 +349,59 @@ public class Utils {
     Map<String, String> applicantData = new HashMap<>();
 
     for (UPAttribute attribute : realmsAttributes) {
+      if (MessagingAttributes.CONTACT_ATTRIBUTES.contains(attribute.getName())) {
+        continue;
+      }
       String authNoteValue = authSession.getAuthNote(attribute.getName());
 
       if (authNoteValue != null && !authNoteValue.isBlank())
         applicantData.put(attribute.getName(), authNoteValue);
     }
+    RealmModel realm = session.getContext().getRealm();
+    applicantData.putAll(
+        verifiedChannelData(
+            authSession,
+            realm == null ? "" : sequent.keycloak.authenticator.Utils.getRealmName(realm),
+            realm == null
+                ? MessagingAttributes.CONSENT_VERSION_DEFAULT
+                : VerifiedContacts.consentVersion(realm),
+            Instant.now()));
 
     return applicantData;
+  }
+
+  /**
+   * The verified channel for a reviewer's decision, read from notes only Keycloak sets (never from
+   * form fields), under the user attribute names windmill writes on approval: {@code
+   * sequent.read-only.message-channel}, {@code sequent.read-only.message-number} (WhatsApp, Viber,
+   * SMS), {@code sequent.read-only.messenger-id} and {@code sequent.read-only.messenger-page}
+   * (Messenger), and {@code sequent.read-only.message-consent} (JSON {@code {at, version,
+   * organization, channel}}) when the voter consented to that channel. Empty when no code verified
+   * a channel.
+   */
+  static Map<String, String> verifiedChannelData(
+      AuthenticationSessionModel authSession,
+      String organization,
+      String consentVersion,
+      Instant now) {
+    Map<String, String> data = new HashMap<>();
+    Optional<VoterChannel> verified = VerifiedContacts.verified(authSession, null);
+    if (verified.isEmpty()) {
+      return data;
+    }
+    VoterChannel channel = verified.get();
+    data.put(MessagingAttributes.MESSAGE_CHANNEL, channel.channel().name());
+    if (VerifiedContacts.NUMBER_CHANNELS.contains(channel.channel())) {
+      data.put(MessagingAttributes.MESSAGE_NUMBER, channel.destination());
+    }
+    if (channel.channel() == MessageChannel.MESSENGER) {
+      data.put(MessagingAttributes.MESSENGER_ID, channel.destination());
+      channel.messengerPage().ifPresent(page -> data.put(MessagingAttributes.MESSENGER_PAGE, page));
+    }
+    VerifiedContacts.verifiedConsent(
+            authSession, consentVersion, organization, channel.channel(), now)
+        .ifPresent(consent -> data.put(MessagingAttributes.MESSAGE_CONSENT, consent));
+    return data;
   }
 
   public PasswordCredentialModel buildPassword(KeycloakSession session, String rawPassword) {

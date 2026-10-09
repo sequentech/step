@@ -383,7 +383,7 @@ export const Messaging: Story = {
     play: tabPlay("Messaging", {
         text: /^The channels voters of this event can choose for codes and notices/,
         reads: ["getList sequent_backend_election"],
-        operations: ["GetMessagingAccounts", "GetMessageDeliveryStats"],
+        operations: ["GetMessagingAccounts", "GetEventMessagingConfig", "GetMessagingEventStats"],
     }),
 }
 

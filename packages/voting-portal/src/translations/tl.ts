@@ -9,6 +9,9 @@ const tagalogTranslation: TranslationType = {
             error: "Hindi masimulan ang portal ng pagboto. Pakisubukang muli.",
             retry: "Subukang muli",
         },
+        contactChannel: {
+            change: "Baguhin kung paano ka namin kokontakin",
+        },
         common: {
             goBack: "Bumalik",
             showMore: "Lakihan ang nakikita",

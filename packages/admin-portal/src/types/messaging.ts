@@ -15,12 +15,13 @@ export enum EMessageChannel {
     MESSENGER = "MESSENGER",
 }
 
+/** Channel order everywhere: WhatsApp, Viber, Messenger, SMS, Email. */
 export const MESSAGE_CHANNELS: EMessageChannel[] = [
-    EMessageChannel.EMAIL,
-    EMessageChannel.SMS,
     EMessageChannel.WHATSAPP,
     EMessageChannel.VIBER,
     EMessageChannel.MESSENGER,
+    EMessageChannel.SMS,
+    EMessageChannel.EMAIL,
 ]
 
 export enum EMessagePurpose {
@@ -43,10 +44,17 @@ export enum EMessagingProvider {
     WHATSAPP_CLOUD_API = "WHATSAPP_CLOUD_API",
     MESSENGER_SEND_API = "MESSENGER_SEND_API",
     VIBER_INFOBIP = "VIBER_INFOBIP",
-    /** A provider described by configuration, usable for any channel. */
+    /** Parse-only: an account saved with it loads as unsupported and can't send. */
     HTTP_API = "HTTP_API",
+    /** Parse-only: an account saved with it loads as unsupported and can't send. */
     CONSOLE = "CONSOLE",
 }
+
+/** Providers that were removed: their accounts still load, to be replaced. */
+export const UNSUPPORTED_PROVIDERS: EMessagingProvider[] = [
+    EMessagingProvider.HTTP_API,
+    EMessagingProvider.CONSOLE,
+]
 
 export enum EDeliveryFeedback {
     PROVIDER_RECEIPTS = "PROVIDER_RECEIPTS",
@@ -79,18 +87,18 @@ export enum EOutOfWindowPolicy {
     UTILITY_MESSAGES = "UTILITY_MESSAGES",
 }
 
-/** How an account's readiness is established. */
+/**
+ * How an account's readiness is established. Readiness always comes from the
+ * provider's check; `ADMIN_CONFIRMED` is parse-only, read as `PROVIDER_CHECK`
+ * and never written.
+ */
 export enum EReadinessPolicy {
     PROVIDER_CHECK = "PROVIDER_CHECK",
     ADMIN_CONFIRMED = "ADMIN_CONFIRMED",
 }
 
-export const READINESS_POLICIES: EReadinessPolicy[] = [
-    EReadinessPolicy.PROVIDER_CHECK,
-    EReadinessPolicy.ADMIN_CONFIRMED,
-]
-
 export enum EReadinessBlocker {
+    UNSUPPORTED_PROVIDER = "UNSUPPORTED_PROVIDER",
     NOT_CONNECTED = "NOT_CONNECTED",
     UNSUPPORTED_PURPOSE = "UNSUPPORTED_PURPOSE",
     NEEDS_PROVIDER_APPROVAL = "NEEDS_PROVIDER_APPROVAL",
@@ -106,12 +114,19 @@ export enum ECredentialName {
     SMTP_PASSWORD = "SMTP_PASSWORD",
     AWS_ACCESS_KEY_ID = "AWS_ACCESS_KEY_ID",
     AWS_SECRET_ACCESS_KEY = "AWS_SECRET_ACCESS_KEY",
-    API_SECRET = "API_SECRET",
-    USERNAME = "USERNAME",
-    PASSWORD = "PASSWORD",
-    WEBHOOK_SECRET = "WEBHOOK_SECRET",
+    /** Basic auth Infobip's report subscription sends; generated, shown once. */
+    REPORT_USERNAME = "REPORT_USERNAME",
+    REPORT_PASSWORD = "REPORT_PASSWORD",
 }
 
+/** Credentials Step generates and shows once; never typed. */
+export const GENERATED_CREDENTIALS: ECredentialName[] = [
+    ECredentialName.VERIFY_TOKEN,
+    ECredentialName.REPORT_USERNAME,
+    ECredentialName.REPORT_PASSWORD,
+]
+
+/** Parse-only: a notification goes to each voter's own channel. Never written. */
 export enum EChannelSelection {
     SINGLE_CHANNEL = "SINGLE_CHANNEL",
     VOTER_PREFERENCE = "VOTER_PREFERENCE",
@@ -151,88 +166,6 @@ export interface IAccountLimits {
 
 /** Per purpose, language to the partner's template ID. */
 export type IViberApprovedTemplates = Partial<Record<EMessagePurpose, Record<string, string>>>
-
-export enum EPhoneFormat {
-    E164 = "E164",
-    DIGITS = "DIGITS",
-}
-
-export enum EDigestEncoding {
-    HEX = "HEX",
-    BASE64 = "BASE64",
-}
-
-export enum EJwtAlgorithm {
-    RS256 = "RS256",
-    HS256 = "HS256",
-}
-
-/** An HTTP request whose URL, headers and JSON body may hold placeholders. */
-export interface IHttpRequestTemplate {
-    method?: string
-    url: string
-    headers?: Record<string, string>
-    body?: unknown
-}
-
-export type IHttpWebhookAuth =
-    | {kind: "URL_KEY"}
-    | {kind: "HEADER_SECRET"; header: string}
-    | {
-          kind: "HMAC_SHA256"
-          header: string
-          prefix?: string | null
-          encoding?: EDigestEncoding
-          signed?: string | null
-      }
-    | {kind: "JWT_HS256"; header: string}
-
-export interface IHttpStatusMapping {
-    message_id_pointer: string
-    state_pointer: string
-    states: Record<string, EMessageAttemptState>
-    error_pointer?: string | null
-}
-
-export interface IHttpReports {
-    auth?: IHttpWebhookAuth
-    items_pointer?: string | null
-    status: IHttpStatusMapping
-    inbound_from_pointer?: string | null
-}
-
-export interface IHttpReconcile {
-    request: IHttpRequestTemplate
-    status: IHttpStatusMapping
-}
-
-export interface IHttpTokenRequest {
-    request: IHttpRequestTemplate
-    token_pointer: string
-    lifetime_seconds?: number
-}
-
-export interface IHttpJwt {
-    algorithm?: EJwtAlgorithm
-    claims?: unknown
-    lifetime_seconds?: number
-}
-
-/** A provider described by configuration. */
-export interface IHttpApiSender {
-    label?: string | null
-    send: IHttpRequestTemplate
-    message_id_pointer?: string | null
-    phone_format?: EPhoneFormat
-    template_required_for?: EMessagePurpose[]
-    conversation_window_hours?: number | null
-    check?: IHttpRequestTemplate | null
-    token?: IHttpTokenRequest | null
-    jwt?: IHttpJwt | null
-    reports?: IHttpReports | null
-    reconcile?: IHttpReconcile | null
-    approved_templates?: IApprovedTemplates
-}
 
 export type IAccountSender =
     | {
@@ -277,7 +210,9 @@ export type IAccountSender =
           sender: string
           approved_templates?: IViberApprovedTemplates
       }
-    | ({provider: EMessagingProvider.HTTP_API} & IHttpApiSender)
+    /** Unsupported; its other fields are ignored. */
+    | {provider: EMessagingProvider.HTTP_API; label?: string | null}
+    /** Unsupported. */
     | {provider: EMessagingProvider.CONSOLE}
 
 export interface ICredentialRecord {
@@ -299,7 +234,6 @@ export interface IMessagingAccount {
     provider_approval?: EProviderApproval | null
     readiness?: EReadinessPolicy | null
     status?: IAccountCheck | null
-    webhook_key?: string | null
     is_default: boolean
     created_at?: string | null
     updated_at?: string | null
@@ -341,12 +275,15 @@ export interface IEventChannelConfig {
     out_of_window: EOutOfWindowPolicy
 }
 
+/**
+ * A row of `messaging_event_config`. Configurations saved before the second
+ * pass may also hold `notice_fallback` and `reply_text`: they are ignored and
+ * never written again.
+ */
 export interface IEventMessagingConfig {
     version: number
     channels: IEventChannelConfig[]
-    notice_fallback: EMessageChannel[]
     election_channels: Record<string, EMessageChannel[]>
-    reply_text: Record<string, string>
 }
 
 export type IMessagingConfigError =
@@ -368,8 +305,7 @@ export type IMessagingConfigError =
           language: string
       }
     | {kind: "OUT_OF_WINDOW_NOT_SUPPORTED"; channel: EMessageChannel}
-    | {kind: "FALLBACK_CHANNEL_NOT_ENABLED"; channel: EMessageChannel}
-    | {kind: "DUPLICATE_FALLBACK_CHANNEL"; channel: EMessageChannel}
+    | {kind: "UTILITY_TEMPLATE_MISSING"; channel: EMessageChannel}
     | {kind: "ELECTION_CHANNEL_NOT_ENABLED"; election_id: string; channel: EMessageChannel}
     | {kind: "UNKNOWN_ELECTION"; election_id: string}
 
@@ -384,7 +320,6 @@ export interface IAccountSummary {
     /** What the account can do; `null` when its sender cannot serve the channel. */
     capabilities: IProviderCapabilities | null
     provider_approval: EProviderApproval
-    readiness: EReadinessPolicy
     check: IAccountCheck
     public_label?: string | null
     messenger_page?: IMessengerPage | null
@@ -419,10 +354,42 @@ export interface IInstantMessageConfig {
     provider_language?: string | null
 }
 
-/** Keycloak user attributes of a voter's messaging channels. */
+/** Keycloak user attributes of a voter's one channel (written after a verified code). */
 export const VOTER_ATTR_MESSAGE_CHANNEL = "sequent.read-only.message-channel"
-export const VOTER_ATTR_WHATSAPP_NUMBER = "sequent.read-only.whatsapp-number"
-export const VOTER_ATTR_VIBER_NUMBER = "sequent.read-only.viber-number"
+export const VOTER_ATTR_MESSAGE_NUMBER = "sequent.read-only.message-number"
 export const VOTER_ATTR_MESSENGER_ID = "sequent.read-only.messenger-id"
 export const VOTER_ATTR_MESSENGER_PAGE = "sequent.read-only.messenger-page"
+export const VOTER_ATTR_MESSAGE_CONSENT = "sequent.read-only.message-consent"
+export const VOTER_ATTR_MOBILE_NUMBER = "sequent.read-only.mobile-number"
+/** Read mapping only: a record of the first messaging release. Never written. */
+export const VOTER_ATTR_WHATSAPP_NUMBER = "sequent.read-only.whatsapp-number"
+export const VOTER_ATTR_VIBER_NUMBER = "sequent.read-only.viber-number"
 export const VOTER_ATTR_VERIFIED_CHANNELS = "sequent.read-only.verified-channels"
+
+/** A ledger row (`sequent_backend.message`) as the event tab, Logs and the drawer read it. */
+export interface ILedgerMessage {
+    id: string
+    channel: EMessageChannel | string
+    state: EMessageAttemptState | string
+    attempt?: number | null
+    error?: string | null
+    created_at?: string | null
+    updated_at?: string | null
+    failed_at?: string | null
+}
+
+/** Messages of a channel in an event, counted per message (its latest attempt). */
+export interface IChannelMessageStats {
+    channel: EMessageChannel
+    /** Voters whose one channel this is; null when it couldn't be counted. */
+    voters?: number | null
+    sent_last_24h?: number | null
+    queued: number
+    accepted: number
+    delivered: number
+    failed: number
+    /** Unknown for less than 24 hours: delivery isn't confirmed yet. */
+    unknown: number
+    /** Unknown for more than 24 hours: delivery couldn't be confirmed. Never counted as failed. */
+    unresolved: number
+}

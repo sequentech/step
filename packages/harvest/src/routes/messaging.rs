@@ -2,15 +2,22 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Messaging routes: the internal sending API for Keycloak, provider
-//! webhooks, and the administrators' account and event actions.
+//! Messaging routes: the internal sending API for Keycloak, the provider
+//! callbacks relayed by the webhook component, and the administrators'
+//! account and event actions. No route here is public: providers reach
+//! harvest only through the `messaging-webhooks` component.
 
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
+use crate::services::service_auth::VerifiedServiceClaims;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
+use messaging::relay::{
+    self, CallbackEnvelope, CallbackMethod, CallbackProvider, RelayAuthError,
+    RelayResponse, RELAY_SECRET_ENV, RELAY_SIGNATURE_HEADER,
+};
 use rocket::data::{Data, ToByteUnit};
-use rocket::http::Status;
+use rocket::http::{RawStr, Status};
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::serde::json::Json;
 use rocket::State;
@@ -27,33 +34,31 @@ use sequent_core::types::messaging::{
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::str::FromStr;
-use tracing::{error, instrument, warn};
+use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 use windmill::postgres::messaging::{
-    get_messaging_account, insert_messaging_account, update_messaging_account,
-    AccountSettings,
+    get_messaging_account, insert_messaging_account,
+    update_messaging_account_reentering, AccountSettings, MessagingAccount,
 };
 use windmill::services::messaging::accounts::{
-    check_account, delete_account, replace_credentials,
+    callback_readiness, check_account, delete_account,
+    generate_report_credentials, replace_credentials,
 };
+use windmill::services::messaging::audit::post_attempt_outcomes_or_warn;
 use windmill::services::messaging::config::{
     save_event_messaging_config, SaveOutcome,
 };
 use windmill::services::messaging::dispatch::{
-    deliver, Delivery, Dispatcher, FallbackPolicy, ProviderTemplate, Recipient,
+    deliver, Delivery, Dispatcher, ProviderTemplate, Recipient,
 };
 use windmill::services::messaging::links::{
     confirm_link, create_link, link_status, LinkError,
 };
 use windmill::services::messaging::webhooks::{
-    aws_events, http_events, meta_events, meta_subscription, viber_events,
-    WebhookOutcome,
+    aws_events, meta_events, meta_subscription, viber_events, WebhookOutcome,
 };
-
-/// Webhook bodies are small; anything larger is refused unread.
-const WEBHOOK_BODY_LIMIT_KIB: u64 = 512;
 
 type RouteError = (Status, String);
 
@@ -92,30 +97,17 @@ fn parse_time(value: &str) -> Result<DateTime<Utc>, RouteError> {
         .map_err(|_| bad_request("invalid time"))
 }
 
-/// Keycloak's service account, for the tenant named in the request.
-fn authorize_service(
-    claims: &JwtClaims,
-    tenant_id: &str,
-) -> Result<(), RouteError> {
-    authorize(
-        claims,
-        true,
-        Some(tenant_id.to_string()),
-        vec![Permissions::SERVICE_ACCOUNT],
-    )
-}
-
 /// Sends one message for Keycloak: codes, and enrollment and credential
 /// notices. Codes are sent at once, never queued behind bulk sends.
 #[instrument(skip_all)]
 #[post("/messages/send", format = "json", data = "<body>")]
 pub async fn send_message(
-    claims: JwtClaims,
+    claims: VerifiedServiceClaims,
     body: Json<SendMessageRequest>,
     services: &State<HarvestServices>,
 ) -> Result<Json<SendMessageResponse>, RouteError> {
     let request = body.into_inner();
-    authorize_service(&claims, &request.tenant_id)?;
+    let tenant_id = claims.require_tenant(&request.tenant_id)?;
     if request.logical_key.trim().is_empty() {
         return Err(bad_request("missing logical_key"));
     }
@@ -125,43 +117,51 @@ pub async fn send_message(
         return Err(bad_request("codes need expires_at"));
     }
     let mut client = db_client(services).await?;
+    let election_event_id = claims
+        .require_event(&client, request.election_event_id.as_deref())
+        .await?;
     let result = deliver(
         &mut client,
         dispatcher().await?,
         &Delivery {
-            tenant_id: parse_uuid(&request.tenant_id)?,
-            election_event_id: request
-                .election_event_id
-                .as_deref()
-                .map(parse_uuid)
-                .transpose()?,
+            tenant_id,
+            election_event_id,
             purpose: request.purpose,
-            first_channel: request.channel,
-            fallback: FallbackPolicy::NONE,
             recipient: Recipient {
                 voter_id: request.voter_id.clone(),
-                destinations: BTreeMap::from([(
-                    request.channel,
-                    request.destination.clone(),
-                )]),
-                verified: vec![request.channel],
-                election_ids: vec![],
+                channel: request.channel,
+                destination: request.destination.clone(),
+                // The voter's Posts: windmill refuses a channel they don't
+                // offer ("Channel not offered for notices"/"…for codes").
+                election_ids: request.election_ids.clone(),
             },
-            contents: BTreeMap::from([(
-                request.channel,
-                request.content.clone(),
-            )]),
+            content: Some(request.content.clone()),
             language: request.language.clone(),
             template_alias: None,
             logical_key: format!("keycloak:{}", request.logical_key),
             expires_at,
             account_id: None,
             template_key: request.template_key.clone(),
-            provider_templates: BTreeMap::new(),
+            provider_template: None,
         },
     )
     .await
     .map_err(internal)?;
+    // The attempt's electoral log entry, off the code's response path.
+    if !result.recorded.is_empty() {
+        let databases = services.databases.clone();
+        let recorded = result.recorded.clone();
+        tokio::spawn(async move {
+            let Ok(mut client) = databases.hasura().await.get().await else {
+                return;
+            };
+            let Ok(tx) = client.transaction().await else {
+                return;
+            };
+            post_attempt_outcomes_or_warn(&tx, &recorded, None, None).await;
+            let _ = tx.commit().await;
+        });
+    }
     Ok(Json(SendMessageResponse {
         message_id: result
             .message_id
@@ -179,19 +179,27 @@ fn link_error(error: LinkError) -> RouteError {
             "Messenger is not enabled for codes".to_string(),
         ),
         LinkError::NotFound => (Status::NotFound, "unknown link".to_string()),
+        LinkError::CallbackNotConfigured => (
+            Status::UnprocessableEntity,
+            windmill::services::messaging::accounts::CALLBACK_NOT_CONFIGURED
+                .to_string(),
+        ),
     }
 }
 
 #[instrument(skip_all)]
 #[post("/messages/link", format = "json", data = "<body>")]
 pub async fn create_messenger_link(
-    claims: JwtClaims,
+    claims: VerifiedServiceClaims,
     body: Json<CreateMessengerLinkRequest>,
     services: &State<HarvestServices>,
 ) -> Result<Json<CreateMessengerLinkResponse>, RouteError> {
     let request = body.into_inner();
-    authorize_service(&claims, &request.tenant_id)?;
+    claims.require_tenant(&request.tenant_id)?;
     let mut client = db_client(services).await?;
+    claims
+        .require_event(&client, request.election_event_id.as_deref())
+        .await?;
     create_link(&mut client, &request)
         .await
         .map_err(|error| bad_request(error))?
@@ -202,12 +210,12 @@ pub async fn create_messenger_link(
 #[instrument(skip_all)]
 #[post("/messages/link/status", format = "json", data = "<body>")]
 pub async fn messenger_link_status(
-    claims: JwtClaims,
+    claims: VerifiedServiceClaims,
     body: Json<MessengerLinkRequest>,
     services: &State<HarvestServices>,
 ) -> Result<Json<MessengerLinkStatus>, RouteError> {
     let request = body.into_inner();
-    authorize_service(&claims, &request.tenant_id)?;
+    claims.require_tenant(&request.tenant_id)?;
     let mut client = db_client(services).await?;
     link_status(&mut client, &request)
         .await
@@ -219,12 +227,12 @@ pub async fn messenger_link_status(
 #[instrument(skip_all)]
 #[post("/messages/link/confirm", format = "json", data = "<body>")]
 pub async fn confirm_messenger_link(
-    claims: JwtClaims,
+    claims: VerifiedServiceClaims,
     body: Json<MessengerLinkRequest>,
     services: &State<HarvestServices>,
 ) -> Result<Json<MessengerLinkStatus>, RouteError> {
     let request = body.into_inner();
-    authorize_service(&claims, &request.tenant_id)?;
+    claims.require_tenant(&request.tenant_id)?;
     let mut client = db_client(services).await?;
     confirm_link(&mut client, &request)
         .await
@@ -233,32 +241,85 @@ pub async fn confirm_messenger_link(
         .map_err(link_error)
 }
 
-/// `X-Hub-Signature-256` of a Meta webhook.
-pub struct HubSignature(Option<String>);
+/// How harvest takes provider callbacks relayed by the webhook component
+/// (`POST /messaging/callbacks`). Read once, into [`HarvestServices`].
+#[derive(Clone)]
+pub struct MessagingRelay {
+    secret: RelaySecret,
+    /// The largest envelope read: [`relay::envelope_limit`] of the
+    /// component's body limit.
+    envelope_limit: u64,
+}
+
+/// Whether harvest can check relay signatures.
+#[derive(Clone)]
+enum RelaySecret {
+    /// `MESSAGING_RELAY_SECRET` is unset: every relayed callback is refused
+    /// with 503, so the component makes the provider retry.
+    NotConfigured,
+    /// The secret shared with the component.
+    Configured(Vec<u8>),
+}
+
+/// Why a relayed callback was refused because harvest isn't set up for it.
+const RELAY_NOT_CONFIGURED: &str =
+    "Callbacks refused: MESSAGING_RELAY_SECRET is not set";
+
+impl MessagingRelay {
+    /// `secret` (none or blank: not configured) and the component's body
+    /// limit.
+    pub fn new(secret: Option<&[u8]>, max_body_bytes: u64) -> Self {
+        Self {
+            secret: match secret.filter(|secret| !secret.is_empty()) {
+                Some(secret) => RelaySecret::Configured(secret.to_vec()),
+                None => RelaySecret::NotConfigured,
+            },
+            envelope_limit: relay::envelope_limit(max_body_bytes),
+        }
+    }
+
+    /// From `MESSAGING_RELAY_SECRET` and
+    /// `MESSAGING_WEBHOOKS_MAX_BODY_BYTES`.
+    pub fn from_env() -> Self {
+        let secret = std::env::var(RELAY_SECRET_ENV)
+            .ok()
+            .filter(|secret| !secret.trim().is_empty());
+        if secret.is_none() {
+            warn!("{RELAY_NOT_CONFIGURED}");
+        }
+        let max_body_bytes = relay::max_body_bytes(
+            std::env::var(relay::MAX_BODY_BYTES_ENV).ok().as_deref(),
+        )
+        .unwrap_or_else(|error| {
+            error!("{error:#}; using {} bytes", relay::DEFAULT_MAX_BODY_BYTES);
+            relay::DEFAULT_MAX_BODY_BYTES
+        });
+        Self::new(secret.as_deref().map(str::as_bytes), max_body_bytes)
+    }
+}
+
+/// A relay signature header that is present, well formed and fresh. Checked
+/// before the body is read; the MAC is checked once it is.
+pub struct RelaySignature(String);
 
 #[rocket::async_trait]
-impl<'r> FromRequest<'r> for HubSignature {
-    type Error = ();
+impl<'r> FromRequest<'r> for RelaySignature {
+    type Error = RelayAuthError;
 
     async fn from_request(
         request: &'r Request<'_>,
     ) -> Outcome<Self, Self::Error> {
-        Outcome::Success(HubSignature(
-            request
-                .headers()
-                .get_one("X-Hub-Signature-256")
-                .map(str::to_string),
-        ))
+        let header = request.headers().get_one(RELAY_SIGNATURE_HEADER);
+        match relay::check_header(header, Utc::now().timestamp()) {
+            Ok(()) => Outcome::Success(RelaySignature(
+                header.unwrap_or_default().to_string(),
+            )),
+            Err(reason) => {
+                warn!(%reason, "relayed callback refused");
+                Outcome::Error((Status::Unauthorized, reason))
+            }
+        }
     }
-}
-
-/// Meta's `hub.mode`, `hub.verify_token` and `hub.challenge`: Rocket reads
-/// the dotted names as fields of `hub`.
-#[derive(FromForm)]
-pub struct MetaSubscription {
-    mode: Option<String>,
-    verify_token: Option<String>,
-    challenge: Option<String>,
 }
 
 fn webhook_status(outcome: WebhookOutcome) -> Status {
@@ -269,9 +330,14 @@ fn webhook_status(outcome: WebhookOutcome) -> Status {
     }
 }
 
-async fn read_body(data: Data<'_>) -> Result<Vec<u8>, Status> {
+/// What the provider gets: the status, with no body.
+fn provider_answer(status: Status) -> RelayResponse {
+    RelayResponse::text(status.code, "")
+}
+
+async fn read_body(data: Data<'_>, limit: u64) -> Result<Vec<u8>, Status> {
     let body = data
-        .open(WEBHOOK_BODY_LIMIT_KIB.kibibytes())
+        .open(limit.bytes())
         .into_bytes()
         .await
         .map_err(|_| Status::BadRequest)?;
@@ -281,192 +347,161 @@ async fn read_body(data: Data<'_>) -> Result<Vec<u8>, Status> {
     Ok(body.into_inner())
 }
 
-/// Meta's subscription handshake for WhatsApp and Messenger accounts.
-#[instrument(skip_all)]
-#[get("/webhooks/meta/<key>?<hub>")]
-pub async fn meta_webhook_subscription(
-    key: &str,
-    hub: MetaSubscription,
-    services: &State<HarvestServices>,
-) -> Result<String, Status> {
-    let mut client = db_client(services).await.map_err(|(status, _)| status)?;
-    meta_subscription(
-        &mut client,
-        key,
-        hub.mode.as_deref(),
-        hub.verify_token.as_deref(),
-        hub.challenge.as_deref(),
-    )
-    .await
-    .map_err(|error| internal(error).0)?
-    .ok_or(Status::Forbidden)
+/// Meta's `hub.mode`, `hub.verify_token` and `hub.challenge`, from the raw
+/// query of the handshake.
+#[derive(Default, Debug, PartialEq, Eq)]
+struct MetaHub {
+    mode: Option<String>,
+    verify_token: Option<String>,
+    challenge: Option<String>,
 }
 
-#[instrument(skip_all)]
-#[post("/webhooks/meta/<key>", data = "<data>")]
-pub async fn meta_webhook(
-    key: &str,
-    signature: HubSignature,
-    data: Data<'_>,
-    services: &State<HarvestServices>,
-) -> Status {
-    let body = match read_body(data).await {
-        Ok(body) => body,
-        Err(status) => return status,
-    };
-    let Ok(mut client) = db_client(services).await else {
-        return Status::ServiceUnavailable;
-    };
-    let Ok(dispatcher) = dispatcher().await else {
-        return Status::ServiceUnavailable;
-    };
-    match meta_events(
-        &mut client,
-        dispatcher,
-        key,
-        signature.0.as_deref(),
-        &body,
-    )
-    .await
-    {
-        Ok(outcome) => webhook_status(outcome),
-        Err(error) => {
-            warn!("Meta webhook failed: {error:#}");
-            Status::InternalServerError
+impl MetaHub {
+    fn parse(query: &str) -> Self {
+        let mut hub = Self::default();
+        for pair in query.split('&').filter(|pair| !pair.is_empty()) {
+            let (name, value) = pair.split_once('=').unwrap_or((pair, ""));
+            let value = RawStr::new(value).url_decode_lossy().into_owned();
+            match RawStr::new(name).url_decode_lossy().as_ref() {
+                "hub.mode" => hub.mode = Some(value),
+                "hub.verify_token" => hub.verify_token = Some(value),
+                "hub.challenge" => hub.challenge = Some(value),
+                _ => {}
+            }
         }
+        hub
     }
 }
 
-#[instrument(skip_all)]
-#[post("/webhooks/viber/<key>", data = "<data>")]
-pub async fn viber_webhook(
-    key: &str,
-    data: Data<'_>,
+/// Runs the provider's own verification and parsing on the original bytes.
+/// The account comes from the envelope's key only, never from the payload.
+/// `Err` is a failure the provider should retry.
+async fn provider_callback(
+    envelope: &CallbackEnvelope,
     services: &State<HarvestServices>,
-) -> Status {
-    let body = match read_body(data).await {
-        Ok(body) => body,
-        Err(status) => return status,
-    };
-    let (Ok(mut client), Ok(dispatcher)) =
-        (db_client(services).await, dispatcher().await)
-    else {
-        return Status::ServiceUnavailable;
-    };
-    match viber_events(&mut client, dispatcher, key, &body).await {
-        Ok(outcome) => webhook_status(outcome),
-        Err(error) => {
-            warn!("Viber webhook failed: {error:#}");
-            Status::InternalServerError
-        }
+) -> Result<RelayResponse, Status> {
+    let key = envelope.key.as_str();
+    if !relay::is_webhook_key(key) {
+        return Ok(provider_answer(Status::NotFound));
     }
-}
-
-/// Every header of a callback, with lowercase names, for providers whose
-/// authentication is described by configuration.
-pub struct CallbackHeaders(BTreeMap<String, String>);
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for CallbackHeaders {
-    type Error = ();
-
-    async fn from_request(
-        request: &'r Request<'_>,
-    ) -> Outcome<Self, Self::Error> {
-        Outcome::Success(CallbackHeaders(
-            request
-                .headers()
-                .iter()
-                .map(|header| {
-                    (
-                        header.name().as_str().to_lowercase(),
-                        header.value().to_string(),
-                    )
-                })
-                .collect(),
-        ))
-    }
-}
-
-async fn http_callback(
-    key: &str,
-    headers: CallbackHeaders,
-    query: HashMap<String, String>,
-    body: &[u8],
-    services: &State<HarvestServices>,
-) -> Status {
-    let (Ok(mut client), Ok(dispatcher)) =
-        (db_client(services).await, dispatcher().await)
-    else {
-        return Status::ServiceUnavailable;
-    };
-    let query: BTreeMap<String, String> = query.into_iter().collect();
-    match http_events(&mut client, dispatcher, key, &headers.0, &query, body)
+    let body = envelope.body().map_err(|_| Status::BadRequest)?;
+    let mut client = db_client(services)
         .await
-    {
-        Ok(outcome) => webhook_status(outcome),
+        .map_err(|_| Status::ServiceUnavailable)?;
+    let provider = envelope.provider;
+    let outcome = match (provider, envelope.method) {
+        (CallbackProvider::META, CallbackMethod::GET) => {
+            let hub = MetaHub::parse(&envelope.query);
+            return match meta_subscription(
+                &mut client,
+                key,
+                hub.mode.as_deref(),
+                hub.verify_token.as_deref(),
+                hub.challenge.as_deref(),
+            )
+            .await
+            {
+                Ok(Some(challenge)) => Ok(RelayResponse::text(200, challenge)),
+                Ok(None) => Ok(provider_answer(Status::Forbidden)),
+                Err(error) => {
+                    warn!("Meta subscription failed: {error:#}");
+                    Err(Status::InternalServerError)
+                }
+            };
+        }
+        (CallbackProvider::META, CallbackMethod::POST) => {
+            let dispatcher =
+                dispatcher().await.map_err(|_| Status::ServiceUnavailable)?;
+            meta_events(
+                &mut client,
+                dispatcher,
+                key,
+                envelope.header("x-hub-signature-256"),
+                &body,
+            )
+            .await
+        }
+        (CallbackProvider::VIBER, CallbackMethod::POST) => {
+            let dispatcher =
+                dispatcher().await.map_err(|_| Status::ServiceUnavailable)?;
+            viber_events(
+                &mut client,
+                dispatcher,
+                key,
+                envelope.header("authorization"),
+                &body,
+            )
+            .await
+        }
+        (CallbackProvider::AWS, CallbackMethod::POST) => {
+            let dispatcher =
+                dispatcher().await.map_err(|_| Status::ServiceUnavailable)?;
+            aws_events(&mut client, dispatcher, key, &body).await
+        }
+        (_, CallbackMethod::GET) => {
+            return Ok(provider_answer(Status::MethodNotAllowed))
+        }
+    };
+    match outcome {
+        Ok(outcome) => Ok(provider_answer(webhook_status(outcome))),
         Err(error) => {
-            warn!("HTTP provider webhook failed: {error:#}");
-            Status::InternalServerError
+            warn!("{provider} callback failed: {error:#}");
+            Err(Status::InternalServerError)
         }
     }
 }
 
-/// Delivery reports and replies of a provider described by configuration.
+/// Provider callbacks relayed by the webhook component, the only public
+/// entrypoint for them. Authenticated by the relay signature only. HTTP 200
+/// carries the provider's answer; any other status makes the component
+/// answer 503, so the provider retries.
 #[instrument(skip_all)]
-#[post("/webhooks/http/<key>?<query..>", data = "<data>")]
-pub async fn http_webhook(
-    key: &str,
-    query: HashMap<String, String>,
-    headers: CallbackHeaders,
+#[post("/messaging/callbacks", data = "<data>")]
+pub async fn messaging_callbacks(
+    signature: RelaySignature,
     data: Data<'_>,
     services: &State<HarvestServices>,
-) -> Status {
-    let body = match read_body(data).await {
-        Ok(body) => body,
-        Err(status) => return status,
+) -> Result<Json<RelayResponse>, Status> {
+    let relay_config = &services.messaging_relay;
+    let RelaySecret::Configured(secret) = &relay_config.secret else {
+        error!("{RELAY_NOT_CONFIGURED}");
+        return Err(Status::ServiceUnavailable);
     };
-    http_callback(key, headers, query, &body, services).await
-}
-
-/// The same, for providers that report with a GET and query parameters.
-#[instrument(skip_all)]
-#[get("/webhooks/http/<key>?<query..>")]
-pub async fn http_webhook_query(
-    key: &str,
-    query: HashMap<String, String>,
-    headers: CallbackHeaders,
-    services: &State<HarvestServices>,
-) -> Status {
-    http_callback(key, headers, query, &[], services).await
-}
-
-#[instrument(skip_all)]
-#[post("/webhooks/aws/<key>", data = "<data>")]
-pub async fn aws_webhook(
-    key: &str,
-    data: Data<'_>,
-    services: &State<HarvestServices>,
-) -> Status {
-    let body = match read_body(data).await {
-        Ok(body) => body,
-        Err(status) => return status,
-    };
-    let (Ok(mut client), Ok(dispatcher)) =
-        (db_client(services).await, dispatcher().await)
-    else {
-        return Status::ServiceUnavailable;
-    };
-    match aws_events(&mut client, dispatcher, key, &body).await {
-        Ok(outcome) => webhook_status(outcome),
-        Err(error) => {
-            warn!("AWS webhook failed: {error:#}");
-            Status::InternalServerError
-        }
+    let bytes = read_body(data, relay_config.envelope_limit).await?;
+    if let Err(reason) = relay::verify(
+        secret,
+        Some(&signature.0),
+        &bytes,
+        Utc::now().timestamp(),
+    ) {
+        warn!(%reason, "relayed callback refused");
+        return Err(Status::Unauthorized);
     }
+    let envelope: CallbackEnvelope =
+        serde_json::from_slice(&bytes).map_err(|_| {
+            warn!("relayed callback refused: not a callback envelope");
+            Status::BadRequest
+        })?;
+    if envelope.version != relay::ENVELOPE_VERSION {
+        warn!(
+            version = envelope.version,
+            "relayed callback refused: unknown envelope version"
+        );
+        return Err(Status::BadRequest);
+    }
+    let answer = provider_callback(&envelope, services).await?;
+    info!(
+        provider = %envelope.provider,
+        method = %envelope.method,
+        key = envelope.key.get(..6).unwrap_or_default(),
+        status = answer.status,
+        "provider callback answered"
+    );
+    Ok(Json(answer))
 }
 
-#[derive(Deserialize, Debug)]
+// No `Debug`: it may carry credentials.
+#[derive(Deserialize)]
 pub struct UpsertMessagingAccountInput {
     id: Option<String>,
     channel: Option<MessageChannel>,
@@ -474,13 +509,35 @@ pub struct UpsertMessagingAccountInput {
     sender: AccountSender,
     limits: Option<AccountLimits>,
     provider_approval: Option<ProviderApproval>,
+    /// Parse-only: every account is checked by its provider.
     readiness: Option<ReadinessPolicy>,
     is_default: Option<bool>,
+    /// Credentials entered with the change. Needed when the address the
+    /// credentials are sent to changes (`ENDPOINT_CREDENTIALS_REASON`).
+    credentials: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Debug)]
 pub struct MessagingAccountOutput {
     id: String,
+    /// Where the provider sends callbacks, when it sends any and the
+    /// webhook component's address is configured.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    callback_url: Option<String>,
+    /// Why there is no callback URL for a provider that needs one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    callback_reason: Option<String>,
+}
+
+impl MessagingAccountOutput {
+    fn of(account: &MessagingAccount) -> Self {
+        let readiness = callback_readiness(account);
+        Self {
+            id: account.id.to_string(),
+            callback_url: readiness.url().map(str::to_string),
+            callback_reason: readiness.reason().map(str::to_string),
+        }
+    }
 }
 
 fn authorize_admin(
@@ -514,6 +571,7 @@ pub async fn upsert_messaging_account(
         .channel()
         .or(input.channel)
         .ok_or_else(|| bad_request("this provider needs a channel"))?;
+    let values = parse_credentials(input.credentials.unwrap_or_default())?;
     let settings = AccountSettings {
         channel,
         name: input.name,
@@ -525,11 +583,14 @@ pub async fn upsert_messaging_account(
     };
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    let reentered: BTreeSet<CredentialName> = values.keys().copied().collect();
     let account = match input.id.as_deref().map(parse_uuid).transpose()? {
-        Some(id) => update_messaging_account(&tx, &tenant_id, &id, &settings)
-            .await
-            .map_err(bad_request)?
-            .ok_or((Status::NotFound, "unknown account".to_string()))?,
+        Some(id) => update_messaging_account_reentering(
+            &tx, &tenant_id, &id, &settings, &reentered,
+        )
+        .await
+        .map_err(bad_request)?
+        .ok_or((Status::NotFound, "unknown account".to_string()))?,
         None => insert_messaging_account(
             &tx,
             &tenant_id,
@@ -539,10 +600,27 @@ pub async fn upsert_messaging_account(
         .await
         .map_err(bad_request)?,
     };
+    // Stored in the same transaction as the address they go with.
+    if !values.is_empty() {
+        replace_credentials(&tx, &tenant_id, &account.id, &values, false)
+            .await
+            .map_err(bad_request)?;
+    }
     tx.commit().await.map_err(|e| internal(e.into()))?;
-    Ok(Json(MessagingAccountOutput {
-        id: account.id.to_string(),
-    }))
+    Ok(Json(MessagingAccountOutput::of(&account)))
+}
+
+fn parse_credentials(
+    values: HashMap<String, String>,
+) -> Result<BTreeMap<CredentialName, String>, RouteError> {
+    values
+        .into_iter()
+        .map(|(name, value)| {
+            CredentialName::from_str(&name)
+                .map(|name| (name, value))
+                .map_err(|_| bad_request(format!("unknown credential {name}")))
+        })
+        .collect()
 }
 
 #[derive(Deserialize, Debug)]
@@ -569,7 +647,44 @@ pub async fn delete_messaging_account(
         return Err((Status::NotFound, "unknown account".to_string()));
     }
     tx.commit().await.map_err(|e| internal(e.into()))?;
-    Ok(Json(MessagingAccountOutput { id: id.to_string() }))
+    Ok(Json(MessagingAccountOutput {
+        id: id.to_string(),
+        callback_url: None,
+        callback_reason: None,
+    }))
+}
+
+#[derive(Serialize, Debug, PartialEq, Eq)]
+pub struct CallbackUrlOutput {
+    callback_url: Option<String>,
+    reason: Option<String>,
+}
+
+/// The full callback URL an administrator enters at the provider, or why
+/// there is none. Read when the account drawer opens: the webhook key itself
+/// is never readable through Hasura.
+#[instrument(skip_all)]
+#[post("/messaging/accounts/callback-url", format = "json", data = "<body>")]
+pub async fn messaging_account_callback_url(
+    claims: JwtClaims,
+    body: Json<AccountIdInput>,
+    services: &State<HarvestServices>,
+) -> Result<Json<CallbackUrlOutput>, RouteError> {
+    let tenant_id =
+        authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
+    let id = parse_uuid(&body.id)?;
+    let mut client = db_client(services).await?;
+    let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    let account = get_messaging_account(&tx, &tenant_id, &id)
+        .await
+        .map_err(internal)?
+        .ok_or((Status::NotFound, "unknown account".to_string()))?;
+    tx.commit().await.map_err(|e| internal(e.into()))?;
+    let readiness = callback_readiness(&account);
+    Ok(Json(CallbackUrlOutput {
+        callback_url: readiness.url().map(str::to_string),
+        reason: readiness.reason().map(str::to_string),
+    }))
 }
 
 #[derive(Deserialize)]
@@ -577,12 +692,17 @@ pub struct ReplaceCredentialsInput {
     id: String,
     credentials: HashMap<String, String>,
     generate_verify_token: Option<bool>,
+    /// Viber (Infobip): new Basic auth for the report subscription.
+    generate_report_credentials: Option<bool>,
 }
 
 #[derive(Serialize, Debug)]
 pub struct ReplaceCredentialsOutput {
     replaced: Vec<String>,
     verify_token: Option<String>,
+    /// Only when generated. Shown once.
+    report_username: Option<String>,
+    report_password: Option<String>,
 }
 
 #[instrument(skip_all)]
@@ -596,15 +716,7 @@ pub async fn replace_messaging_account_credentials(
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let input = body.into_inner();
     let id = parse_uuid(&input.id)?;
-    let values = input
-        .credentials
-        .into_iter()
-        .map(|(name, value)| {
-            CredentialName::from_str(&name)
-                .map(|name| (name, value))
-                .map_err(|_| bad_request(format!("unknown credential {name}")))
-        })
-        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    let values = parse_credentials(input.credentials)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
     let replaced = replace_credentials(
@@ -617,16 +729,43 @@ pub async fn replace_messaging_account_credentials(
     .await
     .map_err(bad_request)?
     .ok_or((Status::NotFound, "unknown account".to_string()))?;
+    let mut names: Vec<String> =
+        replaced.replaced.iter().map(|n| n.to_string()).collect();
+    let report = match input.generate_report_credentials.unwrap_or(false) {
+        true => {
+            let generated = generate_report_credentials(&tx, &tenant_id, &id)
+                .await
+                .map_err(bad_request)?
+                .ok_or((Status::NotFound, "unknown account".to_string()))?;
+            names.extend([
+                CredentialName::REPORT_USERNAME.to_string(),
+                CredentialName::REPORT_PASSWORD.to_string(),
+            ]);
+            Some(generated)
+        }
+        false => None,
+    };
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    let (report_username, report_password) = match report {
+        Some(generated) => (Some(generated.username), Some(generated.password)),
+        None => (None, None),
+    };
     Ok(Json(ReplaceCredentialsOutput {
-        replaced: replaced.replaced.iter().map(|n| n.to_string()).collect(),
+        replaced: names,
         verify_token: replaced.verify_token,
+        report_username,
+        report_password,
     }))
 }
 
 #[derive(Serialize, Debug)]
 pub struct CheckOutput {
     status: AccountCheck,
+    /// As in [`MessagingAccountOutput`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    callback_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    callback_reason: Option<String>,
 }
 
 #[instrument(skip_all)]
@@ -646,8 +785,22 @@ pub async fn check_messaging_account(
             .await
             .map_err(internal)?
             .ok_or((Status::NotFound, "unknown account".to_string()))?;
+    let readiness = get_messaging_account(&tx, &tenant_id, &id)
+        .await
+        .map_err(internal)?
+        .map(|account| callback_readiness(&account));
     tx.commit().await.map_err(|e| internal(e.into()))?;
-    Ok(Json(CheckOutput { status }))
+    Ok(Json(CheckOutput {
+        status,
+        callback_url: readiness
+            .as_ref()
+            .and_then(|readiness| readiness.url())
+            .map(str::to_string),
+        callback_reason: readiness
+            .as_ref()
+            .and_then(|readiness| readiness.reason())
+            .map(str::to_string),
+    }))
 }
 
 #[derive(Deserialize, Debug)]
@@ -686,20 +839,14 @@ pub async fn test_messaging_account(
         .map_err(internal)?
         .ok_or((Status::NotFound, "unknown account".to_string()))?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
-    let template: BTreeMap<_, _> = input
-        .template
-        .filter(|name| !name.trim().is_empty())
-        .map(|name| {
-            (
-                account.channel,
-                ProviderTemplate {
-                    name,
-                    language: input.language.clone(),
-                },
-            )
-        })
-        .into_iter()
-        .collect();
+    let template =
+        input
+            .template
+            .filter(|name| !name.trim().is_empty())
+            .map(|name| ProviderTemplate {
+                name,
+                language: input.language.clone(),
+            });
     let code =
         (input.purpose == MessagePurpose::OTP).then(|| "000000".to_string());
     let text = match input.purpose {
@@ -717,34 +864,26 @@ pub async fn test_messaging_account(
             tenant_id,
             election_event_id: None,
             purpose: input.purpose,
-            first_channel: account.channel,
-            fallback: FallbackPolicy::NONE,
             recipient: Recipient {
                 voter_id: None,
-                destinations: BTreeMap::from([(
-                    account.channel,
-                    input.destination,
-                )]),
-                verified: vec![account.channel],
+                channel: account.channel,
+                destination: input.destination,
                 election_ids: vec![],
             },
-            contents: BTreeMap::from([(
-                account.channel,
-                MessageContent {
-                    subject: Some("Step test message".to_string()),
-                    text,
-                    html: None,
-                    template_parameters: vec![],
-                    code,
-                },
-            )]),
+            content: Some(MessageContent {
+                subject: Some("Step test message".to_string()),
+                text,
+                html: None,
+                template_parameters: vec![],
+                code,
+            }),
             language: input.language,
             template_alias: Some("account-test".to_string()),
             logical_key: format!("account-test:{id}:{}", Uuid::new_v4()),
             expires_at: Some(Utc::now() + chrono::Duration::minutes(5)),
             account_id: Some(id),
             template_key: None,
-            provider_templates: template,
+            provider_template: template,
         },
     )
     .await

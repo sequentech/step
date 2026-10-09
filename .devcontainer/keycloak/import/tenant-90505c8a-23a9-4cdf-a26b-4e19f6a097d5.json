@@ -78,7 +78,7 @@
       {
         "id": "89f2e054-8f27-480a-80fc-b5ed6b0af2da",
         "name": "messaging-account-read",
-        "description": "",
+        "description": "Read messaging accounts",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -87,7 +87,7 @@
       {
         "id": "3e155ea9-0f8a-48b5-b9a7-79d21607933f",
         "name": "messaging-account-write",
-        "description": "",
+        "description": "Manage messaging accounts",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -96,7 +96,16 @@
       {
         "id": "cec178ea-90e7-468c-b18b-d12a76a87851",
         "name": "messaging-config-write",
-        "description": "",
+        "description": "Configure election event messaging",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "6d0f3b52-8e4a-4c71-9a2e-5b7c1d9e3f80",
+        "name": "messaging-config-read",
+        "description": "Read election event messaging",
         "composite": false,
         "clientRole": false,
         "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
@@ -2712,6 +2721,7 @@
         "messaging-account-read",
         "messaging-account-write",
         "messaging-config-write",
+        "messaging-config-read",
         "tally-write",
         "trustee-write",
         "notification-send",
@@ -2915,6 +2925,7 @@
         "admin-dashboard-view",
         "monitoring-view",
         "messaging-account-read",
+        "messaging-config-read",
         "support-material-write",
         "tally-write",
         "user-write",

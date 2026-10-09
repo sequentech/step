@@ -487,6 +487,34 @@ actions:
               version: 2
       permissions:
           - role: messaging-config-write
+    - name: messaging_account_callback_url
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/callback-url
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: '{"id": {{$body.input.account_id}}}'
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+      comment: The full callback URL of an account, or why there is none
+    - name: messaging_event_stats
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/event-stats
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+      comment: Per-channel delivery counts of an election event, by latest attempt
     - name: delete_role
       definition:
           kind: synchronous
@@ -2893,4 +2921,7 @@ custom_types:
         - name: CheckMessagingAccountOutput
         - name: TestMessagingAccountOutput
         - name: UpdateEventMessagingConfigOutput
+        - name: MessagingAccountCallbackUrlOutput
+        - name: MessagingEventStatsOutput
+        - name: MessagingChannelStats
     scalars: []

@@ -299,8 +299,9 @@ class MessageOTPAuthenticationFlowTest {
     assertNull(notes.get(Utils.CODE));
   }
 
+  /** KC-R3: a resend never resets the session's attempt count. */
   @Test
-  void aNewCodeStartsWithAFreshAttemptCount() throws Exception {
+  void attemptsSurviveAResend() throws Exception {
     for (int attempt = 0; attempt < 4; attempt++) {
       parameters.putSingle(Utils.CODE, "000000");
       authenticator.action(context);
@@ -313,9 +314,48 @@ class MessageOTPAuthenticationFlowTest {
     assertNotEquals(CODE, newCode);
 
     parameters.clear();
-    parameters.putSingle(Utils.CODE, "000000");
+    parameters.putSingle(Utils.CODE, newCode.equals("000000") ? "111111" : "000000");
     authenticator.action(context);
-    assertEquals(newCode, notes.get(Utils.CODE));
+    assertNull(notes.get(Utils.CODE));
+    verify(event).error(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS);
+  }
+
+  private void fiveWrongCodes() {
+    for (int attempt = 0; attempt < 5; attempt++) {
+      parameters.putSingle(Utils.CODE, "000000");
+      authenticator.action(context);
+    }
+    parameters.clear();
+  }
+
+  /** KC-R9: a sixth code after five wrong ones is "Too many attempts", never a 500. */
+  @Test
+  void aSixthCodeShowsTooManyAttemptsAndNeverAnInternalError() throws Exception {
+    fiveWrongCodes();
+    parameters.putSingle(Utils.CODE, CODE);
+    authenticator.action(context);
+
+    verify(context, never()).success();
+    verify(context, never())
+        .failureChallenge(eq(AuthenticationFlowError.INTERNAL_ERROR), any(Response.class));
+    verify(form, never()).createErrorPage(Response.Status.INTERNAL_SERVER_ERROR);
+    verify(form, atLeastOnce()).setAttribute("attemptsExhausted", true);
+    verify(form, atLeastOnce()).setError(MessageOTPAuthenticator.TOO_MANY_ATTEMPTS_KEY);
+  }
+
+  /** After five wrong codes the session is finished: no new code, only a restart. */
+  @Test
+  void afterFiveWrongCodesNoCodeIsSentAgainInThisSession() throws Exception {
+    fiveWrongCodes();
+    codeIssuedSecondsAgo(61);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    parameters.clear();
+    authenticator.authenticate(context);
+
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    assertNull(notes.get(Utils.CODE));
+    verify(form, atLeast(2)).setAttribute("attemptsExhausted", true);
   }
 
   @Test

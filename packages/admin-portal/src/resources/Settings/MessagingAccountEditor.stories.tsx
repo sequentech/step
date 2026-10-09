@@ -11,7 +11,12 @@ import {IMessagingAccount} from "@/types/messaging"
 import {MessagingAccountEditor} from "./MessagingAccountEditor"
 import {
     MESSENGER_ACCOUNT_ID,
+    VIBER_ACCOUNT_ID,
+    WHATSAPP_ACCOUNT_ID,
+    callbackUrl,
+    callbackUrlHandler,
     messengerAccount,
+    partnerAccount,
     viberAccount,
     whatsappAccount,
 } from "./__stories__/MessagingFixture"
@@ -21,6 +26,8 @@ enum EStoryAccount {
     WHATSAPP = "WHATSAPP",
     VIBER = "VIBER",
     MESSENGER = "MESSENGER",
+    /** An account of the removed generic HTTP provider. */
+    UNSUPPORTED = "UNSUPPORTED",
 }
 
 interface Scenario {
@@ -34,11 +41,13 @@ const ACCOUNTS: Record<EStoryAccount, () => IMessagingAccount | undefined> = {
     [EStoryAccount.WHATSAPP]: whatsappAccount,
     [EStoryAccount.VIBER]: viberAccount,
     [EStoryAccount.MESSENGER]: messengerAccount,
+    [EStoryAccount.UNSUPPORTED]: partnerAccount,
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
 const onChanged = fn()
 const onClose = fn()
+const onCreated = fn()
 
 const reply = (fails: boolean, data: Record<string, unknown>) => () => {
     if (fails) throw new Error("Synthetic messaging service unavailable")
@@ -54,16 +63,24 @@ const meta = {
     beforeEach: async ({args}) => {
         onChanged.mockClear()
         onClose.mockClear()
+        onCreated.mockClear()
         graphql = graphqlBoundary({
             UpsertMessagingAccount: reply(args.mutationsFail, {
-                upsert_messaging_account: {id: MESSENGER_ACCOUNT_ID},
+                upsert_messaging_account: {
+                    id: MESSENGER_ACCOUNT_ID,
+                    callback_url: callbackUrl("meta", MESSENGER_ACCOUNT_ID),
+                    callback_reason: null,
+                },
             }),
             ReplaceMessagingAccountCredentials: reply(args.mutationsFail, {
                 replace_messaging_account_credentials: {
-                    replaced: ["VERIFY_TOKEN"],
+                    replaced: ["VERIFY_TOKEN", "REPORT_USERNAME", "REPORT_PASSWORD"],
                     verify_token: "synthetic-verify-token",
+                    report_username: "synthetic-report-user",
+                    report_password: "synthetic-report-password",
                 },
             }),
+            MessagingAccountCallbackUrl: callbackUrlHandler,
         })
         await graphql.ready
     },
@@ -77,6 +94,7 @@ const meta = {
                 account={ACCOUNTS[args.account]()}
                 canWrite={args.canWrite}
                 onChanged={onChanged}
+                onCreated={onCreated}
                 onClose={onClose}
             />
         </AdminStoryProvider>
@@ -110,15 +128,23 @@ export const GenerateVerifyToken: Story = {
     parameters: {widgets: ["CallbackSection", "VerifyTokenDialog"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByRole("textbox", {name: "Callback path"})).toHaveValue(
-            "/webhooks/meta/wa-hook-key"
-        )
+        await expect(
+            await canvas.findByDisplayValue(callbackUrl("meta", WHATSAPP_ACCOUNT_ID))
+        ).toBeVisible()
+        await expect(
+            canvas.getByText(/Delivery reports arrive here and are checked with the app secret/)
+        ).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Generate verify token"}))
         const dialog = within(await within(document.body).findByRole("dialog"))
         await expect(dialog.getByRole("textbox", {name: "Verify token"})).toHaveValue(
             "synthetic-verify-token"
         )
         expect(graphql.calls[0]).toMatchObject({
+            name: "MessagingAccountCallbackUrl",
+            variables: {accountId: WHATSAPP_ACCOUNT_ID},
+            headers: {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_WRITE},
+        })
+        expect(graphql.calls[1]).toMatchObject({
             name: "ReplaceMessagingAccountCredentials",
             variables: {credentials: {}, generateVerifyToken: true},
             headers: {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_WRITE},
@@ -134,10 +160,39 @@ export const ViberTemplates: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getAllByRole("textbox", {name: "Partner template ID"})).toHaveLength(3)
-        await expect(canvas.getByRole("textbox", {name: "Callback path"})).toHaveValue(
-            "/webhooks/viber/viber-hook-key"
-        )
+        await expect(
+            await canvas.findByDisplayValue(callbackUrl("viber", VIBER_ACCOUNT_ID))
+        ).toBeVisible()
         expect(canvas.queryByRole("button", {name: "Generate verify token"})).toBeNull()
+        expect(canvas.queryByText(/app secret/i)).toBeNull()
+    },
+}
+
+export const ViberReportCredentials: Story = {
+    args: {account: EStoryAccount.VIBER},
+    parameters: {widgets: ["CallbackSection", "ReportCredentialsDialog"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            canvas.getByText(/create a subscription for Viber delivery reports/)
+        ).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Generate report credentials"}))
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        await expect(dialog.getByRole("textbox", {name: "Report user name"})).toHaveValue(
+            "synthetic-report-user"
+        )
+        await expect(dialog.getByRole("textbox", {name: "Report password"})).toHaveValue(
+            "synthetic-report-password"
+        )
+        await expect(dialog.getByRole("textbox", {name: "Callback URL"})).toHaveValue(
+            callbackUrl("viber", VIBER_ACCOUNT_ID)
+        )
+        expect(graphql.calls[1]).toMatchObject({
+            name: "ReplaceMessagingAccountCredentials",
+            variables: {generateReportCredentials: true, generateVerifyToken: false},
+        })
+        await userEvent.click(dialog.getByRole("button", {name: "Done"}))
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
     },
 }
 
@@ -153,8 +208,7 @@ export const ChangeMessengerPage: Story = {
         ).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await waitFor(() => expect(onClose).toHaveBeenCalled())
-        expect(graphql.calls[0]).toMatchObject({
-            name: "UpsertMessagingAccount",
+        expect(graphql.calls.find(({name}) => name === "UpsertMessagingAccount")).toMatchObject({
             variables: {sender: {provider: "MESSENGER_SEND_API", page_id: "999"}},
         })
         expect(onChanged).toHaveBeenCalled()
@@ -163,10 +217,13 @@ export const ChangeMessengerPage: Story = {
 
 export const NewAccount: Story = {
     args: {account: EStoryAccount.NEW},
-    parameters: {widgets: ["CredentialInput"]},
+    parameters: {widgets: ["CredentialInput", "CallbackSection"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByRole("textbox", {name: /From address/})).toBeVisible()
+        await expect(canvas.getByRole("textbox", {name: /Phone number ID/})).toBeVisible()
+        await expect(canvas.getByRole("textbox", {name: "Callback URL"})).toHaveValue(
+            "Shown after saving"
+        )
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await expect(canvas.getAllByText("Required").length).toBeGreaterThan(0)
         expect(graphql.calls).toEqual([])
@@ -178,103 +235,57 @@ const choose = async (canvasElement: HTMLElement, select: string, option: string
     await userEvent.click(await within(document.body).findByRole("option", {name: option}))
 }
 
-export const ConfirmReadiness: Story = {
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            canvas.getByText(/it is your statement that the account is connected, in production/)
-        ).toBeVisible()
-        await choose(canvasElement, "Readiness", "Confirmed by an administrator")
-        await choose(canvasElement, "Provider approval", "Provider approval confirmed")
-        await userEvent.type(
-            canvas.getByRole("textbox", {name: "Graph API base URL"}),
-            "https://graph.bsp.example"
-        )
-        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
-        await waitFor(() => expect(onClose).toHaveBeenCalled())
-        expect(graphql.calls[0]).toMatchObject({
-            name: "UpsertMessagingAccount",
-            variables: {
-                channel: "WHATSAPP",
-                readiness: "ADMIN_CONFIRMED",
-                providerApproval: "CONFIRMED",
-                sender: {api_base_url: "https://graph.bsp.example"},
-            },
-        })
-    },
-}
-
-export const NewCustomHttpApi: Story = {
-    args: {account: EStoryAccount.NEW},
-    parameters: {
-        widgets: ["CredentialInput", "CallbackSection"],
-        expectedFailure: {
-            reason: "json-edit-react's default theme renders item counts and string values with insufficient contrast.",
-            a11y: ["color-contrast"],
-        },
-    },
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            canvas.getByText("Cannot be changed after the account is created.")
-        ).toBeVisible()
-        await choose(canvasElement, "Channel", "Viber")
-        await choose(canvasElement, "Provider", "Custom HTTP API")
-        await userEvent.type(canvas.getByRole("textbox", {name: /Account name/}), "Partner Viber")
-        await userEvent.type(
-            canvas.getByRole("textbox", {name: "Sender shown to voters"}),
-            "Council"
-        )
-        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
-        await expect(
-            await canvas.findByText("url is required: the address of the request.")
-        ).toBeVisible()
-        expect(graphql.calls).toEqual([])
-        await userEvent.click(canvas.getByRole("button", {name: "Worked example: a Viber partner"}))
-        await userEvent.click(await canvas.findByRole("button", {name: "Use this example"}))
-        await userEvent.type(canvas.getByLabelText("API key"), "synthetic-api-key")
-        await expect(canvas.getByRole("textbox", {name: "Callback path"})).toHaveValue(
-            "Shown after saving"
-        )
-        await expect(canvas.getByText(/or send them as a GET request/)).toBeVisible()
-        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
-        await waitFor(() => expect(onClose).toHaveBeenCalled())
-        expect(graphql.calls[0]).toMatchObject({
-            name: "UpsertMessagingAccount",
-            variables: {
-                id: null,
-                channel: "VIBER",
-                name: "Partner Viber",
-                readiness: "PROVIDER_CHECK",
-                sender: {
-                    provider: "HTTP_API",
-                    label: "Council",
-                    message_id_pointer: "/message_id",
-                    send: {url: "https://api.partner.example/v1/viber/messages"},
-                },
-            },
-        })
-        expect(graphql.calls[1]).toMatchObject({
-            name: "ReplaceMessagingAccountCredentials",
-            variables: {credentials: {API_KEY: "synthetic-api-key"}},
-        })
-    },
-}
-
-export const ConsoleForAnyChannel: Story = {
+export const ChannelsAndTheirAdapters: Story = {
     args: {account: EStoryAccount.NEW},
     parameters: {widgets: []},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await choose(canvasElement, "Channel", "SMS")
-        await choose(canvasElement, "Provider", "Console (test only, nothing is sent)")
-        await userEvent.type(canvas.getByRole("textbox", {name: /Account name/}), "Console SMS")
+        await userEvent.click(canvas.getByRole("combobox", {name: "Channel"}))
+        const channels = within(document.body)
+            .getAllByRole("option")
+            .map((option) => option.textContent)
+        await expect(channels).toEqual(["WhatsApp", "Viber", "Facebook Messenger", "SMS", "Email"])
+        await userEvent.click(within(document.body).getByRole("option", {name: "SMS"}))
+        await userEvent.click(canvas.getByRole("combobox", {name: "Provider"}))
+        const providers = within(document.body)
+            .getAllByRole("option")
+            .map((option) => option.textContent)
+        await expect(providers).toEqual(["Amazon SNS"])
+        await userEvent.keyboard("{Escape}")
+    },
+}
+
+export const UnsupportedProvider: Story = {
+    args: {account: EStoryAccount.UNSUPPORTED},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByRole("alert")).toHaveTextContent(
+            /Unsupported provider: replace this account/
+        )
+        expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
+        expect(canvas.queryByRole("textbox", {name: "Callback URL"})).toBeNull()
+        expect(graphql.calls).toEqual([])
+    },
+}
+
+export const NewAccountShowsItsCallback: Story = {
+    args: {account: EStoryAccount.NEW},
+    parameters: {widgets: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await choose(canvasElement, "Channel", "Facebook Messenger")
+        await userEvent.type(canvas.getByRole("textbox", {name: /Account name/}), "Council Page")
+        await userEvent.type(canvas.getByRole("textbox", {name: /Facebook Page ID/}), "42")
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
-        await waitFor(() => expect(onClose).toHaveBeenCalled())
-        expect(graphql.calls[0]).toMatchObject({
-            name: "UpsertMessagingAccount",
-            variables: {channel: "SMS", sender: {provider: "CONSOLE"}},
-        })
+        await waitFor(() =>
+            expect(onCreated).toHaveBeenCalledWith(MESSENGER_ACCOUNT_ID, {
+                callback_url: callbackUrl("meta", MESSENGER_ACCOUNT_ID),
+                reason: null,
+            })
+        )
+        expect(onClose).not.toHaveBeenCalled()
+        expect("readiness" in (graphql.calls[0].variables ?? {})).toBe(false)
     },
 }
 

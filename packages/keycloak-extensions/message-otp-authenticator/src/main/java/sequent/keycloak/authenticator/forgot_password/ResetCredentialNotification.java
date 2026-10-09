@@ -5,7 +5,6 @@
 package sequent.keycloak.authenticator.forgot_password;
 
 import com.google.auto.service.AutoService;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriBuilder;
 import java.util.List;
 import java.util.Objects;
@@ -15,7 +14,6 @@ import lombok.extern.jbosslog.JBossLog;
 import org.jboss.logging.Logger;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
-import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.actiontoken.resetcred.ResetCredentialsActionToken;
@@ -34,11 +32,10 @@ import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
-import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 @JBossLog
@@ -48,8 +45,10 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
   private static final Logger logger = Logger.getLogger(ResetCredentialNotification.class);
   public static final String PROVIDER_ID = "reset-credential-notification";
   public static final String RESET_LINK_MESSAGE_KEY = "forgotPassword.sms.text";
-  static final String SUCCESS_MESSAGE_KEY = "forgotPassword.success.display.message";
-  static final String SUCCESS_CHANNEL_MESSAGE_KEY = "forgotPassword.success.channel.message";
+
+  /** "If an account exists, we sent the link to its contact." */
+  static final String SUCCESS_NEUTRAL_MESSAGE_KEY = "forgotPassword.success.contact.message";
+
   public static final String TEL_USER_ATTRIBUTE = "sequent.read-only.mobile-number";
 
   @Override
@@ -59,17 +58,17 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
     String username =
         authenticationSession.getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
 
-    // Handle missing user
+    // Unknown users get the same page as known ones: the page never tells whether an account
+    // exists, nor how it is reached.
     if (user == null) {
-      String successMessageKey = (username != null && username.contains("@")) ? "email" : "sms";
-      context.forkWithSuccessMessage(new FormMessage(null, SUCCESS_MESSAGE_KEY, successMessageKey));
+      context.forkWithSuccessMessage(successMessage());
       return;
     }
 
     String actionTokenUserId =
         authenticationSession.getAuthNote(DefaultActionTokenKey.ACTION_TOKEN_USER_ID);
     if (actionTokenUserId != null && Objects.equals(user.getId(), actionTokenUserId)) {
-      logger.debugf("Skipping notification screen for user '%s'", user.getUsername());
+      logger.debugf("Skipping notification screen for user '%s'", user.getId());
       context.success();
       return;
     }
@@ -103,94 +102,83 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
 
     long expirationInMinutes = TimeUnit.SECONDS.toMinutes(validityInSecs);
 
-    // Attempt to send notification
-    Optional<FormMessage> sent = sendNotification(context, user, link, expirationInMinutes);
-
-    if (sent.isPresent()) {
-      event
-          .clone()
-          .event(EventType.SEND_RESET_PASSWORD)
-          .user(user)
-          .detail(Details.USERNAME, username)
-          .success();
-      context.forkWithSuccessMessage(sent.get());
+    // The link goes to the voter's one channel; a failure is recorded and never sent elsewhere.
+    boolean sent = sendNotification(context, user, link, expirationInMinutes);
+    EventBuilder resetEvent =
+        event
+            .clone()
+            .event(EventType.SEND_RESET_PASSWORD)
+            .user(user)
+            .detail(Details.USERNAME, username);
+    if (sent) {
+      resetEvent.success();
     } else {
-      event
-          .clone()
-          .event(EventType.SEND_RESET_PASSWORD)
-          .user(user)
-          .detail(Details.USERNAME, username)
-          .error(Errors.EMAIL_SEND_FAILED);
-      Response challenge =
-          context
-              .form()
-              .setError(Messages.EMAIL_SENT_ERROR)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR);
-      context.failure(AuthenticationFlowError.INTERNAL_ERROR, challenge);
+      resetEvent.error(Errors.EMAIL_SEND_FAILED);
     }
+    context.forkWithSuccessMessage(successMessage());
   }
 
   /**
-   * What the voter is told after the link was sent. A messaging app is named by its label; email
-   * and SMS keep the text they always had.
+   * What the voter is told after asking for a reset link, whatever happened: it names neither the
+   * channel nor whether an account exists.
    */
-  public static FormMessage successMessage(
-      Optional<MessageChannel> messagingApp, String messagingAppLabel, String email) {
-    if (messagingApp.isPresent()) {
-      return new FormMessage(null, SUCCESS_CHANNEL_MESSAGE_KEY, messagingAppLabel);
-    }
-    return new FormMessage(null, SUCCESS_MESSAGE_KEY, email != null ? "email" : "sms");
+  public static FormMessage successMessage() {
+    return new FormMessage(null, SUCCESS_NEUTRAL_MESSAGE_KEY);
   }
 
-  /** Sends the link and returns the text that names the channel that carried it. */
-  private Optional<FormMessage> sendNotification(
+  /**
+   * Sends the link on the voter's channel.
+   *
+   * @return whether it was handed over; a refusal or a failure is logged with its reason
+   */
+  private boolean sendNotification(
       AuthenticationFlowContext context, UserModel user, String link, long expirationInMinutes) {
     try {
       KeycloakSession session = context.getSession();
-      Optional<MessageChannel> messagingApp =
-          sequent.keycloak.authenticator.Utils.sendNoticeOn(
+      Optional<sequent.keycloak.authenticator.Utils.KeycloakNotice> keycloak =
+          sequent.keycloak.authenticator.Utils.sendNotice(
               session,
               context.getRealm(),
               user,
               NoticeRecipient.fromUser(user, TEL_USER_ATTRIBUTE),
+              MessageCourier.CHOSEN,
+              user.getEmail(),
+              user.getFirstAttribute(TEL_USER_ATTRIBUTE),
               RESET_LINK_MESSAGE_KEY,
               () -> List.of(String.valueOf(expirationInMinutes), link),
               context);
-      if (messagingApp.isPresent()) {
-        String label =
-            sequent.keycloak.authenticator.Utils.formatLoginMessage(
-                session, context.getRealm(), user, messagingApp.get().labelKey(), List.of());
-        return Optional.of(successMessage(messagingApp, label, user.getEmail()));
+      if (keycloak.isEmpty()) {
+        return true;
       }
-
-      // Check for email
-      String email = user.getEmail();
-      if (email != null && !email.trim().isEmpty()) {
+      MessageCourier courier = keycloak.get().courier();
+      if (courier == MessageCourier.EMAIL) {
         session
             .getProvider(EmailTemplateProvider.class)
             .setRealm(context.getRealm())
             .setUser(user)
             .setAuthenticationSession(context.getAuthenticationSession())
             .sendPasswordReset(link, expirationInMinutes);
-        logger.infof("Reset link sent via email to user %s", user.getUsername());
-        return Optional.of(successMessage(Optional.empty(), null, email));
+        logger.info("Reset link sent by email");
+        return true;
       }
-
-      String phoneNumber = user.getFirstAttribute(TEL_USER_ATTRIBUTE);
-      if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
-        log.info("phone number found sending sms" + phoneNumber);
+      if (courier == MessageCourier.SMS) {
         SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
         List<String> attributes = List.of(String.valueOf(expirationInMinutes), link);
         smsSenderProvider.send(
-            phoneNumber, RESET_LINK_MESSAGE_KEY, attributes, context.getRealm(), user, session);
-        return Optional.of(successMessage(Optional.empty(), null, null));
+            keycloak.get().mobileNumber(),
+            RESET_LINK_MESSAGE_KEY,
+            attributes,
+            context.getRealm(),
+            user,
+            session);
+        logger.info("Reset link sent by SMS");
+        return true;
       }
-
-      logger.warnf("No contact method available for user %s", user.getUsername());
+      logger.warn("No channel to send the reset link to");
     } catch (Exception e) {
-      logger.error("Failed to send reset notification", e);
+      logger.error("Failed to send the reset link; not sent elsewhere");
     }
-    return Optional.empty();
+    return false;
   }
 
   @Override
@@ -214,7 +202,7 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
 
   @Override
   public String getDisplayType() {
-    return "Send Reset Notification (Email/SMS)";
+    return "Send Reset Notification (contact channel)";
   }
 
   @Override
@@ -241,7 +229,7 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
 
   @Override
   public String getHelpText() {
-    return "Send reset link to user via email or SMS.";
+    return "Send the reset link on the user's one contact channel.";
   }
 
   @Override

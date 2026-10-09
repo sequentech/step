@@ -254,6 +254,7 @@
     margin: 0 0 24px;
     color: #173449;
 }
+.sequent-auth .auth-actions a.MuiButton-contained,
 .sequent-auth .auth-messenger a.MuiButton-contained {
     color: #fff;
     text-decoration: none;
@@ -263,15 +264,66 @@
     padding-inline-start: 20px;
     line-height: 1.7;
 }
-.sequent-auth .auth-messenger-qr {
+.sequent-auth .auth-messenger-scan {
     align-items: center;
-    gap: 16px;
+    gap: 24px;
 }
-.sequent-auth .auth-other-way {
-    margin-top: 16px;
+.sequent-auth .auth-messenger-qr {
+    display: flex;
+    flex: none;
+    padding: 8px;
+    border: 1px solid #d4dfe3;
+    border-radius: 12px;
+    background: #fff;
 }
-.sequent-auth .auth-other-way .auth-form {
-    margin-top: 8px;
+.sequent-auth .auth-messenger-qr img,
+.sequent-auth .auth-messenger-qr svg {
+    display: block;
+}
+.sequent-auth .auth-channel-choice {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: 8px;
+    margin: 6px 0 0;
+}
+.sequent-auth .auth-channel-option {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border: 1px solid #d4dfe3;
+    border-radius: 10px;
+    color: #173449;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+}
+.sequent-auth .auth-channel-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    opacity: 0;
+}
+.sequent-auth .auth-channel-option:has(input:checked) {
+    border: 2px solid #0d796a;
+    padding: 9px 5px;
+    color: #0d796a;
+    background: #f1f8f6;
+}
+.sequent-auth .auth-channel-option:has(input:focus-visible) {
+    outline: 2px solid #0d796a;
+    outline-offset: 2px;
+}
+.sequent-auth .auth-channel-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 .sequent-auth .auth-footer {
     display: flex;

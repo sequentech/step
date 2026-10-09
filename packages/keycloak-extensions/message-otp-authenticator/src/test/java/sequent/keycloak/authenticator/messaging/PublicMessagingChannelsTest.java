@@ -34,17 +34,17 @@ class PublicMessagingChannelsTest {
   @Test
   void otpChannelsFollowTheVotersElection() {
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.EMAIL),
         channels.channelsFor(MessagePurpose.OTP, Set.of("election-a")));
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.MESSENGER),
+        List.of(MessageChannel.MESSENGER, MessageChannel.EMAIL),
         channels.channelsFor(MessagePurpose.OTP, Set.of("election-b")));
   }
 
   @Test
   void anElectionWithoutRestrictionOffersEveryEnabledChannel() {
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP, MessageChannel.MESSENGER),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.MESSENGER, MessageChannel.EMAIL),
         channels.channelsFor(MessagePurpose.OTP, Set.of("election-unlisted")));
   }
 
@@ -73,7 +73,7 @@ class PublicMessagingChannelsTest {
 
   @Test
   void aPostIsMatchedToItsElectionByIdOrByAnyLabel() {
-    List<MessageChannel> north = List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP);
+    List<MessageChannel> north = List.of(MessageChannel.WHATSAPP, MessageChannel.EMAIL);
     for (String post :
         List.of(
             "11111111-aaaa-4bbb-8ccc-000000000001",
@@ -85,14 +85,14 @@ class PublicMessagingChannelsTest {
       assertEquals(north, labelled.channelsFor(MessagePurpose.OTP, Set.of(post)), post);
     }
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.MESSENGER),
+        List.of(MessageChannel.MESSENGER, MessageChannel.EMAIL),
         labelled.channelsFor(MessagePurpose.OTP, Set.of("synthetic post south")));
   }
 
   @Test
   void aLabelledElectionWithoutRestrictionOffersEveryEnabledChannel() {
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP, MessageChannel.MESSENGER),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.MESSENGER, MessageChannel.EMAIL),
         labelled.channelsFor(MessagePurpose.OTP, Set.of("Synthetic Post East")));
   }
 
@@ -104,21 +104,21 @@ class PublicMessagingChannelsTest {
         List.of(MessageChannel.EMAIL),
         labelled.channelsFor(MessagePurpose.OTP, Set.of("Synthetic Post Nowhere"), common));
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.EMAIL),
         labelled.channelsFor(
             MessagePurpose.OTP, Set.of("Synthetic Post Nowhere", "Synthetic Post North"), common));
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.EMAIL),
         labelled.channelsFor(MessagePurpose.OTP, Set.of("post-n"), common));
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP, MessageChannel.MESSENGER),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.MESSENGER, MessageChannel.EMAIL),
         labelled.channelsFor(MessagePurpose.OTP, Set.of("Synthetic Post East"), common));
   }
 
   @Test
   void aSavedVotersUnlistedElectionKeepsEveryEnabledChannel() {
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP, MessageChannel.MESSENGER),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.MESSENGER, MessageChannel.EMAIL),
         labelled.channelsFor(MessagePurpose.OTP, Set.of("11111111-aaaa-4bbb-8ccc-000000000009")));
   }
 
@@ -143,7 +143,7 @@ class PublicMessagingChannelsTest {
   @Test
   void noticesAreSeparateFromCodes() {
     assertEquals(
-        List.of(MessageChannel.EMAIL, MessageChannel.WHATSAPP, MessageChannel.VIBER),
+        List.of(MessageChannel.WHATSAPP, MessageChannel.VIBER, MessageChannel.EMAIL),
         channels.channelsFor(MessagePurpose.NOTICE, Set.of("election-unlisted")));
   }
 

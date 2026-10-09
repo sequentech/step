@@ -20,6 +20,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import {
     ETemplateType,
     ITemplateMethod,
+    MESSAGE_TEMPLATE_METHODS,
     IExtraConfig,
     IEmail,
     ISmsConfig,
@@ -242,7 +243,7 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                     gap: "16px",
                 }}
             >
-                {Object.values(ITemplateMethod).map((method) => (
+                {[...MESSAGE_TEMPLATE_METHODS, ITemplateMethod.DOCUMENT].map((method) => (
                     <BooleanInput
                         key={method}
                         source={`template.selected_methods.${method}`}

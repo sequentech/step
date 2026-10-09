@@ -24,7 +24,10 @@
                 </#list>
                 </ul>
             </#if>
-            <p>${msg("registerFinishManualMessage")?no_esc}</p>
+            <#-- When the voter's one channel is known, it is named below instead of "SMS or email". -->
+            <#if !noticeChannel??>
+                <p>${msg("registerFinishManualMessage")?no_esc}</p>
+            </#if>
             <#--  The election officer's reply-by time in the Post's zone (lookup-and-update-user's
                   reply-by-hours), named by timezones.name.<zone>, else the CLDR long name.  -->
             <#if enrollmentReplyBy??>
@@ -42,7 +45,11 @@
                 <p id="enrollment-reply-by" class="enrollment-reply-by">${msg("enrollment.replyBy", msg(replyByCombinedKey, enrollmentReplyBy.dateTime, replyByZoneName))}</p>
             </#if>
             <#if noticeChannel??>
-                <p id="notice-channel">${msg("messageOtp.pending.channel", msg("messageChannel." + noticeChannel))}</p>
+                <#if (noticeAddress!'')?has_content>
+                    <p id="notice-channel">${msg("messageOtp.pending.channelAddress", msg("messageChannel." + noticeChannel), noticeAddress)}</p>
+                <#else>
+                    <p id="notice-channel">${msg("messageOtp.pending.channel", msg("messageChannel." + noticeChannel))}</p>
+                </#if>
             </#if>
             <p id="instruction1" class="instruction">
                 ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .

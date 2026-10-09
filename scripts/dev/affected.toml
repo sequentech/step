@@ -127,6 +127,12 @@ summary = "Dormant source fragment without a manifest"
 [units.beyond]
 summary = "The beyond submodule, validated in its own repository"
 
+[units.messaging]
+summary = "Provider adapters, delivery attempt decisions, webhook verification and the relay envelope"
+
+[units.messaging-webhooks]
+summary = "The public webhook component: relays provider callbacks, signed, to harvest"
+
 [units.harvest]
 test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh", "hasura/metadata/databases/backend-db/tables/**"]
 
@@ -282,6 +288,11 @@ globs = [
     "scripts/update_license_headers.py",
 ]
 units = ["scripts-misc"]
+
+# The webhook component's image is also an image.
+[[paths]]
+globs = ["packages/messaging-webhooks/Dockerfile*"]
+units = ["messaging-webhooks", "docker-images"]
 
 [[paths]]
 globs = ["packages/test-support/**"]
@@ -563,7 +574,7 @@ workflows = ["wbraid.yml"]
 
 [[checks]]
 id = "cargo-test:{unit}"
-for_each = ["strand", "electoral-log", "wrap-map-err", "step-cli"]
+for_each = ["strand", "electoral-log", "wrap-map-err", "step-cli", "messaging", "messaging-webhooks"]
 kind = "test"
 runner = "cargo"
 cost = "fast"

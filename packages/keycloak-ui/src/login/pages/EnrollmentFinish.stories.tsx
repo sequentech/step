@@ -3,6 +3,7 @@
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
 import {createKcPageStory} from "../KcPageStory"
+import {MessageChannel} from "../KcContext"
 
 const {KcPageStory} = createKcPageStory({pageId: "registration-manual-finish.ftl"})
 const {KcPageStory: Enrolled} = createKcPageStory({pageId: "registration-finish.ftl"})
@@ -119,4 +120,74 @@ export const Spanish: Story = {
 // As voters see it, in the voting portal's theme, for walkthroughs.
 export const Voting: Story = {
     args: {kcContext: {themeName: "sequent-ui-voting"}},
+}
+
+/** The review page names where the result goes: the voter's one channel and its masked contact. */
+export const PendingResultByWhatsApp: Story = {
+    args: {
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            noticeChannel: MessageChannel.WhatsApp,
+            noticeAddress: "+155 ••• ••• 999",
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("We will send the result to your WhatsApp, +155 ••• ••• 999.")
+        ).toBeVisible()
+        // The channel line replaces the page's "SMS or email" text.
+        await expect(canvas.queryByText(/SMS or email/)).toBeNull()
+    },
+}
+
+export const PendingResultByMessenger: Story = {
+    args: {
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            noticeChannel: MessageChannel.Messenger,
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("We will send the result to your Facebook Messenger.")
+        ).toBeVisible()
+    },
+}
+
+export const PendingResultSpanish: Story = {
+    args: {
+        locale: "es",
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            noticeChannel: MessageChannel.Sms,
+            noticeAddress: "+155 ••• ••• 999",
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("Le enviaremos el resultado a su SMS, +155 ••• ••• 999.")
+        ).toBeVisible()
+    },
+}
+
+/** An unknown channel from an older page is never shown. */
+export const PendingResultUnknownChannel: Story = {
+    args: {
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            noticeChannel: "PIGEON" as MessageChannel,
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("#notice-channel")).toBeNull()
+        await expect(canvas.getByText(/SMS or email/)).toBeVisible()
+    },
 }

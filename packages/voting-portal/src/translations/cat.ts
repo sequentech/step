@@ -9,6 +9,9 @@ const catalanTranslation: TranslationType = {
             error: "No s’ha pogut iniciar el portal de votació. Torneu-ho a provar.",
             retry: "Torneu-ho a provar",
         },
+        contactChannel: {
+            change: "Canvieu com us contactem",
+        },
         common: {
             goBack: "Tornar",
             showMore: "Mostra'n més",
