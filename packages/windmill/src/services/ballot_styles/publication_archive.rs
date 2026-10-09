@@ -3,6 +3,7 @@
 
 use anyhow::{ensure, Context, Result};
 use deadpool_postgres::Transaction;
+use sequent_core::ballot::PublicKeyConfig;
 use sequent_core::services::s3::{
     get_object_into_temp_file, get_private_bucket, get_shared_s3_client, S3Endpoint,
 };
@@ -11,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use tempfile::TempPath;
+use tracing::warn;
 use uuid::Uuid;
 
 use super::publication_files::{
@@ -196,6 +198,32 @@ fn validate_file_contents(
     Ok(())
 }
 
+/// Every archived ballot must carry the verified public key of its imported
+/// election, a demo key, or no key.
+fn has_verified_public_keys(
+    item: &ArchivedPublication,
+    ids: &HashMap<String, String>,
+    election_public_keys: &HashMap<String, String>,
+) -> Result<bool> {
+    for style in &item.ballot_styles {
+        let Some(eml) = style.ballot_eml.as_deref() else {
+            continue;
+        };
+        let eml: Value = serde_json::from_str(eml).context("Invalid archived ballot")?;
+        let public_key: Option<PublicKeyConfig> = serde_json::from_value(eml["public_key"].clone())
+            .context("Invalid archived ballot public key")?;
+        let election_public_key = election_public_keys.get(&mapped_id(ids, &style.election_id)?);
+        let is_verified = match public_key {
+            None => true,
+            Some(config) => config.is_demo || Some(&config.public_key) == election_public_key,
+        };
+        if !is_verified {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn remap(value: &mut Value, ids: &HashMap<String, String>) {
     match value {
         Value::String(text) => *text = replace_ids_in_filename(text, ids),
@@ -276,6 +304,8 @@ fn read_archive(bytes: &[u8]) -> Result<PublicationArchive> {
 
 /// Restore records and files in the import transaction. Readiness is written only
 /// after every required object has uploaded and passed readback verification.
+/// Publications are restored unpublished, and keep their generated content only
+/// when every ballot passes `has_verified_public_keys`.
 pub async fn import_publication_archive(
     tx: &Transaction<'_>,
     tenant: &str,
@@ -283,6 +313,7 @@ pub async fn import_publication_archive(
     bytes: &[u8],
     entries: &[(String, Vec<u8>)],
     replacement_map: &HashMap<String, String>,
+    election_public_keys: &HashMap<String, String>,
 ) -> Result<()> {
     let archive = read_archive(bytes)?;
     let mut ids = replacement_map.clone();
@@ -386,7 +417,15 @@ pub async fn import_publication_archive(
                 &[&style],
             ).await?;
         }
-        if source.is_generated.unwrap_or(false) {
+        let is_generated = source.is_generated.unwrap_or(false);
+        let has_verified_keys = has_verified_public_keys(&item, &ids, election_public_keys)?;
+        if is_generated && !has_verified_keys {
+            warn!(
+                publication_id,
+                "Restoring the publication without generated content: its ballots do not carry the verified public keys of their elections"
+            );
+        }
+        if is_generated && has_verified_keys {
             let root = format!(
                 "tenant-{tenant}/event-{event}/publication-{publication_id}/{}",
                 Uuid::new_v4()
@@ -455,17 +494,8 @@ pub async fn import_publication_archive(
                     json!(shared.map(|(raw, _)| raw).unwrap_or_default());
                 upload(&client, &bucket, &format!("{root}/event.json"), &data.event).await?;
             }
-            tx.execute("UPDATE sequent_backend.ballot_publication SET is_generated=true, published_at=$4, deleted_at=$5, annotations=COALESCE(annotations,'{}'::jsonb)||jsonb_build_object($6::text,$7::text) WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3",
-                &[&Uuid::parse_str(tenant)?,&Uuid::parse_str(event)?,&Uuid::parse_str(&publication_id)?,&source.published_at,&source.deleted_at,&FILES_ANNOTATION,&root]).await?;
-            // The voting portal reads this flag rather than publication history.
-            // Restore it only after the published archive's files are ready; keep
-            // the import's reset voting state and all other status fields intact.
-            if source.published_at.is_some() && source.deleted_at.is_none() {
-                tx.execute(
-                    "UPDATE sequent_backend.election_event SET status=jsonb_set(COALESCE(status,'{}'::jsonb),'{is_published}','true'::jsonb) WHERE tenant_id=$1 AND id=$2",
-                    &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event)?],
-                ).await?;
-            }
+            tx.execute("UPDATE sequent_backend.ballot_publication SET is_generated=true, deleted_at=$4, annotations=COALESCE(annotations,'{}'::jsonb)||jsonb_build_object($5::text,$6::text) WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3",
+                &[&Uuid::parse_str(tenant)?,&Uuid::parse_str(event)?,&Uuid::parse_str(&publication_id)?,&source.deleted_at,&FILES_ANNOTATION,&root]).await?;
         }
     }
     Ok(())

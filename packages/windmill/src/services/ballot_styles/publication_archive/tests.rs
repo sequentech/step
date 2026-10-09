@@ -25,6 +25,62 @@ fn remaps_embedded_eml_and_object_keys_without_changing_other_values() {
     assert!(value.get(old).is_none());
 }
 
+fn archived_publication(election: &str, public_key: Value) -> ArchivedPublication {
+    let eml = json!({"contests": [], "public_key": public_key}).to_string();
+    serde_json::from_value(json!({
+        "publication": {
+            "id": "publication", "tenant_id": "tenant", "election_event_id": "event",
+            "election_ids": [election], "is_generated": true
+        },
+        "ballot_styles": [{
+            "id": "style", "tenant_id": "tenant", "election_event_id": "event",
+            "election_id": election, "area_id": "area",
+            "ballot_publication_id": "publication", "ballot_eml": eml
+        }]
+    }))
+    .unwrap()
+}
+
+#[test]
+fn keeps_archived_styles_generated_when_their_keys_are_verified() -> Result<()> {
+    let election = Uuid::new_v4().to_string();
+    let imported_election = Uuid::new_v4().to_string();
+    let ids = HashMap::from([(election.clone(), imported_election.clone())]);
+    let election_public_keys = HashMap::from([(imported_election, "public-key".to_owned())]);
+    let item = archived_publication(
+        &election,
+        json!({"public_key": "public-key", "is_demo": false}),
+    );
+    assert!(has_verified_public_keys(
+        &item,
+        &ids,
+        &election_public_keys
+    )?);
+    for public_key in [
+        json!({"public_key": "demo-public-key", "is_demo": true}),
+        Value::Null,
+    ] {
+        let item = archived_publication(&election, public_key);
+        assert!(has_verified_public_keys(&item, &ids, &HashMap::new())?);
+    }
+    Ok(())
+}
+
+#[test]
+fn does_not_keep_archived_styles_generated_when_their_keys_are_not_verified() -> Result<()> {
+    let election = Uuid::new_v4().to_string();
+    let imported_election = Uuid::new_v4().to_string();
+    let ids = HashMap::from([(election.clone(), imported_election.clone())]);
+    let item = archived_publication(
+        &election,
+        json!({"public_key": "public-key", "is_demo": false}),
+    );
+    let other_key = HashMap::from([(imported_election, "other-public-key".to_owned())]);
+    assert!(!has_verified_public_keys(&item, &ids, &other_key)?);
+    assert!(!has_verified_public_keys(&item, &ids, &HashMap::new())?);
+    Ok(())
+}
+
 /// Called by the disposable PostgreSQL/S3 integration, using its real uploaded files.
 pub(crate) async fn round_trip(
     pool: &Pool,
@@ -75,23 +131,24 @@ pub(crate) async fn round_trip(
         {
             let mut db = pool.get().await?;
             let tx = db.transaction().await?;
-            ensure!(import_publication_archive(&tx,&t,&ev,&manifest,&entries[1..],&ids).await.is_err(), "Missing S3 file was silently ignored");
+            ensure!(import_publication_archive(&tx,&t,&ev,&manifest,&entries[1..],&ids,&HashMap::new()).await.is_err(), "Missing S3 file was silently ignored");
             ensure!(tx.query_one("SELECT count(*) FROM sequent_backend.ballot_publication WHERE election_event_id=$1", &[&target_event]).await?.get::<_,i64>(0)==0, "Incomplete archive created publication rows");
-            ensure!(import_publication_archive(&tx,&Uuid::new_v4().to_string(),&ev,&manifest,&entries,&ids).await.is_err(), "Foreign tenant mapping accepted");
+            ensure!(import_publication_archive(&tx,&Uuid::new_v4().to_string(),&ev,&manifest,&entries,&ids,&HashMap::new()).await.is_err(), "Foreign tenant mapping accepted");
             tx.rollback().await?;
         }
         {
             let mut db = pool.get().await?;
             let tx = db.transaction().await?;
-            import_publication_archive(&tx,&t,&ev,&manifest,&entries,&ids).await?;
+            import_publication_archive(&tx,&t,&ev,&manifest,&entries,&ids,&HashMap::new()).await?;
             tx.commit().await?;
         }
         let mut db = pool.get().await?;
         let row = db.query_one("SELECT id,published_at IS NOT NULL,annotations->>'ballot_files_v1' FROM sequent_backend.ballot_publication WHERE election_event_id=$1 AND is_generated", &[&target_event]).await?;
         let status: Value = db.query_one("SELECT status FROM sequent_backend.election_event WHERE id=$1", &[&target_event]).await?.get(0);
-        ensure!(status == json!({"is_published":true,"voting_status":"NOT_STARTED","test_marker":7}), "Publication import did not preserve event status while restoring its published flag");
+        ensure!(status == json!({"is_published":false,"voting_status":"NOT_STARTED","test_marker":7}), "Publication import changed the event status");
         let imported_id: Uuid = row.get(0);
-        ensure!(row.get::<_,bool>(1), "Publication lost its published status");
+        ensure!(!row.get::<_,bool>(1), "Publication import restored a published publication");
+        db.execute("UPDATE sequent_backend.ballot_publication SET published_at=now() WHERE id=$1", &[&imported_id]).await?;
         ensure!(imported_id.to_string()!=source_publication, "Publication id was not remapped");
         let root: String = row.get(2);
         ensure!(root.starts_with(&format!("tenant-{t}/event-{ev}/publication-{imported_id}/")), "Imported files point outside the imported event");
@@ -129,7 +186,7 @@ pub(crate) async fn round_trip(
             let mut db = pool.get().await?;
             let tx = db.transaction().await?;
             tx.execute("UPDATE sequent_backend.election_event SET status=jsonb_set(status,'{is_published}','false') WHERE id=$1", &[&target_event]).await?;
-            import_publication_archive(&tx,&t,&ev,&serde_json::to_vec(&legacy)?,&[],&ids).await?;
+            import_publication_archive(&tx,&t,&ev,&serde_json::to_vec(&legacy)?,&[],&ids,&HashMap::new()).await?;
             let status: Value = tx.query_one("SELECT status FROM sequent_backend.election_event WHERE id=$1", &[&target_event]).await?.get(0);
             ensure!(status["is_published"] == false, "Legacy draft import incorrectly published the event");
             tx.commit().await?;
