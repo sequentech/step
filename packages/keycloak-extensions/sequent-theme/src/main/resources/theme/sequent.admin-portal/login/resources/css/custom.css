@@ -445,7 +445,7 @@ button#resend-otp-btn:hover {
 
 @media (max-width: 767px) {
     #kc-title {
-        display: none;
+        display: block;
     }
 }
 

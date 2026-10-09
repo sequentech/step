@@ -1,4 +1,3 @@
-import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -338,6 +337,24 @@ export const customBuildQuery =
 
             ret.variables.where = transformedRawParams
 
+            return ret
+        } else if (
+            resourceName === "sequent_backend_tally_session_execution" &&
+            raFetchType === "GET_LIST" &&
+            params?.meta?.latestPerTallySession
+        ) {
+            params.filter = {
+                ...params.filter,
+                distinct_on: ["tally_session_id"],
+            }
+            const ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            if (ret?.variables?.order_by) {
+                ret.variables.order_by = [
+                    {tally_session_id: "asc"},
+                    {created_at: "desc_nulls_last"},
+                    {id: "desc"},
+                ]
+            }
             return ret
         }
         return buildQuery(introspectionResults)(raFetchType, resourceName, params)

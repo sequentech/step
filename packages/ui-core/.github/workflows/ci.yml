@@ -75,12 +75,10 @@ jobs:
       - name: Use locked cargo package versions known to work
         run: cargo clean && cp Cargo.lock.copy Cargo.lock
 
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          toolchain: nightly-2024-09-01
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
@@ -116,12 +114,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master # You 
 
       - uses: Swatinem/rust-cache@v1
 

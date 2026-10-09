@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {SxProps} from "@mui/material"
+import {SxProps, Theme} from "@mui/material"
 import {AutocompleteInput, Identifier, ReferenceInput, InputProps} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
@@ -12,7 +12,7 @@ interface SelectElectionProps extends InputProps {
     source: string
     label?: string
     onSelectElection?: (electionId: string) => void
-    customStyle?: SxProps
+    customStyle?: SxProps<Theme>
     disabled?: boolean
     value?: string | null
 }
@@ -63,7 +63,7 @@ const SelectElection = ({
                 filterToQuery={electionFilterToQuery}
                 onChange={onSelectElection}
                 debounce={300}
-                sx={customStyle}
+                sx={customStyle as any}
                 disabled={disabled}
             />
         </ReferenceInput>

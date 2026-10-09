@@ -29,6 +29,8 @@ import {
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
+    verify_auditable_ballot_ciphertext_js,
+    verify_auditable_multi_ballot_ciphertext_js,
 } from "sequent-core"
 import {
     CandidatesOrder,
@@ -269,6 +271,30 @@ export const checkIsBlank = (contest: IDecodedVoteContest): boolean | null => {
     } catch (error) {
         console.log(error)
         return null
+    }
+}
+
+export const verifyAuditableBallotCiphertext = (
+    auditableBallot: IAuditableSingleBallot
+): boolean => {
+    try {
+        let isConsistent: boolean = verify_auditable_ballot_ciphertext_js(auditableBallot)
+        return isConsistent
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyAuditableMultiBallotCiphertext = (
+    auditableBallot: IAuditableMultiBallot
+): boolean => {
+    try {
+        let isConsistent: boolean = verify_auditable_multi_ballot_ciphertext_js(auditableBallot)
+        return isConsistent
+    } catch (error) {
+        console.log(error)
+        throw error
     }
 }
 

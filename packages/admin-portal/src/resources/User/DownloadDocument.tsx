@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect} from "react"
+import React, {useContext, useEffect, useRef} from "react"
 import {FetchDocumentQuery, GetDocumentQuery, Sequent_Backend_Document} from "@/gql/graphql"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
@@ -20,7 +20,7 @@ export interface DownloadDocumentProps {
     documentId: string
     electionEventId?: string
     withProgress?: boolean
-    onSucess?: () => void
+    onSuccess?: () => void
 }
 
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
@@ -29,9 +29,10 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     documentId,
     electionEventId,
     withProgress,
-    onSucess,
+    onSuccess,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
+    const downloadStarted = useRef(false)
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
 
@@ -74,8 +75,15 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     console.log({name: document?.name})
 
     useEffect(() => {
-        if (!error && data?.fetchDocument?.url && !downloaded && (fileName || document)) {
-            onSucess && onSucess()
+        if (
+            !error &&
+            data?.fetchDocument?.url &&
+            !downloaded &&
+            !downloadStarted.current &&
+            (fileName || document)
+        ) {
+            downloadStarted.current = true
+            onSuccess?.()
             console.log("setting downloaded true")
             setDownloaded(true)
 

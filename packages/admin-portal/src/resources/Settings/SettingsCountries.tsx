@@ -10,6 +10,8 @@ import {Typography} from "@mui/material"
 import React, {useEffect, useState} from "react"
 import {
     AutocompleteArrayInput,
+    Identifier,
+    RaRecord,
     SaveButton,
     SimpleForm,
     useEditController,
@@ -30,8 +32,16 @@ export const SettingsCountries: React.FC<void> = () => {
         redirect: false,
         undoable: false,
     })
-    const [selectedVotingCountries, setSelectedVotingCountries] = useState([])
-    const [selectedEnrollmentCountries, setSelectedEnrollmentCountries] = useState([])
+    const [selectedVotingCountries, setSelectedVotingCountries] = useState<string[]>([])
+    const [selectedEnrollmentCountries, setSelectedEnrollmentCountries] = useState<string[]>([])
+
+    const handleVotingCountriesChange = (value: string[], _record: RaRecord<Identifier>[]) => {
+        setSelectedVotingCountries(value)
+    }
+
+    const handleEnrollmentCountriesChange = (value: string[], _record: RaRecord<Identifier>[]) => {
+        setSelectedEnrollmentCountries(value)
+    }
 
     useEffect(() => {
         if (record && record?.settings) {
@@ -84,7 +94,7 @@ export const SettingsCountries: React.FC<void> = () => {
                 source="settings.voting_countries"
                 label={"Countries"}
                 choices={COUNTRIES}
-                onChange={setSelectedVotingCountries}
+                onChange={handleVotingCountriesChange}
                 optionValue="code"
             />
 
@@ -98,7 +108,7 @@ export const SettingsCountries: React.FC<void> = () => {
                 source="settings.enroll_countries"
                 label={"Countries"}
                 choices={COUNTRIES}
-                onChange={setSelectedEnrollmentCountries}
+                onChange={handleEnrollmentCountriesChange}
                 optionValue="code"
             />
         </SimpleForm>

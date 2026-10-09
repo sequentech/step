@@ -25,6 +25,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
+    escapeTranslationValues,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
@@ -568,11 +569,15 @@ export const ReviewScreen: React.FC = () => {
     }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot?.ballot_hash) {
+        // errorMsg is rendered as HTML below, so its interpolated values are escaped
         setErrorMsg(
-            t("errors.encoding.writeInCharsExceeded", {
-                ballotId,
-                auditableBallotHash: auditableBallot.ballot_hash,
-            })
+            t(
+                "errors.encoding.writeInCharsExceeded",
+                escapeTranslationValues({
+                    ballotId,
+                    auditableBallotHash: auditableBallot.ballot_hash,
+                })
+            )
         )
     }
 
@@ -705,7 +710,7 @@ export const ReviewScreen: React.FC = () => {
     if (!ballotStyle || !auditableBallot) {
         return errorMsg ? (
             <Box sx={{margin: "auto 0"}}>
-                <WarnBox variant="error">{errorMsg}</WarnBox>
+                <WarnBox variant="error">{stringToHtml(errorMsg)}</WarnBox>
                 <Box
                     sx={{
                         display: "flex",
@@ -783,7 +788,7 @@ export const ReviewScreen: React.FC = () => {
                     {stringToHtml(t("reviewScreen.reviewScreenHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {errorMsg && <WarnBox variant="error">{errorMsg}</WarnBox>}
+            {errorMsg && <WarnBox variant="error">{stringToHtml(errorMsg)}</WarnBox>}
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(
                     auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||

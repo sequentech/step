@@ -98,10 +98,10 @@ const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
 })<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflowx: auto;
+        overflow-x: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
-            `maxWidth: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
         &  > div:first-of-type {
             position: absolute;
             width: 100%;
@@ -570,7 +570,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setExporting(true)
 
             if (electionEventId) {
-                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, undefined)
+                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, true)
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
                 })

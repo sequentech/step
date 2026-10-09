@@ -9,6 +9,7 @@ import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/
 import {
     isString,
     stringToHtml,
+    translateHtml,
     translateFromPresentation,
     EVotingStatus,
     IElectionEventStatus,
@@ -219,7 +220,7 @@ const fakeUpdateBallotStyleAndSelection = (dispatch: AppDispatch) => {
 }
 
 const ElectionSelectionScreen: React.FC = () => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const navigate = useNavigate()
     const location = useLocation()
 
@@ -483,11 +484,11 @@ const ElectionSelectionScreen: React.FC = () => {
                     {errorMsg || alertMsg ? (
                         <Alert severity="warning">
                             {errorMsg
-                                ? t(`electionSelectionScreen.errors.${errorMsg}`, {
+                                ? translateHtml(t, `electionSelectionScreen.errors.${errorMsg}`, {
                                       electionIds: errorMsgElectionIds,
                                   })
                                 : alertMsg
-                                  ? t(`electionSelectionScreen.alerts.${alertMsg}`)
+                                  ? stringToHtml(t(`electionSelectionScreen.alerts.${alertMsg}`))
                                   : ""}
                         </Alert>
                     ) : (
@@ -499,8 +500,14 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Typography>
                     )}
                 </Box>
-                {isMaterialsActivated ? (
-                    <Button onClick={handleNavigateMaterials}>{t("materials.common.label")}</Button>
+                {isMaterialsActivated && electionEvent ? (
+                    <Button onClick={handleNavigateMaterials}>
+                        {translateFromPresentation(
+                            electionEvent,
+                            "materialsTitle",
+                            i18n.language
+                        ) || t("materials.common.label")}
+                    </Button>
                 ) : null}
             </Box>
             <ElectionContainer className="elections-list">
@@ -515,7 +522,9 @@ const ElectionSelectionScreen: React.FC = () => {
                     ))
                 ) : (
                     <Box sx={{margin: "auto"}}>
-                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
+                        <Typography component="div">
+                            {stringToHtml(t("electionSelectionScreen.noResults"))}
+                        </Typography>
                     </Box>
                 )}
             </ElectionContainer>

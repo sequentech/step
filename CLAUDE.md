@@ -130,7 +130,7 @@ reuse lint                           # Every file must have SPDX headers
 - **Pinned crate**: `wasm-bindgen` 0.2.104 — do not change
 - **Forked crate**: `celery` uses a custom fork (Findeton/rusty-celery)
 - **Hasura changes must go through** `hasura console` (not the web UI directly) for migrations to be tracked
-- **Rust toolchain**: 1.90.0 stable, WASM targets: `wasm32-unknown-unknown`
+- **Rust toolchain**: 1.96.0 stable, WASM targets: `wasm32-unknown-unknown`
 - **Node.js**: 20.x, package manager: Yarn (workspaces)
 - **Java**: JDK 17 for Keycloak extensions
 
@@ -201,3 +201,5 @@ Dev service URLs (inside dev container):
 - RabbitMQ: http://127.0.0.1:15672
 
 **Dev container tips**: When editing Rust code in harvest, windmill, or sequent-core, check the pod logs to see if it compiles successfully — the services auto-rebuild on changes inside the dev container.
+
+Before running `yarn start:voting-portal` or `yarn start:admin-portal`, check whether that dev server is already running (e.g. `ss -tlnp | grep -E ':3000|:3002'` or `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:<port>/`) instead of starting a new one blind — avoids stacking duplicate/conflicting processes on the same port.

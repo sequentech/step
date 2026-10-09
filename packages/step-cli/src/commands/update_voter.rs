@@ -148,6 +148,7 @@ pub fn edit_voter(
             enabled: Some(true),
             groups: None,
             election_event_id: Some(election_event_id.to_string()),
+            temporary: None,
         },
     };
 

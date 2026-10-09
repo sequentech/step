@@ -109,8 +109,8 @@ fn create_election_event(
     if response.status().is_success() {
         let response_body: Response<create_election_event::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
-            if let Some(event) = data.insert_election_event {
-                Ok(event.id)
+            if let Some(id) = data.insert_election_event.and_then(|event| event.id) {
+                Ok(id)
             } else {
                 Err(Box::from("failed generating id"))
             }

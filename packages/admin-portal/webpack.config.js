@@ -59,7 +59,7 @@ module.exports = function (env, argv) {
                 },
                 {
                     test: /\.(js|ts)x?$/,
-                    exclude: /node_modules/,
+                    include: [path.resolve(__dirname, "src")],
                     use: ["babel-loader", "ts-loader"],
                 },
                 {

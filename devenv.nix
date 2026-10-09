@@ -1,5 +1,6 @@
 { pkgs, ... }:
 
+# Check docs/docusaurus/docs/07-developers/11-updates/updating-rust-version.md on how to update rust version.
 let
   rustOverlay = import (builtins.fetchTarball {
     url = "https://github.com/oxalica/rust-overlay/archive/107c334f141854f563f8adf1db781dc453d92639.tar.gz";
@@ -9,9 +10,10 @@ let
   pkgs' = pkgs.extend rustOverlay;
 
   rustStable = pkgs'.rust-bin.stable."1.96.0".default.override {
-    targets = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2" ];
+    targets    = [ "wasm32-unknown-unknown" "wasm32-wasip1" "wasm32-wasip2" ];
     extensions = [ "rust-src" "rust-analyzer-preview" ];
   };
+
 in
 {
   # https://devenv.sh/basics/
@@ -31,7 +33,6 @@ in
   packages = with pkgs; [
     # Binary Rust
     rustStable
-
     # AWS
     (aws-sam-cli.overridePythonAttrs { doCheck = false; })
 
@@ -102,6 +103,7 @@ in
 
     export RUST_SRC_PATH=${rustStable}/lib/rustlib/src/rust/library
   '';
+
 
   languages.java = {
     enable = true;

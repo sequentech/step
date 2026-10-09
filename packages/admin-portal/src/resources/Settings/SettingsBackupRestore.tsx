@@ -226,7 +226,7 @@ export const SettingsBackupRestore: React.FC<void> = () => {
                             setExportDocumentId(undefined)
                             setLoading(false)
                         }}
-                        onSucess={() => setLoading(false)}
+                        onSuccess={() => setLoading(false)}
                     />
                 </>
             )}
