@@ -1,6 +1,7 @@
 ---
 id: settings_languages
 title: Languages
+description: "Manage language options for the Tenant in the Admin Portal."
 ---
 
 <!--

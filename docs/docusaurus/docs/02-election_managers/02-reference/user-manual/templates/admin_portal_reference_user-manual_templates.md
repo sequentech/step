@@ -1,6 +1,7 @@
 ---
 id: admin_portal_reference_user_manual_templates
 title: Templates
+description: "Templates allow you to customize HTML documents used in reports and communications. You can add images, links, or modify text to match your organization's branding and requirements."
 ---
 
 <!--

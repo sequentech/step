@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_localization
 title: Localization
+description: "This section allows you to override portal text per language. Election-event overrides can target the Voting Portal, Ballot Verifier, Results Portal, or every public portal."
 ---
 
 <!--

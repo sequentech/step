@@ -2,6 +2,7 @@
 id: ballot_errors_custom_css
 title: Styling Ballot Errors and Warnings with Custom CSS
 sidebar_position: 8
+description: "While a voter fills in their ballot, the Voting Portal validates the selections and displays error and warning boxes — for example when the voter selects fewer choices than the minimum, exceeds the…"
 ---
 
 <!--

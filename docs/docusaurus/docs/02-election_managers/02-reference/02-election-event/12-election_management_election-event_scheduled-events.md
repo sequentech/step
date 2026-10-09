@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_scheduled_events
 title: Scheduled Events
+description: "Allows the automation of an Election Event by scheduling key actions to occur automatically at specified times during the event lifecycle."
 ---
 
 <!--

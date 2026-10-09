@@ -1,6 +1,7 @@
 ---
 id: election_management_candidate_data
 title: Data
+description: "The Candidate Data tab allows administrators to configure and manage details for a specific candidate within a Contest."
 ---
 <!--
 -- SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
