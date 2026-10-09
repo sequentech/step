@@ -22,6 +22,7 @@ import {
     required,
     FormDataConsumer,
     useGetList,
+    DateTimeInput,
 } from "react-admin"
 import {
     Accordion,
@@ -59,6 +60,11 @@ import {
     EVoterSigningPolicy,
     EVoterCertificatePolicy,
     EShowCastVoteLogsPolicy,
+    EChecksPeriodPolicy,
+    IReceiptsPresentation,
+    isValidChecksAvailableUntil,
+    EVoterAccessibilitySettingsPolicy,
+    EAudioInstructionsPolicy,
     EElectionEventDecodedBallots,
     EElectionEventCeremoniesPolicy,
     EElectionEventAutomaticRecountPolicy,
@@ -77,6 +83,8 @@ import {
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
+    REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
     ESupportMaterialsPolicy,
     getEffectiveSupportMaterialsPolicy,
     type ILifecyclePolicies,
@@ -122,6 +130,12 @@ import {
     PasswordPolicyAccordionHandle,
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
+import {BallotReceiptsInput} from "./BallotReceiptsInput"
+import {
+    VOTER_SIGNING_POLICY_SOURCE,
+    areReceiptsSignedByBallotBox,
+    parseChecksAvailableUntil,
+} from "@/services/BallotReceipts"
 import {
     EventTimeZoneSettings,
     type IElectionZone,
@@ -581,6 +595,7 @@ export const EditElectionEventDataForm: React.FC<{
             weighted_voting_policy?: EElectionEventWeightedVotingPolicy
             delegated_voting_policy?: EElectionEventDelegatedVotingPolicy
             decoded_ballot_inclusion_policy?: EElectionEventDecodedBallots
+            receipts?: IReceiptsPresentation
         }
     }): Record<string, unknown> => {
         const errors: Record<string, unknown> = {}
@@ -634,6 +649,18 @@ export const EditElectionEventDataForm: React.FC<{
         // other, so the weighted field reports every conflict it has.
         if (weightedPolicyMessages.length > 0) {
             presentationErrors.weighted_voting_policy = weightedPolicyMessages.join(" ")
+        }
+
+        const receipts = values?.presentation?.receipts
+        if (
+            receipts?.checks_period_policy === EChecksPeriodPolicy.UNTIL_DATE &&
+            !isValidChecksAvailableUntil(receipts.checks_available_until)
+        ) {
+            presentationErrors.receipts = {
+                checks_available_until: String(
+                    t("electionEventScreen.field.ballotReceipts.checksAvailableUntilRequired")
+                ),
+            }
         }
 
         if (Object.keys(presentationErrors).length > 0) {
@@ -757,6 +784,29 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EShowCastVoteLogsPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.showCastVoteLogs.options.${value.toLowerCase()}`),
+        }))
+    }
+
+    const checksPeriodChoices = (): Array<EnumChoice<EChecksPeriodPolicy>> => {
+        return Object.values(EChecksPeriodPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ballotReceipts.checksPeriod.options.${value}`),
+        }))
+    }
+
+    const voterAccessibilitySettingsPolicyChoices = (): Array<
+        EnumChoice<EVoterAccessibilitySettingsPolicy>
+    > => {
+        return Object.values(EVoterAccessibilitySettingsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.voterAccessibilitySettingsPolicy.options.${value}`),
+        }))
+    }
+
+    const audioInstructionsPolicyChoices = (): Array<EnumChoice<EAudioInstructionsPolicy>> => {
+        return Object.values(EAudioInstructionsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.audioInstructionsPolicy.options.${value}`),
         }))
     }
 
@@ -1556,6 +1606,40 @@ export const EditElectionEventDataForm: React.FC<{
                                 t("electionEventScreen.field.showCastVoteLogs.policyLabel")
                             )}
                         />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.voter_accessibility_settings_policy"
+                            choices={voterAccessibilitySettingsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EVoterAccessibilitySettingsPolicy.DISABLED}
+                            onChange={(e) =>
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY,
+                                    e.target.value as EVoterAccessibilitySettingsPolicy
+                                )
+                            }
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.voterAccessibilitySettingsPolicy.policyLabel"
+                                )
+                            )}
+                        />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.audio_instructions_policy"
+                            choices={audioInstructionsPolicyChoices()}
+                            validate={required()}
+                            defaultValue={EAudioInstructionsPolicy.DISABLED}
+                            onChange={(e) =>
+                                setRealmAttributeDraftValue(
+                                    REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY,
+                                    e.target.value as EAudioInstructionsPolicy
+                                )
+                            }
+                            label={String(
+                                t("electionEventScreen.field.audioInstructionsPolicy.policyLabel")
+                            )}
+                        />
                         <FormDataConsumer>
                             {({formData, ...rest}) => {
                                 return (
@@ -1872,6 +1956,69 @@ export const EditElectionEventDataForm: React.FC<{
                     </AccordionDetails>
                 </Accordion>
 
+                <Accordion
+                    sx={{width: "100%"}}
+                    expanded={expanded === "election-event-data-ballot-receipts"}
+                    onChange={() =>
+                        setExpanded((prev) =>
+                            prev === "election-event-data-ballot-receipts"
+                                ? ""
+                                : "election-event-data-ballot-receipts"
+                        )
+                    }
+                >
+                    <AccordionSummary
+                        expandIcon={<ExpandMoreIcon id="election-event-data-ballot-receipts" />}
+                    >
+                        <ElectionHeaderStyles.Wrapper>
+                            <ElectionHeaderStyles.Title>
+                                {t("electionEventScreen.edit.ballotReceipts")}
+                            </ElectionHeaderStyles.Title>
+                        </ElectionHeaderStyles.Wrapper>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                        <BallotReceiptsInput canEdit={canEdit} status={record?.status} />
+                        <SelectInput
+                            disabled={!canEdit}
+                            source="presentation.receipts.checks_period_policy"
+                            choices={checksPeriodChoices()}
+                            validate={required()}
+                            defaultValue={EChecksPeriodPolicy.UNLIMITED}
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.ballotReceipts.checksPeriod.policyLabel"
+                                )
+                            )}
+                            helperText={String(
+                                t("electionEventScreen.field.ballotReceipts.checksPeriod.helper")
+                            )}
+                        />
+                        <FormDataConsumer>
+                            {({formData}) =>
+                                (formData?.presentation as IElectionEventPresentation | undefined)
+                                    ?.receipts?.checks_period_policy ===
+                                EChecksPeriodPolicy.UNTIL_DATE ? (
+                                    <DateTimeInput
+                                        disabled={!canEdit}
+                                        source="presentation.receipts.checks_available_until"
+                                        parse={parseChecksAvailableUntil}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.ballotReceipts.checksAvailableUntil",
+                                                {
+                                                    timezone:
+                                                        Intl.DateTimeFormat().resolvedOptions()
+                                                            .timeZone,
+                                                }
+                                            )
+                                        )}
+                                    />
+                                ) : null
+                            }
+                        </FormDataConsumer>
+                    </AccordionDetails>
+                </Accordion>
+
                 {canReadPasswordPolicy && (
                     <PasswordPolicyAccordion
                         ref={passwordPolicyRef}
@@ -1999,16 +2146,24 @@ export const EditElectionEventDataForm: React.FC<{
                             emptyText={undefined}
                             validate={required()}
                         />
-                        <SelectInput
-                            source={"presentation.voter_signing_policy"}
-                            choices={voterSigningPolicyChoices()}
-                            label={String(
-                                t("electionEventScreen.field.voterSigningPolicy.policyLabel")
+                        <FormDataConsumer>
+                            {({formData}) => (
+                                <SelectInput
+                                    source={VOTER_SIGNING_POLICY_SOURCE}
+                                    choices={voterSigningPolicyChoices()}
+                                    label={String(
+                                        t(
+                                            "electionEventScreen.field.voterSigningPolicy.policyLabel"
+                                        )
+                                    )}
+                                    defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
+                                    emptyText={undefined}
+                                    validate={required()}
+                                    // The ballot box receives only signed ballots.
+                                    disabled={areReceiptsSignedByBallotBox(formData?.presentation)}
+                                />
                             )}
-                            defaultValue={EVoterSigningPolicy.NO_SIGNATURE}
-                            emptyText={undefined}
-                            validate={required()}
-                        />
+                        </FormDataConsumer>
                         <SelectInput
                             source={"presentation.voter_certificate_policy"}
                             choices={VoterCertificatePolicyChoices()}

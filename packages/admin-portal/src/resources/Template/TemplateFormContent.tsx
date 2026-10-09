@@ -33,7 +33,18 @@ import {GET_USER_TEMPLATE} from "@/queries/GetUserTemplate"
 import {IPermissions} from "@/types/keycloak"
 import {useFormContext} from "react-hook-form"
 import {JsonEditor, UpdateFunction} from "json-edit-react"
-import {report} from "process"
+import {ChannelIcon} from "@sequentech/ui-essentials"
+import {EMessageChannel} from "@/types/messaging"
+import {InstantMessageChannel, InstantMessageTemplateSection} from "./InstantMessageTemplateSection"
+
+const INSTANT_MESSAGE_SECTIONS: Array<{
+    method: ITemplateMethod.WHATSAPP | ITemplateMethod.VIBER | ITemplateMethod.MESSENGER
+    channel: InstantMessageChannel
+}> = [
+    {method: ITemplateMethod.WHATSAPP, channel: EMessageChannel.WHATSAPP},
+    {method: ITemplateMethod.VIBER, channel: EMessageChannel.VIBER},
+    {method: ITemplateMethod.MESSENGER, channel: EMessageChannel.MESSENGER},
+]
 
 type TTemplateFormContent = {
     isTemplateEdit: boolean
@@ -50,6 +61,9 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
     const [expandedGeneral, setExpandedGeneral] = useState(true)
     const [expandedEmail, setExpandedEmail] = useState(false)
     const [expandedSMS, setExpandedSMS] = useState(false)
+    const [expandedInstant, setExpandedInstant] = useState<
+        Partial<Record<ITemplateMethod, boolean>>
+    >({})
     const [expandedReportOptions, setExpandedReportOptions] = useState(false)
     const [expandedDocument, setExpandedDocument] = useState(false)
     const [expandedPdfOptions, setExpandedPdfOptions] = useState(false)
@@ -284,6 +298,39 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                 </AccordionDetails>
                             </Accordion>
                         )}
+                        {INSTANT_MESSAGE_SECTIONS.filter(
+                            ({method}) => formData.template?.selected_methods?.[method]
+                        ).map(({method, channel}) => (
+                            <Accordion
+                                key={method}
+                                sx={{width: "100%"}}
+                                expanded={!!expandedInstant[method]}
+                                onChange={() =>
+                                    setExpandedInstant({
+                                        ...expandedInstant,
+                                        [method]: !expandedInstant[method],
+                                    })
+                                }
+                            >
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon
+                                            id={`template-${method.toLowerCase()}-id`}
+                                        />
+                                    }
+                                >
+                                    <ElectionHeaderStyles.AccordionTitle
+                                        sx={{display: "flex", alignItems: "center", gap: 1}}
+                                    >
+                                        <ChannelIcon channel={channel} fontSize="small" />
+                                        {t(`template.method.${method.toLowerCase()}`)}
+                                    </ElectionHeaderStyles.AccordionTitle>
+                                </AccordionSummary>
+                                <AccordionDetails>
+                                    <InstantMessageTemplateSection channel={channel} />
+                                </AccordionDetails>
+                            </Accordion>
+                        ))}
                         {formData.template?.selected_methods?.DOCUMENT && (
                             <>
                                 <Accordion

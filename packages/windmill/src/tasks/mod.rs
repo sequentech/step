@@ -55,6 +55,7 @@ pub mod process_board;
 pub mod process_cast_vote;
 pub mod publish_results_website;
 pub mod recompute_schedule_instants;
+pub mod reconcile_messages;
 pub mod refresh_monitoring_snapshot;
 pub mod refresh_staff_crls;
 pub mod render_document_pdf;

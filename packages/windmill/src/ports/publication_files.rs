@@ -85,6 +85,9 @@ pub trait PublicationObjects: Sync {
         value: &Value,
     ) -> impl Future<Output = Result<()>> + Send;
 
+    /// The stored object. Fails when `key` does not exist.
+    fn get_json(&self, key: &str) -> impl Future<Output = Result<Value>> + Send;
+
     /// A URL that reads `key` until it expires.
     fn presign_get(
         &self,

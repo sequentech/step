@@ -46,6 +46,7 @@ use strum_macros::{Display, EnumString};
 use tempfile::NamedTempFile;
 use tokio_stream::StreamExt;
 use tracing::{event, info, instrument, warn, Level};
+use velvet::pipes::report_manifest::csv_report_reader;
 
 pub const IMMUDB_ROWS_LIMIT: usize = 2500;
 pub const MAX_ROWS_PER_PAGE: usize = 50;
@@ -476,6 +477,15 @@ async fn prepare_voter_secret_attribute_audit(
         )
         .context("Failed to build the secret-attribute electoral-log entry")?;
     Ok(PreparedVoterPasswordChangeLog { board, message })
+}
+
+/// A reader of the log's CSV export: the backup an event export holds, or
+/// the report, which starts with a comment line naming the configuration
+/// when the event was imported from a signed one.
+pub fn exported_log_reader<R: std::io::Read>(
+    file: R,
+) -> Result<csv::Reader<std::io::BufReader<R>>> {
+    csv_report_reader(file).context("Failed to read the CSV file")
 }
 
 pub struct ElectoralLog {
@@ -1014,6 +1024,28 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a new version of the election event's approval matrix.
+    #[instrument(skip(self))]
+    pub async fn post_approval_matrix_updated(
+        &self,
+        event_id: String,
+        version: u32,
+        sha256: String,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::approval_matrix_updated_message(
+            EventIdString(event_id),
+            ApprovalMatrixVersion(version),
+            ApprovalMatrixDigestString(sha256),
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
     /// Posts a change to the election event's monitoring dashboards.
     #[instrument(skip(self))]
     pub async fn post_monitoring_config_changed(
@@ -1034,30 +1066,88 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    /// Posts a signed configuration package's import.
     #[instrument(skip(self))]
-    pub async fn post_election_published(
+    pub async fn post_configuration_package(
         &self,
         event_id: String,
-        election_ids_vec: Option<Vec<String>>,
-        ballot_pub_id: String,
+        details: ConfigurationPackageDetails,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
-        let event = EventIdString(event_id);
-        let election_ids = flatten_election_ids(election_ids_vec);
-        let election = ElectionIdString(election_ids.clone());
-        let ballot_pub_id = BallotPublicationIdString(ballot_pub_id);
-
-        let message = Message::election_published_message(
-            event,
-            election,
-            ballot_pub_id,
+        let message = Message::configuration_package_message(
+            EventIdString(event_id),
+            details,
             &self.sd,
             user_id,
             username,
         )?;
 
         self.post(&message).await
+    }
+
+    /// Posts the hash manifest of a generated report.
+    #[instrument(skip(self))]
+    pub async fn post_report_generated(
+        &self,
+        event_id: String,
+        details: ReportGeneratedDetails,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = Message::report_generated_message(
+            EventIdString(event_id),
+            details,
+            &self.sd,
+            user_id,
+            username,
+        )?;
+
+        self.post(&message).await
+    }
+
+    /// Posts a publication. For an event imported from a signed
+    /// configuration package the entry carries `configuration`: the
+    /// manifest SHA-256 and the digest of each design published.
+    #[instrument(skip(self))]
+    pub async fn post_election_published(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        ballot_pub_id: String,
+        configuration: Option<PublishedConfiguration>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<()> {
+        let message = self.election_published_message(
+            event_id,
+            election_ids_vec,
+            ballot_pub_id,
+            configuration,
+            user_id,
+            username,
+        )?;
+        self.post(&message).await
+    }
+
+    fn election_published_message(
+        &self,
+        event_id: String,
+        election_ids_vec: Option<Vec<String>>,
+        ballot_pub_id: String,
+        configuration: Option<PublishedConfiguration>,
+        user_id: Option<String>,
+        username: Option<String>,
+    ) -> Result<Message> {
+        Message::election_published_message(
+            EventIdString(event_id),
+            ElectionIdString(flatten_election_ids(election_ids_vec)),
+            BallotPublicationIdString(ballot_pub_id),
+            configuration,
+            &self.sd,
+            user_id,
+            username,
+        )
     }
 
     #[instrument(skip(self))]
@@ -1462,7 +1552,7 @@ impl ElectoralLog {
     #[instrument(skip(self))]
     pub async fn import_from_csv(&self, logs_file: &NamedTempFile) -> Result<()> {
         let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-        let mut rdr = csv::Reader::from_reader(logs_file);
+        let mut rdr = exported_log_reader(logs_file)?;
 
         let mut client = get_board_client().await?;
         client.open_session(self.elog_database.as_str()).await?;
@@ -1975,20 +2065,40 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(
+        entry: &ElectoralLogMessage,
+        viewer_user_id: &str,
+    ) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
         let message: &Message = &Message::strand_deserialize(&entry.message)
             .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
         let message = Some(message.to_string());
 
-        Ok(Some(CastVoteEntry {
-            statement_timestamp: entry.statement_timestamp,
-            statement_kind: StatementType::CastVote.to_string(),
-            ballot_id,
-            username,
-            message,
-        }))
+        Ok(Some(
+            CastVoteEntry {
+                statement_timestamp: entry.statement_timestamp,
+                statement_kind: StatementType::CastVote.to_string(),
+                ballot_id,
+                username,
+                message,
+            }
+            .shown_to(entry.user_id.as_deref(), viewer_user_id),
+        ))
+    }
+
+    /// The username and the signed statement (pseudonym, IP and country) tie a
+    /// Ballot ID to a voter, so a voter gets them only for their own entries.
+    pub fn shown_to(self, entry_user_id: Option<&str>, viewer_user_id: &str) -> Self {
+        if entry_user_id == Some(viewer_user_id) {
+            self
+        } else {
+            CastVoteEntry {
+                username: None,
+                message: None,
+                ..self
+            }
+        }
     }
 }
 
@@ -2159,7 +2269,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
+            match CastVoteEntry::from_elog_message(&message, user_id)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;
@@ -2355,6 +2465,113 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod cast_vote_entry_tests {
+    use super::*;
+
+    fn entry() -> CastVoteEntry {
+        CastVoteEntry {
+            statement_timestamp: 1_841_000_000,
+            statement_kind: StatementType::CastVote.to_string(),
+            ballot_id: "0abc12".to_string(),
+            username: Some("voter-one".to_string()),
+            message: Some("{\"ip\":\"203.0.113.7\"}".to_string()),
+        }
+    }
+
+    #[test]
+    fn a_voter_sees_their_own_entry_in_full() {
+        let shown = entry().shown_to(Some("voter-one-id"), "voter-one-id");
+        assert_eq!(shown.username.as_deref(), Some("voter-one"));
+        assert!(shown.message.is_some());
+    }
+
+    #[test]
+    fn another_voters_entry_keeps_only_what_does_not_identify_them() {
+        for entry_user_id in [Some("voter-one-id"), Some(""), None] {
+            let shown = entry().shown_to(entry_user_id, "voter-two-id");
+            assert_eq!(shown.username, None);
+            assert_eq!(shown.message, None);
+            assert_eq!(shown.ballot_id, "0abc12");
+            assert_eq!(shown.statement_timestamp, 1_841_000_000);
+        }
+    }
+}
+
+#[cfg(test)]
+mod election_published_tests {
+    use super::*;
+
+    fn log() -> ElectoralLog {
+        let key = StrandSignatureSk::generate().unwrap();
+        ElectoralLog::for_system_with_signing_key("board", &key)
+    }
+
+    fn message(configuration: Option<PublishedConfiguration>) -> Message {
+        log()
+            .election_published_message(
+                "event".to_string(),
+                Some(vec!["election".to_string()]),
+                "publication".to_string(),
+                configuration,
+                Some("admin-id".to_string()),
+                Some("admin".to_string()),
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn a_signed_configurations_publication_is_one_entry_with_its_manifest_and_designs() {
+        let configuration = PublishedConfiguration {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            design_digests: vec![ConfigurationDesignDigest {
+                area: "Post 1".to_string(),
+                election: "national".to_string(),
+                sha256: "cd".repeat(32),
+            }],
+        };
+        let message = message(Some(configuration.clone()));
+        assert!(matches!(
+            message.statement.head.kind,
+            StatementType::ElectionPublish
+        ));
+        match &message.statement.body {
+            StatementBody::ElectionPublishWithConfiguration(election, publication, logged) => {
+                assert_eq!(election.0.as_deref(), Some("election"));
+                assert_eq!(publication.0, "publication");
+                assert_eq!(logged, &configuration);
+            }
+            other => panic!("unexpected body {other:?}"),
+        }
+        assert_eq!(message.user_id.as_deref(), Some("admin-id"));
+        assert_eq!(message.username.as_deref(), Some("admin"));
+        assert_eq!(message.election_id.as_deref(), Some("election"));
+
+        let stored = ElectoralLogMessage::try_from(&message).unwrap();
+        assert_eq!(stored.statement_kind, "ElectionPublish");
+        let read = Message::strand_deserialize(&stored.message).unwrap();
+        assert!(matches!(
+            read.statement.body,
+            StatementBody::ElectionPublishWithConfiguration(_, _, logged) if logged == configuration
+        ));
+    }
+
+    #[test]
+    fn a_publication_without_a_package_is_the_entry_older_logs_hold() {
+        let message = message(None);
+        assert!(matches!(
+            message.statement.head.kind,
+            StatementType::ElectionPublish
+        ));
+        assert!(matches!(
+            message.statement.body,
+            StatementBody::ElectionPublish(..)
+        ));
     }
 }
 

@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use super::add_ballot_image_time_variables;
+use super::ballot_images::BALLOT_IMAGES_REPORT_TYPE;
 use crate::config::ballot_images_config::{PipeConfigBallotImages, DEFAULT_MCBALLOT_TITLE};
 use crate::pipes::decode_ballots::decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE;
 use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
+use crate::pipes::report_manifest::{csv_stamp_line, write_folder_manifest};
 use crate::pipes::Pipe;
 use anyhow::{anyhow, Context};
 use csv::Writer;
@@ -16,6 +18,7 @@ use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
 use sequent_core::ballot::{Candidate, CandidatesOrder, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
+use sequent_core::election_config::manifest::ConfigurationStamp;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::services::{pdf, reports};
 use sequent_core::signatures::ecies_encrypt::ecies_sign_data_bulk;
@@ -648,14 +651,18 @@ impl Pipe for MCBallotImages {
 
                             let rt = Runtime::new()?;
                             rt.block_on(async {
-                                write_file_hash_csv(files_lock.clone(), csv_path)
-                                    .await
-                                    .map_err(|e| {
-                                        Error::UnexpectedError(format!(
-                                            "Error writing file hash CSV: {}",
-                                            e
-                                        ))
-                                    })
+                                write_file_hash_csv(
+                                    files_lock.clone(),
+                                    csv_path,
+                                    pipe_config.configuration.as_ref(),
+                                )
+                                .await
+                                .map_err(|e| {
+                                    Error::UnexpectedError(format!(
+                                        "Error writing file hash CSV: {}",
+                                        e
+                                    ))
+                                })
                             })?;
                         }
 
@@ -665,6 +672,10 @@ impl Pipe for MCBallotImages {
                     // A missing PDF or manifest is an incomplete output. Let
                     // the caller stop the pipeline rather than announce success.
                     result?;
+
+                    if let Some(stamp) = &pipe_config.configuration {
+                        write_folder_manifest(&path, BALLOT_IMAGES_REPORT_TYPE, stamp)?;
+                    }
                 } else {
                     println!(
                         "[{}] File not found: {} -- Not processed",
@@ -810,10 +821,16 @@ fn convert_ballots(
     Ok(ret)
 }
 
-pub async fn write_file_hash_csv(data: Vec<BallotCsvData>, path: PathBuf) -> Result<()> {
+/// The index of the ballot PDFs of a folder. For an event imported from a
+/// signed configuration its first line names that configuration.
+pub async fn write_file_hash_csv(
+    data: Vec<BallotCsvData>,
+    path: PathBuf,
+    stamp: Option<&ConfigurationStamp>,
+) -> Result<()> {
     let headers = vec!["file_name".to_string(), "hash".to_string()];
 
-    let mut writer = Writer::from_writer(vec![]);
+    let mut writer = Writer::from_writer(csv_stamp_line(stamp).into_bytes());
 
     writer.write_record(&headers).map_err(|e| {
         Error::UnexpectedError(format!("Failed to write headers to CSV file: {}", e))

@@ -43,6 +43,9 @@ for (const method of ["EMAIL", "SMS"] as const) {
                 sequent_backend_template_aggregate: {aggregate: {count: 1}},
             },
         }))
+        portal.graphql.on("GetMessagingAccounts", () => ({
+            data: {sequent_backend_messaging_account: []},
+        }))
         portal.graphql.once("CreateScheduledEvent", () => ({
             errors: [{message: "Synthetic notification refused", extensions: {code: "Conflict"}}],
         }))
@@ -59,7 +62,7 @@ for (const method of ["EMAIL", "SMS"] as const) {
         await page.getByRole("option", {name: "Those who didn't vote yet", exact: true}).click()
         if (method === "SMS") {
             await selects.nth(1).click()
-            await page.getByRole("option", {name: "SMS", exact: true}).click()
+            await page.getByRole("option", {name: "SMS only", exact: true}).click()
         }
         await selects.nth(2).click()
         await page.getByRole("option", {name: "Council reminder", exact: true}).click()
@@ -101,27 +104,18 @@ for (const method of ["EMAIL", "SMS"] as const) {
             eventPayload: {
                 audience_selection: "NOT_VOTED",
                 audience_voter_ids: [],
-                communication_method: method,
+                // Without a single method, each voter is reached on their own channel.
+                ...(method === "SMS"
+                    ? {channel_selection: "SINGLE_CHANNEL", communication_method: method}
+                    : {channel_selection: "VOTER_PREFERENCE"}),
+                alias: "Council reminder",
                 schedule_now: false,
                 schedule_date: "2026-01-16T10:30:00Z",
                 schedule_local: "2026-01-16T10:30",
                 schedule_timezone: "UTC",
-                email:
-                    method === "EMAIL"
-                        ? EMAIL
-                        : {
-                              subject: "Participate in {{election_event.name}}",
-                              plaintext_body:
-                                  "Hello {{user.first_name}},\n\nEnter in {{vote_url}} to vote",
-                              html_body:
-                                  "<p>Hello {{user.first_name}},<br><br>Enter in {{vote_url}} to vote</p>",
-                          },
-                sms: {
-                    message:
-                        method === "SMS"
-                            ? "Council polls close at 18:00"
-                            : "Enter in {{vote_url}} to vote",
-                },
+                ...(method === "SMS"
+                    ? {sms: {message: "Council polls close at 18:00"}}
+                    : {email: EMAIL, sms: {message: "Please vote today"}}),
                 secret_attribute_names: [],
             },
         }

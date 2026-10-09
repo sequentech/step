@@ -2,7 +2,10 @@ use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::generation::annotate_template_data;
+use crate::postgres::configuration_packages::manifest_of_event;
 use crate::postgres::election::get_election_by_id;
+use crate::postgres::reports::ReportType;
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::results_election::{
     get_election_results, get_results_election_by_results_event_id,
@@ -20,6 +23,7 @@ use crate::types::miru_plugin::MiruSbeiUser;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::StringifiedPeriodDates;
+use sequent_core::election_config::manifest::{report_stamp, sha256_hex, ConfigurationStamp};
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
@@ -27,7 +31,7 @@ use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::util::temp_path::*;
 use sequent_core::util::version::{ENV_VAR_APP_HASH, ENV_VAR_APP_VERSION};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use strand::hash::hash_b64;
@@ -49,6 +53,74 @@ pub struct ExecutionAnnotations {
     pub app_hash: String,
     pub executer_username: Option<String>,
     pub results_hash: Option<String>,
+}
+
+/// Where a template's data keeps what a report says about its generation.
+pub const EXECUTION_ANNOTATIONS: &str = "execution_annotations";
+pub const CONFIGURATION_REVISION: &str = "configuration_revision";
+pub const CONFIGURATION_MANIFEST_SHA256: &str = "configuration_manifest_sha256";
+pub const CONFIGURATION_TEMPLATE_SHA256: &str = "configuration_template_sha256";
+
+/// The stamp of a `report_type` report drawn with `template`, for an event
+/// imported from a signed configuration package: `None` for any other event,
+/// and a refusal when the configuration approved another template for that
+/// report.
+#[instrument(err, skip(hasura_transaction, template))]
+pub async fn configuration_stamp(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &ReportType,
+    template: &str,
+) -> Result<Option<ConfigurationStamp>> {
+    manifest_of_event(hasura_transaction, tenant_id, election_event_id)
+        .await?
+        .map(|(manifest, manifest_sha256)| {
+            report_stamp(
+                &manifest,
+                &manifest_sha256,
+                &report_type.to_string(),
+                template,
+            )
+            .map_err(|problem| anyhow!(problem.message))
+        })
+        .transpose()
+}
+
+/// The stamp of a report generated without a template, such as a CSV
+/// export: it names the configuration, and its template digest is the
+/// digest of no template at all.
+#[instrument(err, skip(hasura_transaction))]
+pub async fn configuration_stamp_without_template(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Option<ConfigurationStamp>> {
+    Ok(
+        manifest_of_event(hasura_transaction, tenant_id, election_event_id)
+            .await?
+            .map(|(manifest, manifest_sha256)| ConfigurationStamp {
+                external_id: manifest.configuration.external_id,
+                revision: manifest.configuration.revision,
+                manifest_sha256,
+                template_sha256: sha256_hex(&[]),
+            }),
+    )
+}
+
+/// The stamp as the execution annotations of a report name it.
+pub fn configuration_annotations(stamp: &ConfigurationStamp) -> [(&'static str, String); 3] {
+    [
+        (CONFIGURATION_REVISION, stamp.revision.to_string()),
+        (CONFIGURATION_MANIFEST_SHA256, stamp.manifest_sha256.clone()),
+        (CONFIGURATION_TEMPLATE_SHA256, stamp.template_sha256.clone()),
+    ]
+}
+
+/// Adds the stamp to a template's data under `execution_annotations`, beside
+/// what the report already says there.
+pub fn stamp_template_data(data: &mut Map<String, Value>, stamp: &ConfigurationStamp) {
+    annotate_template_data(data, configuration_annotations(stamp));
 }
 
 pub fn get_app_hash() -> String {
@@ -472,4 +544,63 @@ pub async fn process_elections(
         regions,
         elections: elections_data,
     })
+}
+
+#[cfg(test)]
+mod configuration_stamp_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn stamp() -> ConfigurationStamp {
+        ConfigurationStamp {
+            external_id: "ov-2028".to_string(),
+            revision: 3,
+            manifest_sha256: "ab".repeat(32),
+            template_sha256: "cd".repeat(32),
+        }
+    }
+
+    fn data(value: Value) -> Map<String, Value> {
+        match value {
+            Value::Object(map) => map,
+            other => panic!("not an object: {other}"),
+        }
+    }
+
+    #[test]
+    fn a_report_without_execution_annotations_gets_them_for_the_stamp() {
+        let mut map = data(json!({"rendered_user_template": "<p>report</p>"}));
+        stamp_template_data(&mut map, &stamp());
+        assert_eq!(
+            Value::Object(map),
+            json!({
+                "rendered_user_template": "<p>report</p>",
+                "execution_annotations": {
+                    "configuration_revision": "3",
+                    "configuration_manifest_sha256": "ab".repeat(32),
+                    "configuration_template_sha256": "cd".repeat(32),
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn the_stamp_is_added_beside_what_the_report_already_says() {
+        let mut map = data(json!({
+            "execution_annotations": {"report_hash": "hash", "configuration_revision": "1"},
+        }));
+        stamp_template_data(&mut map, &stamp());
+        let annotations = &map[EXECUTION_ANNOTATIONS];
+        assert_eq!(annotations["report_hash"], "hash");
+        assert_eq!(annotations[CONFIGURATION_REVISION], "3");
+        assert_eq!(annotations[CONFIGURATION_MANIFEST_SHA256], "ab".repeat(32));
+        assert_eq!(annotations[CONFIGURATION_TEMPLATE_SHA256], "cd".repeat(32));
+    }
+
+    #[test]
+    fn annotations_that_are_not_an_object_are_replaced() {
+        let mut map = data(json!({"execution_annotations": null}));
+        stamp_template_data(&mut map, &stamp());
+        assert_eq!(map[EXECUTION_ANNOTATIONS][CONFIGURATION_REVISION], "3");
+    }
 }

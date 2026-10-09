@@ -8,7 +8,7 @@ FROM immudb-init-dependencies as builder
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./immu-board ./immu-board

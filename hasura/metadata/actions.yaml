@@ -362,6 +362,131 @@ actions:
               version: 2
       permissions:
           - role: phone-blacklist-delete
+    - name: get_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: application-read
+          - role: approval-matrix-write
+      comment: Read the enrollment approval matrix in force
+    - name: evaluate_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/evaluate-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: application-read
+          - role: approval-matrix-write
+      comment: Try an enrollment against approval matrix rules without saving
+    - name: save_approval_matrix
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/save-approval-matrix
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+          - role: approval-matrix-write
+      comment: Save the enrollment approval matrix as a new version
+    - name: upsert_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/upsert
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: delete_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/delete
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: replace_messaging_account_credentials
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/credentials
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: check_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/check
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: test_messaging_account
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/test
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-account-write
+    - name: update_event_messaging_config
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/messaging/event-config
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-write
     - name: delete_role
       definition:
           kind: synchronous
@@ -1295,6 +1420,34 @@ actions:
       permissions:
           - role: user
       comment: insert_cast_vote
+    - name: receive_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/receive-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: receive_ballot
+    - name: cast_ballot
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/cast-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: cast_ballot
     - name: limit_access_by_countries
       definition:
           kind: synchronous
@@ -1400,6 +1553,20 @@ actions:
               version: 2
       permissions:
           - role: admin-user
+    - name: locate_ballot
+      definition:
+          kind: ""
+          handler: http://{{HARVEST_DOMAIN}}/locate-ballot
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: Look up one of the voter's own cast ballots while checks are open
     - name: logEvent
       definition:
           kind: ""
@@ -2586,6 +2753,7 @@ custom_types:
         - name: ElectoralLogRow
         - name: CastVoteEntry
         - name: ListCastVoteMessagesOutput
+        - name: LocateBallotOutput
         - name: DataListElectoralLog
         - name: ScheduledEventOutput2
         - name: ScheduledEventOutput3
@@ -2624,6 +2792,8 @@ custom_types:
         - name: RestorePrivateKeyOutput
         - name: KeyShareSignatureStatusOutput
         - name: InsertCastVoteOutput
+        - name: ReceiveBallotOutput
+        - name: CastBallotOutput
         - name: createBallotReceiptOutput
         - name: OptionalImportEvent
         - name: ManageElectionDatesOutput
@@ -2705,6 +2875,9 @@ custom_types:
         - name: SigningHeldReportRequestsOutput
         - name: SigningRequestSummary
         - name: SigningPdfPrepareOutput
+        - name: ApprovalMatrixOutput
+        - name: ApprovalMatrixError
+        - name: EvaluateApprovalMatrixOutput
         - name: ScheduleWarning
         - name: ApplyScheduleRecomputeOutput
         - name: ScheduleImportRow
@@ -2715,4 +2888,9 @@ custom_types:
         - name: PreviewScheduledOutcomeChangeOutput
         - name: SaveLifecyclePoliciesOutput
         - name: GetLifecycleSnapshotsOutput
+        - name: MessagingAccountOutput
+        - name: ReplaceMessagingAccountCredentialsOutput
+        - name: CheckMessagingAccountOutput
+        - name: TestMessagingAccountOutput
+        - name: UpdateEventMessagingConfigOutput
     scalars: []

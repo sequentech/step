@@ -270,6 +270,7 @@ const catalanTranslation: TranslationType = {
                 taskTitle: "Tasca: {{title}}",
                 viewTask: "Veure Tasca",
                 downloadDocument: "Descarregar Fitxer",
+                downloadHashManifest: "Manifest de hashes",
             },
             exportTasksExecution: {
                 success: "L'exportació s'ha completat amb èxit",
@@ -404,8 +405,6 @@ const catalanTranslation: TranslationType = {
                 telephoneVoting: "Votació Telefònica",
                 settingTitle: "Configuració",
                 settingSubtitle: "Ajustos generals",
-                sms: "SMS",
-                mail: "Correus",
                 createNew: "Crear un Tipus d'Elecció",
                 emptyHeader: "No hi ha Tipus d'Elecció encara.",
                 emptyBody: "Vols crear-ne un?",
@@ -419,7 +418,6 @@ const catalanTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANALS DE VOTACIÓ",
                 electionTypes: "TIPUS D'ELECCIÓ",
-                templates: "PLANTILLES",
                 localization: "LOCALITZACIÓ",
                 languages: "IDIOMES",
                 integrations: "INTEGRACIONS",
@@ -519,6 +517,7 @@ const catalanTranslation: TranslationType = {
                 votingPeriod: "Període de votació",
                 allowed: "Canals de Vot Permesos",
                 materials: "Materials de Suport",
+                ballotReceipts: "Rebuts de papereta",
                 ballotDesign: "Disseny de la Papereta",
                 templates: "Plantillas",
                 reorder: "Reordenar eleccions",
@@ -632,6 +631,35 @@ const catalanTranslation: TranslationType = {
                 css: "CSS personalitzat",
                 skipElectionList: "Saltar pantalla per escollir elecció",
                 showUserProfile: "Mostra el perfil de l'usuari",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Període de comprovació dels vots emesos",
+                        helper: "Durant quant de temps els votants poden localitzar el seu vot emès i imprimir-ne el rebut al Portal de Votació.",
+                        options: {
+                            "unlimited": "Sense límit",
+                            "until-date": "Fins a una data",
+                        },
+                    },
+                    checksAvailableUntil: "Comprovacions disponibles fins a ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introdueix la data i l'hora fins a la qual es poden comprovar els vots.",
+                },
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Configuració d'accessibilitat del votant",
+                    options: {
+                        disabled: "Amaga la configuració d'accessibilitat",
+                        enabled: "Ofereix la mida del text, el contrast, l'espaiat i el moviment",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instruccions en àudio",
+                    options: {
+                        "disabled": "Sense instruccions en àudio",
+                        "recorded": "Només enregistraments pujats",
+                        "recorded-or-synthesized":
+                            "Enregistraments pujats, o la veu del navegador on no n'hi hagi",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostra els registres de votació",
                     options: {
@@ -695,6 +723,14 @@ const catalanTranslation: TranslationType = {
                     "policyLabel": "Política de Signatura de Votants",
                     "no-signature": "Sense signatura",
                     "with-signature": "Amb signatura",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Rebuts signats per l'urna",
+                    "disabled": "Desactivat",
+                    "signed-by-ballot-box": "Signats per l'urna",
+                    "helperText":
+                        "Quan està activat, l'urna emmagatzema i signa cada papereta a la pantalla de revisió, i el votant veu un ID de papereta només quan l'urna l'ha rebuda. Els votants signen les seves paperetes. Torneu a publicar les paperetes després de canviar-ho.",
+                    "lockedHelperText": "No es pot canviar un cop iniciada la votació.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
@@ -1098,6 +1134,21 @@ const catalanTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Candidatures",
+                configuration: "Configuració de candidatures (JSON)",
+                helper: "Candidatures amb nom i els candidats que cadascuna presenta a cada contesa. Deixa-ho buit per a una elecció sense candidatures.",
+                loading:
+                    "Les conteses i els candidats de l'elecció encara s'estan carregant. Torna-ho a provar d'aquí a un moment.",
+                mobileCandidateLists: {
+                    label: "Llistes de candidats al mòbil",
+                    helper: "Com apareix inicialment la llista de candidats de cada candidatura al mòbil. El votant sempre la pot obrir o tancar.",
+                    options: {
+                        collapsed: "Replegades",
+                        expanded: "Desplegades",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1540,6 +1591,7 @@ const catalanTranslation: TranslationType = {
                 "task-export": "Exportar Tasques",
                 "application-read": "Llegir Aplicació",
                 "application-write": "Editar Aplicació",
+                "approval-matrix-write": "Editar la Matriu d'Aprovació",
                 "logs-export": "Exportar Registres",
                 "election-event-logs-columns":
                     "Columnes dels Registres de l'Esdeveniment Electoral",
@@ -1633,6 +1685,9 @@ const catalanTranslation: TranslationType = {
                 "phone-blacklist-delete": "Suprimeix entrades de la llista negra de telèfons",
                 "election-event-voter-list-reconciliation":
                     "Concilia la llista de votants de l’esdeveniment electoral",
+                "messaging-account-read": "Veure comptes de missatgeria",
+                "messaging-account-write": "Gestionar comptes de missatgeria",
+                "messaging-config-write": "Configurar la missatgeria de l'esdeveniment electoral",
             },
         },
         generalSettingsScreen: {
@@ -2014,6 +2069,7 @@ const catalanTranslation: TranslationType = {
                 "warn-only-in-review": "Advertir en Revisió",
                 "warn": "Advertir",
                 "warn-and-alert": "Advertir i Alertar",
+                "warn-and-confirm-in-review": "Advertir i Confirmar en Revisió",
             },
             invalidVotePolicy: {
                 "label": "Política de vot invàlid",
@@ -2640,6 +2696,9 @@ const catalanTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Email",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Credencials",
@@ -2831,6 +2890,9 @@ const catalanTranslation: TranslationType = {
                 email: "Email",
                 sms: "SMS",
                 document: "Document",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Importar Plantilles",
@@ -2840,6 +2902,23 @@ const catalanTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instruccions en àudio per a la pantalla",
+                languageLabel: "Idioma de l'enregistrament",
+                none: "No són instruccions en àudio",
+                helperText:
+                    "Els votants senten aquest fitxer quan demanen les instruccions en aquesta pantalla.",
+                screens: {
+                    "election-chooser": "Llista d'eleccions",
+                    "start": "Inici",
+                    "ballot": "Papereta",
+                    "review": "Revisió",
+                    "confirmation": "Confirmació",
+                    "audit": "Auditoria",
+                    "ballot-locator": "Localitzador de paperetes",
+                    "support-materials": "Materials de suport",
+                },
+            },
             createMaterialSuccess: "Material de suport creat",
             createMaterialError: "Error creant material de suport",
             updateMaterialSuccess: "Material de suport actualitzat",
@@ -2911,46 +2990,435 @@ const catalanTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Estat",
-                id: "ID",
-                applicantId: "ID del Sol·licitant",
-                verificationType: "Tipus de Verificació",
-                createdAt: "Creat El",
-                updatedAt: "Actualitzat El",
-                verified_by: "Verificat Per",
+                id: "ID de la sol·licitud",
+                applicantId: "ID del sol·licitant",
+                verificationType: "Verificació",
+                createdAt: "Sol·licitada",
+                verified_by: "Verificada per",
+                voter: "Votant",
+                what: "Què ha passat",
+                post: "Lloc",
+                when: "Quan",
             },
-            approvalRequest: "Sol·licitud d'Aprovació",
-            taskInformation: "Informació de la tasca",
-            ok: "D'acord",
-            title: "Votants",
-            subtitle: "Cercar votants coincidents",
-            approve: {
-                body: "Estàs segur que vols aprovar aquest votant? Aquesta acció no es pot desfer.",
+            status: {
+                PENDING: "Pendent de revisió",
+                ACCEPTED: "Aprovada",
+                REJECTED: "Rebutjada",
             },
-            reject: {
-                label: "Rebutja la sol·licitud",
-                confirm:
-                    "Esteu segur que voleu rebutjar aquest votant? Aquesta acció no es pot revertir.",
-                message: "Escriviu aquí el motiu del rebuig",
-                rejectReason: "Motiu del rebuig",
-                messageRequired: "Es requereix un missatge de rebuig per a l'opció 'Altres'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Données Manquantes",
-                    "no-matching-voter": "Votant Non Trouvé",
-                    "voter-already-approved": "Déjà Approuvé",
-                    "other": "Autre",
+            verification: {
+                AUTOMATIC: "Automàtica",
+                MANUAL: "Manual",
+            },
+            time: {
+                minutes_one: "{{count}} minut",
+                minutes_other: "{{count}} minuts",
+                hours_one: "{{count}} hora",
+                hours_other: "{{count}} hores",
+                days_one: "{{count}} dia",
+                days_other: "{{count}} dies",
+            },
+            summary: {
+                join: "{{head}} i {{last}}",
+                differs_one: "{{fields}} no coincideix amb el registre",
+                differs_other: "{{fields}} no coincideixen amb el registre",
+                typedByHand: "Dades escrites a mà, no llegides d'un document escanejat",
+                needsFaceToFace: "Cal una comprovació cara a cara",
+                scanVerified: "Document escanejat i verificat",
+                noVoter: "No s'ha trobat cap votant al registre",
+                allMatch: "Totes les dades coincideixen amb el registre",
+                needsReview: "A l'espera que una persona decideixi",
+                approvedBy: "Aprovada per {{name}}",
+                approvedAuto: "Aprovada automàticament",
+                rejectedBy: "Rebutjada per {{name}}",
+                rejectedAuto: "Rebutjada automàticament",
+            },
+            list: {
+                title: "Aprovacions",
+                subtitle:
+                    "Les inscripcions que les regles no poden decidir soles esperen aquí una persona.",
+                search: "Cerca",
+                review: "Revisa la inscripció",
+                openRecord: "Obre la inscripció",
+                seeRule: "Mostra la regla que va decidir",
+                unnamed: "Sol·licitant sense nom",
+                waiting: "Fa {{time}} que espera",
+                applied: "Sol·licitada el {{date}}",
+                empty: {
+                    title: "Aquí no hi ha res",
+                    text: "Les inscripcions amb aquest estat apareixeran aquí. Proveu una altra cerca o un altre estat.",
                 },
             },
+            flow: {
+                stepsLabel: "Passos de la revisió",
+                steps: {
+                    identity: "Comprova la identitat",
+                    voter: "Cerca el votant",
+                    decide: "Decideix",
+                },
+                continue: "Continua",
+                backToList: "Torna a Aprovacions",
+                identity: {
+                    details: "Dades de la inscripció",
+                    confirm:
+                        "He comprovat el document d'identitat del votant en persona o per videotrucada, i coincideix amb aquesta inscripció.",
+                    checked: "Comprovació cara a cara confirmada",
+                    notChecked: "Comprovació cara a cara encara sense confirmar",
+                },
+                voter: {
+                    none: "Cap d'aquests és el votant",
+                    noneHint:
+                        "En aquest cas la inscripció només es pot rebutjar, perquè no hi ha cap votant coincident.",
+                    noneChosen: "Cap d'aquests és el votant",
+                    notChosen: "Encara no s'ha triat cap votant",
+                },
+                decide: {
+                    approve: "Aprova",
+                    reject: "Rebutja",
+                    approveText:
+                        "Vincula aquesta inscripció amb {{voter}} al registre. S'avisa el votant per correu electrònic o SMS i podrà iniciar la sessió per votar quan s'obri la votació.",
+                    rejectText: "Es diu al votant el motiu. Això no es pot desfer.",
+                    chooseVoter: "Trieu el votant coincident al pas 2 per aprovar.",
+                    noVoter:
+                        "No heu trobat cap votant coincident, de manera que aquesta inscripció només es pot rebutjar.",
+                    enrolled: "El votant triat ja està inscrit.",
+                    faceToFace: "Confirmeu la comprovació cara a cara al pas 1 per aprovar.",
+                },
+            },
+            review: {
+                loadError: "No s'ha pogut carregar la inscripció.",
+                applied: "Sol·licitada el {{date}}",
+                waiting: "Fa {{time}} que espera",
+                whyTitle: "Per què cal una persona",
+                decisionTitle: "Com es va decidir",
+                rule: "Regla {{rule}} de la versió {{version}} de la matriu",
+                ruleLast: "Última regla de la versió {{version}} de la matriu",
+                seeRule: "Mostra la regla",
+                why: {
+                    typedByHand:
+                        "El votant va escriure les seves dades a mà en lloc d'escanejar un document d'identitat. Aquestes inscripcions mai s'aproven automàticament: abans, un funcionari confirma qui és.",
+                    differs_one:
+                        "Una dada no coincideix amb el registre: {{details}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    differs_other:
+                        "{{count}} dades no coincideixen amb el registre: {{details}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    differsFields_one:
+                        "Una dada no coincideix amb el registre: {{fields}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    differsFields_other:
+                        "{{count}} dades no coincideixen amb el registre: {{fields}}. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    difference:
+                        "a {{field}}, la inscripció diu “{{enrollment}}” i el registre diu “{{registry}}”",
+                    noVoter:
+                        "Cap votant del registre té aquestes dades. Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    severalVoters:
+                        "Més d'un votant del registre encaixa amb aquesta inscripció. Una persona tria el correcte.",
+                    pending:
+                        "Les regles d'aprovació demanen que una persona revisi aquesta inscripció.",
+                    unknown: "Aquesta inscripció està a l'espera que una persona decideixi.",
+                    approvedAuto:
+                        "Les regles d'aprovació van aprovar aquesta inscripció automàticament. Es van superar totes les comprovacions que exigeixen.",
+                    approvedBy: "{{name}} va aprovar aquesta inscripció el {{date}}.",
+                    rejectedAuto:
+                        "Les regles d'aprovació van rebutjar aquesta inscripció automàticament: {{reason}}.",
+                    rejectedBy: "{{name}} va rebutjar aquesta inscripció el {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "Hem cercat votants amb les mateixes dades: {{fields}}. Trieu aquell a qui pertany aquesta inscripció.",
+                registrySearching:
+                    "Aquests són els votants del registre que coincideixen amb la vostra cerca. Trieu aquell a qui pertany aquesta inscripció.",
+                registrySearch:
+                    "No és a la llista? Cerqueu al registre per nom o correu electrònic",
+                registryLoading: "S'està cercant al registre",
+                registryError: "No s'ha pogut cercar al registre.",
+                noCandidates:
+                    "Cap votant del registre coincideix. Proveu de cercar per nom o correu electrònic.",
+                candidates: "Votants del registre",
+                alreadyEnrolled: "Ja inscrit",
+                bestMatch: "Millor coincidència",
+                detailsMatch: "Coincideixen {{count}} de {{total}} dades",
+                compareTitle: "Comparació amb {{name}} al registre",
+                col: {
+                    detail: "Dada",
+                    enrollment: "A la inscripció",
+                    registry: "Al registre",
+                    result: "Resultat",
+                },
+                same: "Igual",
+                differs: "Diferent",
+                compareNote: "En els noms no es tenen en compte majúscules, accents ni guionets.",
+                compareJoint:
+                    "Per a permisos de conduir i llibretes de mariner, el nom i el segon nom es comparen junts.",
+                applicationId: "ID de la sol·licitud",
+                copy: "Copia",
+                copied: "Copiat",
+                approve: "Aprova la inscripció",
+                approveDialog: {
+                    title: "Voleu aprovar {{name}}?",
+                    body: "Això vincula la inscripció amb el votant del registre que apareix a sota. S'avisa el votant per correu electrònic o SMS i podrà iniciar la sessió per votar quan s'obri la votació.",
+                    checked: "Heu comprovat el document d'identitat del votant cara a cara.",
+                    irreversible: "Això no es pot desfer.",
+                    confirm: "Aprova",
+                },
+                reject: "Rebutja la inscripció",
+            },
+            idCheck: {
+                title: "Comprovació del document",
+                method: {
+                    VERIFIED: "Document escanejat i verificat",
+                    MANUAL_ENTRY: "Escrit a mà",
+                    UNKNOWN: "No indicat",
+                },
+                verified: "El procés d'inscripció va verificar el document d'identitat del votant",
+                typedByHand: "El votant va escriure les seves dades a mà",
+                unknown: "El procés d'inscripció no va indicar com es va comprovar la identitat",
+                faceToFaceTitle: "Comproveu-ne la identitat cara a cara abans d'aprovar",
+                faceToFaceText:
+                    "Reuniu-vos amb el votant en persona o per videotrucada i compareu el seu document d'identitat amb les dades d'aquesta pàgina.",
+            },
+            reject: {
+                rejectReason: "Motiu del rebuig",
+                message: "Missatge per al votant",
+                messageRequired: "Escriviu un missatge per al votant quan el motiu sigui Altre.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Dades insuficients",
+                    "no-matching-voter": "Votant no trobat",
+                    "voter-already-approved": "Ja aprovat",
+                    "other": "Altre",
+                },
+                hint: {
+                    "insufficient-information": "Falten dades o no es poden llegir.",
+                    "no-matching-voter": "La persona no és al registre de votants.",
+                    "voter-already-approved": "Aquest votant ja està inscrit.",
+                    "other": "Escriviu el vostre propi missatge.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "No us hem pogut inscriure perquè falten algunes de les vostres dades o no es poden llegir. Torneu a inscriure-us amb les dades completes.",
+                    "no-matching-voter":
+                        "No hem trobat al registre cap votant que coincideixi amb les vostres dades. Reviseu les dades i torneu a inscriure-us, o poseu-vos en contacte amb la vostra oficina electoral.",
+                    "voter-already-approved":
+                        "Ja esteu inscrit. Podreu iniciar la sessió per votar quan s'obri la votació.",
+                },
+                previewTitle: "El votant veurà",
+            },
             notifications: {
-                approveError: "Error en aprovar el votant",
-                approveSuccess: "Votant aprovat",
-                rejectError: "Error en rebutjar el votant",
-                rejectSuccess: "Votant rebutjat",
-                VoterApprovedAlready: "El votant ja està aprovat.",
+                approveError: "No s'ha pogut aprovar la inscripció",
+                approveSuccess: "Inscripció de {{name}} aprovada. S'ha avisat el votant.",
+                rejectError: "No s'ha pogut rebutjar la inscripció",
+                rejectSuccess: "Inscripció de {{name}} rebutjada. S'ha avisat el votant.",
+                VoterApprovedAlready: "Aquest votant ja està inscrit.",
             },
             export: {
-                success: "L'exportació d'aplicacions s'ha completat amb èxit",
-                error: "Error en exportar les aplicacions",
+                success: "L'exportació de sol·licituds s'ha completat amb èxit",
+                error: "Error en exportar les sol·licituds",
+            },
+            matrix: {
+                button: "Matriu d'aprovació",
+                title: "Matriu d'aprovació",
+                back: "Aprovacions",
+                subtitle:
+                    "Les regles decideixen què passa amb cada inscripció. Decideix la primera regla que es compleix.",
+                versionChip: "Versió {{version}}",
+                savedBy: "Desada el {{date}} per {{user}}",
+                builtIn: "Regles integrades, en ús fins que es desi una versió",
+                unsaved: "Canvis sense desar",
+                viewOnly: "Només lectura",
+                readOnlyTitle: "Podeu veure les regles, però no canviar-les",
+                readOnlyText:
+                    "Demaneu a un administrador que tingui el permís approval-matrix-write que faci els canvis.",
+                loadError: "No s'ha pogut carregar la matriu d'aprovació.",
+                compared: "Què comparem",
+                comparedHelp:
+                    "Cada inscripció es compara amb el votant trobat al registre. En els noms no es tenen en compte majúscules, accents ni guionets; per a permisos de conduir i llibretes de mariner, el nom i el segon nom es comparen junts.",
+                addCompared: "Compara una altra dada",
+                rules: "Regles",
+                rulesHelp:
+                    "Les regles es comproven des de dalt. Decideix la primera que es compleix; si no se'n compleix cap, s'aplica l'última regla.",
+                when: "Quan",
+                then: "Aleshores",
+                otherwise: "Altrament",
+                noneApply: "No s'aplica cap de les regles anteriors",
+                andWord: "i",
+                and: " i ",
+                appliesToExample: "S'aplica al vostre exemple",
+                cameFrom: "Va decidir la inscripció des de la qual heu arribat",
+                voterIsTold: "Al votant se li diu: “{{reason}}”.",
+                sentence: "Quan {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Si no s'aplica cap de les regles anteriors, {{outcome}}.",
+                sentenceEmpty: "Afegiu una condició per indicar quan s'aplica aquesta regla.",
+                addRule: "Afegeix una regla",
+                discard: "Descarta els canvis",
+                actions: {
+                    edit: "Edita la regla {{number}}",
+                    editOtherwise: "Edita l'última regla",
+                    moveUp: "Puja la regla {{number}}",
+                    moveDown: "Baixa la regla {{number}}",
+                    delete: "Elimina la regla {{number}}",
+                },
+                saveBar: {
+                    title: "Teniu canvis sense desar",
+                    fix_one: "Corregiu 1 regla abans de desar",
+                    fix_other: "Corregiu {{count}} regles abans de desar",
+                    more: "+{{count}} més",
+                },
+                test: "Prova un exemple",
+                testHelp:
+                    "Descriviu una inscripció per veure quina regla la decideix. Els canvis sense desar també compten.",
+                testDetails: "Dades comparades",
+                applies: "S'aplica la regla {{number}}",
+                otherwiseApplies: "S'aplica l'última regla",
+                testError: "No s'ha pogut provar l'exemple.",
+                testInvalid: "Corregiu aquestes regles per provar un exemple:",
+                ruleError: "Regla {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Una identitat escrita a mà mai s'aprova automàticament, de manera que això s'envia a una persona.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Un votant que ja està inscrit mai s'aprova de nou.",
+                    NO_VOTER_NOT_ACCEPTED: "No s'aprova ningú sense un votant al registre.",
+                    OTHERWISE_NOT_ACCEPTED: "L'última regla mai aprova.",
+                },
+                dialog: {
+                    editTitle: "Edita la regla {{number}}",
+                    newTitle: "Regla nova",
+                    otherwiseTitle: "Edita l'última regla",
+                    summary: "En resum",
+                    whenHelp: "S'han de complir totes. Ometeu una condició quan no importi.",
+                    otherwiseHelp: "Si no s'aplica cap de les regles anteriors",
+                    addCondition: "Afegeix una condició",
+                    remove: "Treu “{{condition}}”",
+                    identity: "Comprovació d'identitat",
+                    voterFound: "Votant al registre",
+                    alreadyEnrolled: "Ja inscrit",
+                    validId: "Tipus de document",
+                    differing: "Dades que difereixen",
+                    decision: "Decisió",
+                    reason: "Què es diu al votant",
+                    voterSees: "El votant veu",
+                    apply: "Aplica",
+                    close: "Tanca",
+                    yes: "Sí",
+                    no: "No",
+                    notReported: "No indicat",
+                },
+                identity: {
+                    VERIFIED: "Verificada amb document escanejat",
+                    MANUAL_ENTRY: "Escrita a mà",
+                },
+                differing: {
+                    none: "Cap",
+                    exactly_1: "Exactament 1",
+                    at_most_1: "Com a màxim 1",
+                    exactly_2: "Exactament 2",
+                    at_most_2: "Com a màxim 2",
+                    at_least_3: "3 o més",
+                },
+                fieldMatch: {
+                    MATCHES: "Igual",
+                    DIFFERS: "Diferent",
+                },
+                decisions: {
+                    ACCEPTED: "Aprova automàticament",
+                    PENDING: "Envia a una persona",
+                    REJECTED: "Rebutja",
+                },
+                outcomeShort: {
+                    ACCEPTED: "aprovar automàticament",
+                    PENDING: "enviar a una persona",
+                    REJECTED: "rebutjar",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "El votant queda inscrit sense que ningú ho revisi.",
+                    PENDING:
+                        "Decideix un funcionari, i al votant se li diu que la seva inscripció està en revisió.",
+                    REJECTED: "Al votant se li diu el motiu, i pot tornar a inscriure's.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "s'aprova la inscripció automàticament",
+                    PENDING: "s'envia la inscripció a una persona",
+                    REJECTED: "es rebutja la inscripció",
+                },
+                reasons: {
+                    NO_VOTER: "Votant no trobat",
+                    ALREADY_APPROVED: "Ja aprovat",
+                    INSUFFICIENT_INFORMATION: "Dades insuficients",
+                    IDENTITY_NOT_VERIFIED: "Identitat no verificada",
+                    OTHER: "Altre",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "No hem trobat al registre cap votant que coincideixi amb les vostres dades. Reviseu les dades i torneu a inscriure-us, o poseu-vos en contacte amb la vostra oficina electoral.",
+                    ALREADY_APPROVED:
+                        "Ja esteu inscrit. Podreu iniciar la sessió per votar quan s'obri la votació.",
+                    INSUFFICIENT_INFORMATION:
+                        "No us hem pogut inscriure perquè falten algunes de les vostres dades o no es poden llegir. Torneu a inscriure-us amb les dades completes.",
+                    IDENTITY_NOT_VERIFIED:
+                        "No hem pogut verificar la vostra identitat automàticament, de manera que un funcionari electoral revisarà la vostra inscripció.",
+                    OTHER: "Un funcionari electoral escriu aquest missatge quan decideix.",
+                },
+                conditions: {
+                    any: "Encara no hi ha condicions",
+                    identity: {
+                        VERIFIED: "Identitat verificada amb document escanejat",
+                        MANUAL_ENTRY: "Identitat escrita a mà",
+                    },
+                    voterFound: {
+                        true: "Votant trobat al registre",
+                        false: "Cap votant trobat al registre",
+                    },
+                    alreadyEnrolled: {
+                        true: "Ja inscrit",
+                        false: "Encara no inscrit",
+                    },
+                    validId: "Document: {{id}}",
+                    differing: {
+                        none: "Totes les dades coincideixen",
+                        exactly_1: "Exactament 1 dada difereix",
+                        at_most_1: "Com a màxim 1 dada difereix",
+                        exactly_2: "Exactament 2 dades difereixen",
+                        at_most_2: "Com a màxim 2 dades difereixen",
+                        at_least_3: "3 o més dades difereixen",
+                    },
+                    field: {
+                        MATCHES: "{{field}} coincideix",
+                        DIFFERS: "{{field}} difereix",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "Les inscripcions amb la identitat escrita a mà no es poden aprovar automàticament.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un votant que ja està inscrit no es pot aprovar de nou.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "No es pot aprovar una inscripció sense un votant al registre.",
+                    OTHERWISE_ACCEPTS:
+                        "L'última regla pot enviar inscripcions a una persona o rebutjar-les, però no aprovar-les.",
+                    MISSING_REASON: "Trieu què es diu al votant.",
+                    UNEXPECTED_REASON: "Una aprovació no té motiu.",
+                    NO_COMPARED_FIELDS: "Trieu almenys una dada per comparar amb el registre.",
+                    DUPLICATE_COMPARED_FIELD: "Hi ha una dada comparada repetida.",
+                    UNKNOWN_FIELD: "Una regla fa servir una dada que no es compara.",
+                    NO_CONDITIONS:
+                        "Afegiu almenys una condició. Només l'última regla s'aplica a tota la resta.",
+                },
+                change: {
+                    added: "Regla {{number}} afegida",
+                    decision: "Regla {{number}}: {{from}} → {{to}}",
+                    edited: "Regla {{number}} modificada",
+                    removed: "S'ha eliminat una regla ({{text}})",
+                    moved: "S'han reordenat les regles",
+                    otherwise: "L'última regla ha canviat",
+                    compared: "Les dades comparades han canviat",
+                },
+                save: {
+                    button: "Desa com a versió {{version}}",
+                    title: "Voleu desar com a versió {{version}}?",
+                    body: "A partir d'ara, les noves inscripcions es decideixen amb aquestes regles. Les inscripcions ja decidides conserven la seva decisió.",
+                    changes: "Què ha canviat",
+                    log: "La nova versió queda anotada a la bitàcola electoral.",
+                    confirm: "Desa la versió {{version}}",
+                    success: "Desada com a versió {{version}}",
+                    error: "No s'ha pogut desar la matriu d'aprovació",
+                },
             },
         },
         monitoring: {
@@ -4553,6 +5021,622 @@ const catalanTranslation: TranslationType = {
                     "S'aplica ja a les accions manuals; a les obertures i els tancaments programats, després de la propera publicació aprovada.",
                 tightensAndLoosens:
                     "La seva part més estricta s'aplica ja a les accions manuals i programades; la seva part menys estricta s'aplica ja a les accions manuals i, a les obertures i els tancaments programats, després de la propera publicació aprovada.",
+            },
+        },
+        messagingEvent: {
+            tab: "Missatgeria",
+            intro: "Els canals que els votants d'aquest esdeveniment poden triar per a codis i avisos, i el compte des del qual envia cadascun. Els comptes es gestionen a Configuració > Missatgeria.",
+            readOnly:
+                "Podeu veure aquesta configuració. Per canviar-la cal el permís messaging-config-write.",
+            savingNote:
+                "En desar també s'actualitzen els canals que les pàgines d'inscripció ofereixen a cada Post.",
+            save: "Desa",
+            saved: "S'ha desat la configuració de missatgeria.",
+            saveRejected:
+                "No s'ha desat la configuració de missatgeria. Corregiu els problemes indicats.",
+            saveError: "No s'ha pogut desar la configuració de missatgeria.",
+            accountLabel: "Compte de {{channel}}",
+            notUsed: "Sense ús",
+            missingAccount: "Compte no trobat",
+            noAccount: "Afegiu primer un compte a Configuració > Missatgeria",
+            missing: "Falta: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Canals",
+                templates: "Plantilles aprovades",
+                fallback: "Ordre alternatiu per als avisos",
+                posts: "Canals per Post",
+                postsCount: "Canals per Post ({{count}} Posts)",
+                reply: "Resposta als missatges entrants",
+                delivery: "Estat del lliurament",
+            },
+            column: {
+                channel: "Canal",
+                account: "Envia des de",
+                purpose: "Finalitat",
+                language: "Idioma",
+                template: "Plantilla del proveïdor",
+                status: "Estat",
+                post: "Post",
+                key: "Per al missatge",
+                providerLanguage: "Idioma del proveïdor",
+            },
+            outOfWindow: {
+                label: "Fora de la finestra de conversa",
+                help: "Els avisos de text lliure només s'envien mentre la finestra de conversa és oberta: a Messenger, durant les 24 hores posteriors a l'últim missatge del votant. Trieu Missatges d'utilitat per enviar avisos després amb una plantilla aprovada. Meta ho ha d'aprovar per a la pàgina (el permís page_utility_messaging i una plantilla UTILITY aprovada), i aquesta plantilla ha d'estar vinculada als avisos a Plantilles aprovades. Amb No enviar, un avís fora de la finestra va al següent canal disponible del votant.",
+                DISABLED: "No enviar",
+                UTILITY_MESSAGES: "Missatges d'utilitat",
+                noTemplate:
+                    "Encara no hi ha cap plantilla vinculada als avisos en aquest canal. Afegiu-ne una a Plantilles aprovades; fins aleshores els avisos fora de la finestra van al següent canal disponible del votant.",
+            },
+            templates: {
+                empty: "Trieu un compte que enviï plantilles aprovades, com ara WhatsApp, Viber o Messenger, per vincular-ne aquí les plantilles.",
+                help: "Cada fila indica quina plantilla aprovada envia el proveïdor per a un missatge. Per al missatge és l'àlies d'una plantilla de Plantilles, per a una notificació, o la clau de missatge que envia Keycloak, com ara otp; deixeu-lo buit per a la plantilla que s'utilitza per defecte per al propòsit. Idioma és l'idioma del votant. Plantilla del proveïdor és el nom o l'ID de la plantilla al proveïdor. Idioma del proveïdor és el codi del proveïdor per a aquesta plantilla quan difereix de l'idioma del votant: WhatsApp necessita el codi exacte de la plantilla aprovada, com ara en_US.",
+                order: "Per a cada missatge guanya la fila més específica: la fila del missatge en l'idioma del votant, després la fila del missatge en qualsevol idioma, després la predeterminada del propòsit en l'idioma del votant i, finalment, qualsevol predeterminada del propòsit.",
+                noneRequired:
+                    "{{channel}} només envia plantilles aprovades. Afegiu almenys una plantilla predeterminada per a cada propòsit en ús.",
+                noneOptional:
+                    "No hi ha plantilles vinculades per a {{channel}}. Només calen per enviar avisos fora de la finestra de conversa.",
+                row: "Plantilla {{position}} de {{channel}}",
+                keyDefault: "Predeterminada del propòsit",
+                add: "Afegeix una plantilla de {{channel}}",
+                remove: "Treu la plantilla {{position}} de {{channel}}",
+                incomplete:
+                    "Indiqueu l'idioma i la plantilla del proveïdor, o traieu aquesta fila.",
+                approval: {
+                    APPROVED: "Aprovada",
+                    NOT_APPROVED: "No aprovada",
+                    ADMIN_CONFIRMED: "Confirmada per un administrador",
+                    NOT_CHECKED: "Aprovació no comprovada",
+                },
+            },
+            fallback: {
+                help: "Quan un avís no pot arribar a un votant pel seu canal, passa al següent canal d'aquest ordre que el votant hagi verificat i que ofereixi el seu Post. Els codis mai no es reenvien sols: el votant tria una altra manera.",
+                empty: "Activeu els avisos d'un canal per afegir-lo a l'ordre alternatiu.",
+                earlier: "Mou {{channel}} abans",
+                later: "Mou {{channel}} després",
+            },
+            posts: {
+                noChannels: "Activeu codis o avisos en un canal per triar els canals de cada Post.",
+                help: "La inscripció mostra als votants de cada Post els canals marcats aquí.",
+                restricted: "{{count}} Posts ofereixen menys dels {{total}} canals.",
+                allChannels:
+                    "Tots els Posts ofereixen els {{total}} canals; desmarqueu un canal al Post on no funcioni.",
+                search: "Cerca Posts",
+                cell: "{{post}}: {{channel}}",
+                showing: "Es mostren {{shown}} de {{total}} Posts. Cerqueu per trobar-ne d'altres.",
+            },
+            reply: {
+                help: "S'envia quan un votant escriu a un dels comptes d'aquest esdeveniment, com a màxim un cop al dia per votant.",
+                label: "Resposta ({{language}})",
+            },
+            delivery: {
+                empty: "No s'utilitza cap canal.",
+                help: "Acceptat vol dir que el proveïdor ha acceptat la sol·licitud, no que el votant hagi rebut o verificat el codi. Desconegut vol dir que el lliurament encara no està confirmat. Un proveïdor sense informes de lliurament mostra el lliurament com a no disponible.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Aquesta configuració utilitza la versió {{version}}, que no s'admet.",
+                DUPLICATE_CHANNEL: "{{channel}} està configurat més d'un cop.",
+                UNKNOWN_ACCOUNT: "El compte de {{channel}} ja no existeix. Trieu un altre compte.",
+                ACCOUNT_OF_ANOTHER_TENANT: "El compte seleccionat pertany a un altre inquilí.",
+                ACCOUNT_CHANNEL_MISMATCH:
+                    "El compte seleccionat no envia missatges de {{channel}}.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} encara no pot enviar {{purpose}}. Falta: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "La plantilla de {{channel}} per a {{purpose}} en {{language}} no està aprovada pel proveïdor.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} no pot enviar fora d'una finestra de conversa amb aquest compte: no té finestra de conversa o els seus avisos ja necessiten una plantilla.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} és a l'ordre alternatiu però no envia avisos.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} apareix més d'un cop a l'ordre alternatiu.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} ofereix {{channel}}, que aquest esdeveniment no utilitza.",
+                UNKNOWN_ELECTION: "{{election}} no és una elecció d'aquest esdeveniment.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Correu electrònic",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "Servidor SMTP",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Consola (només proves, no s'envia res)",
+                HTTP_API: "API HTTP personalitzada",
+            },
+            purpose: {
+                OTP: "Codis",
+                NOTICE: "Avisos",
+            },
+            state: {
+                QUEUED: "En cua",
+                ACCEPTED: "Acceptat",
+                DELIVERED: "Lliurat",
+                FAILED: "Fallit",
+                UNKNOWN: "Desconegut",
+            },
+            stateHelp: {
+                QUEUED: "Pendent de lliurar al proveïdor.",
+                ACCEPTED:
+                    "El proveïdor ha acceptat el missatge. Això no vol dir que el votant l'hagi rebut.",
+                DELIVERED: "El proveïdor ha informat que el missatge s'ha lliurat.",
+                FAILED: "El proveïdor ha confirmat que el missatge no s'ha lliurat.",
+                UNKNOWN: "El lliurament encara no està confirmat.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Sense connexió",
+                UNSUPPORTED_PURPOSE: "Aquest proveïdor no ho admet",
+                NEEDS_PROVIDER_APPROVAL: "Necessita l'aprovació del proveïdor",
+                NEEDS_PRODUCTION_ACCESS: "Necessita accés de producció",
+                NEEDS_APPROVED_TEMPLATE: "Necessita una plantilla aprovada",
+            },
+            readiness: {
+                connected: "Connectat",
+                notConnected: "Sense connexió",
+                readyOtp: "A punt per a codis",
+                readyNotice: "A punt per a avisos",
+                notReady: "No està a punt",
+                lastCheck: "Comprovat {{date}}",
+                neverChecked: "Encara no comprovat",
+                adminConfirmed: "Confirmat per un administrador",
+                checkNotUsed: "No s'utilitza la comprovació",
+            },
+            approval: {
+                PENDING: "Pendent d'aprovació del proveïdor",
+                CONFIRMED: "Aprovació del proveïdor confirmada",
+            },
+            credential: {
+                ACCESS_TOKEN: "Testimoni d'accés",
+                APP_SECRET: "Secret de l'aplicació",
+                VERIFY_TOKEN: "Testimoni de verificació",
+                API_KEY: "Clau d'API",
+                SMTP_PASSWORD: "Contrasenya",
+                AWS_ACCESS_KEY_ID: "ID de clau d'accés d'AWS",
+                AWS_SECRET_ACCESS_KEY: "Clau d'accés secreta d'AWS",
+                API_SECRET: "Secret de l'API",
+                USERNAME: "Nom d'usuari",
+                PASSWORD: "Contrasenya",
+                WEBHOOK_SECRET: "Secret del webhook",
+            },
+            deliveryUnavailable: "Lliurament no disponible",
+            templates: {
+                noMethod: "Tria almenys un mètode per a la plantilla.",
+                parameters: "Paràmetres de la plantilla",
+                parametersHelp:
+                    "Què omple cada marcador de la plantilla aprovada, en ordre, com ara user.first_name o vote_url. Per a una plantilla amb paràmetres amb nom escriviu @nom=valor, com ara @first_name=user.first_name; qualsevol altra entrada és posicional.",
+                parameter: "Paràmetre {{position}}",
+                removeParameter: "Treu el paràmetre {{position}}",
+                addParameter: "Afegeix un paràmetre",
+                noAccount:
+                    "Encara no hi ha cap compte de {{channel}}. Afegeix-ne un a Configuració > Missatgeria per veure quins idiomes estan aprovats.",
+                account: "Compte",
+                approvalTitle: "Plantilles aprovades",
+                language: "Idioma",
+                approvalFor: "Aprovada per a {{purpose}}",
+                approved: "Aprovada",
+                notApproved: "No aprovada",
+                approvalHelp:
+                    "Les aprovacions venen del proveïdor i s'actualitzen amb la comprovació de connexió del compte.",
+                messengerIntro:
+                    "En les 24 hores següents a l'últim missatge del votant, Messenger envia el text següent.",
+                messengerMessage: "Missatge dins de les 24 hores",
+                messengerWindow:
+                    "Un destinatari de Messenger desat no és permís per enviar. Fora de la finestra de 24 hores aquest avís s'envia com a missatge d'utilitat quan l'esdeveniment electoral ho permet i hi ha una plantilla aprovada indicada a sota o vinculada a l'esdeveniment; si no, va al següent canal disponible del votant. Els missatges d'utilitat necessiten el permís page_utility_messaging i una plantilla UTILITY aprovada a la pàgina.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp només envia plantilles que Meta ha aprovat per al compte de WhatsApp Business. El missatge ha de coincidir amb la plantilla aprovada; tria què omple els seus paràmetres.",
+                    VIBER: "Viber només envia codis i missatges transaccionals amb plantilles aprovades pel soci de Viber. El missatge ha de coincidir amb la plantilla aprovada; tria què omple els seus paràmetres.",
+                },
+                approvedWording: "Text aprovat",
+                approvedWordingHelp:
+                    "Una còpia de la plantilla aprovada, feta servir com a previsualització. Canviar-la aquí no canvia el que envia el proveïdor.",
+                providerTemplateTitle: "Plantilla del proveïdor",
+                providerTemplateHelp:
+                    "Opcional. El nom o l'ID de la plantilla aprovada al proveïdor. Si és buit, s'utilitza la plantilla de l'esdeveniment electoral vinculada a l'àlies d'aquesta plantilla, o la predeterminada de l'esdeveniment per al propòsit.",
+                providerTemplate: "Nom o ID de la plantilla del proveïdor",
+                providerLanguage: "Codi d'idioma del proveïdor",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "El codi d'idioma exacte de la plantilla de WhatsApp aprovada, com ara en_US.",
+                    VIBER: "El codi d'idioma amb què el proveïdor de Viber coneix la plantilla, quan el necessita.",
+                    MESSENGER:
+                        "El codi d'idioma de la plantilla d'utilitat aprovada, com ara en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Un administrador ha confirmat amb el proveïdor que les plantilles d'aquest compte estan aprovades, de manera que no s'utilitzen les aprovacions de la comprovació de connexió.",
+            },
+            send: {
+                channel: "Canal",
+                eachVoter: "El canal de cada votant",
+                only: "Només {{channel}}",
+                eachVoterHelp:
+                    "Les fallades confirmades fan servir el següent canal verificat disponible. El lliurament sense confirmar es mostra com a Desconegut.",
+                onlyHelp: "Aquesta notificació s'envia a cada votant per {{channel}}.",
+                channelColumn: "Canal",
+                sendsFrom: "S'envia des de",
+                noAccount: "Sense compte",
+                missingContent: "Aquesta notificació no té contingut per a {{channels}}.",
+                approvedTemplateHelp:
+                    "S'envia amb la plantilla aprovada pel proveïdor. Edita-la a Plantilles.",
+                providerTemplate: "Plantilla del proveïdor de {{channel}}",
+                providerTemplateHelp:
+                    "Opcional. Si és buit, s'utilitza la plantilla de l'esdeveniment vinculada a l'àlies de la plantilla triada, o la predeterminada de l'esdeveniment per als avisos.",
+                providerLanguage: "Idioma del proveïdor de {{channel}}",
+                providerLanguageHelp:
+                    "El codi d'idioma del proveïdor per a aquesta plantilla, com ara en_US.",
+            },
+            voter: {
+                title: "Missatgeria",
+                preferredChannel: "Canal preferit",
+                whatsappNumber: "Número de WhatsApp",
+                viberNumber: "Número de Viber",
+                messengerConnected: "Connectat",
+                messengerNotConnected: "No connectat",
+                verifiedChannels: "Canals verificats",
+                noneVerified: "Cap canal verificat",
+                notSet: "Sense definir",
+            },
+            logs: {
+                channel: "Canal",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Missatges de WhatsApp enviats",
+                    VIBER: "Missatges de Viber enviats",
+                    MESSENGER: "Missatges de Messenger enviats",
+                },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "Segons la comprovació del proveïdor",
+                ADMIN_CONFIRMED: "Confirmat per un administrador",
+            },
+        },
+        messagingAccounts: {
+            tab: "MISSATGERIA",
+            description:
+                "Comptes que envien als votants els seus codis i avisos. Cada esdeveniment electoral tria el compte de cada canal; els esdeveniments nous comencen amb el compte predeterminat.",
+            list: {
+                title: "Comptes d'enviament",
+                add: "Afegeix un compte",
+                loading: "S'estan carregant els comptes",
+                loadError: "No s'han pogut carregar els comptes d'enviament.",
+                empty: "Encara no hi ha comptes d'enviament.",
+            },
+            column: {
+                channel: "Canal",
+                name: "Compte",
+                sender: "Envia com a",
+                provider: "Proveïdor",
+                default: "Predeterminat",
+                isDefault: "Compte predeterminat",
+                lastCheck: "Darrera comprovació",
+                actions: "Accions",
+            },
+            action: {
+                edit: "Edita",
+                editNamed: "Edita {{name}}",
+                view: "Mostra",
+                viewNamed: "Mostra {{name}}",
+                check: "Comprova la connexió",
+                checkNamed: "Comprova la connexió de {{name}}",
+                test: "Envia un missatge de prova",
+                testNamed: "Envia un missatge de prova des de {{name}}",
+                delete: "Suprimeix",
+                deleteNamed: "Suprimeix {{name}}",
+            },
+            check: {
+                done: "S'ha comprovat {{name}}. El seu estat està actualitzat.",
+                error: "No s'ha pogut comprovar {{name}}.",
+            },
+            delete: {
+                title: "Suprimeix el compte",
+                body: "Voleu suprimir {{name}}? Els esdeveniments electorals que l'utilitzen deixaran d'enviar pel seu canal.",
+                success: "Compte suprimit",
+                error: "No s'ha pogut suprimir el compte.",
+            },
+            editor: {
+                addTitle: "Afegeix un compte",
+                editTitle: "Edita el compte de {{channel}}",
+                subtitle:
+                    "Els votants reben codis i avisos d'aquest compte als canals que l'utilitzen.",
+                channel: "Canal",
+                provider: "Proveïdor",
+                save: "Desa",
+                cancel: "Cancel·la",
+                close: "Tanca",
+                channelHelp: "No es pot canviar després de crear el compte.",
+            },
+            field: {
+                name: "Nom del compte",
+                from_address: "Adreça del remitent",
+                from_name: "Nom del remitent",
+                region: "Regió d'AWS",
+                notification_topic_arn: "Tema de notificacions de lliurament (ARN de SNS)",
+                server_url: "Servidor i port",
+                sender_id: "ID del remitent",
+                origination_number: "Número d'origen",
+                business_account_id: "ID del compte de WhatsApp Business",
+                phone_number_id: "ID del número de telèfon",
+                display_phone_number: "Número",
+                display_name: "Nom visible",
+                api_version: "Versió de Graph API",
+                page_id: "ID de la pàgina de Facebook",
+                page_name: "Nom de la pàgina",
+                page_username: "Nom d'usuari de la pàgina",
+                base_url: "URL base de l'API",
+                sender: "Nom del remitent",
+                provider_approval: "Aprovació del proveïdor",
+                is_default:
+                    "Compte de {{channel}} predeterminat per a nous esdeveniments electorals",
+                readiness: "Disponibilitat",
+                api_base_url: "URL base de Graph API",
+                label: "Remitent que veuen els votants",
+            },
+            fieldHelp: {
+                from_address:
+                    "L'adreça que veuen els votants. El seu domini ha d'estar verificat amb el proveïdor.",
+                notification_topic_arn:
+                    "El tema de SNS on SES publica els esdeveniments de lliurament i rebot. Es rebutgen les notificacions de qualsevol altre tema.",
+                sender_id: "Fins a 11 lletres i dígits. Alguns països n'exigeixen el registre.",
+                origination_number:
+                    "S'utilitza en lloc de l'ID del remitent on un país exigeix un número.",
+                phone_number_id: "El número des del qual s'envien els missatges.",
+                display_name: "El nom visible que Meta ha aprovat per al número.",
+                page_username:
+                    "S'utilitza a l'enllaç m.me que els votants obren per obtenir el codi.",
+                api_version: "Per exemple, v23.0.",
+                base_url: "L'URL base de l'API d'Infobip del compte.",
+                sender: "El remitent aprovat que veuen els votants.",
+                provider_approval:
+                    "Meta només permet missatges de WhatsApp de governs mitjançant un acord aprovat. Trieu Aprovació del proveïdor confirmada quan Meta l'hagi aprovat per a aquest compte; fins aleshores no s'hi poden activar codis ni avisos.",
+                readiness:
+                    "Segons la comprovació del proveïdor utilitza el que troba la comprovació de connexió: si el compte està connectat, en producció i quines plantilles estan aprovades. Confirmat per un administrador és per a proveïdors la comprovació dels quals no ho pot saber: és la vostra declaració que el compte està connectat, en producció i té les plantilles aprovades, i s'utilitza en lloc de la comprovació.",
+                api_base_url:
+                    "Només quan la Graph API no és la de Meta, com ara el punt d'accés d'un proveïdor de solucions. Buit utilitza la de Meta.",
+                label: "El nom que els votants veuen com a remitent d'aquest compte.",
+            },
+            error: {
+                REQUIRED: "Obligatori",
+                NOT_A_COUNT: "Introduïu un nombre enter",
+                OTP_ABOVE_TOTAL: "No pot superar els missatges per segon",
+                INVALID_CALLING_CODE:
+                    "Introduïu prefixos telefònics de país d'1 a 3 dígits, com 63",
+                DUPLICATE_LANGUAGE: "Aquest idioma ja té una plantilla per a aquest propòsit",
+                NOT_A_URL: "Introduïu una adreça que comenci per https:// o http://",
+                INVALID_HTTP_CONFIG: "Corregiu els problemes indicats",
+            },
+            warning: {
+                pageChange:
+                    "Les converses de Messenger pertanyen a una pàgina. Després de canviar la pàgina, els votants connectats a {{page}} només rebran codis quan tornin a connectar Messenger.",
+                numberChange:
+                    "Els missatges arribaran des d'un altre número. Les seves plantilles han d'estar aprovades en aquest compte d'empresa abans de poder enviar codis, i els votants veuran un xat nou.",
+            },
+            viber: {
+                title: "Plantilles aprovades",
+                description:
+                    "Introduïu les plantilles que Viber ha aprovat a través del soci, per propòsit i idioma. L'API de plantilles del soci no està disponible, de manera que aquesta llista es manté a mà i la comprovació de connexió la llegeix.",
+                purpose: "Propòsit",
+                language: "Idioma",
+                templateId: "ID de plantilla del soci",
+                add: "Afegeix una plantilla",
+                remove: "Treu la plantilla",
+            },
+            limits: {
+                title: "Límits d'enviament",
+                messagesPerSecond: "Missatges per segon",
+                otpReservedPerSecond: "Reservats per a codis per segon",
+                otpReservedHelp: "Es mantenen lliures per als codis durant els enviaments massius.",
+                allowedCallingCodes: "Destinacions permeses (prefixos telefònics de país)",
+                allowedCallingCodesHelp:
+                    "Separats per comes, per exemple 63, 971. Buit permet qualsevol destinació.",
+            },
+            credentials: {
+                title: "Credencials",
+                description:
+                    "Les credencials són només d'escriptura: després de desar, només es mostra la data en què es va substituir cadascuna.",
+                set: "Configurada · substituïda {{date}}. Es desa xifrada i mai no es mostra.",
+                replace: "Substitueix",
+                replaceNamed: "Substitueix {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sense claus, s'utilitza el rol propi del servei.",
+                    AWS_SECRET_ACCESS_KEY:
+                        "Opcional. Configureu-la juntament amb l'ID de clau d'accés.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sense claus, s'utilitza el rol propi del servei.",
+                    AWS_SECRET_ACCESS_KEY:
+                        "Opcional. Configureu-la juntament amb l'ID de clau d'accés.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "La contrasenya del servidor SMTP.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Un testimoni d'un usuari del sistema del portafoli empresarial del propietari, amb whatsapp_business_messaging.",
+                    APP_SECRET: "Comprova que les crides al webhook provenen de Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Un testimoni d'accés de pàgina amb pages_messaging.",
+                    APP_SECRET: "Comprova que les crides al webhook provenen de Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "La clau d'API d'Infobip.",
+                },
+                HTTP_API: {
+                    API_KEY: "Opcional. Les sol·licituds la fan servir com a credencial API_KEY.",
+                    API_SECRET:
+                        "Opcional. Un segon secret, i la clau que signa el JWT: una clau privada PEM per a RS256, el secret compartit per a HS256.",
+                    ACCESS_TOKEN:
+                        "Opcional. Les sol·licituds el fan servir com a credencial ACCESS_TOKEN.",
+                    USERNAME: "Opcional. Amb la contrasenya, forma el marcador basic_auth.",
+                    PASSWORD: "Opcional. Amb el nom d'usuari, forma el marcador basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Opcional. El secret compartit amb què es comproven les crides del proveïdor.",
+                },
+            },
+            webhook: {
+                title: "Informes de lliurament i respostes",
+                description:
+                    "Introduïu aquesta adreça de retorn a la configuració de webhooks del proveïdor. Els informes de lliurament i les respostes dels votants hi arriben.",
+                path: "Ruta de retorn",
+                pathHelp:
+                    "Afegiu-la a l'adreça pública dels webhooks de missatgeria d'aquesta plataforma.",
+                afterSaving: "Es mostra després de desar",
+                copyPath: "Copia la ruta de retorn",
+                tokenSet: "Configurat · substituït {{date}}",
+                tokenMissing: "Encara no s'ha generat",
+                tokenAfterSaving: "Es genera després de desar",
+                generate: "Genera un testimoni de verificació",
+                tokenTitle: "Testimoni de verificació",
+                tokenOnce:
+                    "Introduïu ara aquest testimoni a la configuració de webhooks de Meta. Només es mostra una vegada.",
+                copyToken: "Copia el testimoni de verificació",
+                tokenDone: "Fet",
+                tokenError: "No s'ha pogut generar el testimoni de verificació.",
+                httpHelp:
+                    "Una API HTTP personalitzada pot enviar els seus informes com a JSON, o com una sol·licitud GET; els seus paràmetres de consulta es llegeixen aleshores com un objecte pla, amb punters com ara /status.",
+            },
+            copy: {
+                success: "Copiat",
+                error: "No s'ha pogut copiar",
+            },
+            save: {
+                success: "Compte desat",
+                error: "No s'ha pogut desar el compte.",
+            },
+            test: {
+                title: "Envia un missatge de prova des de {{name}}",
+                description:
+                    "Envia un missatge real per al propòsit triat a aquesta destinació. El resultat mostra el que ha informat el proveïdor.",
+                purpose: "Propòsit",
+                destination: {
+                    EMAIL_ADDRESS: "Adreça electrònica",
+                    PHONE_NUMBER: "Número de telèfon (E.164)",
+                    PAGE_SCOPED_ID: "ID d'àmbit de pàgina",
+                },
+                language: "Idioma",
+                send: "Envia un missatge de prova",
+                reason: "Motiu: {{reason}}",
+                error: "No s'ha pogut enviar el missatge de prova.",
+                template: "Plantilla aprovada",
+                templateHelp:
+                    "El nom o l'ID de la plantilla que el proveïdor ha aprovat per a aquest propòsit i idioma.",
+                viberTemplate:
+                    "Viber fa servir la plantilla que aquest compte indica com a aprovada per al propòsit i l'idioma triats.",
+                languageHelp:
+                    "Per a un proveïdor que envia plantilles aprovades, introduïu el codi d'idioma del proveïdor per a la plantilla, com ara en_US.",
+            },
+            http: {
+                title: "API HTTP personalitzada",
+                description:
+                    "Descriu un proveïdor per les seves sol·licituds HTTP: un altre soci de Viber, l'API pròpia d'un proveïdor de solucions de WhatsApp, una passarel·la d'SMS. Les sol·licituds són JSON; l'URL, les capçaleres i el cos poden contenir els marcadors de la referència de sota.",
+                phoneFormat: "Format del número de telèfon",
+                phoneFormatHelp: "Com s'escriu el número del destinatari en una sol·licitud.",
+                phoneFormatOption: {
+                    E164: "Amb el signe més: +639171234567",
+                    DIGITS: "Només dígits: 639171234567",
+                },
+                templateRequired: "Propòsits que necessiten una plantilla aprovada",
+                templateRequiredHelp:
+                    "Un propòsit marcat només s'envia amb una plantilla que el proveïdor ha aprovat, vinculada a l'esdeveniment electoral. Els altres propòsits s'envien com a text lliure.",
+                approvedLanguages: "Idiomes amb plantilla aprovada per a {{purpose}}",
+                approvedLanguagesHelp:
+                    "Els codis d'idioma amb una plantilla aprovada, segons el que s'ha confirmat amb el proveïdor, separats per comes: en, tl. La comprovació de connexió els comunica.",
+                conversationWindow: "Finestra de conversa (hores)",
+                conversationWindowHelp:
+                    "Hores després de l'últim missatge del destinatari durant les quals es pot enviar text lliure. Buit quan el proveïdor no té aquesta finestra.",
+                messageIdPointer: "ID del missatge a la resposta d'enviament",
+                messageIdPointerHelp:
+                    "Un punter JSON a l'ID de missatge del proveïdor a la resposta a la sol·licitud d'enviament, com ara /message_id. Els informes de lliurament s'hi aparellen.",
+                notConfigured: "Sense configurar.",
+                thisSection: "Aquesta secció",
+                add: "Afegeix: {{section}}",
+                remove: "Treu: {{section}}",
+                section: {
+                    SEND: "Sol·licitud d'enviament",
+                    CHECK: "Sol·licitud de comprovació de connexió",
+                    TOKEN: "Sol·licitud de testimoni",
+                    JWT: "Testimoni signat (JWT)",
+                    REPORTS: "Informes de lliurament i respostes",
+                    RECONCILE: "Sol·licitud de consulta d'un missatge",
+                },
+                sectionHelp: {
+                    SEND: "La sol·licitud que envia un missatge: method (POST si s'omet), url, headers i body.",
+                    CHECK: "Opcional. Una sol·licitud que té èxit, amb una resposta 2xx, quan les credencials funcionen. L'executa la comprovació de connexió.",
+                    TOKEN: "Opcional. Obté un testimoni de curta durada abans d'enviar, com ara les credencials de client d'OAuth: request, token_pointer (on és el testimoni a la resposta) i lifetime_seconds. Les sol·licituds el fan servir amb el marcador token.",
+                    JWT: "Opcional. Un testimoni signat per a cada sol·licitud amb la credencial Secret de l'API: algorithm (RS256 o HS256), claims (s'hi afegeixen iat, exp i jti) i lifetime_seconds. Les sol·licituds el fan servir amb el marcador jwt.",
+                    REPORTS:
+                        "Opcional. Com llegir el que el proveïdor envia a l'adreça de retorn: auth, items_pointer (on és la llista d'informes; tot el contingut si s'omet), status (message_id_pointer, state_pointer, states, que assigna cada valor del proveïdor a QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN, i error_pointer) i inbound_from_pointer (on és el remitent d'una resposta). auth té un kind: URL_KEY (només l'adreça secreta de retorn), HEADER_SECRET (una capçalera igual al secret del webhook), HMAC_SHA256 (una capçalera amb l'HMAC del cos amb el secret del webhook, amb prefix, encoding HEX o BASE64, i signed quan se signa alguna cosa més que el cos) o JWT_HS256 (una capçalera amb un JWT bearer signat amb el secret del webhook).",
+                    RECONCILE:
+                        "Opcional. Pregunta al proveïdor per un missatge el resultat del qual es desconeix: request i status, que es llegeix com el status dels informes de lliurament.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} ha de ser un objecte.",
+                    MISSING_URL: "{{path}} és obligatori: l'adreça de la sol·licitud.",
+                    INVALID_METHOD: "{{path}} ha de ser un mètode HTTP, com ara POST o GET.",
+                    INVALID_HEADERS:
+                        "{{path}} ha de ser text: headers és un objecte de noms de capçalera i valors de text.",
+                    UNKNOWN_FIELD: "{{path}} no és un camp d'aquesta secció.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} fa servir un marcador que no existeix. Consulteu la referència de marcadors.",
+                    INVALID_POINTER:
+                        "{{path}} ha de ser un punter JSON que comenci per /, com ara /data/id.",
+                    INVALID_STATES:
+                        "{{path}} ha d'assignar un valor d'estat del proveïdor a QUEUED, ACCEPTED, DELIVERED, FAILED o UNKNOWN; en cal almenys un.",
+                    INVALID_AUTH:
+                        "{{path}} no és vàlid: kind és URL_KEY, HEADER_SECRET, HMAC_SHA256 o JWT_HS256; header és obligatori excepte per a URL_KEY; encoding és HEX o BASE64.",
+                    INVALID_LIFETIME:
+                        "{{path}} ha de ser un nombre enter de segons més gran que 0.",
+                    INVALID_ALGORITHM: "{{path}} ha de ser RS256 o HS256.",
+                    INVALID_CLAIMS: "{{path}} ha de ser un objecte.",
+                    INVALID_HOURS: "{{path}} ha de ser un nombre enter d'hores més gran que 0.",
+                },
+                placeholders: {
+                    title: "Referència de marcadors",
+                    help: "S'escriuen entre claus dobles a l'URL, al valor d'una capçalera o a qualsevol text del cos. Cadascun se substitueix quan es fa la sol·licitud.",
+                },
+                placeholder: {
+                    to: "El destinatari: número de telèfon, adreça de correu electrònic o ID d'àmbit de pàgina.",
+                    text: "El missatge com a text sense format.",
+                    subject: "L'assumpte, per al correu electrònic.",
+                    html: "El missatge com a HTML, per al correu electrònic.",
+                    code: "El codi d'un sol ús, per als codis.",
+                    template: "La plantilla del proveïdor vinculada a l'esdeveniment electoral.",
+                    language: "El codi d'idioma del proveïdor per a la plantilla.",
+                    message_id:
+                        "L'ID de missatge del proveïdor, en una sol·licitud de consulta d'un missatge.",
+                    callback_url: "L'adreça pública de retorn d'aquest compte.",
+                    param: "Un paràmetre de la plantilla per la seva posició: 1, 2, 3, etc.",
+                    credential:
+                        "Una credencial d'aquest compte pel seu nom: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD o WEBHOOK_SECRET.",
+                    basic_auth:
+                        "El nom d'usuari i la contrasenya, codificats per a una capçalera Authorization: Basic.",
+                    token: "El testimoni obtingut amb la sol·licitud de testimoni.",
+                    jwt: "El testimoni signat descrit a Testimoni signat (JWT).",
+                    parameters:
+                        "Sol, com a valor del cos, es converteix en la llista de tots els paràmetres de la plantilla.",
+                    named_parameters:
+                        "Sol, com a valor del cos, es converteix en un objecte amb els paràmetres escrits com a @nom=valor.",
+                },
+                example: {
+                    title: "Exemple complet: un soci de Viber",
+                    description:
+                        "El soci rep un POST JSON autenticat amb la clau d'API com a testimoni bearer, respon amb l'ID del missatge a message_id i envia informes de lliurament amb una capçalera secreta. Feu-lo servir com a punt de partida i canvieu l'adreça i els noms de camp pels del proveïdor.",
+                    use: "Fes servir aquest exemple",
+                },
             },
         },
     },

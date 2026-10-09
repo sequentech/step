@@ -38,18 +38,30 @@ async function openApprovals(page: Page, portal: PortalServices) {
     await page.goto(`${portal.origin}/sequent_backend_election_event/${IDS.event}?lang=en`)
     await eventLoaded
     await expect(page.getByRole("tab", {name: "Approvals", exact: true})).toBeVisible()
-    await expect(page.getByRole("cell", {name: "carol-applicant"}).first()).toBeVisible()
+    await expect(page.getByRole("cell", {name: /Carol Voter/}).first()).toBeVisible()
 }
 
-async function viewApplication(page: Page, applicantRow: RegExp) {
-    // The view action is an unnamed icon button, the only button in its row.
-    await page.getByRole("row", {name: applicantRow}).getByRole("button").last().click()
-    await expect(page.getByText("Approval Request", {exact: true})).toBeVisible()
+const backToList = (page: Page) =>
+    page.getByRole("button", {name: "Back to Approvals", exact: true})
+
+/** Opens the review of the only enrollment in the queue through its row actions. */
+async function reviewEnrollment(page: Page, action = "Review enrollment") {
+    await page.getByRole("button", {name: "Actions", exact: true}).click()
+    await page.getByRole("menuitem", {name: action, exact: true}).click()
+    await expect(page.getByRole("heading", {name: "Carol Voter", exact: true})).toBeVisible()
+    await expect(backToList(page)).toBeVisible()
 }
 
-// The approve action is an unnamed icon button in the matching voter's row.
-const approveMatch = (page: Page) =>
-    page.getByRole("row", {name: /Carol Voter carol@example\.test/}).getByRole("button")
+const nextStep = (page: Page) => page.getByRole("button", {name: "Continue", exact: true}).click()
+
+const registry = (page: Page) => page.getByRole("radiogroup", {name: "Voters in the registry"})
+
+/** Steps 1 and 2 of the review: past the identity check, choosing `voter` in the registry. */
+async function chooseVoter(page: Page, voter: RegExp) {
+    await nextStep(page)
+    await registry(page).getByRole("radio", {name: voter}).check()
+    await nextStep(page)
+}
 
 const matchingVoter = user(ALICE_ID, "carol", {
     first_name: "Carol",
@@ -60,16 +72,22 @@ const matchingVoter = user(ALICE_ID, "carol", {
 test.describe("application approver", () => {
     test.use({roles: APPROVER_ROLES})
 
-    test("lists pending applications with the applicant's profile fields", async ({
+    test("lists the enrollments that wait for a person, with what happened to each", async ({
         page,
         portal,
     }) => {
         mockApprovals(portal, [application(PENDING_APPLICATION_ID, "PENDING")])
         await openApprovals(page, portal)
-        const row = page.getByRole("row", {name: /carol-applicant/})
-        for (const text of ["MANUAL", "PENDING", "Carol", "Voter", "carol@example.test"])
+        const row = page.getByRole("row", {name: /Carol Voter/})
+        for (const text of [
+            "Carol Voter",
+            "carol@example.test",
+            "Waiting for a person to decide",
+            "Applied Jan 15, 2026",
+            "Needs review",
+        ])
             await expect(row.getByText(text, {exact: true})).toBeVisible()
-        await expect(row.getByText("May 1, 1990", {exact: true})).toBeVisible()
+        await expect(page.getByRole("combobox", {name: "Status"})).toHaveText("Needs review")
         for (const name of ["Import", "Export"])
             await expect(page.getByRole("button", {name, exact: true})).toHaveCount(0)
         const list = portal.graphql.callsTo("sequent_backend_applications")[0].variables
@@ -86,7 +104,7 @@ test.describe("application approver", () => {
         })
     })
 
-    test("approves an application against the voter found by its search attributes", async ({
+    test("approves an enrollment for the registry voter found by its compared details", async ({
         page,
         portal,
     }) => {
@@ -95,31 +113,54 @@ test.describe("application approver", () => {
             data: {ApplicationChangeStatus: {message: "Approved", error: null}},
         }))
         await openApprovals(page, portal)
-        await viewApplication(page, /carol-applicant/)
-        const details = page.getByRole("table", {name: "approvals details table"})
-        await expect(details.getByRole("row", {name: /First name\s*Carol/})).toBeVisible()
-        await expect(details.getByRole("row", {name: /Birth date\s*1990-05-01/})).toBeVisible()
-        await expect(page.getByRole("textbox", {name: "First Name"})).toHaveValue("Carol")
-        const matches = portal.graphql.callsTo("getUsers").at(-1)!.variables
-        expect(matches).toMatchObject({
-            tenant_id: TENANT_ID,
-            election_event_id: IDS.event,
-            first_name: {IsLike: "Carol"},
-            last_name: {IsLike: "Voter"},
-            email: {IsLike: "carol@example.test"},
-        })
-        await approveMatch(page).click()
-        const dialog = page.getByRole("dialog")
+        await reviewEnrollment(page)
+        await expect(page.getByText("Why this needs a person", {exact: true})).toBeVisible()
+        await expect(page.getByRole("row", {name: /First name\s*Carol/})).toBeVisible()
+        await expect(page.getByRole("row", {name: /Birth date\s*May 1, 1990/})).toBeVisible()
         await expect(
-            dialog.getByText(
-                "Are you sure you want to approve this voter? This action is not reversible.",
-                {exact: true}
-            )
+            page.getByRole("row", {name: new RegExp(`Application ID\\s*${PENDING_APPLICATION_ID}`)})
         ).toBeVisible()
+
+        await nextStep(page)
+        const voter = registry(page).getByRole("radio", {name: /Carol Voter/})
+        await expect(registry(page).getByText("Best match · 3 of 3 details match")).toBeVisible()
+        for (const detail of ["First name", "Last name", "Email"])
+            await expect(
+                page.getByRole("row", {name: new RegExp(`^${detail}\\b.*Same$`)})
+            ).toBeVisible()
+        // One lookup has every compared detail; the others leave one out each.
+        const lookups = portal.graphql.callsTo("getUsers").map((call) => call.variables)
+        expect(lookups).toContainEqual(
+            expect.objectContaining({
+                tenant_id: TENANT_ID,
+                election_event_id: IDS.event,
+                first_name: {IsLike: "Carol"},
+                last_name: {IsLike: "Voter"},
+                email: {IsLike: "carol@example.test"},
+            })
+        )
+
+        // Approving waits for the voter to be chosen.
+        await nextStep(page)
+        const send = page.getByRole("button", {name: "Approve enrollment", exact: true})
+        await expect(send).toBeDisabled()
+        await expect(
+            page.getByText("Choose the matching voter in step 2 to approve.", {exact: true})
+        ).toBeVisible()
+        await page.getByRole("button", {name: /Find the voter/}).click()
+        await voter.check()
+        await nextStep(page)
+        await send.click()
+        const dialog = page.getByRole("dialog")
+        await expect(dialog.getByText("Approve Carol Voter?", {exact: true})).toBeVisible()
+        await expect(dialog.getByText("3 of 3 details match", {exact: true})).toBeVisible()
+        await expect(dialog.getByText("This can't be undone.", {exact: true})).toBeVisible()
         expect(portal.graphql.callsTo("ChangeApplicationStatus")).toHaveLength(0)
         await dialog.getByRole("button", {name: "Approve", exact: true}).click()
-        await expect(page.getByText("Voter approved", {exact: true})).toBeVisible()
-        await expect(page.getByText("Approval Request", {exact: true})).toHaveCount(0)
+        await expect(
+            page.getByText("Carol Voter approved. The voter has been told.", {exact: true})
+        ).toBeVisible()
+        await expect(backToList(page)).toHaveCount(0)
         expect(
             portal.graphql.callsTo("ChangeApplicationStatus").map((call) => call.variables)
         ).toEqual([
@@ -134,20 +175,21 @@ test.describe("application approver", () => {
         expectRole(portal, "ChangeApplicationStatus", "admin-user")
     })
 
-    test("explains that the matched voter is already approved", async ({page, portal}) => {
+    test("explains that the chosen voter is already enrolled", async ({page, portal}) => {
         mockApprovals(portal, [application(PENDING_APPLICATION_ID, "PENDING")], [matchingVoter])
         portal.graphql.on("ChangeApplicationStatus", () => ({
             data: {ApplicationChangeStatus: {message: null, error: "Approved_Voter"}},
         }))
         await openApprovals(page, portal)
-        await viewApplication(page, /carol-applicant/)
-        await approveMatch(page).click()
+        await reviewEnrollment(page)
+        await chooseVoter(page, /Carol Voter/)
+        await page.getByRole("button", {name: "Approve enrollment", exact: true}).click()
         await page.getByRole("dialog").getByRole("button", {name: "Approve", exact: true}).click()
-        await expect(page.getByText("Voter is already approved.", {exact: true})).toBeVisible()
-        await expect(page.getByText("Approval Request", {exact: true})).toBeVisible()
+        await expect(page.getByText("This voter is already enrolled.", {exact: true})).toBeVisible()
+        await expect(backToList(page)).toBeVisible()
     })
 
-    test("rejects an application only with a reason, and a message for Other", async ({
+    test("rejects an enrollment without a matching voter, with a message for Other", async ({
         page,
         portal,
     }) => {
@@ -156,33 +198,37 @@ test.describe("application approver", () => {
             data: {ApplicationChangeStatus: {message: "Rejected", error: null}},
         }))
         await openApprovals(page, portal)
-        await viewApplication(page, /carol-applicant/)
-        await page.getByRole("button", {name: "Reject Application", exact: true}).click()
-        const dialog = page.getByRole("dialog")
+        await reviewEnrollment(page)
+        await chooseVoter(page, /None of these is the voter/)
         await expect(
-            dialog.getByText(
-                "Are you sure you want to reject this voter? This action is not reversible."
+            page.getByText(
+                "You found no matching voter, so this enrollment can only be rejected.",
+                {
+                    exact: true,
+                }
             )
         ).toBeVisible()
-        const submit = dialog.getByRole("button", {name: "Reject Application", exact: true})
-        const message = dialog.getByRole("textbox", {name: "Write here the disapproval reason"})
-        await message.fill("Document expired")
-        await submit.click()
-        await expect(dialog.getByText("Required", {exact: true})).toBeVisible()
-        await dialog.getByRole("combobox", {name: "Rejection Reason"}).click()
-        await page.getByRole("option", {name: "Other", exact: true}).click()
-        await message.clear()
+        const verdict = page.getByRole("radiogroup", {name: "Decide", exact: true})
+        await expect(verdict.getByRole("radio", {name: /Approve/})).toBeDisabled()
+        await expect(verdict.getByRole("radio", {name: /Reject/})).toBeChecked()
+        const reasons = page.getByRole("radiogroup", {name: "Reason for rejecting"})
+        await expect(reasons.getByRole("radio", {name: /No matching voter/})).toBeChecked()
+        await expect(
+            page.getByText(/We couldn't find a voter in the registry that matches your details/)
+        ).toBeVisible()
+        await reasons.getByRole("radio", {name: /Other/}).check()
+        const submit = page.getByRole("button", {name: "Reject enrollment", exact: true})
+        await expect(
+            page.getByText("Write a message for the voter when the reason is Other.", {exact: true})
+        ).toBeVisible()
+        await expect(submit).toBeDisabled()
+        expect(portal.graphql.callsTo("ChangeApplicationStatus")).toHaveLength(0)
+        await page.getByRole("textbox", {name: "Message to the voter"}).fill("Document expired")
         await submit.click()
         await expect(
-            dialog.getByText("A rejection message is required for the 'Other' option.", {
-                exact: true,
-            })
+            page.getByText("Carol Voter rejected. The voter has been told.", {exact: true})
         ).toBeVisible()
-        expect(portal.graphql.callsTo("ChangeApplicationStatus")).toHaveLength(0)
-        await message.fill("Document expired")
-        await submit.click()
-        await expect(page.getByText("Voter rejected", {exact: true})).toBeVisible()
-        await expect(page.getByText("Approval Request", {exact: true})).toHaveCount(0)
+        await expect(backToList(page)).toHaveCount(0)
         expect(
             portal.graphql.callsTo("ChangeApplicationStatus").map((call) => call.variables)
         ).toEqual([
@@ -198,7 +244,7 @@ test.describe("application approver", () => {
         ])
     })
 
-    test("shows why a rejected application was rejected, without a reject action", async ({
+    test("shows who rejected an enrollment and why, without a reject action", async ({
         page,
         portal,
     }) => {
@@ -217,20 +263,27 @@ test.describe("application approver", () => {
             [matchingVoter]
         )
         await page.goto(`${portal.origin}/sequent_backend_election_event/${IDS.event}?lang=en`)
-        await page.getByRole("button", {name: "Add filter", exact: true}).click()
-        await page.getByRole("menuitemcheckbox", {name: "Status", exact: true}).click()
         await page.getByRole("combobox", {name: "Status"}).click()
         await page.getByRole("option", {name: "Rejected", exact: true}).click()
-        await expect(page.getByRole("cell", {name: "carol-applicant-2"})).toBeVisible()
-        await expect(page.getByRole("cell", {name: "synthetic-admin"})).toBeVisible()
-        await viewApplication(page, /carol-applicant-2/)
+        const row = page.getByRole("row", {name: /Carol Voter/})
+        await expect(row.getByText("Rejected by synthetic-admin", {exact: true})).toBeVisible()
+        await reviewEnrollment(page, "Open enrollment")
+        await expect(page.getByText("How this was decided", {exact: true})).toBeVisible()
         await expect(
-            page.getByRole("row", {name: /Rejection Reason\s*No Matching Voter/})
+            page.getByText(
+                "synthetic-admin rejected this enrollment on Jan 15, 2026: no matching voter.",
+                {exact: true}
+            )
         ).toBeVisible()
-        await expect(page.getByRole("button", {name: "Reject Application"})).toHaveCount(0)
-        await expect(approveMatch(page)).toBeVisible()
-        await page.getByRole("button", {name: "Back", exact: true}).click()
-        await expect(page.getByText("Approval Request", {exact: true})).toHaveCount(0)
+        // A rejected enrollment can still be approved for the right voter, not rejected again.
+        await chooseVoter(page, /Carol Voter/)
+        const verdict = page.getByRole("radiogroup", {name: "Decide", exact: true})
+        await expect(verdict.getByRole("radio", {name: /Approve/})).toBeChecked()
+        await expect(verdict.getByRole("radio", {name: /Reject/})).toHaveCount(0)
+        await expect(page.getByRole("button", {name: "Reject enrollment"})).toHaveCount(0)
+        await backToList(page).click()
+        await expect(backToList(page)).toHaveCount(0)
+        await expect(row).toBeVisible()
         const lists = portal.graphql.callsTo("sequent_backend_applications")
         expect(JSON.stringify(lists.at(-1)!.variables.where)).toContain(
             `"status":{"_ilike":"%rejected%"}`

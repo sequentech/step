@@ -347,6 +347,7 @@ const galegoTranslation: TranslationType = {
                 taskTitle: "Tarefa: {{title}}",
                 viewTask: "Ver Tarefa",
                 downloadDocument: "Descargar Archivo",
+                downloadHashManifest: "Manifesto de hashes",
             },
             exportTasksExecution: {
                 success: "Exportación finalizada con éxito",
@@ -403,8 +404,6 @@ const galegoTranslation: TranslationType = {
                 telephoneVoting: "Votación Telefónica",
                 settingTitle: "Configuracións",
                 settingSubtitle: "Configuración Xeral",
-                sms: "SMS",
-                mail: "Correos",
                 createNew: "Crear Tipo de Elección",
                 emptyHeader: "Aínda non hai Tipos de Elección.",
                 emptyBody: "¿Queres crear un?",
@@ -418,7 +417,6 @@ const galegoTranslation: TranslationType = {
             tabs: {
                 votingChannels: "CANLES DE VOTACIÓN",
                 electionTypes: "TIPOS DE ELECCIÓN",
-                templates: "MODELOS",
                 languages: "IDIOMAS",
                 localization: "LOCALIZACIÓN",
                 integrations: "Integracións",
@@ -519,6 +517,7 @@ const galegoTranslation: TranslationType = {
                 language: "Idioma",
                 allowed: "Canles de Votación Permitidas",
                 materials: "Materiais de Soporte",
+                ballotReceipts: "Recibos de papeleta",
                 ballotDesign: "Deseño da Papeleta",
                 templates: "Modelos",
                 reorder: "Reordenar eleccións",
@@ -631,6 +630,36 @@ const galegoTranslation: TranslationType = {
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
+                ballotReceipts: {
+                    checksPeriod: {
+                        policyLabel: "Período de comprobación dos votos emitidos",
+                        helper: "Durante canto tempo os votantes poden localizar o seu voto emitido e imprimir o seu recibo no Portal de Votación.",
+                        options: {
+                            "unlimited": "Sen límite",
+                            "until-date": "Ata unha data",
+                        },
+                    },
+                    checksAvailableUntil: "Comprobacións dispoñibles ata ({{timezone}})",
+                    checksAvailableUntilRequired:
+                        "Introduce a data e a hora ata a que se poden comprobar os votos.",
+                },
+                voterAccessibilitySettingsPolicy: {
+                    policyLabel: "Axustes de accesibilidade do votante",
+                    options: {
+                        disabled: "Ocultar os axustes de accesibilidade",
+                        enabled:
+                            "Ofrecer axustes de tamaño de texto, contraste, espazado e movemento",
+                    },
+                },
+                audioInstructionsPolicy: {
+                    policyLabel: "Instrucións en audio",
+                    options: {
+                        "disabled": "Sen instrucións en audio",
+                        "recorded": "Só gravacións subidas",
+                        "recorded-or-synthesized":
+                            "Gravacións subidas, ou a voz do navegador onde non haxa",
+                    },
+                },
                 showCastVoteLogs: {
                     policyLabel: "Mostrar Tab de Logs de Votación",
                     options: {
@@ -693,6 +722,14 @@ const galegoTranslation: TranslationType = {
                     "policyLabel": "Política de Firma de Votantes",
                     "no-signature": "Sin firma",
                     "with-signature": "Con firma",
+                },
+                receiptsPolicy: {
+                    "policyLabel": "Recibos asinados pola urna",
+                    "disabled": "Desactivado",
+                    "signed-by-ballot-box": "Asinados pola urna",
+                    "helperText":
+                        "Cando está activado, a urna almacena e asina cada papeleta na pantalla de revisión, e o votante ve un ID de papeleta só cando a urna a recibiu. Os votantes asinan as súas papeletas. Volva publicar as papeletas despois de cambialo.",
+                    "lockedHelperText": "Non se pode cambiar unha vez iniciada a votación.",
                 },
                 VoterCertificatePolicy: {
                     policyLabel: "Voter Digital Certificate Policy",
@@ -1095,6 +1132,21 @@ const galegoTranslation: TranslationType = {
                 options: {
                     "gold-level": "Gold level Authentication",
                     "no-gold-level": "No Gold level Authentication",
+                },
+            },
+            slates: {
+                title: "Candidaturas",
+                configuration: "Configuración de candidaturas (JSON)",
+                helper: "Candidaturas con nome e os candidatos que cada unha presenta en cada contenda. Déixao baleiro para unha elección sen candidaturas.",
+                loading:
+                    "As contendas e os candidatos da elección aínda se están a cargar. Téntao de novo nun momento.",
+                mobileCandidateLists: {
+                    label: "Listas de candidatos no móbil",
+                    helper: "Como aparece inicialmente a lista de candidatos de cada candidatura no móbil. O votante sempre pode abrila ou pechala.",
+                    options: {
+                        collapsed: "Contraídas",
+                        expanded: "Despregadas",
+                    },
                 },
             },
             startScreenTitlePolicy: {
@@ -1534,6 +1586,7 @@ const galegoTranslation: TranslationType = {
                 "task-export": "Exportar Tareas",
                 "application-read": "Leer Aplicación",
                 "application-write": "Editar Aplicación",
+                "approval-matrix-write": "Editar a Matriz de Aprobación",
                 "logs-export": "Exportar Registros",
                 "election-event-logs-columns": "Columnas de los Registros del Evento Electoral",
                 "election-events-logs-filters": "Filtros de los Registros del Evento Electoral",
@@ -1621,6 +1674,9 @@ const galegoTranslation: TranslationType = {
                 "phone-blacklist-delete": "Eliminar entradas da lista negra de teléfonos",
                 "election-event-voter-list-reconciliation":
                     "Reconciliar a lista de votantes do evento electoral",
+                "messaging-account-read": "Ver contas de mensaxería",
+                "messaging-account-write": "Xestionar contas de mensaxería",
+                "messaging-config-write": "Configurar a mensaxería do evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -2003,6 +2059,7 @@ const galegoTranslation: TranslationType = {
                 "warn-only-in-review": "Avisar na Revisión",
                 "warn": "Avisar",
                 "warn-and-alert": "Avisar e Alertar",
+                "warn-and-confirm-in-review": "Avisar e Confirmar na Revisión",
             },
             invalidVotePolicy: {
                 "label": "Política de Voto Nulo",
@@ -2630,6 +2687,9 @@ const galegoTranslation: TranslationType = {
             communicationMethod: {
                 EMAIL: "Correo",
                 SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
             },
             communicationType: {
                 CREDENTIALS: "Credenciais",
@@ -2821,6 +2881,9 @@ const galegoTranslation: TranslationType = {
                 email: "Correo",
                 sms: "SMS",
                 document: "Documento",
+                whatsapp: "WhatsApp",
+                viber: "Viber",
+                messenger: "Facebook Messenger",
             },
             import: {
                 title: "Importar Plantillas",
@@ -2830,6 +2893,23 @@ const galegoTranslation: TranslationType = {
             },
         },
         materials: {
+            audioInstructions: {
+                screenLabel: "Instrucións en audio para a pantalla",
+                languageLabel: "Idioma da gravación",
+                none: "Non son instrucións en audio",
+                helperText:
+                    "Os votantes oen este ficheiro cando piden as instrucións nesa pantalla.",
+                screens: {
+                    "election-chooser": "Lista de eleccións",
+                    "start": "Inicio",
+                    "ballot": "Papeleta",
+                    "review": "Revisión",
+                    "confirmation": "Confirmación",
+                    "audit": "Auditoría",
+                    "ballot-locator": "Localizador de papeletas",
+                    "support-materials": "Materiais de apoio",
+                },
+            },
             createMaterialSuccess: "Material de soporte creado",
             createMaterialError: "Erro ao crear o material de soporte",
             updateMaterialSuccess: "Material de soporte actualizado",
@@ -2899,46 +2979,435 @@ const galegoTranslation: TranslationType = {
         approvalsScreen: {
             column: {
                 status: "Estado",
-                id: "ID",
-                applicantId: "ID do Solicitante",
-                verificationType: "Tipo de Verificación",
-                createdAt: "Creado o",
-                updatedAt: "Actualizado o",
-                verified_by: "Aprobado Por",
+                id: "ID da solicitude",
+                applicantId: "ID do solicitante",
+                verificationType: "Verificación",
+                createdAt: "Solicitada",
+                verified_by: "Verificada por",
+                voter: "Votante",
+                what: "Que pasou",
+                post: "Posto",
+                when: "Cando",
             },
-            approvalRequest: "Solicitud de Aprobación",
-            taskInformation: "Información da Tarefa",
-            ok: "Aceptar",
-            title: "Votantes",
-            subtitle: "Atopar votantes coincidentes",
-            approve: {
-                body: "¿Estás seguro de que queres aprobar este votante? Esta acción non é reversible.",
+            status: {
+                PENDING: "Pendente de revisión",
+                ACCEPTED: "Aprobada",
+                REJECTED: "Rexeitada",
             },
-            reject: {
-                label: "Rechazar la solicitud",
-                confirm:
-                    "¿Estás seguro de que deseas rechazar a este votante? Esta acción no es reversible.",
-                message: "Escribe aquí el motivo del rechazo",
-                rejectReason: "Motivo del rechazo",
-                messageRequired: "Se requiere un mensaje de rechazo para la opción 'Otro'",
-                reasons: {
-                    "undefined": "-",
-                    "insufficient-information": "Datos Faltantes",
-                    "no-matching-voter": "Votante no Coincidente",
-                    "voter-already-approved": "Ya Aprobado",
-                    "other": "Otro",
+            verification: {
+                AUTOMATIC: "Automática",
+                MANUAL: "Manual",
+            },
+            time: {
+                minutes_one: "{{count}} minuto",
+                minutes_other: "{{count}} minutos",
+                hours_one: "{{count}} hora",
+                hours_other: "{{count}} horas",
+                days_one: "{{count}} día",
+                days_other: "{{count}} días",
+            },
+            summary: {
+                join: "{{head}} e {{last}}",
+                differs_one: "{{fields}} non coincide co rexistro",
+                differs_other: "{{fields}} non coinciden co rexistro",
+                typedByHand: "Datos escritos á man, non lidos dun documento escaneado",
+                needsFaceToFace: "Precisa unha comprobación cara a cara",
+                scanVerified: "Documento escaneado e verificado",
+                noVoter: "Non se atopou ningún votante no rexistro",
+                allMatch: "Todos os datos coinciden co rexistro",
+                needsReview: "Á espera de que unha persoa decida",
+                approvedBy: "Aprobada por {{name}}",
+                approvedAuto: "Aprobada automaticamente",
+                rejectedBy: "Rexeitada por {{name}}",
+                rejectedAuto: "Rexeitada automaticamente",
+            },
+            list: {
+                title: "Aprobacións",
+                subtitle:
+                    "As inscricións que as regras non poden decidir por si soas agardan aquí por unha persoa.",
+                search: "Buscar",
+                review: "Revisar a inscrición",
+                openRecord: "Abrir a inscrición",
+                seeRule: "Ver a regra que decidiu",
+                unnamed: "Solicitante sen nome",
+                waiting: "Leva {{time}} agardando",
+                applied: "Solicitada o {{date}}",
+                empty: {
+                    title: "Aquí non hai nada",
+                    text: "As inscricións con este estado aparecerán aquí. Probe con outra busca ou outro estado.",
                 },
             },
+            flow: {
+                stepsLabel: "Pasos da revisión",
+                steps: {
+                    identity: "Comprobar a identidade",
+                    voter: "Buscar o votante",
+                    decide: "Decidir",
+                },
+                continue: "Continuar",
+                backToList: "Volver a Aprobacións",
+                identity: {
+                    details: "Datos da inscrición",
+                    confirm:
+                        "Comprobei o documento de identidade do votante en persoa ou por videochamada, e coincide con esta inscrición.",
+                    checked: "Comprobación cara a cara confirmada",
+                    notChecked: "Comprobación cara a cara aínda sen confirmar",
+                },
+                voter: {
+                    none: "Ningún destes é o votante",
+                    noneHint:
+                        "Nese caso a inscrición só se pode rexeitar, por non haber un votante coincidente.",
+                    noneChosen: "Ningún destes é o votante",
+                    notChosen: "Aínda non se escolleu ningún votante",
+                },
+                decide: {
+                    approve: "Aprobar",
+                    reject: "Rexeitar",
+                    approveText:
+                        "Vincula esta inscrición con {{voter}} no rexistro. Avísase o votante por correo electrónico ou SMS e poderá iniciar sesión para votar cando se abra a votación.",
+                    rejectText: "Díselle ao votante o motivo. Isto non se pode desfacer.",
+                    chooseVoter: "Escolla o votante coincidente no paso 2 para aprobar.",
+                    noVoter:
+                        "Non atopou un votante coincidente, así que esta inscrición só se pode rexeitar.",
+                    enrolled: "O votante escollido xa está inscrito.",
+                    faceToFace: "Confirme a comprobación cara a cara no paso 1 para aprobar.",
+                },
+            },
+            review: {
+                loadError: "Non se puido cargar a inscrición.",
+                applied: "Solicitada o {{date}}",
+                waiting: "Leva {{time}} agardando",
+                whyTitle: "Por que fai falta unha persoa",
+                decisionTitle: "Como se decidiu",
+                rule: "Regra {{rule}} da versión {{version}} da matriz",
+                ruleLast: "Última regra da versión {{version}} da matriz",
+                seeRule: "Ver a regra",
+                why: {
+                    typedByHand:
+                        "O votante escribiu os seus datos á man en lugar de escanear un documento de identidade. Estas inscricións nunca se aproban automaticamente: antes, un funcionario confirma quen é.",
+                    differs_one:
+                        "Un dato non coincide co rexistro: {{details}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differs_other:
+                        "{{count}} datos non coinciden co rexistro: {{details}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differsFields_one:
+                        "Un dato non coincide co rexistro: {{fields}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    differsFields_other:
+                        "{{count}} datos non coinciden co rexistro: {{fields}}. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    difference:
+                        "en {{field}}, a inscrición di “{{enrollment}}” e o rexistro di “{{registry}}”",
+                    noVoter:
+                        "Ningún votante do rexistro ten estes datos. As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    severalVoters:
+                        "Máis dun votante do rexistro encaixa con esta inscrición. Unha persoa escolle o correcto.",
+                    pending:
+                        "As regras de aprobación piden que unha persoa revise esta inscrición.",
+                    unknown: "Esta inscrición está á espera de que unha persoa decida.",
+                    approvedAuto:
+                        "As regras de aprobación aprobaron esta inscrición automaticamente. Superáronse todas as comprobacións que esixen.",
+                    approvedBy: "{{name}} aprobou esta inscrición o {{date}}.",
+                    rejectedAuto:
+                        "As regras de aprobación rexeitaron esta inscrición automaticamente: {{reason}}.",
+                    rejectedBy: "{{name}} rexeitou esta inscrición o {{date}}: {{reason}}.",
+                },
+                registryHelp:
+                    "Buscamos votantes cos mesmos datos: {{fields}}. Escolla aquel ao que pertence esta inscrición.",
+                registrySearching:
+                    "Estes son os votantes do rexistro que coinciden coa súa busca. Escolla aquel ao que pertence esta inscrición.",
+                registrySearch:
+                    "Non está na lista? Busque no rexistro por nome ou correo electrónico",
+                registryLoading: "Buscando no rexistro",
+                registryError: "Non se puido buscar no rexistro.",
+                noCandidates:
+                    "Ningún votante do rexistro coincide. Probe a buscar por nome ou correo electrónico.",
+                candidates: "Votantes do rexistro",
+                alreadyEnrolled: "Xa inscrito",
+                bestMatch: "Mellor coincidencia",
+                detailsMatch: "Coinciden {{count}} de {{total}} datos",
+                compareTitle: "Comparación con {{name}} no rexistro",
+                col: {
+                    detail: "Dato",
+                    enrollment: "Na inscrición",
+                    registry: "No rexistro",
+                    result: "Resultado",
+                },
+                same: "Igual",
+                differs: "Distinto",
+                compareNote: "Nos nomes non se teñen en conta maiúsculas, acentos nin guións.",
+                compareJoint:
+                    "Para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                applicationId: "ID da solicitude",
+                copy: "Copiar",
+                copied: "Copiado",
+                approve: "Aprobar a inscrición",
+                approveDialog: {
+                    title: "Aprobar a {{name}}?",
+                    body: "Isto vincula a inscrición co votante do rexistro que aparece abaixo. Avísase o votante por correo electrónico ou SMS e poderá iniciar sesión para votar cando se abra a votación.",
+                    checked: "Comprobou o documento de identidade do votante cara a cara.",
+                    irreversible: "Isto non se pode desfacer.",
+                    confirm: "Aprobar",
+                },
+                reject: "Rexeitar a inscrición",
+            },
+            idCheck: {
+                title: "Comprobación do documento",
+                method: {
+                    VERIFIED: "Documento escaneado e verificado",
+                    MANUAL_ENTRY: "Escrito á man",
+                    UNKNOWN: "Non indicado",
+                },
+                verified: "O proceso de inscrición verificou o documento de identidade do votante",
+                typedByHand: "O votante escribiu os seus datos á man",
+                unknown: "O proceso de inscrición non indicou como se comprobou a identidade",
+                faceToFaceTitle: "Comprobe a súa identidade cara a cara antes de aprobar",
+                faceToFaceText:
+                    "Reúnase co votante en persoa ou por videochamada e compare o seu documento de identidade cos datos desta páxina.",
+            },
+            reject: {
+                rejectReason: "Motivo do rexeitamento",
+                message: "Mensaxe para o votante",
+                messageRequired: "Escriba unha mensaxe para o votante cando o motivo sexa Outro.",
+                reasons: {
+                    "undefined": "-",
+                    "insufficient-information": "Faltan datos",
+                    "no-matching-voter": "Votante non coincidente",
+                    "voter-already-approved": "Xa aprobado",
+                    "other": "Outro",
+                },
+                hint: {
+                    "insufficient-information": "Faltan datos ou non se poden ler.",
+                    "no-matching-voter": "A persoa non está no rexistro de votantes.",
+                    "voter-already-approved": "Este votante xa está inscrito.",
+                    "other": "Escriba a súa propia mensaxe.",
+                },
+                preview: {
+                    "insufficient-information":
+                        "Non puidemos inscribilo porque faltan algúns dos seus datos ou non se poden ler. Volva inscribirse cos datos completos.",
+                    "no-matching-voter":
+                        "Non atopamos no rexistro un votante que coincida cos seus datos. Revise os seus datos e volva inscribirse, ou póñase en contacto coa súa oficina electoral.",
+                    "voter-already-approved":
+                        "Xa está inscrito. Poderá iniciar sesión para votar cando se abra a votación.",
+                },
+                previewTitle: "O votante verá",
+            },
             notifications: {
-                approveError: "Error al aprobar al votante",
-                approveSuccess: "Votante aprobado",
-                rejectError: "Error al rechazar al votante",
-                rejectSuccess: "Votante rechazado",
-                VoterApprovedAlready: "El votante ya está aprobado.",
+                approveError: "Non se puido aprobar a inscrición",
+                approveSuccess: "Inscrición de {{name}} aprobada. Avisouse o votante.",
+                rejectError: "Non se puido rexeitar a inscrición",
+                rejectSuccess: "Inscrición de {{name}} rexeitada. Avisouse o votante.",
+                VoterApprovedAlready: "Este votante xa está inscrito.",
             },
             export: {
-                success: "La exportación de aplicaciones se completó con éxito",
-                error: "Error al exportar las aplicaciones",
+                success: "A exportación de solicitudes completouse con éxito",
+                error: "Erro ao exportar as solicitudes",
+            },
+            matrix: {
+                button: "Matriz de aprobación",
+                title: "Matriz de aprobación",
+                back: "Aprobacións",
+                subtitle:
+                    "As regras deciden que pasa con cada inscrición. Decide a primeira regra que se cumpre.",
+                versionChip: "Versión {{version}}",
+                savedBy: "Gardada o {{date}} por {{user}}",
+                builtIn: "Regras integradas, en uso ata que se garde unha versión",
+                unsaved: "Cambios sen gardar",
+                viewOnly: "Só lectura",
+                readOnlyTitle: "Pode ver as regras, pero non cambialas",
+                readOnlyText:
+                    "Pídalle a un administrador que teña o permiso approval-matrix-write que faga os cambios.",
+                loadError: "Non se puido cargar a matriz de aprobación.",
+                compared: "Que comparamos",
+                comparedHelp:
+                    "Cada inscrición compárase co votante atopado no rexistro. Nos nomes non se teñen en conta maiúsculas, acentos nin guións; para permisos de conducir e libretas de mariño, o nome e o segundo nome compáranse xuntos.",
+                addCompared: "Comparar outro dato",
+                rules: "Regras",
+                rulesHelp:
+                    "As regras compróbanse desde arriba. Decide a primeira que se cumpre; se non se cumpre ningunha, aplícase a última regra.",
+                when: "Cando",
+                then: "Entón",
+                otherwise: "Noutro caso",
+                noneApply: "Non se aplica ningunha das regras anteriores",
+                andWord: "e",
+                and: " e ",
+                appliesToExample: "Aplícase ao seu exemplo",
+                cameFrom: "Decidiu a inscrición desde a que chegou",
+                voterIsTold: "Ao votante díselle: “{{reason}}”.",
+                sentence: "Cando {{when}}, {{outcome}}.",
+                sentenceOtherwise: "Se non se aplica ningunha das regras anteriores, {{outcome}}.",
+                sentenceEmpty: "Engada unha condición para indicar cando se aplica esta regra.",
+                addRule: "Engadir regra",
+                discard: "Descartar os cambios",
+                actions: {
+                    edit: "Editar a regra {{number}}",
+                    editOtherwise: "Editar a última regra",
+                    moveUp: "Subir a regra {{number}}",
+                    moveDown: "Baixar a regra {{number}}",
+                    delete: "Eliminar a regra {{number}}",
+                },
+                saveBar: {
+                    title: "Ten cambios sen gardar",
+                    fix_one: "Corrixa 1 regra antes de gardar",
+                    fix_other: "Corrixa {{count}} regras antes de gardar",
+                    more: "+{{count}} máis",
+                },
+                test: "Probar un exemplo",
+                testHelp:
+                    "Describa unha inscrición para ver que regra a decide. Os cambios sen gardar tamén contan.",
+                testDetails: "Datos comparados",
+                applies: "Aplícase a regra {{number}}",
+                otherwiseApplies: "Aplícase a última regra",
+                testError: "Non se puido probar o exemplo.",
+                testInvalid: "Corrixa estas regras para probar un exemplo:",
+                ruleError: "Regra {{number}}: {{error}}",
+                invariants: {
+                    MANUAL_ENTRY_NOT_ACCEPTED:
+                        "Unha identidade escrita á man nunca se aproba automaticamente, así que isto envíase a unha persoa.",
+                    ALREADY_ENROLLED_NOT_ACCEPTED:
+                        "Un votante que xa está inscrito nunca se aproba de novo.",
+                    NO_VOTER_NOT_ACCEPTED: "Non se aproba a ninguén sen un votante no rexistro.",
+                    OTHERWISE_NOT_ACCEPTED: "A última regra nunca aproba.",
+                },
+                dialog: {
+                    editTitle: "Editar a regra {{number}}",
+                    newTitle: "Nova regra",
+                    otherwiseTitle: "Editar a última regra",
+                    summary: "En resumo",
+                    whenHelp: "Deben cumprirse todas. Omita unha condición cando non importe.",
+                    otherwiseHelp: "Se non se aplica ningunha das regras anteriores",
+                    addCondition: "Engadir condición",
+                    remove: "Quitar “{{condition}}”",
+                    identity: "Comprobación de identidade",
+                    voterFound: "Votante no rexistro",
+                    alreadyEnrolled: "Xa inscrito",
+                    validId: "Tipo de documento",
+                    differing: "Datos que difiren",
+                    decision: "Decisión",
+                    reason: "Que se lle di ao votante",
+                    voterSees: "O votante ve",
+                    apply: "Aplicar",
+                    close: "Pechar",
+                    yes: "Si",
+                    no: "Non",
+                    notReported: "Non indicado",
+                },
+                identity: {
+                    VERIFIED: "Verificada con documento escaneado",
+                    MANUAL_ENTRY: "Escrita á man",
+                },
+                differing: {
+                    none: "Ningún",
+                    exactly_1: "Exactamente 1",
+                    at_most_1: "Como máximo 1",
+                    exactly_2: "Exactamente 2",
+                    at_most_2: "Como máximo 2",
+                    at_least_3: "3 ou máis",
+                },
+                fieldMatch: {
+                    MATCHES: "Igual",
+                    DIFFERS: "Distinto",
+                },
+                decisions: {
+                    ACCEPTED: "Aprobar automaticamente",
+                    PENDING: "Enviar a unha persoa",
+                    REJECTED: "Rexeitar",
+                },
+                outcomeShort: {
+                    ACCEPTED: "aprobar automaticamente",
+                    PENDING: "enviar a unha persoa",
+                    REJECTED: "rexeitar",
+                },
+                outcomeHelp: {
+                    ACCEPTED: "O votante queda inscrito sen que ninguén o revise.",
+                    PENDING:
+                        "Decide un funcionario, e ao votante díselle que a súa inscrición está en revisión.",
+                    REJECTED: "Ao votante díselle o motivo, e pode volver inscribirse.",
+                },
+                outcomeSentence: {
+                    ACCEPTED: "apróbase a inscrición automaticamente",
+                    PENDING: "envíase a inscrición a unha persoa",
+                    REJECTED: "rexéitase a inscrición",
+                },
+                reasons: {
+                    NO_VOTER: "Votante non coincidente",
+                    ALREADY_APPROVED: "Xa aprobado",
+                    INSUFFICIENT_INFORMATION: "Faltan datos",
+                    IDENTITY_NOT_VERIFIED: "Identidade non verificada",
+                    OTHER: "Outro",
+                },
+                voterText: {
+                    NO_VOTER:
+                        "Non atopamos no rexistro un votante que coincida cos seus datos. Revise os seus datos e volva inscribirse, ou póñase en contacto coa súa oficina electoral.",
+                    ALREADY_APPROVED:
+                        "Xa está inscrito. Poderá iniciar sesión para votar cando se abra a votación.",
+                    INSUFFICIENT_INFORMATION:
+                        "Non puidemos inscribilo porque faltan algúns dos seus datos ou non se poden ler. Volva inscribirse cos datos completos.",
+                    IDENTITY_NOT_VERIFIED:
+                        "Non puidemos verificar a súa identidade automaticamente, así que un funcionario electoral revisará a súa inscrición.",
+                    OTHER: "Un funcionario electoral escribe esta mensaxe cando decide.",
+                },
+                conditions: {
+                    any: "Aínda non hai condicións",
+                    identity: {
+                        VERIFIED: "Identidade verificada con documento escaneado",
+                        MANUAL_ENTRY: "Identidade escrita á man",
+                    },
+                    voterFound: {
+                        true: "Votante atopado no rexistro",
+                        false: "Ningún votante atopado no rexistro",
+                    },
+                    alreadyEnrolled: {
+                        true: "Xa inscrito",
+                        false: "Aínda non inscrito",
+                    },
+                    validId: "Documento: {{id}}",
+                    differing: {
+                        none: "Todos os datos coinciden",
+                        exactly_1: "Exactamente 1 dato difire",
+                        at_most_1: "Como máximo 1 dato difire",
+                        exactly_2: "Exactamente 2 datos difiren",
+                        at_most_2: "Como máximo 2 datos difiren",
+                        at_least_3: "3 ou máis datos difiren",
+                    },
+                    field: {
+                        MATCHES: "{{field}} coincide",
+                        DIFFERS: "{{field}} difire",
+                    },
+                },
+                errors: {
+                    ACCEPTS_MANUAL_ENTRY:
+                        "As inscricións coa identidade escrita á man non se poden aprobar automaticamente.",
+                    ACCEPTS_ALREADY_ENROLLED:
+                        "Un votante que xa está inscrito non se pode aprobar de novo.",
+                    ACCEPTS_WITHOUT_VOTER:
+                        "Non se pode aprobar unha inscrición sen un votante no rexistro.",
+                    OTHERWISE_ACCEPTS:
+                        "A última regra pode enviar inscricións a unha persoa ou rexeitalas, pero non aprobalas.",
+                    MISSING_REASON: "Escolla que se lle di ao votante.",
+                    UNEXPECTED_REASON: "Unha aprobación non ten motivo.",
+                    NO_COMPARED_FIELDS: "Escolla polo menos un dato para comparar co rexistro.",
+                    DUPLICATE_COMPARED_FIELD: "Hai un dato comparado repetido.",
+                    UNKNOWN_FIELD: "Unha regra usa un dato que non se compara.",
+                    NO_CONDITIONS:
+                        "Engada polo menos unha condición. Só a última regra se aplica a todo o demais.",
+                },
+                change: {
+                    added: "Regra {{number}} engadida",
+                    decision: "Regra {{number}}: {{from}} → {{to}}",
+                    edited: "Regra {{number}} modificada",
+                    removed: "Eliminouse unha regra ({{text}})",
+                    moved: "Reordenáronse as regras",
+                    otherwise: "A última regra cambiou",
+                    compared: "Os datos comparados cambiaron",
+                },
+                save: {
+                    button: "Gardar como versión {{version}}",
+                    title: "Gardar como versión {{version}}?",
+                    body: "A partir de agora, as novas inscricións decídense con estas regras. As inscricións xa decididas conservan a súa decisión.",
+                    changes: "Que cambiou",
+                    log: "A nova versión queda anotada na bitácora electoral.",
+                    confirm: "Gardar a versión {{version}}",
+                    success: "Gardada como versión {{version}}",
+                    error: "Non se puido gardar a matriz de aprobación",
+                },
             },
         },
         monitoring: {
@@ -4526,6 +4995,614 @@ const galegoTranslation: TranslationType = {
                     "Aplícase xa ás accións manuais; ás aperturas e peches programados, tras a próxima publicación aprobada.",
                 tightensAndLoosens:
                     "A súa parte máis estrita aplícase xa ás accións manuais e programadas; a súa parte menos estrita aplícase xa ás accións manuais e, ás aperturas e peches programados, tras a próxima publicación aprobada.",
+            },
+        },
+        messagingEvent: {
+            tab: "Mensaxería",
+            intro: "As canles que os votantes deste evento poden escoller para códigos e avisos, e a conta desde a que envía cada unha. As contas xestiónanse en Axustes > Mensaxería.",
+            readOnly:
+                "Pode ver estes axustes. Para cambialos precisa o permiso messaging-config-write.",
+            savingNote:
+                "Ao gardar tamén se actualizan as canles que as páxinas de inscrición ofrecen en cada Post.",
+            save: "Gardar",
+            saved: "Axustes de mensaxería gardados.",
+            saveRejected:
+                "Os axustes de mensaxería non se gardaron. Corrixa os problemas indicados.",
+            saveError: "Non se puideron gardar os axustes de mensaxería.",
+            accountLabel: "Conta de {{channel}}",
+            notUsed: "Sen usar",
+            missingAccount: "Conta non atopada",
+            noAccount: "Engada antes unha conta en Axustes > Mensaxería",
+            missing: "Falta: {{blockers}}",
+            purposeSwitch: "{{channel}}: {{purpose}}",
+            sections: {
+                channels: "Canles",
+                templates: "Modelos aprobados",
+                fallback: "Orde alternativa para avisos",
+                posts: "Canles por Post",
+                postsCount: "Canles por Post ({{count}} Posts)",
+                reply: "Resposta ás mensaxes entrantes",
+                delivery: "Estado da entrega",
+            },
+            column: {
+                channel: "Canle",
+                account: "Envía desde",
+                purpose: "Finalidade",
+                language: "Idioma",
+                template: "Modelo do provedor",
+                status: "Estado",
+                post: "Post",
+                key: "Para a mensaxe",
+                providerLanguage: "Idioma do provedor",
+            },
+            outOfWindow: {
+                label: "Fóra da xanela de conversa",
+                help: "Os avisos de texto libre só se envían mentres a xanela de conversa está aberta: en Messenger, nas 24 horas seguintes á última mensaxe do votante. Escolla Mensaxes de utilidade para enviar avisos despois cun modelo aprobado. Meta debe aprobalo para a páxina (o permiso page_utility_messaging e un modelo UTILITY aprobado), e ese modelo debe estar vinculado aos avisos en Modelos aprobados. Con Non enviar, un aviso fóra da xanela vai á seguinte canle dispoñible do votante.",
+                DISABLED: "Non enviar",
+                UTILITY_MESSAGES: "Mensaxes de utilidade",
+                noTemplate:
+                    "Aínda non hai ningún modelo vinculado aos avisos nesta canle. Engada un en Modelos aprobados; ata entón os avisos fóra da xanela van á seguinte canle dispoñible do votante.",
+            },
+            templates: {
+                empty: "Escolla unha conta que envíe modelos aprobados, como WhatsApp, Viber ou Messenger, para vincular aquí os seus modelos.",
+                help: "Cada fila indica que modelo aprobado envía o provedor para unha mensaxe. Para a mensaxe é o alias dun modelo de Modelos, para unha notificación, ou a clave de mensaxe que envía Keycloak, como otp; déixeo baleiro para o modelo que se usa por defecto para o propósito. Idioma é o idioma do votante. Modelo do provedor é o nome ou ID do modelo no provedor. Idioma do provedor é o código do provedor para ese modelo cando difire do idioma do votante: WhatsApp precisa o código exacto do modelo aprobado, como en_US.",
+                order: "Para cada mensaxe gaña a fila máis específica: a fila da mensaxe no idioma do votante, despois a fila da mensaxe en calquera idioma, despois o predeterminado do propósito no idioma do votante e, por último, calquera predeterminado do propósito.",
+                noneRequired:
+                    "{{channel}} só envía modelos aprobados. Engada polo menos un modelo predeterminado para cada propósito en uso.",
+                noneOptional:
+                    "Non hai modelos vinculados para {{channel}}. Só fan falta para enviar avisos fóra da xanela de conversa.",
+                row: "Modelo {{position}} de {{channel}}",
+                keyDefault: "Predeterminado do propósito",
+                add: "Engadir modelo de {{channel}}",
+                remove: "Quitar o modelo {{position}} de {{channel}}",
+                incomplete: "Indique o idioma e o modelo do provedor, ou quite esta fila.",
+                approval: {
+                    APPROVED: "Aprobado",
+                    NOT_APPROVED: "Non aprobado",
+                    ADMIN_CONFIRMED: "Confirmado por un administrador",
+                    NOT_CHECKED: "Aprobación non comprobada",
+                },
+            },
+            fallback: {
+                help: "Cando un aviso non pode chegar a un votante pola súa canle, pasa á seguinte canle desta orde que o votante verificase e que ofreza o seu Post. Os códigos nunca se reenvían sós: o votante escolle outra forma.",
+                empty: "Active os avisos dunha canle para engadila á orde alternativa.",
+                earlier: "Mover {{channel}} antes",
+                later: "Mover {{channel}} despois",
+            },
+            posts: {
+                noChannels:
+                    "Active códigos ou avisos nunha canle para escoller as canles de cada Post.",
+                help: "A inscrición mostra aos votantes de cada Post as canles marcadas aquí.",
+                restricted: "{{count}} Posts ofrecen menos das {{total}} canles.",
+                allChannels:
+                    "Todos os Posts ofrecen as {{total}} canles; desmarque unha canle no Post onde non funcione.",
+                search: "Buscar Posts",
+                cell: "{{post}}: {{channel}}",
+                showing: "Móstranse {{shown}} de {{total}} Posts. Busque para atopar outros.",
+            },
+            reply: {
+                help: "Envíase cando un votante escribe a unha das contas deste evento, como moito unha vez ao día por votante.",
+                label: "Resposta ({{language}})",
+            },
+            delivery: {
+                empty: "Non se usa ningunha canle.",
+                help: "Aceptado significa que o provedor aceptou a solicitude, non que o votante recibise ou verificase o código. Descoñecido significa que a entrega aínda non está confirmada. Un provedor sen informes de entrega mostra a entrega como non dispoñible.",
+            },
+            error: {
+                UNSUPPORTED_VERSION:
+                    "Esta configuración usa a versión {{version}}, que non se admite.",
+                DUPLICATE_CHANNEL: "{{channel}} está configurada máis dunha vez.",
+                UNKNOWN_ACCOUNT: "A conta de {{channel}} xa non existe. Escolla outra conta.",
+                ACCOUNT_OF_ANOTHER_TENANT: "A conta seleccionada pertence a outro inquilino.",
+                ACCOUNT_CHANNEL_MISMATCH: "A conta seleccionada non envía mensaxes de {{channel}}.",
+                PURPOSE_NOT_READY:
+                    "{{channel}} aínda non pode enviar {{purpose}}. Falta: {{blockers}}.",
+                TEMPLATE_NOT_APPROVED:
+                    "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
+                OUT_OF_WINDOW_NOT_SUPPORTED:
+                    "{{channel}} non pode enviar fóra dunha xanela de conversa con esta conta: non ten xanela de conversa ou os seus avisos xa precisan un modelo.",
+                FALLBACK_CHANNEL_NOT_ENABLED:
+                    "{{channel}} está na orde alternativa pero non envía avisos.",
+                DUPLICATE_FALLBACK_CHANNEL:
+                    "{{channel}} aparece máis dunha vez na orde alternativa.",
+                ELECTION_CHANNEL_NOT_ENABLED:
+                    "{{election}} ofrece {{channel}}, que este evento non usa.",
+                UNKNOWN_ELECTION: "{{election}} non é unha elección deste evento.",
+            },
+        },
+        messaging: {
+            channel: {
+                EMAIL: "Correo electrónico",
+                SMS: "SMS",
+                WHATSAPP: "WhatsApp",
+                VIBER: "Viber",
+                MESSENGER: "Facebook Messenger",
+            },
+            provider: {
+                AWS_SES: "Amazon SES",
+                SMTP: "Servidor SMTP",
+                AWS_SNS: "Amazon SNS",
+                WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
+                MESSENGER_SEND_API: "Messenger Platform (Meta)",
+                VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                CONSOLE: "Consola (só probas, non se envía nada)",
+                HTTP_API: "API HTTP personalizada",
+            },
+            purpose: {
+                OTP: "Códigos",
+                NOTICE: "Avisos",
+            },
+            state: {
+                QUEUED: "En cola",
+                ACCEPTED: "Aceptado",
+                DELIVERED: "Entregado",
+                FAILED: "Fallido",
+                UNKNOWN: "Descoñecido",
+            },
+            stateHelp: {
+                QUEUED: "Pendente de entregar ao provedor.",
+                ACCEPTED:
+                    "O provedor aceptou a mensaxe. Isto non significa que o votante a recibise.",
+                DELIVERED: "O provedor informou de que a mensaxe se entregou.",
+                FAILED: "O provedor confirmou que a mensaxe non se entregou.",
+                UNKNOWN: "A entrega aínda non está confirmada.",
+            },
+            blocker: {
+                NOT_CONNECTED: "Sen conexión",
+                UNSUPPORTED_PURPOSE: "Este provedor non o admite",
+                NEEDS_PROVIDER_APPROVAL: "Precisa a aprobación do provedor",
+                NEEDS_PRODUCTION_ACCESS: "Precisa acceso de produción",
+                NEEDS_APPROVED_TEMPLATE: "Precisa un modelo aprobado",
+            },
+            readiness: {
+                connected: "Conectada",
+                notConnected: "Sen conexión",
+                readyOtp: "Lista para códigos",
+                readyNotice: "Lista para avisos",
+                notReady: "Non está lista",
+                lastCheck: "Comprobada {{date}}",
+                neverChecked: "Aínda non comprobada",
+                adminConfirmed: "Confirmada por un administrador",
+                checkNotUsed: "Non se usa a comprobación",
+            },
+            approval: {
+                PENDING: "Pendente de aprobación do provedor",
+                CONFIRMED: "Aprobación do provedor confirmada",
+            },
+            credential: {
+                ACCESS_TOKEN: "Token de acceso",
+                APP_SECRET: "Segredo da aplicación",
+                VERIFY_TOKEN: "Token de verificación",
+                API_KEY: "Clave de API",
+                SMTP_PASSWORD: "Contrasinal",
+                AWS_ACCESS_KEY_ID: "ID de clave de acceso de AWS",
+                AWS_SECRET_ACCESS_KEY: "Clave de acceso secreta de AWS",
+                API_SECRET: "Segredo da API",
+                USERNAME: "Nome de usuario",
+                PASSWORD: "Contrasinal",
+                WEBHOOK_SECRET: "Segredo do webhook",
+            },
+            deliveryUnavailable: "Entrega non dispoñible",
+            templates: {
+                noMethod: "Escolle polo menos un método para o modelo.",
+                parameters: "Parámetros do modelo",
+                parametersHelp:
+                    "O que enche cada marcador do modelo aprobado, en orde, como user.first_name ou vote_url. Para un modelo con parámetros con nome escriba @nome=valor, como @first_name=user.first_name; calquera outra entrada é posicional.",
+                parameter: "Parámetro {{position}}",
+                removeParameter: "Quitar o parámetro {{position}}",
+                addParameter: "Engadir parámetro",
+                noAccount:
+                    "Aínda non hai ningunha conta de {{channel}}. Engade unha en Axustes > Mensaxería para ver que idiomas están aprobados.",
+                account: "Conta",
+                approvalTitle: "Modelos aprobados",
+                language: "Idioma",
+                approvalFor: "Aprobado para {{purpose}}",
+                approved: "Aprobado",
+                notApproved: "Non aprobado",
+                approvalHelp:
+                    "As aprobacións veñen do provedor e actualízanse coa comprobación de conexión da conta.",
+                messengerIntro:
+                    "Nas 24 horas seguintes á última mensaxe do votante, Messenger envía o texto seguinte.",
+                messengerMessage: "Mensaxe dentro das 24 horas",
+                messengerWindow:
+                    "Un destinatario de Messenger gardado non é permiso para enviar. Fóra da xanela de 24 horas este aviso envíase como mensaxe de utilidade cando o evento electoral o permite e hai un modelo aprobado indicado abaixo ou vinculado no evento; se non, vai á seguinte canle dispoñible do votante. As mensaxes de utilidade precisan o permiso page_utility_messaging e un modelo UTILITY aprobado na páxina.",
+                intro: {
+                    WHATSAPP:
+                        "WhatsApp só envía modelos que Meta aprobou para a conta de WhatsApp Business. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                    VIBER: "Viber só envía códigos e mensaxes transaccionais con modelos aprobados polo socio de Viber. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                },
+                approvedWording: "Texto aprobado",
+                approvedWordingHelp:
+                    "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+                providerTemplateTitle: "Modelo do provedor",
+                providerTemplateHelp:
+                    "Opcional. O nome ou ID do modelo aprobado no provedor. Se está baleiro, úsase o modelo do evento electoral vinculado ao alias deste modelo, ou o predeterminado do evento para o propósito.",
+                providerTemplate: "Nome ou ID do modelo do provedor",
+                providerLanguage: "Código de idioma do provedor",
+                providerLanguageHelp: {
+                    WHATSAPP:
+                        "O código de idioma exacto do modelo de WhatsApp aprobado, como en_US.",
+                    VIBER: "O código de idioma co que o provedor de Viber coñece o modelo, cando o precisa.",
+                    MESSENGER: "O código de idioma do modelo de utilidade aprobado, como en_US.",
+                },
+                approvalAdminConfirmed:
+                    "Un administrador confirmou co provedor que os modelos desta conta están aprobados, así que non se usan as aprobacións da comprobación de conexión.",
+            },
+            send: {
+                channel: "Canle",
+                eachVoter: "A canle de cada votante",
+                only: "Só {{channel}}",
+                eachVoterHelp:
+                    "Os fallos confirmados usan a seguinte canle verificada dispoñible. A entrega sen confirmar móstrase como Descoñecido.",
+                onlyHelp: "Esta notificación envíase a cada votante por {{channel}}.",
+                channelColumn: "Canle",
+                sendsFrom: "Envíase desde",
+                noAccount: "Sen conta",
+                missingContent: "Esta notificación non ten contido para {{channels}}.",
+                approvedTemplateHelp:
+                    "Envíase co modelo aprobado polo provedor. Edítao en Modelos.",
+                providerTemplate: "Modelo do provedor de {{channel}}",
+                providerTemplateHelp:
+                    "Opcional. Se está baleiro, úsase o modelo do evento vinculado ao alias do modelo escollido, ou o predeterminado do evento para os avisos.",
+                providerLanguage: "Idioma do provedor de {{channel}}",
+                providerLanguageHelp: "O código de idioma do provedor para ese modelo, como en_US.",
+            },
+            voter: {
+                title: "Mensaxería",
+                preferredChannel: "Canle preferida",
+                whatsappNumber: "Número de WhatsApp",
+                viberNumber: "Número de Viber",
+                messengerConnected: "Conectado",
+                messengerNotConnected: "Non conectado",
+                verifiedChannels: "Canles verificadas",
+                noneVerified: "Ningunha canle verificada",
+                notSet: "Sen definir",
+            },
+            logs: {
+                channel: "Canle",
+            },
+            stats: {
+                sent: {
+                    WHATSAPP: "Mensaxes de WhatsApp enviadas",
+                    VIBER: "Mensaxes de Viber enviadas",
+                    MESSENGER: "Mensaxes de Messenger enviadas",
+                },
+            },
+            readinessPolicy: {
+                PROVIDER_CHECK: "Segundo a comprobación do provedor",
+                ADMIN_CONFIRMED: "Confirmada por un administrador",
+            },
+        },
+        messagingAccounts: {
+            tab: "MENSAXERÍA",
+            description:
+                "Contas que envían aos votantes os seus códigos e avisos. Cada evento electoral escolle a conta de cada canle; os eventos novos comezan coa conta predeterminada.",
+            list: {
+                title: "Contas de envío",
+                add: "Engadir conta",
+                loading: "Cargando contas",
+                loadError: "Non se puideron cargar as contas de envío.",
+                empty: "Aínda non hai contas de envío.",
+            },
+            column: {
+                channel: "Canle",
+                name: "Conta",
+                sender: "Envía como",
+                provider: "Provedor",
+                default: "Predeterminada",
+                isDefault: "Conta predeterminada",
+                lastCheck: "Última comprobación",
+                actions: "Accións",
+            },
+            action: {
+                edit: "Editar",
+                editNamed: "Editar {{name}}",
+                view: "Ver",
+                viewNamed: "Ver {{name}}",
+                check: "Comprobar conexión",
+                checkNamed: "Comprobar a conexión de {{name}}",
+                test: "Enviar mensaxe de proba",
+                testNamed: "Enviar unha mensaxe de proba desde {{name}}",
+                delete: "Eliminar",
+                deleteNamed: "Eliminar {{name}}",
+            },
+            check: {
+                done: "Comprobouse {{name}}. O seu estado está actualizado.",
+                error: "Non se puido comprobar {{name}}.",
+            },
+            delete: {
+                title: "Eliminar conta",
+                body: "Eliminar {{name}}? Os eventos electorais que a usan deixarán de enviar pola súa canle.",
+                success: "Conta eliminada",
+                error: "Non se puido eliminar a conta.",
+            },
+            editor: {
+                addTitle: "Engadir conta",
+                editTitle: "Editar conta de {{channel}}",
+                subtitle: "Os votantes reciben códigos e avisos desta conta nas canles que a usan.",
+                channel: "Canle",
+                provider: "Provedor",
+                save: "Gardar",
+                cancel: "Cancelar",
+                close: "Pechar",
+                channelHelp: "Non se pode cambiar despois de crear a conta.",
+            },
+            field: {
+                name: "Nome da conta",
+                from_address: "Enderezo do remitente",
+                from_name: "Nome do remitente",
+                region: "Rexión de AWS",
+                notification_topic_arn: "Tema de notificacións de entrega (ARN de SNS)",
+                server_url: "Servidor e porto",
+                sender_id: "ID do remitente",
+                origination_number: "Número de orixe",
+                business_account_id: "ID da conta de WhatsApp Business",
+                phone_number_id: "ID do número de teléfono",
+                display_phone_number: "Número",
+                display_name: "Nome visible",
+                api_version: "Versión de Graph API",
+                page_id: "ID da páxina de Facebook",
+                page_name: "Nome da páxina",
+                page_username: "Nome de usuario da páxina",
+                base_url: "URL base da API",
+                sender: "Nome do remitente",
+                provider_approval: "Aprobación do provedor",
+                is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
+                readiness: "Dispoñibilidade",
+                api_base_url: "URL base da Graph API",
+                label: "Remitente que ven os votantes",
+            },
+            fieldHelp: {
+                from_address:
+                    "O enderezo que ven os votantes. O seu dominio debe estar verificado co provedor.",
+                notification_topic_arn:
+                    "O tema de SNS no que SES publica os eventos de entrega e rebote. Rexéitanse as notificacións de calquera outro tema.",
+                sender_id: "Ata 11 letras e díxitos. Algúns países esixen rexistralo.",
+                origination_number:
+                    "Úsase en lugar do ID do remitente onde un país esixe un número.",
+                phone_number_id: "O número desde o que se envían as mensaxes.",
+                display_name: "O nome visible que Meta aprobou para o número.",
+                page_username:
+                    "Úsase na ligazón m.me que os votantes abren para obter o seu código.",
+                api_version: "Por exemplo, v23.0.",
+                base_url: "A URL base da API de Infobip da conta.",
+                sender: "O remitente aprobado que ven os votantes.",
+                provider_approval:
+                    "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Escolla Aprobación do provedor confirmada cando Meta o aprobase para esta conta; ata entón non se poden activar códigos nin avisos nela.",
+                readiness:
+                    "Segundo a comprobación do provedor usa o que atopa a comprobación de conexión: se a conta está conectada, en produción e que modelos están aprobados. Confirmada por un administrador é para provedores cuxa comprobación non pode sabelo: é a súa declaración de que a conta está conectada, en produción e ten os seus modelos aprobados, e úsase en lugar da comprobación.",
+                api_base_url:
+                    "Só cando a Graph API non é a de Meta, como o punto de acceso dun provedor de solucións. Baleiro usa a de Meta.",
+                label: "O nome que os votantes ven como remitente desta conta.",
+            },
+            error: {
+                REQUIRED: "Obrigatorio",
+                NOT_A_COUNT: "Introduce un número enteiro",
+                OTP_ABOVE_TOTAL: "Non pode superar as mensaxes por segundo",
+                INVALID_CALLING_CODE:
+                    "Introduce prefixos telefónicos de país de 1 a 3 díxitos, como 63",
+                DUPLICATE_LANGUAGE: "Este idioma xa ten un modelo para este propósito",
+                NOT_A_URL: "Introduza un enderezo que comece por https:// ou http://",
+                INVALID_HTTP_CONFIG: "Corrixa os problemas indicados",
+            },
+            warning: {
+                pageChange:
+                    "As conversas de Messenger pertencen a unha páxina. Tras cambiar a páxina, os votantes conectados a {{page}} só recibirán códigos despois de volver conectar Messenger.",
+                numberChange:
+                    "As mensaxes chegarán desde outro número. Os seus modelos deben estar aprobados nesa conta de empresa antes de poder enviar códigos, e os votantes verán un chat novo.",
+            },
+            viber: {
+                title: "Modelos aprobados",
+                description:
+                    "Introduce os modelos que Viber aprobou a través do socio, por propósito e idioma. A API de modelos do socio non está dispoñible, así que esta lista mantense a man e a comprobación de conexión lea.",
+                purpose: "Propósito",
+                language: "Idioma",
+                templateId: "ID do modelo do socio",
+                add: "Engadir modelo",
+                remove: "Quitar modelo",
+            },
+            limits: {
+                title: "Límites de envío",
+                messagesPerSecond: "Mensaxes por segundo",
+                otpReservedPerSecond: "Reservadas para códigos por segundo",
+                otpReservedHelp: "Mantéñense libres para os códigos durante os envíos masivos.",
+                allowedCallingCodes: "Destinos permitidos (prefixos telefónicos de país)",
+                allowedCallingCodesHelp:
+                    "Separados por comas, por exemplo 63, 971. Baleiro permite calquera destino.",
+            },
+            credentials: {
+                title: "Credenciais",
+                description:
+                    "As credenciais son só de escritura: despois de gardar, só se mostra a data en que se substituíu cada unha.",
+                set: "Configurada · substituída {{date}}. Gárdase cifrada e nunca se mostra.",
+                replace: "Substituír",
+                replaceNamed: "Substituír {{name}}",
+            },
+            credentialHelp: {
+                AWS_SES: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sen claves, úsase o rol propio do servizo.",
+                    AWS_SECRET_ACCESS_KEY: "Opcional. Configúraa xunto co ID de clave de acceso.",
+                },
+                AWS_SNS: {
+                    AWS_ACCESS_KEY_ID: "Opcional. Sen claves, úsase o rol propio do servizo.",
+                    AWS_SECRET_ACCESS_KEY: "Opcional. Configúraa xunto co ID de clave de acceso.",
+                },
+                SMTP: {
+                    SMTP_PASSWORD: "O contrasinal do servidor SMTP.",
+                },
+                WHATSAPP_CLOUD_API: {
+                    ACCESS_TOKEN:
+                        "Un token dun usuario do sistema da carteira empresarial do propietario, con whatsapp_business_messaging.",
+                    APP_SECRET: "Comproba que as chamadas ao webhook proceden de Meta.",
+                },
+                MESSENGER_SEND_API: {
+                    ACCESS_TOKEN: "Un token de acceso de páxina con pages_messaging.",
+                    APP_SECRET: "Comproba que as chamadas ao webhook proceden de Meta.",
+                },
+                VIBER_INFOBIP: {
+                    API_KEY: "A clave de API de Infobip.",
+                },
+                HTTP_API: {
+                    API_KEY: "Opcional. As solicitudes úsana como a credencial API_KEY.",
+                    API_SECRET:
+                        "Opcional. Un segundo segredo, e a clave que asina o JWT: unha clave privada PEM para RS256, o segredo compartido para HS256.",
+                    ACCESS_TOKEN: "Opcional. As solicitudes úsano como a credencial ACCESS_TOKEN.",
+                    USERNAME: "Opcional. Co contrasinal, forma o marcador basic_auth.",
+                    PASSWORD: "Opcional. Co nome de usuario, forma o marcador basic_auth.",
+                    WEBHOOK_SECRET:
+                        "Opcional. O segredo compartido co que se comproban as chamadas do provedor.",
+                },
+            },
+            webhook: {
+                title: "Informes de entrega e respostas",
+                description:
+                    "Introduce este enderezo de retorno na configuración de webhooks do provedor. Os informes de entrega e as respostas dos votantes chegan alí.",
+                path: "Ruta de retorno",
+                pathHelp:
+                    "Engádea ao enderezo público dos webhooks de mensaxería desta plataforma.",
+                afterSaving: "Móstrase despois de gardar",
+                copyPath: "Copiar ruta de retorno",
+                tokenSet: "Configurado · substituído {{date}}",
+                tokenMissing: "Aínda non xerado",
+                tokenAfterSaving: "Xérase despois de gardar",
+                generate: "Xerar token de verificación",
+                tokenTitle: "Token de verificación",
+                tokenOnce:
+                    "Introduce agora este token na configuración de webhooks de Meta. Só se mostra unha vez.",
+                copyToken: "Copiar token de verificación",
+                tokenDone: "Feito",
+                tokenError: "Non se puido xerar o token de verificación.",
+                httpHelp:
+                    "Unha API HTTP personalizada pode enviar os seus informes como JSON, ou como unha solicitude GET; os seus parámetros de consulta lense entón como un obxecto plano, con punteiros como /status.",
+            },
+            copy: {
+                success: "Copiado",
+                error: "Non se puido copiar",
+            },
+            save: {
+                success: "Conta gardada",
+                error: "Non se puido gardar a conta.",
+            },
+            test: {
+                title: "Enviar unha mensaxe de proba desde {{name}}",
+                description:
+                    "Envía unha mensaxe real para o propósito escollido a este destino. O resultado mostra o que informou o provedor.",
+                purpose: "Propósito",
+                destination: {
+                    EMAIL_ADDRESS: "Correo electrónico",
+                    PHONE_NUMBER: "Número de teléfono (E.164)",
+                    PAGE_SCOPED_ID: "ID de ámbito de páxina",
+                },
+                language: "Idioma",
+                send: "Enviar mensaxe de proba",
+                reason: "Motivo: {{reason}}",
+                error: "Non se puido enviar a mensaxe de proba.",
+                template: "Modelo aprobado",
+                templateHelp:
+                    "O nome ou ID do modelo que o provedor aprobou para este propósito e idioma.",
+                viberTemplate:
+                    "Viber usa o modelo que esta conta indica como aprobado para o propósito e o idioma escollidos.",
+                languageHelp:
+                    "Para un provedor que envía modelos aprobados, introduza o código de idioma do provedor para o modelo, como en_US.",
+            },
+            http: {
+                title: "API HTTP personalizada",
+                description:
+                    "Describe un provedor polas súas solicitudes HTTP: outro socio de Viber, a API propia dun provedor de solucións de WhatsApp, unha pasarela de SMS. As solicitudes son JSON; a súa URL, cabeceiras e corpo poden conter os marcadores da referencia de abaixo.",
+                phoneFormat: "Formato do número de teléfono",
+                phoneFormatHelp: "Como se escribe o número do destinatario nunha solicitude.",
+                phoneFormatOption: {
+                    E164: "Co signo máis: +639171234567",
+                    DIGITS: "Só díxitos: 639171234567",
+                },
+                templateRequired: "Propósitos que precisan un modelo aprobado",
+                templateRequiredHelp:
+                    "Un propósito marcado só se envía cun modelo que o provedor aprobou, vinculado no evento electoral. Os demais propósitos envíanse como texto libre.",
+                approvedLanguages: "Idiomas con modelo aprobado para {{purpose}}",
+                approvedLanguagesHelp:
+                    "Os códigos de idioma cun modelo aprobado, segundo o confirmado co provedor, separados por comas: en, tl. A comprobación de conexión comunícaos.",
+                conversationWindow: "Xanela de conversa (horas)",
+                conversationWindowHelp:
+                    "Horas tras a última mensaxe do destinatario durante as que se pode enviar texto libre. Baleiro cando o provedor non ten esa xanela.",
+                messageIdPointer: "ID da mensaxe na resposta de envío",
+                messageIdPointerHelp:
+                    "Un punteiro JSON ao ID de mensaxe do provedor na resposta á solicitude de envío, como /message_id. Con el emparéllanse os informes de entrega.",
+                notConfigured: "Sen configurar.",
+                thisSection: "Esta sección",
+                add: "Engadir: {{section}}",
+                remove: "Quitar: {{section}}",
+                section: {
+                    SEND: "Solicitude de envío",
+                    CHECK: "Solicitude de comprobación de conexión",
+                    TOKEN: "Solicitude de token",
+                    JWT: "Token asinado (JWT)",
+                    REPORTS: "Informes de entrega e respostas",
+                    RECONCILE: "Solicitude de consulta dunha mensaxe",
+                },
+                sectionHelp: {
+                    SEND: "A solicitude que envía unha mensaxe: method (POST se se omite), url, headers e body.",
+                    CHECK: "Opcional. Unha solicitude que ten éxito, cunha resposta 2xx, cando as credenciais funcionan. Execútaa a comprobación de conexión.",
+                    TOKEN: "Opcional. Obtén un token de curta duración antes de enviar, como as credenciais de cliente de OAuth: request, token_pointer (onde está o token na resposta) e lifetime_seconds. As solicitudes úsano co marcador token.",
+                    JWT: "Opcional. Un token asinado para cada solicitude coa credencial Segredo da API: algorithm (RS256 ou HS256), claims (engádense iat, exp e jti) e lifetime_seconds. As solicitudes úsano co marcador jwt.",
+                    REPORTS:
+                        "Opcional. Como ler o que o provedor envía ao enderezo de retorno: auth, items_pointer (onde está a lista de informes; todo o contido se se omite), status (message_id_pointer, state_pointer, states, que asigna cada valor do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN, e error_pointer) e inbound_from_pointer (onde está o remitente dunha resposta). auth ten un kind: URL_KEY (só o enderezo secreto de retorno), HEADER_SECRET (unha cabeceira igual ao segredo do webhook), HMAC_SHA256 (unha cabeceira co HMAC do corpo co segredo do webhook, con prefix, encoding HEX ou BASE64, e signed cando se asina algo máis que o corpo) ou JWT_HS256 (unha cabeceira cun JWT bearer asinado co segredo do webhook).",
+                    RECONCILE:
+                        "Opcional. Pregunta ao provedor por unha mensaxe cuxo resultado se descoñece: request e status, que se le como o status dos informes de entrega.",
+                },
+                problem: {
+                    NOT_AN_OBJECT: "{{path}} debe ser un obxecto.",
+                    MISSING_URL: "{{path}} é obrigatorio: o enderezo da solicitude.",
+                    INVALID_METHOD: "{{path}} debe ser un método HTTP, como POST ou GET.",
+                    INVALID_HEADERS:
+                        "{{path}} debe ser texto: headers é un obxecto de nomes de cabeceira e valores de texto.",
+                    UNKNOWN_FIELD: "{{path}} non é un campo desta sección.",
+                    UNKNOWN_PLACEHOLDER:
+                        "{{path}} usa un marcador que non existe. Consulte a referencia de marcadores.",
+                    INVALID_POINTER:
+                        "{{path}} debe ser un punteiro JSON que comece por /, como /data/id.",
+                    INVALID_STATES:
+                        "{{path}} debe asignar un valor de estado do provedor a QUEUED, ACCEPTED, DELIVERED, FAILED ou UNKNOWN; fai falta polo menos un.",
+                    INVALID_AUTH:
+                        "{{path}} non é válido: kind é URL_KEY, HEADER_SECRET, HMAC_SHA256 ou JWT_HS256; header é obrigatorio salvo para URL_KEY; encoding é HEX ou BASE64.",
+                    INVALID_LIFETIME:
+                        "{{path}} debe ser un número enteiro de segundos maior que 0.",
+                    INVALID_ALGORITHM: "{{path}} debe ser RS256 ou HS256.",
+                    INVALID_CLAIMS: "{{path}} debe ser un obxecto.",
+                    INVALID_HOURS: "{{path}} debe ser un número enteiro de horas maior que 0.",
+                },
+                placeholders: {
+                    title: "Referencia de marcadores",
+                    help: "Escríbense entre chaves dobres na URL, no valor dunha cabeceira ou en calquera texto do corpo. Cada un substitúese ao facer a solicitude.",
+                },
+                placeholder: {
+                    to: "O destinatario: número de teléfono, enderezo de correo electrónico ou ID de ámbito de páxina.",
+                    text: "A mensaxe como texto sen formato.",
+                    subject: "O asunto, para o correo electrónico.",
+                    html: "A mensaxe como HTML, para o correo electrónico.",
+                    code: "O código dun só uso, para os códigos.",
+                    template: "O modelo do provedor vinculado no evento electoral.",
+                    language: "O código de idioma do provedor para o modelo.",
+                    message_id:
+                        "O ID de mensaxe do provedor, nunha solicitude de consulta dunha mensaxe.",
+                    callback_url: "O enderezo público de retorno desta conta.",
+                    param: "Un parámetro do modelo pola súa posición: 1, 2, 3, etc.",
+                    credential:
+                        "Unha credencial desta conta polo seu nome: API_KEY, API_SECRET, ACCESS_TOKEN, USERNAME, PASSWORD ou WEBHOOK_SECRET.",
+                    basic_auth:
+                        "O nome de usuario e o contrasinal, codificados para unha cabeceira Authorization: Basic.",
+                    token: "O token obtido coa solicitude de token.",
+                    jwt: "O token asinado descrito en Token asinado (JWT).",
+                    parameters:
+                        "Só, como valor do corpo, convértese na lista de todos os parámetros do modelo.",
+                    named_parameters:
+                        "Só, como valor do corpo, convértese nun obxecto cos parámetros escritos como @nome=valor.",
+                },
+                example: {
+                    title: "Exemplo completo: un socio de Viber",
+                    description:
+                        "O socio recibe un POST JSON autenticado coa clave de API como token bearer, responde co ID da mensaxe en message_id e envía informes de entrega cunha cabeceira secreta. Úseo como punto de partida e cambie o enderezo e os nomes de campo polos do provedor.",
+                    use: "Usar este exemplo",
+                },
             },
         },
     },

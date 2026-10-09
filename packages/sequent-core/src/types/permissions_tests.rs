@@ -84,6 +84,34 @@ fn every_realm_grants_monitoring_to_its_administrators_only() {
     }
 }
 
+/// Only administrators save new versions of the enrollment approval matrix.
+#[test]
+fn every_realm_grants_the_approval_matrix_to_its_administrators_only() {
+    let write = Permissions::APPROVAL_MATRIX_WRITE.to_string();
+    assert_eq!(write, "approval-matrix-write");
+    assert_eq!(
+        Permissions::from_str(&write),
+        Ok(Permissions::APPROVAL_MATRIX_WRITE)
+    );
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        assert!(
+            realm["roles"]["realm"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|role| role["name"] == write.as_str()),
+            "{name}: no {write} role"
+        );
+        assert_eq!(
+            groups_granting(&realm, &write),
+            BTreeSet::from(["admin".to_string()]),
+            "{name}: {write}"
+        );
+    }
+}
+
 /// The permissions of Election Event > Signatures and of signing each
 /// protected action, with their realm role names.
 const SIGNING_PERMISSIONS: [(&str, Permissions); 21] = [
@@ -513,6 +541,65 @@ fn realm_templates_declare_the_optional_signer_title() {
             "permission_labels",
         ] {
             assert!(named(kept).is_some(), "{name}: lost {kept}");
+        }
+    }
+}
+
+#[test]
+fn messaging_permissions_have_stable_names() {
+    for (name, permission) in [
+        (
+            "messaging-account-read",
+            Permissions::MESSAGING_ACCOUNT_READ,
+        ),
+        (
+            "messaging-account-write",
+            Permissions::MESSAGING_ACCOUNT_WRITE,
+        ),
+        (
+            "messaging-config-write",
+            Permissions::MESSAGING_CONFIG_WRITE,
+        ),
+    ] {
+        assert_eq!(Permissions::from_str(name), Ok(permission.clone()));
+        assert_eq!(permission.to_string(), name);
+    }
+}
+
+/// Administrators manage sending accounts and event messaging; a light
+/// administrator may only see the accounts.
+#[test]
+fn every_realm_grants_messaging_to_its_administrators_only() {
+    let names = |groups: &[&str]| -> BTreeSet<String> {
+        groups.iter().map(|group| group.to_string()).collect()
+    };
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        let roles: Vec<&str> = realm["roles"]["realm"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|role| role["name"].as_str())
+            .collect();
+        for (permission, groups) in [
+            (
+                Permissions::MESSAGING_ACCOUNT_READ,
+                names(&["admin", "admin-light"]),
+            ),
+            (Permissions::MESSAGING_ACCOUNT_WRITE, names(&["admin"])),
+            (Permissions::MESSAGING_CONFIG_WRITE, names(&["admin"])),
+        ] {
+            let permission = permission.to_string();
+            assert!(
+                roles.contains(&permission.as_str()),
+                "{name}: no {permission} role"
+            );
+            assert_eq!(
+                groups_granting(&realm, &permission),
+                groups,
+                "{name}: {permission}"
+            );
         }
     }
 }

@@ -56,6 +56,7 @@ fn published_with(area_id: &str, is_acclaimed: bool) -> BallotStyle {
         election_annotations: None,
         area_annotations: None,
         multi_contest_encoding_mode: None,
+        ballot_box_key: None,
     };
     serde_json::from_value(json!({
         "id": ballot_style.id, "tenant_id": TENANT, "election_event_id": EVENT,

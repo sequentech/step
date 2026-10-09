@@ -33,9 +33,25 @@ export enum EVoterSigningPolicy {
     WITH_SIGNATURE = "with-signature",
 }
 
+export enum EReceiptsPolicy {
+    DISABLED = "disabled",
+    SIGNED_BY_BALLOT_BOX = "signed-by-ballot-box",
+}
+
 export enum EShowCastVoteLogsPolicy {
     SHOW_LOGS_TAB = "show-logs-tab",
     HIDE_LOGS_TAB = "hide-logs-tab",
+}
+
+export enum EChecksPeriodPolicy {
+    UNLIMITED = "unlimited",
+    UNTIL_DATE = "until-date",
+}
+
+export interface IReceiptsPresentation {
+    policy?: EReceiptsPolicy
+    checks_period_policy?: EChecksPeriodPolicy
+    checks_available_until?: string
 }
 
 export enum ElectionsOrder {
@@ -113,6 +129,17 @@ export enum EElectionEventDelegatedVotingPolicy {
 export enum EVoterCertificatePolicy {
     ENABLED = "enabled",
     DISABLED = "disabled",
+}
+
+export enum EVoterAccessibilitySettingsPolicy {
+    DISABLED = "disabled",
+    ENABLED = "enabled",
+}
+
+export enum EAudioInstructionsPolicy {
+    DISABLED = "disabled",
+    RECORDED = "recorded",
+    RECORDED_OR_SYNTHESIZED = "recorded-or-synthesized",
 }
 
 export enum EResultsWebsiteStatus {
@@ -218,6 +245,7 @@ export interface IElectionEventPresentation {
     css?: string
     skip_election_list?: boolean
     show_user_profile?: boolean
+    show_cast_vote_logs?: EShowCastVoteLogsPolicy
     elections_order?: ElectionsOrder
     voting_portal_countdown_policy?: IVotingPortalCountdownPolicy
     custom_urls?: ICustomUrls
@@ -236,6 +264,9 @@ export interface IElectionEventPresentation {
     results_website?: string
     delegated_voting_policy: EElectionEventDelegatedVotingPolicy
     voting_portal_datetime_format?: VotingPortalDateTimeFormat
+    receipts?: IReceiptsPresentation
+    voter_accessibility_settings_policy?: EVoterAccessibilitySettingsPolicy
+    audio_instructions_policy?: EAudioInstructionsPolicy
     /** Configured timezones and the primary one (VOTE-LIFECYCLE). */
     timezones?: IElectionEventTimeZones
     /** Lifecycle decisions that are part of the (signed) configuration. */

@@ -10,12 +10,9 @@ use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, ReportOutcome, TemplateRenderer,
 };
 use crate::services::reports::{
-    activity_log::{ActivityLogsTemplate, ReportFormat},
-    ballot_images::BallotImagesTemplate,
-    ballot_receipt::BallotTemplate,
-    electoral_results::ElectoralResults,
-    initialization::InitializationTemplate,
-    manual_verification::ManualVerificationTemplate,
+    activity_log::ActivityLogsTemplate, ballot_images::BallotImagesTemplate,
+    ballot_receipt::BallotTemplate, electoral_results::ElectoralResults,
+    initialization::InitializationTemplate, manual_verification::ManualVerificationTemplate,
     participation::ParticipationReportTemplate,
     voter_information_letter::VoterInformationLetterTemplate,
 };
@@ -39,6 +36,18 @@ use std::str::FromStr;
 use tracing::info;
 use tracing::instrument;
 use uuid::Uuid;
+
+/// The event's activity logs report as the Reports tab generates it: in
+/// the formats its report asks for. Its copies are the report's too.
+pub fn configured_activity_logs(
+    ids: ReportOrigins,
+    report: &Report,
+) -> Result<ActivityLogsTemplate, anyhow::Error> {
+    let formats = ReportType::ACTIVITY_LOGS
+        .generation_formats(report.output_formats.as_deref())
+        .map_err(|refusal| anyhow!(refusal))?;
+    Ok(ActivityLogsTemplate::in_formats(ids, formats))
+}
 
 pub async fn generate_report(
     report: Report,
@@ -170,7 +179,7 @@ pub async fn generate_report(
             execute_report!(report)
         }
         Ok(ReportType::ACTIVITY_LOGS) => {
-            let report = ActivityLogsTemplate::new(ids, ReportFormat::PDF);
+            let report = configured_activity_logs(ids, &report_clone)?;
             execute_report!(report)
         }
         Ok(ReportType::MANUAL_VERIFICATION) => {
@@ -247,6 +256,80 @@ pub async fn generate_report(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::postgres::reports::ReportFormat as OutputFormat;
+    use crate::services::reports::template_renderer::{generation_copies, EReportEncryption};
+
+    fn ids() -> ReportOrigins {
+        ReportOrigins {
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: None,
+            template_alias: None,
+            voter_id: None,
+            report_origin: ReportOriginatedFrom::ReportsTab,
+            executer_username: Some("admin".to_string()),
+            tally_session_id: None,
+        }
+    }
+
+    fn configured() -> Report {
+        Report {
+            id: "report".to_string(),
+            election_event_id: "event".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_id: None,
+            report_type: ReportType::ACTIVITY_LOGS.to_string(),
+            template_alias: None,
+            encryption_policy: EReportEncryption::Unencrypted,
+            cron_config: None,
+            created_at: chrono::Utc::now(),
+            permission_label: None,
+            copies: Some(7),
+            output_formats: Some(vec![
+                OutputFormat::Pdf,
+                OutputFormat::Csv,
+                OutputFormat::Sql,
+            ]),
+        }
+    }
+
+    #[test]
+    fn the_configured_activity_logs_report_honours_its_copies_and_formats() {
+        let report = configured();
+        let generated = configured_activity_logs(ids(), &report).unwrap();
+        assert_eq!(
+            generated.output_formats(Some(&report)).unwrap(),
+            vec![OutputFormat::Pdf, OutputFormat::Csv, OutputFormat::Sql]
+        );
+        assert_eq!(generation_copies(Some(&report)), 7);
+        assert_eq!(generated.requested_by(), Some("admin".to_string()));
+
+        let unset = Report {
+            copies: None,
+            output_formats: None,
+            ..configured()
+        };
+        let generated = configured_activity_logs(ids(), &unset).unwrap();
+        assert_eq!(
+            generated.output_formats(Some(&unset)).unwrap(),
+            vec![OutputFormat::Pdf]
+        );
+        assert_eq!(generation_copies(Some(&unset)), 1);
+    }
+
+    #[test]
+    fn a_format_the_activity_logs_cannot_be_written_in_is_refused() {
+        let xml = Report {
+            output_formats: Some(vec![OutputFormat::Xml]),
+            ..configured()
+        };
+        assert!(configured_activity_logs(ids(), &xml).is_err());
+    }
 }
 
 #[instrument(err)]

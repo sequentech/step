@@ -950,6 +950,118 @@ pub fn plan_in_delivery_js(bytes: &[u8]) -> Result<JsValue, JsError> {
     to_js(&value)
 }
 
+/// Every report type and the formats it can be generated in, the first being
+/// its default, so the Reports step offers only what the platform renders.
+#[wasm_bindgen(js_name = reportCatalog)]
+pub fn report_catalog() -> Result<JsValue, JsError> {
+    use crate::election_config::report::ReportType;
+
+    #[derive(Serialize)]
+    struct Entry {
+        report_type: String,
+        formats: Vec<crate::election_config::report::ReportFormat>,
+    }
+    to_js(
+        &ReportType::ALL
+            .iter()
+            .map(|report_type| Entry {
+                report_type: report_type.to_string(),
+                formats: report_type.formats().to_vec(),
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
+/// What a signed configuration package is checked against.
+#[cfg(feature = "election_config_signing")]
+#[derive(serde::Deserialize)]
+struct PackageTrustInput {
+    package_roots: String,
+    staff_roots: String,
+    #[serde(default)]
+    revocation_lists: Vec<String>,
+    required_approvals: u16,
+    #[serde(default)]
+    last: Option<crate::election_config::package_verify::LastImport>,
+}
+
+/// The outcome of checking a package: the problems, and when there are none,
+/// what was checked.
+#[cfg(feature = "election_config_signing")]
+#[derive(Serialize)]
+struct PackageCheck {
+    report: Report,
+    manifest: Option<crate::election_config::manifest::Manifest>,
+    manifest_sha256: Option<String>,
+    signer: Option<crate::election_config::package_verify::CertificateIdentity>,
+    approvers: Vec<crate::election_config::package_verify::CertificateIdentity>,
+    freshness: Option<crate::election_config::package_verify::Freshness>,
+}
+
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen]
+extern "C" {
+    /// The browser's clock, in milliseconds since 1970.
+    #[wasm_bindgen(js_namespace = Date, js_name = now)]
+    fn browser_now() -> f64;
+}
+
+/// Checks a signed configuration package before `Import Configuration`
+/// reads anything in it: the same checks windmill runs at import, at the
+/// browser's own time.
+///
+/// A package that fails comes back as a report with no manifest, not as an
+/// exception, so the screen can name each problem.
+#[cfg(feature = "election_config_signing")]
+#[wasm_bindgen(js_name = verifyConfigurationPackage)]
+pub fn verify_configuration_package_js(
+    bytes: &[u8],
+    trust: JsValue,
+) -> Result<JsValue, JsError> {
+    use crate::election_config::package_verify::{
+        freshness, verify_package_at, PackageTrust,
+    };
+
+    let now = chrono::DateTime::from_timestamp_millis(browser_now() as i64)
+        .ok_or_else(|| JsError::new("the browser's clock can't be read"))?;
+    let input: PackageTrustInput = serde_wasm_bindgen::from_value(trust)
+        .map_err(|error| JsError::new(&format!("unreadable trust: {error}")))?;
+    let refused = |report: Report| PackageCheck {
+        report,
+        manifest: None,
+        manifest_sha256: None,
+        signer: None,
+        approvers: Vec::new(),
+        freshness: None,
+    };
+
+    let trust = match PackageTrust::from_pem(
+        &input.package_roots,
+        &input.staff_roots,
+        &input.revocation_lists,
+        input.required_approvals,
+    ) {
+        Ok(trust) => trust,
+        Err(problem) => return to_js(&refused(Report::from_problem(problem))),
+    };
+    let verified = match verify_package_at(bytes, &trust, now) {
+        Ok(verified) => verified,
+        Err(report) => return to_js(&refused(report)),
+    };
+    let fresh = match freshness(&verified, input.last.as_ref()) {
+        Ok(fresh) => fresh,
+        Err(problem) => return to_js(&refused(Report::from_problem(problem))),
+    };
+    to_js(&PackageCheck {
+        report: Report::default(),
+        manifest_sha256: Some(verified.manifest_sha256),
+        manifest: Some(verified.manifest),
+        signer: Some(verified.signer),
+        approvers: verified.approvers,
+        freshness: Some(fresh),
+    })
+}
+
 /// A delivery zip, a plan `.json` or a workbook `.xlsx` — whichever this is.
 ///
 /// One call for all three, because telling them apart cannot be done outside Rust:

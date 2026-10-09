@@ -12,7 +12,8 @@
         "build-keycloak-theme": "yarn build && keycloakify build",
         "storybook": "storybook dev --port 6011 --no-open",
         "build-storybook": "storybook build",
-        "test": "vitest run --project=storybook",
+        "test": "vitest run --project=storybook --project=unit",
+        "test:unit": "vitest run --project=unit",
         "test:stories": "vitest run --project=storybook",
         "test:story": "node ../test-support/storybook/test-story.mjs",
         "test:real": "playwright test",
@@ -31,6 +32,7 @@
         "@emotion/styled": "11.14.1",
         "@mui/material": "7.3.2",
         "@sequentech/ui-essentials": "*",
+        "qrcode.react": "3.1.0",
         "react": "19.1.1",
         "react-dom": "19.1.1"
     },

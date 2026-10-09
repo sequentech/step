@@ -98,8 +98,8 @@ in
 
     # For frontend
     yarn
-    nodejs_20
-    nodePackages.graphqurl
+    nodejs_22
+    graphqurl
 
     # For protocol buffers
     protobuf
@@ -135,8 +135,8 @@ in
 
     minio-client
 
-    # AI. Note, requires allowUnfree: true in devenv.yaml
-    claude-code
+    # AI
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
 
     # for plugins
     cargo-component

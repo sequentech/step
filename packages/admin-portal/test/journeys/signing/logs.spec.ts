@@ -123,10 +123,9 @@ test("Election Event > Logs lists each signing step as a USER and a SYSTEM entry
         const head = JSON.parse(item.message).statement.head
         const row = rows.nth(index)
         await expect(row).toContainText(item.statement_kind)
+        await expect(row).toContainText(`${head.event_type}${head.log_type}`)
         // Long descriptions are shortened in the list; their start is shown.
-        await expect(row).toContainText(
-            `${head.event_type}${head.log_type}${head.description.slice(0, 40)}`
-        )
+        await expect(row).toContainText(head.description.slice(0, 40))
         const username = JSON.parse(item.message).username
         await expect(row.getByRole("cell").nth(1)).toHaveText(username ?? "-")
     }

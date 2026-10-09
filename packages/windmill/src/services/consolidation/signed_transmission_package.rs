@@ -18,6 +18,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::tally_session::{get_tally_session_by_id, lock_tally_session_for_update};
+use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::{
     LoadedPackage, PostSbeis, SbeiDirectory, SbeiIdentity, TransmissionPackages,
 };
@@ -320,6 +321,8 @@ impl TransmissionPackages for StoredPackages {
                 &member.id,
             ));
         }
+        let latest = get_latest_miru_document(&package.documents)
+            .ok_or_else(|| anyhow!("The transmission package has no document"))?;
         // The destinations the package was made for, which its subject names.
         let all_servers = generate_all_servers_document(
             hasura_transaction,
@@ -336,10 +339,10 @@ impl TransmissionPackages for StoredPackages {
             members,
             &package.logs,
             &election.get_annotations()?,
+            &latest.transaction_id,
+            &ReportRequester::default(),
         )
         .await?;
-        let latest = get_latest_miru_document(&package.documents)
-            .ok_or_else(|| anyhow!("The transmission package has no document"))?;
         package.documents.push(MiruDocument {
             document_ids: MiruDocumentIds {
                 eml: latest.document_ids.eml.clone(),

@@ -271,6 +271,9 @@ pub enum Permissions {
     APPLICATION_READ,
     #[strum(serialize = "application-write")]
     APPLICATION_WRITE,
+    // save a new version of the enrollment approval matrix
+    #[strum(serialize = "approval-matrix-write")]
+    APPROVAL_MATRIX_WRITE,
     #[strum(serialize = "ee-voters-columns")]
     EE_VOTERS_COLUMNS,
     #[strum(serialize = "ee-voters-filters")]
@@ -417,6 +420,12 @@ pub enum Permissions {
     PHONE_BLACKLIST_UPDATE,
     #[strum(serialize = "phone-blacklist-delete")]
     PHONE_BLACKLIST_DELETE,
+    #[strum(serialize = "messaging-account-read")]
+    MESSAGING_ACCOUNT_READ,
+    #[strum(serialize = "messaging-account-write")]
+    MESSAGING_ACCOUNT_WRITE,
+    #[strum(serialize = "messaging-config-write")]
+    MESSAGING_CONFIG_WRITE,
     #[strum(serialize = "election-event-voter-list-reconciliation")]
     ELECTION_EVENT_VOTER_LIST_SYNC,
     // show the Election Event > Signatures tab

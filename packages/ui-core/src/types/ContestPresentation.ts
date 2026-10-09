@@ -54,6 +54,7 @@ export enum EUnderVotePolicy {
     WARN = "warn",
     WARN_ONLY_IN_REVIEW = "warn-only-in-review",
     WARN_AND_ALERT = "warn-and-alert",
+    WARN_AND_CONFIRM_IN_REVIEW = "warn-and-confirm-in-review",
 }
 
 export enum EOverVotePolicy {

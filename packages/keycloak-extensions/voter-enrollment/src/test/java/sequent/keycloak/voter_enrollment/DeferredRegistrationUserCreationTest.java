@@ -111,6 +111,18 @@ class DeferredRegistrationUserCreationTest {
     assertTrue(
         DeferredRegistrationUserCreation.shouldValidatePasswordCreationPolicy(
             DeferredRegistrationUserCreation.FormMode.REGISTRATION.getValue()));
+    assertTrue(DeferredRegistrationUserCreation.shouldValidatePasswordCreationPolicy(null));
+  }
+
+  @Test
+  void passwordConfirmationIsOnlyRequiredWhenTheFormShowsIt() {
+    assertTrue(
+        DeferredRegistrationUserCreation.requiresPasswordConfirmation(
+            DeferredRegistrationUserCreation.FormMode.REGISTRATION.getValue()));
+    assertFalse(
+        DeferredRegistrationUserCreation.requiresPasswordConfirmation(
+            DeferredRegistrationUserCreation.FormMode.LOGIN.getValue()));
+    assertFalse(DeferredRegistrationUserCreation.requiresPasswordConfirmation(null));
   }
 
   @Test

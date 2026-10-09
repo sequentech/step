@@ -46,8 +46,10 @@ pub const SCHEDULED_EVENT_COLUMNS: &[&str] = &[
 
 /// Columns of `export_reports-<uuid>.csv`, in order.
 ///
-/// Likewise positional: `process_reports_file` reads `election_id` at index 1 and
-/// `permission_label` at index 7.
+/// Likewise positional: `process_reports_file` reads `election_id` at index 1,
+/// `permission_label` at index 7 and the two columns added after it, `copies`
+/// and `output_formats`, at 8 and 9. A file written before them has eight
+/// columns and still imports.
 pub const REPORT_COLUMNS: &[&str] = &[
     "id",
     "election_id",
@@ -57,6 +59,8 @@ pub const REPORT_COLUMNS: &[&str] = &[
     "encryption_policy",
     "password",
     "permission_label",
+    "copies",
+    "output_formats",
 ];
 
 /// One field of a JSON-in-CSV file.
@@ -470,9 +474,12 @@ mod tests {
 
     #[test]
     fn report_columns_are_in_the_order_the_importer_reads() {
-        // process_reports_file reads election_id at 1 and permission_label at 7.
+        // process_reports_file reads election_id at 1, permission_label at 7,
+        // copies at 8 and output_formats at 9.
         assert_eq!(REPORT_COLUMNS[1], "election_id");
         assert_eq!(REPORT_COLUMNS[7], "permission_label");
-        assert_eq!(REPORT_COLUMNS.len(), 8);
+        assert_eq!(REPORT_COLUMNS[8], "copies");
+        assert_eq!(REPORT_COLUMNS[9], "output_formats");
+        assert_eq!(REPORT_COLUMNS.len(), 10);
     }
 }

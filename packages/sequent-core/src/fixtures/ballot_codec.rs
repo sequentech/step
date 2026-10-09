@@ -387,6 +387,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
         election_annotations: Default::default(),
         election_dates: None,
         multi_contest_encoding_mode: None,
+        ballot_box_key: None,
         contests: vec![Contest {
             external_id: None,
             created_at: None,

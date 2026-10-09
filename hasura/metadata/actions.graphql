@@ -169,6 +169,25 @@ type Mutation {
     delete_phone_blacklist_entry(id: uuid!, election_event_id: uuid!): IdOutput
 }
 
+type Query {
+    get_approval_matrix(election_event_id: uuid!): ApprovalMatrixOutput!
+}
+
+type Query {
+    evaluate_approval_matrix(
+        election_event_id: uuid!
+        matrix: jsonb!
+        enrollment: jsonb!
+    ): EvaluateApprovalMatrixOutput!
+}
+
+type Mutation {
+    save_approval_matrix(
+        election_event_id: uuid!
+        matrix: jsonb!
+    ): ApprovalMatrixOutput!
+}
+
 type Mutation {
     delete_role(tenant_id: String!, role_id: String!): SetUserRoleOutput
 }
@@ -609,6 +628,22 @@ type Mutation {
 }
 
 type Mutation {
+    receive_ballot(
+        election_id: uuid!
+        ballot_id: String!
+        content: String!
+    ): ReceiveBallotOutput
+}
+
+type Mutation {
+    cast_ballot(
+        election_id: uuid!
+        ballot_id: String!
+        cast_signature: String!
+    ): CastBallotOutput
+}
+
+type Mutation {
     limit_access_by_countries(
         voting_countries: [String!]!
         enroll_countries: [String!]!
@@ -657,6 +692,14 @@ type Query {
         user_id: String!
         election_event_id: String
     ): [KeycloakRole!]!
+}
+
+type Query {
+    locate_ballot(
+        election_event_id: uuid!
+        election_id: uuid!
+        ballot_id: String!
+    ): LocateBallotOutput
 }
 
 type Query {
@@ -1357,6 +1400,14 @@ type ListCastVoteMessagesOutput {
     total: Int!
 }
 
+type LocateBallotOutput {
+    status: String!
+    ballot_id: String
+    content: String
+    cast_at: String
+    checks_available_until: String
+}
+
 type DataListElectoralLog {
     items: [ElectoralLogRow]!
     total: TotalAggregate!
@@ -1556,6 +1607,31 @@ type InsertCastVoteOutput {
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String
+}
+
+type ReceiveBallotOutput {
+    tenant_id: uuid!
+    election_event_id: uuid!
+    election_id: uuid!
+    ballot_hash: String!
+    voter_signing_pk: String!
+    voter_ballot_signature: String!
+    received_at: String!
+    key_id: String!
+    received_signature: String!
+    ballot_id: String!
+}
+
+type CastBallotOutput {
+    election_event_id: uuid!
+    election_id: uuid!
+    ballot_id: String!
+    received_at: String!
+    cast_at: String!
+    key_id: String!
+    cast_signature: String!
+    cast_receipt_signature: String!
+    cast_vote_id: uuid!
 }
 
 type createBallotReceiptOutput {
@@ -2638,6 +2714,31 @@ type SigningHeldReportRequestsOutput {
     requests: jsonb!
 }
 
+type ApprovalMatrixOutput {
+    version: Int!
+    source: String!
+    matrix: jsonb!
+    sha256: String
+    created_at: String
+    created_by: String
+    next_version: Int!
+    valid_ids: [String!]!
+}
+
+type ApprovalMatrixError {
+    code: String!
+    rule: Int
+    field: String
+}
+
+type EvaluateApprovalMatrixOutput {
+    rule: Int
+    decision: String
+    reason: String
+    invariant: String
+    errors: [ApprovalMatrixError!]!
+}
+
 type ScheduleWarning {
     code: String!
     election_id: String
@@ -2751,4 +2852,73 @@ type Query {
 
 type GetLifecycleSnapshotsOutput {
     snapshots: jsonb!
+}
+
+type Mutation {
+    upsert_messaging_account(
+        id: uuid
+        channel: String
+        name: String!
+        sender: jsonb!
+        limits: jsonb
+        provider_approval: String
+        readiness: String
+        is_default: Boolean
+    ): MessagingAccountOutput
+}
+
+type Mutation {
+    delete_messaging_account(id: uuid!): MessagingAccountOutput
+}
+
+type Mutation {
+    replace_messaging_account_credentials(
+        id: uuid!
+        credentials: jsonb!
+        generate_verify_token: Boolean
+    ): ReplaceMessagingAccountCredentialsOutput
+}
+
+type Mutation {
+    check_messaging_account(id: uuid!): CheckMessagingAccountOutput
+}
+
+type Mutation {
+    test_messaging_account(
+        id: uuid!
+        purpose: String!
+        destination: String!
+        language: String
+        template: String
+    ): TestMessagingAccountOutput
+}
+
+type Mutation {
+    update_event_messaging_config(
+        election_event_id: uuid!
+        config: jsonb!
+    ): UpdateEventMessagingConfigOutput
+}
+
+type MessagingAccountOutput {
+    id: uuid!
+}
+
+type ReplaceMessagingAccountCredentialsOutput {
+    replaced: [String!]!
+    verify_token: String
+}
+
+type CheckMessagingAccountOutput {
+    status: jsonb!
+}
+
+type TestMessagingAccountOutput {
+    message_id: String
+    state: String!
+    reason: String
+}
+
+type UpdateEventMessagingConfigOutput {
+    errors: jsonb!
 }

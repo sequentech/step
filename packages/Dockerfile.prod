@@ -26,6 +26,9 @@ COPY ./voting-portal ./voting-portal
 COPY ./admin-portal ./admin-portal
 COPY ./ballot-verifier ./ballot-verifier
 COPY ./results-portal ./results-portal
+# The portals list it as a dev dependency, so the workspace has to be present
+# for yarn to resolve it, even though the image does not build it.
+COPY ./ui-test-kit ./ui-test-kit
 COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
 

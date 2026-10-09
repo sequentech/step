@@ -16,6 +16,7 @@ const meta = {
             areasCount: 4,
             emailsSentCount: 12,
             smsSentCount: 3,
+            messagesSentCount: {WHATSAPP: 40, VIBER: 7, MESSENGER: 0},
         },
     },
 } satisfies Meta<typeof Stats>
@@ -36,6 +37,15 @@ export const Populated: Story = {
         await expect(within(card(canvasElement, "Areas")).getByText("4")).toBeVisible()
         await expect(within(card(canvasElement, "Emails sent")).getByText("12")).toBeVisible()
         await expect(within(card(canvasElement, "SMS sent")).getByText("3")).toBeVisible()
+        await expect(
+            within(card(canvasElement, "WhatsApp messages sent")).getByText("40")
+        ).toBeVisible()
+        await expect(
+            within(card(canvasElement, "Viber messages sent")).getByText("7")
+        ).toBeVisible()
+        await expect(
+            within(card(canvasElement, "Messenger messages sent")).getByText("0")
+        ).toBeVisible()
         expect(canvas.queryByText("Actual Voters")).not.toBeInTheDocument()
     },
 }
@@ -49,9 +59,10 @@ export const Unknown: Story = {
             areasCount: "-",
             emailsSentCount: "-",
             smsSentCount: "-",
+            messagesSentCount: {WHATSAPP: "-", VIBER: "-", MESSENGER: "-"},
         },
     },
     play: async ({canvasElement}) => {
-        expect(within(canvasElement).getAllByText("-")).toHaveLength(5)
+        expect(within(canvasElement).getAllByText("-")).toHaveLength(8)
     },
 }

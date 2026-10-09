@@ -14,6 +14,7 @@ use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
+use crate::services::ballot_box_key::ballot_box_key_for_publication;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_public_event_document;
 use crate::services::election_dates::get_election_dates;
@@ -24,7 +25,7 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
-use sequent_core::ballot::{ContestEncryptionPolicy, ElectionEventPresentation};
+use sequent_core::ballot::{BallotBoxKey, ContestEncryptionPolicy, ElectionEventPresentation};
 use sequent_core::ballot_codec::multi_ballot::BallotChoices;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
@@ -92,6 +93,7 @@ pub async fn create_ballot_style_postgres(
     area_contests_map: &HashMap<String, AreaContest>,
     scheduled_events: &Vec<ScheduledEvent>,
     keys_ceremonies_map: &HashMap<String, KeysCeremony>,
+    ballot_box_key: Option<&BallotBoxKey>,
 ) -> Result<()> {
     let election_contest_map = get_elections_contests_map_for_area(
         area,
@@ -148,7 +150,7 @@ pub async fn create_ballot_style_postgres(
         remove_datafix_annotations(voter_election_event.annotations.as_mut());
 
         let ballot_style_id = Uuid::new_v4();
-        let election_dto = sequent_core::ballot_style::create_ballot_style(
+        let mut election_dto = sequent_core::ballot_style::create_ballot_style(
             ballot_style_id.clone().to_string(),
             area.clone(),
             voter_election_event,
@@ -162,6 +164,7 @@ pub async fn create_ballot_style_postgres(
             // there. A browser does not, which is why the parameter exists.
             None,
         )?;
+        election_dto.ballot_box_key = ballot_box_key.cloned();
 
         let is_multi_contest = election_dto
             .election_event_presentation
@@ -357,8 +360,16 @@ async fn generate_election_event_ballot_styles(
         .map(|keys_ceremony: KeysCeremony| (keys_ceremony.id.clone(), keys_ceremony.clone()))
         .collect();
 
+    super::slates::validate_elections_slates(
+        &ballot_publication.election_ids.clone().unwrap_or_default(),
+        &elections_map,
+        &contests_map.values().cloned().collect::<Vec<Contest>>(),
+        &candidates_map.values().cloned().collect::<Vec<Candidate>>(),
+    )?;
+
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
+    let ballot_box_key = ballot_box_key_for_publication(&transaction, &election_event).await?;
 
     for area in &areas {
         create_ballot_style_postgres(
@@ -374,6 +385,7 @@ async fn generate_election_event_ballot_styles(
             &area_contests_map,
             &scheduled_events,
             &keys_ceremonies_map,
+            ballot_box_key.as_ref(),
         )
         .await?;
     }

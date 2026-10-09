@@ -106,6 +106,19 @@ pub const AUTHORIZED_ELECTION_IDS_NAME: &str = "authorized-election-ids";
 pub const TENANT_ID_ATTR_NAME: &str = "tenant-id";
 pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
+/// The voter's preferred channel for notices (a `MessageChannel`).
+pub const MESSAGE_CHANNEL_ATTR_NAME: &str = "sequent.read-only.message-channel";
+pub const WHATSAPP_NUMBER_ATTR_NAME: &str = "sequent.read-only.whatsapp-number";
+pub const VIBER_NUMBER_ATTR_NAME: &str = "sequent.read-only.viber-number";
+/// Page-scoped ID, valid only for `MESSENGER_PAGE_ATTR_NAME`.
+pub const MESSENGER_ID_ATTR_NAME: &str = "sequent.read-only.messenger-id";
+pub const MESSENGER_PAGE_ATTR_NAME: &str = "sequent.read-only.messenger-page";
+/// Channels whose address the voter proved with a code.
+pub const VERIFIED_CHANNELS_ATTR_NAME: &str =
+    "sequent.read-only.verified-channels";
+pub const MESSAGE_CONSENT_ATTR_NAME: &str = "sequent.read-only.message-consent";
+/// Keycloak's attribute for the user's language.
+pub const LOCALE_ATTR_NAME: &str = "locale";
 pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
 pub const FIRST_NAME_ATTRIBUTE: &str = "first_name";
@@ -113,6 +126,12 @@ pub const LAST_NAME_ATTRIBUTE: &str = "last_name";
 pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
+/// Mirror the event's presentation policies of the same names, for the login
+/// pages, which cannot read the presentation.
+pub const REALM_ATTR_VOTER_ACCESSIBILITY_SETTINGS_POLICY: &str =
+    "voter-accessibility-settings-policy";
+pub const REALM_ATTR_AUDIO_INSTRUCTIONS_POLICY: &str =
+    "audio-instructions-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_POLICY: &str = "credential-input-policy";
 pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
     "credential-input-pattern";
