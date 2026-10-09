@@ -12,9 +12,13 @@ pub(super) enum DocumentVisibility {
 }
 
 impl DocumentVisibility {
-    pub(super) fn for_report(report_type: &ReportType, contains_voter_secrets: bool) -> Self {
-        match (report_type, contains_voter_secrets) {
-            (ReportType::BALLOT_RECEIPT, false) => Self::Public,
+    pub(super) fn for_report(
+        report_type: &ReportType,
+        contains_voter_secrets: bool,
+        is_real: bool,
+    ) -> Self {
+        match (report_type, contains_voter_secrets, is_real) {
+            (ReportType::BALLOT_RECEIPT, false, true) => Self::Public,
             _ => Self::default(),
         }
     }
@@ -41,22 +45,38 @@ mod tests {
             ReportType::CREDENTIALS,
         ] {
             assert_eq!(
-                DocumentVisibility::for_report(&report_type, false),
+                DocumentVisibility::for_report(&report_type, false, true),
                 DocumentVisibility::Private
             );
-            assert!(!DocumentVisibility::for_report(&report_type, true).is_public());
+            assert!(!DocumentVisibility::for_report(&report_type, true, true).is_public());
+        }
+    }
+
+    #[test]
+    fn ballot_receipt_previews_are_private() {
+        for contains_voter_secrets in [false, true] {
+            assert_eq!(
+                DocumentVisibility::for_report(
+                    &ReportType::BALLOT_RECEIPT,
+                    contains_voter_secrets,
+                    false
+                ),
+                DocumentVisibility::Private
+            );
         }
     }
 
     #[test]
     fn ballot_receipts_are_public_only_without_voter_secret_attributes() {
         assert_eq!(
-            DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, false),
+            DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, false, true),
             DocumentVisibility::Public
         );
-        assert!(DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, false).is_public());
+        assert!(
+            DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, false, true).is_public()
+        );
         assert_eq!(
-            DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, true),
+            DocumentVisibility::for_report(&ReportType::BALLOT_RECEIPT, true, true),
             DocumentVisibility::Private
         );
     }
