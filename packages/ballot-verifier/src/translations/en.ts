@@ -34,6 +34,8 @@ const englishTranslation = {
             ciphertextErrorTitle: "Ballot verification failed",
             ciphertextErrorDescription:
                 "The ciphertext in this auditable ballot is not the encryption of the plaintext and randomness it contains. The ballot cannot be trusted.",
+            unpublishedStyleErrorDescription:
+                "This auditable ballot does not match any ballot published for this election event, so it cannot be verified.",
             useSampleLink: "Use a sample ballot",
             nextButton: "Next",
             ballotIdLabel: "Ballot ID",

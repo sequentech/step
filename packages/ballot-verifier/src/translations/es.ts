@@ -38,6 +38,8 @@ const spanishTranslation: TranslationType = {
             ciphertextErrorTitle: "La verificación del voto ha fallado",
             ciphertextErrorDescription:
                 "El texto cifrado de este voto auditable no es el cifrado del texto en claro y la aleatoriedad que contiene. No se puede confiar en el voto.",
+            unpublishedStyleErrorDescription:
+                "Este voto auditable no corresponde a ninguna papeleta publicada para este evento electoral, por lo que no se puede verificar.",
             useSampleLink: "Use voto de ejemplo",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papeleta",
