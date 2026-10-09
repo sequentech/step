@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
-use super::newtypes::PROTOCOL_MANAGER_INDEX;
+use super::newtypes::{TrusteeIndex, PROTOCOL_MANAGER_INDEX};
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
@@ -119,6 +119,22 @@ impl<C: Context> DkgPublicKey<C> {
             verification_keys,
         }
     }
+
+    /// The verification key of the trustee at the given 1-based index.
+    ///
+    /// The key is read from a posted artifact, so a key list shorter than the
+    /// trustee count is an error rather than an out-of-bounds index.
+    pub fn verification_key(&self, index: TrusteeIndex) -> anyhow::Result<&C::Element> {
+        index
+            .checked_sub(1)
+            .and_then(|slot| self.verification_keys.get(slot))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "the posted DKG public key has no verification key for trustee {}",
+                    index
+                )
+            })
+    }
 }
 
 /// The tally input: Naor-Yung ballot ciphertexts (PROTOCOL.md §3.6, §5.5).
@@ -217,5 +233,44 @@ impl<C: Context, const W: usize> std::fmt::Debug for Mix<C, W> {
             self.ciphertexts.len(),
             self.proof.is_some()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DkgPublicKey;
+    use cryptography::context::{Context, RistrettoCtx};
+    use cryptography::traits::groups::CryptographicGroup;
+
+    fn dkg_public_key(verification_keys: usize) -> DkgPublicKey<RistrettoCtx> {
+        let mut rng = RistrettoCtx::get_rng();
+        let pk = <RistrettoCtx as Context>::G::random_element(&mut rng);
+        let keys = (0..verification_keys)
+            .map(|_| <RistrettoCtx as Context>::G::random_element(&mut rng))
+            .collect();
+        DkgPublicKey::new(pk, keys)
+    }
+
+    #[test]
+    fn verification_key_is_looked_up_by_one_based_index() {
+        let dkg_pk = dkg_public_key(3);
+
+        let key = dkg_pk.verification_key(3).expect("trustee 3 has a key");
+
+        assert_eq!(key, &dkg_pk.verification_keys[2]);
+    }
+
+    #[test]
+    fn verification_key_rejects_a_posted_key_without_enough_entries() {
+        let dkg_pk = dkg_public_key(0);
+
+        assert!(dkg_pk.verification_key(1).is_err());
+    }
+
+    #[test]
+    fn verification_key_rejects_index_zero() {
+        let dkg_pk = dkg_public_key(3);
+
+        assert!(dkg_pk.verification_key(0).is_err());
     }
 }

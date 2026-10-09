@@ -153,8 +153,7 @@ impl<C: Context> Trustee<C> {
                 "re-derived joint public key does not match the posted DKG output"
             ));
         }
-        let self_slot = self_index - 1;
-        if recipient.get_verification_key() != &dkg_pk.verification_keys[self_slot] {
+        if recipient.get_verification_key() != dkg_pk.verification_key(self_index)? {
             return Err(anyhow!(
                 "re-derived verification key does not match the posted DKG output"
             ));
@@ -259,7 +258,7 @@ impl<C: Context> Trustee<C> {
             contributions.push(AttributedDecryption::new(
                 partial,
                 ParticipantPosition::from_usize(sender),
-                dkg_pk.verification_keys[sender - 1].clone(),
+                dkg_pk.verification_key(sender)?.clone(),
             ));
         }
 
