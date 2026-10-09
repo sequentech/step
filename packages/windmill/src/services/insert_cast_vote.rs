@@ -30,6 +30,9 @@ use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::*;
 use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
+// The tests build presentations with it; the grace period itself comes from
+// `ballot_box_seal::deadline::grace_period`.
+#[cfg(test)]
 use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::{
     AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
@@ -858,6 +861,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         ids.tenant_id,
         ids.election_event_id,
         election_id,
+        &area_uuid,
         &hasura_transaction,
         &election_event,
         auth_time,
@@ -1043,15 +1047,13 @@ fn check_status_with_loaded_election(
 
     let current_voting_status = election_status.status_by_channel(voting_channel);
     let dates_by_channel = election_status.dates_by_channel(voting_channel);
-    let grace_period_secs = election_presentation.grace_period_secs.unwrap_or(0);
-    let grace_period_policy = election_presentation
-        .grace_period_policy
-        .clone()
-        .unwrap_or(EGracePeriodPolicy::NO_GRACE_PERIOD);
-    let apply_grace_period = grace_period_policy != EGracePeriodPolicy::NO_GRACE_PERIOD
+    // The seal deadline uses the same grace period (VOTE-FREEZE).
+    let grace_period =
+        crate::services::ballot_box_seal::deadline::grace_period(election_presentation);
+    let apply_grace_period = grace_period.is_some()
         && voting_channel == VotingStatusChannel::ONLINE
         && current_voting_status != VotingStatus::PAUSED;
-    let grace_period_duration = Duration::seconds(grace_period_secs as i64);
+    let grace_period_duration = grace_period.unwrap_or_else(Duration::zero);
 
     if let Some(close_date_esq_event) = close_date_esq_event_opt {
         let close_date_plus_grace_period = close_date_esq_event + grace_period_duration;
@@ -1167,6 +1169,7 @@ pub(crate) async fn check_status(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
+    area_id: &Uuid,
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     auth_time: &Option<i64>,
@@ -1241,6 +1244,19 @@ pub(crate) async fn check_status(
         )?;
     }
 
+    check_seal_deadline(
+        hasura_transaction,
+        election_event,
+        election_id,
+        area_id,
+        now,
+        voting_channel,
+        &election_status,
+        &election_voting_channels,
+        &election_presentation,
+    )
+    .await?;
+
     check_status_with_loaded_election(
         now,
         auth_time_local,
@@ -1253,9 +1269,71 @@ pub(crate) async fn check_status(
     )
 }
 
+/// With the Ballot Box Seal Policy set to Seal at close, voting into a
+/// ballot box ends at its seal deadline: the one its seal row fixed, else
+/// the one the election's status gives now (VOTE-FREEZE). This keeps the
+/// cast check and the seal on the same deadline, also when the grace
+/// period of an end date would run later. Policy off: no check.
+#[allow(clippy::too_many_arguments)]
+pub async fn check_seal_deadline(
+    hasura_transaction: &Transaction<'_>,
+    election_event: &ElectionEvent,
+    election_id: &str,
+    area_id: &Uuid,
+    now: DateTime<Local>,
+    voting_channel: VotingStatusChannel,
+    election_status: &ElectionStatus,
+    election_voting_channels: &VotingChannels,
+    election_presentation: &ElectionPresentation,
+) -> Result<(), CastVoteError> {
+    use crate::services::ballot_box_seal::{
+        box_grace_deadline, deadline::seal_deadline, seal_policy,
+    };
+    if seal_policy(election_event) != sequent_core::ballot::BallotBoxSealPolicy::SEAL_AT_CLOSE {
+        return Ok(());
+    }
+    let parse = |id: &str| {
+        Uuid::parse_str(id).map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))
+    };
+    let deadline = match box_grace_deadline(
+        hasura_transaction,
+        &parse(&election_event.tenant_id)?,
+        &parse(&election_event.id)?,
+        &parse(election_id)?,
+        area_id,
+    )
+    .await
+    .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?
+    {
+        Some(deadline) => Some(deadline),
+        None => seal_deadline(
+            election_status,
+            election_voting_channels,
+            election_presentation,
+        )
+        .map(|(_, deadline)| deadline),
+    };
+    match deadline {
+        Some(deadline) if now.with_timezone(&chrono::Utc) >= deadline => {
+            Err(CastVoteError::CheckStatusFailed(format!(
+                "Voting Status for voting_channel={voting_channel:?} is {:?}: the ballot box's seal deadline has passed",
+                VotingStatus::CLOSED
+            )))
+        }
+        _ => Ok(()),
+    }
+}
+
 /// Inspect the database error itself: tokio-postgres Display only says
 /// "db error", and matching that string loses the trigger's public error code.
-fn map_insert_error(error: anyhow::Error) -> CastVoteError {
+pub fn map_insert_error(error: anyhow::Error) -> CastVoteError {
+    // The seal guard refuses a write to a sealed ballot box (VOTE-FREEZE):
+    // voting is closed there.
+    if crate::services::ballot_box_seal::is_ballot_box_sealed(&error) {
+        return CastVoteError::CheckStatusFailed(
+            crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE.to_string(),
+        );
+    }
     let message = error
         .downcast_ref::<tokio_postgres::Error>()
         .and_then(|error| error.as_db_error())

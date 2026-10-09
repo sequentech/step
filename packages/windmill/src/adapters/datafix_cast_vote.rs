@@ -83,7 +83,17 @@ impl DatafixVotes for PgDatafixVotes {
             next,
         )
         .await
-        .map_err(|err| anyhow!("Error transitioning cast vote status: {err:?}"))?;
+        .map_err(|err| {
+            // A sealed ballot box takes no change (VOTE-FREEZE).
+            if crate::services::ballot_box_seal::is_ballot_box_sealed(&err) {
+                anyhow!(
+                    "Error transitioning cast vote status: {}",
+                    crate::services::ballot_box_seal::BALLOT_BOX_SEALED_MESSAGE
+                )
+            } else {
+                anyhow!("Error transitioning cast vote status: {err:?}")
+            }
+        })?;
         transaction
             .commit()
             .await

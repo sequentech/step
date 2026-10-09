@@ -250,6 +250,7 @@ pub async fn try_receive_ballot(
         tenant_id,
         &election_event.id,
         &election_id,
+        &area_uuid,
         &hasura_transaction,
         &election_event,
         auth_time,

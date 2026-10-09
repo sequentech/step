@@ -5,6 +5,7 @@
 pub mod application;
 pub mod area;
 pub mod area_contest;
+pub mod ballot_box_seal;
 pub mod ballot_publication;
 pub mod ballot_style;
 pub mod candidate;

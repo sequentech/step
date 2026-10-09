@@ -1559,6 +1559,13 @@ type GenerateBallotPublicationOutput {
 
 type UpdateEventVotingStatusOutput {
     election_event_id: uuid
+    skipped_elections: [SkippedElection!]
+}
+
+type SkippedElection {
+    election_id: uuid!
+    election_name: String
+    reason: String!
 }
 
 type UpdateElectionVotingStatusOutput {

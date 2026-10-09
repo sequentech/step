@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatusChannel;
@@ -356,7 +356,7 @@ pub async fn compare_and_set_cast_vote_status(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error updating cast vote: {}", err))?;
+        .context("Error updating cast vote")?;
 
     Ok(updated == 1)
 }
@@ -560,7 +560,8 @@ pub async fn count_unresolved_cast_votes(
 /// unconditionally as part of the disable, regardless of whether the
 /// `SetNotVoted` notification to VoterView succeeds — a divergence between the
 /// platform and VoterView is caught by the separate manual reconciliation
-/// process. Returns the number of rows discarded.
+/// process. Ballots in a sealed ballot box (a seal past `pending`) stay as
+/// they were sealed (VOTE-FREEZE). Returns the number of rows discarded.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn discard_voter_cast_votes(
     hasura_transaction: &Transaction<'_>,
@@ -584,7 +585,15 @@ pub async fn discard_voter_cast_votes(
                     tenant_id = $1 AND
                     election_event_id = $2 AND
                     voter_id_string = $3 AND
-                    status = ANY($5)
+                    status = ANY($5) AND
+                    NOT EXISTS (
+                        SELECT 1 FROM sequent_backend.ballot_box_seal AS seal
+                        WHERE seal.tenant_id = cast_vote.tenant_id
+                          AND seal.election_event_id = cast_vote.election_event_id
+                          AND seal.election_id = cast_vote.election_id
+                          AND seal.area_id = cast_vote.area_id
+                          AND seal.status <> 'pending'
+                    )
             "#,
         )
         .await?;

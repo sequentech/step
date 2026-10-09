@@ -280,7 +280,7 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 package = "windmill"
 features = []
 limitations = [
-    "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, matching the Rust CI service fixture.",
+    "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322 and ImmuDB 1.9.6 on port 3323, matching the Rust CI service fixtures.",
     "The ignored voter-channel PostgreSQL regression is run separately; ignored full-service activity-log coverage remains open.",
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
@@ -301,11 +301,16 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+IMMUDB_USER = "immudb"
+IMMUDB_PASSWORD = "immudb"
+IMMUDB_SERVER_URL = "http://127.0.0.1:3323"
 
 [profiles.windmill.excluded_files]
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
 "src/services/ceremonies/tally_ceremony_state_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony use case remains measured."
+"src/services/ceremonies/tally_ceremony_seal_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony's ballot box seal checks remain measured."
+"src/services/ceremonies/sealed_box_ballots_tests.rs" = "Standalone unit-test module under cfg(test); the sealed ballot box tally input remains measured."
 "src/services/ceremonies/tally_execution_tests.rs" = "Standalone tally execution planner and orchestration unit tests; production remains measured."
 "src/services/external/datafix_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the Datafix vote use case remains measured."
 "src/services/insert_cast_vote_database_tests.rs" = "Standalone PostgreSQL test module under cfg(test); the cast-vote service and its queries remain measured."
@@ -478,6 +483,9 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+IMMUDB_USER = "immudb"
+IMMUDB_PASSWORD = "immudb"
+IMMUDB_SERVER_URL = "http://127.0.0.1:3323"
 [profiles.strand-native]
 package = "strand"
 features = ["num_bigint", "rayon"]

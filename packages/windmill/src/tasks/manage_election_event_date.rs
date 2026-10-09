@@ -380,6 +380,8 @@ pub async fn manage_election_event_date(
                 .map_err(|e| anyhow!("Commit failed manage_event_election_dates: {}", e));
             lock.release().await?;
             commit?;
+            // A close may have created ballot box seals to make (VOTE-FREEZE).
+            crate::tasks::seal_ballot_boxes::kick_ballot_box_sealer();
         }
         Err(err) => {
             let rollback = hasura_transaction.rollback().await;

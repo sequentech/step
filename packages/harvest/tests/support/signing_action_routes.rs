@@ -275,6 +275,45 @@ async fn opening_a_post_with_the_rule_off_runs_the_status_change_as_before() {
 }
 
 #[rocket::async_test]
+async fn closing_a_closed_post_with_the_rule_off_answers_ok_and_changes_nothing(
+) {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let election = post_of(&services.hasura, &event, "closed-post").await;
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.election SET status = $2 WHERE id = $1 AND set_config('sequent.trusted_write', 'on', true) = 'on'",
+        &[
+            &Uuid::parse_str(&election).unwrap(),
+            &json!({"voting_status": "CLOSED"}),
+        ],
+    )
+    .await;
+    let before = election_status(&services.hasura, &election).await;
+    // The close is a no-op: no channel changes, so nothing goes to the
+    // bulletin board, and the route still asks the sealer to run.
+    let (status, body) = json(
+        post(
+            &client,
+            "/update-election-voting-status",
+            &gold(&event, &[Permissions::ELECTION_STATE_WRITE], "closed-post"),
+            &json!({
+                "election_event_id": event.election_event_id,
+                "election_id": election,
+                "voting_status": "CLOSED",
+                "voting_channels": ["ONLINE"],
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    assert_eq!(body, json!({"election_id": election}));
+    assert_eq!(election_status(&services.hasura, &election).await, before);
+}
+
+#[rocket::async_test]
 async fn initializing_a_post_answers_its_signing_request_without_a_tally() {
     let services = Services::on_test_database().await;
     let client = services.client().await;

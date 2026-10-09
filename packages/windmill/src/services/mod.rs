@@ -5,6 +5,7 @@
 pub mod application;
 pub mod approval_matrix;
 pub mod ballot_box_key;
+pub mod ballot_box_seal;
 pub mod ballot_checks;
 pub mod ballot_styles;
 pub mod cast_ballot;

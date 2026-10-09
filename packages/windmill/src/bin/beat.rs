@@ -30,6 +30,7 @@ use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
+use windmill::tasks::seal_ballot_boxes::{seal_ballot_boxes, SEAL_BALLOT_BOXES_INTERVAL_SECONDS};
 use windmill::tasks::signing_log_outbox::post_signing_log_outbox;
 use windmill::tasks::signing_requests::{
     expire_signing_requests, sweep_signing_executions, SIGNING_JOBS_INTERVAL_SECONDS,
@@ -133,6 +134,11 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().reconcile_messages_interval)),
                 args = (),
             },
+            seal_ballot_boxes::NAME => {
+                seal_ballot_boxes,
+                schedule = DeltaSchedule::new(Duration::from_secs(SEAL_BALLOT_BOXES_INTERVAL_SECONDS)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -149,6 +155,7 @@ async fn main() -> Result<()> {
             refresh_staff_crls::NAME => &Queue::Beat.queue_name(&slug),
             recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
             reconcile_messages::NAME => &Queue::Communication.queue_name(&slug),
+            seal_ballot_boxes::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.

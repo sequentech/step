@@ -61,6 +61,7 @@ string_wire_cases! {
     monitoring_config_digest => MonitoringConfigDigestString,
     monitoring_preset_identifier => MonitoringPresetIdString,
     approval_matrix_digest => ApprovalMatrixDigestString,
+    area_identifier => AreaIdString,
 }
 
 /// The version is signed as a fixed-width little-endian number.
@@ -86,6 +87,29 @@ fn an_approval_matrix_version_is_four_little_endian_bytes() {
             value
         );
     }
+}
+
+/// A seal hash is its 64 raw bytes in Borsh, like the other hash newtypes,
+/// and lowercase hex in JSON.
+#[test]
+fn a_seal_hash_is_raw_bytes_and_hex_text() {
+    let mut hash = [0u8; 64];
+    hash[0] = 0xab;
+    hash[63] = 0x01;
+    let value = SealHash::new(hash);
+    assert_eq!(borsh::to_vec(&value).unwrap(), hash.to_vec());
+    assert_eq!(borsh::from_slice::<SealHash>(&hash).unwrap(), value);
+    assert!(borsh::from_slice::<SealHash>(&hash[..63]).is_err());
+    let text = hex::encode(hash);
+    assert_eq!(
+        serde_json::to_value(&value).unwrap(),
+        serde_json::json!(text)
+    );
+    assert_eq!(
+        serde_json::from_value::<SealHash>(serde_json::json!(text)).unwrap(),
+        value
+    );
+    assert!(serde_json::from_value::<SealHash>(serde_json::json!("abcd")).is_err());
 }
 
 #[test]

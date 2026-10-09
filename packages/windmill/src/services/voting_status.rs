@@ -48,6 +48,15 @@ pub async fn update_election_status(
     voting_status: &VotingStatus,
     voting_channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<()> {
+    // Read-modify-write of the event's and the Post's status: lock them (the
+    // event row and the election row) before reading.
+    election_event_status::lock_status_rows(
+        hasura_transaction,
+        &tenant_id,
+        election_event_id,
+        Some(election_id),
+    )
+    .await?;
     let election_event =
         get_election_event_by_id(&hasura_transaction, &tenant_id, election_event_id)
             .await
@@ -56,20 +65,26 @@ pub async fn update_election_status(
         get_election_event_status(election_event.status.clone()).unwrap_or(Default::default());
 
     let voting_channels = resolve_voting_channels(&election_event, voting_channels)?;
-
+    // The board entries go once every channel changed and the close made
+    // its seals, so a refusal or a failed seal hook can't leave an entry on
+    // the log that the database rolled back (VOTE-FREEZE).
+    let mut changed_channels = vec![];
+    let mut event_opened = vec![];
     for voting_channel in voting_channels {
-        election_event_status::update_election_voting_status_impl(
-            tenant_id.clone(),
+        if election_event_status::change_election_voting_status(
+            &tenant_id,
             user_id,
             username,
-            election_event_id.to_string(),
-            election_id.to_string(),
-            voting_status.clone(),
-            voting_channel.clone(),
-            election_event.bulletin_board_reference.clone(),
+            election_event_id,
+            election_id,
+            voting_status,
+            voting_channel,
             &hasura_transaction,
         )
-        .await?;
+        .await?
+        {
+            changed_channels.push(voting_channel);
+        }
         let current_event_status = event_status.status_by_channel(voting_channel);
 
         info!("current_voting_status={current_event_status:?} next_voting_status={voting_status:?}, voting_channel={voting_channel:?}");
@@ -81,21 +96,37 @@ pub async fn update_election_status(
             event_status
                 .close_early_voting_if_online_status_change(voting_channel, VotingStatus::OPEN);
             event_status.set_status_by_channel(voting_channel, VotingStatus::OPEN);
-
-            update_board_on_status_change(
-                &hasura_transaction,
-                &tenant_id,
-                user_id,
-                username,
-                election_event.id.to_string(),
-                election_event.bulletin_board_reference.clone(),
-                voting_status.clone(),
-                voting_channel.clone(),
-                None,
-                Some(vec![election_id.to_string()]),
-            )
-            .await?;
+            event_opened.push(voting_channel);
         }
+    }
+    for voting_channel in event_opened {
+        update_board_on_status_change(
+            &hasura_transaction,
+            &tenant_id,
+            user_id,
+            username,
+            election_event.id.to_string(),
+            election_event.bulletin_board_reference.clone(),
+            voting_status.clone(),
+            voting_channel,
+            None,
+            Some(vec![election_id.to_string()]),
+        )
+        .await?;
+    }
+    for voting_channel in changed_channels {
+        election_event_status::post_election_status_change(
+            hasura_transaction,
+            &tenant_id,
+            user_id,
+            username,
+            election_event_id,
+            election_id,
+            election_event.bulletin_board_reference.clone(),
+            voting_status,
+            voting_channel,
+        )
+        .await?;
     }
     // The event's voting status follows the Post's, past the checks above.
     crate::postgres::trusted_write(hasura_transaction).await?;

@@ -595,6 +595,10 @@ pub struct TallySessionContestAnnotations {
     /// "that batch has not been mixed yet" and would hang the session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight_bit_mask: Option<u32>,
+    /// Hex SHA-512 seal hash of the ballot box the tally checked and counted
+    /// (VOTE-FREEZE). Absent when the event doesn't seal ballot boxes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_box_seal_hash: Option<String>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -701,6 +705,7 @@ mod tally_session_contest_annotations_tests {
             }))
             .unwrap();
         assert_eq!(legacy.votes_by_channel, None);
+        assert_eq!(legacy.ballot_box_seal_hash, None);
 
         let current = TallySessionContestAnnotations {
             elegible_voters: 0,
@@ -708,9 +713,11 @@ mod tally_session_contest_annotations_tests {
             casted_ballots: 0,
             votes_by_channel: Some(VotesByChannel::new()),
             weight_bit_mask: None,
+            ballot_box_seal_hash: None,
         };
         let serialized = serde_json::to_value(current).unwrap();
         assert_eq!(serialized["votes_by_channel"], serde_json::json!({}));
+        assert!(serialized.get("ballot_box_seal_hash").is_none());
     }
 }
 

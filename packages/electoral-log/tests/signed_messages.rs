@@ -827,3 +827,82 @@ fn an_approval_matrix_version_is_an_event_wide_signed_record() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn ballot_box_seal_entries_are_signed_records_of_one_box() -> Result<()> {
+    use electoral_log::seal::{build, BallotBoxSealManifest, SEAL_FORMAT_V1};
+
+    const AREA: &str = "synthetic-area";
+    let (data, public) = signer()?;
+    let built = build(BallotBoxSealManifest {
+        format: SEAL_FORMAT_V1.into(),
+        tenant_id: "synthetic-tenant".into(),
+        election_event_id: EVENT.into(),
+        election_id: ELECTION.into(),
+        area_id: AREA.into(),
+        closed_at: 1_841_396_472,
+        grace_deadline: 1_841_396_472,
+        sealed_at: 1_841_396_474,
+        close_request_id: None,
+        eligible_voters: 0,
+        entries: vec![],
+    })?;
+    let check_box = |message: &Message, kind: &str, log_type: StatementLogType| -> Result<()> {
+        assert_record(message, &public, kind, Some(ELECTION))?;
+        assert_eq!(message.area_id.as_deref(), Some(AREA));
+        assert_eq!(message.statement.head.log_type, log_type);
+        // The head a reader rebuilds from the body names the same entry.
+        let rebuilt = StatementHead::from_body(event(), &message.statement.body);
+        assert_eq!(rebuilt.kind.to_string(), kind);
+        assert_eq!(rebuilt.log_type, log_type);
+        assert!(rebuilt.description.contains(AREA));
+        Ok(())
+    };
+
+    let sealed =
+        Message::ballot_box_sealed_message(&built.manifest, built.hash, "Post", "Box", &data)?;
+    check_box(&sealed, "BallotBoxSealed", StatementLogType::INFO)?;
+    assert_eq!(sealed.statement.head.timestamp, built.manifest.sealed_at);
+    assert_eq!(
+        sealed.statement.head.description,
+        "Ballot box of Post, Box sealed: 0 of 0 ballots counted."
+    );
+
+    let failed = Message::ballot_box_seal_failed_message(
+        event(),
+        ELECTION,
+        AREA,
+        "Post",
+        "Box",
+        "the census is unavailable.".into(),
+        &data,
+    )?;
+    check_box(&failed, "BallotBoxSealFailed", StatementLogType::ERROR)?;
+
+    let verified = Message::tally_ballot_box_verified_message(
+        event(),
+        ELECTION,
+        AREA,
+        "Post",
+        "Box",
+        built.hash,
+        1_342,
+        "synthetic-session".into(),
+        &data,
+    )?;
+    check_box(&verified, "TallyBallotBoxVerified", StatementLogType::INFO)?;
+    assert!(verified.statement.head.description.contains("1,342"));
+
+    let rejected = Message::tally_ballot_box_rejected_message(
+        event(),
+        ELECTION,
+        AREA,
+        "Post",
+        "Box",
+        "1 ballot is not in the seal".into(),
+        "synthetic-session".into(),
+        &data,
+    )?;
+    check_box(&rejected, "TallyBallotBoxRejected", StatementLogType::ERROR)?;
+    Ok(())
+}

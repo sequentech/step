@@ -94,6 +94,74 @@ fn statement_body_borsh_discriminants_are_append_only() {
     assert_eq!(borsh::to_vec(&external_reconciliation).unwrap()[0], 28);
     assert_eq!(borsh::to_vec(&monitoring_config_changed()).unwrap()[0], 29);
     assert_eq!(borsh::to_vec(&signing()).unwrap()[0], 30);
+    for (body, tag) in ballot_box_bodies().iter().zip(35u8..) {
+        assert_eq!(borsh::to_vec(body).unwrap()[0], tag);
+    }
+}
+
+fn ballot_box_bodies() -> Vec<StatementBody> {
+    let election = || ElectionIdString(Some("election".to_string()));
+    let area = || AreaIdString("area".to_string());
+    vec![
+        StatementBody::BallotBoxSealed(election(), area(), SealHash::new([7; 64]), 3, 2, None),
+        StatementBody::BallotBoxSealFailed(election(), area(), "reason".to_string()),
+        StatementBody::TallyBallotBoxVerified(
+            election(),
+            area(),
+            SealHash::new([7; 64]),
+            2,
+            "session".to_string(),
+        ),
+        StatementBody::TallyBallotBoxRejected(
+            election(),
+            area(),
+            "what".to_string(),
+            "session".to_string(),
+        ),
+    ]
+}
+
+/// The seal kinds are appended after `ApprovalMatrixUpdated`; the failures are
+/// ERROR entries, every one is a SYSTEM entry.
+#[test]
+fn the_ballot_box_seal_kinds_are_appended() {
+    let expected = [
+        (StatementType::BallotBoxSealed, 55, StatementLogType::INFO),
+        (
+            StatementType::BallotBoxSealFailed,
+            56,
+            StatementLogType::ERROR,
+        ),
+        (
+            StatementType::TallyBallotBoxVerified,
+            57,
+            StatementLogType::INFO,
+        ),
+        (
+            StatementType::TallyBallotBoxRejected,
+            58,
+            StatementLogType::ERROR,
+        ),
+    ];
+    for (body, (kind, tag, log_type)) in ballot_box_bodies().iter().zip(expected) {
+        assert_eq!(borsh::to_vec(&kind).unwrap(), vec![tag]);
+        let head = StatementHead::from_body(EventIdString("event".to_string()), body);
+        assert_eq!(head.kind.to_string(), kind.to_string());
+        assert_eq!(head.log_type, log_type);
+        assert_eq!(head.event_type, StatementEventType::SYSTEM);
+        assert!(head.kind.to_string().len() <= 40);
+    }
+}
+
+#[test]
+fn a_seal_description_names_the_box_and_groups_thousands() {
+    assert_eq!(
+        ballot_box_sealed_description("Madrid PE", "Spain", 1340, 1342),
+        "Ballot box of Madrid PE, Spain sealed: 1,340 of 1,342 ballots counted."
+    );
+    assert_eq!(group_thousands(0), "0");
+    assert_eq!(group_thousands(999), "999");
+    assert_eq!(group_thousands(1_000_000), "1,000,000");
 }
 
 fn signing() -> StatementBody {
@@ -199,7 +267,7 @@ fn statement_type_borsh_discriminants_are_append_only() {
         borsh::to_vec(&StatementType::ApprovalMatrixUpdated).unwrap(),
         vec![54]
     );
-    assert!(borsh::from_slice::<StatementType>(&[55]).is_err());
+    assert!(borsh::from_slice::<StatementType>(&[59]).is_err());
 }
 
 fn report_generated(document_id: Option<&str>) -> StatementBody {
@@ -233,7 +301,7 @@ fn a_generated_report_entry_is_appended_and_names_its_hash_manifest() {
         borsh::from_slice::<StatementBody>(&expected).unwrap(),
         StatementBody::ReportGenerated(_, _)
     ));
-    assert!(borsh::from_slice::<StatementBody>(&[35]).is_err());
+    assert!(borsh::from_slice::<StatementBody>(&[39]).is_err());
 
     let head = StatementHead::from_body(EventIdString("event".to_string()), &stored);
     assert!(matches!(head.kind, StatementType::ReportGenerated));
@@ -412,7 +480,7 @@ fn an_election_publish_of_a_signed_configuration_carries_its_manifest_and_design
         }
         other => panic!("unexpected body {other:?}"),
     }
-    assert!(borsh::from_slice::<StatementBody>(&[35]).is_err());
+    assert!(borsh::from_slice::<StatementBody>(&[39]).is_err());
 
     let head = StatementHead::from_body(EventIdString("event".to_string()), &body);
     assert!(matches!(head.kind, StatementType::ElectionPublish));

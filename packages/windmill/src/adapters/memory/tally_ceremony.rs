@@ -4,9 +4,9 @@
 
 use crate::domain::tally_ceremony::TallyExecuter;
 use crate::ports::tally_ceremony::{
-    DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
-    NewTallySession, TallyCeremonyAudit, TallyCreationReader, TallyEventSnapshot, TallySessions,
-    TrusteePrivateKeys,
+    BallotBoxSealState, DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug,
+    KeysCeremonyReader, NewTallySession, TallyCeremonyAudit, TallyCreationReader,
+    TallyEventSnapshot, TallySessions, TrusteePrivateKeys,
 };
 use anyhow::{anyhow, Result};
 use b4::messages::newtypes::BatchNumber;
@@ -37,6 +37,7 @@ pub enum TallyCall {
     EventSnapshot,
     PublishedBallotStyles,
     ApprovedTallySheets,
+    BallotBoxSeals,
     GetKeysCeremony,
     GetPrivateKey,
     GetElections,
@@ -118,6 +119,8 @@ struct State {
     initialization_countries:
         HashMap<(String, String, uuid::Uuid), std::collections::BTreeSet<String>>,
     tally_sheets: Vec<TallySheet>,
+    /// (tenant, event, seal).
+    ballot_box_seals: Vec<(String, String, BallotBoxSealState)>,
     keys_ceremonies: Vec<KeysCeremony>,
     private_keys: HashMap<(String, String), String>,
     elections: Vec<Election>,
@@ -307,6 +310,19 @@ impl InMemoryTallyCeremony {
 
     pub fn add_election_event(&self, election_event: ElectionEvent) {
         self.state().election_events.push(election_event);
+    }
+
+    pub fn add_ballot_box_seal(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        seal: BallotBoxSealState,
+    ) {
+        self.state().ballot_box_seals.push((
+            tenant_id.to_string(),
+            election_event_id.to_string(),
+            seal,
+        ));
     }
 
     pub fn set_env_slug(&self, slug: &str) {
@@ -707,6 +723,26 @@ impl TallyCreationReader for InMemoryTallyCeremony {
                     && tally_sheet.deleted_at.is_none()
             })
             .cloned()
+            .collect())
+    }
+
+    async fn ballot_box_seals(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<BallotBoxSealState>> {
+        let state = self.state();
+        state.check(TallyCall::BallotBoxSeals)?;
+        Ok(state
+            .ballot_box_seals
+            .iter()
+            .filter(|(tenant, event, seal)| {
+                tenant == tenant_id
+                    && event == election_event_id
+                    && election_ids.contains(&seal.election_id)
+            })
+            .map(|(_, _, seal)| seal.clone())
             .collect())
     }
 }

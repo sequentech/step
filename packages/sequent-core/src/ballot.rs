@@ -1330,6 +1330,24 @@ pub struct ElectionEventPresentation {
     /// (JSON), not through Borsh.
     #[borsh(skip)]
     pub lifecycle_policies: Option<LifecyclePolicies>,
+    /// Whether each ballot box is sealed at close (VOTE-FREEZE). Read it
+    /// through [`ElectionEventPresentation::ballot_box_seal_policy`]. Skipped
+    /// in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default)]
+    pub ballot_box_seal_policy: Option<BallotBoxSealPolicy>,
+}
+
+impl ElectionEventPresentation {
+    /// `SEAL_AT_CLOSE` only when set; unset means `DO_NOT_SEAL`.
+    pub fn ballot_box_seal_policy(&self) -> BallotBoxSealPolicy {
+        match self.ballot_box_seal_policy {
+            Some(BallotBoxSealPolicy::SEAL_AT_CLOSE) => {
+                BallotBoxSealPolicy::SEAL_AT_CLOSE
+            }
+            _ => BallotBoxSealPolicy::DO_NOT_SEAL,
+        }
+    }
 }
 
 impl ElectionEventPresentation {
@@ -2428,6 +2446,36 @@ pub enum LockedDown {
     #[strum(serialize = "not-locked-down")]
     #[serde(rename = "not-locked-down")]
     NOT_LOCKED_DOWN,
+}
+
+/// Whether each ballot box (an election's area) is sealed when voting
+/// closes: a signed hash of its ballots goes to the electoral log, its
+/// ballots can no longer change and voting cannot open again (VOTE-FREEZE).
+/// Locked once voting has opened.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    JsonSchema,
+)]
+pub enum BallotBoxSealPolicy {
+    #[default]
+    #[strum(serialize = "do-not-seal")]
+    #[serde(rename = "do-not-seal")]
+    DO_NOT_SEAL,
+    #[strum(serialize = "seal-at-close")]
+    #[serde(rename = "seal-at-close")]
+    SEAL_AT_CLOSE,
 }
 
 #[allow(non_camel_case_types)]
@@ -3747,6 +3795,98 @@ mod support_materials_policy_tests {
         assert_eq!(
             materials.effective_policy(),
             SupportMaterialsPolicy::MandatoryForVoting
+        );
+    }
+}
+
+#[cfg(test)]
+mod ballot_box_seal_policy_tests {
+    use super::*;
+
+    #[test]
+    fn the_default_is_do_not_seal() {
+        assert_eq!(
+            BallotBoxSealPolicy::default(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+    }
+
+    #[test]
+    fn the_policy_round_trips_through_its_names() {
+        for (policy, name) in [
+            (BallotBoxSealPolicy::DO_NOT_SEAL, "do-not-seal"),
+            (BallotBoxSealPolicy::SEAL_AT_CLOSE, "seal-at-close"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(policy).unwrap(),
+                serde_json::json!(name)
+            );
+            assert_eq!(
+                serde_json::from_value::<BallotBoxSealPolicy>(
+                    serde_json::json!(name)
+                )
+                .unwrap(),
+                policy
+            );
+            assert_eq!(policy.to_string(), name);
+            assert_eq!(name.parse::<BallotBoxSealPolicy>().unwrap(), policy);
+        }
+        assert!(serde_json::from_value::<BallotBoxSealPolicy>(
+            serde_json::json!("SEAL_AT_CLOSE")
+        )
+        .is_err());
+    }
+
+    fn presentation(json: serde_json::Value) -> ElectionEventPresentation {
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn the_accessor_seals_only_when_set_to_seal_at_close() {
+        let missing = presentation(serde_json::json!({}));
+        assert_eq!(missing.ballot_box_seal_policy, None);
+        assert_eq!(
+            missing.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+        let null =
+            presentation(serde_json::json!({"ballot_box_seal_policy": null}));
+        assert_eq!(
+            null.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+        let off = presentation(
+            serde_json::json!({"ballot_box_seal_policy": "do-not-seal"}),
+        );
+        assert_eq!(
+            off.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::DO_NOT_SEAL
+        );
+        let on = presentation(
+            serde_json::json!({"ballot_box_seal_policy": "seal-at-close"}),
+        );
+        assert_eq!(
+            on.ballot_box_seal_policy(),
+            BallotBoxSealPolicy::SEAL_AT_CLOSE
+        );
+    }
+
+    #[test]
+    fn a_presentation_without_the_field_still_deserializes() {
+        let legacy = presentation(serde_json::json!({
+            "locked_down": "not-locked-down",
+            "skip_election_list": true
+        }));
+        assert_eq!(legacy.ballot_box_seal_policy, None);
+        assert_eq!(legacy.locked_down, Some(LockedDown::NOT_LOCKED_DOWN));
+        // Borsh skips the field, so ballot-style hashes don't change.
+        let sealed = ElectionEventPresentation {
+            ballot_box_seal_policy: Some(BallotBoxSealPolicy::SEAL_AT_CLOSE),
+            ..legacy.clone()
+        };
+        assert_eq!(
+            borsh::to_vec(&sealed).unwrap(),
+            borsh::to_vec(&legacy).unwrap()
         );
     }
 }

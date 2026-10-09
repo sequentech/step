@@ -12,8 +12,13 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
+use windmill::postgres::election_event::{
+    SealedEventDeleteRefusal, SEALED_EVENT_DELETE_REFUSAL,
+};
 use windmill::postgres::tenant;
+use windmill::services::ballot_box_seal::refuse_sealed_event_delete;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
@@ -29,6 +34,27 @@ pub struct DeleteElectionEventOutput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteElectionEventInput {
     election_event_id: String,
+}
+
+/// The refusal to delete an election event with ballot box seals, if it
+/// has any.
+async fn sealed_event_refusal(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> anyhow::Result<Option<String>> {
+    let mut client = get_hasura_pool().await.get().await?;
+    let transaction = client.transaction().await?;
+    match refuse_sealed_event_delete(&transaction, tenant_id, election_event_id)
+        .await
+    {
+        Ok(()) => Ok(None),
+        Err(error)
+            if error.downcast_ref::<SealedEventDeleteRefusal>().is_some() =>
+        {
+            Ok(Some(SEALED_EVENT_DELETE_REFUSAL.to_string()))
+        }
+        Err(error) => Err(error),
+    }
 }
 
 #[instrument(skip(claims))]
@@ -71,6 +97,26 @@ pub async fn delete_election_event_f(
         .await;
         return Err(error);
     };
+
+    // An event with ballot box seals can't be deleted (VOTE-FREEZE): say so
+    // now, before the task deletes anything.
+    if let Some(refusal) =
+        sealed_event_refusal(&tenant_id, &input.election_event_id)
+            .await
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!("Failed to check the ballot box seals: {error:?}"),
+                )
+            })?
+    {
+        let _ = update_fail(&task_execution, &refusal).await;
+        return Ok(Json(DeleteElectionEventOutput {
+            id: input.election_event_id,
+            error_msg: Some(refusal),
+            task_execution,
+        }));
+    }
 
     let celery_app = get_celery_app().await;
 

@@ -2,6 +2,7 @@
 - "!include sequent_backend_approval_matrix.yaml"
 - "!include sequent_backend_area.yaml"
 - "!include sequent_backend_area_contest.yaml"
+- "!include sequent_backend_ballot_box_seal.yaml"
 - "!include sequent_backend_ballot_publication.yaml"
 - "!include sequent_backend_ballot_style.yaml"
 - "!include sequent_backend_candidate.yaml"

@@ -109,6 +109,20 @@ select_permissions:
       role: admin-user
     - comment: ""
       permission:
+          columns:
+              - area_id
+              - ballot_publication_id
+              - deleted_at
+              - election_event_id
+              - election_id
+              - id
+              - tenant_id
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: election-dashboard-tab
+    - comment: ""
+      permission:
           allow_aggregations: true
           columns:
               - ballot_signature

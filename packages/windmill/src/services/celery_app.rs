@@ -77,6 +77,9 @@ use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::run_signed_action::run_signed_action;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
+use crate::tasks::seal_ballot_boxes::{
+    schedule_ballot_box_seals, seal_ballot_box, seal_ballot_boxes,
+};
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::signing_log_outbox::post_signing_log_outbox;
@@ -371,6 +374,9 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             manage_election_lifecycle_window,
             enforce_signed_closes_task,
             recompute_schedule_instants,
+            seal_ballot_boxes,
+            seal_ballot_box,
+            schedule_ballot_box_seals,
         ],
         task_routes = [
             create_keys::NAME => &Queue::Short.queue_name(&slug),
@@ -449,6 +455,12 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             manage_election_lifecycle_window::NAME => &Queue::Beat.queue_name(&slug),
             enforce_signed_closes_task::NAME => &Queue::Beat.queue_name(&slug),
             recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
+            // The dispatcher and the close's schedule are light. Sealing a
+            // box goes on the short queue: every worker configuration
+            // consumes it and long tallies (tally queue) don't hold it.
+            seal_ballot_boxes::NAME => &Queue::Beat.queue_name(&slug),
+            schedule_ballot_box_seals::NAME => &Queue::Beat.queue_name(&slug),
+            seal_ballot_box::NAME => &Queue::Short.queue_name(&slug),
         ],
         prefetch_count = prefetch_count,
         acks_late = acks_late,

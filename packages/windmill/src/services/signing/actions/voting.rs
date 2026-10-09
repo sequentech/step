@@ -14,10 +14,12 @@
 //! Executing one cancels the waiting requests of the opposite action at the
 //! Post. Closing keeps a seal record (A4): the closing signatures, which the
 //! SigningActionExecuted entry carries. Sealing the ballots belongs to the
-//! close itself (`update_election_status`, once VOTE-FREEZE builds it), on
-//! every close, signed or not. After a signed close, in its transaction, the
-//! [`super::SealRecordSink`] hands the closing signatures to those seals,
-//! and the record shows one [`SealSummary`] per country seal.
+//! close itself (`update_election_status`, VOTE-FREEZE), on every close,
+//! signed or not. After a signed close, in its transaction, the
+//! [`super::SealRecordSink`] hands the closing signatures to those seals.
+//! The boxes are sealed after the commit, so the record shows a
+//! [`SealSummary`] only for a box already sealed; the signing panel reads
+//! the Post's ballot boxes as they stand (`ClosingBallotBox`).
 
 use super::{event_ids, gate, is_required, refuse, subject_of, EffectProgress};
 use crate::postgres::election::get_election_by_id;
@@ -27,7 +29,8 @@ use crate::postgres::signing::{
     lock_waiting_signing_request, SigningApprovalRow, SigningRequestRow,
 };
 use crate::services::election_event_status::{
-    get_election_status, scheduled_transition_applies, voting_transition_refusal,
+    get_election_status, scheduled_change_applies, seal_policy_refusal,
+    voting_transition_refusal_with,
 };
 use crate::services::scheduled_outcome::{
     event_wide_targets, fire_time_state, fired_words, keys, mark_fired, record_fired_outcome,
@@ -158,6 +161,24 @@ pub fn plan(
     channels: &[VotingStatusChannel],
     new_status: &VotingStatus,
 ) -> SigningResult<Vec<(VotingStatusChannel, VotingStatus)>> {
+    plan_with(
+        election,
+        status,
+        channels,
+        new_status,
+        sequent_core::ballot::BallotBoxSealPolicy::DO_NOT_SEAL,
+    )
+}
+
+/// [`plan`] under the event's Ballot Box Seal Policy: with Seal at close a
+/// channel that never started may close (VOTE-FREEZE).
+pub fn plan_with(
+    election: &Election,
+    status: &ElectionStatus,
+    channels: &[VotingStatusChannel],
+    new_status: &VotingStatus,
+    seal_policy: sequent_core::ballot::BallotBoxSealPolicy,
+) -> SigningResult<Vec<(VotingStatusChannel, VotingStatus)>> {
     if channels.is_empty() {
         return Err(SigningError::invalid(
             InvalidReason::Transition,
@@ -174,7 +195,8 @@ pub fn plan(
                     format!("The {channel} channel is already {new_status}."),
                 ));
             }
-            if let Some(refusal) = voting_transition_refusal(election, status, *channel, new_status)
+            if let Some(refusal) =
+                voting_transition_refusal_with(election, status, *channel, new_status, seal_policy)
             {
                 return Err(SigningError::invalid(
                     InvalidReason::Transition,
@@ -266,6 +288,41 @@ pub async fn gate_election_status(
             }
         }
     }
+    // With Seal at close, a closed Post, or one with seals, never opens
+    // again (VOTE-FREEZE): refused before anyone signs.
+    if let (SigningAction::OpenVoting, Some(election_id)) = (action, parsed_election) {
+        let (_, status, channels) = read_post(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            election_id,
+            voting_channels,
+        )
+        .await?;
+        let election_event = get_election_event_by_id(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
+        )
+        .await?;
+        for channel in &channels {
+            let current = status.status_by_channel(*channel);
+            if let Some(refusal) = seal_policy_refusal(
+                hasura_transaction,
+                &election_event,
+                Some(&election_id.to_string()),
+                &current,
+                voting_status,
+            )
+            .await?
+            {
+                return Err(SigningError::invalid(
+                    InvalidReason::Transition,
+                    refusal.message(&election_id.to_string(), voting_status, &current),
+                ));
+            }
+        }
+    }
     gate(
         hasura_transaction,
         caller,
@@ -292,7 +349,19 @@ pub async fn gate_election_status(
                     refusal.message(&election.id, voting_status, &VotingStatus::NOT_STARTED),
                 ));
             }
-            let subject = VotingSubject::new(&plan(&election, &status, &channels, voting_status)?);
+            let election_event = get_election_event_by_id(
+                hasura_transaction,
+                &tenant_id.to_string(),
+                &election_event_id.to_string(),
+            )
+            .await?;
+            let subject = VotingSubject::new(&plan_with(
+                &election,
+                &status,
+                &channels,
+                voting_status,
+                crate::services::ballot_box_seal::seal_policy(&election_event),
+            )?);
             Ok(GuardRequest {
                 action,
                 scope: RequestScope {
@@ -326,6 +395,16 @@ pub async fn change_status(
     let election_id = request
         .election_id
         .ok_or_else(|| anyhow!("signing request {} has no Post", request.id))?;
+    // The status rows are locked before the signed "from" status is
+    // checked (a concurrent change can't slip in between) and before
+    // anything leaves the database (the board posts).
+    crate::services::election_event_status::lock_status_rows(
+        hasura_transaction,
+        &request.tenant_id.to_string(),
+        &request.election_event_id.to_string(),
+        Some(&election_id.to_string()),
+    )
+    .await?;
     let election = get_election_by_id(
         hasura_transaction,
         &request.tenant_id.to_string(),
@@ -335,6 +414,14 @@ pub async fn change_status(
     .await?
     .ok_or_else(|| refuse("post-missing", "The Post no longer exists."))?;
     let status = get_election_status(election.status.clone()).unwrap_or_default();
+    let seal_policy = crate::services::ballot_box_seal::seal_policy(
+        &get_election_event_by_id(
+            hasura_transaction,
+            &request.tenant_id.to_string(),
+            &request.election_event_id.to_string(),
+        )
+        .await?,
+    );
     for (channel, from) in &signed {
         if status.status_by_channel(*channel) != *from {
             return Err(refuse(
@@ -342,7 +429,9 @@ pub async fn change_status(
                 format!("The {channel} channel is no longer {from}."),
             ));
         }
-        if let Some(refusal) = voting_transition_refusal(&election, &status, *channel, &target) {
+        if let Some(refusal) =
+            voting_transition_refusal_with(&election, &status, *channel, &target, seal_policy)
+        {
             return Err(refuse(
                 refusal.code(),
                 format!("The {channel} channel can't change."),
@@ -627,12 +716,22 @@ async fn scheduled_channels(
         .transpose()?
         .unwrap_or_default();
     let status = get_election_status(election.status.clone()).unwrap_or_default();
+    let seal_policy = crate::services::ballot_box_seal::seal_policy(
+        &get_election_event_by_id(
+            hasura_transaction,
+            &tenant_id.to_string(),
+            &election_event_id.to_string(),
+        )
+        .await?,
+    );
     Ok(row
         .payload()
         .enabled_channels(&configured)
         .into_iter()
+        .filter(|channel| {
+            scheduled_change_applies(&status, &configured, *channel, voting_status, seal_policy)
+        })
         .map(|channel| (channel, status.status_by_channel(channel)))
-        .filter(|(_, current)| scheduled_transition_applies(current, voting_status))
         .collect())
 }
 
@@ -795,10 +894,22 @@ async fn run_at_post(
     .await?;
     let description = if pairs.is_empty() {
         details["nothing_to_change"] = json!(true);
-        format!(
-            "Nothing to {} at {post_name} on schedule: no channel can change",
-            action_title(action).to_lowercase()
-        )
+        if action == SigningAction::CloseVoting
+            && never_opened_with_seal(hasura_transaction, tenant_id, election_event_id, post)
+                .await?
+        {
+            // With Seal at close, a Post that never opened is left as it is.
+            details["reason"] = json!(crate::services::election_event_status::NEVER_OPENED_REASON);
+            tracing::info!(%post, "Nothing to close on schedule: the Post never opened");
+            format!(
+                "Nothing to close at {post_name} on schedule: it never opened, so it stays as it is"
+            )
+        } else {
+            format!(
+                "Nothing to {} at {post_name} on schedule: no channel can change",
+                action_title(action).to_lowercase()
+            )
+        }
     } else {
         let cancelled = cancel_for_scheduled_change(
             hasura_transaction,
@@ -966,6 +1077,52 @@ pub struct PostDecision {
     pub details: Value,
 }
 
+/// Whether the event seals at close and the Post never opened (no enabled
+/// channel ever started).
+async fn never_opened_with_seal(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    election_id: Uuid,
+) -> Result<bool> {
+    let election_event = get_election_event_by_id(
+        hasura_transaction,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+    )
+    .await?;
+    if crate::services::ballot_box_seal::seal_policy(&election_event)
+        != sequent_core::ballot::BallotBoxSealPolicy::SEAL_AT_CLOSE
+    {
+        return Ok(false);
+    }
+    let Some(election) = get_election_by_id(
+        hasura_transaction,
+        &tenant_id.to_string(),
+        &election_event_id.to_string(),
+        &election_id.to_string(),
+    )
+    .await?
+    else {
+        return Ok(false);
+    };
+    let configured: VotingChannels = election
+        .voting_channels
+        .clone()
+        .map(serde_json::from_value)
+        .transpose()?
+        .unwrap_or_default();
+    let status = get_election_status(election.status.clone()).unwrap_or_default();
+    Ok(crate::services::election_event_status::never_opened(
+        &status,
+        &configured,
+    ))
+}
+
+/// The reason a scheduled opening records for a Post the Ballot Box Seal
+/// Policy keeps closed (the refusal code).
+pub const SEAL_KEPT_CLOSED_REASON: &str = "ballot-box-seal-policy";
+
 /// What a scheduled change (a START/END_VOTING_PERIOD row) does at each of
 /// `posts`, under [`crate::services::scheduled_outcome`] at fire time, with
 /// its log entries: a covered change runs, authorized by the signed
@@ -1027,6 +1184,12 @@ pub async fn scheduled_decisions(
             .collect());
     };
     let targets = state.posts_of(&row);
+    // With Seal at close, an opening keeps Posts with seals closed, and
+    // says so in their outcome (VOTE-FREEZE).
+    let seal_on = *voting_status == VotingStatus::OPEN
+        && crate::services::ballot_box_seal::seal_policy(
+            &get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?,
+        ) == sequent_core::ballot::BallotBoxSealPolicy::SEAL_AT_CLOSE;
     let mut decisions = vec![];
     for post in posts {
         // Only canonical ids, as stored.
@@ -1043,38 +1206,62 @@ pub async fn scheduled_decisions(
             election_id: post_id,
             explanation: state.explain(&row, Some(post_id), Moment::FireTime),
         };
-        let runs = decision.runs();
-        let details =
-            if decision.explanation.outcome == ScheduledOutcomeKind::WaitingForInitialization {
-                serde_json::to_value(&decision.explanation)?
-            } else if runs {
-                run_at_post(
-                    hasura_transaction,
-                    tenant,
-                    event,
-                    &state,
-                    &row,
-                    &decision,
-                    voting_status,
-                )
-                .await?
-            } else {
-                refuse_at_post(
-                    hasura_transaction,
-                    tenant,
-                    event,
-                    &row,
-                    post_id,
-                    Some(&decision.explanation),
-                    refusal_reason(&decision.explanation),
-                    fired_words(
-                        action,
-                        &decision.explanation,
-                        &state.post_name(Some(post_id)),
-                    ),
-                )
-                .await?
-            };
+        let mut runs = decision.runs();
+        let kept_closed = runs
+            && seal_on
+            && crate::services::ballot_box_seal::election_has_seals(
+                hasura_transaction,
+                tenant_id,
+                election_event_id,
+                post,
+            )
+            .await?;
+        let details = if kept_closed {
+            runs = false;
+            refuse_at_post(
+                hasura_transaction,
+                tenant,
+                event,
+                &row,
+                post_id,
+                Some(&decision.explanation),
+                SEAL_KEPT_CLOSED_REASON,
+                format!(
+                    "Kept {} closed on schedule: with Seal at close, voting that has closed stays closed",
+                    state.post_name(Some(post_id))
+                ),
+            )
+            .await?
+        } else if decision.explanation.outcome == ScheduledOutcomeKind::WaitingForInitialization {
+            serde_json::to_value(&decision.explanation)?
+        } else if runs {
+            run_at_post(
+                hasura_transaction,
+                tenant,
+                event,
+                &state,
+                &row,
+                &decision,
+                voting_status,
+            )
+            .await?
+        } else {
+            refuse_at_post(
+                hasura_transaction,
+                tenant,
+                event,
+                &row,
+                post_id,
+                Some(&decision.explanation),
+                refusal_reason(&decision.explanation),
+                fired_words(
+                    action,
+                    &decision.explanation,
+                    &state.post_name(Some(post_id)),
+                ),
+            )
+            .await?
+        };
         decisions.push(PostDecision {
             election_id: post.clone(),
             runs,
@@ -1517,6 +1704,9 @@ pub async fn enforce_signed_closes(
     {
         return Ok(vec![]);
     }
+    let seal_policy = crate::services::ballot_box_seal::seal_policy(
+        &get_election_event_by_id(hasura_transaction, tenant_id, election_event_id).await?,
+    );
     let state = EventState::read_for_closes(hasura_transaction, tenant, event).await?;
     let mut closed = vec![];
     for post in state.posts.iter().map(|post| post.id) {
@@ -1546,15 +1736,38 @@ pub async fn enforce_signed_closes(
                 continue;
             };
             let status = get_election_status(election.status.clone()).unwrap_or_default();
+            let configured: VotingChannels = election
+                .voting_channels
+                .clone()
+                .map(serde_json::from_value)
+                .transpose()?
+                .unwrap_or_default();
+            // Only the signed channels; with Seal at close, a signed channel
+            // that never started closes too when the Post ran.
             let pairs: Vec<(VotingStatusChannel, VotingStatus)> =
                 remaining_signed_close_channels(&state, approval, post, close, due)
                     .into_iter()
-                    .map(|channel| (channel, status.status_by_channel(channel)))
-                    .filter(|(_, current)| {
-                        scheduled_transition_applies(current, &VotingStatus::CLOSED)
+                    .filter(|channel| {
+                        scheduled_change_applies(
+                            &status,
+                            &configured,
+                            *channel,
+                            &VotingStatus::CLOSED,
+                            seal_policy,
+                        )
                     })
+                    .map(|channel| (channel, status.status_by_channel(channel)))
                     .collect();
             if pairs.is_empty() {
+                if seal_policy == sequent_core::ballot::BallotBoxSealPolicy::SEAL_AT_CLOSE
+                    && crate::services::election_event_status::never_opened(&status, &configured)
+                {
+                    tracing::info!(
+                        %post,
+                        reason = crate::services::election_event_status::NEVER_OPENED_REASON,
+                        "Nothing to close at its signed time: the Post never opened, so it stays as it is"
+                    );
+                }
                 continue;
             }
             let subject = VotingSubject::new(&pairs);

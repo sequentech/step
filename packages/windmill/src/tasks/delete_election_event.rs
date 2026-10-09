@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections_ids;
 use crate::postgres::election_event::delete_election_event as delete_election_event_postgres;
+use crate::services::ballot_box_seal::refuse_sealed_event_delete;
 use crate::services::delete_election_event::delete_election_event_b3;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
@@ -43,48 +44,42 @@ async fn delete_election_event(
     election_event_id: String,
     realm: String,
 ) -> AnyhowResult<()> {
-    let tenant_id_cloned = tenant_id.clone();
-    let election_event_id_cloned = election_event_id.clone();
-    let realm_cloned = realm.clone();
-
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
-            delete_event_b3(
-                hasura_transaction,
-                &tenant_id_cloned,
-                &election_event_id_cloned,
-            )
-            .await
-            .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
-
-            let election_ids = get_elections_ids(
-                &hasura_transaction,
-                &tenant_id_cloned,
-                &election_event_id_cloned,
-            )
-            .await?;
-
-            delete_election_event_postgres(
-                &hasura_transaction,
-                &tenant_id_cloned,
-                &election_event_id_cloned,
-            )
-            .await
-            .map_err(|err| anyhow!("Error deleting election event from postgres db: {err}"))?; // FIX APPLIED
-
-            delete_election_event_related_data(
-                &tenant_id_cloned,
-                &election_event_id_cloned,
-                &realm_cloned,
-                &election_ids,
-            )
-            .await
-            .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
-
-            Ok(())
+            delete_election_event_in(hasura_transaction, &tenant_id, &election_event_id, &realm)
+                .await
         })
     })
     .await
+}
+
+/// Deletes the election event in `hasura_transaction`, with its boards and
+/// its other non-transactional data. An event with ballot box seals is
+/// refused first, before anything is deleted (VOTE-FREEZE).
+#[instrument(skip(hasura_transaction), err)]
+pub async fn delete_election_event_in(
+    hasura_transaction: &deadpool_postgres::Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    realm: &str,
+) -> AnyhowResult<()> {
+    refuse_sealed_event_delete(hasura_transaction, tenant_id, election_event_id).await?;
+
+    delete_event_b3(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
+
+    let election_ids = get_elections_ids(hasura_transaction, tenant_id, election_event_id).await?;
+
+    delete_election_event_postgres(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .map_err(|err| anyhow!("Error deleting election event from postgres db: {err}"))?; // FIX APPLIED
+
+    delete_election_event_related_data(tenant_id, election_event_id, realm, &election_ids)
+        .await
+        .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
+
+    Ok(())
 }
 
 #[instrument(err)]

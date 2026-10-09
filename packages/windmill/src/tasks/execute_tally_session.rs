@@ -605,6 +605,7 @@ pub async fn upsert_ballots_messages(
         contest_encryption_policy,
         delegated_voting_policy,
         weighted_voting_policy,
+        tally_session_hasura,
     )
     .await?)
 }

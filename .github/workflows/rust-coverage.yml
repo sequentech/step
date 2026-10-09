@@ -94,6 +94,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      # The Windmill ballot box seal tests post to boards of their own here.
+      immudb:
+        image: ${{ (matrix.profile == 'wrap-map-err' || matrix.profile == 'windmill') && 'codenotary/immudb:1.9.6' || '' }}
+        ports:
+          - 3323:3322
+        options: >-
+          --health-interval 2s
+          --health-timeout 10s
+          --health-retries 60
     env:
       COVERAGE_PROFILE: ${{ matrix.profile }}
       NATIVE_COVERAGE_TIMEOUT_SECONDS: ${{ (matrix.profile == 'windmill' || matrix.profile == 'wrap-map-err') && '3600' || '1200' }}

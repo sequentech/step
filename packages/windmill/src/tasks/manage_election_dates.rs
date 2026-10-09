@@ -6,7 +6,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_status::scheduled_transition_applies;
+use crate::services::election_event_status::scheduled_change_applies;
 use crate::services::initialization_schedule::{scheduled_post_opening, ScheduledPostOpening};
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
@@ -129,11 +129,35 @@ async fn manage_election_date_wrapper(
         .map(serde_json::from_value)
         .transpose()?
         .unwrap_or_default();
+    let seal_policy = crate::services::ballot_box_seal::seal_policy(
+        &crate::postgres::election_event::get_election_event_by_id(
+            hasura_transaction,
+            &tenant_id,
+            &election_event_id,
+        )
+        .await?,
+    );
+    if status == VotingStatus::CLOSED
+        && seal_policy == sequent_core::ballot::BallotBoxSealPolicy::SEAL_AT_CLOSE
+        && crate::services::election_event_status::never_opened(&election_status, &configured)
+    {
+        info!(
+            %election_id,
+            reason = crate::services::election_event_status::NEVER_OPENED_REASON,
+            "Nothing to close on schedule: the Post never opened, so it stays as it is"
+        );
+    }
     let voting_channels = payload
         .enabled_channels(&configured)
         .into_iter()
         .filter(|channel| {
-            scheduled_transition_applies(&election_status.status_by_channel(*channel), &status)
+            scheduled_change_applies(
+                &election_status,
+                &configured,
+                *channel,
+                &status,
+                seal_policy,
+            )
         })
         .collect::<Vec<_>>();
 
@@ -261,5 +285,8 @@ pub async fn manage_election_date(
         .await
         .with_context(|| "Error releasing pglock")?;
 
-    Ok(res?)
+    res?;
+    // A close may have created ballot box seals to make (VOTE-FREEZE).
+    crate::tasks::seal_ballot_boxes::kick_ballot_box_sealer();
+    Ok(())
 }

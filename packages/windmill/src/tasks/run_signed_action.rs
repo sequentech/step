@@ -5,12 +5,14 @@
 //! Runs a protected action once its signing request has every signature;
 //! see [`crate::services::signing::actions`].
 
+use crate::services::ballot_box_seal::sink::PendingSealSink;
 use crate::services::database::get_hasura_pool;
 use crate::services::signing::actions::reports::{mail_held_report, HeldMail, StoredReports};
 use crate::services::signing::actions::{
-    run_dispatched, NoSeal, ProductionEffects, RunOutcome, SignedActionTask,
+    run_dispatched, ProductionEffects, RunOutcome, SignedActionTask,
 };
 use crate::services::signing::pdf::S3RevisionStore;
+use crate::tasks::seal_ballot_boxes::kick_ballot_box_sealer;
 use crate::types::error::Result;
 use anyhow::anyhow;
 use celery::error::TaskError;
@@ -36,8 +38,17 @@ pub async fn run_signed_action(
         .get()
         .await
         .map_err(|error| anyhow!("Error getting the hasura client: {error:?}"))?;
-    let outcome =
-        run_dispatched(&mut client, &ProductionEffects::default(), &NoSeal, &task).await?;
+    // A signed close records its request and signers on the seals the close
+    // made (VOTE-FREEZE).
+    let seal = PendingSealSink {
+        tenant_id: task.tenant_id,
+        election_event_id: task.election_event_id,
+        request_id: task.request_id,
+    };
+    let outcome = run_dispatched(&mut client, &ProductionEffects::default(), &seal, &task).await?;
+    if matches!(outcome, RunOutcome::Executed(_)) {
+        kick_ballot_box_sealer();
+    }
     // A released report's held e-mail goes after its release committed,
     // once, also when another copy of the task released it.
     if matches!(outcome, RunOutcome::Executed(_) | RunOutcome::NotClaimed) {

@@ -91,6 +91,49 @@ impl CastVoteHash {
     }
 }
 
+/// An area id, the area half of a ballot box (VOTE-FREEZE).
+#[derive(
+    BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
+)]
+pub struct AreaIdString(pub String);
+
+/// SHA-512 of a ballot box seal manifest (VOTE-FREEZE). Borsh is the raw 64
+/// bytes, like every other hash newtype; JSON is lowercase hex, so the
+/// readable message in a public seal record shows the hash people compare.
+#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct SealHash(pub HashWrapper);
+
+impl SealHash {
+    pub fn new(hash: Hash) -> Self {
+        SealHash(HashWrapper::new(hash))
+    }
+
+    pub fn to_inner(&self) -> Hash {
+        self.0.clone().into_inner()
+    }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.to_inner())
+    }
+}
+
+impl Serialize for SealHash {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_hex())
+    }
+}
+
+impl<'de> Deserialize<'de> for SealHash {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = <String as Deserialize>::deserialize(deserializer)?;
+        let bytes = hex::decode(&text).map_err(serde::de::Error::custom)?;
+        let hash: Hash = bytes
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("a seal hash is 64 bytes"))?;
+        Ok(SealHash::new(hash))
+    }
+}
+
 pub type Timestamp = u64;
 
 #[derive(

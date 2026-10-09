@@ -338,6 +338,49 @@ impl StatementHead {
                 description: entry.description.clone(),
                 ..default_head
             },
+            StatementBody::BallotBoxSealed(election, area, _, in_box, counted, _) => {
+                StatementHead {
+                    kind: StatementType::BallotBoxSealed,
+                    description: ballot_box_sealed_description(
+                        election.0.as_deref().unwrap_or_default(),
+                        &area.0,
+                        *counted,
+                        *in_box,
+                    ),
+                    ..default_head
+                }
+            }
+            StatementBody::BallotBoxSealFailed(election, area, reason) => StatementHead {
+                kind: StatementType::BallotBoxSealFailed,
+                log_type: StatementLogType::ERROR,
+                description: ballot_box_seal_failed_description(
+                    election.0.as_deref().unwrap_or_default(),
+                    &area.0,
+                    reason,
+                ),
+                ..default_head
+            },
+            StatementBody::TallyBallotBoxVerified(election, area, _, counted, _) => StatementHead {
+                kind: StatementType::TallyBallotBoxVerified,
+                description: tally_ballot_box_verified_description(
+                    election.0.as_deref().unwrap_or_default(),
+                    &area.0,
+                    *counted,
+                ),
+                ..default_head
+            },
+            StatementBody::TallyBallotBoxRejected(election, area, what_differs, _) => {
+                StatementHead {
+                    kind: StatementType::TallyBallotBoxRejected,
+                    log_type: StatementLogType::ERROR,
+                    description: tally_ballot_box_rejected_description(
+                        election.0.as_deref().unwrap_or_default(),
+                        &area.0,
+                        what_differs,
+                    ),
+                    ..default_head
+                }
+            }
             StatementBody::ResultsPublicationAction(details) => {
                 let action = match details.action {
                     ResultsPublicationAction::Publish => "published",
@@ -374,6 +417,59 @@ fn report_generated_description(details: &ReportGeneratedDetails) -> String {
         details.external_id,
         details.revision,
         details.manifest_sha256
+    )
+}
+
+/// `1342` → `1,342`, as the seal descriptions show counts.
+pub fn group_thousands(value: u64) -> String {
+    let digits = value.to_string();
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped
+}
+
+/// The statement descriptions name the election and area. `from_body` only
+/// has their ids; the message constructors pass their names.
+pub fn ballot_box_sealed_description(
+    election: &str,
+    area: &str,
+    counted: u64,
+    in_box: u64,
+) -> String {
+    format!(
+        "Ballot box of {election}, {area} sealed: {} of {} ballots counted.",
+        group_thousands(counted),
+        group_thousands(in_box),
+    )
+}
+
+pub fn ballot_box_seal_failed_description(election: &str, area: &str, reason: &str) -> String {
+    format!(
+        "Ballot box of {election}, {area} not sealed, it stays locked: {}.",
+        reason.trim_end_matches('.')
+    )
+}
+
+pub fn tally_ballot_box_verified_description(election: &str, area: &str, counted: u64) -> String {
+    format!(
+        "Ballot box of {election}, {area} matches its seal: {} ballots counted.",
+        group_thousands(counted)
+    )
+}
+
+pub fn tally_ballot_box_rejected_description(
+    election: &str,
+    area: &str,
+    what_differs: &str,
+) -> String {
+    format!(
+        "The ballot box of {election}, {area} does not match its seal: {}.",
+        what_differs.trim_end_matches('.')
     )
 }
 
@@ -582,6 +678,26 @@ pub enum StatementBody {
         ApprovalMatrixVersion,
         ApprovalMatrixDigestString,
     ),
+    /// A ballot box (election, area) was sealed at close (VOTE-FREEZE):
+    /// the seal hash (SHA-512 of the manifest in `crate::seal`), the
+    /// ballots in the box, the ballots counted and the Close voting request,
+    /// if one closed it. The head's timestamp is the seal time.
+    BallotBoxSealed(
+        ElectionIdString,
+        AreaIdString,
+        SealHash,
+        u64,
+        u64,
+        Option<String>,
+    ),
+    /// A ballot box could not be sealed; it stays locked (VOTE-FREEZE).
+    BallotBoxSealFailed(ElectionIdString, AreaIdString, String),
+    /// The tally checked a ballot box against its seal: the seal hash, the
+    /// ballots counted and the tally session id (VOTE-FREEZE).
+    TallyBallotBoxVerified(ElectionIdString, AreaIdString, SealHash, u64, String),
+    /// The tally found a ballot box that does not match its seal: what
+    /// differs and the tally session id (VOTE-FREEZE).
+    TallyBallotBoxRejected(ElectionIdString, AreaIdString, String, String),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -642,6 +758,10 @@ pub enum StatementType {
     ConfigurationPackageImported,
     ReportGenerated,
     ApprovalMatrixUpdated,
+    BallotBoxSealed,
+    BallotBoxSealFailed,
+    TallyBallotBoxVerified,
+    TallyBallotBoxRejected,
 }
 
 #[derive(

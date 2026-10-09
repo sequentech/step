@@ -65,6 +65,7 @@ pub mod review_cast_votes;
 pub mod run_signed_action;
 pub mod scheduled_events;
 pub mod scheduled_reports;
+pub mod seal_ballot_boxes;
 pub mod send_template;
 pub mod set_public_key;
 pub mod signing_log_outbox;

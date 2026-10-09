@@ -74,6 +74,12 @@ export enum EElectionEventLockedDown {
     NOT_LOCKED_DOWN = "not-locked-down",
 }
 
+/** Whether each ballot box is sealed when voting closes (VOTE-FREEZE). Locked once voting has opened. */
+export enum EBallotBoxSealPolicy {
+    DO_NOT_SEAL = "do-not-seal",
+    SEAL_AT_CLOSE = "seal-at-close",
+}
+
 export enum EElectionEventDecodedBallots {
     INCLUDED = "included",
     NOT_INCLUDED = "not-included",
@@ -265,6 +271,8 @@ export interface IElectionEventPresentation {
     timezones?: IElectionEventTimeZones
     /** Lifecycle decisions that are part of the (signed) configuration. */
     lifecycle_policies?: ILifecyclePolicies
+    /** Unset means do-not-seal (VOTE-FREEZE). */
+    ballot_box_seal_policy?: EBallotBoxSealPolicy
 }
 
 /** Which timezone the Logs tab and log exports show. */
