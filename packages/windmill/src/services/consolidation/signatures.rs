@@ -4,13 +4,18 @@
 use anyhow::{anyhow, Context, Result};
 use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
-use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
-use sequent_core::signatures::shell::run_shell_command;
+use sequent_core::signatures::ecies_encrypt::ecies_tool_command;
+use sequent_core::signatures::shell::{build_command, run_command};
 use sequent_core::util::temp_path::*;
+use std::ffi::OsStr;
 use std::fs;
 use std::io::Read;
+use std::path::Path;
+use std::process::Command;
 use tempfile::{tempdir, NamedTempFile, TempPath};
 use tracing::{info, instrument};
+
+const P12_PASSWORD_ENV: &str = "P12_PASSWORD";
 
 #[instrument(skip_all, err)]
 pub fn get_pk12_id(p12_path: &str, password: &str) -> Result<openssl::pkey::Id> {
@@ -28,50 +33,72 @@ pub fn get_pk12_id(p12_path: &str, password: &str) -> Result<openssl::pkey::Id> 
     Ok(pkey.id())
 }
 
+fn ecdsa_sign_command(pk12_file_path_string: &str, password: &str, data_path: &str) -> Command {
+    ecies_tool_command(&["sign-ec", pk12_file_path_string, data_path, password])
+}
+
 #[instrument(skip_all, err)]
 pub fn ecdsa_sign_data(
     pk12_file_path_string: &str,
     password: &str,
     data_path: &str,
 ) -> Result<String> {
-    let command = format!(
-        "java -jar {} sign-ec {} {} {}",
-        ECIES_TOOL_PATH, pk12_file_path_string, data_path, password
-    );
-
-    let encrypted_base64 = run_shell_command(&command)?.replace("\n", "");
+    let encrypted_base64 = run_command(ecdsa_sign_command(
+        pk12_file_path_string,
+        password,
+        data_path,
+    ))?
+    .replace("\n", "");
 
     info!("ecdsa_sign_data: '{}'", encrypted_base64);
 
     Ok(encrypted_base64)
 }
 
+fn p12_cert_command(p12_file_path: &Path, password: &str, cert_path: &Path) -> Command {
+    let passin = format!("env:{P12_PASSWORD_ENV}");
+    let mut command = build_command(
+        "openssl",
+        &[
+            OsStr::new("pkcs12"),
+            OsStr::new("-in"),
+            p12_file_path.as_os_str(),
+            OsStr::new("-passin"),
+            OsStr::new(&passin),
+            OsStr::new("-nokeys"),
+            OsStr::new("-out"),
+            cert_path.as_os_str(),
+        ],
+    );
+    command.env(P12_PASSWORD_ENV, password);
+    command
+}
+
+#[instrument(skip_all, err)]
 pub fn get_p12_cert(p12_file: &NamedTempFile, password: &str) -> Result<TempPath> {
-    let p12_file_path = p12_file.path().to_string_lossy().to_string();
     let cert_temp_file =
         generate_temp_file("p12", "cert").with_context(|| "Error creating temp file")?;
     let cert_temp_path = cert_temp_file.into_temp_path();
-    let cert_temp_path_string = cert_temp_path.to_string_lossy().to_string();
 
-    let cert_command = format!(
-        "openssl pkcs12 -in {} -passin pass:{} -nokeys -out {}",
-        p12_file_path, password, cert_temp_path_string
-    );
-    run_shell_command(&cert_command)?;
+    run_command(p12_cert_command(p12_file.path(), password, &cert_temp_path))?;
 
     Ok(cert_temp_path)
 }
 
 #[instrument(err, ret)]
 pub fn get_p12_fingerprint(p12_cert_path: &TempPath) -> Result<String> {
-    let cert_temp_path_string = p12_cert_path.to_string_lossy().to_string();
-
-    let fingerprint_command = format!(
-        "openssl x509 -in {} -noout -fingerprint -sha256",
-        cert_temp_path_string
-    );
-
-    let fingerprint = run_shell_command(&fingerprint_command)?.replace("\n", "");
+    let fingerprint = run_command(build_command(
+        "openssl",
+        &[
+            OsStr::new("x509"),
+            OsStr::new("-in"),
+            p12_cert_path.as_os_str(),
+            OsStr::new("-noout"),
+            OsStr::new("-fingerprint"),
+            OsStr::new("-sha256"),
+        ],
+    ))?
+    .replace("\n", "");
 
     Ok(fingerprint)
 }
@@ -96,17 +123,75 @@ pub fn check_certificate_cas(
     let intermediate_ca_file_path = temp_dir_path.join("intermediate-ca.cer");
     fs::write(intermediate_ca_file_path.clone(), intermediate_cas)?;
 
-    let verify_command = format!(
-        "openssl verify -CAfile {} -untrusted {} {}",
-        root_ca_file_path.to_string_lossy().to_string(),
-        intermediate_ca_file_path.to_string_lossy().to_string(),
-        p12_cert_path.to_string_lossy().to_string(),
-    );
-    let verify_result = run_shell_command(&verify_command)?.replace("\n", "");
+    let verify_result = run_command(build_command(
+        "openssl",
+        &[
+            OsStr::new("verify"),
+            OsStr::new("-CAfile"),
+            root_ca_file_path.as_os_str(),
+            OsStr::new("-untrusted"),
+            intermediate_ca_file_path.as_os_str(),
+            p12_cert_path.as_os_str(),
+        ],
+    ))?
+    .replace("\n", "");
 
     if !verify_result.ends_with(": OK") {
         return Err(anyhow!(verify_result));
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
+
+    const HOSTILE_PASSWORD: &str = "pass word; rm -rf / $(touch pwned) `id` | cat";
+
+    #[test]
+    fn test_ecdsa_sign_command_passes_password_as_single_argument() {
+        let command = ecdsa_sign_command("/tmp/key.p12", HOSTILE_PASSWORD, "/tmp/data");
+        assert_eq!(command.get_program(), "java");
+        let args: Vec<&OsStr> = command.get_args().collect();
+        assert_eq!(
+            args,
+            vec![
+                "-jar",
+                ECIES_TOOL_PATH,
+                "sign-ec",
+                "/tmp/key.p12",
+                "/tmp/data",
+                HOSTILE_PASSWORD
+            ]
+        );
+    }
+
+    #[test]
+    fn test_p12_cert_command_passes_password_through_environment() {
+        let command = p12_cert_command(
+            Path::new("/tmp/key.p12"),
+            HOSTILE_PASSWORD,
+            Path::new("/tmp/cert"),
+        );
+        assert_eq!(command.get_program(), "openssl");
+        let args: Vec<&OsStr> = command.get_args().collect();
+        assert_eq!(
+            args,
+            vec![
+                "pkcs12",
+                "-in",
+                "/tmp/key.p12",
+                "-passin",
+                "env:P12_PASSWORD",
+                "-nokeys",
+                "-out",
+                "/tmp/cert"
+            ]
+        );
+        assert!(command.get_envs().any(
+            |(key, value)| key == "P12_PASSWORD" && value == Some(OsStr::new(HOSTILE_PASSWORD))
+        ));
+    }
 }

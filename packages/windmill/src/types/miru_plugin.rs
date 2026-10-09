@@ -44,6 +44,26 @@ pub struct MiruDocument {
     pub signatures: Vec<MiruSignature>,
 }
 
+#[derive(
+    Display, EnumString, Serialize, Deserialize, Debug, Default, PartialEq, Eq, Clone, Copy,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CcsTlsVerificationPolicy {
+    #[default]
+    Verify,
+    AcceptInvalidCertificates,
+}
+
+impl CcsTlsVerificationPolicy {
+    pub fn accepts_invalid_certificates(&self) -> bool {
+        match self {
+            CcsTlsVerificationPolicy::Verify => false,
+            CcsTlsVerificationPolicy::AcceptInvalidCertificates => true,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub struct MiruCcsServer {
     pub name: String,
@@ -51,6 +71,14 @@ pub struct MiruCcsServer {
     pub address: String,
     pub public_key_pem: String,
     pub send_logs: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tls_verification_policy: Option<CcsTlsVerificationPolicy>,
+}
+
+impl MiruCcsServer {
+    pub fn tls_verification_policy(&self) -> CcsTlsVerificationPolicy {
+        self.tls_verification_policy.unwrap_or_default()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -74,3 +102,92 @@ pub struct MiruSbeiUser {
 }
 
 pub type MiruTallySessionData = Vec<MiruTransmissionPackageData>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    const CCS_SERVER_WITHOUT_POLICY: &str = r#"{
+        "name": "ccs",
+        "tag": "ccs-tag",
+        "address": "https://ccs.example.com",
+        "public_key_pem": "pem",
+        "send_logs": true
+    }"#;
+
+    fn ccs_server_with_policy(policy: &str) -> String {
+        format!(
+            r#"{{
+                "name": "ccs",
+                "tag": "ccs-tag",
+                "address": "https://ccs.example.com",
+                "public_key_pem": "pem",
+                "tls_verification_policy": "{policy}"
+            }}"#
+        )
+    }
+
+    #[test]
+    fn ccs_server_without_policy_verifies_certificates() {
+        let server: MiruCcsServer = serde_json::from_str(CCS_SERVER_WITHOUT_POLICY).unwrap();
+        assert_eq!(server.tls_verification_policy, None);
+        assert_eq!(
+            server.tls_verification_policy(),
+            CcsTlsVerificationPolicy::Verify
+        );
+        assert!(!server
+            .tls_verification_policy()
+            .accepts_invalid_certificates());
+    }
+
+    #[test]
+    fn ccs_server_explicit_verify_policy_verifies_certificates() {
+        let server: MiruCcsServer =
+            serde_json::from_str(&ccs_server_with_policy("verify")).unwrap();
+        assert!(!server
+            .tls_verification_policy()
+            .accepts_invalid_certificates());
+    }
+
+    #[test]
+    fn ccs_server_accept_invalid_certificates_policy_is_honored() {
+        let server: MiruCcsServer =
+            serde_json::from_str(&ccs_server_with_policy("accept_invalid_certificates")).unwrap();
+        assert_eq!(
+            server.tls_verification_policy(),
+            CcsTlsVerificationPolicy::AcceptInvalidCertificates
+        );
+        assert!(server
+            .tls_verification_policy()
+            .accepts_invalid_certificates());
+    }
+
+    #[test]
+    fn ccs_server_invalid_policy_is_rejected() {
+        assert!(
+            serde_json::from_str::<MiruCcsServer>(&ccs_server_with_policy("insecure")).is_err()
+        );
+        assert!(CcsTlsVerificationPolicy::from_str("insecure").is_err());
+    }
+
+    #[test]
+    fn ccs_tls_verification_policy_round_trips_through_strings() {
+        for policy in [
+            CcsTlsVerificationPolicy::Verify,
+            CcsTlsVerificationPolicy::AcceptInvalidCertificates,
+        ] {
+            assert_eq!(
+                CcsTlsVerificationPolicy::from_str(&policy.to_string()).unwrap(),
+                policy
+            );
+        }
+    }
+
+    #[test]
+    fn ccs_server_without_policy_serializes_without_the_field() {
+        let server: MiruCcsServer = serde_json::from_str(CCS_SERVER_WITHOUT_POLICY).unwrap();
+        let value = serde_json::to_value(&server).unwrap();
+        assert!(value.get("tls_verification_policy").is_none());
+    }
+}
