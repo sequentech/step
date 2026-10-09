@@ -14,6 +14,35 @@ export interface GetPublishedBallotStylesQuery {
     sequent_backend_ballot_style: Array<BallotStyleRow & {ballot_publication_id: string}>
 }
 
+/**
+ * Returns the ballot style with the given id if it belongs to a published
+ * publication, or null when there is none or the styles have not loaded.
+ */
+export const findPublishedBallotStyle = (
+    data: GetPublishedBallotStylesQuery | undefined,
+    ballotStyleId: string | undefined
+): IElectionDTO | null => {
+    if (!data || !ballotStyleId) {
+        return null
+    }
+    const publishedPublicationIds = new Set(
+        data.sequent_backend_ballot_publication.map((publication) => publication.id)
+    )
+    const ballotStyle = data.sequent_backend_ballot_style.find(
+        (style) =>
+            style.id === ballotStyleId && publishedPublicationIds.has(style.ballot_publication_id)
+    )
+    if (!ballotStyle || !isString(ballotStyle.ballot_eml)) {
+        return null
+    }
+    try {
+        return JSON.parse(ballotStyle.ballot_eml)
+    } catch (error) {
+        console.log(`Error loading EML: ${error}`)
+        return null
+    }
+}
+
 export const updateBallotStyleAndSelection = (
     data: GetPublishedBallotStylesQuery,
     dispatch: AppDispatch
