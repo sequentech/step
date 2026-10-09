@@ -8,8 +8,8 @@ use crate::services::{
 use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
-    AuthenticationExecutionInfoRepresentation, GroupRepresentation,
-    RealmRepresentation, RoleRepresentation,
+    AuthenticationExecutionInfoRepresentation, ClientRepresentation,
+    GroupRepresentation, RealmRepresentation, RoleRepresentation,
 };
 use keycloak::{
     KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
@@ -31,7 +31,15 @@ const VOTING_PORTAL_CLIENT_ID: &str = "voting-portal";
 const KIOSK_VOTING_PORTAL_CLIENT_ID: &str = "voting-portal-kiosk";
 const ONSITE_VOTING_PORTAL_CLIENT_ID: &str = "onsite-voting-portal";
 const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
+const ADMIN_PORTAL_CLIENT_ID: &str = "admin-portal";
+const CLI_ACCOUNT_ADMIN_CLIENT_ID: &str = "cli-account-admin";
 const CONDITIONAL_CLIENT_ID: &str = "conditional-client";
+const ADMIN_PORTAL_URL_ENV_VAR: &str = "ADMIN_PORTAL_URL";
+const PKCE_CODE_CHALLENGE_METHOD_ATTR: &str = "pkce.code.challenge.method";
+const PKCE_S256_METHOD: &str = "S256";
+const POST_LOGOUT_REDIRECT_URIS_ATTR: &str = "post.logout.redirect.uris";
+const REQUEST_URIS_ATTR: &str = "request.uris";
+const SAME_AS_REDIRECT_URIS: &str = "+";
 
 fn kiosk_voting_portal_url(
     voting_portal_url: &str,
@@ -54,6 +62,81 @@ fn voting_portal_redirect_uris(ballot_verifier_url: &str) -> Vec<String> {
 
 fn results_portal_redirect_uris(results_portal_url: &str) -> Vec<String> {
     vec![format!("{}/*", results_portal_url.trim_end_matches('/'))]
+}
+
+fn admin_portal_redirect_uris(admin_portal_url: &str) -> Vec<String> {
+    vec![format!("{}/*", admin_portal_url.trim_end_matches('/'))]
+}
+
+/// Returns the configured admin portal URL for a tenant realm, where it is
+/// required, and `None` for any other realm.
+fn admin_portal_url_for_realm(
+    realm_name: &str,
+    configured_url: Option<String>,
+) -> Result<Option<String>> {
+    let Some((_, None)) = parse_realm(realm_name) else {
+        return Ok(None);
+    };
+    configured_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|url| !url.is_empty())
+        .map(|url| Some(url.to_string()))
+        .ok_or_else(|| {
+            anyhow!("Error fetching {ADMIN_PORTAL_URL_ENV_VAR} env var")
+        })
+}
+
+fn set_client_attributes(
+    client: &mut ClientRepresentation,
+    attributes_to_set: &[(&str, &str)],
+    attributes_to_remove: &[&str],
+) {
+    let attributes = client.attributes.get_or_insert_with(HashMap::new);
+    for (name, value) in attributes_to_set {
+        attributes.insert(name.to_string(), value.to_string());
+    }
+    for name in attributes_to_remove {
+        attributes.remove(*name);
+    }
+}
+
+/// Limits the browser redirects of the tenant realm clients that issue tokens
+/// carrying the user's realm roles: `admin-portal` to the admin portal, and
+/// `cli-account-admin`, which is only used for direct access grants, to none.
+fn scope_tenant_realm_clients(
+    clients: &mut [ClientRepresentation],
+    admin_portal_url: &str,
+) {
+    for client in clients {
+        match client.client_id.as_deref() {
+            Some(ADMIN_PORTAL_CLIENT_ID) => {
+                client.root_url = Some(admin_portal_url.to_string());
+                client.base_url = Some(admin_portal_url.to_string());
+                client.redirect_uris =
+                    Some(admin_portal_redirect_uris(admin_portal_url));
+                client.web_origins = Some(vec![SAME_AS_REDIRECT_URIS.into()]);
+                set_client_attributes(
+                    client,
+                    &[
+                        (PKCE_CODE_CHALLENGE_METHOD_ATTR, PKCE_S256_METHOD),
+                        (POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS),
+                    ],
+                    &[REQUEST_URIS_ATTR],
+                );
+            }
+            Some(CLI_ACCOUNT_ADMIN_CLIENT_ID) => {
+                client.redirect_uris = Some(vec![]);
+                client.web_origins = Some(vec![]);
+                set_client_attributes(
+                    client,
+                    &[(POST_LOGOUT_REDIRECT_URIS_ATTR, SAME_AS_REDIRECT_URIS)],
+                    &[REQUEST_URIS_ATTR],
+                );
+            }
+            _ => {}
+        }
+    }
 }
 
 fn include_results_portal_in_client_condition(value: &str) -> String {
@@ -770,6 +853,10 @@ impl KeycloakAdminClient {
         let ballot_verifier_url = env::var("BALLOT_VERIFIER_URL")
             .with_context(|| "Error fetching BALLOT_VERIFIER_URL env var")?;
         let results_portal_url = env::var("RESULTS_PORTAL_URL").ok();
+        let admin_portal_url = admin_portal_url_for_realm(
+            board_name,
+            env::var(ADMIN_PORTAL_URL_ENV_VAR).ok(),
+        )?;
 
         let mut clients = realm.clients.take().unwrap_or_default();
         let voting_portal_template = clients
@@ -813,6 +900,9 @@ impl KeycloakAdminClient {
                 }
                 _ => {}
             }
+        }
+        if let Some(admin_portal_url) = admin_portal_url.as_deref() {
+            scope_tenant_realm_clients(&mut clients, admin_portal_url);
         }
 
         if let Some(results_portal_url) = results_portal_url {
@@ -901,9 +991,185 @@ impl KeycloakAdminClient {
 #[cfg(test)]
 mod tests {
     use super::{
+        admin_portal_redirect_uris, admin_portal_url_for_realm,
         include_results_portal_in_client_condition, kiosk_voting_portal_url,
-        results_portal_redirect_uris, voting_portal_redirect_uris,
+        results_portal_redirect_uris, scope_tenant_realm_clients,
+        voting_portal_redirect_uris, ADMIN_PORTAL_CLIENT_ID,
+        CLI_ACCOUNT_ADMIN_CLIENT_ID, PKCE_CODE_CHALLENGE_METHOD_ATTR,
+        PKCE_S256_METHOD, POST_LOGOUT_REDIRECT_URIS_ATTR, REQUEST_URIS_ATTR,
+        SAME_AS_REDIRECT_URIS,
     };
+    use crate::serialization::deserialize_with_path::deserialize_str;
+    use keycloak::types::{ClientRepresentation, RealmRepresentation};
+    use std::collections::HashMap;
+
+    const TENANT_REALM_TEMPLATE: &str = include_str!(
+        "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json"
+    );
+    const TENANT_REALM: &str = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const EVENT_REALM: &str = "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559";
+    const ADMIN_PORTAL_URL: &str = "https://admin.example.test";
+    const ANY_URI: &str = "*";
+
+    fn find_client<'a>(
+        clients: &'a [ClientRepresentation],
+        client_id: &str,
+    ) -> &'a ClientRepresentation {
+        clients
+            .iter()
+            .find(|client| client.client_id.as_deref() == Some(client_id))
+            .unwrap_or_else(|| panic!("missing client {client_id}"))
+    }
+
+    fn client_accepting_any_uri(client_id: &str) -> ClientRepresentation {
+        ClientRepresentation {
+            client_id: Some(client_id.to_string()),
+            root_url: Some("http://127.0.0.1:3002/".to_string()),
+            base_url: Some("http://127.0.0.1:3002/".to_string()),
+            redirect_uris: Some(vec![ANY_URI.to_string()]),
+            web_origins: Some(vec![ANY_URI.to_string()]),
+            attributes: Some(HashMap::from([
+                (
+                    POST_LOGOUT_REDIRECT_URIS_ATTR.to_string(),
+                    ANY_URI.to_string(),
+                ),
+                (REQUEST_URIS_ATTR.to_string(), ANY_URI.to_string()),
+            ])),
+            ..Default::default()
+        }
+    }
+
+    fn attribute<'a>(
+        client: &'a ClientRepresentation,
+        name: &str,
+    ) -> Option<&'a str> {
+        client
+            .attributes
+            .as_ref()
+            .and_then(|attributes| attributes.get(name))
+            .map(String::as_str)
+    }
+
+    #[test]
+    fn admin_portal_redirect_uris_are_scoped_to_admin_portal() {
+        assert_eq!(
+            admin_portal_redirect_uris("https://admin.example.test/"),
+            vec!["https://admin.example.test/*"]
+        );
+    }
+
+    #[test]
+    fn admin_portal_url_is_required_for_tenant_realms() {
+        assert!(admin_portal_url_for_realm(TENANT_REALM, None).is_err());
+        assert!(admin_portal_url_for_realm(
+            TENANT_REALM,
+            Some("  ".to_string())
+        )
+        .is_err());
+        assert_eq!(
+            admin_portal_url_for_realm(
+                TENANT_REALM,
+                Some(format!(" {ADMIN_PORTAL_URL} "))
+            )
+            .ok(),
+            Some(Some(ADMIN_PORTAL_URL.to_string()))
+        );
+    }
+
+    #[test]
+    fn admin_portal_url_is_not_used_for_event_realms() {
+        assert_eq!(
+            admin_portal_url_for_realm(EVENT_REALM, None).ok(),
+            Some(None)
+        );
+    }
+
+    #[test]
+    fn tenant_realm_admin_portal_client_is_scoped_to_admin_portal_url() {
+        let mut clients =
+            vec![client_accepting_any_uri(ADMIN_PORTAL_CLIENT_ID)];
+        scope_tenant_realm_clients(&mut clients, ADMIN_PORTAL_URL);
+        let admin_portal = find_client(&clients, ADMIN_PORTAL_CLIENT_ID);
+
+        assert_eq!(admin_portal.root_url.as_deref(), Some(ADMIN_PORTAL_URL));
+        assert_eq!(admin_portal.base_url.as_deref(), Some(ADMIN_PORTAL_URL));
+        assert_eq!(
+            admin_portal.redirect_uris,
+            Some(vec![format!("{ADMIN_PORTAL_URL}/*")])
+        );
+        assert_eq!(
+            admin_portal.web_origins,
+            Some(vec![SAME_AS_REDIRECT_URIS.to_string()])
+        );
+        assert_eq!(
+            attribute(admin_portal, PKCE_CODE_CHALLENGE_METHOD_ATTR),
+            Some(PKCE_S256_METHOD)
+        );
+        assert_eq!(
+            attribute(admin_portal, POST_LOGOUT_REDIRECT_URIS_ATTR),
+            Some(SAME_AS_REDIRECT_URIS)
+        );
+        assert_eq!(attribute(admin_portal, REQUEST_URIS_ATTR), None);
+    }
+
+    #[test]
+    fn tenant_realm_cli_client_accepts_no_browser_redirects() {
+        let mut clients =
+            vec![client_accepting_any_uri(CLI_ACCOUNT_ADMIN_CLIENT_ID)];
+        scope_tenant_realm_clients(&mut clients, ADMIN_PORTAL_URL);
+        let cli_client = find_client(&clients, CLI_ACCOUNT_ADMIN_CLIENT_ID);
+
+        assert_eq!(cli_client.redirect_uris, Some(vec![]));
+        assert_eq!(cli_client.web_origins, Some(vec![]));
+        assert_eq!(
+            attribute(cli_client, POST_LOGOUT_REDIRECT_URIS_ATTR),
+            Some(SAME_AS_REDIRECT_URIS)
+        );
+        assert_eq!(attribute(cli_client, REQUEST_URIS_ATTR), None);
+    }
+
+    #[test]
+    fn tenant_realm_scoping_leaves_other_clients_unchanged() {
+        let other_client = client_accepting_any_uri("api-key-client");
+        let mut clients = vec![other_client.clone()];
+        scope_tenant_realm_clients(&mut clients, ADMIN_PORTAL_URL);
+
+        assert_eq!(clients, vec![other_client]);
+    }
+
+    #[test]
+    fn tenant_realm_template_admin_clients_list_explicit_redirect_uris() {
+        let realm: RealmRepresentation =
+            deserialize_str(TENANT_REALM_TEMPLATE).expect("tenant template");
+        let clients = realm.clients.unwrap_or_default();
+
+        for client_id in [ADMIN_PORTAL_CLIENT_ID, CLI_ACCOUNT_ADMIN_CLIENT_ID] {
+            let client = find_client(&clients, client_id);
+            for uris in [&client.redirect_uris, &client.web_origins] {
+                assert!(
+                    !uris.iter().flatten().any(|uri| uri == ANY_URI),
+                    "{client_id} lists {uris:?}"
+                );
+            }
+            assert_ne!(
+                attribute(client, POST_LOGOUT_REDIRECT_URIS_ATTR),
+                Some(ANY_URI),
+                "{client_id} post logout redirect URIs"
+            );
+            assert_eq!(
+                attribute(client, REQUEST_URIS_ATTR),
+                None,
+                "{client_id} request URIs"
+            );
+        }
+        assert_eq!(
+            attribute(
+                find_client(&clients, ADMIN_PORTAL_CLIENT_ID),
+                PKCE_CODE_CHALLENGE_METHOD_ATTR
+            ),
+            Some(PKCE_S256_METHOD)
+        );
+    }
 
     #[test]
     fn voting_portal_redirect_uris_exclude_the_results_portal() {
