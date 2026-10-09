@@ -224,17 +224,26 @@ impl PgsqlB3Server {
             info!("Total writes: {}ms", now.elapsed().as_millis());
         }
 
-        let reply = c.insert_messages(board, &messages).await;
+        // Publish the blobs once the messages are inserted and before the
+        // transaction commits, so that a failed insert leaves the stored blobs
+        // as they were and every committed message has its blob.
+        let reply = if self.blob_root.is_some() {
+            c.insert_messages_then_commit(board, &messages, move || {
+                for blob in staged {
+                    blob.publish()?;
+                }
+                Ok(())
+            })
+            .await
+        } else {
+            c.insert_messages(board, &messages).await
+        };
         let Ok(_) = reply else {
             error!("Failed to insert messages in database: {:?}", reply.err());
             return Err(Status::internal(format!(
                 "Failed to insert messages in database"
             )));
         };
-
-        for blob in staged {
-            blob.publish()?;
-        }
 
         Ok(())
     }
@@ -243,7 +252,7 @@ impl PgsqlB3Server {
 static STAGED_BLOB_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// Message bytes written beside their blob path. `publish` moves them into
-/// place once the message is stored; dropping an unpublished blob removes it.
+/// place; dropping an unpublished blob removes them.
 struct StagedBlob {
     staged: PathBuf,
     path: PathBuf,

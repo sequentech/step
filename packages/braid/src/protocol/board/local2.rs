@@ -606,7 +606,8 @@ impl<C: Ctx> LocalBoard<C> {
     /// (when a truncated message is received from the bulletin board)
     ///
     /// Messages are deserialized to recover metadata, verified, and then stored.
-    /// Messages that do not verify against the board configuration are skipped.
+    /// Messages that do not verify against the board configuration are skipped,
+    /// and their ids are recorded so that `get_last_external_id` moves past them.
     /// Until the configuration is known, only a configuration message signed
     /// by its protocol manager is stored.
     /// If a blob store exists, bytes will be stored in the filesystem, and
@@ -640,6 +641,9 @@ impl<C: Ctx> LocalBoard<C> {
             )?
         };
 
+        let mut skip =
+            connection.prepare("INSERT OR IGNORE INTO SKIPPED_MESSAGES(external_id) VALUES(?1)")?;
+
         let mut inserted = 0;
         connection.execute("BEGIN TRANSACTION", [])?;
         for m in messages {
@@ -657,6 +661,7 @@ impl<C: Ctx> LocalBoard<C> {
                         "update_store: message failed verification, skipping message {}: {}",
                         m.id, e
                     );
+                    skip.execute(params![m.id])?;
                     continue;
                 }
             };
@@ -690,6 +695,7 @@ impl<C: Ctx> LocalBoard<C> {
         connection.execute("END TRANSACTION", [])?;
 
         drop(statement);
+        drop(skip);
 
         if inserted > 0 {
             tracing::info!(
@@ -874,7 +880,7 @@ impl<C: Ctx> LocalBoard<C> {
         messages
     }
 
-    /// Returns the largest id stored in the message store.
+    /// Returns the largest id stored or skipped in the message store.
     ///
     /// If the store is empty -1 will be returned as a lower bound
     /// on all possible message ids. Note that the last external id
@@ -883,10 +889,11 @@ impl<C: Ctx> LocalBoard<C> {
     pub(crate) fn get_last_external_id(&mut self) -> Result<i64> {
         let connection = self.get_store()?;
 
-        let external_last_id =
-            connection.query_row("SELECT max(external_id) FROM messages;", [], |row| {
-                row.get(0)
-            });
+        let external_last_id = connection.query_row(
+            "SELECT max(external_id) FROM (SELECT external_id FROM messages UNION ALL SELECT external_id FROM skipped_messages);",
+            [],
+            |row| row.get(0),
+        );
 
         let external_last_id = external_last_id.unwrap_or(-1);
 
@@ -970,6 +977,10 @@ impl<C: Ctx> LocalBoard<C> {
         let connection = Connection::open(&store)?;
 
         connection.execute("CREATE TABLE if not exists MESSAGES(id INTEGER PRIMARY KEY AUTOINCREMENT, external_id INT8 NOT NULL UNIQUE, message BLOB NOT NULL, sender_pk TEXT NOT NULL, statement_kind TEXT NOT NULL, batch INT4 NOT NULL, mix_number INT4 NOT NULL, UNIQUE(sender_pk, statement_kind, batch, mix_number))", [])?;
+        connection.execute(
+            "CREATE TABLE if not exists SKIPPED_MESSAGES(external_id INT8 PRIMARY KEY)",
+            [],
+        )?;
 
         Ok(connection)
     }
@@ -1294,5 +1305,22 @@ pub(crate) mod tests {
         let messages = stored(&mut restarted);
         assert_eq!(messages.len(), 2);
         assert!(messages.iter().all(|m| m.verify(&board.cfg).is_ok()));
+    }
+
+    #[test]
+    fn last_external_id_includes_skipped_messages() {
+        let board = TestBoard::new(2);
+        let store = TestStore::new("last_external_id_includes_skipped_messages");
+        let mut local = LocalBoard::<RistrettoCtx>::new(Some(store.path()), None);
+
+        local
+            .update_store(
+                &remote(0, vec![board.bootstrap(), board.unverifiable_as(0)]),
+                false,
+            )
+            .unwrap();
+
+        assert_eq!(local.get_last_external_id().unwrap(), 1);
+        assert_eq!(stored(&mut local).len(), 1);
     }
 }
