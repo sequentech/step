@@ -258,6 +258,9 @@ def measure(
             arguments.extend(["--features", ",".join(profile["features"])])
         if offline:
             arguments.append("--offline")
+        # Clear workspace binaries as well as counters: LLVM can otherwise
+        # collect regions from an earlier package/feature profile. This also
+        # reruns compiler-time macro coverage. External dependencies stay cached.
         execute(
             ["cargo", "llvm-cov", "clean", "--workspace"],
             output / "clean.log",
