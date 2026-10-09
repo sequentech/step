@@ -22,8 +22,7 @@ impl AwsSecretManager {
 
 #[async_trait]
 impl Vault for AwsSecretManager {
-    // TODO: add back skip(value)
-    #[instrument(err)]
+    #[instrument(skip(value), err)]
     async fn save_secret(&self, key: String, value: String) -> Result<()> {
         let shared_config = get_from_env_aws_config()
             .await
