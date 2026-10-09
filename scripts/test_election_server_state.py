@@ -114,12 +114,23 @@ class ElectionServerStateTests(unittest.TestCase):
     def test_started_channel_and_revote_limit_are_fixed(self):
         for assignment, value in [
             ("voting_channels = %s", Jsonb({"online": False})),
-            ("voting_channels = %s", None),
+            ("voting_channels = %s", Jsonb({})),
+            ("voting_channels = %s", Jsonb(None)),
             ("num_allowed_revotes = %s", 5),
         ]:
             with self.subTest(assignment=assignment, value=value), self.assertRaises(psycopg.errors.InsufficientPrivilege):
                 self.update(assignment, (value,), "election-write")
         self.update("voting_channels = %s, num_allowed_revotes = 5", (Jsonb({"online": False}),))
+
+    def test_unset_voting_channels_enable_online_only(self):
+        self.update("voting_channels = NULL")
+        self.update("voting_channels = %s", (Jsonb({"online": True, "kiosk": False}),), "election-write")
+        self.update("voting_channels = NULL", role="election-write")
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            self.update("voting_channels = %s", (Jsonb({"kiosk": True}),), "election-write")
+        self.update("voting_channels = %s", (Jsonb({"online": False}),))
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            self.update("voting_channels = NULL", role="election-write")
 
     def test_channels_and_revote_limit_change_before_voting_starts(self):
         self.update("voting_channels = %s", (Jsonb({"online": True, "kiosk": True}),), "election-write")
