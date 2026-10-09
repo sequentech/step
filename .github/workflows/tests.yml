@@ -38,7 +38,7 @@ jobs:
       fail-fast: false
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Rust tests
         uses: ./.github/actions/setup-rust-tests
@@ -125,7 +125,7 @@ jobs:
           --health-retries 5
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Rust tests
         uses: ./.github/actions/setup-rust-tests
@@ -182,10 +182,10 @@ jobs:
       fail-fast: false
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: yarn
@@ -221,7 +221,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Slack notification
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v4.0.0
         with:
           payload: |
             {
