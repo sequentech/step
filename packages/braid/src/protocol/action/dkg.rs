@@ -7,7 +7,7 @@
 use super::*;
 use crate::protocol::datalog;
 use anyhow::Result;
-use b3::messages::artifact::Channel;
+use b3::messages::artifact::{Channel, Configuration, DkgCommitmentProofPolicy};
 use strand::elgamal::PublicKey;
 use strand::zkp::Zkp;
 
@@ -109,6 +109,9 @@ pub(super) fn sign_channels<C: Ctx>(
 /// key as present in their Channel. Shares are verified by their
 /// recipient trustees as part of their public key verification.
 ///
+/// Under DkgCommitmentProofPolicy::SchnorrPok the Shares also include
+/// a proof of knowledge of the polynomial's constant term.
+///
 /// Returns a Message of type Shares signed by this trustee.
 ///
 /// As described in Cortier et al.; based on Pedersen.
@@ -146,12 +149,93 @@ pub(super) fn compute_shares<C: Ctx>(
         s.push(share_bytes?)
     }
 
+    let commitment_proof = match cfg.dkg_commitment_proof_policy {
+        DkgCommitmentProofPolicy::Legacy => None,
+        DkgCommitmentProofPolicy::SchnorrPok => {
+            let (Some(constant), Some(commitment)) = (coeffs.first(), commitments.first()) else {
+                return Err(ProtocolError::InternalError(
+                    "Missing polynomial coefficients".to_string(),
+                ));
+            };
+            let position = cfg
+                .get_trustee_position(&trustee.get_pk()?)
+                .ok_or_else(|| {
+                    ProtocolError::InternalError("Trustee not found in configuration".to_string())
+                })?;
+            let label = commitment_proof_label(cfg, position);
+            let proof = Zkp::new(&ctx).schnorr_prove(constant, commitment, None, &label)?;
+            Some(proof)
+        }
+    };
+
     let shares = Shares {
         commitments: commitments,
         encrypted_shares: s,
+        commitment_proof,
     };
     let m = Message::shares_msg(cfg, &shares, trustee)?;
     Ok(vec![m])
+}
+
+fn commitment_proof_label<C: Ctx>(cfg: &Configuration<C>, dealer: TrusteePosition) -> Vec<u8> {
+    cfg.label(0, format!("shares commitment proof {dealer}"))
+}
+
+fn check_shares_shape<C: Ctx>(
+    share: &Shares<C>,
+    threshold: usize,
+    num_t: usize,
+    sender: TrusteePosition,
+) -> Result<(), ProtocolError> {
+    if share.commitments.len() != threshold {
+        return Err(ProtocolError::VerificationError(format!(
+            "Shares from trustee {} have {} commitments, expected {}",
+            sender,
+            share.commitments.len(),
+            threshold
+        )));
+    }
+    if share.encrypted_shares.len() != num_t {
+        return Err(ProtocolError::VerificationError(format!(
+            "Shares from trustee {} have {} encrypted shares, expected {}",
+            sender,
+            share.encrypted_shares.len(),
+            num_t
+        )));
+    }
+    Ok(())
+}
+
+/// Under DkgCommitmentProofPolicy::SchnorrPok, verifies the proof of
+/// knowledge of the discrete log of the sender's first commitment.
+fn verify_commitment_proof<C: Ctx>(
+    cfg: &Configuration<C>,
+    share: &Shares<C>,
+    sender: TrusteePosition,
+    zkp: &Zkp<C>,
+) -> Result<(), ProtocolError> {
+    match cfg.dkg_commitment_proof_policy {
+        DkgCommitmentProofPolicy::Legacy => Ok(()),
+        DkgCommitmentProofPolicy::SchnorrPok => {
+            let (Some(commitment), Some(proof)) =
+                (share.commitments.first(), share.commitment_proof.as_ref())
+            else {
+                return Err(ProtocolError::VerificationError(format!(
+                    "Shares from trustee {} have no commitment proof",
+                    sender
+                )));
+            };
+            let label = commitment_proof_label(cfg, sender);
+            if zkp.schnorr_verify(commitment, None, proof, &label) {
+                Ok(())
+            } else {
+                Err(ProtocolError::VerificationError(format!(
+                    "Failed to verify commitment proof on shares from trustee {}",
+                    sender
+                )))
+            }
+        }
+    }
 }
 
 /// Computes the public key corresponding to the shares.
@@ -241,7 +325,10 @@ pub(super) fn sign_pk<C: Ctx>(
 
 /// Computes the public key from the shares.
 ///
-/// First this trustee's Channel is retrieved, and the private
+/// Each trustee's Shares are first checked for the expected number of
+/// commitments and encrypted shares and, under
+/// DkgCommitmentProofPolicy::SchnorrPok, for a valid commitment proof.
+/// Then this trustee's Channel is retrieved, and the private
 /// key is decrypted. This key is then used to decrypts the shares
 /// sent to this trustee, which are verified using the commitments.
 /// The share commitments are then used to compute the public key as
@@ -263,6 +350,7 @@ fn compute_pk_<C: Ctx>(
 ) -> Result<(C::E, Vec<C::E>), ProtocolError> {
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
+    let zkp = Zkp::new(&ctx);
     let mut pk = C::E::mul_identity();
     let mut verification_keys = vec![C::E::mul_identity(); *num_t];
 
@@ -270,6 +358,8 @@ fn compute_pk_<C: Ctx>(
     for (i, _h) in shares_hs.0.iter().filter(|h| **h != NULL_HASH).enumerate() {
         let share_h = shares_hs.0[i];
         let share = trustee.get_shares(&SharesHash(share_h), i)?;
+        check_shares_shape(&share, *threshold, *num_t, i)?;
+        verify_commitment_proof(cfg, &share, i, &zkp)?;
 
         pk = pk.mul(&share.commitments[0]).modp(&ctx);
 
@@ -313,4 +403,209 @@ fn compute_pk_<C: Ctx>(
     }
 
     Ok((pk, verification_keys))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::vector_board::VectorBoard;
+    use b3::messages::protocol_manager::ProtocolManager;
+    use b3::messages::statement::StatementType;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::serialization::{StrandDeserialize, StrandSerialize};
+    use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+
+    type C = RistrettoCtx;
+
+    const NUM_TRUSTEES: usize = 2;
+    const THRESHOLD: usize = 2;
+    const DEALER: TrusteePosition = 1;
+    const MAX_CYCLES: usize = 10;
+
+    fn create_dkg(
+        policy: DkgCommitmentProofPolicy,
+    ) -> (Configuration<C>, Vec<Trustee<C>>, VectorBoard) {
+        let pm = ProtocolManager::<C> {
+            signing_key: StrandSignatureSk::gen().unwrap(),
+            phantom: PhantomData,
+        };
+        let (trustees, trustee_pks): (Vec<Trustee<C>>, Vec<StrandSignaturePk>) = (0..NUM_TRUSTEES)
+            .map(|i| {
+                let sk = StrandSignatureSk::gen().unwrap();
+                let pk = StrandSignaturePk::from_sk(&sk).unwrap();
+                let trustee = Trustee::new(
+                    i.to_string(),
+                    "dkg".to_string(),
+                    sk,
+                    strand::symm::gen_key(),
+                    None,
+                    None,
+                );
+                (trustee, pk)
+            })
+            .unzip();
+        let mut cfg = Configuration::<C>::new(
+            0,
+            StrandSignaturePk::from_sk(&pm.signing_key).unwrap(),
+            trustee_pks,
+            THRESHOLD,
+            PhantomData,
+        );
+        cfg.dkg_commitment_proof_policy = policy;
+        let mut board = VectorBoard::new(0);
+        board.add(Message::bootstrap_msg(&cfg, &pm).unwrap());
+
+        (cfg, trustees, board)
+    }
+
+    fn posted_shares(board: &VectorBoard) -> Vec<Shares<C>> {
+        board
+            .messages
+            .iter()
+            .map(|m| Message::strand_deserialize(&m.message).unwrap())
+            .filter(|m| m.statement.get_kind() == StatementType::Shares)
+            .map(|m| Shares::<C>::strand_deserialize(m.artifact.as_ref().unwrap()).unwrap())
+            .collect()
+    }
+
+    /// Runs the dkg. DEALER posts its Shares once the Shares of every other
+    /// trustee are on the board, after passing them through `replace` along
+    /// with those other Shares. Returns the public key posted by trustee 0,
+    /// if any.
+    fn run_dkg(
+        cfg: &Configuration<C>,
+        trustees: &mut [Trustee<C>],
+        board: &mut VectorBoard,
+        replace: impl Fn(Shares<C>, &[Shares<C>]) -> Shares<C>,
+    ) -> Option<DkgPublicKey<C>> {
+        let mut last_ids = vec![-1i64; trustees.len()];
+        for _ in 0..MAX_CYCLES {
+            for (position, trustee) in trustees.iter_mut().enumerate() {
+                let messages = board.get(last_ids[position]);
+                last_ids[position] += messages.len() as i64;
+                let Ok(result) = trustee.step(&messages) else {
+                    continue;
+                };
+                for message in result.messages {
+                    let message = if position == DEALER
+                        && message.statement.get_kind() == StatementType::Shares
+                    {
+                        let others = posted_shares(board);
+                        if others.len() < NUM_TRUSTEES - 1 {
+                            continue;
+                        }
+                        let bytes = message.artifact.as_ref().unwrap();
+                        let shares = Shares::<C>::strand_deserialize(bytes).unwrap();
+                        Message::shares_msg(cfg, &replace(shares, &others), trustee).unwrap()
+                    } else {
+                        message
+                    };
+                    board.add(message);
+                }
+            }
+        }
+
+        trustees[0]._get_dkg_public_key_nohash()
+    }
+
+    fn unchanged(shares: Shares<C>, _others: &[Shares<C>]) -> Shares<C> {
+        shares
+    }
+
+    fn without_commitment_proof(shares: Shares<C>, _others: &[Shares<C>]) -> Shares<C> {
+        let bytes = (shares.commitments, shares.encrypted_shares)
+            .strand_serialize()
+            .unwrap();
+        Shares::<C>::strand_deserialize(&bytes).unwrap()
+    }
+
+    #[test]
+    fn public_key_published_from_well_formed_shares() {
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
+
+        let pk = run_dkg(&cfg, &mut trustees, &mut board, unchanged);
+
+        assert!(pk.is_some());
+    }
+
+    #[test]
+    fn legacy_policy_accepts_shares_without_commitment_proof() {
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::Legacy);
+
+        let pk = run_dkg(&cfg, &mut trustees, &mut board, without_commitment_proof);
+
+        assert!(pk.is_some());
+    }
+
+    #[test]
+    fn public_key_requires_commitment_proof_from_every_trustee() {
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
+
+        let pk = run_dkg(&cfg, &mut trustees, &mut board, without_commitment_proof);
+
+        assert!(pk.is_none());
+    }
+
+    #[test]
+    fn public_key_requires_valid_commitment_proof() {
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
+
+        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
+            if let Some(proof) = shares.commitment_proof.as_mut() {
+                proof.response = proof.response.add(&proof.challenge);
+            }
+            shares
+        });
+
+        assert!(pk.is_none());
+    }
+
+    /// The replaced commitments still verify the share sent to trustee 0.
+    #[test]
+    fn public_key_rejects_commitments_derived_from_other_trustees_shares() {
+        let ctx = C::default();
+        let chosen_pk = ctx.gmod_pow(&ctx.rnd_exp(&mut ctx.get_rng()));
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
+
+        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, others| {
+            let first_share = shares.commitments[0].mul(&shares.commitments[1]).modp(&ctx);
+            let constant = others.iter().fold(chosen_pk.clone(), |acc, other| {
+                acc.divp(&other.commitments[0], &ctx).modp(&ctx)
+            });
+            let linear = first_share.divp(&constant, &ctx).modp(&ctx);
+            shares.commitments = vec![constant, linear];
+            shares
+        })
+        .map(|pk| pk.pk);
+
+        assert_ne!(pk, Some(chosen_pk));
+        assert!(pk.is_none());
+    }
+
+    #[test]
+    fn public_key_requires_threshold_commitments_from_every_trustee() {
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
+
+        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
+            shares.commitments.push(shares.commitments[0].clone());
+            shares
+        });
+
+        assert!(pk.is_none());
+    }
+
+    #[test]
+    fn public_key_requires_one_encrypted_share_per_trustee() {
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
+
+        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
+            shares
+                .encrypted_shares
+                .push(shares.encrypted_shares[0].clone());
+            shares
+        });
+
+        assert!(pk.is_none());
+    }
 }
