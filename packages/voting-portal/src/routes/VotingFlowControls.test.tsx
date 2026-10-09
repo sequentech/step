@@ -11,11 +11,14 @@ import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import {
     ECastVoteGoldLevelPolicy,
     EConsolidatedReportPolicy,
+    EUnderVotePolicy,
     EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
 import type {
+    BallotSelection,
     IAuditableBallot,
     IContest,
+    IDecodedVoteContest,
     IElection,
     IVotingScreenBackPolicy,
 } from "@sequentech/ui-core"
@@ -31,6 +34,8 @@ import {
     BALLOT_DATA_KEY,
     SessionBallotData,
 } from "../store/castVotes/sessionBallotData"
+import {EReceiveBallotStatus} from "../hooks/useReceiveBallot"
+import type {IReceiveBallotState} from "../hooks/useReceiveBallot"
 import VotingScreen from "./VotingScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
@@ -78,16 +83,39 @@ jest.mock("@sequentech/ui-essentials", () => ({
     ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewActions"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationLayout"),
     ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationActions"),
-    Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
+    BallotSlatesProvider: jest.requireActual("../../../ui-essentials/src/ballot/slates")
+        .BallotSlatesProvider,
+    Question: ({question}: {question: IContest}) => (
+        <h2 id={`contest-${question.id}-title`}>{question.name}</h2>
+    ),
+    contestTitleId: (contestId: string) => `contest-${contestId}-title`,
     BallotHash: jest.requireActual("../../../ui-essentials/src/components/BallotHash/BallotHash")
         .default,
     BallotHashCopyButton: jest.requireActual(
         "../../../ui-essentials/src/components/BallotHash/BallotHash"
     ).BallotHashCopyButton,
     theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-    // Only which dialog is open, so a test can see one open without its content.
-    Dialog: ({open, className}: {open: boolean; className?: string}) =>
-        open ? <div className={className} data-testid="open-dialog" /> : null,
+    // Only which dialog is open and its two answers, so a test can see one open
+    // without its content.
+    Dialog: ({
+        open,
+        className,
+        ok,
+        cancel,
+        handleClose,
+    }: {
+        open: boolean
+        className?: string
+        ok?: string
+        cancel?: string
+        handleClose: (value: boolean) => void
+    }) =>
+        open ? (
+            <div className={className} data-testid="open-dialog">
+                {cancel ? <button onClick={() => handleClose(false)}>{cancel}</button> : null}
+                {ok ? <button onClick={() => handleClose(true)}>{ok}</button> : null}
+            </div>
+        ) : null,
     WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox").default,
     EWarnBoxAnnouncement: jest.requireActual(
         "../../../ui-essentials/src/components/WarnBox/WarnBox"
@@ -117,16 +145,29 @@ jest.mock("../providers/SettingsContextProvider", () => ({
 }))
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({
-        interpretContestSelection: () => [],
-        interpretMultiContestSelection: () => [],
+        interpretContestSelection: () => mockDecodedContests,
+        interpretMultiContestSelection: () => mockDecodedContests,
         hashBallot: () => "0123456789abcdef".repeat(4),
         hashMultiBallot: () => "0123456789abcdef".repeat(4),
         toHashableBallot: () => ({}),
         toHashableMultiBallot: () => ({}),
+        decodeAuditableBallot: () => mockDecodedBallot,
+        decodeAuditableMultiBallot: () => mockDecodedBallot,
     }),
 }))
 jest.mock("../hooks/useEncryptBallotForReview", () => ({
     useEncryptBallotForReview: () => ({encryptAndStoreBallot: jest.fn()}),
+}))
+jest.mock("../hooks/useReceiveBallot", () => ({
+    ...jest.requireActual("../hooks/useReceiveBallot"),
+    useReceiveBallot: (params: unknown) => {
+        mockReceiveBallotParams(params)
+        return mockReceiveBallotState
+    },
+}))
+jest.mock("../hooks/useCastReceivedBallot", () => ({
+    signReceivedCast: (...args: unknown[]) => mockSignReceivedCast(...args),
+    useCastReceivedBallot: () => mockCastReceivedBallot,
 }))
 jest.mock("../hooks/root-back-link", () => ({
     useRootBackLink: () => "/tenant/tenant-1/event/event-1/election-chooser",
@@ -136,7 +177,9 @@ jest.mock("../hooks/public-document-url", () => ({
 }))
 // The layouts render the shared Question by relative import.
 jest.mock("../../../ui-essentials/src/ballot/Question", () => ({
-    Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
+    Question: ({question}: {question: IContest}) => (
+        <h2 id={`contest-${question.id}-title`}>{question.name}</h2>
+    ),
 }))
 jest.mock("../components/Stepper", () => ({__esModule: true, default: () => null}))
 jest.mock("@apollo/client/react", () => ({
@@ -153,10 +196,16 @@ const mockLogout = jest.fn()
 let mockIsKiosk = false
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
+const mockReceiveBallotParams = jest.fn()
+const mockSignReceivedCast = jest.fn()
+const mockCastReceivedBallot = jest.fn()
+let mockReceiveBallotState: IReceiveBallotState
 const routeAction = jest.fn(() => null)
 let mockEmptyHashTranslation = false
 let mockIsGoldUser = false
 let mockDisableAuth = true
+let mockDecodedBallot: BallotSelection | null = null
+let mockDecodedContests: Array<IDecodedVoteContest> = []
 let mockElectionQueryData:
     | {
           sequent_backend_election: Array<{
@@ -243,7 +292,7 @@ const setUpState = ({
     }
 }
 
-const renderRoute = (element: React.ReactElement, path: string) => {
+const renderRoute = (element: React.ReactElement, path: string, state?: unknown) => {
     const router = createMemoryRouter(
         [
             {
@@ -256,7 +305,7 @@ const renderRoute = (element: React.ReactElement, path: string) => {
                 element: <div>Chooser</div>,
             },
         ],
-        {initialEntries: [`${ELECTION_PATH}/${path}?preview=true`]}
+        {initialEntries: [{pathname: `${ELECTION_PATH}/${path}`, search: "?preview=true", state}]}
     )
     const view = render(
         <ThemeProvider theme={theme}>
@@ -284,8 +333,11 @@ beforeEach(() => {
     mockIsGoldUser = false
     mockEmptyHashTranslation = false
     mockDisableAuth = true
+    mockDecodedBallot = null
+    mockDecodedContests = []
     mockIsKiosk = false
     mockElectionQueryData = undefined
+    mockReceiveBallotState = {status: EReceiveBallotStatus.NOT_REQUIRED}
     sessionStorage.clear()
     setUpState()
 })
@@ -666,6 +718,365 @@ describe("pending cast", () => {
     })
 })
 
+describe("ballot received by the ballot box at review", () => {
+    const RECEIVED_BALLOT_ID = "FTBE-MHRX"
+    const received = (): IReceiveBallotState => ({
+        status: EReceiveBallotStatus.RECEIVED,
+        ballotId: RECEIVED_BALLOT_ID,
+    })
+    const receivedBallot = {
+        tenant_id: "tenant-1",
+        election_event_id: "event-1",
+        election_id: "election-1",
+        ballot_hash: BALLOT_ID,
+        voter_signing_pk: "voter-key",
+        voter_ballot_signature: "voter-signature",
+        received_at: "2028-05-08T03:00:00.000Z",
+        key_id: "fd110d301d2f077d",
+        received_signature: "ballot-box-signature",
+        ballot_id: RECEIVED_BALLOT_ID,
+    }
+    const ballotBoxKey = {key_id: "fd110d301d2f077d", public_key: "ballot-box-key"}
+    const receivedCast = {receivedBallot, ballotBoxKey, castSignature: "cast-signature"}
+    // The ballot box has the ballot under review and has published its key.
+    const receiveAtReview = () => {
+        mockDisableAuth = false
+        mockReceiveBallotState = received()
+        mockState = {...mockState, receivedBallots: {"election-1": receivedBallot}}
+        mockState.ballotStyles["election-1"]!.ballot_eml.ballot_box_key = ballotBoxKey
+    }
+    beforeEach(() => {
+        mockSignReceivedCast.mockReturnValue(receivedCast)
+        mockCastReceivedBallot.mockResolvedValue(true)
+    })
+    const requireGoldLevel = () => {
+        const election = mockState.elections["election-1"]!
+        election.presentation = {
+            ...election.presentation,
+            consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+            cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+        }
+    }
+
+    it("shows no Ballot ID and cannot cast until the ballot box has answered", () => {
+        mockDisableAuth = false
+        mockReceiveBallotState = {status: EReceiveBallotStatus.PENDING}
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(container.querySelector(".hash-container")).toBeNull()
+        expect(screen.queryByText(BALLOT_ID)).toBeNull()
+        expect(screen.queryByRole("alert")).toBeNull()
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(cast).toBeDisabled()
+        fireEvent.click(cast)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("shows the ballot box's Ballot ID once received and casts it by signature", async () => {
+        receiveAtReview()
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        // The mocked translation shows the first eight characters.
+        expect(container.querySelector(".hash-text")).toHaveTextContent(
+            `Ballot ID: ${RECEIVED_BALLOT_ID.slice(0, 8)}`
+        )
+        expect(container.querySelector(".hash-text")).not.toHaveTextContent(BALLOT_ID.slice(0, 8))
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(cast).toBeEnabled()
+        await userEvent.setup().click(cast)
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        expect(mockSignReceivedCast).toHaveBeenCalledWith(receivedBallot, ballotBoxKey)
+        expect(mockCastReceivedBallot).toHaveBeenCalledWith(receivedCast, expect.any(Function))
+        // The ballot is not sent again: the ballot box casts the one it has.
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("stays on the review screen when the ballot box's cast receipt is not accepted", async () => {
+        receiveAtReview()
+        mockCastReceivedBallot.mockResolvedValue(false)
+        renderRoute(<ReviewScreen />, "review")
+
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        await userEvent.setup().click(cast)
+
+        await waitFor(() => expect(cast).toBeEnabled())
+        expect(mockCastReceivedBallot).toHaveBeenCalledTimes(1)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("returns to the ballot when the key that signed it is no longer in the page", async () => {
+        receiveAtReview()
+        mockSignReceivedCast.mockImplementation(() => {
+            throw new Error("The key that signed the ballot is no longer in memory")
+        })
+        jest.spyOn(console, "error").mockImplementation(() => undefined)
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+
+        await waitFor(() => expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`))
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(routeAction).not.toHaveBeenCalled()
+    })
+
+    it("casts the ballot itself when a received ballot is of another review", async () => {
+        receiveAtReview()
+        mockState = {
+            ...mockState,
+            receivedBallots: {"election-1": {...receivedBallot, ballot_id: "0000-0000"}},
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+        expect(mockSignReceivedCast).not.toHaveBeenCalled()
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
+    })
+
+    it("shows the error and cannot cast a ballot the ballot box did not receive", () => {
+        mockDisableAuth = false
+        mockReceiveBallotState = {
+            status: EReceiveBallotStatus.FAILED,
+            errorMsg: "reviewScreen.error.NETWORK_ERROR",
+        }
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(screen.getByRole("alert")).toHaveTextContent("reviewScreen.error.NETWORK_ERROR")
+        expect(container.querySelector(".hash-container")).toBeNull()
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(cast).toBeDisabled()
+        fireEvent.click(cast)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(screen.getByRole("link", {name: "reviewScreen.backButton"})).toHaveAttribute(
+            "href",
+            `${ELECTION_PATH}/vote?preview=true`
+        )
+    })
+
+    it.each([
+        ["a demo ballot", true, false, false],
+        ["a portal without authentication", false, true, false],
+        ["an election decided by acclamation", false, false, true],
+    ])("sends nothing to the ballot box for %s", (_, isDemo, disableAuth, isFullyAcclaimed) => {
+        setUpState({isFullyAcclaimed})
+        mockDisableAuth = disableAuth
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key = {
+            public_key: "key",
+            is_demo: isDemo,
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        expect(mockReceiveBallotParams).toHaveBeenLastCalledWith(
+            expect.objectContaining({skip: true})
+        )
+    })
+
+    it("sends a real ballot with the hash this device computed", () => {
+        mockDisableAuth = false
+        mockState.ballotStyles["election-1"]!.ballot_eml.public_key = {
+            public_key: "key",
+            is_demo: false,
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        expect(mockReceiveBallotParams).toHaveBeenLastCalledWith({
+            ballotStyle: mockState.ballotStyles["election-1"],
+            auditableBallot: mockState.auditableBallots["election-1"]!.auditableBallot,
+            ballotHash: BALLOT_ID,
+            isMultiContest: false,
+            skip: false,
+        })
+    })
+
+    it("does not send a ballot whose hash is inconsistent", () => {
+        mockDisableAuth = false
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        renderRoute(<ReviewScreen />, "review")
+
+        expect(mockReceiveBallotParams).toHaveBeenLastCalledWith(
+            expect.objectContaining({skip: true})
+        )
+    })
+
+    it("signs the cast before the gold reauthentication and casts with it after", async () => {
+        requireGoldLevel()
+        receiveAtReview()
+        const review = renderRoute(<ReviewScreen />, "review")
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
+        expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({
+            ballotId: BALLOT_ID,
+            receivedCast,
+        })
+        expect(mockCastReceivedBallot).not.toHaveBeenCalled()
+        review.unmount()
+
+        mockState = store.getState()
+        mockIsGoldUser = true
+        mockElectionQueryData = {
+            sequent_backend_election: [
+                {
+                    id: "election-1",
+                    presentation: {
+                        consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+                        cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+                    },
+                    status: {voting_status: "open"},
+                },
+            ],
+        }
+        renderRoute(<ReviewScreen />, "review")
+
+        await waitFor(() =>
+            expect(mockDispatch).toHaveBeenCalledWith(
+                setConfirmationScreenData({
+                    electionId: "election-1",
+                    confirmationScreenData: {
+                        ballotId: RECEIVED_BALLOT_ID,
+                        isDemo: false,
+                        auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW,
+                    },
+                })
+            )
+        )
+        // Only the signature crossed the reload: the page signs nothing again.
+        expect(mockSignReceivedCast).toHaveBeenCalledTimes(1)
+        expect(mockCastReceivedBallot).toHaveBeenCalledWith(receivedCast, expect.any(Function))
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("confirms the cast with the ballot box's Ballot ID and locates the ballot by it", () => {
+        mockState = {...mockState, receivedBallots: {"election-1": receivedBallot}}
+        renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(screen.getByText(RECEIVED_BALLOT_ID)).toBeInTheDocument()
+        expect(screen.queryByText(BALLOT_ID)).toBeNull()
+        for (const link of screen.getAllByTestId("ballot-id")) {
+            expect(link).toHaveAttribute(
+                "href",
+                `${window.location.origin}${ELECTION_PATH}/ballot-locator/${RECEIVED_BALLOT_ID}`
+            )
+        }
+    })
+
+    it("confirms with the ballot's hash when the receipt is of another ballot", () => {
+        mockState = {
+            ...mockState,
+            receivedBallots: {"election-1": {...receivedBallot, ballot_hash: "earlier-ballot"}},
+        }
+        renderRoute(<ConfirmationScreen />, "confirmation")
+
+        expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
+        expect(screen.queryByText(RECEIVED_BALLOT_ID)).toBeNull()
+    })
+})
+
+describe("unfilled positions", () => {
+    const CAST = "reviewScreen.castBallotButton"
+    const DIALOG = "reviewScreen.unfilledContestsDialog"
+
+    const underVote = (contestId: string): IDecodedVoteContest =>
+        ({
+            contest_id: contestId,
+            is_explicit_invalid: false,
+            choices: [],
+            invalid_errors: [],
+            invalid_alerts: [
+                {
+                    error_type: "Implicit",
+                    message: "errors.implicit.underVote",
+                    message_map: {numSelected: "0", max: "1"},
+                },
+            ],
+        }) as unknown as IDecodedVoteContest
+
+    const setUpUnderVote = (policy: EUnderVotePolicy) => {
+        const contest = mockState.ballotStyles["election-1"]!.ballot_eml.contests[0]
+        contest.presentation = {...contest.presentation, under_vote_policy: policy}
+        mockDecodedContests = [underVote("contest-0")]
+        mockDisableAuth = false
+    }
+
+    it("asks before casting, and casts only when the voter continues", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("unfilled-contests-dialog")
+        await user.click(screen.getByRole("button", {name: `${DIALOG}.cancel`}))
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        await user.click(screen.getByRole("button", {name: `${DIALOG}.ok`}))
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+    })
+
+    it("takes the place of the election's cast confirmation", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        mockState.ballotStyles["election-1"]!.ballot_eml.election_presentation!.cast_vote_confirm =
+            true
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("unfilled-contests-dialog")
+        await user.click(screen.getByRole("button", {name: `${DIALOG}.ok`}))
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
+    })
+
+    it("leaves the election's cast confirmation alone when every position is filled", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        mockDecodedContests = []
+        mockState.ballotStyles["election-1"]!.ballot_eml.election_presentation!.cast_vote_confirm =
+            true
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        expect(screen.getByTestId("open-dialog")).toHaveClass("confirm-cast-ballot-dialog")
+    })
+
+    it.each([EUnderVotePolicy.WARN_ONLY_IN_REVIEW, EUnderVotePolicy.WARN_AND_ALERT])(
+        "does not ask under the %s policy",
+        async (policy) => {
+            setUpUnderVote(policy)
+            const user = userEvent.setup()
+            renderRoute(<ReviewScreen />, "review")
+
+            await user.click(screen.getByRole("button", {name: CAST}))
+            await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+            expect(screen.queryByTestId("open-dialog")).toBeNull()
+        }
+    )
+
+    it("does not ask a voter who declined to vote", async () => {
+        setUpUnderVote(EUnderVotePolicy.WARN_AND_CONFIRM_IN_REVIEW)
+        mockState = {
+            ...mockState,
+            extra: {...mockState.extra, declinedToVote: {"election-1": true}},
+        }
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+
+        await user.click(screen.getByRole("button", {name: CAST}))
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(1))
+        expect(screen.queryByTestId("open-dialog")).toBeNull()
+    })
+})
+
 describe("Apollo 4 cast failures", () => {
     it.each([
         [
@@ -842,5 +1253,273 @@ describe("the demo ballot ID", () => {
         await user.keyboard("{Enter}")
 
         expect(await screen.findByTestId("open-dialog")).toHaveClass("demo-ballot-url-dialog")
+    })
+})
+
+describe("slate ballot tabs", () => {
+    const configureSlate = () => {
+        const ballotEml = mockState.ballotStyles["election-1"]!.ballot_eml
+        const [first] = ballotEml.contests
+        const member = first.candidates[0]
+        ballotEml.election_annotations = {
+            "sequent.slates": JSON.stringify({
+                version: 1,
+                mobile_candidate_lists: "expanded",
+                slates: [
+                    {id: "forward", name: {en: "Forward"}, members: {[first.id]: [member.id]}},
+                ],
+            }),
+        }
+        return {contest: first, member}
+    }
+
+    const selectedTab = () =>
+        screen.getAllByRole("tab").find((tab) => tab.getAttribute("aria-selected") === "true")
+            ?.textContent
+
+    it("shows the ordinary ballot, without tabs, when the election has no slates", () => {
+        renderRoute(<VotingScreen />, "vote")
+
+        expect(screen.queryByRole("tablist")).toBeNull()
+        expect(screen.getByRole("heading", {level: 2})).toBeVisible()
+    })
+
+    it("opens on the slates and keeps the contests mounted behind the other tab", () => {
+        const {contest} = configureSlate()
+        const {container} = renderRoute(<VotingScreen />, "vote")
+
+        expect(selectedTab()).toBe("slates.tabs.slates")
+        expect(screen.getByRole("heading", {level: 3, name: "Forward"})).toBeVisible()
+        expect(container.querySelector(".contest-container")).toHaveTextContent(contest.name ?? "")
+        expect(container.querySelector(".slate-ballot-panel-candidates")).toHaveAttribute("hidden")
+    })
+
+    it("shows the contests when the voter picks the individual candidates", async () => {
+        configureSlate()
+        const {container} = renderRoute(<VotingScreen />, "vote")
+
+        await userEvent.setup().click(screen.getByRole("tab", {name: "slates.tabs.candidates"}))
+
+        expect(selectedTab()).toBe("slates.tabs.candidates")
+        expect(container.querySelector(".slate-ballot-panel-candidates")).not.toHaveAttribute(
+            "hidden"
+        )
+        expect(container.querySelector(".slate-ballot-panel-slates")).toHaveAttribute("hidden")
+    })
+
+    it("goes through the contest pages when Next is pressed on the slates", async () => {
+        configureSlate()
+        const {router} = renderRoute(<VotingScreen />, "vote")
+
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "votingScreen.reviewButton"}))
+
+        expect(selectedTab()).toBe("slates.tabs.candidates")
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+    })
+
+    it("marks a member selected individually and opens the candidates from Edit selections", async () => {
+        const {contest, member} = configureSlate()
+        mockState.ballotSelections = {
+            "election-1": [
+                {
+                    contest_id: contest.id,
+                    is_explicit_invalid: false,
+                    is_decline_to_vote: false,
+                    is_blank_ballot: false,
+                    invalid_errors: [],
+                    invalid_alerts: [],
+                    choices: contest.candidates.map((candidate) => ({
+                        id: candidate.id,
+                        selected: candidate.id === member.id ? 0 : -1,
+                    })),
+                },
+            ],
+        }
+        const {container} = renderRoute(<VotingScreen />, "vote")
+
+        expect(container.querySelector(".slate-member-selected")).toHaveAttribute(
+            "data-candidate-id",
+            member.id
+        )
+        expect(screen.getByText("slates.selection.all")).toBeVisible()
+
+        await userEvent.setup().click(screen.getByRole("button", {name: "slates.selection.edit"}))
+
+        expect(selectedTab()).toBe("slates.tabs.candidates")
+    })
+})
+
+describe("reviewing a ballot with slates", () => {
+    const marksOf = (contest: IContest, selectedIds: string[]) => ({
+        contest_id: contest.id,
+        is_explicit_invalid: false,
+        is_decline_to_vote: false,
+        is_blank_ballot: false,
+        invalid_errors: [],
+        invalid_alerts: [],
+        choices: contest.candidates.map((candidate) => ({
+            id: candidate.id,
+            selected: selectedIds.includes(candidate.id) ? 0 : -1,
+        })),
+    })
+
+    const configure = (selectedIds: (contests: IContest[]) => string[][]) => {
+        const ballotEml = mockState.ballotStyles["election-1"]!.ballot_eml
+        const [first, second] = ballotEml.contests
+        ballotEml.election_annotations = {
+            "sequent.slates": JSON.stringify({
+                version: 1,
+                mobile_candidate_lists: "expanded",
+                slates: [
+                    {
+                        id: "forward",
+                        name: {en: "Forward"},
+                        members: {
+                            [first.id]: [first.candidates[0].id],
+                            [second.id]: [second.candidates[0].id],
+                        },
+                    },
+                ],
+            }),
+        }
+        const [firstIds, secondIds] = selectedIds(ballotEml.contests)
+        mockState.ballotSelections = {
+            "election-1": [marksOf(first, firstIds), marksOf(second, secondIds)],
+        }
+        return {first, second}
+    }
+
+    const wholeSlate = (contests: IContest[]) =>
+        contests.map((contest) => [contest.candidates[0].id])
+
+    it("keeps the ordinary review screen when the election has no slates", () => {
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(container.querySelector(".review-selection-summary")).toBeNull()
+        expect(container.querySelector(".review-contest-footer")).toBeNull()
+    })
+
+    it("summarizes the selections and counts every contest", () => {
+        configure(wholeSlate)
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(screen.getByRole("region", {name: "slates.review.title"})).toBeVisible()
+        expect(container.querySelector(".review-selection-slate-all")).toBeVisible()
+        expect(container.querySelectorAll(".review-contest-count")).toHaveLength(2)
+        expect(container.querySelector(".review-selection-independent")).toBeNull()
+    })
+
+    it("reports a slate changed by hand as mixed, not as the slate that was chosen", () => {
+        configure(([first, second]) => [[first.candidates[1].id], [second.candidates[0].id]])
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(container.querySelector(".review-selection-slate-all")).toBeNull()
+        expect(container.querySelector(".review-selection-slate-mixed")).toBeVisible()
+        expect(container.querySelector(".review-selection-independent")).toBeVisible()
+    })
+
+    it("lists no slate for a blank ballot, and still counts every contest", () => {
+        configure(() => [[], []])
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(screen.getByRole("region", {name: "slates.review.title"})).toBeVisible()
+        expect(container.querySelector(".review-selection-lines")).toBeNull()
+        expect(container.querySelectorAll(".review-contest-count")).toHaveLength(2)
+    })
+
+    it("says nothing about selections on a declined ballot", () => {
+        configure(wholeSlate)
+        mockState.extra = {...mockState.extra, declinedToVote: {"election-1": true}}
+        const {container} = renderRoute(<ReviewScreen />, "review")
+
+        expect(container.querySelector(".review-selection-summary")).toBeNull()
+        expect(container.querySelector(".review-contest-footer")).toBeNull()
+    })
+
+    it("goes back to edit one contest, keeping the query and naming the contest", async () => {
+        const {second} = configure(wholeSlate)
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        const editLinks = screen.getAllByRole("link", {name: "slates.review.editLabel"})
+        expect(editLinks).toHaveLength(2)
+        await userEvent.setup().click(editLinks[1])
+
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+        expect(router.state.location.search).toBe("?preview=true")
+        expect(router.state.location.state).toEqual({editContestId: second.id})
+        expect(mockDispatch).not.toHaveBeenCalled()
+    })
+
+    it("opens the individual candidates on the page of the contest to edit", async () => {
+        const {first, second} = configure(wholeSlate)
+        renderRoute(<VotingScreen />, "vote", {editContestId: second.id})
+
+        const heading = await screen.findByRole("heading", {level: 2, name: second.name ?? ""})
+        expect(
+            screen.getAllByRole("tab").find((tab) => tab.getAttribute("aria-selected") === "true")
+        ).toHaveTextContent("slates.tabs.candidates")
+        expect(screen.queryByRole("heading", {level: 2, name: first.name ?? ""})).toBeNull()
+        await waitFor(() => expect(heading).toHaveFocus())
+    })
+
+    it("opens the page of the contest to edit in an election without slates", async () => {
+        const [, second] = mockState.ballotStyles["election-1"]!.ballot_eml.contests
+        renderRoute(<VotingScreen />, "vote", {editContestId: second.id})
+
+        const heading = await screen.findByRole("heading", {level: 2, name: second.name ?? ""})
+        await waitFor(() => expect(heading).toHaveFocus())
+    })
+
+    it("starts on the first page when the contest to edit is not on the ballot", () => {
+        const {first} = configure(wholeSlate)
+        renderRoute(<VotingScreen />, "vote", {editContestId: "unknown"})
+
+        expect(screen.getByRole("heading", {level: 2, name: first.name ?? ""})).toBeVisible()
+    })
+})
+
+describe("a ballot encrypted before the selections changed", () => {
+    const selectionOf = (selectedIndex: number): BallotSelection =>
+        mockState.ballotStyles["election-1"]!.ballot_eml.contests.map((contest) => ({
+            contest_id: contest.id,
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: [],
+            invalid_alerts: [],
+            choices: contest.candidates.map((candidate, index) => ({
+                id: candidate.id,
+                selected: index === selectedIndex ? 0 : -1,
+            })),
+        }))
+
+    it("is reviewed when it holds the current selections", () => {
+        mockState.ballotSelections = {"election-1": selectionOf(0)}
+        mockDecodedBallot = selectionOf(0)
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
+        expect(screen.getByRole("button", {name: "reviewScreen.castBallotButton"})).toBeEnabled()
+    })
+
+    it("is not offered for casting: the voter continues from the voting screen", async () => {
+        mockState.ballotSelections = {"election-1": selectionOf(1)}
+        mockDecodedBallot = selectionOf(0)
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        await waitFor(() => expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`))
+        expect(router.state.location.search).toBe("?preview=true")
+        expect(screen.queryByRole("button", {name: "reviewScreen.castBallotButton"})).toBeNull()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+
+    it("is reviewed as before when it cannot be decoded", () => {
+        mockState.ballotSelections = {"election-1": selectionOf(1)}
+        mockDecodedBallot = null
+        const {router} = renderRoute(<ReviewScreen />, "review")
+
+        expect(router.state.location.pathname).toBe(`${ELECTION_PATH}/review`)
     })
 })

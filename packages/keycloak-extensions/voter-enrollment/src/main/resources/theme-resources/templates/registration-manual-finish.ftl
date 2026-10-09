@@ -11,7 +11,8 @@
             <#if rejectReason??>
                 <p>${msg(rejectReason)}</p>
             </#if>
-            <#if mismatchedFields??>
+            <#-- Without a voter in the registry, no field was compared: there's nothing to list. -->
+            <#if mismatchedFields?? && (rejectReason!"") != "NO_VOTER">
                 <p>${msg("rejectReasonListItems")?no_esc}</p>
                 <ul>
                 <#list mismatchedFields?keys as key>
@@ -39,6 +40,9 @@
                     <script>console.warn("Invalid timezone text: using the enrollment default.");</script>
                 </#if>
                 <p id="enrollment-reply-by" class="enrollment-reply-by">${msg("enrollment.replyBy", msg(replyByCombinedKey, enrollmentReplyBy.dateTime, replyByZoneName))}</p>
+            </#if>
+            <#if noticeChannel??>
+                <p id="notice-channel">${msg("messageOtp.pending.channel", msg("messageChannel." + noticeChannel))}</p>
             </#if>
             <p id="instruction1" class="instruction">
                 ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .

@@ -4,6 +4,7 @@
 # Kept static: removing a guard must not silently remove its test case.
 /acknowledge-support-materials
 /apply-reconciliation-changes
+/cast-ballot
 /change-application-status
 /check-private-key
 /configure-results-website-policy
@@ -34,6 +35,7 @@
 /election-event/top-votes-by-ip
 /election/stats
 /encrypt-report
+/evaluate-approval-matrix
 /export-application
 /export-ballot-publication
 /export-certificate-authority
@@ -54,6 +56,7 @@
 /generate-report
 /generate-template
 /generate-voter-information-letter
+/get-approval-matrix
 /get-ballot-files-urls
 /get-ballot-publication-changes
 /get-custom-url
@@ -89,7 +92,18 @@
 /list-cast-vote-messages
 /list-keys-ceremonies
 /list-user-roles
+/locate-ballot
 /manage-election-dates
+/messages/link
+/messages/link/confirm
+/messages/link/status
+/messages/send
+/messaging/accounts/check
+/messaging/accounts/credentials
+/messaging/accounts/delete
+/messaging/accounts/test
+/messaging/accounts/upsert
+/messaging/event-config
 /miru/create-transmission-package
 /miru/send-transmission-package
 /miru/upload-signature
@@ -109,6 +123,7 @@
 /preview-tally-sheet-import
 /publish-ballot
 /publish-results-website
+/receive-ballot
 /recount-tally-session
 /refresh-results-publication-index
 /render-document-pdf
@@ -118,6 +133,7 @@
 /review-tally-sheet
 /review-tally-sheet-import
 /revoke-results-publication
+/save-approval-matrix
 /scheduled-event
 /set-custom-url
 /set-role-permission

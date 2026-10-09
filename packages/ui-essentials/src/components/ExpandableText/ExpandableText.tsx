@@ -20,7 +20,7 @@ const LinkButton = styled(Button)(({theme}) => ({
     "minWidth": "auto",
     "minHeight": "auto",
     "background": "none",
-    "fontSize": "12px",
+    "fontSize": "0.75rem",
     "color": theme.palette.primary.main,
     "border": "none",
     "padding": 0,

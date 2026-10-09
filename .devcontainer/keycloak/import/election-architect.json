@@ -44,6 +44,22 @@
         {
           "name": "access",
           "description": "May use Election Architect. Delivery Orchestrator grants it through the architect-access group."
+        },
+        {
+          "name": "architect-editor",
+          "description": "Edits an organization's draft configuration on the Architect service and submits it for approval."
+        },
+        {
+          "name": "architect-approver",
+          "description": "Approves or returns a submitted revision with a staff certificate signature."
+        },
+        {
+          "name": "key-custodian",
+          "description": "Signs approved revisions' packages with the organization's key and manages its certificate and revocation lists."
+        },
+        {
+          "name": "auditor",
+          "description": "Reads every configuration, revision, package, the signing key and the history; changes nothing."
         }
       ]
     }
@@ -55,6 +71,46 @@
       "clientRoles": {
         "election-architect": [
           "access"
+        ]
+      }
+    },
+    {
+      "name": "architect-editors",
+      "path": "/architect-editors",
+      "clientRoles": {
+        "election-architect": [
+          "access",
+          "architect-editor"
+        ]
+      }
+    },
+    {
+      "name": "architect-approvers",
+      "path": "/architect-approvers",
+      "clientRoles": {
+        "election-architect": [
+          "access",
+          "architect-approver"
+        ]
+      }
+    },
+    {
+      "name": "key-custodians",
+      "path": "/key-custodians",
+      "clientRoles": {
+        "election-architect": [
+          "access",
+          "key-custodian"
+        ]
+      }
+    },
+    {
+      "name": "auditors",
+      "path": "/auditors",
+      "clientRoles": {
+        "election-architect": [
+          "access",
+          "auditor"
         ]
       }
     }

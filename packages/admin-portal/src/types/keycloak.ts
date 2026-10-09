@@ -151,6 +151,7 @@ export enum IPermissions {
     MONITOR_VOTERS_WHO_VOTED = "monitor-voters-who-voted",
     APPLICATION_READ = "application-read",
     APPLICATION_WRITE = "application-write",
+    APPROVAL_MATRIX_WRITE = "approval-matrix-write",
     EE_VOTERS_COLUMNS = "ee-voters-columns",
     EE_VOTERS_FILTERS = "ee-voters-filters",
     EE_VOTERS_LOGS = "ee-voters-logs",
@@ -245,4 +246,7 @@ export enum IPermissions {
     SIGN_APPROVE_CONFIGURATION = "sign-approve-configuration",
     SIGN_KEY_CEREMONY = "sign-key-ceremony",
     SIGN_TALLY_KEY = "sign-tally-key",
+    MESSAGING_ACCOUNT_READ = "messaging-account-read",
+    MESSAGING_ACCOUNT_WRITE = "messaging-account-write",
+    MESSAGING_CONFIG_WRITE = "messaging-config-write",
 }

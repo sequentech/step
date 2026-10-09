@@ -14,6 +14,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::approval_matrix::store::get_latest_approval_matrix;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
 use crate::services::import::import_election_event::ImportElectionEventSchema;
@@ -163,6 +164,13 @@ pub async fn read_export_data(
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
+    // The matrix in force travels; an event that never saved one exports
+    // none and keeps the built-in matrix where it is imported.
+    let approval_matrix = get_latest_approval_matrix(&transaction, tenant_id, election_event_id)
+        .await?
+        .map(|saved| serde_json::to_value(saved.matrix))
+        .transpose()?;
+
     let mut import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
@@ -181,6 +189,7 @@ pub async fn read_export_data(
         support_materials: Some(export_support_materials),
         signing_rules: None,
         signing_checks: None,
+        approval_matrix,
         version,
     };
 
@@ -579,6 +588,17 @@ pub async fn process_export_zip(
                     report
                         .permission_label
                         .unwrap_or_default()
+                        .join(MULTI_VALUE_SEPARATOR),
+                    report
+                        .copies
+                        .map(|copies| copies.to_string())
+                        .unwrap_or_default(),
+                    report
+                        .output_formats
+                        .unwrap_or_default()
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
                         .join(MULTI_VALUE_SEPARATOR),
                 ]);
             }

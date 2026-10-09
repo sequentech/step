@@ -16,6 +16,9 @@ import SequentCoreLibInit, {
     get_default_blank_ballots_policy_js,
     get_default_voting_screen_back_policy_js,
     get_voting_screen_back_policy_values_js,
+    get_ballot_style_slates_js,
+    get_ballot_style_slates_coverage_js,
+    apply_slate_js,
     IVotingScreenBackPolicy,
 } from "sequent-core"
 import {
@@ -42,6 +45,11 @@ import {
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_received_ballot_js,
+    sign_ballot_cast_js,
+    forget_voter_signing_key_js,
+    verify_cast_receipt_js,
+    normalize_ballot_id_js,
     get_default_duplicated_rank_policy_js,
     get_default_preference_gaps_policy_js,
 } from "sequent-core"
@@ -51,12 +59,15 @@ import {
     ElectionsOrder,
     IAuditableSingleBallot,
     IAuditableMultiBallot,
+    IBallotBoxKey,
     IBallotStyle,
     ICandidate,
+    ICastReceipt,
     IContest,
     IElection,
     IHashableSingleBallot,
     IHashableMultiBallot,
+    IReceivedBallot,
     ISignedContent,
     ICountingAlgorithm,
     EDuplicatedRankPolicy,
@@ -65,7 +76,12 @@ import {
     ELanguageDetectionPolicy,
     EDeclineToVotePolicy,
     EBlankBallotsPolicy,
+    ISlatesConfig,
+    ISlateCoverage,
+    ISlate,
+    ISlateChoices,
 } from ".."
+import {SLATES_ANNOTATION} from "../types/Slates"
 
 export type {
     IPermission,
@@ -381,6 +397,67 @@ export const verifyMultiBallotSignature = (
     }
 }
 
+// Returns the Ballot ID when the published ballot box key signed the receipt;
+// throws otherwise.
+export const verifyReceivedBallot = (
+    ballotBoxKey: IBallotBoxKey,
+    receivedBallot: IReceivedBallot
+): string => {
+    try {
+        return verify_received_ballot_js(ballotBoxKey, receivedBallot)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+// Signs "cast this Ballot ID" with the key that signed the election's ballot
+// at review. Throws when that key is no longer in memory, as after a reload.
+export const signBallotCast = (
+    electionId: string,
+    voterSigningPk: string,
+    ballotId: string
+): string => {
+    try {
+        return sign_ballot_cast_js(electionId, voterSigningPk, ballotId)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const forgetVoterSigningKey = (electionId: string): void => {
+    try {
+        forget_voter_signing_key_js(electionId)
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+// Throws unless the published ballot box key signed the cast receipt.
+export const verifyCastReceipt = (
+    ballotBoxKey: IBallotBoxKey,
+    castReceipt: ICastReceipt
+): boolean => {
+    try {
+        return verify_cast_receipt_js(ballotBoxKey, castReceipt)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+// Reads a typed Ballot ID the way the ballot box writes it; null when the text
+// cannot be one.
+export const normalizeBallotId = (typed: string): string | null => {
+    try {
+        return normalize_ballot_id_js(typed) ?? null
+    } catch (error) {
+        console.log(error)
+        return null
+    }
+}
+
 export const check_voting_not_allowed_next_bool = (
     contests: IContest[] | undefined,
     decodedContests: Record<string, IDecodedVoteContest>
@@ -399,6 +476,62 @@ export const check_voting_error_dialog_bool = (
 ): boolean => {
     try {
         return check_voting_error_dialog(contests, decodedContests)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+const hasSlates = (ballotStyle: IBallotStyle): boolean =>
+    SLATES_ANNOTATION in (ballotStyle.election_annotations ?? {})
+
+/**
+ * The slates a ballot style carries, or null when its election has none.
+ * Throws the list of problems (ISlateProblem) of an invalid configuration.
+ */
+export const getBallotStyleSlates = (ballotStyle: IBallotStyle): ISlatesConfig | null => {
+    if (!hasSlates(ballotStyle)) {
+        return null
+    }
+    try {
+        return get_ballot_style_slates_js(ballotStyle) ?? null
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * What each slate covers of the contests of a ballot style, in the configured
+ * order and without the slates that have no candidate in it. Null when the
+ * election has no slates. Throws like `getBallotStyleSlates`.
+ */
+export const getBallotStyleSlatesCoverage = (
+    ballotStyle: IBallotStyle
+): Array<ISlateCoverage> | null => {
+    if (!hasSlates(ballotStyle)) {
+        return null
+    }
+    try {
+        return get_ballot_style_slates_coverage_js(ballotStyle) ?? null
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * The selection that choosing a slate produces from the current one, and what
+ * it changes. Throws the list of problems (ISlateProblem) of a slate that
+ * cannot be applied; nothing is applied in that case.
+ */
+export const applySlate = (
+    slate: ISlate,
+    contests: IContest[],
+    current: BallotSelection
+): ISlateChoices => {
+    try {
+        return apply_slate_js(slate, contests, current)
     } catch (error) {
         console.log(error)
         throw error

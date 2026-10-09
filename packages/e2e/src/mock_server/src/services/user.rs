@@ -2,13 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use csv::ReaderBuilder;
-use rand::Rng;
 use rusqlite::{params, Connection};
 
 use crate::types::user::User;
+
+const CREATE_VOTERS_TABLE: &str = r#"
+    CREATE TABLE IF NOT EXISTS voters (
+        id TEXT PRIMARY KEY,
+        first_name TEXT,
+        last_name TEXT,
+        middle_name TEXT,
+        date_of_birth TEXT,
+        embassy TEXT,
+        country TEXT,
+        id_card_number TEXT,
+        id_card_type TEXT
+    );
+"#;
 
 pub fn load_users(csv_path: &str) -> Result<usize, anyhow::Error> {
     let mut rdr = ReaderBuilder::new()
@@ -20,24 +33,10 @@ pub fn load_users(csv_path: &str) -> Result<usize, anyhow::Error> {
         .context("Failed to open or create 'voters.db'")
         .context("Error creating sqlite connection")?;
 
-    conn.execute_batch(
-        r#"
-        CREATE TABLE IF NOT EXISTS voters (
-            id TEXT PRIMARY KEY,
-            first_name TEXT,
-            last_name TEXT,
-            middle_name TEXT,
-            date_of_birth TEXT,
-            embassy TEXT,
-            country TEXT,
-            id_card_number TEXT,
-            id_card_type TEXT
-        );
-
-        DELETE FROM voters;
-        "#,
-    )
-    .context("Failed to create 'voters' table")?;
+    conn.execute_batch(CREATE_VOTERS_TABLE)
+        .context("Failed to create 'voters' table")?;
+    conn.execute_batch("DELETE FROM voters;")
+        .context("Failed to empty 'voters' table")?;
 
     let mut inserted_count = 0_usize;
 
@@ -125,38 +124,4 @@ pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
     }
 
     Ok(users)
-}
-
-pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
-    let conn = Connection::open("voters.db")?;
-    let mut stmt = conn.prepare(
-        " SELECT 
-           id, first_name, last_name,
-            middle_name, embassy, country, id_card_number, id_card_type, date_of_birth
-         FROM voters
-         WHERE country = ?1",
-    )?;
-
-    let rows = stmt.query_map([country], |row| {
-        Ok(User {
-            id: row.get::<_, String>(0)?,
-            first_name: row.get::<_, String>(1)?,
-            last_name: row.get::<_, String>(2)?,
-            middle_name: row.get::<_, String>(3)?,
-            embassy: row.get::<_, String>(4)?,
-            country: row.get::<_, String>(5)?,
-            id_card_number: row.get::<_, String>(6)?,
-            id_card_type: row.get::<_, String>(7)?,
-            date_of_birth: row.get::<_, String>(8)?,
-        })
-    })?;
-
-    let users: Vec<_> = rows.collect::<rusqlite::Result<_>>()?;
-    if users.is_empty() {
-        Ok(None)
-    } else {
-        let mut rng = rand::thread_rng();
-        let idx = rng.gen_range(0..users.len());
-        Ok(Some(users[idx].clone()))
-    }
 }

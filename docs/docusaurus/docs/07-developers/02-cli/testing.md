@@ -119,3 +119,16 @@ The coordinator polls for `Complete` or `Failed`, bounded by `execution.wait_tim
 and collects available results before returning a failure. Its process test uses
 a local `kubectl` peer to exercise the real manifest, timeout, collection and
 cleanup paths; it does not validate a cluster's scheduling or storage driver.
+
+Acceptance stage checks (`step-cli acceptance`) keep their rules apart from
+Hasura: the checks in `src/acceptance/voting.rs` judge an in-memory election
+event, `src/acceptance/hasura.rs` is tested with queued GraphQL responses, and
+the ledger tests edit, remove and reorder entries. `acceptance_cli.rs` runs the
+shipped commands: the verdict is the exit code, an altered ledger stops every
+command, and `run` reads a loopback election event whose stored ballot is a
+real encrypted one. From `packages/`:
+
+```bash
+cargo test -p step-cli --bin step-cli acceptance
+cargo test -p step-cli --test acceptance_cli
+```

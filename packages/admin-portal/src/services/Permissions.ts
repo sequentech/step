@@ -204,6 +204,10 @@ const AdminOperationMap: Record<string, IPermissions> = {
     MonitoringSetMode: IPermissions.MONITORING_CONFIGURE,
     MonitoringListConfig: IPermissions.MONITORING_CONFIGURE,
     MonitoringGetConfig: IPermissions.MONITORING_CONFIGURE,
+    // approval matrix actions: Harvest checks the permission again
+    GetApprovalMatrix: IPermissions.APPLICATION_READ,
+    EvaluateApprovalMatrix: IPermissions.APPLICATION_READ,
+    SaveApprovalMatrix: IPermissions.APPROVAL_MATRIX_WRITE,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {

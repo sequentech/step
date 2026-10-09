@@ -7,6 +7,7 @@
 #![cfg(feature = "default_features")]
 
 use sequent_core::ballot::*;
+use sequent_core::ballot_codec::checker::check_under_vote_policy;
 use sequent_core::plaintext::*;
 use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
@@ -171,6 +172,44 @@ fn an_undervote_warning_has_both_a_lower_and_an_upper_boundary() {
             expected,
             "{selections} selections"
         );
+    }
+}
+
+#[test]
+fn an_undervote_confirmed_in_review_is_reported_without_stopping_the_voter() {
+    let mut contest = contest();
+    contest.min_votes = 0;
+    contest.max_votes = 3;
+    contest.presentation.as_mut().unwrap().under_vote_policy =
+        Some(EUnderVotePolicy::WARN_AND_CONFIRM_IN_REVIEW);
+    let presentation = contest.presentation.clone().unwrap();
+
+    for (selections, reported) in [(0, true), (2, true), (3, false)] {
+        assert_eq!(
+            decision(&contest, &decoded(&contest, &vec![0; selections])),
+            Decision::Continue,
+            "{selections} selections"
+        );
+
+        let alerts = check_under_vote_policy(
+            &presentation,
+            selections,
+            Some(3),
+            Some(0),
+        )
+        .invalid_alerts;
+        assert_eq!(alerts.len(), usize::from(reported), "{selections}");
+        if let Some(alert) = alerts.first() {
+            assert_eq!(
+                alert.message.as_deref(),
+                Some("errors.implicit.underVote")
+            );
+            assert_eq!(
+                alert.message_map.get("numSelected"),
+                Some(&selections.to_string())
+            );
+            assert_eq!(alert.message_map.get("max"), Some(&"3".to_string()));
+        }
     }
 }
 

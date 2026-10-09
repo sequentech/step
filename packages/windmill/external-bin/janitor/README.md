@@ -42,6 +42,10 @@ The output files are:
 	an authoritative Annex A list; reconcile the list and timezone assignments
 	before production use. Tests: `python3 -m unittest
 	test_lifecycle_preset test_patch`.
+	The zip also carries the enrollment approval matrix of
+	`templates/COMELEC/approvalMatrix.json`, which the import saves as version 1 of the
+	election event. `--approval-matrix <path>` uses another matrix, for example
+	`templates/association/approvalMatrix.json`.
 - `admins.csv`. CSV to be imported to configure the admin users, including sbei users.
   Each SBEI account gets the `title` attribute of its role from `sbei_titles` in
   `templates/COMELEC/signing.json`.

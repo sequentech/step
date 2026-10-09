@@ -2,6 +2,7 @@
 // //
 // // SPDX-License-Identifier: AGPL-3.0-only
 
+mod acceptance;
 mod adapters;
 mod commands;
 mod domain;
@@ -26,6 +27,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum MainCommand {
+    /// Check an acceptance stage against a live election event and keep its evidence.
+    #[command(subcommand)]
+    Acceptance(acceptance::Command),
     /// Prepare and measure complete synthetic voting journeys.
     #[command(subcommand)]
     Load(load::Command),
@@ -87,12 +91,19 @@ enum StepCommands {
     MigrateRealmPermissions(commands::migrate_realm_permissions::MigrateRealmPermissions),
     MigrateRegistrationFlows(commands::migrate_registration_flows::MigrateRegistrationFlows),
     VerifyBallotBoxSeal(commands::verify_ballot_box_seal::VerifyBallotBoxSeal),
+    VerifyPackage(commands::verify_package::VerifyPackage),
 }
 
 fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
+        MainCommand::Acceptance(command) => {
+            if let Err(error) = command.run() {
+                eprintln!("{error:#}");
+                std::process::exit(1);
+            }
+        }
         MainCommand::Load(command) => {
             if let Err(error) = command.run() {
                 eprintln!("{error:#}");
@@ -169,6 +180,7 @@ fn main() {
             StepCommands::VerifyBallotBoxSeal(verify) => {
                 exit_on_error(verify.run().map_err(|error| format!("{error:#}")))
             }
+            StepCommands::VerifyPackage(cmd) => cmd.run(),
         },
     }
 }

@@ -93,6 +93,8 @@ import {CustomFilter} from "@/types/filters"
 import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
+import {SLATES_FORM_FIELD, readSlatesConfiguration} from "@/utils/slates"
+import {SlatesConfigurationInput} from "./SlatesConfigurationInput"
 import {ElectionTimeZoneInput} from "@/components/timezones/ElectionTimeZoneInput"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 
@@ -114,6 +116,7 @@ const ContestRows = styled("div")`
 export type Sequent_Backend_Election_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
     contestsOrder?: Array<Sequent_Backend_Contest>
+    [SLATES_FORM_FIELD]?: string
 } & Sequent_Backend_Election
 
 export const ElectionDataForm: React.FC = () => {
@@ -311,6 +314,7 @@ export const ElectionDataForm: React.FC = () => {
 
             temp.presentation.i18n.en.description = temp.description
             temp.annotations = parseIvrEntityAnnotations(temp.annotations)
+            temp[SLATES_FORM_FIELD] = readSlatesConfiguration(temp.annotations)
 
             // receipts
             const template: {[key: string]: string | null} = {}
@@ -881,6 +885,15 @@ export const ElectionDataForm: React.FC = () => {
                                     parsedValue={parsedValue}
                                     fileSource="configuration"
                                     jsonSource="presentation"
+                                />
+                                <SlatesConfigurationInput
+                                    defaultLanguage={
+                                        parsedValue?.presentation?.language_conf
+                                            ?.default_language_code ?? "en"
+                                    }
+                                    contests={contests}
+                                    tenantId={record?.tenant_id}
+                                    electionEventId={record?.election_event_id}
                                 />
                                 <SelectInput
                                     source={`presentation.initialization_report_policy`}

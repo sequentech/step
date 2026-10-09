@@ -5,6 +5,8 @@ use headless_chrome::types::PrintToPdfOptions;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
+use super::messaging::MessageChannel;
+
 #[allow(non_camel_case_types)]
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
@@ -54,6 +56,78 @@ pub enum TemplateMethod {
     SMS,
     #[strum(serialize = "DOCUMENT")]
     DOCUMENT,
+    #[strum(serialize = "WHATSAPP")]
+    WHATSAPP,
+    #[strum(serialize = "VIBER")]
+    VIBER,
+    #[strum(serialize = "MESSENGER")]
+    MESSENGER,
+}
+
+impl TemplateMethod {
+    /// The messaging channel this method sends through; `None` for
+    /// documents.
+    pub fn channel(&self) -> Option<MessageChannel> {
+        match self {
+            TemplateMethod::EMAIL => Some(MessageChannel::EMAIL),
+            TemplateMethod::SMS => Some(MessageChannel::SMS),
+            TemplateMethod::WHATSAPP => Some(MessageChannel::WHATSAPP),
+            TemplateMethod::VIBER => Some(MessageChannel::VIBER),
+            TemplateMethod::MESSENGER => Some(MessageChannel::MESSENGER),
+            TemplateMethod::DOCUMENT => None,
+        }
+    }
+}
+
+/// Which channel each voter is reached on by a bulk send.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+)]
+pub enum ChannelSelection {
+    /// The method of the send (`communication_method`) for every voter.
+    #[default]
+    SINGLE_CHANNEL,
+    /// Each voter's preferred verified channel, falling back in the event's
+    /// notice fallback order on confirmed failure.
+    VOTER_PREFERENCE,
+}
+
+impl ChannelSelection {
+    /// Left out of the wire format, so payloads from before the choice
+    /// existed keep their bytes.
+    fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// Content for WhatsApp, Viber and Messenger.
+///
+/// WhatsApp and Viber send provider-approved templates: `message` is the
+/// approved wording as a preview, and `parameters` fill the template's
+/// placeholders in order. Messenger sends `message` as in-conversation text.
+/// Every string is rendered per voter like email and SMS bodies.
+#[derive(Deserialize, Debug, Serialize, Clone, Default, PartialEq)]
+pub struct InstantMessageConfig {
+    pub message: String,
+    #[serde(default)]
+    pub parameters: Vec<String>,
+    /// The approved template's name or ID at the provider. Without it the
+    /// event's binding for the template alias, or its default, is used.
+    #[serde(default)]
+    pub provider_template: Option<String>,
+    /// The provider's language code of that template, such as `en_US`.
+    #[serde(default)]
+    pub provider_language: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone, Default)]
@@ -152,6 +226,18 @@ pub struct SendTemplateBody {
     pub schedule_date: Option<String>,
     pub email: Option<EmailConfig>,
     pub sms: Option<SmsConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub whatsapp: Option<InstantMessageConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub viber: Option<InstantMessageConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messenger: Option<InstantMessageConfig>,
+    #[serde(default, skip_serializing_if = "ChannelSelection::is_default")]
+    pub channel_selection: ChannelSelection,
+    /// Identifies the send across its retries, so a voter already reached
+    /// is not messaged again. Set by the task itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub send_id: Option<String>,
     pub document: Option<String>,
     pub name: Option<String>,
     pub alias: Option<String>,
@@ -197,6 +283,20 @@ mod tests {
     fn send_template_legacy_payload_keeps_its_wire_bytes() {
         let body: SendTemplateBody = serde_json::from_str(LEGACY_BODY).unwrap();
         assert_eq!(serde_json::to_string(&body).unwrap(), LEGACY_BODY);
+    }
+
+    #[test]
+    fn send_template_channel_choice_survives_typed_task_serialization() {
+        let mut input: serde_json::Value =
+            serde_json::from_str(LEGACY_BODY).unwrap();
+        input["channel_selection"] = serde_json::json!("VOTER_PREFERENCE");
+        input["send_id"] = serde_json::json!("send-1");
+        input["whatsapp"] = serde_json::json!({"message": "Hi"});
+        let body: SendTemplateBody = serde_json::from_value(input).unwrap();
+        let queued = serde_json::to_value(body).unwrap();
+        assert_eq!(queued["channel_selection"], "VOTER_PREFERENCE");
+        assert_eq!(queued["send_id"], "send-1");
+        assert_eq!(queued["whatsapp"]["message"], "Hi");
     }
 
     #[test]

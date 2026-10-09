@@ -9,22 +9,24 @@ import {
     TextField,
     DatagridConfigurable,
     Identifier,
+    RecordContextProvider,
     SelectInput,
     TextInput,
     useListContext,
     DatagridConfigurableProps,
     useNotify,
     useRefresh,
+    useReference,
     useSidebarState,
     useGetOne,
-    useRemoveFromStore,
 } from "react-admin"
 import {AdminDateField} from "@/components/AdminDateTime"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTranslation} from "react-i18next"
-import {Visibility} from "@mui/icons-material"
-import {Action, ActionsColumn} from "@/components/ActionButons"
+import {FactCheck, Rule as RuleIcon, Visibility} from "@mui/icons-material"
 import {ListActions} from "@/components/ListActions"
+import {ListActionsMenu} from "@/components/ListActionsMenu"
+import ElectionHeader from "@/components/ElectionHeader"
 import {
     ExportApplicationMutation,
     ImportApplicationMutation,
@@ -34,7 +36,6 @@ import {
     UserProfileAttribute,
     Sequent_Backend_Election,
 } from "@/gql/graphql"
-import {StatusApplicationChip} from "@/components/StatusApplicationChip"
 import {Dialog} from "@sequentech/ui-essentials"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
@@ -50,13 +51,23 @@ import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useQuery} from "@apollo/client"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
 import {styled} from "@mui/material/styles"
-import {Chip, CircularProgress} from "@mui/material"
+import {Box, Button, Chip, CircularProgress, Typography} from "@mui/material"
 import {convertToCamelCase} from "./UtilsApprovals"
 import {getAttributeLabel, getTranslationLabel} from "@/services/UserService"
 import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import CustomDateField from "../User/CustomDateField"
-import {IUser} from "@sequentech/ui-core"
+import {IApplicationsStatus} from "@/types/applications"
+import {ApprovalStatusChip} from "./ApprovalChips"
+import {profileFieldLabel} from "./approvalMatrix"
+import {
+    applicantData,
+    applicantName,
+    decisionDetails,
+    enrollmentSummary,
+    waitingTime,
+} from "./approvalReview"
+import {Muted} from "./approvalStyles"
 
 const StyledChip = styled(Chip)`
     margin: 4px;
@@ -67,128 +78,158 @@ const StyledNull = styled("div")`
     padding-left: 18px;
 `
 
+const CellTitle = styled("div")({
+    fontWeight: 600,
+    lineHeight: "22px",
+})
+
+const QueueHeader = styled(Box)({
+    padding: "8px 16px 0",
+})
+
 export interface ListApprovalsProps {
     electionEventId: string
     electionId?: string
     onViewApproval: (id: Identifier) => void
+    onViewMatrix?: () => void
+    /** Opens the matrix on the rule that decided this application. */
+    onViewRule?: (id: Identifier) => void
     electionEventRecord?: Sequent_Backend_Election_Event
 }
 
 interface ApprovalsListProps extends Omit<DatagridConfigurableProps, "children"> {
-    omit: string[]
-    actions: Action[]
-    t: ReturnType<typeof useTranslation>["t"]
+    onViewApproval: (id: Identifier) => void
+    onViewRule?: (id: Identifier) => void
     userAttributes: GetUserProfileAttributesQuery | undefined
     defaultFilters: string | null
 }
 
 // Storage key for the status filter
 const STATUS_FILTER_KEY = "approvals_status_filter"
+const NO_RECORD = {}
+// The queue opens on the enrollments that wait for a person.
+const DEFAULT_STATUS = "pending"
+// The columns of the queue changed: column choices saved for the old list don't apply.
+const PREFERENCE_KEY = "approvals_queue"
 
-const ApprovalsList = (props: ApprovalsListProps) => {
-    const {filterValues, setFilters, data} = useListContext()
+/** The Post the enrollment belongs to: its area, or the one the applicant named. */
+const PostCell: React.FC<{record: Sequent_Backend_Applications}> = ({record}) => {
+    const {referenceRecord} = useReference({
+        reference: "sequent_backend_area",
+        id: record.area_id ?? "",
+        options: {enabled: !!record.area_id},
+    })
+    const data = applicantData(record)
+    const post = referenceRecord?.name || data.embassy || "-"
+    return (
+        <>
+            <div>{post}</div>
+            {data.country && data.country !== post && <Muted>{data.country}</Muted>}
+        </>
+    )
+}
+
+const ApprovalsList = ({
+    onViewApproval,
+    onViewRule,
+    userAttributes,
+    defaultFilters,
+    ...props
+}: ApprovalsListProps) => {
+    const {filterValues, setFilters} = useListContext()
     const location = useLocation()
 
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [isOpenSidebar] = useSidebarState()
-    const userBasicInfo = ["first_name", "last_name", "email", "username", "dateOfBirth"]
+    const profileAttributes = userAttributes?.get_user_profile_attributes
+    const fieldLabel = useMemo(
+        () => profileFieldLabel(profileAttributes ?? [], t, getAttributeLabel),
+        [profileAttributes, t]
+    )
+    const now = useMemo(() => new Date(), [])
     const listFields = useMemo(() => {
-        const basicInfoFields: UserProfileAttribute[] = []
-        const attributesFields: UserProfileAttribute[] = []
-        const omitFields: string[] = []
-
-        props.userAttributes?.get_user_profile_attributes.forEach((attr) => {
-            if (attr.name && userBasicInfo.includes(attr.name)) {
-                basicInfoFields.push(attr)
-            } else {
-                omitFields.push(
-                    `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
-                )
-                attributesFields.push(attr)
-            }
+        const omitFields: string[] = [
+            "verification_type",
+            "annotations.verified_by",
+            "created_at",
+            "id",
+            "applicant_id",
+        ]
+        profileAttributes?.forEach((attr) => {
+            omitFields.push(
+                `applicant_data.${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}`
+            )
         })
-
-        return {basicInfoFields, attributesFields, omitFields}
-    }, [props.userAttributes?.get_user_profile_attributes])
+        return {attributesFields: profileAttributes ?? [], omitFields}
+    }, [profileAttributes])
 
     useEffect(() => {
-        if (props.defaultFilters) {
-            setFilters({...filterValues, status: props.defaultFilters}, {})
+        if (defaultFilters) {
+            setFilters({...filterValues, status: defaultFilters}, {})
         }
-    }, [props.defaultFilters])
+    }, [defaultFilters])
 
-    const renderUserFields = (fields: UserProfileAttribute[]) => {
-        const allFields = fields.map((attr) => {
+    const renderUserFields = (fields: UserProfileAttribute[]) =>
+        fields.map((attr) => {
             const attrMappedName = convertToCamelCase(getAttributeLabel(attr.name ?? ""))
+            const label = getTranslationLabel(attr.name, attr.display_name, t)
+            if (!attr.name) {
+                return null
+            }
             if (attr.annotations?.inputType === "html5-date") {
                 return (
                     <FunctionField
                         key={attr.name}
-                        source={`applicant_data.${attr.name}`}
-                        label={getTranslationLabel(attr.name, attr.display_name, t)}
-                        render={(
-                            record: Sequent_Backend_Applications,
-                            source: string | undefined
-                        ) => {
-                            return (
-                                <CustomDateField
-                                    key={attr.name}
-                                    base="applicant_data"
-                                    source={`${attrMappedName}`}
-                                    label={getTranslationLabel(attr.name, attr.display_name, t)}
-                                    emptyText="-"
-                                />
-                            )
-                        }}
+                        source={`applicant_data.${attrMappedName}`}
+                        label={label}
+                        sortable={false}
+                        render={() => (
+                            <CustomDateField
+                                key={attr.name}
+                                base="applicant_data"
+                                source={`${attrMappedName}`}
+                                label={label}
+                                emptyText="-"
+                            />
+                        )}
                     />
                 )
-            } else if (attr.multivalued) {
+            }
+            if (attr.multivalued) {
                 return (
                     <FunctionField
                         key={attr.name}
-                        source={`applicant_data.${attrMappedName}` as any}
-                        label={getTranslationLabel(attr.name, attr.display_name, t)}
+                        source={`applicant_data.${attrMappedName}`}
+                        label={label}
+                        sortable={false}
                         render={(record: Sequent_Backend_Applications) => {
-                            let value = record?.applicant_data[attrMappedName]
-                            let values = value ? value.split(";") : []
-                            return (
+                            const value = record?.applicant_data?.[attrMappedName]
+                            const values: string[] = value ? String(value).split(";") : []
+                            return values.length > 0 ? (
                                 <>
-                                    {values ? (
-                                        values.map((item: any, index: number) => (
-                                            <StyledChip key={index} label={item} />
-                                        ))
-                                    ) : (
-                                        <StyledNull>-</StyledNull>
-                                    )}
+                                    {values.map((item, index) => (
+                                        <StyledChip key={index} label={item} />
+                                    ))}
                                 </>
+                            ) : (
+                                <StyledNull>-</StyledNull>
                             )
                         }}
                     />
                 )
             }
-            if (attr.name) {
-                return (
-                    <FunctionField
-                        key={attr.name}
-                        // source={`applicant_data[${attrMappedName}]` as any}
-                        source={`applicant_data.${attrMappedName}` as any}
-                        label={getTranslationLabel(attr.name, attr.display_name, t)}
-                        render={(record: Sequent_Backend_Applications) => {
-                            const attributeValue = record?.applicant_data[attrMappedName]
-                            if (attributeValue) {
-                                return <span>{attributeValue}</span>
-                            }
-                            return <span>-</span>
-                        }}
-                    />
-                )
-            } else {
-                return null
-            }
+            return (
+                <FunctionField
+                    key={attr.name}
+                    source={`applicant_data.${attrMappedName}`}
+                    label={label}
+                    sortable={false}
+                    render={(record: Sequent_Backend_Applications) => (
+                        <span>{record?.applicant_data?.[attrMappedName] || "-"}</span>
+                    )}
+                />
+            )
         })
-
-        return allFields
-    }
 
     const sx = {
         "@media (min-width: 960px)": {
@@ -196,22 +237,19 @@ const ApprovalsList = (props: ApprovalsListProps) => {
             width: "100%",
             maxWidth: isOpenSidebar ? "calc(100vw - 355px)" : "calc(100vw - 108px)",
         },
+        "& .RaDatagrid-headerCell": {fontWeight: 600},
+        "& .RaDatagrid-rowCell": {verticalAlign: "middle"},
     }
 
     const restFields = useMemo(() => {
-        const theFields = []
-        theFields.push(...renderUserFields(listFields?.basicInfoFields ?? []))
-        theFields.push(...renderUserFields(listFields?.attributesFields ?? []))
-
         localStorage.removeItem(
             `RaStore.preferences.${getPreferenceKey(
                 location.pathname,
-                "approvals"
+                PREFERENCE_KEY
             )}.datagrid.availableColumns`
         )
-
-        return theFields
-    }, [listFields?.basicInfoFields, listFields?.attributesFields, location.pathname])
+        return renderUserFields(listFields.attributesFields)
+    }, [listFields.attributesFields, location.pathname])
 
     // Monitor and save filter changes
     useEffect(() => {
@@ -220,43 +258,158 @@ const ApprovalsList = (props: ApprovalsListProps) => {
         }
     }, [filterValues?.status])
 
+    const isPending = (record: Sequent_Backend_Applications) =>
+        String(record.status).toUpperCase() === IApplicationsStatus.PENDING
+    const date = (value: string) =>
+        new Date(value).toLocaleDateString(i18n.language, {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+        })
+
     return (
         <DatagridConfigurable
-            preferenceKey={getPreferenceKey(location.pathname, "approvals")}
+            preferenceKey={getPreferenceKey(location.pathname, PREFERENCE_KEY)}
             sx={sx}
             {...props}
-            omit={listFields?.omitFields}
+            omit={listFields.omitFields}
             bulkActionButtons={false}
+            rowClick={(id) => {
+                onViewApproval(id)
+                return false
+            }}
+            empty={
+                <Box sx={{padding: "48px 16px", textAlign: "center"}}>
+                    <Typography variant="h6">{t("approvalsScreen.list.empty.title")}</Typography>
+                    <Muted>{t("approvalsScreen.list.empty.text")}</Muted>
+                </Box>
+            }
         >
-            <TextField source="id" />
-            <AdminDateField source="created_at" seconds />
-            <AdminDateField source="updated_at" seconds />
             <FunctionField
-                source="applicant_id"
+                source="applicant_data"
+                label={String(t("approvalsScreen.column.voter"))}
+                sortable={false}
+                render={(record: Sequent_Backend_Applications) => (
+                    <>
+                        <CellTitle>
+                            {applicantName(record) || t("approvalsScreen.list.unnamed")}
+                        </CellTitle>
+                        <Muted>{applicantData(record).email}</Muted>
+                    </>
+                )}
+            />
+            <FunctionField
+                source="annotations"
+                label={String(t("approvalsScreen.column.what"))}
+                sortable={false}
                 render={(record: Sequent_Backend_Applications) => {
-                    if (record.applicant_id && record.applicant_id !== "null") {
-                        return record.applicant_id
-                    } else {
-                        return "-"
-                    }
+                    const summary = enrollmentSummary(record, t, fieldLabel)
+                    return (
+                        <>
+                            <CellTitle>{summary.headline}</CellTitle>
+                            <Muted>{summary.detail}</Muted>
+                        </>
+                    )
                 }}
             />
-            <TextField source="verification_type" />
             <FunctionField
-                label={String(props.t("approvalsScreen.column.status"))}
-                render={(record: any) => (
-                    <StatusApplicationChip status={record.status.toUpperCase()} />
+                source="area_id"
+                label={String(t("approvalsScreen.column.post"))}
+                sortable={false}
+                render={(record: Sequent_Backend_Applications) => <PostCell record={record} />}
+            />
+            <FunctionField
+                source="updated_at"
+                sortBy="created_at"
+                label={String(t("approvalsScreen.column.when"))}
+                render={(record: Sequent_Backend_Applications) => (
+                    <>
+                        {isPending(record) && (
+                            <CellTitle>
+                                {t("approvalsScreen.list.waiting", {
+                                    time: waitingTime(record.created_at, now, t),
+                                })}
+                            </CellTitle>
+                        )}
+                        <Muted>
+                            {t("approvalsScreen.list.applied", {date: date(record.created_at)})}
+                        </Muted>
+                    </>
                 )}
+            />
+            <FunctionField
+                source="status"
+                label={String(t("approvalsScreen.column.status"))}
+                sortable={false}
+                render={(record: Sequent_Backend_Applications) => (
+                    <ApprovalStatusChip status={record.status} />
+                )}
+            />
+            <FunctionField
+                source="verification_type"
+                label={String(t("approvalsScreen.column.verificationType"))}
+                render={(record: Sequent_Backend_Applications) =>
+                    record.verification_type
+                        ? t(`approvalsScreen.verification.${record.verification_type}`, {
+                              defaultValue: record.verification_type,
+                          })
+                        : "-"
+                }
             />
             <TextField
                 source="annotations.verified_by"
-                label={String(props.t("approvalsScreen.column.verified_by"))}
+                label={String(t("approvalsScreen.column.verified_by"))}
                 emptyText="-"
+                sortable={false}
+            />
+            <AdminDateField
+                source="created_at"
+                seconds
+                label={String(t("approvalsScreen.column.createdAt"))}
+            />
+            <TextField source="id" label={String(t("approvalsScreen.column.id"))} />
+            <FunctionField
+                source="applicant_id"
+                label={String(t("approvalsScreen.column.applicantId"))}
+                render={(record: Sequent_Backend_Applications) =>
+                    record.applicant_id && record.applicant_id !== "null"
+                        ? record.applicant_id
+                        : "-"
+                }
             />
             {restFields}
-            <ActionsColumn
-                actions={props.actions}
-                label={String(props.t("common.label.actions"))}
+            <FunctionField
+                source="actions"
+                label={String(t("common.label.actions"))}
+                sortable={false}
+                render={(record: Sequent_Backend_Applications) => (
+                    <span onClick={(event) => event.stopPropagation()}>
+                        <ListActionsMenu
+                            actions={[
+                                {
+                                    icon: isPending(record) ? <FactCheck /> : <Visibility />,
+                                    action: onViewApproval,
+                                    label: String(
+                                        t(
+                                            isPending(record)
+                                                ? "approvalsScreen.list.review"
+                                                : "approvalsScreen.list.openRecord"
+                                        )
+                                    ),
+                                },
+                                ...(onViewRule && decisionDetails(record)
+                                    ? [
+                                          {
+                                              icon: <RuleIcon />,
+                                              action: onViewRule,
+                                              label: String(t("approvalsScreen.list.seeRule")),
+                                          },
+                                      ]
+                                    : []),
+                            ]}
+                        />
+                    </span>
+                )}
             />
         </DatagridConfigurable>
     )
@@ -267,7 +420,6 @@ const generateFilters = (
     t: ReturnType<typeof useTranslation>["t"]
 ) => {
     return fields.map((attr) => {
-        // const source = `applicant_data[${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}]`
         const source = `applicant_data.${convertToCamelCase(getAttributeLabel(attr.name ?? ""))}`
         const label = getTranslationLabel(attr.name, attr.display_name, t)
 
@@ -282,16 +434,23 @@ const generateFilters = (
 
 const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[]) => {
     return [
+        <TextInput
+            source="q"
+            key="search_filter"
+            label={String(t("approvalsScreen.list.search"))}
+            alwaysOn
+            resettable
+        />,
         <SelectInput
             source="status"
             key="status_filter"
             label={String(t("approvalsScreen.column.status"))}
             choices={[
-                {id: "pending", name: "Pending"},
-                {id: "accepted", name: "Accepted"},
-                {id: "rejected", name: "Rejected"},
+                {id: "pending", name: String(t("approvalsScreen.status.PENDING"))},
+                {id: "accepted", name: String(t("approvalsScreen.status.ACCEPTED"))},
+                {id: "rejected", name: String(t("approvalsScreen.status.REJECTED"))},
             ]}
-            defaultValue={localStorage.getItem(STATUS_FILTER_KEY)}
+            defaultValue={localStorage.getItem(STATUS_FILTER_KEY) || DEFAULT_STATUS}
             onChange={(e) => {
                 if (e.target.value) {
                     localStorage.setItem(STATUS_FILTER_KEY, e.target.value)
@@ -304,8 +463,8 @@ const CustomFilters = (t: any, changeFilters: any, fields: UserProfileAttribute[
             key="verification_type_filter"
             label={String(t("approvalsScreen.column.verificationType"))}
             choices={[
-                {id: "MANUAL", name: "Manual"},
-                {id: "AUTOMATIC", name: "Automatic"},
+                {id: "MANUAL", name: String(t("approvalsScreen.verification.MANUAL"))},
+                {id: "AUTOMATIC", name: String(t("approvalsScreen.verification.AUTOMATIC"))},
             ]}
         />,
         <TextInput
@@ -322,12 +481,13 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     electionEventId,
     electionId,
     onViewApproval,
+    onViewMatrix,
+    onViewRule,
     electionEventRecord,
 }) => {
     const {t} = useTranslation()
     const location = useLocation()
 
-    const OMIT_FIELDS: string[] = []
     const [openExport, setOpenExport] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -350,13 +510,11 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         },
     })
 
-    // ✨ Admin Portal > Approvals: Add Approved By row #5050
-
     useEffect(() => {
         localStorage.removeItem(
             `RaStore.preferences.${getPreferenceKey(
                 location.pathname,
-                "approvals"
+                PREFERENCE_KEY
             )}.datagrid.availableColumns`
         )
     }, [])
@@ -438,13 +596,6 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
         }
     }
 
-    const actions: Action[] = [
-        {
-            icon: <Visibility />,
-            action: onViewApproval,
-        },
-    ]
-
     const [tenantId] = useTenantStore()
     const {data: userAttributes, loading: userAttributesLoading} =
         useQuery<GetUserProfileAttributesQuery>(USER_PROFILE_ATTRIBUTES, {
@@ -457,7 +608,7 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     // Get initial status from localStorage or use "pending" as default
     // const defaultFilters = localStorage.getItem(STATUS_FILTER_KEY) // || "pending"
     const [defaultFilters, setDefaultFilters] = useState<string | null>(
-        localStorage.getItem(STATUS_FILTER_KEY) || "pending"
+        localStorage.getItem(STATUS_FILTER_KEY) || DEFAULT_STATUS
     )
 
     const listFilter = useMemo(() => {
@@ -482,42 +633,61 @@ export const ListApprovals: React.FC<ListApprovalsProps> = ({
     }
 
     if (!electionEventRecord) {
-        return <CircularProgress />
+        return <CircularProgress aria-label={String(t("approvalsScreen.list.title"))} />
     }
 
     return (
         <>
-            <List
-                actions={
-                    <ListActions
-                        preferenceKey={getPreferenceKey(location.pathname, "approvals")}
-                        withImport={canImport}
-                        withExport={canExport}
-                        doImport={handleImport}
-                        doExport={handleExport}
-                    />
-                }
-                // empty={false}
-                resource="sequent_backend_applications"
-                filters={CustomFilters(
-                    t,
-                    setDefaultFilters,
-                    userAttributes?.get_user_profile_attributes || []
-                )}
-                filter={listFilter}
-                sort={{field: "created_at", order: "DESC"}}
-                perPage={10}
-                filterDefaultValues={{status: defaultFilters}}
-                disableSyncWithLocation
-            >
-                <ApprovalsList
-                    omit={OMIT_FIELDS}
-                    actions={actions}
-                    t={t}
-                    userAttributes={userAttributes}
-                    defaultFilters={defaultFilters}
+            <QueueHeader>
+                <ElectionHeader
+                    title="approvalsScreen.list.title"
+                    subtitle="approvalsScreen.list.subtitle"
                 />
-            </List>
+            </QueueHeader>
+            {/* The tab sits inside the election event's record: without this, the
+                filters would start from the event's own "status" and "id". */}
+            <RecordContextProvider value={NO_RECORD}>
+                <List
+                    actions={
+                        <ListActions
+                            preferenceKey={getPreferenceKey(location.pathname, PREFERENCE_KEY)}
+                            withImport={canImport}
+                            withExport={canExport}
+                            doImport={handleImport}
+                            doExport={handleExport}
+                            extraActions={
+                                onViewMatrix
+                                    ? [
+                                          <Button key="approval-matrix" onClick={onViewMatrix}>
+                                              <RuleIcon sx={{mr: 1}} />
+                                              {t("approvalsScreen.matrix.button")}
+                                          </Button>,
+                                      ]
+                                    : []
+                            }
+                        />
+                    }
+                    empty={false}
+                    resource="sequent_backend_applications"
+                    filters={CustomFilters(
+                        t,
+                        setDefaultFilters,
+                        userAttributes?.get_user_profile_attributes || []
+                    )}
+                    filter={listFilter}
+                    sort={{field: "created_at", order: "DESC"}}
+                    perPage={10}
+                    filterDefaultValues={{status: defaultFilters}}
+                    disableSyncWithLocation
+                >
+                    <ApprovalsList
+                        onViewApproval={onViewApproval}
+                        onViewRule={onViewRule}
+                        userAttributes={userAttributes}
+                        defaultFilters={defaultFilters}
+                    />
+                </List>
+            </RecordContextProvider>
 
             <Dialog
                 variant="info"

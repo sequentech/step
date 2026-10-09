@@ -6,6 +6,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <EML Id="510" SchemaVersion="7.0" xmlns="urn:oasis:names:tc:evs:schema:eml">
   <EMLHeader>
+    {{#if configuration}}
+    <!-- {{configuration}} -->
+    {{/if}}
     <TransactionId>{{data.header.transaction_id}}</TransactionId>
     <IssueDate>{{data.header.issue_date}}</IssueDate>
     <OfficialStatusDetail>

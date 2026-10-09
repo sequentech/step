@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {test, expect} from "../fixtures"
 import {
-    LANGUAGE_CONF,
     SETTINGS_ROLES,
     TENANT_WHERE,
     commitUndoable,
@@ -64,15 +63,6 @@ test("shows online voting as off when the tenant disabled it", async ({page, por
     await expect(switchFor(page, "Kiosk Voting")).toBeChecked()
 
     await expect(switchFor(page, "Online Voting")).not.toBeChecked({timeout: 2_000})
-})
-
-test("shows the mail and SMS template channels as read-only switches", async ({page, portal}) => {
-    mockTenant(portal, tenantRow({settings: {language_conf: LANGUAGE_CONF, mail: true, sms: true}}))
-    await openSettings(page, portal, "TEMPLATES")
-    for (const label of ["Mails", "SMS"]) {
-        await expect(switchFor(page, label)).toBeChecked()
-        await expect(switchFor(page, label)).toBeDisabled()
-    }
 })
 
 test("enables a language, makes it the default and forces it on voters", async ({page, portal}) => {

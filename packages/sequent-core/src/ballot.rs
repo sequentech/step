@@ -310,6 +310,22 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     election_id: &str,
     hashable_ballot: &HashableBallot,
 ) -> Result<SignedContent, String> {
+    let secret_key = StrandSignatureSk::generate()
+        .map_err(|err| format!("Error generating secret key: {err}"))?;
+    sign_hashable_ballot_with_voter_signing_key(
+        &secret_key,
+        ballot_id,
+        election_id,
+        hashable_ballot,
+    )
+}
+
+pub fn sign_hashable_ballot_with_voter_signing_key(
+    secret_key: &StrandSignatureSk,
+    ballot_id: &str,
+    election_id: &str,
+    hashable_ballot: &HashableBallot,
+) -> Result<SignedContent, String> {
     // Get ballot_bytes_for_signing
     let content_bytes = hashable_ballot
         .strand_serialize()
@@ -317,10 +333,7 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     let ballot_bytes =
         get_ballot_bytes_for_signing(ballot_id, election_id, &content_bytes);
 
-    // Generate voter ephemeral key for signing
-    let secret_key = StrandSignatureSk::generate()
-        .map_err(|err| format!("Error generating secret key: {err}"))?;
-    let public_key = StrandSignaturePk::from_sk(&secret_key)
+    let public_key = StrandSignaturePk::from_sk(secret_key)
         .map_err(|err| format!("Error generating public key: {err}"))?;
 
     let ballot_signature = secret_key
@@ -1156,6 +1169,103 @@ where
     }
 }
 
+#[allow(non_camel_case_types)]
+#[derive(
+    Debug,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    Clone,
+    EnumString,
+    Display,
+    Default,
+)]
+pub enum EChecksPeriodPolicy {
+    #[strum(serialize = "unlimited")]
+    #[serde(rename = "unlimited")]
+    #[default]
+    UNLIMITED,
+    #[strum(serialize = "until-date")]
+    #[serde(rename = "until-date")]
+    UNTIL_DATE,
+}
+
+/// Whether a voter can still view a cast ballot at a given instant.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum ChecksPeriod {
+    Unlimited,
+    OpenUntil(DateTime<Utc>),
+    Ended(DateTime<Utc>),
+}
+
+pub const RECEIPTS_PRESENTATION_KEY: &str = "receipts";
+
+#[derive(
+    Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone, Default,
+)]
+pub struct ReceiptsPresentation {
+    pub policy: Option<ReceiptsPolicy>,
+    pub checks_period_policy: Option<EChecksPeriodPolicy>,
+    /// RFC 3339 date and time with its offset. Required with `until-date`.
+    pub checks_available_until: Option<String>,
+}
+
+impl ReceiptsPresentation {
+    pub fn checks_period(
+        &self,
+        now: DateTime<Utc>,
+    ) -> anyhow::Result<ChecksPeriod> {
+        match self.checks_period_policy.clone().unwrap_or_default() {
+            EChecksPeriodPolicy::UNLIMITED => Ok(ChecksPeriod::Unlimited),
+            EChecksPeriodPolicy::UNTIL_DATE => {
+                let until = self
+                    .checks_available_until
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "checks_available_until is required with the {} checks period policy",
+                            EChecksPeriodPolicy::UNTIL_DATE
+                        )
+                    })?;
+                let until = DateTime::parse_from_rfc3339(until)
+                    .map_err(|error| {
+                        anyhow!(
+                            "checks_available_until is not a date and time with an offset: {error}"
+                        )
+                    })?
+                    .with_timezone(&Utc);
+                Ok(if now > until {
+                    ChecksPeriod::Ended(until)
+                } else {
+                    ChecksPeriod::OpenUntil(until)
+                })
+            }
+        }
+    }
+}
+
+/// Reads only the receipts settings of a stored event presentation, so that
+/// an unrelated field that fails to parse does not decide whether voters can
+/// view their ballots.
+pub fn checks_period_from_presentation(
+    presentation: Option<&serde_json::Value>,
+    now: DateTime<Utc>,
+) -> anyhow::Result<ChecksPeriod> {
+    let receipts = presentation
+        .and_then(|value| value.get(RECEIPTS_PRESENTATION_KEY))
+        .filter(|value| !value.is_null());
+    let Some(receipts) = receipts else {
+        return Ok(ChecksPeriod::Unlimited);
+    };
+    serde_json::from_value::<ReceiptsPresentation>(receipts.clone())
+        .map_err(|error| anyhow!("invalid receipts settings: {error}"))?
+        .checks_period(now)
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -1198,6 +1308,18 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    /// Skipped by Borsh for the reason `Contest::is_acclaimed` is: one more
+    /// positional field would change `ballot_style_hash` for every election.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipts: Option<ReceiptsPresentation>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub voter_accessibility_settings_policy:
+        Option<VoterAccessibilitySettingsPolicy>,
+    /// Skipped in Borsh so that published ballot styles keep their hashes.
+    #[borsh(skip)]
+    pub audio_instructions_policy: Option<AudioInstructionsPolicy>,
     /// The event's configured timezones and its primary one (VOTE-LIFECYCLE).
     /// Display and configuration data only: skipped in Borsh so ballot-style
     /// hashes (and the auditable ballots that carry them) don't change.
@@ -1236,6 +1358,15 @@ impl ElectionEventPresentation {
     /// `PUBLIC` only when set; unset means `RESTRICTED`.
     pub fn ballot_box_seal_record_policy(&self) -> BallotBoxSealRecordPolicy {
         self.ballot_box_seal_record_policy.unwrap_or_default()
+    }
+}
+
+impl ElectionEventPresentation {
+    pub fn receipts_policy(&self) -> ReceiptsPolicy {
+        self.receipts
+            .as_ref()
+            .and_then(|receipts| receipts.policy.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -1522,6 +1653,9 @@ pub enum EUnderVotePolicy {
     #[strum(serialize = "warn-and-alert")]
     #[serde(rename = "warn-and-alert")]
     WARN_AND_ALERT,
+    #[strum(serialize = "warn-and-confirm-in-review")]
+    #[serde(rename = "warn-and-confirm-in-review")]
+    WARN_AND_CONFIRM_IN_REVIEW,
 }
 
 #[allow(non_camel_case_types)]
@@ -2189,6 +2323,40 @@ pub enum VoterSigningPolicy {
     WITH_SIGNATURE,
 }
 
+/// Whether the ballot box receives and signs a ballot at review, so that its
+/// Ballot ID is proof of storage.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum ReceiptsPolicy {
+    #[default]
+    #[strum(serialize = "disabled")]
+    #[serde(rename = "disabled")]
+    DISABLED,
+    #[strum(serialize = "signed-by-ballot-box")]
+    #[serde(rename = "signed-by-ballot-box")]
+    SIGNED_BY_BALLOT_BOX,
+}
+/// The ballot box's public key, as published to voters' devices.
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct BallotBoxKey {
+    pub key_id: String,
+    /// Base64 of the DER SubjectPublicKeyInfo.
+    pub public_key: String,
+}
+
 #[allow(non_camel_case_types)]
 #[derive(
     BorshSerialize,
@@ -2212,6 +2380,58 @@ pub enum VoterCertificatePolicy {
     #[strum(serialize = "enabled")]
     #[serde(rename = "enabled")]
     ENABLED,
+}
+
+/// Whether the Voting Portal offers the voter its display settings: text size,
+/// contrast, text spacing and motion.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum VoterAccessibilitySettingsPolicy {
+    #[default]
+    Disabled,
+    Enabled,
+}
+
+/// Whether each Voting Portal screen offers spoken instructions, and where
+/// the audio may come from: only the event's uploaded recordings, or the
+/// browser's speech synthesis where a screen has no recording.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum AudioInstructionsPolicy {
+    #[default]
+    Disabled,
+    Recorded,
+    RecordedOrSynthesized,
 }
 
 #[allow(non_camel_case_types)]
@@ -3050,6 +3270,12 @@ pub struct BallotStyle {
     pub area_annotations: Option<AreaAnnotations>,
     /// Absent means `MultiContestEncodingMode::LEGACY`.
     pub multi_contest_encoding_mode: Option<MultiContestEncodingMode>,
+    /// Absent when the event's receipts are not signed by the ballot box.
+    /// Skipped by Borsh so that publishing the key leaves
+    /// `ballot_style_hash` as it was.
+    #[borsh(skip)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ballot_box_key: Option<BallotBoxKey>,
 }
 
 #[derive(
@@ -3461,6 +3687,72 @@ mod presentation_borsh_compat_tests {
     }
 
     #[test]
+    fn voter_accessibility_settings_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.voter_accessibility_settings_policy, None);
+        assert_eq!(
+            legacy
+                .voter_accessibility_settings_policy
+                .unwrap_or_default(),
+            VoterAccessibilitySettingsPolicy::Disabled
+        );
+
+        let enabled = parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "enabled"
+        }))
+        .unwrap();
+        assert_eq!(
+            enabled.voter_accessibility_settings_policy,
+            Some(VoterAccessibilitySettingsPolicy::Enabled)
+        );
+        assert_eq!(
+            serde_json::to_value(&enabled).unwrap()
+                ["voter_accessibility_settings_policy"],
+            "enabled"
+        );
+
+        assert!(parse(serde_json::json!({
+            "voter_accessibility_settings_policy": "sometimes"
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn audio_instructions_policy_is_optional_and_strict() {
+        let parse = |presentation: serde_json::Value| {
+            serde_json::from_value::<ElectionEventPresentation>(presentation)
+        };
+        let legacy = parse(serde_json::json!({})).unwrap();
+        assert_eq!(legacy.audio_instructions_policy, None);
+        assert_eq!(
+            legacy.audio_instructions_policy.unwrap_or_default(),
+            AudioInstructionsPolicy::Disabled
+        );
+
+        let configured = parse(serde_json::json!({
+            "audio_instructions_policy": "recorded-or-synthesized"
+        }))
+        .unwrap();
+        assert_eq!(
+            configured.audio_instructions_policy,
+            Some(AudioInstructionsPolicy::RecordedOrSynthesized)
+        );
+        assert_eq!(
+            serde_json::to_value(&configured).unwrap()
+                ["audio_instructions_policy"],
+            "recorded-or-synthesized"
+        );
+
+        assert!(parse(serde_json::json!({
+            "audio_instructions_policy": "autoplay"
+        }))
+        .is_err());
+    }
+
+    #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
         let event_presentation = ElectionEventPresentation::default();
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
@@ -3469,6 +3761,25 @@ mod presentation_borsh_compat_tests {
             ..event_presentation
         };
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+
+        let event_with_accessibility = ElectionEventPresentation {
+            voter_accessibility_settings_policy: Some(
+                VoterAccessibilitySettingsPolicy::Enabled,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_accessibility).unwrap(),
+            event_bytes
+        );
+
+        let event_with_audio = ElectionEventPresentation {
+            audio_instructions_policy: Some(
+                AudioInstructionsPolicy::RecordedOrSynthesized,
+            ),
+            ..ElectionEventPresentation::default()
+        };
+        assert_eq!(borsh::to_vec(&event_with_audio).unwrap(), event_bytes);
 
         let election_presentation = ElectionPresentation::default();
         let election_bytes = borsh::to_vec(&election_presentation).unwrap();

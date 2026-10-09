@@ -112,6 +112,7 @@ fn published(
         election_annotations: None,
         area_annotations: area_annotations.map(|value| serde_json::from_value(value).unwrap()),
         multi_contest_encoding_mode: None,
+        ballot_box_key: None,
     };
     BallotStyle {
         id: ballot_style.id.clone(),

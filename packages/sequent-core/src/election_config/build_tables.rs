@@ -18,6 +18,7 @@ use crate::election_config::emit::{
     JsonField, MULTI_VALUE_SEPARATOR, REPORT_COLUMNS, SCHEDULED_EVENT_COLUMNS,
 };
 use crate::election_config::problem::Code;
+use crate::election_config::report::{ReportFormat, ReportType};
 use crate::election_config::sheet::{
     Origin, Row, SHEET_ADMIN_USERS, SHEET_PERMISSIONS, SHEET_REPORTS,
     SHEET_SCHEDULED_EVENTS, SHEET_TEMPLATES, SHEET_VOTERS,
@@ -670,6 +671,66 @@ impl Builder<'_> {
 
     // -- reports ----------------------------------------------------------
 
+    /// A Reports row's `output_formats`, joined the way the importer splits
+    /// them, or `None` after reporting a format the type can't be generated
+    /// in. A list or a `|`-separated cell; empty means the type's default.
+    fn report_formats(
+        &mut self,
+        row: &Row,
+        report_type: &str,
+    ) -> Option<String> {
+        let names: Vec<String> = match row.get("output_formats") {
+            None | Some(Value::Null) => Vec::new(),
+            Some(Value::Array(items)) => {
+                items.iter().map(value_as_text).collect()
+            }
+            Some(other) => value_as_text(other)
+                .split(MULTI_VALUE_SEPARATOR)
+                .map(str::to_string)
+                .collect(),
+        };
+        let supported = ReportType::from_str(report_type)
+            .ok()
+            .map(|known| known.formats());
+
+        let mut formats: Vec<ReportFormat> = Vec::new();
+        for name in names
+            .iter()
+            .map(|name| name.trim())
+            .filter(|name| !name.is_empty())
+        {
+            let Ok(format) = ReportFormat::from_str(&name.to_ascii_lowercase())
+            else {
+                self.problem(
+                    row.origin(Some("output_formats")),
+                    Code::InvalidValue,
+                    format!("'{name}' is not a report format: use pdf, csv, xml or sql"),
+                );
+                return None;
+            };
+            if supported.is_some_and(|supported| !supported.contains(&format)) {
+                self.problem(
+                    row.origin(Some("output_formats")),
+                    Code::InvalidValue,
+                    format!(
+                        "a {report_type} report can't be generated as {format}"
+                    ),
+                );
+                return None;
+            }
+            if !formats.contains(&format) {
+                formats.push(format);
+            }
+        }
+        Some(
+            formats
+                .iter()
+                .map(ReportFormat::to_string)
+                .collect::<Vec<_>>()
+                .join(MULTI_VALUE_SEPARATOR),
+        )
+    }
+
     pub(super) fn build_reports(&mut self) -> Option<PlainTable> {
         let rows_in: Vec<Row> = self.workbook.rows(SHEET_REPORTS).to_vec();
         if rows_in.is_empty() {
@@ -766,6 +827,30 @@ impl Builder<'_> {
                 })
                 .unwrap_or_else(|| "unencrypted".to_string());
 
+            let copies = match row.get("copies") {
+                None | Some(Value::Null) => String::new(),
+                Some(value) => {
+                    let text = value_as_text(value).trim().to_string();
+                    match text.parse::<u32>() {
+                        Ok(count) if count > 0 => count.to_string(),
+                        _ => {
+                            self.problem(
+                                row.origin(Some("copies")),
+                                Code::InvalidValue,
+                                format!(
+                                    "copies must be a whole number of at least \
+                                     1, not '{text}'"
+                                ),
+                            );
+                            continue;
+                        }
+                    }
+                }
+            };
+            let Some(formats) = self.report_formats(row, &report_type) else {
+                continue;
+            };
+
             rows.push(vec![
                 rendered.get("id").map(value_as_text).unwrap_or_default(),
                 election_id,
@@ -776,6 +861,8 @@ impl Builder<'_> {
                 csv_scalar(row.get("password")),
                 // Option<Vec<String>>, split on "|" by process_reports_file.
                 join_multi(row.get("permission_label")),
+                copies,
+                formats,
             ]);
         }
 

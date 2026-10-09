@@ -89,11 +89,17 @@ export interface IElectionStatus {
 export interface IElectionEventStatistics {
     num_emails_sent?: number
     num_sms_sent?: number
+    num_whatsapp_sent?: number
+    num_viber_sent?: number
+    num_messenger_sent?: number
 }
 
 export interface IElectionStatistics {
     num_emails_sent?: number
     num_sms_sent?: number
+    num_whatsapp_sent?: number
+    num_viber_sent?: number
+    num_messenger_sent?: number
 }
 
 export interface IContest {
@@ -175,12 +181,45 @@ export interface IBallotStyle {
     election_event_presentation?: IElectionEventPresentation
     election_presentation?: IElectionPresentation
     election_dates?: IElectionDates
+    election_annotations?: Record<string, string> | null
     multi_contest_encoding_mode?: EMultiContestEncodingMode
+    ballot_box_key?: IBallotBoxKey
 }
 
 export interface IPublicKeyConfig {
     public_key: string
     is_demo: boolean
+}
+
+export interface IBallotBoxKey {
+    key_id: string
+    public_key: string
+}
+
+// The ballot box's signed statement that it has stored a ballot.
+export interface IReceivedBallot {
+    tenant_id: string
+    election_event_id: string
+    election_id: string
+    ballot_hash: string
+    voter_signing_pk: string
+    voter_ballot_signature: string
+    received_at: string
+    key_id: string
+    received_signature: string
+    ballot_id: string
+}
+
+// The ballot box's signed statement that it has stored a ballot as cast.
+export interface ICastReceipt {
+    election_event_id: string
+    election_id: string
+    ballot_id: string
+    received_at: string
+    cast_at: string
+    key_id: string
+    cast_signature: string
+    cast_receipt_signature: string
 }
 
 export interface IAuditableBallot {

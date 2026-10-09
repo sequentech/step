@@ -159,6 +159,7 @@ pub fn validate(bundle: &ImportElectionEventSchema) -> Report {
     check_how_voting_works(bundle, &mut report);
     check_voting_channels(bundle, &mut report);
     check_ivr_prompts(bundle, &mut report);
+    check_slates(bundle, &mut report);
     check_images(bundle, &mut report);
     check_support_materials(bundle, &mut report);
     check_event_presentation(bundle, &mut report);
@@ -279,6 +280,27 @@ fn check_ivr_prompts(bundle: &ImportElectionEventSchema, report: &mut Report) {
     }
 }
 
+/// Whether each election's slates name candidates the bundle actually has.
+///
+/// The importer regenerates every identifier in the bundle, the ones inside
+/// the slate configuration included, so slates that resolve here still resolve
+/// once imported. Ones that do not would only fail later, at publication.
+fn check_slates(bundle: &ImportElectionEventSchema, report: &mut Report) {
+    for (index, election) in bundle.elections.iter().enumerate() {
+        for problem in super::slates::check_election(
+            election,
+            &bundle.contests,
+            &bundle.candidates,
+            &format!(
+                "elections[{index}].annotations.{}",
+                super::slates::SLATES_ANNOTATION
+            ),
+        ) {
+            report.push(problem.about(election.external_id.as_deref()));
+        }
+    }
+}
+
 /// The event-level presentation values that reach a voter.
 ///
 /// One loop over the string-valued ones, because there were two single-purpose
@@ -326,6 +348,26 @@ fn check_event_presentation(
                 .detail("allowed", allowed.join(", ")),
             ),
         }
+    }
+
+    if let Err(error) = crate::ballot::checks_period_from_presentation(
+        bundle.election_event.presentation.as_ref(),
+        chrono::Utc::now(),
+    ) {
+        report.push(
+            Problem::error(
+                Code::InvalidValue,
+                format!(
+                    "election_event.presentation.{}",
+                    crate::ballot::RECEIPTS_PRESENTATION_KEY
+                ),
+                format!(
+                    "the period for checking ballots is not valid: {error}"
+                ),
+            )
+            .id("event.checks-period-invalid")
+            .detail("reason", error.to_string()),
+        );
     }
 }
 

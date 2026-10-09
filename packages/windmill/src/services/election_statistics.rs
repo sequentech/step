@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::election_event_statistics::increment_statistics_sql;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use std::collections::BTreeMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 
@@ -13,30 +15,22 @@ pub async fn update_election_statistics(
     tenant_id: &str,
     election_event_id: &str,
     election_id: &str,
-    inc_emails_sent: i64,
-    inc_sms_sent: i64,
+    increments: &BTreeMap<String, i64>,
 ) -> Result<()> {
+    let increments_sql = increment_statistics_sql(4);
     let update_stats_statement = transaction
-        .prepare(
+        .prepare(&format!(
             r#"
             UPDATE
                 sequent_backend.election
             SET
-                statistics = jsonb_set(
-                    jsonb_set(
-                        COALESCE(statistics, '{}'),
-                        '{num_emails_sent}', 
-                        (COALESCE(statistics->>'num_emails_sent', '0')::int8 + $4)::text::jsonb
-                    ),
-                    '{num_sms_sent}', 
-                    (COALESCE(statistics->>'num_sms_sent', '0')::int8 + $5)::text::jsonb
-                )
+                statistics = {increments_sql}
             WHERE
                 tenant_id = $1 AND
                 election_event_id = $2 AND
                 id = $3;
             "#,
-        )
+        ))
         .await?;
 
     transaction
@@ -46,8 +40,7 @@ pub async fn update_election_statistics(
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(election_event_id)?,
                 &parse_uuid_v4(election_id)?,
-                &inc_emails_sent,
-                &inc_sms_sent,
+                &serde_json::to_value(increments)?,
             ],
         )
         .await?;

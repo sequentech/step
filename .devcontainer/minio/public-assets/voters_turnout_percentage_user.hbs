@@ -204,6 +204,12 @@
       <td align="center">
         <div>
           <span class="word-break">Report hash: {{sanitize_html (expr execution_annotations.report_hash)}}</span><br />
+          {{#if execution_annotations.configuration_revision}}
+          Configuration revision {{sanitize_html execution_annotations.configuration_revision}}, manifest SHA-256 {{sanitize_html execution_annotations.configuration_manifest_sha256}}<br />
+          {{/if}}
+          {{#if execution_annotations.copy_total}}
+          Copy {{sanitize_html execution_annotations.copy_number}} of {{sanitize_html execution_annotations.copy_total}}<br />
+          {{/if}}
           <br />
           Software version: {{sanitize_html (expr execution_annotations.software_version)}}<br />
           System hash: {{sanitize_html (expr execution_annotations.app_hash)}}

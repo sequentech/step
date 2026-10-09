@@ -33,7 +33,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.jbosslog.JBossLog;
@@ -64,11 +63,12 @@ import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
-import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.harvest.ServiceAccountTokenClient;
+import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 /** Lookups an user using a field */
 @JBossLog
@@ -81,10 +81,18 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UPDATE_ATTRIBUTES = "update-attributes";
+
+  /**
+   * Auth note an identity verification step sets to say how the applicant's identity was
+   * established: VERIFIED or MANUAL_ENTRY. The approval matrix decides with it.
+   */
+  public static final String IDENTITY_METHOD = "identity-method";
+
   public static final String AUTO_LOGIN = "auto-login";
   private static final String MESSAGE_COURIER_ATTRIBUTE = "messageCourierAttribute";
   private static final String TEL_USER_ATTRIBUTE = "telUserAttribute";
   public static final String AUTO_2FA = "auto-2fa";
+  public static final String NO_MATCHING_VOTER_POLICY = "no-matching-voter-policy";
 
   /** Hours an election officer has to review a PENDING application; blank shows no reply-by. */
   public static final String REPLY_BY_HOURS = "reply-by-hours";
@@ -104,6 +112,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     INSUFFICIENT_INFORMATION,
     NO_VOTER,
     ALREADY_APPROVED,
+    IDENTITY_NOT_VERIFIED,
     OTHER,
     NO_REASON_GIVEN;
 
@@ -126,9 +135,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     }
   }
 
-  private String keycloakUrl = System.getenv("KEYCLOAK_URL");
-  private String clientId = System.getenv("KEYCLOAK_CLIENT_ID");
-  private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
+  private final ServiceAccountTokenClient tokenClient = ServiceAccountTokenClient.fromEnvironment();
   private String harvestUrl = System.getenv("HARVEST_DOMAIN");
   private String access_token;
 
@@ -181,6 +188,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           template = "registration-rejected-finish.ftl";
       }
 
+      if ("PENDING".equals(verificationStatus)) {
+        setNoticeChannel(context);
+      }
       Response form =
           context
               .form()
@@ -234,6 +244,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     annotationsMap.put(UNSET_ATTRIBUTES, unsetAttributes);
     annotationsMap.put("credentials", credentials);
     annotationsMap.put("sessionId", sessionId);
+    String identityMethod = context.getAuthenticationSession().getAuthNote(IDENTITY_METHOD);
+    if (identityMethod != null) {
+      annotationsMap.put(IDENTITY_METHOD, identityMethod);
+    }
+    annotationsMap.put(
+        NO_MATCHING_VOTER_POLICY,
+        NoMatchingVoterPolicy.fromConfig(config.getConfig().get(NO_MATCHING_VOTER_POLICY)).name());
 
     MessageCourier messageCourier =
         MessageCourier.fromString(config.getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
@@ -389,6 +406,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
 
       try {
         if ("PENDING".equals(verificationStatus)) {
+          setNoticeChannel(context);
           Response form =
               context
                   .form()
@@ -412,6 +430,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              enrollmentRecipient(context),
               context);
           return;
         }
@@ -447,6 +466,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
               mobileNumber,
               rejectionReason,
               mismatchedFields,
+              enrollmentRecipient(context),
               context);
           return;
         }
@@ -499,6 +519,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     // for other authentication models in the authentication flow
     log.info("authenticate(): updating user attributes..");
     updateUserAttributes(user, context, updateAttributesList);
+    EnrollmentChannels.persist(
+        user,
+        context.getAuthenticationSession(),
+        telUserAttribute(context),
+        EnrollmentChannels.consentVersion(context.getRealm()),
+        Instant.now());
 
     // Set email to verified if it was validated
     if (context.getAuthenticationSession().getAuthNote(EMAIL_VERIFIED) != null
@@ -618,6 +644,32 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       Response form = context.form().createForm("registration-finish.ftl");
       context.challenge(form);
     }
+  }
+
+  private static String telUserAttribute(AuthenticationFlowContext context) {
+    AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+    String attribute = config == null ? null : config.getConfig().get(TEL_USER_ATTRIBUTE);
+    return attribute == null || attribute.isBlank()
+        ? MessageOTPAuthenticator.MOBILE_NUMBER_FIELD
+        : attribute;
+  }
+
+  private static NoticeRecipient enrollmentRecipient(AuthenticationFlowContext context) {
+    return NoticeRecipient.fromEnrollment(
+        context.getAuthenticationSession(), telUserAttribute(context));
+  }
+
+  /** Tells the pending page which channel the enrollment result will be sent to. */
+  private static void setNoticeChannel(AuthenticationFlowContext context) {
+    MessageCourier messageCourier =
+        MessageCourier.fromString(
+            context.getAuthenticatorConfig().getConfig().get(MESSAGE_COURIER_ATTRIBUTE));
+    if (MessageCourier.NONE.equals(messageCourier)) {
+      return;
+    }
+    enrollmentRecipient(context)
+        .expectedChannel(messageCourier)
+        .ifPresent(channel -> context.form().setAttribute("noticeChannel", channel.name()));
   }
 
   private HashMap<String, String> getMismatchedFields(
@@ -918,7 +970,20 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
             MessageCourier.BOTH.name(),
             MessageCourier.SMS.name(),
             MessageCourier.EMAIL.name(),
-            MessageCourier.NONE.name()));
+            MessageCourier.NONE.name(),
+            MessageCourier.CHOSEN.name()));
+
+    ProviderConfigProperty noMatchingVoterPolicy =
+        new ProviderConfigProperty(
+            NO_MATCHING_VOTER_POLICY,
+            "No matching voter",
+            "What an enrollment whose identity matches no voter of the census becomes: REJECT"
+                + " rejects it, PENDING_APPROVAL leaves it pending in the election event's"
+                + " Approvals, for an election manager to review.",
+            ProviderConfigProperty.LIST_TYPE,
+            NoMatchingVoterPolicy.REJECT.name());
+    noMatchingVoterPolicy.setOptions(
+        Arrays.stream(NoMatchingVoterPolicy.values()).map(Enum::name).toList());
 
     // Define configuration properties
     return List.of(
@@ -966,7 +1031,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                 + " none.",
             ProviderConfigProperty.STRING_TYPE,
             ""),
-        messageCourier);
+        messageCourier,
+        noMatchingVoterPolicy);
   }
 
   @Override
@@ -1041,47 +1107,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   }
 
   public void authenticate(String tenantId) {
-    HttpClient client = HttpClient.newHttpClient();
-    String url =
-        this.keycloakUrl
-            + "/realms/"
-            + getTenantRealmName(tenantId)
-            + "/protocol/openid-connect/token";
-    Map<Object, Object> data = new HashMap<>();
-    data.put("client_id", this.clientId);
-    data.put("scope", "openid");
-    data.put("client_secret", this.clientSecret);
-    data.put("grant_type", "client_credentials");
-
-    String form =
-        data.entrySet().stream()
-            .map(entry -> entry.getKey() + "=" + entry.getValue())
-            .reduce((entry1, entry2) -> entry1 + "&" + entry2)
-            .orElse("");
-    log.info(form);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
-
-    CompletableFuture<HttpResponse<String>> responseFuture;
-    responseFuture = client.sendAsync(request, HttpResponse.BodyHandlers.ofString());
-    String responseBody = responseFuture.join().body();
-    Object accessToken;
     try {
-      log.info("responseBody " + responseBody);
-      accessToken = JsonSerialization.readValue(responseBody, Map.class).get("access_token");
-      log.info("authenticate " + accessToken.toString());
-      this.access_token = accessToken.toString();
+      this.access_token =
+          tokenClient.fetchAccessToken(ServiceAccountTokenClient.tenantRealmName(tenantId));
     } catch (IOException e) {
-      e.printStackTrace();
+      log.error("authenticate(): could not obtain a service-account token");
+      this.access_token = null;
     }
-  }
-
-  private String getTenantRealmName(String tenantId) {
-    return "tenant-" + tenantId;
   }
 
   private String getElectionEventId(KeycloakSession session, String realmId) {

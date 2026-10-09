@@ -51,6 +51,9 @@ const EditElectionEventTextData = lazy(() =>
 const EditElectionEventUsers = lazy(() =>
     import("./EditElectionEventUsers").then((m) => ({default: m.EditElectionEventUsers}))
 )
+const EditElectionEventMessaging = lazy(() =>
+    import("./EditElectionEventMessaging").then((m) => ({default: m.EditElectionEventMessaging}))
+)
 const EditElectionEventAreas = lazy(() =>
     import("./EditElectionEventAreas").then((m) => ({default: m.EditElectionEventAreas}))
 )
@@ -146,6 +149,15 @@ const VotersTab: React.FC = () => {
     return (
         <Suspense fallback={<div>Loading Voters...</div>}>
             <EditElectionEventUsers />
+        </Suspense>
+    )
+}
+
+const MessagingTab: React.FC = () => {
+    const {t} = useTranslation()
+    return (
+        <Suspense fallback={<div>{t("common.label.loadingData")}</div>}>
+            <EditElectionEventMessaging />
         </Suspense>
     )
 }
@@ -336,6 +348,12 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
     )
+    const showMessaging =
+        !isElectionEventLocked &&
+        authContext.isAuthorized(true, authContext.tenantId, [
+            IPermissions.MESSAGING_CONFIG_WRITE,
+            IPermissions.MESSAGING_ACCOUNT_READ,
+        ])
     const showAreas =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)
@@ -455,6 +473,11 @@ export const ElectionEventTabs: React.FC = () => {
             result.push({label: t("electionEventScreen.tabs.voters"), component: VotersTab})
         }
 
+        // Messaging
+        if (showMessaging) {
+            result.push({label: t("messagingEvent.tab"), component: MessagingTab})
+        }
+
         // Areas
         if (showAreas) {
             result.push({label: t("electionEventScreen.tabs.areas"), component: AreasTab})
@@ -560,6 +583,7 @@ export const ElectionEventTabs: React.FC = () => {
         showData,
         showTextData,
         showVoters,
+        showMessaging,
         showAreas,
         showKeys,
         showTally,

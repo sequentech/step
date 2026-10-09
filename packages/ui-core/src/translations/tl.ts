@@ -23,6 +23,7 @@ const tagalogTranslation: TranslationType = {
         },
         a11y: {
             closeDialog: "Isara ang dialog",
+            languageSelector: "Wika: {{language}}",
             dismissMessage: "I-dismiss ang mensahe",
             ballotIdHelp: "Tungkol sa iyong Ballot ID",
             loading: "Naglo-load",
@@ -35,6 +36,48 @@ const tagalogTranslation: TranslationType = {
             selectList: "Piliin ang buong listahan",
             preferenceLabel: "Kagustuhan",
             writeInFor: "Pangalan ng write-in candidate",
+        },
+        accessibility: {
+            button: "Accessibility",
+            title: "Mga setting ng accessibility",
+            description: "Baguhin ang itsura ng site na ito sa device na ito.",
+            textSize: {
+                label: "Laki ng teksto",
+                default: "Karaniwan",
+                large: "Malaki",
+                larger: "Mas malaki",
+            },
+            contrast: {
+                label: "Contrast",
+                default: "Karaniwan",
+                high: "Mataas na contrast",
+            },
+            textSpacing: {
+                label: "Agwat ng teksto",
+                default: "Karaniwan",
+                wide: "Maluwag",
+            },
+            motion: {
+                label: "Galaw",
+                default: "Karaniwan",
+                reduced: "Binawasan",
+            },
+            reset: "I-reset ang mga setting",
+            close: "Isara",
+            applied: "{{setting}}: {{value}}",
+            resetDone: "Na-reset ang mga setting",
+        },
+        audioInstructions: {
+            label: "Mga tagubiling audio",
+            play: "Pakinggan ang mga tagubilin",
+            pause: "I-pause ang mga tagubilin",
+            resume: "Ituloy ang mga tagubilin",
+            stop: "Ihinto ang mga tagubilin",
+            showTranscript: "Basahin ang mga tagubilin",
+            hideTranscript: "Itago ang mga tagubilin",
+            playing: "Pinatutugtog ang mga tagubilin",
+            paused: "Naka-pause ang mga tagubilin",
+            stopped: "Inihinto ang mga tagubilin",
         },
         candidate: {
             moreInformationLink: "Karagdagang impormasyon",
@@ -130,6 +173,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi wastong configuration ng balota: may {{count}} tahasang invalid na kandidato sa contest, ngunit isa lamang ang pinapayagan.",
                 multipleExplicitBlankCandidates:
                     "Hindi wastong configuration ng balota: may {{count}} tahasang blankong kandidato sa contest, ngunit isa lamang ang pinapayagan.",
+                invalidSlateConfiguration:
+                    "Hindi wastong configuration ng balota: hindi wasto ang mga slate ({{reason}}).",
             },
         },
         ballotHash: "Ang Iyong Ballot ID: {{ballotId}}",
@@ -463,6 +508,16 @@ const tagalogTranslation: TranslationType = {
                         text: "Walang maiimport na archive — may plan ang zip na ito pero wala ang archive na iniimport ng Admin Portal, kaya wala rito ang census at ang mga file na binabanggit nito.",
                     },
                 },
+                design: {
+                    "no-stable-key": {
+                        lead: "Disenyo ng balota na walang key",
+                        text: "Disenyo ng balota na walang key — walang pangalan o external id ang {{kind}} {{id}}, kaya hindi makikilala ang mga disenyo ng balota nito pagkatapos ng import.",
+                    },
+                    "unreadable-style": {
+                        lead: "Hindi mabasa ang ballot style",
+                        text: "Hindi mabasa ang ballot style — hindi mabasa ang ballot style ng platform para kalkulahin ang design digest nito: {{reason}}",
+                    },
+                },
                 election: {
                     "channels-differ": {
                         lead: "Hindi magkatugma ang halalan at event",
@@ -498,6 +553,10 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 event: {
+                    "checks-period-invalid": {
+                        lead: "Hindi wasto ang panahon ng pagsusuri",
+                        text: "Hindi wasto ang panahon ng pagsusuri — hindi mabasa ang panahon kung kailan masusuri ng mga botante ang kanilang naihulog na balota: {{reason}}",
+                    },
                     "no-identifier": {
                         lead: "Walang identifier",
                         text: "Walang identifier — dito hinahango ang bawat nabuong id, kaya kung wala ito, walang mabubuo nang dalawang beses sa parehong paraan.",
@@ -661,6 +720,152 @@ const tagalogTranslation: TranslationType = {
                         text: "Mga password na walang seed — ang seed ang nagpapatiyak na parehong mga password ang mabubuo sa muling pag-build sa halip na mga bago.",
                     },
                 },
+                package: {
+                    "already-imported": {
+                        lead: "Na-import na",
+                        text: "Na-import na — na-import na dati ang revision {{revision}} ng configuration na ito; mag-import ng mas bagong revision.",
+                    },
+                    "approval-invalid": {
+                        lead: "Hindi bilang ang pag-apruba",
+                        text: "Hindi bilang ang pag-apruba — hindi ma-verify ang pag-apruba ni {{name}}: {{reason}}",
+                    },
+                    "approval-repeated": {
+                        lead: "Dalawang beses nag-apruba ang iisang tao",
+                        text: "Dalawang beses nag-apruba ang iisang tao — nag-apruba si {{name}} nang higit sa isang beses, at isang beses lang ito bibilangin.",
+                    },
+                    "approver-key-usage": {
+                        lead: "Hindi makapag-sign ang approver",
+                        text: "Hindi makapag-sign ang approver — hindi ginawa para sa pag-sign ang certificate ng isang approver.",
+                    },
+                    "bad-signature": {
+                        lead: "Hindi tugma ang signature",
+                        text: "Hindi tugma ang signature — hindi ma-verify ang signature ng package, kaya binago ito pagkatapos i-sign o ibang key ang nag-sign: {{reason}}",
+                    },
+                    "content-digest": {
+                        lead: "Hindi tugma ang content digest",
+                        text: "Hindi tugma ang content digest — {{expected}} ang sinasabi ng manifest at {{actual}} ang hash ng content nito.",
+                    },
+                    "duplicate-member": {
+                        lead: "Dalawang beses ginamit ang pangalan ng file",
+                        text: "Dalawang beses ginamit ang pangalan ng file — dalawang beses lumalabas ang '{{file}}' sa {{archive}}, kaya maaaring magkaibang file ang kunin ng dalawang mambabasa.",
+                    },
+                    "file-changed": {
+                        lead: "Binago pagkatapos i-sign",
+                        text: "Binago pagkatapos i-sign — may SHA-256 na {{actual}} ang {{file}}, at {{expected}} ang sinasabi ng manifest. Walang binasa sa package.",
+                    },
+                    "file-extra": {
+                        lead: "Wala sa manifest ang file",
+                        text: "Wala sa manifest ang file — nasa package ang {{file}} pero hindi ito na-sign. Walang binasa sa package.",
+                    },
+                    "file-missing": {
+                        lead: "Nawawala ang na-sign na file",
+                        text: "Nawawala ang na-sign na file — nasa manifest ang {{file}} at wala sa package. Walang binasa sa package.",
+                    },
+                    "invalid-time": {
+                        lead: "Hindi petsa at oras",
+                        text: "Hindi petsa at oras — hindi petsa at oras ang '{{value}}' sa manifest.",
+                    },
+                    "member-too-large": {
+                        lead: "Masyadong malaki ang file",
+                        text: "Masyadong malaki ang file — kapag na-extract, lampas sa {{limit}} byte na pinapayagan sa isang file ang '{{file}}' sa {{archive}}.",
+                    },
+                    "nested-too-deep": {
+                        lead: "Masyadong malalim ang pagkaka-nest",
+                        text: "Masyadong malalim ang pagkaka-nest — nasa loob ng mahigit sa {{limit}} zip na pinapayagan sa isang file ang '{{file}}'.",
+                    },
+                    "no-importable": {
+                        lead: "Walang maiimport",
+                        text: "Walang maiimport — walang official_election_setup.zip ang package, ang archive na binabasa ng importer.",
+                    },
+                    "report-template-changed": {
+                        lead: "Binago ang template ng report",
+                        text: "Binago ang template ng report — hindi ang inaprubahan ang template ng report na {{report}}: {{actual}} ang digest nito, at {{expected}} ang sinasabi ng naka-sign na configuration.",
+                    },
+                    "report-template-missing": {
+                        lead: "Nawawala ang template ng report",
+                        text: "Nawawala ang template ng report — ginagawa ang report na {{report}} gamit ang template na '{{template}}', na wala sa configuration, kaya hindi ma-sign ang design nito.",
+                    },
+                    "report-unreadable": {
+                        lead: "Hindi ma-sign ang report",
+                        text: "Hindi ma-sign ang report — {{message}}",
+                    },
+                    "revoked-approver": {
+                        lead: "Binawi ang certificate ng approver",
+                        text: "Binawi ang certificate ng approver — binawi na ang certificate ng isang approver, kaya hindi bilang ang pag-apruba.",
+                    },
+                    "revoked-signer": {
+                        lead: "Binawi ang signing key",
+                        text: "Binawi ang signing key — binawi na ang key na nag-sign sa package na ito, at tinatanggihan ang mga package nito.",
+                    },
+                    "rollback": {
+                        lead: "Hindi mas bagong revision",
+                        text: "Hindi mas bagong revision — hindi mas bago ang revision {{revision}} kaysa sa revision {{last}}, ang huling na-import.",
+                    },
+                    "signed-in-the-future": {
+                        lead: "Na-sign sa hinaharap",
+                        text: "Na-sign sa hinaharap — ayon sa package, {{at}} ito na-sign, at {{now}} pa lang ngayon.",
+                    },
+                    "signer-key-usage": {
+                        lead: "Hindi makapag-sign ang signing key",
+                        text: "Hindi makapag-sign ang signing key — hindi ginawa para sa pag-sign ang certificate ng key na nag-sign sa package na ito.",
+                    },
+                    "too-few-approvals": {
+                        lead: "Kulang ang mga pag-apruba",
+                        text: "Kulang ang mga pag-apruba — {{count}} na valid na pag-apruba mula sa magkakaibang tao, at {{required}} ang kailangan.",
+                    },
+                    "too-large": {
+                        lead: "Masyadong malaki ang package",
+                        text: "Masyadong malaki ang package — kapag na-extract, lampas ito sa {{limit}} byte na pinapayagan sa isang package: ang '{{file}}' sa {{archive}} ang lumampas.",
+                    },
+                    "too-many-members": {
+                        lead: "Masyadong maraming file",
+                        text: "Masyadong maraming file — mas marami ang file sa {{archive}} kaysa sa {{limit}} na pinapayagan sa isang package.",
+                    },
+                    "unhashable-content": {
+                        lead: "Hindi ma-hash ang content",
+                        text: "Hindi ma-hash ang content — hindi maisulat ang content ng configuration para ma-hash: {{reason}}",
+                    },
+                    "unknown-format": {
+                        lead: "Hindi kilalang format ng manifest",
+                        text: "Hindi kilalang format ng manifest — nasa format na '{{format}}' ang manifest, na hindi mababasa ng bersyong ito.",
+                    },
+                    "unreadable-chain": {
+                        lead: "Hindi mabasa ang mga certificate ng signer",
+                        text: "Hindi mabasa ang mga certificate ng signer — hindi mabasa ang certificate chain ng package: {{reason}}",
+                    },
+                    "unreadable-manifest": {
+                        lead: "Hindi mabasa ang manifest",
+                        text: "Hindi mabasa ang manifest — hindi mabasa ang manifest ng package: {{reason}}",
+                    },
+                    "unreadable-revocation-list": {
+                        lead: "Hindi mabasa ang revocation list",
+                        text: "Hindi mabasa ang revocation list — hindi mabasa ang isang revocation list, kaya hindi ito mailalapat: {{reason}}",
+                    },
+                    "unreadable-trust": {
+                        lead: "Hindi mabasa ang mga trusted certificate",
+                        text: "Hindi mabasa ang mga trusted certificate — hindi mabasa ang setting na {{setting}}: {{reason}}",
+                    },
+                    "unreadable-zip": {
+                        lead: "Hindi mabasa ang archive",
+                        text: "Hindi mabasa ang archive — hindi mabasa ang {{archive}} bilang zip: {{reason}}",
+                    },
+                    "unsigned": {
+                        lead: "Hindi naka-sign ang package",
+                        text: "Hindi naka-sign ang package — wala itong {{missing}}, at mga naka-sign na package lang ang iniimport ng installation na ito.",
+                    },
+                    "untrusted-approver": {
+                        lead: "Hindi pinagkakatiwalaan ang approver",
+                        text: "Hindi pinagkakatiwalaan ang approver — hindi pinagkakatiwalaan ang certificate ng isang approver: {{reason}}",
+                    },
+                    "untrusted-signer": {
+                        lead: "Hindi pinagkakatiwalaan ang signer",
+                        text: "Hindi pinagkakatiwalaan ang signer — hindi isa sa mga pinagkakatiwalaan ng installation na ito ang key na nag-sign sa package na ito: {{reason}}",
+                    },
+                    "unwritable-manifest": {
+                        lead: "Hindi maisulat ang manifest",
+                        text: "Hindi maisulat ang manifest — hindi maisulat ang manifest: {{reason}}",
+                    },
+                },
                 plan: {
                     "not-a-plan": {
                         lead: "Hindi election plan",
@@ -673,6 +878,24 @@ const tagalogTranslation: TranslationType = {
                     "unreadable": {
                         lead: "Hindi mabasa ang plan",
                         text: "Hindi mabasa ang plan — {{error}}",
+                    },
+                },
+                reports: {
+                    "duplicate": {
+                        lead: "Dalawang beses itinakda ang report",
+                        text: "Dalawang beses itinakda ang report — itinakda nang higit sa isang beses ang report na {{report}} para sa iisang halalan.",
+                    },
+                    "no-copies": {
+                        lead: "Walang kopya",
+                        text: "Walang kopya — nakatakdang walang kopyang i-print ang report na {{report}}. Magtakda ng kahit isa.",
+                    },
+                    "unknown-election": {
+                        lead: "Hindi kilalang halalan",
+                        text: "Hindi kilalang halalan — tungkol sa halalang '{{election}}' ang report na {{report}}, na wala sa plan na ito.",
+                    },
+                    "unsupported-format": {
+                        lead: "Hindi available ang format",
+                        text: "Hindi available ang format — hindi magagawa ang report na {{report}} bilang {{format}}.",
                     },
                 },
                 schedule: {

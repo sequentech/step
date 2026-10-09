@@ -154,6 +154,7 @@ policy_contract!(under_votes, EUnderVotePolicy,
     WARN => ("warn", 1),
     WARN_ONLY_IN_REVIEW => ("warn-only-in-review", 2),
     WARN_AND_ALERT => ("warn-and-alert", 3),
+    WARN_AND_CONFIRM_IN_REVIEW => ("warn-and-confirm-in-review", 4),
 );
 policy_contract!(blank_votes, EBlankVotePolicy,
     ALLOWED => ("allowed", 0),
@@ -188,9 +189,22 @@ policy_contract!(voter_signing, VoterSigningPolicy,
     NO_SIGNATURE => ("no-signature", 0),
     WITH_SIGNATURE => ("with-signature", 1),
 );
+policy_contract!(receipts, ReceiptsPolicy,
+    DISABLED => ("disabled", 0),
+    SIGNED_BY_BALLOT_BOX => ("signed-by-ballot-box", 1),
+);
 policy_contract!(voter_certificate, VoterCertificatePolicy,
     DISABLED => ("disabled", 0),
     ENABLED => ("enabled", 1),
+);
+policy_contract!(voter_accessibility_settings, VoterAccessibilitySettingsPolicy,
+    Disabled => ("disabled", 0),
+    Enabled => ("enabled", 1),
+);
+policy_contract!(audio_instructions, AudioInstructionsPolicy,
+    Disabled => ("disabled", 0),
+    Recorded => ("recorded", 1),
+    RecordedOrSynthesized => ("recorded-or-synthesized", 2),
 );
 policy_contract!(lockdown, LockedDown,
     LOCKED_DOWN => ("locked-down", 0),

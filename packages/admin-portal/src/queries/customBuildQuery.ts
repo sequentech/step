@@ -362,7 +362,13 @@ export const customBuildQuery =
                 },
             }
         } else if (resourceName === "sequent_backend_applications" && raFetchType === "GET_LIST") {
-            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, params)
+            // `q` is the queue's search box: the name, email or ID number the
+            // applicant gave, anywhere in the applicant data.
+            const {q: search, ...columnFilters} = params.filter ?? {}
+            let ret = buildQuery(introspectionResults)(raFetchType, resourceName, {
+                ...params,
+                filter: columnFilters,
+            })
 
             if (ret?.variables?.order_by) {
                 const validOrderBy = [
@@ -397,6 +403,12 @@ export const customBuildQuery =
                     })
                 }
             })
+
+            if (typeof search === "string" && search.trim()) {
+                transformedParams.push({
+                    applicant_data: {_cast: {String: {_ilike: `%${search.trim()}%`}}},
+                })
+            }
 
             ret.variables.where = transformedRawParams
 
