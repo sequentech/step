@@ -137,13 +137,13 @@ const catalanTranslation: TranslationType = {
             reviewScreenHelpDialog: {
                 title: "Informació: Pantalla de revisió",
                 content:
-                    "Aquesta pantalla li permet revisar les seves seleccions abans d'emetre el seu vot.",
+                    "Aquesta pantalla us permet revisar les vostres seleccions abans d'emetre el vostre vot.",
                 ok: "D'acord",
             },
             ballotIdHelpDialog: {
                 title: "Vot no emès",
                 content:
-                    "<p>Està a punt de copiar el Localitzador del Vot, però <b>el seu vot encara no s'ha emès</b>. Si intenta buscar el Localitzador del Vot, no el trobarà.</p><p>La raó per la qual mostrem el Localitzador del Vot en aquest moment és perquè pugui auditar la correcció del vot xifrat abans d'emetre'l. Si aquesta és la raó per la qual desitja copiar el Localitzador del Vot, procedeixi a copiar-lo i després auditi el seu vot.</p>",
+                    "<p>Esteu a punt de copiar el Localitzador del Vot, però <b>el vostre vot encara no s'ha emès</b>. Si intenteu buscar el Localitzador del Vot, no el trobareu.</p><p>La raó per la qual mostrem el Localitzador del Vot en aquest moment és perquè pugueu auditar la correcció del vot xifrat abans d'emetre'l. Si aquesta és la raó per la qual desitgeu copiar el Localitzador del Vot, procediu a copiar-lo i després auditeu el vostre vot.</p>",
                 ok: "Accepto que el meu vot NO ha estat emès",
                 cancel: "Cancel·lar",
             },
@@ -289,11 +289,11 @@ const catalanTranslation: TranslationType = {
             retryButton: "Tornar-ho a provar",
             verifyCastTitle: "Comproveu que el vostre vot ha estat emès",
             verifyCastDescription:
-                "Pot comprovar en tot moment que la seva papereta s'ha emès correctament utilitzant el següent codi QR:",
+                "Podeu comprovar en tot moment que la vostra papereta s'ha emès correctament utilitzant el següent codi QR:",
             confirmationHelpDialog: {
                 title: "Informació: Pantalla de confirmació",
                 content:
-                    "Aquesta pantalla mostra que el seu vot s'ha emès correctament. La informació proporcionada en aquesta pàgina li permet verificar que la papereta ha estat emmagatzemada en l'urna, aquest procés pot ser executat en qualsevol moment durant el període de votació i després que l'elecció hagi estat tancada.",
+                    "Aquesta pantalla mostra que el vostre vot s'ha emès correctament. La informació proporcionada en aquesta pàgina us permet verificar que la papereta ha estat emmagatzemada en l'urna, aquest procés pot ser executat en qualsevol moment durant el període de votació i després que l'elecció hagi estat tancada.",
                 ok: "D'acord",
             },
             demoPrintDialog: {
@@ -309,7 +309,7 @@ const catalanTranslation: TranslationType = {
             ballotIdHelpDialog: {
                 title: "Informació: Localitzador del Vot",
                 content:
-                    "El Localitzador del Vot de papereta és un codi que li permet trobar la seva papereta en l'urna, aquest Localitzador és únic i no conté informació sobre les seves seleccions.",
+                    "El Localitzador del Vot de papereta és un codi que us permet trobar la vostra papereta en l'urna, aquest Localitzador és únic i no conté informació sobre les vostres seleccions.",
                 ok: "D'acord",
             },
             ballotIdDemoHelpDialog: {
@@ -328,15 +328,15 @@ const catalanTranslation: TranslationType = {
         auditScreen: {
             printButton: "Imprimir",
             restartButton: "Iniciar votació",
-            title: "Auditeu la seva Papereta",
-            description: "Per verificar la seva papereta haurà de seguir els següents passos:",
+            title: "Auditeu la vostra Papereta",
+            description: "Per verificar la vostra papereta haureu de seguir els següents passos:",
             step1Title: "1. Descarregueu o copieu la següent informació",
             step1Description:
                 "El vostre <b>Localitzador del Vot</b> que apareix a la part superior de la pantalla i la vostra papereta encriptada a continuació:",
             step1HelpDialog: {
                 title: "Copiar el Vot Xifrat",
                 content:
-                    "Pot descarregar o copiar el seu Vot Xifrat per auditar-lo i verificar que el contingut encriptat conté les seves seleccions.",
+                    "Podeu descarregar o copiar el vostre Vot Xifrat per auditar-lo i verificar que el contingut encriptat conté les vostres seleccions.",
                 ok: "D'acord",
             },
             downloadButton: "Descarregar",
@@ -346,7 +346,7 @@ const catalanTranslation: TranslationType = {
             step2HelpDialog: {
                 title: "Tutorial sobre l'Auditoria del Vot",
                 content:
-                    "Per auditar el seu vot haurà de seguir els passos indicats al tutorial, que inclouen la descàrrega d'una aplicació d'escriptori utilitzada per verificar el vot xifrat independentment del lloc web.",
+                    "Per auditar el vostre vot haureu de seguir els passos indicats al tutorial, que inclouen la descàrrega d'una aplicació d'escriptori utilitzada per verificar el vot xifrat independentment del lloc web.",
                 ok: "D'acord",
             },
             bottomWarning:
@@ -358,7 +358,7 @@ const catalanTranslation: TranslationType = {
             chooserHelpDialog: {
                 title: "Informació: Llista de Votacions",
                 content:
-                    "Benvingut a la cabina de votació, aquesta pantalla mostra la llista d'eleccions en les quals pot emetre el seu vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podrà accedir a la votació si el període de votació està obert.",
+                    "Benvingut a la cabina de votació, aquesta pantalla mostra la llista d'eleccions en les quals podeu emetre el vostre vot. Les eleccions que apareixen en aquesta llista poden estar obertes a votació, programades o tancades. Només podreu accedir a la votació si el període de votació està obert.",
                 ok: "D'acord",
             },
             noResults: "No hi ha eleccions per ara.",
@@ -366,7 +366,7 @@ const catalanTranslation: TranslationType = {
             demoDialog: {
                 title: "Cabina de votació de demostració",
                 content:
-                    "Està entrant en una cabina de votació de demostració. <strong>El seu vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
+                    "Esteu entrant en una cabina de votació de demostració. <strong>El vostre vot NO serà comptabilitzat.</strong> Aquesta cabina de votació és només per a finalitats de demostració.",
                 ok: "Accepto que el meu vot NO serà comptabilitzat",
             },
             errors: {
@@ -444,7 +444,7 @@ const catalanTranslation: TranslationType = {
             titleHelpDialog: {
                 title: "Informació: pantalla de Localització de la vostra Papereta",
                 content:
-                    "Aquesta pantalla permet al votant trobar la seva Papereta utilitzant l'ID de la Papereta per recuperar-la. Aquest procediment permet comprovar que el seu vot va ser emès correctament i que el vot registrat coincideix amb el vot xifrat que va emetre.",
+                    "Aquesta pantalla us permet trobar la vostra Papereta utilitzant l'ID de la Papereta per recuperar-la. Aquest procediment permet comprovar que el vostre vot va ser emès correctament i que el vot registrat coincideix amb el vot xifrat que vau emetre.",
                 ok: "D'acord",
             },
             tabs: {

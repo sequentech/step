@@ -231,6 +231,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                 >
                     {translateHtml(t, "errors.encoding.writeInCharsExceeded", {
                         count: -numAvailableChars,
+                        // Overrides written before the key was pluralised use this name.
+                        numCharsExceeded: -numAvailableChars,
                     })}
                 </WarnBox>
             ) : null}
