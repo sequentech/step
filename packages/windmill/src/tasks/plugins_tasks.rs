@@ -10,6 +10,7 @@ use anyhow::Result as AnyhowResult;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::plugins::{PLUGIN_DOCUMENT_ID_KEY, PLUGIN_TASK_EXECUTION_KEY};
 use serde_json::{Map, Value};
 use tracing::{info, instrument};
 
@@ -47,12 +48,12 @@ pub async fn execute_plugin_task(
         .map_err(Error::from)?;
 
     task_data.insert(
-        "task_execution".to_string(),
+        PLUGIN_TASK_EXECUTION_KEY.to_string(),
         Value::String(task_execution_str),
     );
 
     if let Some(doc_id) = document_id {
-        task_data.insert("document_id".to_string(), Value::String(doc_id));
+        task_data.insert(PLUGIN_DOCUMENT_ID_KEY.to_string(), Value::String(doc_id));
     }
     let task_data = Value::Object(task_data);
 

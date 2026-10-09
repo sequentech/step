@@ -12,6 +12,7 @@ pub mod messaging;
 #[cfg(feature = "default_features")]
 pub mod participation;
 pub mod permissions;
+pub mod plugins;
 pub mod results;
 #[cfg(feature = "default_features")]
 pub mod scheduled_event;
