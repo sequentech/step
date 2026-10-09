@@ -175,6 +175,16 @@ export interface TreeServicesOptions {
     reads?: ReadState
     /** Whether changing or deleting a resource fails. */
     writeFailure?: boolean
+    /** The failure's message, e.g. the database's `ballot_box_sealed` refusal. */
+    writeError?: string
+    /** The elections with ballot box seals (VOTE-FREEZE), which can't be deleted. */
+    sealedElectionIds?: string[]
+    /** The events with ballot box seals, which can't be deleted. */
+    sealedEventIds?: string[]
+    /** The election event deletion's refusal (`error_msg`), e.g. the sealed event's. */
+    deleteRefusal?: string
+    /** The council event seals its ballot boxes at close (VOTE-FREEZE). */
+    sealAtClose?: boolean
     /** How the election event deletion task ends. */
     deleteTask?: ETaskExecutionStatus
 }
@@ -197,12 +207,27 @@ const settle = <T,>(reads: ReadState, value: () => T): T | Promise<never> => {
 export function treeServices({
     reads = "records",
     writeFailure = false,
+    writeError = "Synthetic write service unavailable",
+    sealedElectionIds = [],
+    sealedEventIds = [],
+    deleteRefusal,
+    sealAtClose = false,
     deleteTask = ETaskExecutionStatus.SUCCESS,
 }: TreeServicesOptions = {}): TreeServices {
     const data = resourceBoundary(
         {
             sequent_backend_tenant: [tenantRecord],
-            sequent_backend_election_event: eventRows(),
+            sequent_backend_election_event: eventRows().map((row, index) =>
+                sealAtClose && index === 0
+                    ? {
+                          ...row,
+                          presentation: {
+                              ...(row.presentation as object),
+                              ballot_box_seal_policy: "seal-at-close",
+                          },
+                      }
+                    : row
+            ),
             sequent_backend_election: electionRows(),
             sequent_backend_contest: contestRows(),
             sequent_backend_candidate: candidateRows(),
@@ -210,10 +235,35 @@ export function treeServices({
                 {id: IMAGE_DOCUMENT_ID, tenant_id: STORY_IDS.tenant, name: "mayor.png"},
             ],
         },
-        writeFailure ? {writeError: "Synthetic write service unavailable"} : {}
+        writeFailure ? {writeError} : {}
     )
     const graphql = graphqlBoundary(
         {
+            GetEventBallotBoxSeals: ({variables}) => ({
+                data: {
+                    sequent_backend_ballot_box_seal: sealedEventIds.includes(
+                        String(variables.electionEventId)
+                    )
+                        ? [{id: "00000000-0000-4000-8000-000000000009"}]
+                        : [],
+                },
+            }),
+            GetBallotBoxSeals: ({variables}) => ({
+                data: {
+                    sequent_backend_ballot_box_seal: (variables.electionIds as string[])
+                        .filter((id) => sealedElectionIds.includes(id))
+                        .map((id, index) => ({
+                            id: `00000000-0000-4000-8000-00000000000${index + 1}`,
+                            election_id: id,
+                            area_id: STORY_IDS.area,
+                            area: {id: STORY_IDS.area, name: "Spain"},
+                            status: "published",
+                            closed_at: "2028-05-08T11:01:00Z",
+                            grace_deadline: "2028-05-08T11:01:00Z",
+                            closed_by: {kind: "scheduled"},
+                        })),
+                },
+            }),
             election_events_tree: ({variables}) =>
                 settle(reads, () => ({
                     data: {
@@ -258,8 +308,10 @@ export function treeServices({
                     data: {
                         delete_election_event: {
                             id: String(variables.electionEventId),
-                            error_msg: null,
-                            task_execution: task,
+                            error_msg: deleteRefusal ?? null,
+                            task_execution: deleteRefusal
+                                ? {...task, execution_status: ETaskExecutionStatus.FAILED}
+                                : task,
                         },
                     },
                 }

@@ -97,6 +97,7 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 
 import {getTallyDisabledReason} from "@/services/tallyEligibility"
+import {useBallotBoxesReadiness} from "./useBallotBoxesReadiness"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 
 const WizardSteps = {
@@ -427,13 +428,24 @@ export const TallyCeremony: React.FC = () => {
         }
     }, [tallySession])
 
+    // With the seal at close, an election's results wait for its sealed ballot boxes.
+    const ballotBoxes = useBallotBoxesReadiness(
+        record?.id,
+        (elections ?? []).map((election) => election.id),
+        record?.presentation
+    )
     const tallyDisabledReason = useMemo(
-        () => getTallyDisabledReason(elections, selectedElections ?? undefined),
-        [elections, selectedElections]
+        () => getTallyDisabledReason(elections, selectedElections ?? undefined, ballotBoxes),
+        [elections, selectedElections, ballotBoxes]
     )
     const isTallyAllowed = useMemo(
-        () => !getTallyDisabledReason(elections, tallySession?.election_ids ?? undefined),
-        [elections, tallySession]
+        () =>
+            !getTallyDisabledReason(
+                elections,
+                tallySession?.election_ids ?? undefined,
+                ballotBoxes
+            ),
+        [elections, tallySession, ballotBoxes]
     )
 
     useEffect(() => {
@@ -838,6 +850,11 @@ export const TallyCeremony: React.FC = () => {
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventPresentation={record?.presentation}
+                                ballotBoxes={
+                                    creatingType === ETallyType.INITIALIZATION_REPORT
+                                        ? undefined
+                                        : ballotBoxes
+                                }
                                 update={(elections) => setSelectedElections(elections)}
                                 disabled={isTallyElectionListDisabled}
                                 electionEventId={record?.id}
@@ -889,6 +906,11 @@ export const TallyCeremony: React.FC = () => {
                             <TallyElectionsList
                                 elections={elections}
                                 electionEventPresentation={record?.presentation}
+                                ballotBoxes={
+                                    tallySession?.tally_type === ETallyType.INITIALIZATION_REPORT
+                                        ? undefined
+                                        : ballotBoxes
+                                }
                                 electionEventId={record?.id}
                                 disabled={true}
                                 update={(elections) => setSelectedElections(elections)}

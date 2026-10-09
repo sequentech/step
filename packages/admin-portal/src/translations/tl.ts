@@ -259,6 +259,12 @@ const tagalogTranslation: TranslationType = {
                 deciding: "Nagpasyang pagsusuri: {{check}}. {{value}}",
                 authorizedBy: "Pinahintulutan ng configuration {{code}}.",
                 nextStep: "Susunod na hakbang: {{step}}",
+                reason: {
+                    "ballot-box-seal-policy":
+                        "Pinanatiling sarado: sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na.",
+                    "never-opened-kept-open":
+                        "Walang isasara ayon sa iskedyul: hindi kailanman nabuksan ang Post, kaya nananatili ito sa kalagayan nito.",
+                },
             },
             column: {
                 id: "ID",
@@ -279,6 +285,23 @@ const tagalogTranslation: TranslationType = {
             },
             iam: {
                 title: "Mga Log ng IAM Database",
+            },
+            ballotBoxSeal: {
+                sealHash: "Seal hash: {{hash}}",
+                counted: "{{counted}} sa {{inBox}} na balota ang binilang.",
+                notCounted_one:
+                    "Ang isa pang balota ay pinalitan ng mas huling balota ng botante, itinapon, o ibinoto ng botanteng hindi kwalipikado.",
+                notCounted_other:
+                    "Ang {{count}} pang balota ay pinalitan ng mas huling balota ng botante, itinapon, o ibinoto ng botanteng hindi kwalipikado.",
+                closeRequest: "Isinara ng Close voting request na {{request}}.",
+                noCloseRequest:
+                    "Isinara nang walang Close voting request (Ihinto ang Pagboto o ang nakatakdang pagsasara).",
+                failedReason: "Dahilan: {{reason}}",
+                failedLocked:
+                    "Nananatiling naka-lock at hindi naka-seal ang ballot box: isang insidente.",
+                verifiedCounted: "{{counted}} balota ang binilang mula sa seal.",
+                tallySession: "Tally session {{session}}.",
+                differs: "Ang naiiba: {{differs}}",
             },
         },
         tasksScreen: {
@@ -493,6 +516,115 @@ const tagalogTranslation: TranslationType = {
             voterLoginURL: "URL para sa Pag-login ng Botante",
             voterEnrollURL: "URL para sa Pag-enroll ng Botante",
             voterEnrollKioskURL: "Kiosk URL para sa Pag-enroll ng Botante",
+            ballotBoxes: {
+                show: "Ipakita ang mga ballot box",
+                loadError:
+                    "Hindi mabasa ang mga seal ng mga ballot box. I-reload ang pahina, o suriin ang koneksyon sa server.",
+                title: "Mga ballot box",
+                sealing:
+                    "Nagsara ang botohan noong {{closed}}. Sine-seal ang mga ballot box pagkatapos ng grace period, sa {{deadline}}.",
+                sealed: "Nagsara ang botohan noong {{closed}}. Naka-seal na ang mga ballot box: wala nang balotang maidadagdag, mababago o mabubura.",
+                failed: "Nagsara ang botohan noong {{closed}}. May ballot box na hindi na-seal: nananatili itong naka-lock, at nasa logs ang insidente.",
+                closedBySignatures:
+                    "Isinara nina {{names}} gamit ang kanilang mga certificate, signing code {{code}}.",
+                closedByUser: "Isinara ni {{username}}.",
+                closedBySchedule: "Isinara ng nakatakdang pagsasara ng botohan.",
+                column: {
+                    area: "Lugar",
+                    status: "Katayuan",
+                    inTheBox: "Nasa box",
+                    counted: "Binilang",
+                    sealedAt: "Na-seal",
+                    sealHash: "Seal hash",
+                    record: "Seal record",
+                },
+                status: {
+                    open: "Bukas",
+                    sealing: "Ise-seal sa {{time}}",
+                    publishing: "Naka-seal, ipinapaskil",
+                    sealed: "Naka-seal",
+                    failed: "Hindi naka-seal: insidente",
+                    due: "Sine-seal na",
+                    overdue: "Lampas na sa oras ng pag-seal",
+                },
+                help: {
+                    publishing:
+                        "Naka-lock ang ballot box. Muling ipinapaskil ang entry nito sa bulletin board.",
+                    counted:
+                        "Mga balotang binibilang: ang pinakahuling balidong balota ng bawat kwalipikadong botante. Ang iba sa ballot box ay pinalitan ng mas huling balota ng botante, itinapon, o ibinoto ng botanteng hindi kwalipikado.",
+                },
+                copyHash: "Kopyahin ang seal hash",
+                copied: "Nakopya ang seal hash",
+                copyError: "Hindi makopya ang seal hash",
+                notYet: "Wala pa",
+                openRecord: "Buksan ang seal record ng {{area}}",
+                downloadRecord: "I-download ang seal record ng {{area}}",
+                recordRestricted:
+                    "Limitado: hingin ito sa administrator na makakapag-download ng mga dokumento.",
+                recordError: "Hindi ma-download ang seal record. Subukang muli.",
+                recordMissing:
+                    "Nawawala ang dokumento ng seal record: i-report ito bilang insidente.",
+                beforeClose: "Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
+                notStarted:
+                    "Hindi pa nagbubukas ang botohan. Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
+                openOn: "Bukas ang botohan sa {{channels}}. Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
+                paused: "Naka-pause ang botohan. Sine-seal ang ballot box ng bawat area kapag nagsara ang botohan.",
+                holding_one:
+                    "Naka-enable at hindi pa sarado ang {{channels}}: ihinto ito para ma-seal ang mga ballot box.",
+                holding_other:
+                    "Naka-enable at hindi pa sarado ang {{channels}}: ihinto ang mga ito para ma-seal ang mga ballot box.",
+                sealingNow:
+                    "Nagsara ang botohan noong {{closed}}. Sine-seal na ang mga ballot box.",
+                sealingPastGrace:
+                    "Nagsara ang botohan noong {{closed}}. Natapos ang grace period noong {{deadline}}; sine-seal na ang mga ballot box.",
+                why: {
+                    due: "Sine-seal na: aabot ito nang hanggang isang minuto.",
+                    channelOpen:
+                        "Naka-enable pa at hindi sarado ang {{channel}}: ihinto ito para ma-seal ang ballot box.",
+                    channelNotEnabled:
+                        "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa Post na ito: ihinto ito para ma-seal ang ballot box.",
+                    channelHasBallots:
+                        "May mga balota ng {{channel}} sa ballot box na ito at hindi pa ito sarado: ihinto ito para ma-seal ang ballot box.",
+                    datafixVotes_one:
+                        "May {{count}} botong isinasagawa pa sa Datafix: sine-seal ang ballot box kapag naresolba ito.",
+                    datafixVotes_other:
+                        "May {{count}} botong isinasagawa pa sa Datafix: sine-seal ang ballot box kapag naresolba ang mga ito.",
+                    stale: "Huling sinubukan noong {{time}}: maaaring hindi tumatakbo ang sealer. Suriin ang Beat at ang seal worker.",
+                    notTried:
+                        "Hindi pa nasusubukan: maaaring hindi tumatakbo ang sealer. Suriin ang Beat at ang seal worker.",
+                    errorCategory: {
+                        board: "Hindi naabot ng huling pagtatangka ang bulletin board; inuulit ito bawat minuto.",
+                        census: "Hindi nabasa ng huling pagtatangka ang listahan ng mga botante; inuulit ito bawat minuto.",
+                        keystore:
+                            "Hindi nakuha ng huling pagtatangka ang signing key; inuulit ito bawat minuto.",
+                        storage:
+                            "Hindi na-upload ng huling pagtatangka ang seal record sa file storage; inuulit ito bawat minuto.",
+                        settings:
+                            "Hindi nabasa ng huling pagtatangka ang mga setting ng halalan; inuulit ito bawat minuto.",
+                        other: "Nabigo ang huling pagtatangka; inuulit ito bawat minuto. Nasa service log ang mga detalye.",
+                        ballots:
+                            "May nakitang balota ang huling pagtatangka na hindi pa mabasa o isinasagawa pa; inuulit ito bawat minuto.",
+                        database:
+                            "Hindi natapos sa database ang huling pagtatangka; inuulit ito bawat minuto.",
+                    },
+                },
+                failure: {
+                    ballotIdMismatch: "May balotang hindi tugma sa Ballot ID nito.",
+                    missingContent: "May balotang walang laman o walang Ballot ID.",
+                    unreadable: "May balotang hindi mabasa.",
+                    inProgress: "May balotang isinasagawa pa.",
+                    alreadyOnBoard:
+                        "Nasa bulletin board na ang isang seal para sa ballot box na ito.",
+                    noBoard: "Walang bulletin board ang election event.",
+                    unknownChannel: "May balotang hindi kilala ang voting channel.",
+                },
+                incident: {
+                    title_one: "{{count}} ballot box ang hindi na-seal",
+                    title_other: "{{count}} ballot box ang hindi na-seal",
+                    body: "Isa itong insidente: nananatiling naka-lock ang bawat ballot box na ito at hindi ito maaaring i-tally. Sundin ang runbook para sa nabigong seal.",
+                    line: "{{election}}, {{area}}: {{reason}}",
+                },
+            },
             ipAddress: {
                 emptyState: "Wala pang mga boto.",
                 title: "Mga IP Address",
@@ -676,6 +808,40 @@ const tagalogTranslation: TranslationType = {
                     options: {
                         "locked-down": "Naka-lockdown",
                         "not-locked-down": "Hindi naka-lockdown",
+                    },
+                },
+                ballotBoxSealPolicy: {
+                    policyLabel: "Patakaran sa Pag-seal ng Ballot Box",
+                    helperText:
+                        "Kapag nagsara ang botohan, sine-seal ang ballot box ng bawat area: ipinapadala sa bulletin board ang isang pinirmahang hash ng mga balota nito, wala nang balotang maidadagdag, mababago o mabubura, at hindi na muling masisimulan ang botohan.",
+                    locked: "Hindi na ito mababago kapag nabuksan na ang botohan.",
+                    options: {
+                        "seal-at-close": "I-seal sa pagsasara",
+                        "do-not-seal": "Huwag i-seal",
+                    },
+                    checking: "Sinusuri kung nabuksan na ang botohan…",
+                    lockedUnknown:
+                        "Naka-lock: hindi mabasa ang mga halalan, kaya hindi alam kung nabuksan na ang botohan.",
+                    lockedOpened: "Naka-lock: nabuksan na ang botohan sa {{names}}.",
+                    lockedEvent: "Naka-lock: nabuksan na ang botohan sa election event na ito.",
+                    refused:
+                        "Hindi na mababago ang Patakaran sa Pag-seal ng Ballot Box kapag nabuksan na ang botohan.",
+                    settingLocked: "Sa I-seal sa pagsasara, umaasa ang seal sa setting na ito.",
+                    settingRefused:
+                        "Hindi na mababago ang setting na ito kapag nabuksan na ang botohan: sa I-seal sa pagsasara, umaasa rito ang seal.",
+                    boardRefused:
+                        "Hindi na mababago ang bulletin board ng election event kapag nabuksan na ang botohan: sa I-seal sa pagsasara, dito ipinapaskil ang mga seal.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Seal Record ng Ballot Box",
+                    options: {
+                        restricted: "Limitado",
+                        public: "Pampubliko",
+                    },
+                    help: {
+                        restricted:
+                            "Ang mga administrator lang ang makakapag-download nito; ibahagi ito sa mga tagamasid.",
+                        public: "Sinumang may mga id ng event ay makakapag-download nito nang hindi nagsa-sign in; ipinapakita nito kung paano binilang ang bawat balota.",
                     },
                 },
                 decodedBallots: {
@@ -1961,6 +2127,8 @@ const tagalogTranslation: TranslationType = {
                         archive: "Sigurado ka bang i-archive ang item na ito?",
                         unarchive: "Sigurado ka bang i-unarchive ang item na ito?",
                         delete: "Sigurado ka bang tanggalin ang item na ito?",
+                        sealsUnknown:
+                            "Hindi masuri ang mga seal ng ballot box: kung may naka-seal itong mga ballot box, tatanggihan ang pagbura.",
                     },
                     notification: {
                         success: {
@@ -1973,6 +2141,12 @@ const tagalogTranslation: TranslationType = {
                             archive: "Error habang sinusubukang i-archive ang item na ito",
                             unarchive: "Error habang sinusubukang i-unarchive ang item na ito",
                             delete: "Error habang sinusubukang tanggalin ang item na ito",
+                            deleteSealedElection:
+                                "May naka-seal na mga ballot box ang halalang ito at hindi ito mabubura. I-archive na lang ang election event nito.",
+                            deleteSealedEvent:
+                                "May naka-seal na mga ballot box ang election event na ito at hindi ito mabubura. I-archive na lang ito.",
+                            deleteMaybeSealed:
+                                "Nagkaroon ng error sa pagbura ng item na ito. Kung may naka-seal itong mga ballot box, hindi ito mabubura.",
                         },
                     },
                 },
@@ -2402,7 +2576,31 @@ const tagalogTranslation: TranslationType = {
             generalInfoTitle: "Pangkalahatang Impormasyon",
             trusteeTallyTitle: "Tagapagtiwala",
             trusteeTallySubTitle: "Katayuan ng pag-import ng fragment ng key",
+            ballotBoxes: {
+                unavailable: "Hindi makuha ang mga seal",
+                sealed: "{{sealed}} sa {{total}} ang naka-seal",
+                publishing: "Naka-seal, {{published}} sa {{total}} ang nasa bulletin board",
+                sealing: "Ise-seal sa {{time}}",
+                notSealed: "Hindi naka-seal",
+                help: "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at nasa bulletin board na ang seal nito.",
+                failed: "Hindi naka-seal: insidente",
+                overdue: "Lampas na sa oras ng pag-seal",
+                blocked: "{{name}}: {{reason}}",
+                reason: {
+                    "not-sealed":
+                        "hindi pa nagsasara ang botohan, kaya wala pang seal ang mga ballot box nito",
+                    "sealing": "sine-seal ang mga ballot box nito kapag natapos ang grace period",
+                    "overdue":
+                        "lampas na sa oras ang mga ballot box nito at hindi pa naka-seal (tingnan ang Dashboard nito)",
+                    "publishing": "ipinapaskil pa sa bulletin board ang ilan sa mga seal nito",
+                    "failed":
+                        "may ballot box na hindi na-seal, isang insidente (tingnan ang Dashboard nito)",
+                    "unavailable": "hindi mabasa ang mga seal ng mga ballot box nito",
+                },
+            },
             eligibility: {
+                ballotBoxesUnavailable:
+                    "Hindi mabasa ang mga seal ng mga ballot box ng isang napiling halalan, kaya hindi pa ito maaaring i-tally. I-reload ang pahina para subukang muli.",
                 selectElection: "Pumili ng kahit isang halalan.",
                 publishElection:
                     "I-publish ang bawat napiling halalan bago gumawa ng pagbibilang nito.",
@@ -2410,6 +2608,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi pinapayagan ang pagbibilang para sa isang napiling halalan.",
                 endVoting:
                     "Tapusin ang pagboto sa bawat napiling halalan at ihinto ang mga aktibong channel bago gumawa ng pagbibilang.",
+                sealBallotBoxes:
+                    "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at nasa bulletin board na ang seal nito.",
             },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",
@@ -2471,6 +2671,7 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             table: {
+                ballotBoxes: "Mga ballot box",
                 elections: "Halalan",
                 selected: "Napili",
                 status: "Katayuan",
@@ -2626,6 +2827,13 @@ const tagalogTranslation: TranslationType = {
             forbidden: {
                 header: "Hindi mai-publish hanggang sa makumpleto ang Key Ceremony.",
             },
+            skippedElections: {
+                dismiss: "Isara",
+                title: "May mga halalang nananatiling sarado",
+                ballotBoxSealPolicy:
+                    "Nananatiling sarado ang {{name}}: nagsara na ang botohan nito at pinal ang pagsasara sa I-seal sa pagsasara.",
+                other: "Hindi binago ang {{name}} ({{reason}}).",
+            },
             dialog: {
                 title: "Kumpirmahin ang Aksyon",
                 info: "Ikaw ay nag-click sa isang sensitibong aksyon, kaya't kailangan namin ng iyong kumpirmasyon upang magpatuloy",
@@ -2635,6 +2843,18 @@ const tagalogTranslation: TranslationType = {
                     "Malapit mo nang simulan ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
                 stopInfo:
                     "Malapit mo nang itigil ang panahon ng pagboto. Sigurado ka bang nais mong magpatuloy?",
+                stopSeal:
+                    "Ihihinto mo na ang botohan sa {{name}}. Pagkatapos ay sine-seal ang mga ballot box nito: wala nang balotang maidadagdag, mababago o mabubura, at hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
+                stopSealEvent:
+                    "Ihihinto mo na ang botohan sa lahat ng halalan. Pagkatapos ay sine-seal ang kanilang mga ballot box: wala nang balotang maidadagdag, mababago o mabubura, at hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
+                startSealNote:
+                    "Sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na: hindi magbubukas ang mga halalang sarado na ang botohan.",
+                channel: {
+                    ONLINE: "Online",
+                    KIOSK: "Kiosk",
+                    EARLY_VOTING: "Maagang pagboto",
+                    TELEPHONE: "Telepono",
+                },
                 kioskStopInfo:
                     "Malapit mo nang itigil ang panahon ng pagboto sa kiosk. Sigurado ka bang gusto mong magpatuloy?",
                 pauseInfo:
@@ -2651,11 +2871,75 @@ const tagalogTranslation: TranslationType = {
                 diff: "Ang pag-render ng lahat ng mga pagbabago ay maaaring magdulot ng pagka-antala sa pahina. Sigurado ka bang nais mong magpatuloy?",
                 confirmation:
                     "Ang aksyong gagawin mo ay sensitibo at nangangailangan ng kumpirmasyon. Paki-enter ang iyong password para magpatuloy sa {{action}}.",
+                stopSealNotYet:
+                    "Ihihinto mo ang panahon ng pagboto. {{holding}} Sigurado ka bang gusto mong magpatuloy?",
+                sealHolding_one:
+                    "Sa I-seal sa pagsasara, sine-seal ang mga ballot box nito kapag sarado na ang bawat naka-enable na channel: naka-enable pa at hindi sarado ang {{channels}}.",
+                sealHolding_other:
+                    "Sa I-seal sa pagsasara, sine-seal ang mga ballot box nito kapag sarado na ang bawat naka-enable na channel: naka-enable pa at hindi sarado ang {{channels}}.",
+                sealNotEnabled:
+                    "Hindi sarado ang {{channel}} at hindi ito naka-enable para sa Post na ito: ihinto ito para ma-seal ang mga ballot box.",
+                sealNotEnabledPost:
+                    "Sa {{post}}, hindi sarado ang {{channel}} at hindi ito naka-enable: ihinto ito sa Post na iyon para ma-seal ang mga ballot box nito.",
+                sealNoChannel:
+                    "Walang naka-enable na channel para sa Post na ito at walang nagbukas, kaya hindi sine-seal ang mga ballot box nito.",
+                stopNeverOpened_one:
+                    "Hindi kailanman nabuksan ang {{channels}}: kapag inihinto ito, hindi na ito magbubukas.",
+                stopNeverOpened_other:
+                    "Hindi kailanman nabuksan ang {{channels}}: kapag inihinto ang mga ito, hindi na magbubukas ang mga ito.",
+                stopSealGrace_one:
+                    "Ihihinto mo na ang botohan sa {{name}}. Sine-seal ang mga ballot box nito pagkatapos ng grace period, {{count}} minuto mamaya: mula noon, wala nang balotang maidadagdag, mababago o mabubura. Hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
+                stopSealGrace_other:
+                    "Ihihinto mo na ang botohan sa {{name}}. Sine-seal ang mga ballot box nito pagkatapos ng grace period, {{count}} minuto mamaya: mula noon, wala nang balotang maidadagdag, mababago o mabubura. Hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
+                stopSealEventGrace_one:
+                    "Ihihinto mo na ang botohan sa lahat ng halalan. Sine-seal ang kanilang mga ballot box kapag natapos ang grace period ng bawat halalan, hanggang {{count}} minuto mamaya: mula noon, wala nang balotang maidadagdag, mababago o mabubura. Hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
+                stopSealEventGrace_other:
+                    "Ihihinto mo na ang botohan sa lahat ng halalan. Sine-seal ang kanilang mga ballot box kapag natapos ang grace period ng bawat halalan, hanggang {{count}} minuto mamaya: mula noon, wala nang balotang maidadagdag, mababago o mabubura. Hindi na muling masisimulan ang botohan. Sigurado ka bang gusto mong magpatuloy?",
+                stopSealEventSome:
+                    "Ihihinto mo na ang botohan sa lahat ng halalan. {{sealed}} {{holding}} Sigurado ka bang gusto mong magpatuloy?",
+                sealedNowPart:
+                    "Pagkatapos ay sine-seal ang mga ballot box ng {{names}}: wala nang balotang maidadagdag, mababago o mabubura, at hindi na muling masisimulan doon ang botohan.",
+                sealedGracePart_one:
+                    "Sine-seal ang mga ballot box ng {{names}} kapag natapos ang kanilang grace period, hanggang {{count}} minuto mamaya.",
+                sealedGracePart_other:
+                    "Sine-seal ang mga ballot box ng {{names}} kapag natapos ang kanilang grace period, hanggang {{count}} minuto mamaya.",
+                holdingEventPart_one:
+                    "May isa pang naka-enable at hindi saradong channel ang {{names}}: sine-seal ang mga ballot box nito kapag naisara ang channel na iyon.",
+                holdingEventPart_other:
+                    "May isa pang naka-enable at hindi saradong channel ang {{names}}: sine-seal ang kanilang mga ballot box kapag naisara ang mga channel na iyon.",
+                noChannelEventPart_one:
+                    "Walang naka-enable na channel ang {{names}} at walang nagbukas doon: hindi sine-seal ang mga ballot box nito.",
+                noChannelEventPart_other:
+                    "Walang naka-enable na channel ang {{names}} at walang nagbukas doon: hindi sine-seal ang kanilang mga ballot box.",
+                startSealNoteList:
+                    "Sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na: {{items}}.",
+                startKeptChannels_one: "{{post}}: nananatiling sarado ang {{channels}}",
+                startKeptChannels_other: "{{post}}: nananatiling sarado ang {{channels}}",
+                startKeptSealed:
+                    "nananatiling sarado ang {{post}}, dahil naka-seal na ang mga ballot box nito",
+                startNotEnabledList:
+                    "Sa I-seal sa pagsasara, binubuksan ng Start ang isang channel sa mga Post lamang na nag-enable nito: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: hindi naka-enable doon ang {{channels}} at nananatiling Hindi pa nagsisimula",
+                startNotEnabledChannels_other:
+                    "{{post}}: hindi naka-enable doon ang {{channels}} at nananatiling Hindi pa nagsisimula",
+                stopNeverOpenedPosts_one:
+                    "Hindi kailanman nabuksan ang {{names}}: isasara ito ng paghinto at ise-seal ang mga walang lamang ballot box nito.",
+                stopNeverOpenedPosts_other:
+                    "Hindi kailanman nabuksan ang {{names}}: isasara ang mga ito ng paghinto at ise-seal ang kanilang mga walang lamang ballot box.",
             },
             notifications: {
                 generated: "Balota nilikha",
                 published: "Balota inilathala",
                 change_status: "Katayuan ng halalan nabago",
+            },
+            sealRefusals: {
+                startAgain:
+                    "Hindi na muling masisimulan ang botohan: sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na at naka-seal ang mga ballot box nito.",
+                startDisabled:
+                    "Hindi magagamit ang Simulan ang Pagboto: naka-seal o sine-seal na ang mga ballot box ng halalang ito, at sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na.",
+                closedIsFinal:
+                    "Hindi na mababago ang botohang naisara na: sa I-seal sa pagsasara, nananatiling sarado ang botohang naisara na.",
             },
         },
         emailEditor: {
@@ -4069,6 +4353,8 @@ const tagalogTranslation: TranslationType = {
                     appliesTo: "Bawat $t(signing.terms.post)",
                     description:
                         "Sinisimulan sa I-publish gamit ang Itigil ang Pagboto. Isinasara ang pagboto sa $t(signing.terms.post); itinatago sa record nito ang mga pirma ng pagsasara.",
+                    descriptionSealed:
+                        "Sinisimulan sa I-publish gamit ang Itigil ang Pagboto. Isinasara ang pagboto sa $t(signing.terms.post). Kapag sarado na ang bawat channel, sine-seal ang mga ballot box nito, pagkatapos ng grace period kung mayroon: wala nang balotang maidadagdag, mababago o mabubura, at hindi na muling masisimulan ang pagboto. Itinatago sa record nito ang mga pirma ng pagsasara.",
                 },
                 "generate-election-returns": {
                     label: "Bumuo ng election returns",

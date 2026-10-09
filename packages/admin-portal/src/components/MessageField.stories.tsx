@@ -79,3 +79,17 @@ export const ContentFromParent: Story = {
         ).toBeVisible()
     },
 }
+
+export const DetailsUnderShowMore: Story = {
+    args: {initialLength: 256, details: <span>Seal hash: ef18</span>},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        // The message fits, but its details still wait behind Show More.
+        await expect(await canvas.findByText(LOG_MESSAGE)).toBeVisible()
+        expect(canvas.queryByText("Seal hash: ef18")).toBeNull()
+        await userEvent.click(
+            canvas.getByRole("button", {name: i18n.t("electionEventScreen.common.showMore")})
+        )
+        await expect(canvas.getByText("Seal hash: ef18")).toBeVisible()
+    },
+}

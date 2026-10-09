@@ -65014,7 +65014,7 @@
           },
           {
             "name": "public_document_id",
-            "description": null,
+            "description": "The seal record's document: public or private, by the event's Seal Record Publication policy.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -65026,7 +65026,7 @@
           },
           {
             "name": "public_path",
-            "description": null,
+            "description": "The seal record's path in the public bucket; NULL for a restricted (private) record.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -66224,7 +66224,7 @@
           },
           {
             "name": "public_document_id",
-            "description": null,
+            "description": "The seal record's document: public or private, by the event's Seal Record Publication policy.",
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
@@ -66236,7 +66236,7 @@
           },
           {
             "name": "public_path",
-            "description": null,
+            "description": "The seal record's path in the public bucket; NULL for a restricted (private) record.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -66535,7 +66535,7 @@
           },
           {
             "name": "public_document_id",
-            "description": null,
+            "description": "The seal record's document: public or private, by the event's Seal Record Publication policy.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -66547,7 +66547,7 @@
           },
           {
             "name": "public_path",
-            "description": null,
+            "description": "The seal record's path in the public bucket; NULL for a restricted (private) record.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -66835,7 +66835,7 @@
           },
           {
             "name": "public_document_id",
-            "description": null,
+            "description": "The seal record's document: public or private, by the event's Seal Record Publication policy.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -66847,7 +66847,7 @@
           },
           {
             "name": "public_path",
-            "description": null,
+            "description": "The seal record's path in the public bucket; NULL for a restricted (private) record.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -67850,7 +67850,7 @@
           },
           {
             "name": "public_document_id",
-            "description": null,
+            "description": "The seal record's document: public or private, by the event's Seal Record Publication policy.",
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
@@ -67862,7 +67862,7 @@
           },
           {
             "name": "public_path",
-            "description": null,
+            "description": "The seal record's path in the public bucket; NULL for a restricted (private) record.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -68370,7 +68370,7 @@
           },
           {
             "name": "public_document_id",
-            "description": null,
+            "description": "The seal record's document: public or private, by the event's Seal Record Publication policy.",
             "type": {
               "kind": "SCALAR",
               "name": "uuid",
@@ -68382,7 +68382,7 @@
           },
           {
             "name": "public_path",
-            "description": null,
+            "description": "The seal record's path in the public bucket; NULL for a restricted (private) record.",
             "type": {
               "kind": "SCALAR",
               "name": "String",

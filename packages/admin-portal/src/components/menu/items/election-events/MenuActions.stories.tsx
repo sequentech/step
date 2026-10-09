@@ -23,6 +23,11 @@ interface Scenario {
     isArchivedTab: boolean
     roles?: string[]
     writeFailure: boolean
+    writeError?: string
+    sealedElectionIds?: string[]
+    sealedEventIds?: string[]
+    deleteRefusal?: string
+    sealAtClose?: boolean
     deleteTask: ETaskExecutionStatus
     reloadTree: () => void
 }
@@ -113,7 +118,15 @@ const meta = {
         },
     },
     beforeEach: async ({args}) => {
-        services = treeServices({writeFailure: args.writeFailure, deleteTask: args.deleteTask})
+        services = treeServices({
+            writeFailure: args.writeFailure,
+            writeError: args.writeError,
+            sealedElectionIds: args.sealedElectionIds,
+            sealedEventIds: args.sealedEventIds,
+            deleteRefusal: args.deleteRefusal,
+            sealAtClose: args.sealAtClose,
+            deleteTask: args.deleteTask,
+        })
         await services.graphql.ready
     },
     render: (args) => <Fixture {...args} />,
@@ -295,6 +308,7 @@ export const DeletionServiceFails: Story = {
             within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
         )
         await confirm("Delete", /Are you sure to delete this item/)
+        // A policy-off event: no seal pre-check, as before.
         await waitFor(() => expect(operations()).toEqual(["DeleteElectionEvent"]))
         await notified(/Delete election event/i)
         expect(args.reloadTree).not.toHaveBeenCalled()
@@ -309,6 +323,7 @@ export const CancelTheDeletion: Story = {
         )
         await confirm("Cancel", /Are you sure to delete this item/)
         await waitFor(() => expect(body().queryByRole("dialog")).toBeNull())
+        // A policy-off event: nothing ran, not even a seal pre-check.
         expect(operations()).toEqual([])
         expect(args.reloadTree).not.toHaveBeenCalled()
     },
@@ -369,6 +384,108 @@ export const RemoveFails: Story = {
     },
 }
 
+const ELECTION_SEALED =
+    "This election has sealed ballot boxes and cannot be deleted. Archive its election event instead."
+const EVENT_SEALED =
+    "This election event has sealed ballot boxes and cannot be deleted. Archive it instead."
+
+/** VOTE-FREEZE: an election with ballot box seals can't be deleted; the dialog says why and offers no Delete. */
+export const RemoveASealedElection: Story = {
+    args: {
+        sealAtClose: true,
+        resourceType: "sequent_backend_election",
+        sealedElectionIds: [STORY_IDS.election],
+    },
+    play: async ({canvasElement, args}) => {
+        const menu = await openActions(canvasElement)
+        await userEvent.click(within(menu).getByRole("menuitem", {name: "Remove this Election"}))
+        const dialog = await body().findByRole("dialog")
+        await waitFor(() => expect(within(dialog).getByText(ELECTION_SEALED)).toBeVisible())
+        expect(within(dialog).queryByRole("button", {name: "Delete"})).toBeNull()
+        expect(
+            services.graphql.calls.find(({name}) => name === "GetBallotBoxSeals")?.variables
+        ).toEqual({electionEventId: EVENT_ID, electionIds: [STORY_IDS.election]})
+        await userEvent.click(within(dialog).getByRole("button", {name: "Cancel"}))
+        expect(services.data.writes).toEqual([])
+        expect(args.reloadTree).not.toHaveBeenCalled()
+    },
+}
+
+/** VOTE-FREEZE fallback: if the database still refuses, the error says why. */
+export const RemoveAnElectionTheDatabaseRefuses: Story = {
+    args: {
+        resourceType: "sequent_backend_election",
+        writeFailure: true,
+        writeError: "ballot_box_sealed",
+    },
+    play: async ({canvasElement, args}) => {
+        const menu = await openActions(canvasElement)
+        await userEvent.click(within(menu).getByRole("menuitem", {name: "Remove this Election"}))
+        await confirm("Delete", /Are you sure to delete this item/)
+        await notified(ELECTION_SEALED)
+        expect(body().queryByText("Error while trying to delete this item")).toBeNull()
+        expect(args.reloadTree).not.toHaveBeenCalled()
+    },
+}
+
+/** VOTE-FREEZE: an election event with ballot box seals can't be deleted either. */
+export const RemoveASealedEvent: Story = {
+    args: {
+        sealAtClose: true,
+        sealedEventIds: [EVENT_ID],
+    },
+    play: async ({canvasElement}) => {
+        const menu = await openActions(canvasElement)
+        await userEvent.click(
+            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+        )
+        const dialog = await body().findByRole("dialog")
+        await waitFor(() => expect(within(dialog).getByText(EVENT_SEALED)).toBeVisible())
+        expect(within(dialog).queryByRole("button", {name: "Delete"})).toBeNull()
+        await userEvent.click(within(dialog).getByRole("button", {name: "Cancel"}))
+        expect(operations()).not.toContain("DeleteElectionEvent")
+    },
+}
+
+/** VOTE-FREEZE: when the server still refuses an event delete, the admin reads why. */
+export const EventDeleteRefusedWithItsReason: Story = {
+    args: {
+        sealAtClose: true,
+        deleteTask: ETaskExecutionStatus.FAILED,
+        deleteRefusal:
+            "This election event has sealed ballot boxes and cannot be deleted. Archive it instead.",
+    },
+    play: async ({canvasElement}) => {
+        const menu = await openActions(canvasElement)
+        await userEvent.click(
+            within(menu).getByRole("menuitem", {name: "Remove this Election Event"})
+        )
+        await confirm("Delete", /Are you sure to delete this item/)
+        await notified(EVENT_SEALED)
+    },
+}
+
+/** VOTE-FREEZE: without a role that reads seals, the dialog says they couldn't be checked. */
+export const RemoveWithoutReadingTheSeals: Story = {
+    args: {
+        sealAtClose: true,
+        resourceType: "sequent_backend_election",
+        roles: ["election-event-delete", "election-delete", "election-create"],
+    },
+    play: async ({canvasElement}) => {
+        const menu = await openActions(canvasElement)
+        await userEvent.click(within(menu).getByRole("menuitem", {name: "Remove this Election"}))
+        const dialog = await body().findByRole("dialog")
+        await waitFor(() =>
+            expect(
+                within(dialog).getByText(/The ballot box seals could not be checked/)
+            ).toBeVisible()
+        )
+        await expect(within(dialog).getByRole("button", {name: "Delete"})).toBeVisible()
+        expect(operations()).not.toContain("GetBallotBoxSeals")
+    },
+}
+
 export const CreateAndDeleteOnlyEvents: Story = {
     args: {roles: ["election-event-create", "election-event-delete"]},
     play: async ({canvasElement}) => {
@@ -387,5 +504,16 @@ export const WithoutCandidatePermissions: Story = {
         await expect(within(canvasElement).getByText("Alice")).toBeVisible()
         expect(within(canvasElement).queryByRole("button", {name: /^Actions/})).toBeNull()
         expect(operations()).toEqual([])
+    },
+}
+
+/** A policy-off event is deleted as before: no seal is read. */
+export const RemoveAnElectionOfANonSealingEvent: Story = {
+    args: {resourceType: "sequent_backend_election"},
+    play: async ({canvasElement}) => {
+        const menu = await openActions(canvasElement)
+        await userEvent.click(within(menu).getByRole("menuitem", {name: "Remove this Election"}))
+        await confirm("Cancel", /Are you sure to delete this item/)
+        expect(operations()).not.toContain("GetBallotBoxSeals")
     },
 }

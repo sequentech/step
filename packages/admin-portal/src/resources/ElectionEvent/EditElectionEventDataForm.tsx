@@ -41,6 +41,8 @@ import VideoCallIcon from "@mui/icons-material/VideoCall"
 import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} from "react"
 import {useFormContext} from "react-hook-form"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined"
+import {intlLanguage} from "@/hooks/useZonedTime"
 import {ETemplateType} from "@/types/templates"
 import {useTranslation} from "react-i18next"
 import {CustomTabPanel} from "@/components/CustomTabPanel"
@@ -54,6 +56,8 @@ import {
     ITenantSettings,
     EVotingPortalCountdownPolicy,
     EElectionEventLockedDown,
+    EBallotBoxSealPolicy,
+    EBallotBoxSealRecordPolicy,
     EElectionEventEnrollment,
     EElectionEventOTP,
     EElectionEventContestEncryptionPolicy,
@@ -145,6 +149,9 @@ import {policiesOf} from "@/components/election-event/lifecyclePolicyChange"
 import {SAVE_LIFECYCLE_POLICIES, type SaveLifecyclePoliciesData} from "@/queries/Lifecycle"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
+import {ballotBoxSealPolicyLock, ESealPolicyLock} from "@/services/ElectionStatus"
+import {effectiveSealRecordPolicy} from "@/services/ballotBoxSealPolicy"
+import {sealErrorText} from "@/services/ballotBoxSealErrors"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -159,6 +166,16 @@ export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     resultsWebsitePolicy?: IResultsWebsitePolicy
 } & Sequent_Backend_Election_Event
 
+/** How a select locked by the seal at close looks: greyed, with a dashed outline. */
+const lockedSelectSx = {
+    "& .MuiSelect-select": {color: "text.secondary"},
+    "& .MuiOutlinedInput-notchedOutline": {borderStyle: "dashed"},
+}
+
+/** A save's error: a known seal refusal in the admin's language, else its message. */
+const saveErrorText = (t: (key: string) => string, error: unknown): string =>
+    sealErrorText(t, error) ?? (error instanceof Error ? error.message : String(error))
+
 const EventSaveButton: React.FC<
     SaveButtonProps & {
         /** Runs after the event's update succeeded. */
@@ -167,6 +184,7 @@ const EventSaveButton: React.FC<
 > = ({onSaved, ...props}) => {
     const context = useSaveContext()
     const notify = useNotify()
+    const {t} = useTranslation()
     return (
         <SaveContextProvider
             value={{
@@ -186,18 +204,14 @@ const EventSaveButton: React.FC<
                                         ...rest
                                     )
                                 } else {
-                                    notify(error instanceof Error ? error.message : String(error), {
-                                        type: "error",
-                                    })
+                                    notify(saveErrorText(t, error), {type: "error"})
                                 }
                             },
                         })
                         if (!failed && !errors) await onSaved?.()
                         return errors
                     } catch (error) {
-                        notify(error instanceof Error ? error.message : String(error), {
-                            type: "error",
-                        })
+                        notify(saveErrorText(t, error), {type: "error"})
                     }
                 },
             }}
@@ -315,7 +329,7 @@ const CustomDateTimeFormatInvalidNotifier: React.FC<{
 export const EditElectionEventDataForm: React.FC<{
     transform: (data: Sequent_Backend_Election_Event_Extended) => Promise<RaRecord<Identifier>>
 }> = ({transform}) => {
-    const {t} = useTranslation()
+    const {t, i18n} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
@@ -443,7 +457,11 @@ export const EditElectionEventDataForm: React.FC<{
         redirect: false,
         undoable: false,
     })
-    const {data: elections} = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
+    const {
+        data: elections,
+        isPending: electionsPending,
+        error: electionsError,
+    } = useGetList<Sequent_Backend_Election>("sequent_backend_election", {
         filter: {
             tenant_id: record?.tenant_id,
             election_event_id: record?.id,
@@ -451,6 +469,56 @@ export const EditElectionEventDataForm: React.FC<{
         pagination: {page: 1, perPage: 9999},
     })
     const aliasRenderer = useAliasRenderer()
+    // The ballot box seal policy is locked once voting has opened, as the
+    // database requires; until the elections are read it is locked too, and
+    // the helper text says which of these it is.
+    const sealPolicyLock = ballotBoxSealPolicyLock(
+        electionsError ? undefined : elections,
+        record,
+        electionsPending
+    )
+    const isBallotBoxSealPolicyLocked = sealPolicyLock.state !== ESealPolicyLock.OPEN
+    // With Seal at close, once voting has opened, the settings the seal relies
+    // on are locked too (the database refuses their change); they say why.
+    const recordSealsAtClose =
+        (record?.presentation as IElectionEventPresentation | undefined)?.ballot_box_seal_policy ===
+        EBallotBoxSealPolicy.SEAL_AT_CLOSE
+    const sealSettingsLocked = recordSealsAtClose && isBallotBoxSealPolicyLocked
+    /**
+     * The props of a select the seal relies on. When locked it is read-only,
+     * shows the lock and why, and doesn't write a value the event doesn't
+     * have (it shows the default instead), so an ordinary save isn't refused.
+     */
+    const sealSettingProps = (defaultValue: string) =>
+        sealSettingsLocked
+            ? {
+                  SelectProps: {readOnly: true, IconComponent: LockOutlinedIcon},
+                  sx: lockedSelectSx,
+                  helperText: `${sealPolicyLockText} ${t(
+                      "electionEventScreen.field.ballotBoxSealPolicy.settingLocked"
+                  )}`,
+                  format: (value: unknown) => value ?? defaultValue,
+              }
+            : {defaultValue, validate: required()}
+    const sealPolicyLockText = (() => {
+        switch (sealPolicyLock.state) {
+            case ESealPolicyLock.LOADING:
+                return t("electionEventScreen.field.ballotBoxSealPolicy.checking")
+            case ESealPolicyLock.UNKNOWN:
+                return t("electionEventScreen.field.ballotBoxSealPolicy.lockedUnknown")
+            case ESealPolicyLock.LOCKED:
+                return sealPolicyLock.elections.length
+                    ? t("electionEventScreen.field.ballotBoxSealPolicy.lockedOpened", {
+                          names: new Intl.ListFormat(intlLanguage(i18n.language), {
+                              style: "long",
+                              type: "conjunction",
+                          }).format(sealPolicyLock.elections.map((item) => aliasRenderer(item))),
+                      })
+                    : t("electionEventScreen.field.ballotBoxSealPolicy.lockedEvent")
+            default:
+                return t("electionEventScreen.field.ballotBoxSealPolicy.locked")
+        }
+    })()
     // Which configured zone each election uses: a zone in use can't be removed.
     const electionZones = useMemo<Array<IElectionZone>>(
         () =>
@@ -891,6 +959,19 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EElectionEventLockedDown).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.lockdownState.options.${value}`),
+        }))
+    }
+
+    const ballotBoxSealRecordPolicyChoices = () =>
+        Object.values(EBallotBoxSealRecordPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ballotBoxSealRecordPolicy.options.${value}`),
+        }))
+
+    const ballotBoxSealPolicyChoices = () => {
+        return Object.values(EBallotBoxSealPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.ballotBoxSealPolicy.options.${value}`),
         }))
     }
 
@@ -2063,9 +2144,10 @@ export const EditElectionEventDataForm: React.FC<{
                             label={String(
                                 t("electionEventScreen.field.contestEncryptionPolicy.policyLabel")
                             )}
-                            defaultValue={EElectionEventContestEncryptionPolicy.SINGLE_CONTEST}
+                            {...sealSettingProps(
+                                EElectionEventContestEncryptionPolicy.SINGLE_CONTEST
+                            )}
                             emptyText={undefined}
-                            validate={required()}
                         />
                         <SelectInput
                             source={"presentation.locked_down"}
@@ -2082,6 +2164,71 @@ export const EditElectionEventDataForm: React.FC<{
                             emptyText={undefined}
                             validate={required()}
                         />
+                        {/* Locked once voting has opened: the database refuses the change. */}
+                        <SelectInput
+                            source={"presentation.ballot_box_seal_policy"}
+                            SelectProps={{
+                                readOnly: isBallotBoxSealPolicyLocked,
+                                // A locked select looks it: greyed, with a lock, and the
+                                // helper says why. Read-only (not disabled) keeps its value
+                                // in the save, so the database's lock isn't tripped.
+                                ...(isBallotBoxSealPolicyLocked
+                                    ? {IconComponent: LockOutlinedIcon}
+                                    : {}),
+                            }}
+                            sx={isBallotBoxSealPolicyLocked ? lockedSelectSx : undefined}
+                            helperText={`${t(
+                                "electionEventScreen.field.ballotBoxSealPolicy.helperText"
+                            )} ${sealPolicyLockText}`}
+                            choices={ballotBoxSealPolicyChoices()}
+                            label={String(
+                                t("electionEventScreen.field.ballotBoxSealPolicy.policyLabel")
+                            )}
+                            // An event without the key shows "Do not seal" (its effective
+                            // value) but the save doesn't add the key: an event that
+                            // doesn't seal is saved exactly as before.
+                            format={(value: unknown) => value ?? EBallotBoxSealPolicy.DO_NOT_SEAL}
+                            emptyText={undefined}
+                        />
+                        {/* Who can download the seal records: only with Seal at close, and
+                            locked like the seal policy once voting has opened. */}
+                        <FormDataConsumer>
+                            {({formData}) =>
+                                (formData?.presentation as IElectionEventPresentation | undefined)
+                                    ?.ballot_box_seal_policy ===
+                                EBallotBoxSealPolicy.SEAL_AT_CLOSE ? (
+                                    <SelectInput
+                                        source={"presentation.ballot_box_seal_record_policy"}
+                                        SelectProps={{
+                                            readOnly: isBallotBoxSealPolicyLocked,
+                                            ...(isBallotBoxSealPolicyLocked
+                                                ? {IconComponent: LockOutlinedIcon}
+                                                : {}),
+                                        }}
+                                        sx={
+                                            isBallotBoxSealPolicyLocked ? lockedSelectSx : undefined
+                                        }
+                                        helperText={`${t(
+                                            `electionEventScreen.field.ballotBoxSealRecordPolicy.help.${effectiveSealRecordPolicy(
+                                                formData?.presentation
+                                            )}`
+                                        )} ${sealPolicyLockText}`}
+                                        choices={ballotBoxSealRecordPolicyChoices()}
+                                        label={String(
+                                            t(
+                                                "electionEventScreen.field.ballotBoxSealRecordPolicy.policyLabel"
+                                            )
+                                        )}
+                                        // Unset shows Restricted (its effective value), and the
+                                        // save doesn't add the key unless it is chosen.
+                                        format={(value: unknown) =>
+                                            value ?? EBallotBoxSealRecordPolicy.RESTRICTED
+                                        }
+                                        emptyText={undefined}
+                                    />
+                                ) : null
+                            }
+                        </FormDataConsumer>
                         <SelectInput
                             source={"presentation.decoded_ballot_inclusion_policy"}
                             choices={decodedBallotsStateChoices()}
@@ -2108,11 +2255,10 @@ export const EditElectionEventDataForm: React.FC<{
                             label={String(
                                 t("electionEventScreen.field.weightedVotingPolicy.policyLabel")
                             )}
-                            defaultValue={
+                            {...sealSettingProps(
                                 EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
-                            }
+                            )}
                             emptyText={undefined}
-                            validate={required()}
                         />
                         <SelectInput
                             source={"presentation.delegated_voting_policy"}
@@ -2120,9 +2266,8 @@ export const EditElectionEventDataForm: React.FC<{
                             label={String(
                                 t("electionEventScreen.field.delegatedVotingPolicy.policyLabel")
                             )}
-                            defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
+                            {...sealSettingProps(EElectionEventDelegatedVotingPolicy.DISABLED)}
                             emptyText={undefined}
-                            validate={required()}
                         />
                         {canConfigureResultsWebsite ? <ResultsWebsitePolicyFields /> : null}
                         <Typography

@@ -42,7 +42,89 @@ const reasons = (t: TFunction, explanation: IScheduledOutcomeExplanation): strin
     return lines
 }
 
-type Renderer = (t: TFunction, details: Record<string, unknown> | null) => string[] | null
+/** The Seal at close reasons a scheduled outcome records in `details.reason`. */
+const SEAL_REASONS = ["ballot-box-seal-policy", "never-opened-kept-open"]
+
+/** Why a scheduled outcome left a Post as it was (VOTE-FREEZE), in the admin's language. */
+const sealReason = (t: TFunction, details: Record<string, unknown> | null): string | null => {
+    const reason = details?.reason
+    return typeof reason === "string" && SEAL_REASONS.includes(reason)
+        ? String(t(`logsScreen.scheduledOutcome.reason.${reason}`))
+        : null
+}
+
+type Renderer = (
+    t: TFunction,
+    details: Record<string, unknown> | null,
+    message: ILogMessage | null
+) => string[] | null
+
+/** The values of a statement body variant, e.g. `{"BallotBoxSealed": [...]}`. */
+const bodyValues = (message: ILogMessage | null, kind: string): unknown[] | null => {
+    const body = message?.statement?.body
+    if (!body || typeof body !== "object") return null
+    const values = (body as Record<string, unknown>)[kind]
+    return Array.isArray(values) ? values : null
+}
+
+const count = (value: unknown): number => (typeof value === "number" ? value : Number(value) || 0)
+
+/**
+ * Readable lines for the ballot box seal entries (VOTE-FREEZE): the seal
+ * hash and the counts the signed statement carries, why the others don't
+ * count, the Close voting request,
+ * the reason a seal failed, and what a tally found.
+ */
+const SEAL_RENDERERS: Record<string, Renderer> = {
+    BallotBoxSealed: (t, _details, message) => {
+        const values = bodyValues(message, "BallotBoxSealed")
+        if (!values) return null
+        const [, , hash, inBox, counted, request] = values
+        const notCounted = count(inBox) - count(counted)
+        return [
+            String(t("logsScreen.ballotBoxSeal.sealHash", {hash: String(hash ?? "")})),
+            String(
+                t("logsScreen.ballotBoxSeal.counted", {
+                    counted: count(counted),
+                    inBox: count(inBox),
+                })
+            ),
+            ...(notCounted > 0
+                ? [String(t("logsScreen.ballotBoxSeal.notCounted", {count: notCounted}))]
+                : []),
+            request
+                ? String(t("logsScreen.ballotBoxSeal.closeRequest", {request: String(request)}))
+                : String(t("logsScreen.ballotBoxSeal.noCloseRequest")),
+        ]
+    },
+    BallotBoxSealFailed: (t, _details, message) => {
+        const values = bodyValues(message, "BallotBoxSealFailed")
+        if (!values) return null
+        return [
+            String(t("logsScreen.ballotBoxSeal.failedReason", {reason: String(values[2] ?? "")})),
+            String(t("logsScreen.ballotBoxSeal.failedLocked")),
+        ]
+    },
+    TallyBallotBoxVerified: (t, _details, message) => {
+        const values = bodyValues(message, "TallyBallotBoxVerified")
+        if (!values) return null
+        const [, , hash, counted, session] = values
+        return [
+            String(t("logsScreen.ballotBoxSeal.sealHash", {hash: String(hash ?? "")})),
+            String(t("logsScreen.ballotBoxSeal.verifiedCounted", {counted: count(counted)})),
+            String(t("logsScreen.ballotBoxSeal.tallySession", {session: String(session ?? "")})),
+        ]
+    },
+    TallyBallotBoxRejected: (t, _details, message) => {
+        const values = bodyValues(message, "TallyBallotBoxRejected")
+        if (!values) return null
+        const [, , differs, session] = values
+        return [
+            String(t("logsScreen.ballotBoxSeal.differs", {differs: String(differs ?? "")})),
+            String(t("logsScreen.ballotBoxSeal.tallySession", {session: String(session ?? "")})),
+        ]
+    },
+}
 
 /**
  * Readable lines for the entries whose details explain a scheduled outcome,
@@ -62,12 +144,23 @@ const RENDERERS: Record<string, Renderer> = {
             ...reasons(t, change.after),
         ]
     },
+    ...SEAL_RENDERERS,
     SigningActionExecuted: (t, details) => {
         const explanation = outcomeExplanation(details)
-        if (!explanation) return null
+        const reason = sealReason(t, details)
+        if (!explanation && !reason) return null
         return [
-            String(t("logsScreen.scheduledOutcome.result", {outcome: outcomeText(t, explanation)})),
-            ...reasons(t, explanation),
+            ...(explanation
+                ? [
+                      String(
+                          t("logsScreen.scheduledOutcome.result", {
+                              outcome: outcomeText(t, explanation),
+                          })
+                      ),
+                      ...reasons(t, explanation),
+                  ]
+                : []),
+            ...(reason ? [reason] : []),
         ]
     },
 }
@@ -79,7 +172,7 @@ export const explanationLines = (
     message: ILogMessage | null
 ): string[] | null => {
     const renderer = kind ? RENDERERS[kind] : undefined
-    return renderer ? renderer(t, logDetails(message)) : null
+    return renderer ? renderer(t, logDetails(message), message) : null
 }
 
 export const StatementExplanation: React.FC<{
@@ -92,7 +185,12 @@ export const StatementExplanation: React.FC<{
     return (
         <Box component="ul" sx={{m: 0, mt: 0.5, pl: 2}} className="log-explanation">
             {lines.map((line) => (
-                <Typography component="li" variant="body2" key={line}>
+                <Typography
+                    component="li"
+                    variant="body2"
+                    key={line}
+                    sx={{overflowWrap: "anywhere"}}
+                >
                     {line}
                 </Typography>
             ))}

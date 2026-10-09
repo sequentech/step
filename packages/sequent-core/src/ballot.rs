@@ -1336,6 +1336,12 @@ pub struct ElectionEventPresentation {
     #[borsh(skip)]
     #[serde(default)]
     pub ballot_box_seal_policy: Option<BallotBoxSealPolicy>,
+    /// Who can download a sealed box's seal record (VOTE-FREEZE). Read it
+    /// through [`ElectionEventPresentation::ballot_box_seal_record_policy`].
+    /// Skipped in Borsh so ballot-style hashes don't change.
+    #[borsh(skip)]
+    #[serde(default)]
+    pub ballot_box_seal_record_policy: Option<BallotBoxSealRecordPolicy>,
 }
 
 impl ElectionEventPresentation {
@@ -1347,6 +1353,11 @@ impl ElectionEventPresentation {
             }
             _ => BallotBoxSealPolicy::DO_NOT_SEAL,
         }
+    }
+
+    /// `PUBLIC` only when set; unset means `RESTRICTED`.
+    pub fn ballot_box_seal_record_policy(&self) -> BallotBoxSealRecordPolicy {
+        self.ballot_box_seal_record_policy.unwrap_or_default()
     }
 }
 
@@ -2476,6 +2487,38 @@ pub enum BallotBoxSealPolicy {
     #[strum(serialize = "seal-at-close")]
     #[serde(rename = "seal-at-close")]
     SEAL_AT_CLOSE,
+}
+
+/// Who can download the seal record of a sealed ballot box: the record lists
+/// each ballot's hash, Ballot ID, disposition, weight and channel
+/// (VOTE-FREEZE). Restricted keeps it a private event document that
+/// administrators download and share; Public puts it in the public bucket,
+/// readable without signing in. Locked once voting has opened on an event
+/// that seals at close.
+#[allow(non_camel_case_types)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    JsonSchema,
+)]
+pub enum BallotBoxSealRecordPolicy {
+    #[default]
+    #[strum(serialize = "restricted")]
+    #[serde(rename = "restricted")]
+    RESTRICTED,
+    #[strum(serialize = "public")]
+    #[serde(rename = "public")]
+    PUBLIC,
 }
 
 #[allow(non_camel_case_types)]
@@ -3795,6 +3838,103 @@ mod support_materials_policy_tests {
         assert_eq!(
             materials.effective_policy(),
             SupportMaterialsPolicy::MandatoryForVoting
+        );
+    }
+}
+
+#[cfg(test)]
+mod ballot_box_seal_record_policy_tests {
+    use super::*;
+
+    #[test]
+    fn the_default_is_restricted() {
+        assert_eq!(
+            BallotBoxSealRecordPolicy::default(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+    }
+
+    #[test]
+    fn the_policy_round_trips_through_its_names() {
+        for (policy, name) in [
+            (BallotBoxSealRecordPolicy::RESTRICTED, "restricted"),
+            (BallotBoxSealRecordPolicy::PUBLIC, "public"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(policy).unwrap(),
+                serde_json::json!(name)
+            );
+            assert_eq!(
+                serde_json::from_value::<BallotBoxSealRecordPolicy>(
+                    serde_json::json!(name)
+                )
+                .unwrap(),
+                policy
+            );
+            assert_eq!(policy.to_string(), name);
+            assert_eq!(
+                name.parse::<BallotBoxSealRecordPolicy>().unwrap(),
+                policy
+            );
+        }
+        assert!(serde_json::from_value::<BallotBoxSealRecordPolicy>(
+            serde_json::json!("PUBLIC")
+        )
+        .is_err());
+    }
+
+    fn presentation(json: serde_json::Value) -> ElectionEventPresentation {
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn the_accessor_is_public_only_when_set_to_public() {
+        let missing = presentation(serde_json::json!({}));
+        assert_eq!(missing.ballot_box_seal_record_policy, None);
+        assert_eq!(
+            missing.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+        let null = presentation(
+            serde_json::json!({"ballot_box_seal_record_policy": null}),
+        );
+        assert_eq!(
+            null.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+        let restricted = presentation(
+            serde_json::json!({"ballot_box_seal_record_policy": "restricted"}),
+        );
+        assert_eq!(
+            restricted.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::RESTRICTED
+        );
+        let public = presentation(
+            serde_json::json!({"ballot_box_seal_record_policy": "public"}),
+        );
+        assert_eq!(
+            public.ballot_box_seal_record_policy(),
+            BallotBoxSealRecordPolicy::PUBLIC
+        );
+    }
+
+    #[test]
+    fn a_presentation_without_the_field_still_deserializes() {
+        let legacy = presentation(serde_json::json!({
+            "ballot_box_seal_policy": "seal-at-close",
+            "skip_election_list": true
+        }));
+        assert_eq!(legacy.ballot_box_seal_record_policy, None);
+        // Borsh skips the field, so ballot-style hashes don't change.
+        let public = ElectionEventPresentation {
+            ballot_box_seal_record_policy: Some(
+                BallotBoxSealRecordPolicy::PUBLIC,
+            ),
+            ..legacy.clone()
+        };
+        assert_eq!(
+            borsh::to_vec(&public).unwrap(),
+            borsh::to_vec(&legacy).unwrap()
         );
     }
 }

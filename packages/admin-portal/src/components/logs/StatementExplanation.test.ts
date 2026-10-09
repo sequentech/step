@@ -81,3 +81,82 @@ describe("readable log rows", () => {
         expect(logDetails(logMessage({message: "not json"}))).toBeNull()
     })
 })
+
+describe("ballot box seal entries (VOTE-FREEZE)", () => {
+    const sealRow = (kind: string, values: unknown[]) => ({
+        statement_kind: kind,
+        message: JSON.stringify({
+            election_id: "post",
+            statement: {
+                head: {kind, description: "Ballot box of Post, Spain"},
+                body: {[kind]: values},
+            },
+        }),
+    })
+    const lines = (record: ReturnType<typeof sealRow>) =>
+        explanationLines(t, record.statement_kind, logMessage(record))
+
+    it("explains a seal: hash, counts and the Close voting request", () => {
+        expect(
+            lines(sealRow("BallotBoxSealed", ["post", "spain", "ab12", 1342, 1340, "req-1"]))
+        ).toEqual([
+            "logsScreen.ballotBoxSeal.sealHash(hash=ab12)",
+            "logsScreen.ballotBoxSeal.counted(counted=1340, inBox=1342)",
+            "logsScreen.ballotBoxSeal.notCounted(count=2)",
+            "logsScreen.ballotBoxSeal.closeRequest(request=req-1)",
+        ])
+    })
+    it("says why only when the box holds ballots it doesn't count", () => {
+        expect(lines(sealRow("BallotBoxSealed", ["post", "spain", "ab12", 2, 2, null]))).toEqual([
+            "logsScreen.ballotBoxSeal.sealHash(hash=ab12)",
+            "logsScreen.ballotBoxSeal.counted(counted=2, inBox=2)",
+            "logsScreen.ballotBoxSeal.noCloseRequest",
+        ])
+    })
+    it("explains a failed seal", () => {
+        expect(
+            lines(sealRow("BallotBoxSealFailed", ["post", "spain", "a ballot does not match"]))
+        ).toEqual([
+            "logsScreen.ballotBoxSeal.failedReason(reason=a ballot does not match)",
+            "logsScreen.ballotBoxSeal.failedLocked",
+        ])
+    })
+    it("explains the tally's verified and rejected entries", () => {
+        expect(
+            lines(sealRow("TallyBallotBoxVerified", ["post", "spain", "ab12", 7, "ts-1"]))
+        ).toEqual([
+            "logsScreen.ballotBoxSeal.sealHash(hash=ab12)",
+            "logsScreen.ballotBoxSeal.verifiedCounted(counted=7)",
+            "logsScreen.ballotBoxSeal.tallySession(session=ts-1)",
+        ])
+        expect(
+            lines(sealRow("TallyBallotBoxRejected", ["post", "spain", "1 ballot missing", "ts-1"]))
+        ).toEqual([
+            "logsScreen.ballotBoxSeal.differs(differs=1 ballot missing)",
+            "logsScreen.ballotBoxSeal.tallySession(session=ts-1)",
+        ])
+    })
+    it("shows nothing for a body it can't read", () => {
+        expect(lines(sealRow("BallotBoxSealed", []) as never)).toEqual([
+            "logsScreen.ballotBoxSeal.sealHash(hash=)",
+            "logsScreen.ballotBoxSeal.counted(counted=0, inBox=0)",
+            "logsScreen.ballotBoxSeal.noCloseRequest",
+        ])
+        expect(
+            explanationLines(t, "BallotBoxSealed", logMessage({message: JSON.stringify({})}))
+        ).toBeNull()
+    })
+})
+
+describe("Seal at close reasons of a scheduled outcome", () => {
+    it.each(["ballot-box-seal-policy", "never-opened-kept-open"])("translates %s", (reason) => {
+        const record = row("SigningActionExecuted", {reason, nothing_to_change: true})
+        expect(explanationLines(t, record.statement_kind, logMessage(record))).toEqual([
+            `logsScreen.scheduledOutcome.reason.${reason}`,
+        ])
+    })
+    it("ignores other reasons", () => {
+        const record = row("SigningActionExecuted", {reason: "something-else"})
+        expect(explanationLines(t, record.statement_kind, logMessage(record))).toBeNull()
+    })
+})

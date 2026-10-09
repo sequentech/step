@@ -26,6 +26,9 @@ import {
 import CloseIcon from "@mui/icons-material/Close"
 import type {IRole} from "@sequentech/ui-core"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {actionDescription} from "@/components/signing/format"
+import {useEventPresentation} from "@/hooks/useZonedFormat"
+import {isSealAtClose} from "@/services/ballotBoxSealPolicy"
 import {
     RequesterSigning,
     SIGNING_ACTIONS,
@@ -84,6 +87,8 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
     const notify = useNotify()
     const writeErrorMessage = useWriteErrorMessage()
     const [tenantId] = useTenantStore()
+    // Close voting seals the ballot boxes at an event with Seal at close.
+    const sealsBallots = isSealAtClose(useEventPresentation(electionEventId))
     const readOnly = !access.rulesWrite
     // Needs role-read (the options) and role-write; without the capacity the current roles
     // are unknown, so they can't be changed.
@@ -235,7 +240,7 @@ export const RuleDrawer: React.FC<IRuleDrawerProps> = ({
                             {action}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                            {t(`signing.actions.${rule.action}.description`)}
+                            {actionDescription(t, rule.action, sealsBallots)}
                         </Typography>
                     </Box>
                     <IconButton aria-label={t("common.label.close")} onClick={onClose}>

@@ -333,6 +333,12 @@ const catalanTranslation: TranslationType = {
                 deciding: "Comprovació decisiva: {{check}}. {{value}}",
                 authorizedBy: "Autoritzat per la configuració {{code}}.",
                 nextStep: "Pas següent: {{step}}",
+                reason: {
+                    "ballot-box-seal-policy":
+                        "Es manté tancada: amb «Segellar en tancar», la votació que s'ha tancat continua tancada.",
+                    "never-opened-kept-open":
+                        "No hi ha res a tancar segons la programació: el lloc de votació no s'ha obert mai, així que es queda com està.",
+                },
             },
             column: {
                 id: "ID",
@@ -353,6 +359,23 @@ const catalanTranslation: TranslationType = {
             },
             iam: {
                 title: "Bitàcola de Base de Dades de IAM",
+            },
+            ballotBoxSeal: {
+                sealHash: "Hash del segell: {{hash}}",
+                counted: "{{counted}} de {{inBox}} paperetes comptades.",
+                notCounted_one:
+                    "L'altra papereta es va substituir per una papereta posterior del mateix votant, es va descartar o la va emetre un votant que no és elegible.",
+                notCounted_other:
+                    "Les altres {{count}} paperetes es van substituir per una papereta posterior del mateix votant, es van descartar o les van emetre votants que no són elegibles.",
+                closeRequest:
+                    "Tancada per la sol·licitud de signatura «Tancar la votació» {{request}}.",
+                noCloseRequest:
+                    "Tancada sense sol·licitud de signatura «Tancar la votació» («Detenir el període de votació» o el tancament programat).",
+                failedReason: "Motiu: {{reason}}",
+                failedLocked: "L'urna continua bloquejada i no està segellada: és una incidència.",
+                verifiedCounted: "{{counted}} paperetes comptades a partir del segell.",
+                tallySession: "Sessió de recompte {{session}}.",
+                differs: "Diferències: {{differs}}",
             },
         },
         areas: {
@@ -490,6 +513,113 @@ const catalanTranslation: TranslationType = {
             voterLoginURL: "URL d'inici de sessió dels votants",
             voterEnrollURL: "URL d'inscripció de votants",
             voterEnrollKioskURL: "Kiosk URL d'inscripció de votants",
+            ballotBoxes: {
+                show: "Mostra les urnes",
+                loadError:
+                    "No s'han pogut llegir els segells de les urnes. Recarregueu la pàgina o comproveu la connexió amb el servidor.",
+                title: "Urnes",
+                sealing:
+                    "La votació s'ha tancat a les {{closed}}. Les urnes se segellen quan acaba el període de gràcia, a les {{deadline}}.",
+                sealed: "La votació s'ha tancat a les {{closed}}. Les urnes estan segellades: no es pot afegir, canviar ni esborrar cap papereta.",
+                failed: "La votació s'ha tancat a les {{closed}}. Una urna no s'ha pogut segellar: continua bloquejada i la incidència consta als registres.",
+                closedBySignatures:
+                    "Tancada per {{names}} amb els seus certificats, codi de signatura {{code}}.",
+                closedByUser: "Tancada per {{username}}.",
+                closedBySchedule: "Tancada pel tancament programat de la votació.",
+                column: {
+                    area: "Àrea",
+                    status: "Estat",
+                    inTheBox: "A l'urna",
+                    counted: "Comptades",
+                    sealedAt: "Segellada",
+                    sealHash: "Hash del segell",
+                    record: "Acta de segellat",
+                },
+                status: {
+                    open: "Oberta",
+                    sealing: "Es segella a les {{time}}",
+                    publishing: "Segellada, en publicació",
+                    sealed: "Segellada",
+                    failed: "No segellada: incidència",
+                    due: "Segellant ara",
+                    overdue: "Segellat endarrerit",
+                },
+                help: {
+                    publishing:
+                        "L'urna està bloquejada. S'està tornant a publicar la seva entrada al tauler d'anuncis.",
+                    counted:
+                        "Paperetes que compten: l'última papereta vàlida de cada votant elegible. Les altres de l'urna es van substituir per una papereta posterior del mateix votant, es van descartar o les van emetre votants que no són elegibles.",
+                },
+                copyHash: "Copiar el hash del segell",
+                copied: "Hash del segell copiat",
+                copyError: "No s'ha pogut copiar el hash del segell",
+                notYet: "Encara no",
+                openRecord: "Obrir l'acta de segellat de {{area}}",
+                downloadRecord: "Descarregar l'acta de segellat de {{area}}",
+                recordRestricted:
+                    "Restringida: demaneu-la a un administrador que pugui descarregar documents.",
+                recordError: "No s'ha pogut descarregar l'acta de segellat. Torneu-ho a provar.",
+                recordMissing:
+                    "Falta el document de l'acta de segellat: notifiqueu-ho com a incidència.",
+                beforeClose: "L'urna de cada àrea se segella quan es tanca la votació.",
+                notStarted:
+                    "La votació encara no s'ha obert. L'urna de cada àrea se segella quan es tanca la votació.",
+                openOn: "La votació està oberta a: {{channels}}. L'urna de cada àrea se segella quan es tanca la votació.",
+                paused: "La votació està en pausa. L'urna de cada àrea se segella quan es tanca la votació.",
+                holding_one:
+                    "{{channels}} està habilitat i no s'ha tancat: atureu-lo per segellar les urnes.",
+                holding_other:
+                    "{{channels}} estan habilitats i no s'han tancat: atureu-los per segellar les urnes.",
+                sealingNow: "La votació s'ha tancat a les {{closed}}. S'estan segellant les urnes.",
+                sealingPastGrace:
+                    "La votació s'ha tancat a les {{closed}}. El període de gràcia ha acabat a les {{deadline}}; s'estan segellant les urnes.",
+                why: {
+                    due: "S'està segellant: pot trigar fins a un minut.",
+                    channelOpen:
+                        "{{channel}} continua habilitat i no s'ha tancat: atureu-lo per segellar l'urna.",
+                    channelNotEnabled:
+                        "{{channel}} no està tancat ni habilitat en aquesta elecció: atureu-lo per segellar l'urna.",
+                    channelHasBallots:
+                        "{{channel}} té paperetes en aquesta urna i no s'ha tancat: atureu-lo per segellar l'urna.",
+                    datafixVotes_one:
+                        "Hi ha {{count}} vot en curs a Datafix: l'urna se segellarà quan es resolgui.",
+                    datafixVotes_other:
+                        "Hi ha {{count}} vots en curs a Datafix: l'urna se segellarà quan es resolguin.",
+                    stale: "Últim intent a les {{time}}: és possible que el segellador no s'estigui executant. Comproveu Beat i el treballador de segellat.",
+                    notTried:
+                        "Encara no s'ha intentat: és possible que el segellador no s'estigui executant. Comproveu Beat i el treballador de segellat.",
+                    errorCategory: {
+                        board: "L'últim intent no ha pogut accedir al tauler d'anuncis; es torna a intentar cada minut.",
+                        census: "L'últim intent no ha pogut llegir el cens de votants; es torna a intentar cada minut.",
+                        keystore:
+                            "L'últim intent no ha pogut obtenir la clau de signatura; es torna a intentar cada minut.",
+                        storage:
+                            "L'últim intent no ha pogut pujar l'acta de segellat a l'emmagatzematge de fitxers; es torna a intentar cada minut.",
+                        settings:
+                            "L'últim intent no ha pogut llegir la configuració de l'elecció; es torna a intentar cada minut.",
+                        other: "L'últim intent ha fallat; es torna a intentar cada minut. El registre del servei en conté els detalls.",
+                        ballots:
+                            "L'últim intent ha trobat una papereta que encara no es pot llegir o que encara està en curs; es torna a intentar cada minut.",
+                        database:
+                            "L'últim intent no s'ha pogut completar a la base de dades; es torna a intentar cada minut.",
+                    },
+                },
+                failure: {
+                    ballotIdMismatch: "Una papereta no coincideix amb el seu ID de papereta.",
+                    missingContent: "Una papereta no té contingut o no té ID de papereta.",
+                    unreadable: "No es pot llegir una papereta.",
+                    inProgress: "Una papereta encara està en curs.",
+                    alreadyOnBoard: "Ja hi ha un segell d'aquesta urna al tauler d'anuncis.",
+                    noBoard: "L'esdeveniment electoral no té tauler d'anuncis.",
+                    unknownChannel: "Una papereta té un canal de votació desconegut.",
+                },
+                incident: {
+                    title_one: "{{count}} urna no s'ha pogut segellar",
+                    title_other: "{{count}} urnes no s'han pogut segellar",
+                    body: "És una incidència: cadascuna d'aquestes urnes continua bloquejada i no es pot incloure en el recompte. Seguiu el procediment per a un segellat fallit.",
+                    line: "{{election}}, {{area}}: {{reason}}",
+                },
+            },
             ipAddress: {
                 emptyState: "Encara no hi ha vots.",
                 title: "IP Addresses",
@@ -674,6 +804,41 @@ const catalanTranslation: TranslationType = {
                     options: {
                         "locked-down": "Confinat",
                         "not-locked-down": "No Confinat",
+                    },
+                },
+                ballotBoxSealPolicy: {
+                    policyLabel: "Política de segellat d'urnes",
+                    helperText:
+                        "Quan es tanca la votació, l'urna de cada àrea se segella: un hash signat de les seves paperetes es publica al tauler d'anuncis, no es pot afegir, canviar ni esborrar cap papereta, i la votació no pot tornar a començar.",
+                    locked: "No es pot canviar un cop s'ha obert la votació.",
+                    options: {
+                        "seal-at-close": "Segellar en tancar",
+                        "do-not-seal": "No segellar",
+                    },
+                    checking: "Comprovant si la votació s'ha obert…",
+                    lockedUnknown:
+                        "Bloquejada: no s'han pogut llegir les eleccions, així que no se sap si la votació s'ha obert.",
+                    lockedOpened: "Bloquejada: la votació s'ha obert a {{names}}.",
+                    lockedEvent:
+                        "Bloquejada: la votació s'ha obert en aquest esdeveniment electoral.",
+                    refused:
+                        "La Política de segellat d'urnes no es pot canviar un cop s'ha obert la votació.",
+                    settingLocked: "Amb «Segellar en tancar», el segell depèn d'aquesta opció.",
+                    settingRefused:
+                        "Aquesta opció no es pot canviar un cop s'ha obert la votació: amb «Segellar en tancar», el segell en depèn.",
+                    boardRefused:
+                        "El tauler d'anuncis de l'esdeveniment electoral no pot canviar un cop s'ha obert la votació: amb «Segellar en tancar», els segells s'hi publiquen.",
+                },
+                ballotBoxSealRecordPolicy: {
+                    policyLabel: "Acta de segellat d'urnes",
+                    options: {
+                        restricted: "Restringida",
+                        public: "Pública",
+                    },
+                    help: {
+                        restricted:
+                            "Només els administradors la poden descarregar; compartiu-la amb els observadors.",
+                        public: "Qualsevol persona amb els identificadors de l'esdeveniment la pot descarregar, sense iniciar sessió; mostra com ha comptat cada papereta.",
                     },
                 },
                 decodedBallots: {
@@ -1969,6 +2134,8 @@ const catalanTranslation: TranslationType = {
                         archive: "Estàs segur de que vols arxivar aquest element?",
                         unarchive: "Estàs segur de que vols desarxivar aquest element?",
                         delete: "Estàs segur de que vols eliminar aquest element?",
+                        sealsUnknown:
+                            "No s'han pogut comprovar els segells de les urnes: si té urnes segellades, l'esborrat es rebutjarà.",
                     },
                     notification: {
                         success: {
@@ -1981,6 +2148,12 @@ const catalanTranslation: TranslationType = {
                             archive: "Error intentant arxivar aquest element",
                             unarchive: "Error intentant desarxivar aquest element",
                             delete: "Error intentant eliminar aquest element",
+                            deleteSealedElection:
+                                "Aquesta elecció té urnes segellades i no es pot esborrar. En lloc d'això, arxiveu el seu esdeveniment electoral.",
+                            deleteSealedEvent:
+                                "Aquest esdeveniment electoral té urnes segellades i no es pot esborrar. En lloc d'això, arxiveu-lo.",
+                            deleteMaybeSealed:
+                                "Error intentant esborrar aquest element. Si té urnes segellades, no es pot esborrar.",
                         },
                     },
                 },
@@ -2406,12 +2579,39 @@ const catalanTranslation: TranslationType = {
             generalInfoTitle: "Informació General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat d'importació del fragment de clau",
+            ballotBoxes: {
+                unavailable: "Segells no disponibles",
+                sealed: "{{sealed}} de {{total}} segellades",
+                publishing: "Segellades, {{published}} de {{total}} al tauler d'anuncis",
+                sealing: "Es segellen a les {{time}}",
+                notSealed: "No segellades",
+                help: "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i els seus segells són al tauler d'anuncis.",
+                failed: "No segellades: incidència",
+                overdue: "Segellat endarrerit",
+                blocked: "{{name}}: {{reason}}",
+                reason: {
+                    "not-sealed":
+                        "la votació no s'ha tancat, així que les seves urnes encara no tenen segells",
+                    "sealing": "les seves urnes se segellen quan acaba el període de gràcia",
+                    "overdue":
+                        "les seves urnes han superat el termini i encara no estan segellades (vegeu el seu Tauler de Control)",
+                    "publishing":
+                        "alguns dels seus segells encara s'estan publicant al tauler d'anuncis",
+                    "failed":
+                        "una urna no s'ha pogut segellar, és una incidència (vegeu el seu Tauler de Control)",
+                    "unavailable": "no s'han pogut llegir els segells de les seves urnes",
+                },
+            },
             eligibility: {
+                ballotBoxesUnavailable:
+                    "No s'han pogut llegir els segells de les urnes d'una elecció seleccionada, així que encara no es pot incloure en el recompte. Recarregueu la pàgina per tornar-ho a provar.",
                 selectElection: "Selecciona almenys una elecció.",
                 publishElection: "Publica cada elecció seleccionada abans de crear-ne el recompte.",
                 tallyDisallowed: "El recompte està deshabilitat per a una elecció seleccionada.",
                 endVoting:
                     "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
+                sealBallotBoxes:
+                    "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i els seus segells són al tauler d'anuncis.",
             },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
@@ -2473,6 +2673,7 @@ const catalanTranslation: TranslationType = {
                 },
             },
             table: {
+                ballotBoxes: "Urnes",
                 elections: "Eleccions",
                 selected: "Seleccionades",
                 status: "Estat",
@@ -2620,6 +2821,13 @@ const catalanTranslation: TranslationType = {
             forbidden: {
                 header: "No es pot publicar fins que s'hagi completat la cerimònia de claus.",
             },
+            skippedElections: {
+                dismiss: "Descartar",
+                title: "Algunes eleccions continuen tancades",
+                ballotBoxSealPolicy:
+                    "{{name}} continua tancada: la seva votació s'ha tancat i «Segellar en tancar» fa que el tancament sigui definitiu.",
+                other: "{{name}} s'ha deixat com estava ({{reason}}).",
+            },
             dialog: {
                 title: "Confirmar Acció",
                 info: "Has fet clic en una acció sensible, per la qual cosa necessitem que la confirmis per poder continuar.",
@@ -2629,6 +2837,18 @@ const catalanTranslation: TranslationType = {
                     "Està a punt de començar el període de votació. Està segur que vol continuar?",
                 stopInfo:
                     "Està a punt de detenir el període de votació. Està segur que vol continuar?",
+                stopSeal:
+                    "Esteu a punt de detenir la votació a {{name}}. Llavors se segellaran les seves urnes: no es podrà afegir, canviar ni esborrar cap papereta, i la votació no podrà tornar a començar. Esteu segur que voleu continuar?",
+                stopSealEvent:
+                    "Esteu a punt de detenir la votació a totes les eleccions. Llavors se segellaran les seves urnes: no es podrà afegir, canviar ni esborrar cap papereta, i la votació no podrà tornar a començar. Esteu segur que voleu continuar?",
+                startSealNote:
+                    "Amb «Segellar en tancar», la votació tancada continua tancada: les eleccions amb la votació tancada no s'obriran.",
+                channel: {
+                    ONLINE: "En línia",
+                    KIOSK: "Quiosc",
+                    EARLY_VOTING: "Votació anticipada",
+                    TELEPHONE: "Telèfon",
+                },
                 kioskStopInfo:
                     "Esteu a punt d'aturar el període de votació del quiosc. Esteu segur que voleu continuar?",
                 pauseInfo:
@@ -2645,6 +2865,61 @@ const catalanTranslation: TranslationType = {
                 diff: "Renderitzar tots els canvis podria fer que la pàgina no respongui. Esteu segur que voleu continuar?",
                 confirmation:
                     "L'acció que esteu a punt de realitzar és sensible i requereix confirmació. Introduïu la vostra contrasenya per continuar amb {{action}}.",
+                stopSealNotYet:
+                    "Esteu a punt de detenir el període de votació. {{holding}} Esteu segur que voleu continuar?",
+                sealHolding_one:
+                    "Amb «Segellar en tancar», les seves urnes se segellen quan tots els canals habilitats estan tancats: {{channels}} continua habilitat i no s'ha tancat.",
+                sealHolding_other:
+                    "Amb «Segellar en tancar», les seves urnes se segellen quan tots els canals habilitats estan tancats: {{channels}} continuen habilitats i no s'han tancat.",
+                sealNotEnabled:
+                    "{{channel}} no està tancat ni habilitat en aquesta elecció: atureu-lo per segellar les urnes.",
+                sealNotEnabledPost:
+                    "A {{post}}, {{channel}} no està tancat ni habilitat: atureu-lo en aquesta elecció per segellar les seves urnes.",
+                sealNoChannel:
+                    "Cap canal no està habilitat en aquesta elecció i cap no ha estat obert, així que les seves urnes no se segellen.",
+                stopNeverOpened_one: "{{channels}} no s'ha obert mai: si l'atureu, ja no s'obrirà.",
+                stopNeverOpened_other:
+                    "{{channels}} no s'han obert mai: si els atureu, ja no s'obriran.",
+                stopSealGrace_one:
+                    "Esteu a punt de detenir la votació a {{name}}. Les seves urnes se segellaran quan acabi el període de gràcia, {{count}} minut després: a partir de llavors no es podrà afegir, canviar ni esborrar cap papereta. La votació no podrà tornar a començar. Esteu segur que voleu continuar?",
+                stopSealGrace_other:
+                    "Esteu a punt de detenir la votació a {{name}}. Les seves urnes se segellaran quan acabi el període de gràcia, {{count}} minuts després: a partir de llavors no es podrà afegir, canviar ni esborrar cap papereta. La votació no podrà tornar a començar. Esteu segur que voleu continuar?",
+                stopSealEventGrace_one:
+                    "Esteu a punt de detenir la votació a totes les eleccions. Les seves urnes se segellaran quan acabi el període de gràcia de cada elecció, fins a {{count}} minut després: a partir de llavors no es podrà afegir, canviar ni esborrar cap papereta. La votació no podrà tornar a començar. Esteu segur que voleu continuar?",
+                stopSealEventGrace_other:
+                    "Esteu a punt de detenir la votació a totes les eleccions. Les seves urnes se segellaran quan acabi el període de gràcia de cada elecció, fins a {{count}} minuts després: a partir de llavors no es podrà afegir, canviar ni esborrar cap papereta. La votació no podrà tornar a començar. Esteu segur que voleu continuar?",
+                stopSealEventSome:
+                    "Esteu a punt de detenir la votació a totes les eleccions. {{sealed}} {{holding}} Esteu segur que voleu continuar?",
+                sealedNowPart:
+                    "Llavors se segellaran les urnes de {{names}}: no es podrà afegir, canviar ni esborrar cap papereta, i la votació no hi podrà tornar a començar.",
+                sealedGracePart_one:
+                    "Les urnes de {{names}} se segellaran quan acabi el seu període de gràcia, fins a {{count}} minut després.",
+                sealedGracePart_other:
+                    "Les urnes de {{names}} se segellaran quan acabi el seu període de gràcia, fins a {{count}} minuts després.",
+                holdingEventPart_one:
+                    "{{names}} manté un altre canal habilitat i sense tancar: les seves urnes se segellaran quan aquest canal es tanqui.",
+                holdingEventPart_other:
+                    "{{names}} mantenen un altre canal habilitat i sense tancar: les seves urnes se segellaran quan aquests canals es tanquin.",
+                noChannelEventPart_one:
+                    "{{names}} no habilita cap canal i cap no hi ha estat obert: les seves urnes no se segellen.",
+                noChannelEventPart_other:
+                    "{{names}} no habiliten cap canal i cap no hi ha estat obert: les seves urnes no se segellen.",
+                startSealNoteList:
+                    "Amb «Segellar en tancar», la votació tancada continua tancada: {{items}}.",
+                startKeptChannels_one: "{{post}}: {{channels}} continua tancat",
+                startKeptChannels_other: "{{post}}: {{channels}} continuen tancats",
+                startKeptSealed:
+                    "{{post}} continua tancat, perquè les seves urnes estan segellades",
+                startNotEnabledList:
+                    "Amb «Segellar en tancar», un inici obre un canal només als Posts que l'habiliten: {{items}}.",
+                startNotEnabledChannels_one:
+                    "{{post}}: {{channels}} no hi està habilitat i continua No iniciat",
+                startNotEnabledChannels_other:
+                    "{{post}}: {{channels}} no hi estan habilitats i continuen No iniciats",
+                stopNeverOpenedPosts_one:
+                    "{{names}} no s'ha obert mai: detenir-lo el tanca i segella les seves urnes buides.",
+                stopNeverOpenedPosts_other:
+                    "{{names}} no s'han obert mai: detenir-los els tanca i segella les seves urnes buides.",
             },
             label: {
                 current: "Actual",
@@ -2656,6 +2931,14 @@ const catalanTranslation: TranslationType = {
                 generated: "Papereta generada",
                 published: "Papereta publicada",
                 change_status: "Votació canviada d'estat",
+            },
+            sealRefusals: {
+                startAgain:
+                    "La votació no pot tornar a començar: amb «Segellar en tancar», la votació que s'ha tancat continua tancada i les seves urnes estan segellades.",
+                startDisabled:
+                    "«Començar el període de votació» no està disponible: les urnes d'aquesta elecció estan segellades o s'estan segellant, i amb «Segellar en tancar» la votació tancada continua tancada.",
+                closedIsFinal:
+                    "La votació tancada no pot canviar: amb «Segellar en tancar», la votació tancada continua tancada.",
             },
         },
         emailEditor: {
@@ -4061,6 +4344,8 @@ const catalanTranslation: TranslationType = {
                     appliesTo: "Cada $t(signing.terms.post)",
                     description:
                         "S'inicia a Publicar amb Detenir el període de votació. Tanca la votació al $t(signing.terms.post); les signatures de tancament es conserven a la seva acta.",
+                    descriptionSealed:
+                        "S'inicia a Publicar amb Detenir el període de votació. Tanca la votació al $t(signing.terms.post). Quan tots els canals estan tancats, les seves urnes se segellen, després del període de gràcia si n'hi ha: no es pot afegir, canviar ni esborrar cap papereta, i la votació no pot tornar a començar. Les signatures de tancament es conserven a la seva acta.",
                 },
                 "generate-election-returns": {
                     label: "Generar actes electorals",

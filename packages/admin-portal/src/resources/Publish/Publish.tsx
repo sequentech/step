@@ -24,7 +24,7 @@ import {IKeysCeremonyLog as ITaskLog} from "@/services/KeyCeremony"
 import {
     PublishBallotMutation,
     Sequent_Backend_Election,
-    UpdateEventVotingStatusOutput,
+    UpdateEventVotingStatusMutation,
     Sequent_Backend_Election_Event,
     UpdateElectionVotingStatusOutput,
     GenerateBallotPublicationMutation,
@@ -38,6 +38,8 @@ import {
 import {PublishList} from "./PublishList"
 import {PublishGenerate} from "./PublishGenerate"
 import {UPDATE_EVENT_VOTING_STATUS} from "@/queries/UpdateEventVotingStatus"
+import {type ISkippedElection, SkippedElectionsAlert} from "./SkippedElectionsAlert"
+import {sealErrorText} from "@/services/ballotBoxSealErrors"
 import {UPDATE_ELECTION_VOTING_STATUS} from "@/queries/UpdateElectionVotingStatus"
 import {IPermissions} from "@/types/keycloak"
 import {AuthContext} from "@/providers/AuthContextProvider"
@@ -88,6 +90,8 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         const [tenantId] = useTenantStore()
         const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.List)
         const [changingStatus, setChangingStatus] = useState<boolean>(false)
+        // Elections the last event-wide change left as they were, with why.
+        const [skippedElections, setSkippedElections] = useState<ISkippedElection[]>([])
         const [publishStatus, setPublishStatus] = useState<PublishStatus>(PublishStatus.Void)
         const [open, setOpen] = React.useState(false)
         const [ballotPublicationId, setBallotPublicationId] = useState<string | Identifier | null>(
@@ -122,7 +126,7 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             GENERATE_BALLOT_PUBLICATION
         )
         const [updateStatusEvent, {error: updateStatusEventError}] =
-            useMutation<UpdateEventVotingStatusOutput>(UPDATE_EVENT_VOTING_STATUS)
+            useMutation<UpdateEventVotingStatusMutation>(UPDATE_EVENT_VOTING_STATUS)
         const [updateStatusElection] = useMutation<{
             update_election_voting_status?: UpdateElectionVotingStatusOutput | null
         }>(UPDATE_ELECTION_VOTING_STATUS)
@@ -362,9 +366,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
             } catch (e) {
                 setChangingStatus(false)
-                notify(getGraphQLActionErrorMessage(e) ?? t("publish.dialog.error_status"), {
-                    type: "error",
-                })
+                // A known refusal (e.g. Seal at close: voting can't start again) in the admin's language.
+                notify(
+                    sealErrorText(t, e) ??
+                        getGraphQLActionErrorMessage(e) ??
+                        t("publish.dialog.error_status"),
+                    {type: "error"}
+                )
             }
         }
 
@@ -374,13 +382,21 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
         ) => {
             try {
                 setChangingStatus(true)
-                await updateStatusEvent({
+                setSkippedElections([])
+                const {data} = await updateStatusEvent({
                     variables: {
                         electionEventId,
                         votingStatus: electionEventStatus,
                         votingChannel,
                     },
                 })
+                setSkippedElections(
+                    (data?.update_event_voting_status?.skipped_elections ?? []).map((election) => ({
+                        election_id: String(election.election_id),
+                        election_name: election.election_name,
+                        reason: election.reason,
+                    }))
+                )
                 handleSetPublishStatus(MAP_ELECTION_EVENT_STATUS_PUBLISH[electionEventStatus])
                 setChangingStatus(false)
                 refresh()
@@ -390,9 +406,13 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                 })
             } catch (e) {
                 setChangingStatus(false)
-                notify(getGraphQLActionErrorMessage(e) ?? t("publish.dialog.error_status"), {
-                    type: "error",
-                })
+                // A known refusal (e.g. Seal at close: voting can't start again) in the admin's language.
+                notify(
+                    sealErrorText(t, e) ??
+                        getGraphQLActionErrorMessage(e) ??
+                        t("publish.dialog.error_status"),
+                    {type: "error"}
+                )
             }
         }
 
@@ -654,6 +674,12 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
                         }
                         onClose={() => setChooseInitializationCountry(false)}
                         onGenerate={generateInitialization}
+                    />
+                ) : null}
+                {viewMode === ViewMode.List && type === EPublishType.Event ? (
+                    <SkippedElectionsAlert
+                        skipped={skippedElections}
+                        onClose={() => setSkippedElections([])}
                     />
                 ) : null}
                 {viewMode === ViewMode.List && type === EPublishType.Election && electionId ? (

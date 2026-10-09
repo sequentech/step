@@ -58,6 +58,8 @@ pub enum ErrorCode {
     LockedDown,
     /// A sort key that isn't a column (the log list's range filter keys).
     InvalidOrderBy,
+    /// The document's row, or its stored file, is gone (fetchDocument).
+    DocumentNotFound,
     // Add any other needed error codes
 }
 

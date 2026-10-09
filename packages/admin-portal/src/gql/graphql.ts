@@ -1464,6 +1464,13 @@ export type SigningRuleCapacityOutput = {
   waiting: Scalars['Int']['output'];
 };
 
+export type SkippedElection = {
+  __typename?: 'SkippedElection';
+  election_id: Scalars['uuid']['output'];
+  election_name?: Maybe<Scalars['String']['output']>;
+  reason: Scalars['String']['output'];
+};
+
 export type StartTallyOutput = {
   __typename?: 'StartTallyOutput';
   tally_session_id: Scalars['uuid']['output'];
@@ -1578,6 +1585,7 @@ export type UpdateElectionVotingStatusOutput = {
 export type UpdateEventVotingStatusOutput = {
   __typename?: 'UpdateEventVotingStatusOutput';
   election_event_id?: Maybe<Scalars['uuid']['output']>;
+  skipped_elections?: Maybe<Array<SkippedElection>>;
 };
 
 export type UpdateRealmAttributesOutput = {
@@ -1817,6 +1825,10 @@ export type Mutation_Root = {
   delete_sequent_backend_area_contest?: Maybe<Sequent_Backend_Area_Contest_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.area_contest" */
   delete_sequent_backend_area_contest_by_pk?: Maybe<Sequent_Backend_Area_Contest>;
+  /** delete data from the table: "sequent_backend.ballot_box_seal" */
+  delete_sequent_backend_ballot_box_seal?: Maybe<Sequent_Backend_Ballot_Box_Seal_Mutation_Response>;
+  /** delete single row from the table: "sequent_backend.ballot_box_seal" */
+  delete_sequent_backend_ballot_box_seal_by_pk?: Maybe<Sequent_Backend_Ballot_Box_Seal>;
   /** delete data from the table: "sequent_backend.ballot_publication" */
   delete_sequent_backend_ballot_publication?: Maybe<Sequent_Backend_Ballot_Publication_Mutation_Response>;
   /** delete single row from the table: "sequent_backend.ballot_publication" */
@@ -2069,6 +2081,10 @@ export type Mutation_Root = {
   insert_sequent_backend_area_contest_one?: Maybe<Sequent_Backend_Area_Contest>;
   /** insert a single row into the table: "sequent_backend.area" */
   insert_sequent_backend_area_one?: Maybe<Sequent_Backend_Area>;
+  /** insert data into the table: "sequent_backend.ballot_box_seal" */
+  insert_sequent_backend_ballot_box_seal?: Maybe<Sequent_Backend_Ballot_Box_Seal_Mutation_Response>;
+  /** insert a single row into the table: "sequent_backend.ballot_box_seal" */
+  insert_sequent_backend_ballot_box_seal_one?: Maybe<Sequent_Backend_Ballot_Box_Seal>;
   /** insert data into the table: "sequent_backend.ballot_publication" */
   insert_sequent_backend_ballot_publication?: Maybe<Sequent_Backend_Ballot_Publication_Mutation_Response>;
   /** insert a single row into the table: "sequent_backend.ballot_publication" */
@@ -2342,6 +2358,12 @@ export type Mutation_Root = {
   update_sequent_backend_area_contest_many?: Maybe<Array<Maybe<Sequent_Backend_Area_Contest_Mutation_Response>>>;
   /** update multiples rows of table: "sequent_backend.area" */
   update_sequent_backend_area_many?: Maybe<Array<Maybe<Sequent_Backend_Area_Mutation_Response>>>;
+  /** update data of the table: "sequent_backend.ballot_box_seal" */
+  update_sequent_backend_ballot_box_seal?: Maybe<Sequent_Backend_Ballot_Box_Seal_Mutation_Response>;
+  /** update single row of the table: "sequent_backend.ballot_box_seal" */
+  update_sequent_backend_ballot_box_seal_by_pk?: Maybe<Sequent_Backend_Ballot_Box_Seal>;
+  /** update multiples rows of table: "sequent_backend.ballot_box_seal" */
+  update_sequent_backend_ballot_box_seal_many?: Maybe<Array<Maybe<Sequent_Backend_Ballot_Box_Seal_Mutation_Response>>>;
   /** update data of the table: "sequent_backend.ballot_publication" */
   update_sequent_backend_ballot_publication?: Maybe<Sequent_Backend_Ballot_Publication_Mutation_Response>;
   /** update single row of the table: "sequent_backend.ballot_publication" */
@@ -2872,6 +2894,18 @@ export type Mutation_RootDelete_Sequent_Backend_Area_ContestArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Area_Contest_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Ballot_Box_SealArgs = {
+  where: Sequent_Backend_Ballot_Box_Seal_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDelete_Sequent_Backend_Ballot_Box_Seal_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -3875,6 +3909,20 @@ export type Mutation_RootInsert_Sequent_Backend_Area_Contest_OneArgs = {
 export type Mutation_RootInsert_Sequent_Backend_Area_OneArgs = {
   object: Sequent_Backend_Area_Insert_Input;
   on_conflict?: InputMaybe<Sequent_Backend_Area_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Ballot_Box_SealArgs = {
+  objects: Array<Sequent_Backend_Ballot_Box_Seal_Insert_Input>;
+  on_conflict?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsert_Sequent_Backend_Ballot_Box_Seal_OneArgs = {
+  object: Sequent_Backend_Ballot_Box_Seal_Insert_Input;
+  on_conflict?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_On_Conflict>;
 };
 
 
@@ -4978,6 +5026,38 @@ export type Mutation_RootUpdate_Sequent_Backend_Area_Contest_ManyArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_Area_ManyArgs = {
   updates: Array<Sequent_Backend_Area_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Ballot_Box_SealArgs = {
+  _append?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Inc_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Set_Input>;
+  where: Sequent_Backend_Ballot_Box_Seal_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Ballot_Box_Seal_By_PkArgs = {
+  _append?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Append_Input>;
+  _delete_at_path?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_Key_Input>;
+  _inc?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Inc_Input>;
+  _prepend?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Prepend_Input>;
+  _set?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Set_Input>;
+  pk_columns: Sequent_Backend_Ballot_Box_Seal_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Sequent_Backend_Ballot_Box_Seal_ManyArgs = {
+  updates: Array<Sequent_Backend_Ballot_Box_Seal_Updates>;
 };
 
 
@@ -6470,6 +6550,12 @@ export type Query_Root = {
   sequent_backend_area_contest_aggregate: Sequent_Backend_Area_Contest_Aggregate;
   /** fetch data from the table: "sequent_backend.area_contest" using primary key columns */
   sequent_backend_area_contest_by_pk?: Maybe<Sequent_Backend_Area_Contest>;
+  /** fetch data from the table: "sequent_backend.ballot_box_seal" */
+  sequent_backend_ballot_box_seal: Array<Sequent_Backend_Ballot_Box_Seal>;
+  /** fetch aggregated fields from the table: "sequent_backend.ballot_box_seal" */
+  sequent_backend_ballot_box_seal_aggregate: Sequent_Backend_Ballot_Box_Seal_Aggregate;
+  /** fetch data from the table: "sequent_backend.ballot_box_seal" using primary key columns */
+  sequent_backend_ballot_box_seal_by_pk?: Maybe<Sequent_Backend_Ballot_Box_Seal>;
   /** fetch data from the table: "sequent_backend.ballot_publication" */
   sequent_backend_ballot_publication: Array<Sequent_Backend_Ballot_Publication>;
   /** fetch aggregated fields from the table: "sequent_backend.ballot_publication" */
@@ -7063,6 +7149,29 @@ export type Query_RootSequent_Backend_Area_Contest_AggregateArgs = {
 
 
 export type Query_RootSequent_Backend_Area_Contest_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootSequent_Backend_Ballot_Box_SealArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Ballot_Box_Seal_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>;
+};
+
+
+export type Query_RootSequent_Backend_Ballot_Box_Seal_By_PkArgs = {
   id: Scalars['uuid']['input'];
 };
 
@@ -9117,6 +9226,575 @@ export type Sequent_Backend_Area_Updates = {
   _set?: InputMaybe<Sequent_Backend_Area_Set_Input>;
   /** filter the rows which have to be updated */
   where: Sequent_Backend_Area_Bool_Exp;
+};
+
+/** columns and relationships of "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal = {
+  __typename?: 'sequent_backend_ballot_box_seal';
+  /** An object relationship */
+  area?: Maybe<Sequent_Backend_Area>;
+  area_id: Scalars['uuid']['output'];
+  area_name?: Maybe<Scalars['String']['output']>;
+  ballots_counted?: Maybe<Scalars['bigint']['output']>;
+  ballots_in_box?: Maybe<Scalars['bigint']['output']>;
+  close_request_id?: Maybe<Scalars['uuid']['output']>;
+  closed_at: Scalars['timestamptz']['output'];
+  closed_by: Scalars['jsonb']['output'];
+  created_at: Scalars['timestamptz']['output'];
+  election_event_id: Scalars['uuid']['output'];
+  election_id: Scalars['uuid']['output'];
+  election_name?: Maybe<Scalars['String']['output']>;
+  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
+  failure_reason?: Maybe<Scalars['String']['output']>;
+  grace_deadline: Scalars['timestamptz']['output'];
+  id: Scalars['uuid']['output'];
+  last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  manifest?: Maybe<Scalars['bytea']['output']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
+  public_document_id?: Maybe<Scalars['uuid']['output']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
+  public_path?: Maybe<Scalars['String']['output']>;
+  published_at?: Maybe<Scalars['timestamptz']['output']>;
+  seal_hash?: Maybe<Scalars['String']['output']>;
+  sealed_at?: Maybe<Scalars['timestamptz']['output']>;
+  signed_message?: Maybe<Scalars['bytea']['output']>;
+  status: Scalars['String']['output'];
+  tenant_id: Scalars['uuid']['output'];
+  waiting_reason?: Maybe<Scalars['String']['output']>;
+};
+
+
+/** columns and relationships of "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_SealClosed_ByArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregated selection of "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Aggregate = {
+  __typename?: 'sequent_backend_ballot_box_seal_aggregate';
+  aggregate?: Maybe<Sequent_Backend_Ballot_Box_Seal_Aggregate_Fields>;
+  nodes: Array<Sequent_Backend_Ballot_Box_Seal>;
+};
+
+/** aggregate fields of "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Aggregate_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_aggregate_fields';
+  avg?: Maybe<Sequent_Backend_Ballot_Box_Seal_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<Sequent_Backend_Ballot_Box_Seal_Max_Fields>;
+  min?: Maybe<Sequent_Backend_Ballot_Box_Seal_Min_Fields>;
+  stddev?: Maybe<Sequent_Backend_Ballot_Box_Seal_Stddev_Fields>;
+  stddev_pop?: Maybe<Sequent_Backend_Ballot_Box_Seal_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Sequent_Backend_Ballot_Box_Seal_Stddev_Samp_Fields>;
+  sum?: Maybe<Sequent_Backend_Ballot_Box_Seal_Sum_Fields>;
+  var_pop?: Maybe<Sequent_Backend_Ballot_Box_Seal_Var_Pop_Fields>;
+  var_samp?: Maybe<Sequent_Backend_Ballot_Box_Seal_Var_Samp_Fields>;
+  variance?: Maybe<Sequent_Backend_Ballot_Box_Seal_Variance_Fields>;
+};
+
+
+/** aggregate fields of "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Ballot_Box_Seal_Append_Input = {
+  closed_by?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** aggregate avg on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Avg_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_avg_fields';
+  ballots_counted?: Maybe<Scalars['Float']['output']>;
+  ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "sequent_backend.ballot_box_seal". All fields are combined with a logical 'AND'. */
+export type Sequent_Backend_Ballot_Box_Seal_Bool_Exp = {
+  _and?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>>;
+  _not?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>;
+  _or?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>>;
+  area?: InputMaybe<Sequent_Backend_Area_Bool_Exp>;
+  area_id?: InputMaybe<Uuid_Comparison_Exp>;
+  area_name?: InputMaybe<String_Comparison_Exp>;
+  ballots_counted?: InputMaybe<Bigint_Comparison_Exp>;
+  ballots_in_box?: InputMaybe<Bigint_Comparison_Exp>;
+  close_request_id?: InputMaybe<Uuid_Comparison_Exp>;
+  closed_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  closed_by?: InputMaybe<Jsonb_Comparison_Exp>;
+  created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
+  election_id?: InputMaybe<Uuid_Comparison_Exp>;
+  election_name?: InputMaybe<String_Comparison_Exp>;
+  failure_posted_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  failure_reason?: InputMaybe<String_Comparison_Exp>;
+  grace_deadline?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  last_attempt_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  log_entry_id?: InputMaybe<Bigint_Comparison_Exp>;
+  manifest?: InputMaybe<Bytea_Comparison_Exp>;
+  public_document_id?: InputMaybe<Uuid_Comparison_Exp>;
+  public_path?: InputMaybe<String_Comparison_Exp>;
+  published_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  seal_hash?: InputMaybe<String_Comparison_Exp>;
+  sealed_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  signed_message?: InputMaybe<Bytea_Comparison_Exp>;
+  status?: InputMaybe<String_Comparison_Exp>;
+  tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
+  waiting_reason?: InputMaybe<String_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "sequent_backend.ballot_box_seal" */
+export enum Sequent_Backend_Ballot_Box_Seal_Constraint {
+  /** unique or primary key constraint on columns "election_id", "area_id", "tenant_id", "election_event_id" */
+  BallotBoxSealBoxKey = 'ballot_box_seal_box_key',
+  /** unique or primary key constraint on columns "id" */
+  BallotBoxSealPkey = 'ballot_box_seal_pkey'
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Sequent_Backend_Ballot_Box_Seal_Delete_At_Path_Input = {
+  closed_by?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Sequent_Backend_Ballot_Box_Seal_Delete_Elem_Input = {
+  closed_by?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Sequent_Backend_Ballot_Box_Seal_Delete_Key_Input = {
+  closed_by?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** input type for incrementing numeric columns in table "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Inc_Input = {
+  ballots_counted?: InputMaybe<Scalars['bigint']['input']>;
+  ballots_in_box?: InputMaybe<Scalars['bigint']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+};
+
+/** input type for inserting data into table "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Insert_Input = {
+  area?: InputMaybe<Sequent_Backend_Area_Obj_Rel_Insert_Input>;
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  area_name?: InputMaybe<Scalars['String']['input']>;
+  ballots_counted?: InputMaybe<Scalars['bigint']['input']>;
+  ballots_in_box?: InputMaybe<Scalars['bigint']['input']>;
+  close_request_id?: InputMaybe<Scalars['uuid']['input']>;
+  closed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  closed_by?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_name?: InputMaybe<Scalars['String']['input']>;
+  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  failure_reason?: InputMaybe<Scalars['String']['input']>;
+  grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+  manifest?: InputMaybe<Scalars['bytea']['input']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
+  public_document_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
+  public_path?: InputMaybe<Scalars['String']['input']>;
+  published_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  seal_hash?: InputMaybe<Scalars['String']['input']>;
+  sealed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  signed_message?: InputMaybe<Scalars['bytea']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  waiting_reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate max on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Max_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_max_fields';
+  area_id?: Maybe<Scalars['uuid']['output']>;
+  area_name?: Maybe<Scalars['String']['output']>;
+  ballots_counted?: Maybe<Scalars['bigint']['output']>;
+  ballots_in_box?: Maybe<Scalars['bigint']['output']>;
+  close_request_id?: Maybe<Scalars['uuid']['output']>;
+  closed_at?: Maybe<Scalars['timestamptz']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  election_name?: Maybe<Scalars['String']['output']>;
+  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
+  failure_reason?: Maybe<Scalars['String']['output']>;
+  grace_deadline?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
+  public_document_id?: Maybe<Scalars['uuid']['output']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
+  public_path?: Maybe<Scalars['String']['output']>;
+  published_at?: Maybe<Scalars['timestamptz']['output']>;
+  seal_hash?: Maybe<Scalars['String']['output']>;
+  sealed_at?: Maybe<Scalars['timestamptz']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  waiting_reason?: Maybe<Scalars['String']['output']>;
+};
+
+/** aggregate min on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Min_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_min_fields';
+  area_id?: Maybe<Scalars['uuid']['output']>;
+  area_name?: Maybe<Scalars['String']['output']>;
+  ballots_counted?: Maybe<Scalars['bigint']['output']>;
+  ballots_in_box?: Maybe<Scalars['bigint']['output']>;
+  close_request_id?: Maybe<Scalars['uuid']['output']>;
+  closed_at?: Maybe<Scalars['timestamptz']['output']>;
+  created_at?: Maybe<Scalars['timestamptz']['output']>;
+  election_event_id?: Maybe<Scalars['uuid']['output']>;
+  election_id?: Maybe<Scalars['uuid']['output']>;
+  election_name?: Maybe<Scalars['String']['output']>;
+  failure_posted_at?: Maybe<Scalars['timestamptz']['output']>;
+  failure_reason?: Maybe<Scalars['String']['output']>;
+  grace_deadline?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  last_attempt_at?: Maybe<Scalars['timestamptz']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
+  public_document_id?: Maybe<Scalars['uuid']['output']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
+  public_path?: Maybe<Scalars['String']['output']>;
+  published_at?: Maybe<Scalars['timestamptz']['output']>;
+  seal_hash?: Maybe<Scalars['String']['output']>;
+  sealed_at?: Maybe<Scalars['timestamptz']['output']>;
+  status?: Maybe<Scalars['String']['output']>;
+  tenant_id?: Maybe<Scalars['uuid']['output']>;
+  waiting_reason?: Maybe<Scalars['String']['output']>;
+};
+
+/** response of any mutation on the table "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Mutation_Response = {
+  __typename?: 'sequent_backend_ballot_box_seal_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Sequent_Backend_Ballot_Box_Seal>;
+};
+
+/** on_conflict condition type for table "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_On_Conflict = {
+  constraint: Sequent_Backend_Ballot_Box_Seal_Constraint;
+  update_columns?: Array<Sequent_Backend_Ballot_Box_Seal_Update_Column>;
+  where?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "sequent_backend.ballot_box_seal". */
+export type Sequent_Backend_Ballot_Box_Seal_Order_By = {
+  area?: InputMaybe<Sequent_Backend_Area_Order_By>;
+  area_id?: InputMaybe<Order_By>;
+  area_name?: InputMaybe<Order_By>;
+  ballots_counted?: InputMaybe<Order_By>;
+  ballots_in_box?: InputMaybe<Order_By>;
+  close_request_id?: InputMaybe<Order_By>;
+  closed_at?: InputMaybe<Order_By>;
+  closed_by?: InputMaybe<Order_By>;
+  created_at?: InputMaybe<Order_By>;
+  election_event_id?: InputMaybe<Order_By>;
+  election_id?: InputMaybe<Order_By>;
+  election_name?: InputMaybe<Order_By>;
+  failure_posted_at?: InputMaybe<Order_By>;
+  failure_reason?: InputMaybe<Order_By>;
+  grace_deadline?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  last_attempt_at?: InputMaybe<Order_By>;
+  log_entry_id?: InputMaybe<Order_By>;
+  manifest?: InputMaybe<Order_By>;
+  public_document_id?: InputMaybe<Order_By>;
+  public_path?: InputMaybe<Order_By>;
+  published_at?: InputMaybe<Order_By>;
+  seal_hash?: InputMaybe<Order_By>;
+  sealed_at?: InputMaybe<Order_By>;
+  signed_message?: InputMaybe<Order_By>;
+  status?: InputMaybe<Order_By>;
+  tenant_id?: InputMaybe<Order_By>;
+  waiting_reason?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: sequent_backend.ballot_box_seal */
+export type Sequent_Backend_Ballot_Box_Seal_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Sequent_Backend_Ballot_Box_Seal_Prepend_Input = {
+  closed_by?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** select columns of table "sequent_backend.ballot_box_seal" */
+export enum Sequent_Backend_Ballot_Box_Seal_Select_Column {
+  /** column name */
+  AreaId = 'area_id',
+  /** column name */
+  AreaName = 'area_name',
+  /** column name */
+  BallotsCounted = 'ballots_counted',
+  /** column name */
+  BallotsInBox = 'ballots_in_box',
+  /** column name */
+  CloseRequestId = 'close_request_id',
+  /** column name */
+  ClosedAt = 'closed_at',
+  /** column name */
+  ClosedBy = 'closed_by',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
+  /** column name */
+  ElectionName = 'election_name',
+  /** column name */
+  FailurePostedAt = 'failure_posted_at',
+  /** column name */
+  FailureReason = 'failure_reason',
+  /** column name */
+  GraceDeadline = 'grace_deadline',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  LastAttemptAt = 'last_attempt_at',
+  /** column name */
+  LogEntryId = 'log_entry_id',
+  /** column name */
+  Manifest = 'manifest',
+  /** column name */
+  PublicDocumentId = 'public_document_id',
+  /** column name */
+  PublicPath = 'public_path',
+  /** column name */
+  PublishedAt = 'published_at',
+  /** column name */
+  SealHash = 'seal_hash',
+  /** column name */
+  SealedAt = 'sealed_at',
+  /** column name */
+  SignedMessage = 'signed_message',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  WaitingReason = 'waiting_reason'
+}
+
+/** input type for updating data in table "sequent_backend.ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Set_Input = {
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  area_name?: InputMaybe<Scalars['String']['input']>;
+  ballots_counted?: InputMaybe<Scalars['bigint']['input']>;
+  ballots_in_box?: InputMaybe<Scalars['bigint']['input']>;
+  close_request_id?: InputMaybe<Scalars['uuid']['input']>;
+  closed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  closed_by?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_name?: InputMaybe<Scalars['String']['input']>;
+  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  failure_reason?: InputMaybe<Scalars['String']['input']>;
+  grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+  manifest?: InputMaybe<Scalars['bytea']['input']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
+  public_document_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
+  public_path?: InputMaybe<Scalars['String']['input']>;
+  published_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  seal_hash?: InputMaybe<Scalars['String']['input']>;
+  sealed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  signed_message?: InputMaybe<Scalars['bytea']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  waiting_reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Stddev_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_stddev_fields';
+  ballots_counted?: Maybe<Scalars['Float']['output']>;
+  ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Stddev_Pop_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_stddev_pop_fields';
+  ballots_counted?: Maybe<Scalars['Float']['output']>;
+  ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Stddev_Samp_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_stddev_samp_fields';
+  ballots_counted?: Maybe<Scalars['Float']['output']>;
+  ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "sequent_backend_ballot_box_seal" */
+export type Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Value_Input = {
+  area_id?: InputMaybe<Scalars['uuid']['input']>;
+  area_name?: InputMaybe<Scalars['String']['input']>;
+  ballots_counted?: InputMaybe<Scalars['bigint']['input']>;
+  ballots_in_box?: InputMaybe<Scalars['bigint']['input']>;
+  close_request_id?: InputMaybe<Scalars['uuid']['input']>;
+  closed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  closed_by?: InputMaybe<Scalars['jsonb']['input']>;
+  created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election_event_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_id?: InputMaybe<Scalars['uuid']['input']>;
+  election_name?: InputMaybe<Scalars['String']['input']>;
+  failure_posted_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  failure_reason?: InputMaybe<Scalars['String']['input']>;
+  grace_deadline?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  last_attempt_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  log_entry_id?: InputMaybe<Scalars['bigint']['input']>;
+  manifest?: InputMaybe<Scalars['bytea']['input']>;
+  /** The seal record's document: public or private, by the event's Seal Record Publication policy. */
+  public_document_id?: InputMaybe<Scalars['uuid']['input']>;
+  /** The seal record's path in the public bucket; NULL for a restricted (private) record. */
+  public_path?: InputMaybe<Scalars['String']['input']>;
+  published_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  seal_hash?: InputMaybe<Scalars['String']['input']>;
+  sealed_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  signed_message?: InputMaybe<Scalars['bytea']['input']>;
+  status?: InputMaybe<Scalars['String']['input']>;
+  tenant_id?: InputMaybe<Scalars['uuid']['input']>;
+  waiting_reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** aggregate sum on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Sum_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_sum_fields';
+  ballots_counted?: Maybe<Scalars['bigint']['output']>;
+  ballots_in_box?: Maybe<Scalars['bigint']['output']>;
+  log_entry_id?: Maybe<Scalars['bigint']['output']>;
+};
+
+/** update columns of table "sequent_backend.ballot_box_seal" */
+export enum Sequent_Backend_Ballot_Box_Seal_Update_Column {
+  /** column name */
+  AreaId = 'area_id',
+  /** column name */
+  AreaName = 'area_name',
+  /** column name */
+  BallotsCounted = 'ballots_counted',
+  /** column name */
+  BallotsInBox = 'ballots_in_box',
+  /** column name */
+  CloseRequestId = 'close_request_id',
+  /** column name */
+  ClosedAt = 'closed_at',
+  /** column name */
+  ClosedBy = 'closed_by',
+  /** column name */
+  CreatedAt = 'created_at',
+  /** column name */
+  ElectionEventId = 'election_event_id',
+  /** column name */
+  ElectionId = 'election_id',
+  /** column name */
+  ElectionName = 'election_name',
+  /** column name */
+  FailurePostedAt = 'failure_posted_at',
+  /** column name */
+  FailureReason = 'failure_reason',
+  /** column name */
+  GraceDeadline = 'grace_deadline',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  LastAttemptAt = 'last_attempt_at',
+  /** column name */
+  LogEntryId = 'log_entry_id',
+  /** column name */
+  Manifest = 'manifest',
+  /** column name */
+  PublicDocumentId = 'public_document_id',
+  /** column name */
+  PublicPath = 'public_path',
+  /** column name */
+  PublishedAt = 'published_at',
+  /** column name */
+  SealHash = 'seal_hash',
+  /** column name */
+  SealedAt = 'sealed_at',
+  /** column name */
+  SignedMessage = 'signed_message',
+  /** column name */
+  Status = 'status',
+  /** column name */
+  TenantId = 'tenant_id',
+  /** column name */
+  WaitingReason = 'waiting_reason'
+}
+
+export type Sequent_Backend_Ballot_Box_Seal_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Delete_Key_Input>;
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Inc_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Prepend_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Sequent_Backend_Ballot_Box_Seal_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Var_Pop_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_var_pop_fields';
+  ballots_counted?: Maybe<Scalars['Float']['output']>;
+  ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Var_Samp_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_var_samp_fields';
+  ballots_counted?: Maybe<Scalars['Float']['output']>;
+  ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Ballot_Box_Seal_Variance_Fields = {
+  __typename?: 'sequent_backend_ballot_box_seal_variance_fields';
+  ballots_counted?: Maybe<Scalars['Float']['output']>;
+  ballots_in_box?: Maybe<Scalars['Float']['output']>;
+  log_entry_id?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "sequent_backend.ballot_publication" */
@@ -27595,6 +28273,14 @@ export type Subscription_Root = {
   sequent_backend_area_contest_stream: Array<Sequent_Backend_Area_Contest>;
   /** fetch data from the table in a streaming manner: "sequent_backend.area" */
   sequent_backend_area_stream: Array<Sequent_Backend_Area>;
+  /** fetch data from the table: "sequent_backend.ballot_box_seal" */
+  sequent_backend_ballot_box_seal: Array<Sequent_Backend_Ballot_Box_Seal>;
+  /** fetch aggregated fields from the table: "sequent_backend.ballot_box_seal" */
+  sequent_backend_ballot_box_seal_aggregate: Sequent_Backend_Ballot_Box_Seal_Aggregate;
+  /** fetch data from the table: "sequent_backend.ballot_box_seal" using primary key columns */
+  sequent_backend_ballot_box_seal_by_pk?: Maybe<Sequent_Backend_Ballot_Box_Seal>;
+  /** fetch data from the table in a streaming manner: "sequent_backend.ballot_box_seal" */
+  sequent_backend_ballot_box_seal_stream: Array<Sequent_Backend_Ballot_Box_Seal>;
   /** fetch data from the table: "sequent_backend.ballot_publication" */
   sequent_backend_ballot_publication: Array<Sequent_Backend_Ballot_Publication>;
   /** fetch aggregated fields from the table: "sequent_backend.ballot_publication" */
@@ -28057,6 +28743,36 @@ export type Subscription_RootSequent_Backend_Area_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<Sequent_Backend_Area_Stream_Cursor_Input>>;
   where?: InputMaybe<Sequent_Backend_Area_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Ballot_Box_SealArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Ballot_Box_Seal_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Sequent_Backend_Ballot_Box_Seal_Order_By>>;
+  where?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>;
+};
+
+
+export type Subscription_RootSequent_Backend_Ballot_Box_Seal_By_PkArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootSequent_Backend_Ballot_Box_Seal_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Sequent_Backend_Ballot_Box_Seal_Stream_Cursor_Input>>;
+  where?: InputMaybe<Sequent_Backend_Ballot_Box_Seal_Bool_Exp>;
 };
 
 
@@ -30148,6 +30864,43 @@ export type Sequent_Backend_Area_ExtendedQueryVariables = Exact<{
 
 export type Sequent_Backend_Area_ExtendedQuery = { __typename?: 'query_root', sequent_backend_area_contest: Array<{ __typename?: 'sequent_backend_area_contest', contest?: { __typename?: 'sequent_backend_contest', id: any, presentation?: any | null } | null }> };
 
+export type GetBallotBoxSealsQueryVariables = Exact<{
+  electionEventId: Scalars['uuid']['input'];
+  electionIds: Array<Scalars['uuid']['input']> | Scalars['uuid']['input'];
+}>;
+
+
+export type GetBallotBoxSealsQuery = { __typename?: 'query_root', sequent_backend_ballot_box_seal: Array<{ __typename?: 'sequent_backend_ballot_box_seal', id: any, election_id: any, area_id: any, status: string, closed_at: any, grace_deadline: any, closed_by: any, sealed_at?: any | null, ballots_in_box?: any | null, ballots_counted?: any | null, seal_hash?: string | null, failure_reason?: string | null, public_document_id?: any | null, public_path?: string | null, published_at?: any | null, last_attempt_at?: any | null, waiting_reason?: string | null, area_name?: string | null, area?: { __typename?: 'sequent_backend_area', id: any, name?: string | null } | null }> };
+
+export type GetEventBallotBoxSealsQueryVariables = Exact<{
+  electionEventId: Scalars['uuid']['input'];
+}>;
+
+
+export type GetEventBallotBoxSealsQuery = { __typename?: 'query_root', sequent_backend_ballot_box_seal: Array<{ __typename?: 'sequent_backend_ballot_box_seal', id: any }> };
+
+export type GetFailedBallotBoxSealsQueryVariables = Exact<{
+  electionEventId: Scalars['uuid']['input'];
+}>;
+
+
+export type GetFailedBallotBoxSealsQuery = { __typename?: 'query_root', sequent_backend_ballot_box_seal: Array<{ __typename?: 'sequent_backend_ballot_box_seal', id: any, election_id: any, area_id: any, area_name?: string | null, election_name?: string | null, failure_reason?: string | null, area?: { __typename?: 'sequent_backend_area', id: any, name?: string | null } | null }> };
+
+export type GetBallotBoxAreasQueryVariables = Exact<{
+  electionEventId: Scalars['uuid']['input'];
+  electionId: Scalars['uuid']['input'];
+}>;
+
+
+export type GetBallotBoxAreasQuery = { __typename?: 'query_root', sequent_backend_ballot_style: Array<{ __typename?: 'sequent_backend_ballot_style', area_id?: any | null }> };
+
+export type GetBallotBoxAreaNamesQueryVariables = Exact<{
+  areaIds: Array<Scalars['uuid']['input']> | Scalars['uuid']['input'];
+}>;
+
+
+export type GetBallotBoxAreaNamesQuery = { __typename?: 'query_root', sequent_backend_area: Array<{ __typename?: 'sequent_backend_area', id: any, name?: string | null }> };
+
 export type GetBallotPublicationChangeMutationVariables = Exact<{
   ballotPublicationId: Scalars['uuid']['input'];
   electionEventId: Scalars['uuid']['input'];
@@ -31153,7 +31906,7 @@ export type UpdateEventVotingStatusMutationVariables = Exact<{
 }>;
 
 
-export type UpdateEventVotingStatusMutation = { __typename?: 'mutation_root', update_event_voting_status?: { __typename?: 'UpdateEventVotingStatusOutput', election_event_id?: any | null } | null };
+export type UpdateEventVotingStatusMutation = { __typename?: 'mutation_root', update_event_voting_status?: { __typename?: 'UpdateEventVotingStatusOutput', election_event_id?: any | null, skipped_elections?: Array<{ __typename?: 'SkippedElection', election_id: any, election_name?: string | null, reason: string }> | null } | null };
 
 export type UpdatePhoneBlacklistEntryMutationVariables = Exact<{
   id: Scalars['uuid']['input'];
@@ -31342,6 +32095,11 @@ export const GetApprovalMatrixDocument = {"kind":"Document","definitions":[{"kin
 export const Get_Area_With_Area_ContestsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"get_area_with_area_contests"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contest"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"presentation"}}]}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<Get_Area_With_Area_ContestsQuery, Get_Area_With_Area_ContestsQueryVariables>;
 export const Sequent_Backend_AreaDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"sequent_backend_area"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1000"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<Sequent_Backend_AreaQuery, Sequent_Backend_AreaQueryVariables>;
 export const Sequent_Backend_Area_ExtendedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"sequent_backend_area_extended"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area_contest"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaId"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contest"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"presentation"}}]}}]}}]}}]} as unknown as DocumentNode<Sequent_Backend_Area_ExtendedQuery, Sequent_Backend_Area_ExtendedQueryVariables>;
+export const GetBallotBoxSealsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotBoxSeals"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_box_seal"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"area"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"closed_at"}},{"kind":"Field","name":{"kind":"Name","value":"grace_deadline"}},{"kind":"Field","name":{"kind":"Name","value":"closed_by"}},{"kind":"Field","name":{"kind":"Name","value":"sealed_at"}},{"kind":"Field","name":{"kind":"Name","value":"ballots_in_box"}},{"kind":"Field","name":{"kind":"Name","value":"ballots_counted"}},{"kind":"Field","name":{"kind":"Name","value":"seal_hash"}},{"kind":"Field","name":{"kind":"Name","value":"failure_reason"}},{"kind":"Field","name":{"kind":"Name","value":"public_document_id"}},{"kind":"Field","name":{"kind":"Name","value":"public_path"}},{"kind":"Field","name":{"kind":"Name","value":"published_at"}},{"kind":"Field","name":{"kind":"Name","value":"last_attempt_at"}},{"kind":"Field","name":{"kind":"Name","value":"waiting_reason"}},{"kind":"Field","name":{"kind":"Name","value":"area_name"}}]}}]}}]} as unknown as DocumentNode<GetBallotBoxSealsQuery, GetBallotBoxSealsQueryVariables>;
+export const GetEventBallotBoxSealsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetEventBallotBoxSeals"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_box_seal"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<GetEventBallotBoxSealsQuery, GetEventBallotBoxSealsQueryVariables>;
+export const GetFailedBallotBoxSealsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetFailedBallotBoxSeals"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_box_seal"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"status"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"StringValue","value":"failed","block":false}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"area"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"area_name"}},{"kind":"Field","name":{"kind":"Name","value":"election_name"}},{"kind":"Field","name":{"kind":"Name","value":"failure_reason"}}]}}]}}]} as unknown as DocumentNode<GetFailedBallotBoxSealsQuery, GetFailedBallotBoxSealsQueryVariables>;
+export const GetBallotBoxAreasDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotBoxAreas"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_style"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"deleted_at"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_is_null"},"value":{"kind":"BooleanValue","value":true}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"area_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_is_null"},"value":{"kind":"BooleanValue","value":false}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"ballot_publication"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_or"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"is_generated"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"BooleanValue","value":true}}]}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"published_at"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_is_null"},"value":{"kind":"BooleanValue","value":false}}]}}]}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"area_id"}}]}}]}}]} as unknown as DocumentNode<GetBallotBoxAreasQuery, GetBallotBoxAreasQueryVariables>;
+export const GetBallotBoxAreaNamesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotBoxAreaNames"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"areaIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_area"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"areaIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<GetBallotBoxAreaNamesQuery, GetBallotBoxAreaNamesQueryVariables>;
 export const GetBallotPublicationChangeDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"GetBallotPublicationChange"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"get_ballot_publication_changes"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"ballot_publication_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"ballotPublicationId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"current"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_publication_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_styles"}}]}},{"kind":"Field","name":{"kind":"Name","value":"previous"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ballot_publication_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_styles"}}]}}]}}]}}]} as unknown as DocumentNode<GetBallotPublicationChangeMutation, GetBallotPublicationChangeMutationVariables>;
 export const GetBallotPublicationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotPublication"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_publication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_and"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"election_ids"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_contains"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionIds"}}}]}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"created_by_user_id"}},{"kind":"Field","name":{"kind":"Name","value":"deleted_at"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_ids"}},{"kind":"Field","name":{"kind":"Name","value":"is_generated"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"published_at"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<GetBallotPublicationQuery, GetBallotPublicationQueryVariables>;
 export const GetBallotStylesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBallotStyles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"sequent_backend_ballot_style"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"tenant_id"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_eml"}},{"kind":"Field","name":{"kind":"Name","value":"ballot_signature"}},{"kind":"Field","name":{"kind":"Name","value":"created_at"}},{"kind":"Field","name":{"kind":"Name","value":"area_id"}},{"kind":"Field","name":{"kind":"Name","value":"annotations"}},{"kind":"Field","name":{"kind":"Name","value":"labels"}},{"kind":"Field","name":{"kind":"Name","value":"last_updated_at"}}]}}]}}]} as unknown as DocumentNode<GetBallotStylesQuery, GetBallotStylesQueryVariables>;
@@ -31452,7 +32210,7 @@ export const PreviewTallySheetImportDocument = {"kind":"Document","definitions":
 export const CreateTallySheetImportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateTallySheetImport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sha256"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"sourceFormat"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"selectedChannel"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"create_tally_sheet_import"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"document_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"documentId"}}},{"kind":"Argument","name":{"kind":"Name","value":"sha256"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sha256"}}},{"kind":"Argument","name":{"kind":"Name","value":"source_format"},"value":{"kind":"Variable","name":{"kind":"Name","value":"sourceFormat"}}},{"kind":"Argument","name":{"kind":"Name","value":"selected_channel"},"value":{"kind":"Variable","name":{"kind":"Name","value":"selectedChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"import"}}]}}]}}]} as unknown as DocumentNode<CreateTallySheetImportMutation, CreateTallySheetImportMutationVariables>;
 export const ReviewTallySheetImportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"ReviewTallySheetImport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"importId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"decision"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"review_tally_sheet_import"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"import_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"importId"}}},{"kind":"Argument","name":{"kind":"Name","value":"decision"},"value":{"kind":"Variable","name":{"kind":"Name","value":"decision"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"import"}}]}}]}}]} as unknown as DocumentNode<ReviewTallySheetImportMutation, ReviewTallySheetImportMutationVariables>;
 export const UpdateElectionVotingStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateElectionVotingStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatus"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}},"type":{"kind":"ListType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatusChannel"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_election_voting_status"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_channels"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"signing_request"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"code"}},{"kind":"Field","name":{"kind":"Name","value":"required"}},{"kind":"Field","name":{"kind":"Name","value":"expires_at"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateElectionVotingStatusMutation, UpdateElectionVotingStatusMutationVariables>;
-export const UpdateEventVotingStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateEventVotingStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatus"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}},"type":{"kind":"ListType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatusChannel"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_event_voting_status"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_channels"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}}]}}]}}]} as unknown as DocumentNode<UpdateEventVotingStatusMutation, UpdateEventVotingStatusMutationVariables>;
+export const UpdateEventVotingStatusDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateEventVotingStatus"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatus"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}},"type":{"kind":"ListType","type":{"kind":"NamedType","name":{"kind":"Name","value":"VotingStatusChannel"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_event_voting_status"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"electionEventId"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_status"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"voting_channels"},"value":{"kind":"Variable","name":{"kind":"Name","value":"votingChannel"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_event_id"}},{"kind":"Field","name":{"kind":"Name","value":"skipped_elections"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"election_id"}},{"kind":"Field","name":{"kind":"Name","value":"election_name"}},{"kind":"Field","name":{"kind":"Name","value":"reason"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateEventVotingStatusMutation, UpdateEventVotingStatusMutationVariables>;
 export const UpdatePhoneBlacklistEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdatePhoneBlacklistEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"reason"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_sequent_backend_phone_blacklist_by_pk"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"reason"},"value":{"kind":"Variable","name":{"kind":"Name","value":"reason"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdatePhoneBlacklistEntryMutation, UpdatePhoneBlacklistEntryMutationVariables>;
 export const UpdateRealmAttributesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateRealmAttributes"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"attributes"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"jsonb"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_realm_attributes"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"election_event_id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"election_event_id"}}},{"kind":"Argument","name":{"kind":"Name","value":"attributes"},"value":{"kind":"Variable","name":{"kind":"Name","value":"attributes"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updated"}}]}}]}}]} as unknown as DocumentNode<UpdateRealmAttributesMutation, UpdateRealmAttributesMutationVariables>;
 export const UpdateReportDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateReport"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"sequent_backend_report_set_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"update_sequent_backend_report_by_pk"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdateReportMutation, UpdateReportMutationVariables>;

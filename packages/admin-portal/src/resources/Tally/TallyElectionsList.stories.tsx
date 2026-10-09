@@ -10,6 +10,7 @@ import type {Sequent_Backend_Election} from "@/gql/graphql"
 import {COUNCIL_ELECTION, DEPUTY_ELECTION, tallySession} from "./__stories__/TallyFixture"
 import {TallyElectionsList} from "./TallyElectionsList"
 import {EStoryWorkflow} from "../../../../ui-essentials/.storybook/globals"
+import {EBallotBoxesReadiness} from "@/services/tallyEligibility"
 
 const OTHER_CEREMONY = storyId(4, 9)
 const ELECTIONS = [
@@ -34,6 +35,7 @@ const meta = {
         elections: {table: {disable: true}},
         tallySession: {table: {disable: true}},
         electionEventPresentation: {table: {disable: true}},
+        ballotBoxes: {table: {disable: true}},
     },
     beforeEach: () => {
         boundary = graphqlBoundary({})
@@ -111,5 +113,70 @@ export const Empty: Story = {
     play: async ({canvasElement, args}) => {
         await expect(await within(canvasElement).findByText("No rows")).toBeVisible()
         expect(args.update).toHaveBeenLastCalledWith([])
+    },
+}
+
+/**
+ * Tally 1 (VOTE-FREEZE): with the seal at close, a Post whose ballot boxes
+ * are not all sealed and on the bulletin board cannot be selected.
+ */
+export const OnePostNotSealed: Story = {
+    args: {
+        ballotBoxes: {
+            [STORY_IDS.election]: {
+                readiness: EBallotBoxesReadiness.READY,
+                total: 1,
+                sealed: 1,
+                published: 1,
+            },
+            [STORY_IDS.secondElection]: {
+                readiness: EBallotBoxesReadiness.PUBLISHING,
+                total: 2,
+                sealed: 2,
+                published: 1,
+            },
+        },
+    },
+    play: async ({canvasElement, args}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("1 of 1 sealed")).toBeVisible()
+        await expect(canvas.getByText("Sealed, 1 of 2 on the bulletin board")).toBeVisible()
+        await expect(await selection(canvasElement, "Council")).toBeChecked()
+        const deputy = await selection(canvasElement, "Deputy")
+        await expect(deputy).not.toBeChecked()
+        await expect(deputy).toBeDisabled()
+        await waitFor(() => expect(args.update).toHaveBeenLastCalledWith([STORY_IDS.election]))
+    },
+}
+
+/** VOTE-FREEZE: a failed seal and an overdue one show as such, and the list says why. */
+export const IncidentAndOverduePosts: Story = {
+    args: {
+        ballotBoxes: {
+            [STORY_IDS.election]: {
+                readiness: EBallotBoxesReadiness.FAILED,
+                total: 2,
+                sealed: 1,
+                published: 1,
+            },
+            [STORY_IDS.secondElection]: {
+                readiness: EBallotBoxesReadiness.OVERDUE,
+                total: 1,
+                sealed: 0,
+                published: 0,
+                deadline: "2028-05-08T11:01:00Z",
+            },
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Not sealed: incident")).toBeVisible()
+        await expect(canvas.getByText("Sealing overdue")).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "Council: a ballot box could not be sealed, an incident (see its Dashboard)"
+            )
+        ).toBeVisible()
+        await expect(await selection(canvasElement, "Council")).toBeDisabled()
     },
 }

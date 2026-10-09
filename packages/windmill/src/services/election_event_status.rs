@@ -400,18 +400,32 @@ async fn update_event_voting_status_impl(
             ).into());
         }
 
-        let blocked: Vec<String> = opening_refusals
-            .iter()
-            .filter(|(election_id, _)| {
-                elections_status
-                    .get(*election_id)
-                    .map(|election_status| election_status.status_by_channel(channel))
-                    != Some(VotingStatus::OPEN)
-            })
-            .map(|(election_id, refusal)| {
-                refusal.message(election_id, new_status, &current_voting_status)
-            })
-            .collect();
+        // Only the Posts this Start opens: the ones it leaves alone (not
+        // enabled, or kept closed under Seal at close) don't refuse it (R11 S2).
+        let mut blocked: Vec<String> = vec![];
+        for election in &elections {
+            let Some(refusal) = opening_refusals.get(&election.id) else {
+                continue;
+            };
+            let Some(election_status) = elections_status.get(&election.id) else {
+                continue;
+            };
+            if election_status.status_by_channel(channel) == VotingStatus::OPEN {
+                continue;
+            }
+            let change = manual_post_change(
+                ballot_box_seal::seal_policy(&election_event),
+                &election.id,
+                election.voting_channels.as_ref(),
+                election_status,
+                sealed_elections.contains(&election.id),
+                channel,
+                new_status,
+            )?;
+            if change == ManualPostChange::Apply {
+                blocked.push(refusal.message(&election.id, new_status, &current_voting_status));
+            }
+        }
         if !blocked.is_empty() {
             return Err(VotingTransitionError(blocked.join("; ")).into());
         }
@@ -423,24 +437,42 @@ async fn update_event_voting_status_impl(
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
                 if let Some(status) = elections_status.get_mut(&election.id) {
-                    if seal_policy_on
-                        && *new_status == VotingStatus::OPEN
-                        && (status.status_by_channel(channel) == VotingStatus::CLOSED
-                            || sealed_elections.contains(&election.id))
-                    {
-                        info!(
-                            election_id = %election.id,
-                            ?channel,
-                            "Not opening this Post: with the Ballot Box Seal Policy set to \
-                             Seal at close, a Post whose voting closed stays closed"
-                        );
-                        skipped.entry(election.id.clone()).or_insert_with(|| {
-                            (
-                                post_display_name(election, &language),
-                                TransitionRefusal::BallotBoxSealPolicy,
-                            )
-                        });
-                        continue;
+                    match manual_post_change(
+                        ballot_box_seal::seal_policy(&election_event),
+                        &election.id,
+                        election.voting_channels.as_ref(),
+                        status,
+                        sealed_elections.contains(&election.id),
+                        channel,
+                        new_status,
+                    )? {
+                        ManualPostChange::Apply => {}
+                        ManualPostChange::NotEnabled => {
+                            info!(
+                                election_id = %election.id,
+                                ?channel,
+                                reason = NOT_ENABLED_REASON,
+                                "Not opening this channel at this Post: the Post doesn't enable it, \
+                                 and with the Ballot Box Seal Policy set to Seal at close an \
+                                 event-wide Start opens a channel only where a Post enables it"
+                            );
+                            continue;
+                        }
+                        ManualPostChange::KeptClosed => {
+                            info!(
+                                election_id = %election.id,
+                                ?channel,
+                                "Not opening this Post: with the Ballot Box Seal Policy set to \
+                                 Seal at close, a Post whose voting closed stays closed"
+                            );
+                            skipped.entry(election.id.clone()).or_insert_with(|| {
+                                (
+                                    post_display_name(election, &language),
+                                    TransitionRefusal::BallotBoxSealPolicy,
+                                )
+                            });
+                            continue;
+                        }
                     }
                     status.close_early_voting_if_online_status_change(channel, new_status.clone());
                     status.set_status_by_channel(channel, new_status.clone());
@@ -1025,6 +1057,58 @@ pub fn never_opened(status: &ElectionStatus, configured: &VotingChannels) -> boo
 /// opened: nothing to close, so it stays as it is.
 pub const NEVER_OPENED_REASON: &str = "never-opened-kept-open";
 
+/// The reason an event-wide manual Start logs for a channel it leaves alone
+/// at a seal-at-close Post that doesn't enable it.
+pub const NOT_ENABLED_REASON: &str = "channel-not-enabled-at-post";
+
+/// What an event-wide manual status change does at one Post.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ManualPostChange {
+    /// The Post's channel is set.
+    Apply,
+    /// With Seal at close, a Start leaves a channel the Post doesn't enable
+    /// as it is, as a scheduled Start does: it never runs there and never
+    /// holds the Post's seal (VOTE-FREEZE, R10 B1).
+    NotEnabled,
+    /// With Seal at close, a Start leaves a Post whose channel is CLOSED, or
+    /// that has seals, closed.
+    KeptClosed,
+}
+
+/// What an event-wide manual change of `channel` to `new_status` does at the
+/// Post `election_id`, with raw `voting_channels` (NULL enables ONLINE only,
+/// `VotingChannels::default()`), `status` and whether it has seals. Policy
+/// off, or not a Start: [`ManualPostChange::Apply`], without reading the
+/// Post's channels, as before VOTE-FREEZE. The not-enabled check comes
+/// before the closed one, so a Post is never reported as kept closed for a
+/// channel it doesn't offer (R11 N3).
+pub fn manual_post_change(
+    seal_policy: BallotBoxSealPolicy,
+    election_id: &str,
+    voting_channels: Option<&Value>,
+    status: &ElectionStatus,
+    sealed: bool,
+    channel: VotingStatusChannel,
+    new_status: &VotingStatus,
+) -> Result<ManualPostChange> {
+    if seal_policy != BallotBoxSealPolicy::SEAL_AT_CLOSE || *new_status != VotingStatus::OPEN {
+        return Ok(ManualPostChange::Apply);
+    }
+    let configured: VotingChannels = voting_channels
+        .cloned()
+        .map(deserialize_value)
+        .transpose()
+        .with_context(|| format!("Failed to deserialize the voting channels of {election_id}"))?
+        .unwrap_or_default();
+    if channel.channel_from(&configured) != Some(true) {
+        return Ok(ManualPostChange::NotEnabled);
+    }
+    if sealed || status.status_by_channel(channel) == VotingStatus::CLOSED {
+        return Ok(ManualPostChange::KeptClosed);
+    }
+    Ok(ManualPostChange::Apply)
+}
+
 /// Locks the event row and its election rows (all, or one) for a voting
 /// status change, in a fixed order (event, then elections by id), with
 /// `FOR NO KEY UPDATE`: status writers serialize, while the foreign-key
@@ -1177,6 +1261,179 @@ mod scheduled_channel_tests {
             paper: None,
             early_voting: Some(early),
         }
+    }
+
+    /// What an event-wide manual change does at a Post with `channels`
+    /// (raw `voting_channels`) and `status`.
+    fn post_change(
+        seal_policy: BallotBoxSealPolicy,
+        channels: Option<Value>,
+        status: &ElectionStatus,
+        sealed: bool,
+        channel: VotingStatusChannel,
+        new_status: VotingStatus,
+    ) -> Result<ManualPostChange> {
+        manual_post_change(
+            seal_policy,
+            "post",
+            channels.as_ref(),
+            status,
+            sealed,
+            channel,
+            &new_status,
+        )
+    }
+
+    #[test]
+    fn with_seal_at_close_a_manual_start_opens_only_the_channels_a_post_enables() {
+        let seal = BallotBoxSealPolicy::SEAL_AT_CLOSE;
+        let online_only = Some(serde_json::json!({"online": true, "kiosk": false}));
+        let fresh = ElectionStatus::default();
+        let open = VotingStatus::OPEN;
+        let change = |channels: Option<Value>, channel| {
+            post_change(seal, channels, &fresh, false, channel, open.clone()).unwrap()
+        };
+        assert_eq!(
+            change(online_only.clone(), VotingStatusChannel::ONLINE),
+            ManualPostChange::Apply
+        );
+        assert_eq!(
+            change(online_only.clone(), VotingStatusChannel::KIOSK),
+            ManualPostChange::NotEnabled
+        );
+        // A NULL `voting_channels` enables ONLINE only, as the cast check
+        // reads it (`VotingChannels::default()`).
+        assert_eq!(
+            change(None, VotingStatusChannel::ONLINE),
+            ManualPostChange::Apply
+        );
+        assert_eq!(
+            change(None, VotingStatusChannel::TELEPHONE),
+            ManualPostChange::NotEnabled
+        );
+        // Closing and pausing still apply to every Post.
+        for status in [VotingStatus::CLOSED, VotingStatus::PAUSED] {
+            assert_eq!(
+                post_change(
+                    seal,
+                    online_only.clone(),
+                    &fresh,
+                    false,
+                    VotingStatusChannel::KIOSK,
+                    status
+                )
+                .unwrap(),
+                ManualPostChange::Apply
+            );
+        }
+        // Policy off: as before VOTE-FREEZE.
+        assert_eq!(
+            post_change(
+                BallotBoxSealPolicy::DO_NOT_SEAL,
+                online_only,
+                &fresh,
+                false,
+                VotingStatusChannel::KIOSK,
+                open.clone()
+            )
+            .unwrap(),
+            ManualPostChange::Apply
+        );
+    }
+
+    /// R11 S3: the Post's channels are read only for a Start under Seal at
+    /// close, so a value that doesn't parse changes nothing elsewhere.
+    #[test]
+    fn a_malformed_channel_value_only_matters_to_a_seal_at_close_start() {
+        let malformed = Some(serde_json::json!({"online": "true"}));
+        let fresh = ElectionStatus::default();
+        for (policy, new_status) in [
+            (BallotBoxSealPolicy::DO_NOT_SEAL, VotingStatus::OPEN),
+            (BallotBoxSealPolicy::DO_NOT_SEAL, VotingStatus::CLOSED),
+            (BallotBoxSealPolicy::SEAL_AT_CLOSE, VotingStatus::CLOSED),
+            (BallotBoxSealPolicy::SEAL_AT_CLOSE, VotingStatus::PAUSED),
+        ] {
+            assert_eq!(
+                post_change(
+                    policy,
+                    malformed.clone(),
+                    &fresh,
+                    false,
+                    VotingStatusChannel::ONLINE,
+                    new_status
+                )
+                .unwrap(),
+                ManualPostChange::Apply
+            );
+        }
+        let error = post_change(
+            BallotBoxSealPolicy::SEAL_AT_CLOSE,
+            malformed,
+            &fresh,
+            false,
+            VotingStatusChannel::ONLINE,
+            VotingStatus::OPEN,
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("voting channels of post"),
+            "{error}"
+        );
+    }
+
+    /// R11 N3: a channel the Post doesn't enable is reported as such, also
+    /// when it is closed or the Post has seals; an enabled one stays closed.
+    #[test]
+    fn not_enabled_comes_before_kept_closed() {
+        let seal = BallotBoxSealPolicy::SEAL_AT_CLOSE;
+        let online_only = Some(serde_json::json!({"online": true, "kiosk": false}));
+        let mut closed = ElectionStatus::default();
+        closed.set_status_by_channel(VotingStatusChannel::ONLINE, VotingStatus::OPEN);
+        closed.set_status_by_channel(VotingStatusChannel::ONLINE, VotingStatus::CLOSED);
+        closed.set_status_by_channel(VotingStatusChannel::KIOSK, VotingStatus::CLOSED);
+        for (sealed, channel, expected) in [
+            (
+                false,
+                VotingStatusChannel::KIOSK,
+                ManualPostChange::NotEnabled,
+            ),
+            (
+                true,
+                VotingStatusChannel::KIOSK,
+                ManualPostChange::NotEnabled,
+            ),
+            (
+                false,
+                VotingStatusChannel::ONLINE,
+                ManualPostChange::KeptClosed,
+            ),
+        ] {
+            assert_eq!(
+                post_change(
+                    seal,
+                    online_only.clone(),
+                    &closed,
+                    sealed,
+                    channel,
+                    VotingStatus::OPEN
+                )
+                .unwrap(),
+                expected
+            );
+        }
+        // Sealed, the enabled channel stays closed even if it isn't CLOSED.
+        assert_eq!(
+            post_change(
+                seal,
+                online_only,
+                &ElectionStatus::default(),
+                true,
+                VotingStatusChannel::ONLINE,
+                VotingStatus::OPEN
+            )
+            .unwrap(),
+            ManualPostChange::KeptClosed
+        );
     }
 
     #[test]

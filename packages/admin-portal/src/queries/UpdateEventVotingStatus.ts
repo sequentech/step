@@ -15,6 +15,11 @@ export const UPDATE_EVENT_VOTING_STATUS = gql`
             voting_channels: $votingChannel
         ) {
             election_event_id
+            skipped_elections {
+                election_id
+                election_name
+                reason
+            }
         }
     }
 `

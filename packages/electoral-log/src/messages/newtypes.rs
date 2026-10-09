@@ -99,7 +99,7 @@ pub struct AreaIdString(pub String);
 
 /// SHA-512 of a ballot box seal manifest (VOTE-FREEZE). Borsh is the raw 64
 /// bytes, like every other hash newtype; JSON is lowercase hex, so the
-/// readable message in a public seal record shows the hash people compare.
+/// readable message in a seal record shows the hash people compare.
 #[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SealHash(pub HashWrapper);
 

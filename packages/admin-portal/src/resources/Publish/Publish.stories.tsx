@@ -289,6 +289,22 @@ const meta = {
                         data: {publish_ballot: {ballot_publication_id: PUBLICATION_ID, ...answer}},
                     }
                 },
+                // VOTE-FREEZE: with Seal at close, an event-wide Start leaves a
+                // closed Post closed and says so.
+                UpdateEventVotingStatus: () => ({
+                    data: {
+                        update_event_voting_status: {
+                            election_event_id: EVENT_ID,
+                            skipped_elections: [
+                                {
+                                    election_id: ELECTION_ID,
+                                    election_name: "Madrid Post",
+                                    reason: "ballot-box-seal-policy",
+                                },
+                            ],
+                        },
+                    },
+                }),
                 UpdateElectionVotingStatus: () => ({
                     data: {
                         update_election_voting_status: {
@@ -700,5 +716,35 @@ export const EventLevelHasNoInitialization: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByRole("button", {name: "Stop Voting"})).toBeVisible()
         expect(canvas.queryByRole("button", {name: "Generate Initialization Report"})).toBeNull()
+    },
+}
+
+/** VOTE-FREEZE: an event-wide Start lists the Posts it left closed, with why. */
+export const EventStartExplainsClosedPosts: Story = {
+    args: {voting: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Start Voting"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitem", {name: "Start Online Voting"})
+        )
+        await confirm()
+        await waitFor(() =>
+            expect(
+                boundary.calls.filter(({name}) => name === "UpdateEventVotingStatus")
+            ).toHaveLength(1)
+        )
+        // The confirmation dialog hides the page from assistive technology until it closes.
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+        const title = await canvas.findByText("Some elections stay closed")
+        const alert = title.closest("[role=alert]") as HTMLElement
+        await expect(title).toBeVisible()
+        await expect(
+            within(alert).getByText(
+                "Madrid Post stays closed: its voting has closed and Seal at close makes closing final."
+            )
+        ).toBeVisible()
+        await userEvent.click(within(alert).getByRole("button", {name: "Dismiss"}))
+        await waitFor(() => expect(canvas.queryByText("Some elections stay closed")).toBeNull())
     },
 }

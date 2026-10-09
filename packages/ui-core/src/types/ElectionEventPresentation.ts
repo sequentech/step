@@ -80,6 +80,17 @@ export enum EBallotBoxSealPolicy {
     SEAL_AT_CLOSE = "seal-at-close",
 }
 
+/**
+ * Who can download a sealed ballot box's seal record (VOTE-FREEZE): Restricted
+ * (the default) keeps it a private event document for administrators; Public
+ * puts it in the public bucket. Locked once voting has opened on a
+ * seal-at-close event.
+ */
+export enum EBallotBoxSealRecordPolicy {
+    RESTRICTED = "restricted",
+    PUBLIC = "public",
+}
+
 export enum EElectionEventDecodedBallots {
     INCLUDED = "included",
     NOT_INCLUDED = "not-included",
@@ -273,6 +284,8 @@ export interface IElectionEventPresentation {
     lifecycle_policies?: ILifecyclePolicies
     /** Unset means do-not-seal (VOTE-FREEZE). */
     ballot_box_seal_policy?: EBallotBoxSealPolicy
+    /** Unset means restricted (VOTE-FREEZE). */
+    ballot_box_seal_record_policy?: EBallotBoxSealRecordPolicy
 }
 
 /** Which timezone the Logs tab and log exports show. */

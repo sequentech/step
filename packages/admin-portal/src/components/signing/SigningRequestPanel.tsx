@@ -38,7 +38,7 @@ import {SigningRequestStatus} from "@/lib/signing/types"
 import {SigningDialog} from "./SigningDialog"
 import {SigningHandoverLauncher} from "./SigningHandoverLauncher"
 import {SigningSubject} from "./SigningSubject"
-import {requestTitle, useSigningFormat} from "./format"
+import {actionDescription, requestTitle, useSigningFormat} from "./format"
 import {useSettlePolling} from "./useSettlePolling"
 import {useSigningPermissions} from "./useSigningPermissions"
 
@@ -326,7 +326,7 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                     </Typography>
                     {data ? (
                         <Typography color="text.secondary">
-                            {t(`signing.actions.${data.request.action}.description`)}
+                            {actionDescription(t, data.request.action, data.seals_ballots)}
                         </Typography>
                     ) : null}
                 </Box>

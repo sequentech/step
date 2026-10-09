@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Ballot box seal (VOTE-FREEZE): the manifest of a sealed ballot box, its
-//! hash, the public seal record and the pure checks that windmill's sealer,
-//! the tally and `step-cli verify-ballot-box-seal` share.
+//! hash, the seal record (public or restricted) and the pure checks that
+//! windmill's sealer, the tally and `step-cli verify-ballot-box-seal` share.
 //!
 //! A ballot box is the `cast_vote` rows of one (tenant, event, election,
 //! area). The manifest lists every one of them, in any status, and its
@@ -287,7 +287,7 @@ pub fn compare_stored(manifest: &BallotBoxSealManifest, stored: &[(Hash, String)
 }
 
 // ---------------------------------------------------------------------------
-// Public seal record (one JSON file per ballot box)
+// Seal record (one JSON file per ballot box, public or restricted)
 // ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -324,8 +324,10 @@ pub struct SealRecordLogEntry {
     pub statement_kind: String,
 }
 
-/// The public seal record of one ballot box. It holds no voter id, no
-/// pseudonym, no time of an individual ballot and no network data.
+/// The seal record of one ballot box: a public or a restricted (private)
+/// document, by the event's Seal Record Publication policy. It holds no
+/// voter id, no pseudonym, no time of an individual ballot and no network
+/// data.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct SealRecord {
     pub format: String,
@@ -655,7 +657,7 @@ pub fn check_statement(
     Ok(hash)
 }
 
-/// Verifies a public seal record offline: the manifest rebuilt from the
+/// Verifies a seal record offline: the manifest rebuilt from the
 /// header and entries equals the record's bytes, its hash is the signed
 /// one, the statement matches the manifest, both signatures hold and, when
 /// one is expected, the key is the expected one.

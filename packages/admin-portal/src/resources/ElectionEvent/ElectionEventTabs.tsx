@@ -18,6 +18,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {useTranslation} from "react-i18next"
 import {EventTimeZoneProvider} from "@/providers/EventTimeZoneProvider"
+import {FailedSealsBanner} from "@/components/dashboard/FailedSealsBanner"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {v4 as uuidv4} from "uuid"
 import {EPublishType} from "../Publish/EPublishType"
@@ -113,6 +114,8 @@ const DashboardTab: React.FC<ITabProps> = ({refreshRef, handleChildMount}) => {
     const lock = monitoringLock(record)
     return (
         <Suspense fallback={<div>Loading Dashboard...</div>}>
+            {/* A failed seal is an incident the event shows in both monitoring modes. */}
+            <FailedSealsBanner electionEventId={record?.id} presentation={record?.presentation} />
             <MonitoringDashboardTab
                 electionEventId={record?.id}
                 lock={lock}
@@ -217,6 +220,7 @@ const PublishTab: React.FC<{showList: string | undefined}> = ({showList}) => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     return (
         <Suspense fallback={<div>Loading Publish...</div>}>
+            <FailedSealsBanner electionEventId={record?.id} presentation={record?.presentation} />
             <Publish electionEventId={record?.id} type={EPublishType.Event} showList={showList} />
         </Suspense>
     )

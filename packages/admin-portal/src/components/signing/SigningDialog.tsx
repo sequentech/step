@@ -73,6 +73,7 @@ import {
 import {SigningSubject, SigningSubjectVariant} from "./SigningSubject"
 import {useSignedView} from "./useSignedView"
 import {
+    actionDescription,
     actionObject,
     formatList,
     organizationName,
@@ -350,7 +351,7 @@ const CheckStep: React.FC<{
                     {requestTitle(t, data)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                    {t(`signing.actions.${data.request.action}.description`)}
+                    {actionDescription(t, data.request.action, data.seals_ballots)}
                 </Typography>
             </Box>
             <SigningSubject data={data} api={api} variant={SigningSubjectVariant.Dialog} />

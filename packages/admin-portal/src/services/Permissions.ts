@@ -184,6 +184,14 @@ const AdminOperationMap: Record<string, IPermissions> = {
     sequent_backend_previews: IPermissions.PREVIEW_READ,
     // voter secret attributes
     RevealVoterSecretAttribute: IPermissions.VOTER_READ,
+    // ballot box seals (VOTE-FREEZE), with their area's name: the election's
+    // Dashboard; the tally list asks with tally-read itself.
+    GetBallotBoxSeals: IPermissions.ELECTION_DASHBOARD_TAB,
+    GetEventBallotBoxSeals: IPermissions.ELECTION_DASHBOARD_TAB,
+    GetFailedBallotBoxSeals: IPermissions.ELECTION_DASHBOARD_TAB,
+    // the areas the card lists as Open before the close: their ballot styles and names
+    GetBallotBoxAreas: IPermissions.ELECTION_DASHBOARD_TAB,
+    GetBallotBoxAreaNames: IPermissions.ELECTION_DASHBOARD_TAB,
     // monitoring actions: Harvest checks the permission and labels again
     MonitoringListDashboards: IPermissions.MONITORING_VIEW,
     MonitoringGetDashboard: IPermissions.MONITORING_VIEW,
