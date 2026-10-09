@@ -12,13 +12,14 @@ use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use strand::hash::hash_sha256;
 use tempfile::tempdir;
 use tracing::{info, instrument};
 
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
+pub const ECIES_SECRET_ENV: &str = "ECIES_SECRET";
 #[derive(Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
     pub private_key_pem: String,
@@ -45,6 +46,27 @@ pub fn ecies_tool_command<S: AsRef<OsStr>>(args: &[S]) -> Command {
     command
 }
 
+/// Builds the command that runs the ECIES tool with the given arguments
+/// followed by `secret`. The secret is handed to the tool through the
+/// `ECIES_SECRET_ENV` environment variable, so that it never shows up in the
+/// process arguments.
+pub fn ecies_tool_command_with_secret<S: AsRef<OsStr>>(
+    args: &[S],
+    secret: &str,
+) -> Command {
+    let mut command = ecies_tool_command(args);
+    command.arg(format!("env:{ECIES_SECRET_ENV}"));
+    command.env(ECIES_SECRET_ENV, secret);
+    command
+}
+
+fn encrypt_command(public_key_path: &Path, plaintext: &str) -> Command {
+    ecies_tool_command_with_secret(
+        &[OsStr::new("encrypt"), public_key_path.as_os_str()],
+        plaintext,
+    )
+}
+
 fn run_ecies_tool<S: AsRef<OsStr>>(args: &[S]) -> Result<String> {
     run_command(ecies_tool_command(args))
 }
@@ -65,14 +87,8 @@ pub fn ecies_encrypt_string(
             .write_all(public_key_pem.as_bytes())
             .context("Failed to write file")?;
     }
-    // Encode the &[u8] to a Base64 string
-
-    let result = run_ecies_tool(&[
-        OsStr::new("encrypt"),
-        temp_pem_file_path.as_os_str(),
-        OsStr::new(password),
-    ])?
-    .replace("\n", "");
+    let result = run_command(encrypt_command(temp_pem_file_path, password))?
+        .replace("\n", "");
 
     info!("ecies_encrypt_string: '{}'", result);
 
@@ -244,15 +260,52 @@ mod tests {
     }
 
     #[test]
-    fn test_ecies_tool_command_passes_password_as_single_argument() {
-        let password = "pass word; rm -rf / $(touch pwned) `id` | cat";
-        let command =
-            ecies_tool_command(&["encrypt", "/tmp/key.pem", password]);
+    fn test_ecies_tool_command_with_secret_passes_secret_through_environment() {
+        let secret = "pass word; rm -rf / $(touch pwned) `id` | cat";
+        let command = ecies_tool_command_with_secret(
+            &["sign-rsa", "/tmp/key.p12", "/tmp/data"],
+            secret,
+        );
         assert_eq!(command.get_program(), "java");
-        let args: Vec<&std::ffi::OsStr> = command.get_args().collect();
+        let args: Vec<&OsStr> = command.get_args().collect();
         assert_eq!(
             args,
-            vec!["-jar", ECIES_TOOL_PATH, "encrypt", "/tmp/key.pem", password]
+            vec![
+                "-jar",
+                ECIES_TOOL_PATH,
+                "sign-rsa",
+                "/tmp/key.p12",
+                "/tmp/data",
+                "env:ECIES_SECRET"
+            ]
         );
+        assert!(command
+            .get_envs()
+            .any(|(key, value)| key == ECIES_SECRET_ENV
+                && value == Some(OsStr::new(secret))));
+    }
+
+    #[test]
+    fn test_encrypt_command_keeps_password_out_of_arguments() {
+        let password = "pass word; rm -rf / $(touch pwned) `id` | cat";
+        let command = encrypt_command(Path::new("/tmp/key.pem"), password);
+        let args: Vec<&OsStr> = command.get_args().collect();
+        assert_eq!(
+            args,
+            vec![
+                "-jar",
+                ECIES_TOOL_PATH,
+                "encrypt",
+                "/tmp/key.pem",
+                "env:ECIES_SECRET"
+            ]
+        );
+        assert!(!command
+            .get_args()
+            .any(|arg| arg.to_string_lossy().contains(password)));
+        assert!(command
+            .get_envs()
+            .any(|(key, value)| key == ECIES_SECRET_ENV
+                && value == Some(OsStr::new(password))));
     }
 }

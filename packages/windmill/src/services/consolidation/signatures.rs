@@ -4,7 +4,7 @@
 use anyhow::{anyhow, Context, Result};
 use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
-use sequent_core::signatures::ecies_encrypt::ecies_tool_command;
+use sequent_core::signatures::ecies_encrypt::ecies_tool_command_with_secret;
 use sequent_core::signatures::shell::{build_command, run_command};
 use sequent_core::util::temp_path::*;
 use std::ffi::OsStr;
@@ -34,7 +34,7 @@ pub fn get_pk12_id(p12_path: &str, password: &str) -> Result<openssl::pkey::Id> 
 }
 
 fn ecdsa_sign_command(pk12_file_path_string: &str, password: &str, data_path: &str) -> Command {
-    ecies_tool_command(&["sign-ec", pk12_file_path_string, data_path, password])
+    ecies_tool_command_with_secret(&["sign-ec", pk12_file_path_string, data_path], password)
 }
 
 #[instrument(skip_all, err)]
@@ -146,12 +146,12 @@ pub fn check_certificate_cas(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
+    use sequent_core::signatures::ecies_encrypt::{ECIES_SECRET_ENV, ECIES_TOOL_PATH};
 
     const HOSTILE_PASSWORD: &str = "pass word; rm -rf / $(touch pwned) `id` | cat";
 
     #[test]
-    fn test_ecdsa_sign_command_passes_password_as_single_argument() {
+    fn test_ecdsa_sign_command_passes_password_through_environment() {
         let command = ecdsa_sign_command("/tmp/key.p12", HOSTILE_PASSWORD, "/tmp/data");
         assert_eq!(command.get_program(), "java");
         let args: Vec<&OsStr> = command.get_args().collect();
@@ -163,9 +163,16 @@ mod tests {
                 "sign-ec",
                 "/tmp/key.p12",
                 "/tmp/data",
-                HOSTILE_PASSWORD
+                "env:ECIES_SECRET"
             ]
         );
+        assert!(!command
+            .get_args()
+            .any(|arg| arg.to_string_lossy().contains(HOSTILE_PASSWORD)));
+        assert!(command
+            .get_envs()
+            .any(|(key, value)| key == ECIES_SECRET_ENV
+                && value == Some(OsStr::new(HOSTILE_PASSWORD))));
     }
 
     #[test]

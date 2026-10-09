@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{Context, Result};
 use openssl::rsa::{Padding, Rsa};
-use sequent_core::signatures::ecies_encrypt::ecies_tool_command;
+use sequent_core::signatures::ecies_encrypt::ecies_tool_command_with_secret;
 use sequent_core::signatures::shell::run_command;
 use std::process::Command;
 use tracing::{info, instrument};
@@ -53,7 +53,7 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
 }
 
 fn public_key_command(pk12_file_path_string: &str, password: &str) -> Command {
-    ecies_tool_command(&["public-key", pk12_file_path_string, password])
+    ecies_tool_command_with_secret(&["public-key", pk12_file_path_string], password)
 }
 
 #[instrument(skip(password), err)]
@@ -67,7 +67,7 @@ pub fn derive_public_key_from_p12(pk12_file_path_string: &str, password: &str) -
 }
 
 fn rsa_sign_command(pk12_file_path_string: &str, password: &str, data_path: &str) -> Command {
-    ecies_tool_command(&["sign-rsa", pk12_file_path_string, data_path, password])
+    ecies_tool_command_with_secret(&["sign-rsa", pk12_file_path_string, data_path], password)
 }
 
 #[instrument(skip_all, err)]
@@ -88,14 +88,24 @@ pub fn rsa_sign_data(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
+    use sequent_core::signatures::ecies_encrypt::{ECIES_SECRET_ENV, ECIES_TOOL_PATH};
 
     const HOSTILE_PASSWORD: &str = "pass word; rm -rf / $(touch pwned) `id` | cat";
 
-    #[test]
-    fn test_rsa_sign_command_passes_password_as_single_argument() {
-        let command = rsa_sign_command("/tmp/key.p12", HOSTILE_PASSWORD, "/tmp/data");
+    fn assert_password_only_in_environment(command: &Command) {
         assert_eq!(command.get_program(), "java");
+        assert!(!command
+            .get_args()
+            .any(|arg| arg.to_string_lossy().contains(HOSTILE_PASSWORD)));
+        assert!(command
+            .get_envs()
+            .any(|(key, value)| key == ECIES_SECRET_ENV
+                && value == Some(std::ffi::OsStr::new(HOSTILE_PASSWORD))));
+    }
+
+    #[test]
+    fn test_rsa_sign_command_passes_password_through_environment() {
+        let command = rsa_sign_command("/tmp/key.p12", HOSTILE_PASSWORD, "/tmp/data");
         let args: Vec<&std::ffi::OsStr> = command.get_args().collect();
         assert_eq!(
             args,
@@ -105,15 +115,15 @@ mod tests {
                 "sign-rsa",
                 "/tmp/key.p12",
                 "/tmp/data",
-                HOSTILE_PASSWORD
+                "env:ECIES_SECRET"
             ]
         );
+        assert_password_only_in_environment(&command);
     }
 
     #[test]
-    fn test_public_key_command_passes_password_as_single_argument() {
+    fn test_public_key_command_passes_password_through_environment() {
         let command = public_key_command("/tmp/key.p12", HOSTILE_PASSWORD);
-        assert_eq!(command.get_program(), "java");
         let args: Vec<&std::ffi::OsStr> = command.get_args().collect();
         assert_eq!(
             args,
@@ -122,8 +132,9 @@ mod tests {
                 ECIES_TOOL_PATH,
                 "public-key",
                 "/tmp/key.p12",
-                HOSTILE_PASSWORD
+                "env:ECIES_SECRET"
             ]
         );
+        assert_password_only_in_environment(&command);
     }
 }
