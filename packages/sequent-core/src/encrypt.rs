@@ -132,7 +132,12 @@ fn recreate_encrypt_candidate<C: Ctx>(
     // construct a public key from a provided element
     let public_key = PublicKey::from_element(public_key_element, ctx);
 
-    let encoded = ctx.encode(&choice.plaintext).unwrap();
+    let encoded = ctx.encode(&choice.plaintext).map_err(|err| {
+        BallotError::Serialization(format!(
+            "Error encoding the ballot plaintext: {}",
+            err
+        ))
+    })?;
 
     // encrypt / create ciphertext
     let ciphertext =
@@ -691,4 +696,40 @@ mod tests {
         assert_eq!(format!("{:?}", auditable_ballot.unwrap_err()), "".to_string());
         //assert!(auditable_ballot.is_ok());
     }*/
+
+    #[test]
+    fn test_recreate_encrypt_candidate_rejects_out_of_range_plaintext() {
+        use crate::ballot::ReplicationChoice;
+        use crate::error::BallotError;
+        use strand::backend::num_bigint::{BigUintP, BigintCtx, P2048};
+        use strand::elgamal::Ciphertext;
+        use strand::serialization::StrandDeserialize;
+
+        let ctx = BigintCtx::<P2048>::default();
+        let mut rng = ctx.get_rng();
+        let public_key = ctx.gmod_pow(&ctx.rnd_exp(&mut rng));
+
+        let mut plaintext_bytes = 300u32.to_le_bytes().to_vec();
+        plaintext_bytes.extend([0xffu8; 300]);
+        let plaintext = BigUintP::strand_deserialize(&plaintext_bytes)
+            .expect("a little-endian byte vector is a valid plaintext");
+
+        let choice = ReplicationChoice {
+            ciphertext: Ciphertext {
+                mhr: ctx.generator().clone(),
+                gr: ctx.generator().clone(),
+            },
+            plaintext,
+            randomness: ctx.rnd_exp(&mut rng),
+        };
+
+        let result =
+            encrypt::recreate_encrypt_candidate(&ctx, &public_key, &choice);
+
+        assert!(
+            matches!(result, Err(BallotError::Serialization(_))),
+            "expected a serialization error, got {:?}",
+            result.map(|_| ())
+        );
+    }
 }
