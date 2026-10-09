@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, ensure_election_in_event};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -11,8 +11,6 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
-use windmill::postgres::election::get_election_by_id;
-use windmill::services::database::get_hasura_pool;
 use windmill::services::tasks_execution::*;
 use windmill::tasks::miru_plugin_tasks::upload_signature_task;
 use windmill::types::tasks::ETasksExecution;
@@ -39,42 +37,6 @@ pub struct CreateTransmissionPackageInput {
 pub struct CreateTransmissionPackageOutput {
     task_execution: Option<TasksExecution>,
     error_msg: Option<String>,
-}
-
-async fn ensure_election_in_event(
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-) -> Result<(), (Status, String)> {
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error obtaining hasura client: {error:?}"),
-            )
-        })?;
-    let hasura_transaction =
-        hasura_db_client.transaction().await.map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Error obtaining hasura transaction: {error:?}"),
-            )
-        })?;
-    get_election_by_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-        election_id,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Error getting election: {error:?}"),
-        )
-    })?
-    .ok_or_else(|| (Status::NotFound, "Election not found".to_string()))?;
-    Ok(())
 }
 
 #[instrument(skip(claims))]
