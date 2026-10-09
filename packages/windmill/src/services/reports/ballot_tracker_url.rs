@@ -12,8 +12,9 @@ pub(super) struct BallotTrackerPath<'a> {
     pub ballot_id: &'a str,
 }
 
-fn portal_base_url(base: &str) -> Result<Url> {
-    let url = Url::parse(base).context("Invalid voting portal URL")?;
+fn portal_base_url(base: &str, setting: &str) -> Result<Url> {
+    let base = base.trim();
+    let url = Url::parse(base).with_context(|| format!("Invalid {setting}"))?;
     if !matches!(url.scheme(), "http" | "https")
         || url.host_str().is_none()
         || !url.username().is_empty()
@@ -21,10 +22,9 @@ fn portal_base_url(base: &str) -> Result<Url> {
         || url.query().is_some()
         || url.fragment().is_some()
         || base.chars().any(|c| c.is_control())
-        || base.trim() != base
     {
         return Err(anyhow!(
-            "Voting portal URL must be an HTTP(S) base URL without credentials, query or fragment"
+            "{setting} must be an HTTP(S) base URL without credentials, query or fragment"
         ));
     }
     Ok(url)
@@ -38,14 +38,14 @@ pub(super) fn build_ballot_tracker_url(
     client_url: &str,
     path: BallotTrackerPath<'_>,
 ) -> Result<String> {
-    let mut url = portal_base_url(portal_base)?;
+    let mut url = portal_base_url(portal_base, "VOTING_PORTAL_URL")?;
     let requested = Url::parse(client_url).ok();
     let mut selected_kiosk = false;
     let mut permitted_origin = requested
         .as_ref()
         .is_some_and(|client| client.origin() == url.origin());
     if let Some(kiosk_base) = kiosk_base.filter(|base| !base.trim().is_empty()) {
-        let kiosk_url = portal_base_url(kiosk_base.trim())?;
+        let kiosk_url = portal_base_url(kiosk_base, "KIOSK_VOTING_PORTAL_URL")?;
         permitted_origin |= requested
             .as_ref()
             .is_some_and(|client| client.origin() == kiosk_url.origin());
@@ -60,7 +60,7 @@ pub(super) fn build_ballot_tracker_url(
         }
     }
     url.path_segments_mut()
-        .map_err(|_| anyhow!("Voting portal URL cannot contain path segments"))?
+        .map_err(|_| anyhow!("Voting portal URL must support hierarchical paths"))?
         .pop_if_empty()
         .extend([
             "tenant",
@@ -249,6 +249,27 @@ mod tests {
                 tracker("https://voting.example", Some(base), "").is_err(),
                 "accepted kiosk {base}"
             );
+        }
+    }
+
+    #[test]
+    fn portal_settings_normalize_whitespace_and_identify_configuration_errors() {
+        assert_eq!(
+            tracker(" https://voting.example/portal ", None, "").unwrap(),
+            tracker("https://voting.example/portal", None, "").unwrap()
+        );
+        for (base, kiosk, setting) in [
+            ("invalid", None, "VOTING_PORTAL_URL"),
+            (
+                "https://voting.example",
+                Some("invalid"),
+                "KIOSK_VOTING_PORTAL_URL",
+            ),
+        ] {
+            assert!(tracker(base, kiosk, "")
+                .unwrap_err()
+                .to_string()
+                .contains(setting));
         }
     }
 
