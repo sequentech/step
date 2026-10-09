@@ -94,6 +94,11 @@ interface ITranslationConfiguration {
     language_conf?: ILanguageConf
 }
 
+/** A dotted translation key expands into owned branches ending in string values. */
+interface TranslationTree {
+    [key: string]: string | TranslationTree
+}
+
 /**
  * Minimal fallback used during app bootstrap before the WASM module is ready.
  * The only current frontend/internal mismatch is Catalan (`ca` vs `cat`).
@@ -297,12 +302,27 @@ export function overwriteTranslations(
 
         Object.entries(i18nObj).forEach(([language, translations]) => {
             const currentResources = i18n.getResourceBundle(language, "translations") || {}
-            const nestedTranslations: any = {}
+            const nestedTranslations: TranslationTree = {}
 
             Object.entries(translations).forEach(([key, value]) => {
+                // Persist only text leaves; malformed JSON must not become a
+                // null parent when a following key traverses the same path.
+                if (typeof value !== "string") return
                 const keys = key.split(".")
-                keys.reduce((acc, part, index) => {
-                    return (acc[part] = index === keys.length - 1 ? value : acc[part] || {})
+                keys.reduce<TranslationTree>((branch, part, index) => {
+                    const existing = Object.prototype.hasOwnProperty.call(branch, part)
+                        ? branch[part]
+                        : undefined
+                    const child: TranslationTree = typeof existing === "object" ? existing : {}
+                    // Define an own property even for names such as __proto__;
+                    // translation input must never mutate an inherited object.
+                    Object.defineProperty(branch, part, {
+                        value: index === keys.length - 1 ? value : child,
+                        enumerable: true,
+                        configurable: true,
+                        writable: true,
+                    })
+                    return child
                 }, nestedTranslations)
             })
 
