@@ -125,14 +125,21 @@ command as a root user:
 
 ```bash
 sudo su -
-$ ./up <trustees_ezip> <password> <excel_path>
+$ ./up <trustees_ezip> - <excel_path>
 ```
 
 Replace `<trustees_ezip>` with the path to the encrypted zip with the trustees
-data and `<password>` with the password to the ezip. The <excel_path> should be
-the path to the excel file, for example janitor/import-data/10-11-2024-field-test-preparations.xlsx
+data. The `-` makes `up` ask for the password to the ezip without echoing it.
+The <excel_path> should be the path to the excel file, for example
+janitor/import-data/10-11-2024-field-test-preparations.xlsx
 
 Once that it has been imported and started, you can visit the different services
 at their endpoints:
 
 - Admin portal: http://localhost:3002
+
+### Network access
+
+The services publish their ports on `127.0.0.1` only, so they are reachable
+from the machine running the environment and not from other hosts. To publish
+them on a different address, set `BIND_ADDRESS` in `.env`.
