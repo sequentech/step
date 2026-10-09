@@ -12,6 +12,7 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
     id: ETranslationPresetTemplate.SPANISH_INFORMAL,
     language: "es",
     overrides: {
+        "global:a11y.ballotIdHelp": "Acerca de tu ID de voto",
         "global:homeScreen.startButton": "Selecciona fichero",
         "global:homeScreen.dragDropOption": "O arrastra el fichero aquí",
         "global:homeScreen.importErrorDescription":
@@ -61,6 +62,13 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
         "global:selectElection.ballotLocator": "Localiza tu voto",
         "global:header.session.title": "Tu sesión está a punto de expirar.",
         "global:header.session.timeLeft": "Te quedan {{time}} para emitir tu voto.",
+        "votingPortal:a11y.selectUpTo_one": "Selecciona hasta {{count}} opción",
+        "votingPortal:a11y.selectUpTo_many": "Selecciona hasta {{count}} opciones",
+        "votingPortal:a11y.selectUpTo_other": "Selecciona hasta {{count}} opciones",
+        "votingPortal:a11y.selectExactly_one": "Selecciona {{count}} opción",
+        "votingPortal:a11y.selectExactly_many": "Selecciona {{count}} opciones",
+        "votingPortal:a11y.selectExactly_other": "Selecciona {{count}} opciones",
+        "votingPortal:a11y.selectBetween": "Selecciona entre {{min}} y {{max}} opciones",
         "votingPortal:votingScreen.ballotHelpDialog.content":
             "Esta pantalla muestra las preguntas en las que eres elegible para votar. Puedes hacer tu selección activando la casilla a la derecha del Candidato/Respuesta. Para restablecer tus selecciones, haz clic en el botón “<b>Limpiar selecciones</b>”, para pasar al siguiente paso, haz clic en el botón “<b>Siguiente</b>”.",
         "votingPortal:votingScreen.nonVotedDialog.title": "Tu voto es inválido o está en blanco",
@@ -69,6 +77,9 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:votingScreen.warningDialog.title": "Revisa tu papeleta",
         "votingPortal:votingScreen.warningDialog.content":
             "Tu papeleta contiene selecciones que pueden necesitar tu atención (como seleccionar menos opciones de las permitidas). Tu papeleta es válida y se contará tal como se ha enviado.",
+        "votingPortal:votingScreen.blankBallotDialog.title": "No has seleccionado ningún candidato",
+        "votingPortal:votingScreen.blankBallotDialog.content":
+            "No has realizado ninguna selección. Tu papeleta se emitirá como papeleta en blanco, lo cual es una elección válida y deliberada y se contabilizará como tal.",
         "votingPortal:startScreen.declineToVoteDialog.content":
             "¿Estás seguro de que deseas declinar votar?<br />Irás directamente a la revisión y tu estado de participación se guardará como <b>Ha declinado votar</b>.",
         "votingPortal:startScreen.instructionsDescription": "Sigue estos pasos para emitir tu voto",
@@ -81,6 +92,8 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:startScreen.step3Title": "3. Emite tu papeleta",
         "votingPortal:startScreen.step3Description":
             "Cuando estés listo, emite tu papeleta para que quede registrada oficialmente. O elige auditar primero para confirmar que fue correctamente capturada y cifrada",
+        "votingPortal:reviewScreen.acclamation.description":
+            "Revisa lo que se ha resuelto por aclamación en esta elección. No se emitirá ninguna papeleta.",
         "votingPortal:reviewScreen.title": "Revisa tu voto",
         "votingPortal:reviewScreen.description":
             "Para realizar cambios en tus selecciones, haz clic en el botón “<b>Editar selección</b>”, para confirmar tus selecciones, haz clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar tu papeleta haz clic en el botón “<b>Auditar papeleta</b>” debajo.",
@@ -99,6 +112,10 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
             "¿Estás seguro de que quieres emitir tu voto?",
         "votingPortal:reviewScreen.confirmCastVoteDialog.content":
             "Una vez que confirmes, tu voto será emitido.",
+        "votingPortal:reviewScreen.confirmCastBlankBallotDialog.title":
+            "¿Estás seguro de que quieres emitir una papeleta en blanco?",
+        "votingPortal:reviewScreen.confirmCastBlankBallotDialog.content":
+            "No has seleccionado ningún candidato. Una vez confirmes, tu papeleta se emitirá en blanco.",
         "votingPortal:reviewScreen.error.NETWORK_ERROR":
             "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
         "votingPortal:reviewScreen.error.UNABLE_TO_FETCH_DATA":
@@ -190,6 +207,8 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:confirmationScreen.title": "Tu voto ha sido emitido",
         "votingPortal:confirmationScreen.description":
             "Tu papeleta fue emitida correctamente. Usa el código a continuación para verificar que fue contabilizada",
+        "votingPortal:confirmationScreen.blankBallot.description":
+            "Tu papeleta se emitió en blanco, lo cual es una elección válida y deliberada.",
         "votingPortal:confirmationScreen.remainingElectionsError":
             "No pudimos comprobar si tienes más elecciones en las que votar. Vuelve a intentarlo.",
         "votingPortal:confirmationScreen.verifyCastTitle": "Comprueba que tu voto fue emitido",
@@ -242,6 +261,8 @@ export const spanishInformalTemplate: ITranslationPresetTemplate = {
             "El evento electoral aún no ha sido publicado. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
         "votingPortal:electionSelectionScreen.materialsGate.instructions":
             "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
+        "votingPortal:errors.page.invalidLoginHintParametersMessage":
+            "Este enlace de votación contiene información de acceso no válida. Solicita un nuevo enlace e inténtalo de nuevo.",
         "votingPortal:errors.page.certAuthFailedMessage":
             "No se ha podido verificar tu certificado. Comprueba que estás usando un certificado de votante válido e inténtalo de nuevo.",
         "votingPortal:materials.mandatory.error":

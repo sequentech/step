@@ -12,6 +12,7 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
     id: ETranslationPresetTemplate.CATALAN_INFORMAL,
     language: "cat",
     overrides: {
+        "global:a11y.ballotIdHelp": "Sobre el teu ID de vot",
         "global:homeScreen.startButton": "Selecciona fitxer",
         "global:homeScreen.dragDropOption": "O arrossega el fitxer aquí",
         "global:homeScreen.importErrorDescription":
@@ -65,6 +66,13 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
         "global:selectElection.ballotLocator": "Localitza el teu vot",
         "global:header.session.title": "La teva sessió està a punt d'expirar.",
         "global:header.session.timeLeft": "Et queden {{time}} per emetre el teu vot.",
+        "votingPortal:a11y.selectUpTo_one": "Selecciona fins a {{count}} opció",
+        "votingPortal:a11y.selectUpTo_many": "Selecciona fins a {{count}} opcions",
+        "votingPortal:a11y.selectUpTo_other": "Selecciona fins a {{count}} opcions",
+        "votingPortal:a11y.selectExactly_one": "Selecciona {{count}} opció",
+        "votingPortal:a11y.selectExactly_many": "Selecciona {{count}} opcions",
+        "votingPortal:a11y.selectExactly_other": "Selecciona {{count}} opcions",
+        "votingPortal:a11y.selectBetween": "Selecciona entre {{min}} i {{max}} opcions",
         "votingPortal:votingScreen.ballotHelpDialog.content":
             "Aquesta pantalla mostra les preguntes en les quals ets elegible per votar. Pots fer la teva selecció activant la casella a la dreta del Candidat/Resposta. Per restablir les teves seleccions, fes clic al botó “<b>Netejar seleccions</b>”, per passar al següent pas, fes clic al botó “<b>Següent</b>”.",
         "votingPortal:votingScreen.nonVotedDialog.title": "El teu vot és invàlid o en blanc",
@@ -76,6 +84,9 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:votingScreen.warningDialog.ok": "Torna i revisa",
         "votingPortal:votingScreen.warningDialog.continue": "Continua",
         "votingPortal:votingScreen.warningDialog.cancel": "Cancel·la",
+        "votingPortal:votingScreen.blankBallotDialog.title": "No has seleccionat cap candidat",
+        "votingPortal:votingScreen.blankBallotDialog.content":
+            "No has fet cap selecció. La teva papereta s'emetrà com a papereta en blanc, que és una elecció vàlida i deliberada i es comptabilitzarà com a tal.",
         "votingPortal:votingScreen.blankBallotDialog.continue": "Continua",
         "votingPortal:votingScreen.blankBallotDialog.cancel": "Cancel·la",
         "votingPortal:startScreen.declineToVoteDialog.title": "Confirma que vols declinar votar",
@@ -114,6 +125,10 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
             "Estàs segur que vols emetre el teu vot?",
         "votingPortal:reviewScreen.confirmCastVoteDialog.content":
             "Un cop confirmis, el teu vot serà emès.",
+        "votingPortal:reviewScreen.confirmCastBlankBallotDialog.title":
+            "Estàs segur que vols emetre una papereta en blanc?",
+        "votingPortal:reviewScreen.confirmCastBlankBallotDialog.content":
+            "No has seleccionat cap candidat. Un cop confirmis, la teva papereta s'emetrà en blanc.",
         "votingPortal:reviewScreen.error.NETWORK_ERROR":
             "Hi ha hagut un problema de xarxa. Si us plau, torna-ho a provar més tard o contacta amb el servei d'assistència.",
         "votingPortal:reviewScreen.error.UNABLE_TO_FETCH_DATA":
@@ -205,6 +220,8 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
         "votingPortal:confirmationScreen.title": "El teu vot ha estat emès",
         "votingPortal:confirmationScreen.description":
             "La teva papereta va ser emesa correctament. Utilitza el codi a continuació per verificar que va ser comptabilitzada",
+        "votingPortal:confirmationScreen.blankBallot.description":
+            "La teva papereta s'ha emès en blanc, que és una elecció vàlida i deliberada.",
         "votingPortal:confirmationScreen.remainingElectionsError":
             "No hem pogut comprovar si tens més eleccions en què votar. Torna-ho a provar.",
         "votingPortal:confirmationScreen.retryButton": "Torna-ho a provar",
@@ -258,6 +275,8 @@ export const catalanInformalTemplate: ITranslationPresetTemplate = {
             "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torna-ho a provar més tard o contacta amb el servei d'assistència.",
         "votingPortal:electionSelectionScreen.materialsGate.instructions":
             "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
+        "votingPortal:errors.page.invalidLoginHintParametersMessage":
+            "Aquest enllaç de votació conté informació d’accés no vàlida. Demana un enllaç nou i torna-ho a provar.",
         "votingPortal:errors.page.certAuthFailedMessage":
             "No s'ha pogut verificar el teu certificat. Comprova que estàs utilitzant un certificat de votant vàlid i torna-ho a provar.",
         "votingPortal:materials.mandatory.continueButton": "Continua",
