@@ -21,6 +21,9 @@ use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use windmill::services::database::PgConfig;
 
+const IMMUDB_LOGS_DB: &str = "IMMUDB_LOGS_DB";
+const DEFAULT_IMMUDB_LOGS_DB: &str = "defaultdb";
+
 #[instrument(err)]
 pub async fn get_immudb_client() -> Result<Client> {
     let username =
@@ -73,8 +76,6 @@ enum AuditTable {
 
 #[derive(Deserialize, Debug)]
 pub struct GetPgauditBody {
-    tenant_id: String,
-    election_event_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
     filter: Option<HashMap<OrderField, String>>,
@@ -243,12 +244,24 @@ impl TryFrom<&Row> for PgAuditRow {
     }
 }
 
+fn pgaudit_database(configured: Option<String>) -> String {
+    configured
+        .filter(|database| !database.is_empty())
+        .unwrap_or_else(|| DEFAULT_IMMUDB_LOGS_DB.to_string())
+}
+
+fn authorize_pgaudit(claims: &JwtClaims) -> Result<(), (Status, String)> {
+    authorize(claims, true, None, vec![Permissions::LOGS_READ])
+}
+
 async fn audit_list_service(
     input: GetPgauditBody,
 ) -> Result<Json<DataList<PgAuditRow>>, Debug<anyhow::Error>> {
     let mut client = get_immudb_client().await?;
 
-    client.open_session(&input.election_event_id).await?;
+    client
+        .open_session(&pgaudit_database(env::var(IMMUDB_LOGS_DB).ok()))
+        .await?;
     let (clauses, params) = input.as_sql(false)?;
     let (clauses_to_count, count_params) = input.as_sql(true)?;
 
@@ -312,12 +325,7 @@ pub async fn list_pgaudit(
     claims: JwtClaims,
 ) -> Result<Json<DataList<PgAuditRow>>, (Status, String)> {
     let input = body.into_inner();
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![Permissions::LOGS_READ],
-    )?;
+    authorize_pgaudit(&claims)?;
     let result = audit_list_service(input)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -327,8 +335,100 @@ pub async fn list_pgaudit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+    use rocket::http::{ContentType, Header};
+    use rocket::local::asynchronous::Client as RocketClient;
     use sequent_core::serialization::deserialize_with_path::deserialize_value;
     use serde_json::json;
+
+    const SUPER_ADMIN_TENANT_ID: &str = "SUPER_ADMIN_TENANT_ID";
+    const SUPER_ADMIN_TENANT: &str = "super-admin-tenant";
+
+    fn admin_claims(tenant_id: &str, permissions: &[Permissions]) -> JwtClaims {
+        let roles: Vec<String> =
+            permissions.iter().map(|p| p.to_string()).collect();
+        deserialize_value(json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": tenant_id,
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": roles
+            }
+        }))
+        .unwrap()
+    }
+
+    #[rocket::async_test]
+    async fn pgaudit_list_rejects_log_readers_outside_super_admin_tenant() {
+        env::set_var(SUPER_ADMIN_TENANT_ID, SUPER_ADMIN_TENANT);
+        let claims = admin_claims(
+            "tenant-a",
+            &[Permissions::ADMIN_USER, Permissions::LOGS_READ],
+        );
+        let token =
+            URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims).unwrap());
+        let client = RocketClient::tracked(
+            rocket::build().mount("/", routes![list_pgaudit]),
+        )
+        .await
+        .unwrap();
+        let response = client
+            .post("/immudb/pgaudit-list")
+            .header(ContentType::JSON)
+            .header(Header::new(
+                "authorization",
+                format!("Bearer e30.{token}.sig"),
+            ))
+            .body(
+                json!({
+                    "tenant_id": "tenant-a",
+                    "election_event_id": "defaultdb",
+                    "audit_table": "pgaudit_hasura"
+                })
+                .to_string(),
+            )
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Unauthorized);
+    }
+
+    #[test]
+    fn pgaudit_requires_super_admin_tenant_and_logs_read() {
+        env::set_var(SUPER_ADMIN_TENANT_ID, SUPER_ADMIN_TENANT);
+        assert!(authorize_pgaudit(&admin_claims(
+            SUPER_ADMIN_TENANT,
+            &[Permissions::LOGS_READ]
+        ))
+        .is_ok());
+        assert!(authorize_pgaudit(&admin_claims(
+            SUPER_ADMIN_TENANT,
+            &[Permissions::ADMIN_USER]
+        ))
+        .is_err());
+        assert!(authorize_pgaudit(&admin_claims(
+            "tenant-a",
+            &[Permissions::ADMIN_USER, Permissions::LOGS_READ]
+        ))
+        .is_err());
+    }
+
+    #[test]
+    fn pgaudit_database_comes_from_configuration() {
+        assert_eq!(
+            pgaudit_database(Some("pgaudit-logs".into())),
+            "pgaudit-logs"
+        );
+        assert_eq!(
+            pgaudit_database(Some(String::new())),
+            DEFAULT_IMMUDB_LOGS_DB
+        );
+        assert_eq!(pgaudit_database(None), DEFAULT_IMMUDB_LOGS_DB);
+    }
 
     #[test]
     fn test_as_sql() {
