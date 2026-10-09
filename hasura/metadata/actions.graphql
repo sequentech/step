@@ -1507,7 +1507,7 @@ type InsertCastVoteOutput {
     labels: jsonb
     annotations: jsonb
     content: String
-    cast_ballot_signature: bytea!
+    cast_ballot_signature: bytea
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String

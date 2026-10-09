@@ -627,7 +627,7 @@ export type InsertCastVoteOutput = {
   annotations?: Maybe<Scalars['jsonb']['output']>;
   area_id: Scalars['uuid']['output'];
   ballot_id?: Maybe<Scalars['String']['output']>;
-  cast_ballot_signature: Scalars['bytea']['output'];
+  cast_ballot_signature?: Maybe<Scalars['bytea']['output']>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   election_event_id: Scalars['uuid']['output'];
