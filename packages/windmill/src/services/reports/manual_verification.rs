@@ -8,7 +8,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use keycloak::KeycloakTokenSupplier;
-use sequent_core::services::keycloak::admin_client::KeycloakAdminClient;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::util::temp_path::*;
