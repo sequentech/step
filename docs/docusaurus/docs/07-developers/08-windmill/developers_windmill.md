@@ -15,6 +15,8 @@ authorized tenant, election event, election and ballot ID. Configure an absolute
 HTTP(S) base URL without credentials, query parameters or a fragment; a path
 prefix and trailing slash are supported. When `KIOSK_VOTING_PORTAL_URL` is set,
 a receipt requested from that origin uses the configured kiosk base instead.
+Selecting a distinct configured kiosk origin also restores the fixed `?kiosk`
+login flag for older portal requests that omitted their query string.
 
 The existing `ballot_tracker_url` request and task fields remain compatible,
 including for queued tasks, but only select a configured kiosk origin and the
