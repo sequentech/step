@@ -40,7 +40,7 @@ const dutchTranslation: TranslationType = {
             publishedResultsDescription: "Gepubliceerde resultaten voor dit verkiezingsevenement.",
             resultsAndParticipationTitle: "Resultaten en deelname",
             electionsTitle: "Verkiezingen",
-            contestsTitle: "Wedstrijden",
+            contestsTitle: "Stemmingen",
             areasTitle: "Gebieden",
             globalArea: "Globaal",
             noResultsForSelection: "Er zijn geen resultaten beschikbaar voor deze selectie.",
@@ -52,10 +52,11 @@ const dutchTranslation: TranslationType = {
                 "Bij acclamatie gekozen. Deze stemming is zonder stemming beslist, dus er zijn geen stemmen geregistreerd.",
             published: "Gepubliceerd",
             notPublishedYet: "Nog niet gepubliceerd",
-            position: "{{count}} positie",
-            position_plural: "{{count}} posities",
+            position_one: "{{count}} positie",
+            position_many: "{{count}} posities",
+            position_other: "{{count}} posities",
             fallbackElectionName: "Verkiezing",
-            fallbackContestName: "Wedstrijd {{contestId}}",
+            fallbackContestName: "Stemming {{contestId}}",
             state: {
                 unexpectedErrorTitle: "Onverwachte fout",
                 loadErrorMessage:

@@ -19,8 +19,8 @@ const spanishTranslation: TranslationType = {
         logout: {
             buttonText: "Cerrar sesión",
             modal: {
-                title: "¿Seguro que quieres cerrar sesión?",
-                content: "Estás a punto de cerrar esta aplicación.",
+                title: "¿Seguro que quiere cerrar sesión?",
+                content: "Está a punto de cerrar esta aplicación.",
                 ok: "OK",
                 close: "Cerrar",
             },
@@ -29,8 +29,8 @@ const spanishTranslation: TranslationType = {
             profile: "Perfil",
             welcome: "Bienvenido/a,<br><span>{{name}}</span>",
             session: {
-                title: "Tu sesión va a caducar.",
-                timeLeft: "Te queda {{time}}.",
+                title: "Su sesión va a caducar.",
+                timeLeft: "Le queda {{time}}.",
                 timeLeftMinutesAndSeconds: "{{timeLeftInMinutes}} minutos y {{time}} segundos",
                 timeLeftSeconds: "{{timeLeft}} segundos",
             },
@@ -40,7 +40,7 @@ const spanishTranslation: TranslationType = {
             publishedResultsDescription: "Resultados publicados para este evento electoral.",
             resultsAndParticipationTitle: "Resultados y participación",
             electionsTitle: "Elecciones",
-            contestsTitle: "Contiendas",
+            contestsTitle: "Preguntas",
             areasTitle: "Áreas",
             globalArea: "Global",
             noResultsForSelection: "No hay resultados disponibles para esta selección.",
@@ -52,22 +52,23 @@ const spanishTranslation: TranslationType = {
                 "Elegido por aclamación. Esta votación se resolvió sin votación, por lo que no se registró ningún voto.",
             published: "Publicado",
             notPublishedYet: "Todavía no publicado",
-            position: "{{count}} puesto",
-            position_plural: "{{count}} puestos",
+            position_one: "{{count}} puesto",
+            position_many: "{{count}} puestos",
+            position_other: "{{count}} puestos",
             fallbackElectionName: "Elección",
-            fallbackContestName: "Contienda {{contestId}}",
+            fallbackContestName: "Pregunta {{contestId}}",
             state: {
                 unexpectedErrorTitle: "Error inesperado",
                 loadErrorMessage:
-                    "No hemos podido cargar los resultados ahora mismo. Inténtalo de nuevo en unos minutos.",
+                    "No hemos podido cargar los resultados ahora mismo. Inténtelo de nuevo en unos minutos.",
                 signInErrorMessage:
-                    "No hemos podido completar el inicio de sesión para los resultados ahora mismo. Inténtalo de nuevo en unos minutos.",
+                    "No hemos podido completar el inicio de sesión para los resultados ahora mismo. Inténtelo de nuevo en unos minutos.",
                 signInRequiredTitle: "Inicio de sesión requerido",
                 signInRequiredMessage:
-                    "Inicia sesión con tu cuenta de votante para ver estos resultados.",
+                    "Inicie sesión con su cuenta de votante para ver estos resultados.",
                 notPublishedTitle: "Resultados todavía no publicados",
                 notPublishedMessage:
-                    "Los resultados no están disponibles en este momento. Vuelve a comprobarlo más tarde.",
+                    "Los resultados no están disponibles en este momento. Vuelva a comprobarlo más tarde.",
             },
             summary: {
                 title: "Información general",

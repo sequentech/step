@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 
 const galegoTranslation: TranslationType = {
     translations: {
-        welcome: "Ola <br/> <strong>Mundo</strong>",
         404: {
             title: "Páxina non atopada",
             subtitle: "A páxina que estás buscando non existe",
@@ -75,12 +74,14 @@ const galegoTranslation: TranslationType = {
                     "As seguintes seleccións de papeleta foron descifradas da papeleta que importaches. Revísaas e asegúrate de que coinciden coas que fixeches no Portal de Votación. Se as túas seleccións non coinciden, contacta coas autoridades electorais...",
             },
             markedInvalid: "Papeleta marcada explícitamente como inválida",
-            points: "({{points}} Puntos)",
-            contestNotFound: "Concurso non atopado: {{contestId}}",
+            points_one: "({{count}} Punto)",
+            points_many: "({{count}} Puntos)",
+            points_other: "({{count}} Puntos)",
+            contestNotFound: "Pregunta non atopada: {{contestId}}",
             declineToVote: "Decidiu non votar",
             blankBallot: "Papeleta en branco",
             acclamationDescription:
-                "Este concurso resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
+                "Esta pregunta resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
         },
         footer: {
             poweredBy: "Impulsado por <1></1>",
@@ -93,12 +94,6 @@ const galegoTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Erro ao converter a opción escrita de bytes a cadea UTF-8: {{errorMessage}}",
                 ballotTooLarge: "A papeleta é máis grande do esperado",
-            },
-            implicit: {
-                selectedMax:
-                    "Número de opcións seleccionadas {{numSelected}} é máis do máximo permitido {{max}}",
-                selectedMin:
-                    "Número de opcións seleccionadas {{numSelected}} é menor do mínimo {{min}}",
             },
             explicit: {
                 notAllowed: "A papeleta está marcada como inválida pero a pregunta non o permite",

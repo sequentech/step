@@ -21,8 +21,10 @@ const basqueTranslation: TranslationType = {
             votingProgress: "Bozketaren aurrerapena",
             stepOf: "{{total}} urratsetik {{current}}. urratsa",
             selectUpTo_one: "Hautatu gehienez aukera {{count}}",
+            selectUpTo_many: "Hautatu gehienez {{count}} aukera",
             selectUpTo_other: "Hautatu gehienez {{count}} aukera",
             selectExactly_one: "Hautatu aukera {{count}}",
+            selectExactly_many: "Hautatu {{count}} aukera",
             selectExactly_other: "Hautatu {{count}} aukera",
             selectBetween: "Hautatu {{min}} eta {{max}} aukera artean",
         },
@@ -30,8 +32,9 @@ const basqueTranslation: TranslationType = {
             collapseToggle: "{{listTitle}} zerrenda txandakatu",
             showCandidates: "Hautagaiak erakutsi",
             hideCandidates: "Hautagaiak ezkutatu",
-            selectedCandidate: "{{count}} hautagai hautatuta",
-            selectedCandidates: "{{count}} hautagai hautatuta",
+            selectedCandidates_one: "{{count}} hautagai hautatuta",
+            selectedCandidates_many: "{{count}} hautagai hautatuta",
+            selectedCandidates_other: "{{count}} hautagai hautatuta",
             expandAll: "Dena zabaldu",
             collapseAll: "Dena tolestu",
         },
@@ -48,7 +51,7 @@ const basqueTranslation: TranslationType = {
         contest: {
             acclamation: {
                 description:
-                    "Lehiaketa hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
+                    "Galdera hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
             },
         },
         votingScreen: {
@@ -58,7 +61,7 @@ const basqueTranslation: TranslationType = {
             ballotHelpDialog: {
                 title: "Informazioa: Bozketa pantaila",
                 content:
-                    'Pantaila honek zuk bozkatzeko eskubidea duzun lehiaketa erakusten du. Zure hautaketa egin dezakezu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia aktibatuz. Zure hautaketak berrezartzeko, sakatu "<b>Hautaketa garbitu</b>" botoia, hurrengo urratsera joateko, sakatu beheko "<b>Hurrengoa</b>" botoia.',
+                    'Pantaila honek zuk bozkatzeko eskubidea duzun galdera erakusten du. Zure hautaketa egin dezakezu eskuinaldeko Hautagaia/Erantzunaren kontrol-laukia aktibatuz. Zure hautaketak berrezartzeko, sakatu "<b>Hautaketa garbitu</b>" botoia, hurrengo urratsera joateko, sakatu beheko "<b>Hurrengoa</b>" botoia.',
                 ok: "Ados",
             },
             nonVotedDialog: {
@@ -261,11 +264,11 @@ const basqueTranslation: TranslationType = {
             acclamation: {
                 title: "Aklamazioz erabakia",
                 description:
-                    "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
+                    "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
                 helpDialog: {
                     title: "Informazioa: Aklamazioa",
                     content:
-                        "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
+                        "Hauteskunde honetako galdera guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
                     ok: "Ados",
                 },
             },
@@ -380,7 +383,7 @@ const basqueTranslation: TranslationType = {
             },
             alerts: {
                 noElections:
-                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako lehiaketa asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
+                    "Ez dago bozkatu dezakezun hauteskunderik. Hau eremua ez duelako galdera asoziaturik ez duelako izan daiteke. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
                 electionEventNotPublished:
                     "Hauteskunde gertaera ez da argitaratu oraindik. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
             },
@@ -399,7 +402,7 @@ const basqueTranslation: TranslationType = {
                     "Bozkatzeko esteka honek saioa hasteko informazio baliogabea dauka. Eskatu beste esteka bat eta saiatu berriro.",
                 certAuthFailedTitle: "Ziurtagiriaren Autentifikazio Errorea",
                 certAuthFailedMessage:
-                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
+                    "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu bozkatzaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",
             },
         },
         materials: {
@@ -428,7 +431,8 @@ const basqueTranslation: TranslationType = {
                 "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
-            ballotIdNotFoundAtFilter: "Zure bozketa IDa ez da {{ballotId}} bozketa zerrendan",
+            ballotIdNotFoundAtFilter:
+                "Ez da aurkitu. Egiaztatu zure bozketa IDa zuzena dela eta erabiltzaile honi dagokiola.",
             filterByBallotId: "Filtratu Bozketa IDa",
             totalBallots: "Bozketa kopurua: {{total}}",
             steps: {

@@ -663,7 +663,7 @@ export const ReviewScreen: React.FC = () => {
         // errorMsg is rendered as HTML below, so its interpolated values are escaped
         setErrorMsg(
             t(
-                "errors.encoding.writeInCharsExceeded",
+                `reviewScreen.error.${CastBallotsErrorType.INCONSISTENT_HASH}`,
                 escapeTranslationValues({
                     ballotId,
                     auditableBallotHash: auditableBallot.ballot_hash,

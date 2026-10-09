@@ -21,8 +21,10 @@ const spanishTranslation: TranslationType = {
             votingProgress: "Progreso de la votación",
             stepOf: "Paso {{current}} de {{total}}",
             selectUpTo_one: "Seleccione hasta {{count}} opción",
+            selectUpTo_many: "Seleccione hasta {{count}} opciones",
             selectUpTo_other: "Seleccione hasta {{count}} opciones",
             selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_many: "Seleccione {{count}} opciones",
             selectExactly_other: "Seleccione {{count}} opciones",
             selectBetween: "Seleccione entre {{min}} y {{max}} opciones",
         },
@@ -30,8 +32,9 @@ const spanishTranslation: TranslationType = {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
             hideCandidates: "Ocultar candidatos",
-            selectedCandidate: "{{count}} candidato seleccionado",
-            selectedCandidates: "{{count}} candidatos seleccionados",
+            selectedCandidates_one: "{{count}} candidato seleccionado",
+            selectedCandidates_many: "{{count}} candidatos seleccionados",
+            selectedCandidates_other: "{{count}} candidatos seleccionados",
             expandAll: "Expandir todo",
             collapseAll: "Contraer todo",
         },
@@ -54,11 +57,11 @@ const spanishTranslation: TranslationType = {
         votingScreen: {
             backButton: "Atrás",
             reviewButton: "Siguiente",
-            clearButton: "Limpiar selección",
+            clearButton: "Limpiar selecciones",
             ballotHelpDialog: {
                 title: "Información: Pantalla de votación",
                 content:
-                    "Esta pantalla muestra la votación en la que usted es elegible para votar. Puede seleccionar su sección activando la casilla de la derecha Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Borrar selección</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
+                    "Esta pantalla muestra las preguntas en las que usted es elegible para votar. Puede hacer su selección activando la casilla a la derecha del Candidato/Respuesta. Para restablecer sus selecciones, haga clic en el botón “<b>Limpiar selecciones</b>”, para pasar al siguiente paso, haga clic en el botón “<b>Siguiente</b>”.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -70,9 +73,9 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
             warningDialog: {
-                title: "Revisa tu papeleta",
+                title: "Revise su papeleta",
                 content:
-                    "Tu papeleta contiene selecciones que pueden necesitar tu atención (como seleccionar menos opciones de las permitidas). Tu papeleta es válida y se contará tal como se ha enviado.",
+                    "Su papeleta contiene selecciones que pueden necesitar su atención (como seleccionar menos opciones de las permitidas). Su papeleta es válida y se contará tal como se ha enviado.",
                 ok: "Volver y revisar",
                 continue: "Continuar",
                 cancel: "Cancelar",
@@ -91,21 +94,21 @@ const spanishTranslation: TranslationType = {
             declineToVoteDialog: {
                 title: "Confirmar declinación de voto",
                 content:
-                    "¿Estás seguro de que deseas declinar votar?<br />Irás directamente a la revisión y tu estado de participación se guardará como <b>Ha declinado votar</b>.",
+                    "¿Está seguro de que desea declinar votar?<br />Irá directamente a la revisión y su estado de participación se guardará como <b>Ha declinado votar</b>.",
                 continue: "Declinar votar",
                 cancel: "Cancelar",
             },
             instructionsTitle: "Instrucciones",
             instructionsDescription: "Por favor, siga estos pasos para emitir su voto:",
-            step1Title: "1. Seleccione su opción de voto",
+            step1Title: "1. Haga sus selecciones",
             step1Description:
                 "Seleccione sus candidatos preferidos y responda las preguntas de la elección una por una a medida que aparezcan. Puede editar su papeleta hasta que esté listo para continuar.",
             step2Title: "2. Revise su papeleta",
             step2Description:
-                "Una vez que esté satisfecho con sus selecciones, encriptaremos su papeleta y le mostraremos una revisión final de sus elecciones. También recibirá un ID de seguimiento único para su papeleta.",
-            step3Title: "3. Envíe su voto",
+                "Una vez que esté satisfecho con sus selecciones, encriptaremos su papeleta y le mostraremos una revisión final de sus selecciones. También recibirá un ID de seguimiento único para su papeleta.",
+            step3Title: "3. Emita su papeleta",
             step3Description:
-                "Envía tu papeleta: Finalmente, puedes enviar tu papeleta para que se registre correctamente. Alternativamente, puedes optar por auditar y confirmar que tu papeleta fue capturada y cifrada correctamente.",
+                "Envíe su papeleta: Finalmente, puede enviar su papeleta para que se registre correctamente. Alternativamente, puede optar por auditar y confirmar que su papeleta fue capturada y cifrada correctamente.",
         },
         reviewScreen: {
             acclamation: {
@@ -120,13 +123,13 @@ const spanishTranslation: TranslationType = {
                     "Revise lo que se ha resuelto por aclamación en esta elección. No se emitirá ninguna papeleta.",
                 finishButton: "Finalizar",
             },
-            title: "Revisa tu voto",
+            title: "Revise su voto",
             description:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar su voto</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
             descriptionNoAudit:
-                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo.",
-            backButton: "Editar tu voto",
-            castBallotButton: "Enviar tu voto",
+                "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar su voto</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar voto</b>” debajo.",
+            backButton: "Editar su voto",
+            castBallotButton: "Enviar voto",
             auditButton: "Auditar papeleta",
             copyBallotId: "Copiar el ID de la papeleta",
             ballotIdCopied: "ID de la papeleta copiado",
@@ -145,9 +148,9 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
             },
             auditBallotHelpDialog: {
-                title: "¿Realmente quieres Auditar tu papeleta?",
+                title: "¿Realmente quiere auditar su papeleta?",
                 content:
-                    "<p>La auditoría de la papeleta lo invalidará y tendrás que iniciar el proceso de votación de nuevo si deseas emitir tu voto. El proceso de auditoría de la papeleta permite verificar que está codificada correctamente. Hacer este proceso requiere que unos conocimientos técnicos importantes, por lo que no se recomienda si no sabes lo que estás haciendo.</p><p><b>Si lo que desea es emitir su voto, en <u>Cancelar</u> para volver a la pantalla de revisión de votación.</b></p>",
+                    "<p>La auditoría de la papeleta lo invalidará y tendrá que iniciar el proceso de votación de nuevo si desea emitir su voto. El proceso de auditoría de la papeleta permite verificar que está codificada correctamente. Hacer este proceso requiere que unos conocimientos técnicos importantes, por lo que no se recomienda si no sabe lo que está haciendo.</p><p><b>Si lo que desea es emitir su voto, en <u>Cancelar</u> para volver a la pantalla de revisión de votación.</b></p>",
                 ok: "Si, quiero INVALIDAR mi papeleta para AUDITARLA",
                 cancel: "Cancelar",
             },
@@ -166,95 +169,95 @@ const spanishTranslation: TranslationType = {
             },
             error: {
                 NETWORK_ERROR:
-                    "Hubo un problema de red. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 UNABLE_TO_FETCH_DATA:
-                    "Hubo un problema al recuperar los datos. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un problema al recuperar los datos. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 LOAD_ELECTION_EVENT:
-                    "No se puede cargar el evento electoral. Por favor, inténtalo de nuevo más tarde.",
+                    "No se puede cargar el evento electoral. Por favor, inténtelo de nuevo más tarde.",
                 CAST_VOTE:
-                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_CheckStatusFailed:
-                    "La elección no permite emitir el voto. La elección puede estar cerrada, archivada o tal vez estés intentando votar fuera del período de gracia.",
+                    "La elección no permite emitir el voto. La elección puede estar cerrada, archivada o quizá esté intentando votar fuera del período de gracia.",
                 CAST_VOTE_AreaNotFound:
-                    "Ha ocurrido un error al emitir el voto: Área no encontrada. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error al emitir el voto: área no encontrada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_InternalServerError:
-                    "Ha ocurrido un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_QueueError:
-                    "Ha ocurrido un problema al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un problema al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_Unauthorized:
-                    "No está autorizado para emitir un voto. Por favor, contacte con soporte para obtener ayuda.",
+                    "No está autorizado para emitir un voto. Por favor, contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_ElectionEventNotFound:
-                    "No se pudo encontrar el evento electoral. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "No se pudo encontrar el evento electoral. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_ElectoralLogNotFound:
-                    "No se pudo encontrar su registro de votación. Por favor, contacte con soporte para obtener ayuda.",
+                    "No se pudo encontrar su registro de votación. Por favor, contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_CheckPreviousVotesFailed:
-                    "Ha ocurrido un error al verificar su estado de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error al verificar su estado de votación. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_GetClientCredentialsFailed:
-                    "No se pudieron verificar sus credenciales. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "No se pudieron verificar sus credenciales. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_GetAreaIdFailed:
-                    "Ha ocurrido un error al verificar su área de votación. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error al verificar su área de votación. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_GetTransactionFailed:
-                    "Ha ocurrido un error al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error al procesar su voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_DeserializeBallotFailed:
-                    "Ha ocurrido un error al leer su papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error al leer su papeleta. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_DeserializeContestsFailed:
-                    "Ha ocurrido un error al leer sus selecciones. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error al leer sus selecciones. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_PokValidationFailed:
-                    "No se pudo validar su voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "No se pudo validar su voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_UuidParseFailed:
-                    "Ha ocurrido un error al procesar su solicitud. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error al procesar su solicitud. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_unexpected:
-                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_timeout:
-                    "Error de tiempo de espera para emitir el voto. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
+                    "Error de tiempo de espera al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_InsertFailedExceedsAllowedRevotes:
-                    "Has superado el límite de revotos. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
+                    "Ha superado el límite de revotos. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_CheckRevotesFailed:
-                    "Has superado el número permitido de revotos. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
+                    "Ha superado el número permitido de revotos. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_CheckVotesInOtherAreasFailed:
-                    "Ya has votado en otra área. Inténtalo de nuevo más tarde o contacta con el soporte técnico.",
+                    "Ya ha votado en otra área. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CAST_VOTE_UnknownError:
-                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Ha ocurrido un error desconocido al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 NO_BALLOT_SELECTION:
-                    "El estado de selección para esta elección no está presente. Asegúrate de haber seleccionado correctamente tus opciones o contacta con el soporte.",
+                    "El estado de selección para esta elección no está presente. Asegúrese de haber seleccionado correctamente sus opciones o contacte con el soporte.",
                 NO_BALLOT_STYLE:
-                    "El estilo de la papeleta no está disponible. Por favor, contacta con el soporte.",
+                    "El estilo de la papeleta no está disponible. Por favor, contacte con el soporte.",
                 NO_AUDITABLE_BALLOT:
-                    "No hay una papeleta verificable disponible. Por favor, contacta con el soporte.",
+                    "No hay una papeleta verificable disponible. Por favor, contacte con el soporte.",
                 INCONSISTENT_HASH:
-                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informa de este problema al soporte.",
+                    "Hubo un error relacionado con el proceso de hash de la papeleta. El BallotId: {{ballotId}} no es coherente con el Hash de la Papeleta Verificable: {{auditableBallotHash}}. Por favor, informe de este problema al soporte.",
                 ELECTION_EVENT_NOT_OPEN:
-                    "El evento electoral está cerrado. Por favor, contacta con el soporte.",
+                    "El evento electoral está cerrado. Por favor, contacte con el soporte.",
                 PARSE_ERROR:
-                    "Hubo un error al analizar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un error al analizar la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 DESERIALIZE_AUDITABLE_ERROR:
-                    "Hubo un error al deserializar la papeleta verificable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un error al deserializar la papeleta verificable. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 DESERIALIZE_HASHABLE_ERROR:
-                    "Hubo un error al deserializar la papeleta hashable. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un error al deserializar la papeleta hashable. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 CONVERT_ERROR:
-                    "Hubo un error al convertir la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un error al convertir la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 SERIALIZE_ERROR:
-                    "Hubo un error al serializar la papeleta. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un error al serializar la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 UNKNOWN_ERROR:
-                    "Hubo un error. Por favor, inténtalo de nuevo más tarde o contacta con el soporte para obtener ayuda.",
+                    "Hubo un error. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 REAUTH_FAILED:
-                    "La autenticación ha fallado. Por favor, inténtalo de nuevo o contacta con el soporte para obtener ayuda.",
+                    "La autenticación ha fallado. Por favor, inténtelo de nuevo o contacte con el soporte para obtener ayuda.",
                 SESSION_EXPIRED:
-                    "Tu sesión ha expirado. Por favor, intenta de nuevo desde el principio.",
+                    "Su sesión ha expirado. Por favor, inténtelo de nuevo desde el principio.",
                 CAST_VOTE_BallotIdMismatch:
                     "El identificador de la papeleta no coincide con el del voto emitido.",
                 SESSION_STORAGE_ERROR:
-                    "El almacenamiento de sesión no está disponible. Por favor, inténtelo de nuevo o contacte con soporte.",
+                    "El almacenamiento de sesión no está disponible. Por favor, inténtelo de nuevo o contacte con el soporte.",
                 PARSE_BALLOT_DATA_ERROR:
-                    "Hubo un error al analizar los datos de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Hubo un error al analizar los datos de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 NOT_VALID_BALLOT_DATA_ERROR:
-                    "Los datos de la papeleta no son válidos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Los datos de la papeleta no son válidos. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 FETCH_DATA_TIMEOUT_ERROR:
-                    "Error de tiempo de espera al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Error de tiempo de espera al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 TO_HASHABLE_BALLOT_ERROR:
-                    "Error al convertir a papeleta hashable. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Error al convertir a papeleta hashable. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 INTERNAL_ERROR:
-                    "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
             declineToVote: "Declinar votar",
             blankBallot: "Papeleta en blanco",
@@ -282,7 +285,7 @@ const spanishTranslation: TranslationType = {
             printButton: "Imprimir",
             finishButton: "Finalizar",
             remainingElectionsError:
-                "No pudimos comprobar si tienes más elecciones en las que votar. Vuelve a intentarlo.",
+                "No pudimos comprobar si tiene más elecciones en las que votar. Vuelva a intentarlo.",
             retryButton: "Reintentar",
             verifyCastTitle: "Compruebe que su voto ha sido emitido",
             verifyCastDescription:
@@ -299,7 +302,7 @@ const spanishTranslation: TranslationType = {
                 ok: "Aceptar",
             },
             demoBallotUrlDialog: {
-                title: "Rastreador de Boletas",
+                title: "Rastreador de Papeletas",
                 content: "No se puede usar el código, deshabilitado en modo de demostración.",
                 ok: "OK",
             },
@@ -312,15 +315,15 @@ const spanishTranslation: TranslationType = {
             ballotIdDemoHelpDialog: {
                 title: "Información: Identificación de la papeleta",
                 content:
-                    "<p>La identificación de la papeleta es un código que te permite encontrar tu papeleta en la urna. Este identificador es único y no contiene información sobre tus selecciones.</p><p><b>Aviso:</b> Esta cabina de votación es solo para fines de demostración. Tu voto NO ha sido emitido.</p>",
+                    "<p>La identificación de la papeleta es un código que le permite encontrar su papeleta en la urna. Este identificador es único y no contiene información sobre sus selecciones.</p><p><b>Aviso:</b> Esta cabina de votación es solo para fines de demostración. Su voto NO ha sido emitido.</p>",
                 ok: "Aceptar",
             },
             errorDialogPrintBallotReceipt: {
                 title: "Error",
-                content: "Ha ocurrido un error, por favor intenta de nuevo",
+                content: "Ha ocurrido un error. Por favor, inténtelo de nuevo.",
                 ok: "Aceptar",
             },
-            demoQRText: "El rastreador de boletas está deshabilitado en modo de demostración",
+            demoQRText: "El rastreador de papeletas está deshabilitado en modo de demostración",
         },
         auditScreen: {
             printButton: "Imprimir",
@@ -329,7 +332,7 @@ const spanishTranslation: TranslationType = {
             description: "Para verificar su papeleta deberá seguir los siguientes pasos:",
             step1Title: "1. Descargue o copie la siguiente información",
             step1Description:
-                "Tu <b>Localizador del Voto</b> que aparece en la parte superior de la pantalla y tu papeleta encriptada a continuación:",
+                "Su <b>Localizador del Voto</b> que aparece en la parte superior de la pantalla y su papeleta encriptada a continuación:",
             step1HelpDialog: {
                 title: "Copiar el Voto Cifrado",
                 content:
@@ -337,9 +340,9 @@ const spanishTranslation: TranslationType = {
                 ok: "OK",
             },
             downloadButton: "Descargar",
-            step2Title: "2. Verifica tu papeleta",
+            step2Title: "2. Verifique su papeleta",
             step2Description:
-                "<VerifierLink>Accede al verificador del voto</VerifierLink>, que se abrirá una nueva pestaña en tu navegador.",
+                "<VerifierLink>Acceda al verificador del voto</VerifierLink>, que se abrirá una nueva pestaña en su navegador.",
             step2HelpDialog: {
                 title: "Tutorial sobre la Auditoría del Voto",
                 content:
@@ -370,25 +373,25 @@ const spanishTranslation: TranslationType = {
                 noVotingArea:
                     "Área electoral no asignada al votante. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
                 networkError:
-                    "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Hubo un problema de red. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 unableToFetchData:
-                    "Hubo un problema al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Hubo un problema al obtener los datos. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 noElectionEvent:
-                    "El evento electoral no existe. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "El evento electoral no existe. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 ballotStylesEmlError:
-                    "Hubo un error con la publicación del estilo de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Hubo un error con la publicación del estilo de la papeleta. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 obtainingElectionFromID:
-                    "Hubo un error al obtener las elecciones asociadas con los siguientes IDs de elecciones: {{electionIds}}. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
+                    "Hubo un error al obtener las elecciones asociadas con los siguientes IDs de elecciones: {{electionIds}}. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
             alerts: {
                 noElections:
-                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ningún concurso asociado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
+                    "No hay elecciones en las que pueda votar. Esto podría deberse a que el área no tiene ninguna pregunta asociada. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
                 electionEventNotPublished:
                     "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
             materialsGate: {
                 instructions:
-                    "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
+                    "Debe leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
             },
         },
         errors: {
@@ -415,31 +418,31 @@ const spanishTranslation: TranslationType = {
             mandatory: {
                 checkboxLabel: "He leído los Materiales de Soporte",
                 continueButton: "Continuar",
-                error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
+                error: "Hubo un problema al registrar su confirmación. Por favor, inténtelo de nuevo.",
             },
         },
         ballotLocator: {
-            title: "Encuentra tu Papeleta",
-            titleResult: "Resultados de tu búsqueda de Papeleta",
+            title: "Encuentre su papeleta",
+            titleResult: "Resultados de su búsqueda de Papeleta",
             description: "Confirme que su papeleta fue emitida correctamente",
-            locate: "Encuentra tu Papeleta",
-            locateAgain: "Encuentra otra Papeleta",
-            found: "Tu ID de Papeleta {{ballotId}} ha sido encontrada",
-            notFound: "Tu ID de Papeleta {{ballotId}} no fue encontrada",
+            locate: "Encuentre su papeleta",
+            locateAgain: "Encuentre otra papeleta",
+            found: "Su ID de Papeleta {{ballotId}} ha sido encontrado",
+            notFound: "Su ID de Papeleta {{ballotId}} no fue encontrado",
             ambiguous:
-                "Más de una de tus papeletas coincide con {{ballotId}}. Usa el ID de papeleta completo.",
-            contentDesc: "Este es el contenido de tu Papeleta: ",
+                "Más de una de sus papeletas coincide con {{ballotId}}. Use el ID de papeleta completo.",
+            contentDesc: "Este es el contenido de su papeleta: ",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:
-                "No encontrado, compruebe que el ID de la Papeleta sea correcto y pertenezca a este usuario.",
+                "No encontrado, compruebe que el ID de la papeleta sea correcto y pertenezca a este usuario.",
             filterByBallotId: "Filtrar por ID de Papeleta",
             totalBallots: "Papeletas: {{total}}",
             steps: {
-                lookup: "Localiza tu Papeleta",
+                lookup: "Encuentre su papeleta",
                 result: "Resultado",
             },
             titleHelpDialog: {
-                title: "Información: pantalla de Localización de tu Papeleta",
+                title: "Información: pantalla de Localización de su Papeleta",
                 content:
                     "Esta pantalla le permite al votante encontrar su Papeleta utilizando el ID de la Papeleta para recuperarlo. Este procedimiento permite comprobar que su voto fue emitido correctamente y que el voto registrado coincide con el voto cifrado que emitió.",
                 ok: "OK",

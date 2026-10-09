@@ -21,8 +21,10 @@ const dutchTranslation: TranslationType = {
             votingProgress: "Voortgang van het stemmen",
             stepOf: "Stap {{current}} van {{total}}",
             selectUpTo_one: "Kies maximaal {{count}} optie",
+            selectUpTo_many: "Kies maximaal {{count}} opties",
             selectUpTo_other: "Kies maximaal {{count}} opties",
             selectExactly_one: "Kies {{count}} optie",
+            selectExactly_many: "Kies {{count}} opties",
             selectExactly_other: "Kies {{count}} opties",
             selectBetween: "Kies tussen {{min}} en {{max}} opties",
         },
@@ -30,8 +32,9 @@ const dutchTranslation: TranslationType = {
             collapseToggle: "Lijst {{listTitle}} in-/uitvouwen",
             showCandidates: "Kandidaten tonen",
             hideCandidates: "Kandidaten verbergen",
-            selectedCandidate: "{{count}} kandidaat geselecteerd",
-            selectedCandidates: "{{count}} kandidaten geselecteerd",
+            selectedCandidates_one: "{{count}} kandidaat geselecteerd",
+            selectedCandidates_many: "{{count}} kandidaten geselecteerd",
+            selectedCandidates_other: "{{count}} kandidaten geselecteerd",
             expandAll: "Alles uitvouwen",
             collapseAll: "Alles inklappen",
         },
@@ -64,7 +67,7 @@ const dutchTranslation: TranslationType = {
             nonVotedDialog: {
                 title: "Ongeldige of blanco stem",
                 content:
-                    "Sommige van uw antwoorden maken het stembiljet voor een of meer vragen ongeldig of blanco.",
+                    "Sommige van uw antwoorden maken het stembiljet voor een of meer stemmingen ongeldig of blanco.",
                 ok: "Terug en controleren",
                 continue: "Doorgaan",
                 cancel: "Annuleren",
@@ -99,7 +102,7 @@ const dutchTranslation: TranslationType = {
             instructionsDescription: "Volg deze stappen om uw stem uit te brengen:",
             step1Title: "1. Selecteer uw opties",
             step1Description:
-                "Kies uw voorkeurskandidaten en beantwoord de vragen op het stembiljet een voor een zoals ze verschijnen. U kunt uw stembiljet bewerken totdat u klaar bent om verder te gaan.",
+                "Kies uw voorkeurskandidaten en maak uw keuzes in elke stemming, een voor een zoals ze verschijnen. U kunt uw stembiljet bewerken totdat u klaar bent om verder te gaan.",
             step2Title: "2. Controleer uw stembiljet",
             step2Description:
                 "Zodra u tevreden bent met uw selecties, versleutelen we uw stembiljet en tonen we u een laatste overzicht van uw keuzes. U ontvangt ook een unieke tracker-ID voor uw stembiljet.",

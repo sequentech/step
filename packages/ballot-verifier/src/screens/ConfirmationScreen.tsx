@@ -339,7 +339,10 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                                 contestId: voteQuestion.contest_id,
                             })}
                             markedInvalidLabel={t("confirmationScreen.markedInvalid")}
-                            pointsLabel={(points) => t("confirmationScreen.points", {points})}
+                            pointsLabel={(points) =>
+                                // `points` keeps overrides written before the key was pluralised working.
+                                t("confirmationScreen.points", {count: points, points})
+                            }
                             isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                             declineToVoteLabel={t("confirmationScreen.declineToVote")}
                             isBlankBallotsPolicyEnabled={isBlankBallotsPolicyEnabled}
