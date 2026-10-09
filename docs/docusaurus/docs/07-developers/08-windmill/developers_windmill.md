@@ -189,7 +189,7 @@ Eligible voters are voters that can vote. Voters not included here are disabled 
 
 Generated reports are stored in the private bucket by default, including previews,
 manual-verification documents, activity logs, participation reports, ballot images
-and electoral-results reports. Ballot receipts remain public for voter downloads;
+and electoral-results reports. Real ballot receipts remain public for voter downloads;
 receipts containing declared voter-secret attributes remain private. Administrators
 continue downloading private reports through the authenticated `fetchDocument`
 action and its presigned URL. Email delivery attaches the generated file directly.

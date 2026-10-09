@@ -632,8 +632,11 @@ pub trait TemplateRenderer: Debug {
 
         let contains_voter_secrets =
             generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
-        let document_visibility =
-            DocumentVisibility::for_report(&self.get_report_type(), contains_voter_secrets);
+        let document_visibility = DocumentVisibility::for_report(
+            &self.get_report_type(),
+            contains_voter_secrets,
+            generate_mode == GenerateReportMode::REAL,
+        );
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
