@@ -12,6 +12,7 @@ pub(super) enum DocumentVisibility {
 }
 
 impl DocumentVisibility {
+    /// Public storage is reserved for actual voter receipts without declared secrets.
     pub(super) fn for_report(
         report_type: &ReportType,
         contains_voter_secrets: bool,
@@ -23,6 +24,7 @@ impl DocumentVisibility {
         }
     }
 
+    /// Convert the visibility policy into the existing document-storage flag.
     pub(super) fn is_public(self) -> bool {
         matches!(self, Self::Public)
     }
@@ -32,6 +34,7 @@ impl DocumentVisibility {
 mod tests {
     use super::*;
 
+    /// Non-receipt reports remain private regardless of secret-attribute declarations.
     #[test]
     fn reports_are_private_by_default_including_manual_verification() {
         assert_eq!(DocumentVisibility::default(), DocumentVisibility::Private);
@@ -52,6 +55,7 @@ mod tests {
         }
     }
 
+    /// Administrative previews never use public receipt storage.
     #[test]
     fn ballot_receipt_previews_are_private() {
         for contains_voter_secrets in [false, true] {
@@ -66,6 +70,7 @@ mod tests {
         }
     }
 
+    /// Actual voter receipts preserve public downloads only when they contain no declared secrets.
     #[test]
     fn ballot_receipts_are_public_only_without_voter_secret_attributes() {
         assert_eq!(

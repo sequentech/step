@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class PublicBucketPolicyTests(unittest.TestCase):
     def configure(self, fail_policy=False):
+        """Run the real entrypoint with a synthetic client and capture its policy."""
         with tempfile.TemporaryDirectory() as directory:
             staging = Path(directory)
             capture = staging / "policy.json"
@@ -67,6 +68,7 @@ elif args[:3] == ["anonymous", "set", "download"]:
             return result, policy
 
     def test_public_bucket_allows_object_reads_without_listing(self):
+        """Keep intended public object reads while preventing bucket enumeration."""
         result, policy = self.configure()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIsNotNone(policy)
@@ -77,12 +79,14 @@ elif args[:3] == ["anonymous", "set", "download"]:
         }])
 
     def test_configuration_works_without_an_inherited_path(self):
+        """Do not rely on inherited runner PATH to execute configuration."""
         with mock.patch.dict(os.environ, {}, clear=True):
             result, policy = self.configure()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIsNotNone(policy)
 
     def test_configuration_fails_when_public_policy_cannot_be_applied(self):
+        """Abort configuration when replacing the anonymous policy fails."""
         result, policy = self.configure(fail_policy=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIsNone(policy)
