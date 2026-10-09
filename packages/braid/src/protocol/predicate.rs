@@ -174,14 +174,25 @@ impl Predicate {
             }
             // variant: Ballots(Timestamp, ConfigurationH, usize, CiphertextsH, PublicKeyH, TrusteeSet)
             Statement::Ballots(_ts, cfg_h, batch, ballots_h, pk_h, trustees) => {
+                if signer_position != PROTOCOL_MANAGER_INDEX {
+                    return Err(ProtocolError::VerificationError(format!(
+                        "Ballots must be signed by the protocol manager, signer was {}",
+                        signer_position
+                    )));
+                }
+
                 // Verify that all selected trustees are valid
                 let mut selected = vec![];
-                trustees.iter().for_each(|s| {
-                    if *s != NULL_TRUSTEE {
-                        assert!(*s > 0 && *s <= cfg.trustees.len());
-                        selected.push(*s);
+                for s in trustees.iter().filter(|s| **s != NULL_TRUSTEE) {
+                    if *s == 0 || *s > cfg.trustees.len() {
+                        return Err(ProtocolError::InvalidTrusteeSelection(format!(
+                            "Selected trustee {} is outside 1..={}",
+                            s,
+                            cfg.trustees.len()
+                        )));
                     }
-                });
+                    selected.push(*s);
+                }
 
                 // Verify that all selected trustees are unique
                 let unique: HashSet<usize> = selected.into_iter().collect();
@@ -308,5 +319,78 @@ impl Predicate {
             configuration.trustees.len(),
             configuration.threshold,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::marker::PhantomData;
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::signature::StrandSignatureSk;
+
+    const TRUSTEES: usize = 3;
+    const THRESHOLD: usize = 2;
+
+    fn signature_pk() -> StrandSignaturePk {
+        StrandSignaturePk::from_sk(&StrandSignatureSk::gen().unwrap()).unwrap()
+    }
+
+    fn test_configuration() -> Configuration<RistrettoCtx> {
+        Configuration::<RistrettoCtx>::new(
+            0,
+            signature_pk(),
+            (0..TRUSTEES).map(|_| signature_pk()).collect(),
+            THRESHOLD,
+            PhantomData,
+        )
+    }
+
+    fn ballots_statement(cfg: &Configuration<RistrettoCtx>, selection: &[usize]) -> Statement {
+        let mut trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
+        trustees[0..selection.len()].copy_from_slice(selection);
+        Statement::Ballots(
+            0,
+            ConfigurationHash::from_configuration(cfg).unwrap(),
+            1,
+            CiphertextsHash([0; 64]),
+            PublicKeyHash([0; 64]),
+            trustees,
+        )
+    }
+
+    #[test]
+    fn from_statement_accepts_ballots_from_protocol_manager() {
+        let cfg = test_configuration();
+        let statement = ballots_statement(&cfg, &[1, 3]);
+
+        let predicate = Predicate::from_statement(&statement, PROTOCOL_MANAGER_INDEX, &cfg);
+        assert!(matches!(predicate, Ok(Predicate::Ballots(..))));
+    }
+
+    #[test]
+    fn from_statement_rejects_ballots_not_signed_by_protocol_manager() {
+        let cfg = test_configuration();
+        let statement = ballots_statement(&cfg, &[1, 3]);
+
+        let predicate = Predicate::from_statement(&statement, 0, &cfg);
+        assert!(matches!(
+            predicate,
+            Err(ProtocolError::VerificationError(_))
+        ));
+    }
+
+    #[test]
+    fn from_statement_rejects_ballots_selection_out_of_range() {
+        let cfg = test_configuration();
+
+        for selection in [[0, 1], [1, TRUSTEES + 1]] {
+            let statement = ballots_statement(&cfg, &selection);
+            let predicate = Predicate::from_statement(&statement, PROTOCOL_MANAGER_INDEX, &cfg);
+            assert!(matches!(
+                predicate,
+                Err(ProtocolError::InvalidTrusteeSelection(_))
+            ));
+        }
     }
 }
