@@ -45,8 +45,6 @@ impl<C: Context> Trustee<C> {
         let cfg = view.configuration();
         let num_trustees = cfg.trustees.len();
         let threshold = cfg.threshold;
-        // 1-based trustee index -> 0-based recipient slot / verification-key index.
-        let self_slot = self_index - 1;
 
         let pk_body = view
             .public_key_body(pk_hash)
@@ -66,7 +64,7 @@ impl<C: Context> Trustee<C> {
             let shares = Shares::<C>::deser(body)
                 .map_err(|e| anyhow!("failed to deserialize shares: {:?}", e))?;
             let share = C::G::decrypt_scalar(
-                &shares.encrypted_shares[self_slot],
+                shares.encrypted_share(self_index)?,
                 &self.share_encryption.skey,
             )
             .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;

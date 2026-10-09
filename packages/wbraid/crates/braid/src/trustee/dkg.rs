@@ -91,8 +91,6 @@ impl<C: Context> Trustee<C> {
         let cfg = view.configuration();
         let num_trustees = cfg.trustees.len();
         let threshold = cfg.threshold;
-        // 1-based trustee index -> 0-based recipient slot in each dealer's shares.
-        let self_slot = self_index - 1;
 
         crate::dispatch_threshold_trustees!(threshold, num_trustees, {
             let mut verifiable_shares: Vec<VerifiableShare<C, T>> =
@@ -104,7 +102,7 @@ impl<C: Context> Trustee<C> {
                 let shares = Shares::<C>::deser(body)
                     .map_err(|e| anyhow!("failed to deserialize shares: {:?}", e))?;
 
-                let encrypted_share = &shares.encrypted_shares[self_slot];
+                let encrypted_share = shares.encrypted_share(self_index)?;
                 let share_scalar =
                     C::G::decrypt_scalar(encrypted_share, &self.share_encryption.skey)
                         .map_err(|e| anyhow!("failed to decrypt share: {:?}", e))?;
