@@ -261,6 +261,39 @@ The authenticators are always configured with `trust-proxy-verification=false`
 in both dev and production — Keycloak always re-validates the cert chain
 independently via `UrlTruststoreProvider`.
 
+### Client Certificate Header Trust
+
+Keycloak receives the client certificate in a request header, so that header
+must only come from the proxy that performed the client certificate TLS
+handshake:
+
+- Every other route to Keycloak removes the certificate headers. The
+  remote-deployment nginx server block for `login-…` clears `ssl-client-cert`,
+  `Cf-Tls-Client-Cert` and `Client-Cert`. In production, remove
+  `Cf-Tls-Client-Cert` from requests to `login-{env}` and keep the Keycloak
+  origin reachable only from the proxies and internal services. The dev
+  Keycloak port `8090` is published on `127.0.0.1` only.
+- `X509CertClassifierAuthenticator` and `X509UserResolutionAuthenticator`
+  (`x509-cert-classifier` and `x509-user-resolution`) accept the
+  `cert-header-trust-policy` authenticator config:
+
+| Value | Behaviour |
+|-------|-----------|
+| `ANY_REQUEST` (default) | The forwarded certificate header is used on every request. Existing realms keep this behaviour. |
+| `REQUIRE_PROXY_SECRET` | The forwarded certificate header is used only when the request also carries the `X-Client-Cert-Proxy-Secret` header with the value of the `cert-proxy-secret` config. Otherwise the request is handled as if no certificate was presented. An unrecognised policy value behaves the same way. |
+
+To enable `REQUIRE_PROXY_SECRET`:
+
+1. Generate a random secret.
+2. Configure the mTLS proxy to send it on every request it forwards to
+   Keycloak, for example
+   `proxy_set_header X-Client-Cert-Proxy-Secret "<secret>";` in nginx, or a
+   request header transform rule on `login-mtls-{env}` in Cloudflare.
+3. In the certificate browser flow, set `cert-header-trust-policy` to
+   `REQUIRE_PROXY_SECRET` and `cert-proxy-secret` to the secret on the
+   `x509-cert-classifier` execution and on every `x509-user-resolution`
+   execution.
+
 ---
 
 ## Multi-Tenancy Design

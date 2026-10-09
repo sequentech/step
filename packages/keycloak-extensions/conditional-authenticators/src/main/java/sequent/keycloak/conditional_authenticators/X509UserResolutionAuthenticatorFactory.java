@@ -5,10 +5,13 @@
 package sequent.keycloak.conditional_authenticators;
 
 import com.google.auto.service.AutoService;
+import java.util.ArrayList;
+import java.util.List;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.authenticators.x509.X509ClientCertificateAuthenticatorFactory;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.provider.ProviderConfigProperty;
 
 /** Factory for {@link X509UserResolutionAuthenticator}. */
 @AutoService(AuthenticatorFactory.class)
@@ -25,6 +28,13 @@ public class X509UserResolutionAuthenticatorFactory
   @Override
   public String getDisplayType() {
     return "X509 Certificate Authentication with User Resolution";
+  }
+
+  @Override
+  public List<ProviderConfigProperty> getConfigProperties() {
+    List<ProviderConfigProperty> properties = new ArrayList<>(super.getConfigProperties());
+    properties.addAll(X509CertHeaderTrust.configProperties());
+    return properties;
   }
 
   @Override
