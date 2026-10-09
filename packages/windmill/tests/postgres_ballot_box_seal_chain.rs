@@ -6,9 +6,10 @@
 //! it, the public record verifies offline, and the tally counts the box from
 //! that seal and records its hash in the contest annotations.
 //!
-//! Needs `HASURA_DB__*`, `IMMUDB_*` and `MASTER_SECRET` (the stack's
-//! `.devcontainer/.env`). The census and the public bucket are the test's
-//! own; the signing key is the event's protocol manager key.
+//! Needs `HASURA_DB__*` and `IMMUDB_*` (the stack's `.devcontainer/.env`,
+//! or the immudb service of the CI jobs) and sets its own `MASTER_SECRET`.
+//! The census and the public bucket are the test's own; the signing key is
+//! the event's protocol manager key.
 
 #![recursion_limit = "256"]
 
@@ -32,7 +33,7 @@ use sequent_core::ballot::{
 use sequent_core::types::hasura::core::{ElectionEvent, TallySessionContestAnnotations};
 use sequent_core::types::participation::ParticipationChannel;
 use serde_json::json;
-use std::sync::Mutex;
+use std::sync::{Mutex, Once};
 use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
 use windmill::postgres::ballot_box_seal::{list_for_elections, BallotBoxSealStatus};
@@ -52,6 +53,12 @@ const ADMIN: &str = "admin";
 const SESSION: &str = "chain-tally-session";
 const BOARD_PREFIX: &str = "sealchain";
 const BOARD_ATTEMPTS: u32 = 5;
+
+/// The secrets of an event are encrypted with the deployment's master secret.
+fn master_secret() {
+    static SET: Once = Once::new();
+    SET.call_once(|| std::env::set_var("MASTER_SECRET", "5a".repeat(32)));
+}
 
 /// The test's census and public bucket, with the event's real key.
 struct TestEnvironment {
@@ -178,6 +185,7 @@ async fn a_closed_box_is_sealed_published_verified_and_counted_from_its_seal() {
         )
         .await
         .unwrap();
+        master_secret();
         create_protocol_manager_keys(&tx, &tenant.to_string(), &event.to_string(), &board)
             .await
             .unwrap();

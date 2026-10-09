@@ -7,7 +7,8 @@
 //! verified once; any difference is rejected on the log and refused.
 //!
 //! Needs `HASURA_DB__*` and `IMMUDB_SERVER_URL`, `IMMUDB_USER`,
-//! `IMMUDB_PASSWORD` (from `.devcontainer/.env`).
+//! `IMMUDB_PASSWORD` (from `.devcontainer/.env`, or the immudb service of
+//! the CI jobs) and sets its own `MASTER_SECRET`.
 
 #![recursion_limit = "256"]
 
@@ -32,6 +33,7 @@ use sequent_core::types::participation::ParticipationChannel;
 use serde_json::json;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::sync::Once;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignatureSk;
 use uuid::Uuid;
@@ -54,6 +56,12 @@ const SESSION: &str = "tally-session";
 const ELECTION_NAME: &str = "Mayor";
 const AREA_NAME: &str = "North";
 const REFUSAL: &str = "The ballot box of Mayor, North does not match its seal";
+
+/// The secrets of an event are encrypted with the deployment's master secret.
+fn master_secret() {
+    static SET: Once = Once::new();
+    SET.call_once(|| std::env::set_var("MASTER_SECRET", "5a".repeat(32)));
+}
 
 /// The prefix of the boards these tests create.
 const BOARD_PREFIX: &str = "sealedbox";
@@ -703,6 +711,7 @@ async fn an_execution_whose_contest_was_removed_after_creation_is_refused() {
     )
     .await
     .unwrap();
+    master_secret();
     create_protocol_manager_keys(&tx, &tenant, &event, &w.board)
         .await
         .unwrap();
