@@ -13,6 +13,8 @@ import Header from "./Header/Header"
 import theme from "../services/theme"
 
 jest.mock("./LinkBehavior/LinkBehavior", () => "a")
+jest.mock("./LanguageMenu/LanguageMenu", () => () => null)
+jest.mock("./AccessibilityMenu/AccessibilityMenu", () => () => null)
 
 jest.mock(
     "@sequentech/ui-core",
@@ -21,6 +23,10 @@ jest.mock(
         ECandidatesIconCheckboxPolicy: {
             SQUARE_CHECKBOX: "square-checkbox",
             ROUND_CHECKBOX: "round-checkbox",
+        },
+        EVoterAccessibilitySettingsPolicy: {
+            ENABLED: "enabled",
+            DISABLED: "disabled",
         },
         EVotingPortalCountdownPolicy: {
             NO_COUNTDOWN: "NO_COUNTDOWN",
