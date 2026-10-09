@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize_voter_election;
+use crate::services::authorization::{
+    authorize_voter_election, authorize_voter_event,
+};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -35,6 +37,23 @@ pub struct CreateBallotReceiptOutput {
     pub task_execution: TasksExecution,
 }
 
+fn authorize_receipt(
+    claims: &JwtClaims,
+    input: &CreateBallotReceiptInput,
+) -> Result<String, (Status, String)> {
+    authorize_voter_event(
+        claims,
+        vec![VoterPermissions::CAST_VOTE],
+        &input.election_event_id,
+    )?;
+    let (area_id, _) = authorize_voter_election(
+        claims,
+        vec![VoterPermissions::CAST_VOTE],
+        &input.election_id,
+    )?;
+    Ok(area_id)
+}
+
 #[instrument(skip_all)]
 #[post("/create-ballot-receipt", format = "json", data = "<body>")]
 pub async fn create_ballot_receipt(
@@ -48,16 +67,7 @@ pub async fn create_ballot_receipt(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    let area_id = match authorize_voter_election(
-        &claims,
-        vec![VoterPermissions::CAST_VOTE],
-        &input.election_id,
-    ) {
-        Ok((area_id, _)) => area_id,
-        Err(error) => {
-            return Err(error);
-        }
-    };
+    let area_id = authorize_receipt(&claims, &input)?;
 
     let voter_id = claims.hasura_claims.user_id.clone();
     let document_id: String = Uuid::new_v4().to_string();
@@ -114,4 +124,51 @@ pub async fn create_ballot_receipt(
         status: "pending".to_string(),
         task_execution: task_execution,
     }))
+}
+
+#[cfg(test)]
+mod create_ballot_receipt_scope_tests {
+    use super::*;
+    use crate::services::authorization::test_claims::voter;
+
+    fn request(election_event_id: &str) -> CreateBallotReceiptInput {
+        CreateBallotReceiptInput {
+            ballot_id: "ballot".into(),
+            ballot_tracker_url: "https://example.com/ballot".into(),
+            election_event_id: election_event_id.into(),
+            election_id: "election".into(),
+            time_zone: None,
+            date_format: None,
+        }
+    }
+
+    #[test]
+    fn receipt_requires_the_voters_own_election_event() {
+        assert_eq!(
+            authorize_receipt(
+                &voter("event", &["election"]),
+                &request("other-event")
+            )
+            .unwrap_err(),
+            (Status::Forbidden, "Voter not authorized".to_string())
+        );
+        assert_eq!(
+            authorize_receipt(
+                &voter("event", &["election"]),
+                &request("event")
+            )
+            .unwrap(),
+            "area"
+        );
+    }
+
+    #[test]
+    fn receipt_requires_an_authorized_election() {
+        assert_eq!(
+            authorize_receipt(&voter("event", &["other"]), &request("event"))
+                .unwrap_err()
+                .0,
+            Status::Unauthorized
+        );
+    }
 }
