@@ -4,7 +4,8 @@
 
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::{
-    get_all_active_reports, update_report_last_document_time, Report, ReportType,
+    deactivate_report_schedule, get_all_active_reports, update_report_last_document_time, Report,
+    ReportType,
 };
 use crate::postgres::signing_report_release::report_awaits_signatures;
 use crate::services::celery_app::get_celery_app;
@@ -25,8 +26,136 @@ use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::time_zones::primary_time_zone;
 use std::collections::HashMap;
 use std::str::FromStr;
-use tracing::{error, event, info, instrument, Level};
+use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
+use sequent_core::types::permissions::Permissions;
+use strum_macros::Display;
+use tracing::{error, event, info, instrument, warn, Level};
 use uuid::Uuid;
+
+/// The Keycloak state of the user a scheduled report runs as.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScheduledReportExecutor {
+    pub enabled: bool,
+    pub realm_roles: Vec<String>,
+}
+
+/// Whether a scheduled report may run, or why it may not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+pub enum ScheduledReportAuthorization {
+    #[strum(to_string = "authorized")]
+    Authorized,
+    #[strum(to_string = "the schedule's user does not exist in the tenant")]
+    ExecutorNotFound,
+    #[strum(to_string = "the schedule's user is disabled")]
+    ExecutorDisabled,
+    #[strum(to_string = "the schedule's user is not allowed to read reports")]
+    MissingPermission,
+}
+
+/// A scheduled report needs the same permission as generating it from the
+/// Reports tab, held by its user at the time of each run.
+pub fn authorize_scheduled_report(
+    executor: Option<&ScheduledReportExecutor>,
+) -> ScheduledReportAuthorization {
+    let Some(executor) = executor else {
+        return ScheduledReportAuthorization::ExecutorNotFound;
+    };
+    if !executor.enabled {
+        return ScheduledReportAuthorization::ExecutorDisabled;
+    }
+    let report_read = Permissions::REPORT_READ.to_string();
+    if !executor.realm_roles.iter().any(|role| *role == report_read) {
+        return ScheduledReportAuthorization::MissingPermission;
+    }
+    ScheduledReportAuthorization::Authorized
+}
+
+/// Looks up the schedule's user in the tenant realm. Returns `None` when the
+/// username is empty or no user has it.
+#[instrument(err)]
+async fn get_scheduled_report_executor(
+    tenant_id: &str,
+    username: &str,
+) -> anyhow::Result<Option<ScheduledReportExecutor>> {
+    if username.is_empty() {
+        return Ok(None);
+    }
+    let realm = get_tenant_realm(tenant_id);
+    let keycloak = KeycloakAdminClient::new().await?;
+    let users = keycloak
+        .client
+        .realm_users_get(
+            &realm,
+            Some(true),
+            None,
+            None,
+            None,
+            Some(true),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(username.to_string()),
+        )
+        .await
+        .map_err(|err| anyhow!("Error looking up user: {err:?}"))?;
+    let Some(user) = users.into_iter().find(|user| {
+        user.username
+            .as_deref()
+            .is_some_and(|name| name.eq_ignore_ascii_case(username))
+    }) else {
+        return Ok(None);
+    };
+    let user_id = user.id.ok_or_else(|| anyhow!("Keycloak user has no id"))?;
+    let realm_roles = keycloak
+        .client
+        .realm_users_with_user_id_role_mappings_realm_composite_get(&realm, &user_id, Some(true))
+        .await
+        .map_err(|err| anyhow!("Error reading user roles: {err:?}"))?
+        .into_iter()
+        .filter_map(|role| role.name)
+        .collect();
+    Ok(Some(ScheduledReportExecutor {
+        enabled: user.enabled.unwrap_or(false),
+        realm_roles,
+    }))
+}
+
+/// Turns off a schedule that failed its check and records a failed task. The
+/// deactivation is committed first, so the task never reports a deactivation
+/// that was rolled back.
+#[instrument(skip(report), err)]
+async fn deactivate_unauthorized_schedule(
+    report: &Report,
+    executer_username: &str,
+    authorization: ScheduledReportAuthorization,
+) -> anyhow::Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|err| anyhow!("Error getting hasura client: {err}"))?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    deactivate_report_schedule(&hasura_transaction, &report.tenant_id, &report.id).await?;
+    hasura_transaction.commit().await?;
+
+    let task_execution = tasks_execution::post(
+        &report.tenant_id,
+        Some(report.election_event_id.as_str()),
+        ETasksExecution::GENERATE_REPORT,
+        executer_username,
+    )
+    .await?;
+    tasks_execution::update_fail(
+        &task_execution,
+        &format!("Scheduled report deactivated: {authorization}"),
+    )
+    .await
+}
 
 /// Parse the next scheduled time for the report using the cron expression,
 /// read in `zone` (the event's primary zone: "every day at 08:00" is 08:00
@@ -180,6 +309,40 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
             .clone()
             .ok_or_else(|| anyhow!("Cron config not found"))?;
 
+        let executor =
+            match get_scheduled_report_executor(&report.tenant_id, &cron_config.executer_username)
+                .await
+            {
+                Ok(executor) => executor,
+                Err(err) => {
+                    error!(
+                        "Skipping scheduled report id={id}: its user could not be checked: {err:?}",
+                        id = report.id
+                    );
+                    continue;
+                }
+            };
+        let authorization = authorize_scheduled_report(executor.as_ref());
+        if authorization != ScheduledReportAuthorization::Authorized {
+            warn!(
+                "Deactivating scheduled report id={id}: {authorization}",
+                id = report.id
+            );
+            if let Err(err) = deactivate_unauthorized_schedule(
+                report,
+                &cron_config.executer_username,
+                authorization,
+            )
+            .await
+            {
+                error!(
+                    "Error deactivating scheduled report id={id}: {err:?}",
+                    id = report.id
+                );
+            }
+            continue;
+        }
+
         // A report the tally holds while its rule needs signatures is never
         // generated (nor mailed) on a schedule.
         if let Ok(report_type) = ReportType::from_str(&report.report_type) {
@@ -324,5 +487,47 @@ mod tests {
             );
             assert_eq!(local.format("%H:%M").to_string(), "08:00", "{primary}");
         }
+    }
+
+    fn executor(enabled: bool, realm_roles: &[Permissions]) -> ScheduledReportExecutor {
+        ScheduledReportExecutor {
+            enabled,
+            realm_roles: realm_roles.iter().map(ToString::to_string).collect(),
+        }
+    }
+
+    #[test]
+    fn scheduled_report_runs_for_enabled_executor_with_report_read() {
+        let executor = executor(true, &[Permissions::ADMIN_USER, Permissions::REPORT_READ]);
+        assert_eq!(
+            authorize_scheduled_report(Some(&executor)),
+            ScheduledReportAuthorization::Authorized
+        );
+    }
+
+    #[test]
+    fn scheduled_report_skipped_when_executor_missing() {
+        assert_eq!(
+            authorize_scheduled_report(None),
+            ScheduledReportAuthorization::ExecutorNotFound
+        );
+    }
+
+    #[test]
+    fn scheduled_report_skipped_when_executor_disabled() {
+        let executor = executor(false, &[Permissions::REPORT_READ]);
+        assert_eq!(
+            authorize_scheduled_report(Some(&executor)),
+            ScheduledReportAuthorization::ExecutorDisabled
+        );
+    }
+
+    #[test]
+    fn scheduled_report_skipped_when_executor_lacks_report_read() {
+        let executor = executor(true, &[Permissions::ADMIN_USER, Permissions::REPORT_WRITE]);
+        assert_eq!(
+            authorize_scheduled_report(Some(&executor)),
+            ScheduledReportAuthorization::MissingPermission
+        );
     }
 }
