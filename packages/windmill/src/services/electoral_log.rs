@@ -1553,6 +1553,10 @@ pub struct GetElectoralLogBody {
 }
 
 impl GetElectoralLogBody {
+    fn page_limit(&self, pg_config: &PgConfig) -> Result<usize> {
+        pg_config.page_limit(self.limit.unwrap_or(pg_config.default_sql_limit.into()))
+    }
+
     // Returns the SQL clauses related to the request along with the parameters
     #[instrument(ret)]
     fn as_sql(&self, to_count: bool) -> Result<(String, Vec<NamedParam>)> {
@@ -1693,10 +1697,7 @@ impl GetElectoralLogBody {
         // Handle limit
         if !to_count {
             let limit_param_name = String::from("limit");
-            let limit_value = self
-                .limit
-                .unwrap_or(PgConfig::from_env()?.default_sql_limit.into());
-            let limit = std::cmp::min(limit_value, PgConfig::from_env()?.low_sql_limit.into());
+            let limit = i64::try_from(self.page_limit(&PgConfig::from_env()?)?)?;
             clauses.push(format!("LIMIT @{limit_param_name}"));
             params.push(create_named_param(limit_param_name, Value::N(limit)));
         }
@@ -1946,7 +1947,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     info!("query: {sql}");
     let sql_query_response = client.streaming_sql_query(&sql, params).await?;
 
-    let limit: usize = input.limit.unwrap_or(IMMUDB_ROWS_LIMIT as i64).try_into()?;
+    let limit = input.page_limit(&PgConfig::from_env()?)?;
     info!("list_electoral_log: limit = {}", limit);
     let mut rows: Vec<ElectoralLogRow> = Vec::with_capacity(limit);
     let mut resp_stream = sql_query_response.into_inner();
@@ -2139,6 +2140,54 @@ pub async fn count_electoral_log(input: GetElectoralLogBody) -> Result<i64> {
 
     client.close_session().await?;
     Ok(aggregate.count as i64)
+}
+
+#[cfg(test)]
+mod page_limit_tests {
+    use super::*;
+
+    fn body_with_limit(limit: Option<i64>) -> GetElectoralLogBody {
+        GetElectoralLogBody {
+            limit,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn page_limit_is_capped_by_low_sql_limit() {
+        let pg_config = PgConfig::default();
+        let low_sql_limit = usize::try_from(pg_config.low_sql_limit).unwrap();
+        for limit in [i64::from(i32::MAX), i64::MAX / 1024] {
+            assert_eq!(
+                body_with_limit(Some(limit)).page_limit(&pg_config).unwrap(),
+                low_sql_limit
+            );
+        }
+    }
+
+    #[test]
+    fn page_limit_keeps_a_smaller_request() {
+        let page_limit = body_with_limit(Some(25)).page_limit(&PgConfig::default());
+        assert_eq!(page_limit.unwrap(), 25);
+    }
+
+    #[test]
+    fn page_limit_defaults_to_default_sql_limit() {
+        let pg_config = PgConfig::default();
+        assert_eq!(
+            body_with_limit(None).page_limit(&pg_config).unwrap(),
+            usize::try_from(pg_config.default_sql_limit).unwrap()
+        );
+    }
+
+    #[test]
+    fn page_limit_rejects_zero_and_negative_values() {
+        for limit in [0, -1, i64::MIN] {
+            assert!(body_with_limit(Some(limit))
+                .page_limit(&PgConfig::default())
+                .is_err());
+        }
+    }
 }
 
 #[cfg(test)]
