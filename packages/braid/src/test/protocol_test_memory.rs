@@ -57,6 +57,9 @@ pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     );
 }
 
+/// Runs the protocol on an in-memory board with the given selected trustees,
+/// checks that every batch decrypts to the encrypted plaintexts, and that the
+/// verifier then verifies every batch.
 fn run_protocol_test<C: Ctx + 'static>(
     test: ProtocolTest<C>,
     ciphertexts: u32,
@@ -174,8 +177,9 @@ fn run_protocol_test<C: Ctx + 'static>(
     Ok(())
 }
 
-/// Runs the verifier datalog over the board, returning the number of
-/// batches it verifies.
+/// Runs a verifier trustee over the board, then the verify datalog over the
+/// board and the verifier's own statements, returning the number of batches
+/// it verifies.
 fn verified_batches<C: Ctx>(cfg: &Configuration<C>, board: &VectorBoard) -> Result<usize> {
     let messages = board
         .messages

@@ -189,6 +189,9 @@ mod tests {
     const LAST_MIX_H: CiphertextsHash = CiphertextsHash([6u8; 64]);
     const PLAINTEXTS_H: PlaintextsHash = PlaintextsHash([7u8; 64]);
 
+    /// Predicates under which trustee `SELF_POSITION` may sign the plaintexts
+    /// of `BATCH`: configuration and public key signed by all, the batch's
+    /// ballots, and `LAST_MIX_H` as the completed mix.
     fn mix_complete() -> Vec<Predicate> {
         let selected = trustees_add(trustees_init(1), 2);
         vec![
@@ -199,11 +202,14 @@ mod tests {
         ]
     }
 
+    /// A `Plaintexts` statement for `BATCH` from the first selected trustee,
+    /// decrypted from `cipher_h` under `pk_h`.
     fn plaintexts(cipher_h: CiphertextsHash, pk_h: PublicKeyHash) -> Predicate {
         let dfactors_hs = DecryptionFactorsHashes(hashes_add(hashes_init([8u8; 64]), [9u8; 64]));
         Predicate::Plaintexts(CFG_H, BATCH, PLAINTEXTS_H, dfactors_hs, cipher_h, pk_h, 0)
     }
 
+    /// Runs the decryption datalog and keeps only its `SignPlaintexts` actions.
     fn sign_plaintexts_actions(predicates: &Vec<Predicate>) -> Vec<Action> {
         let (_, actions, _) = D.run(predicates);
         actions
@@ -212,6 +218,8 @@ mod tests {
             .collect()
     }
 
+    /// Plaintexts decrypted from the completed mix under the ballots key are
+    /// signed, and the action names that mix and its producer.
     #[test]
     fn sign_plaintexts_over_completed_mix() {
         let mut predicates = mix_complete();
@@ -236,6 +244,8 @@ mod tests {
         ));
     }
 
+    /// Plaintexts that name ciphertexts other than the completed mix are not
+    /// signed.
     #[test]
     fn sign_plaintexts_requires_matching_ciphertexts() {
         let mut predicates = mix_complete();
@@ -244,6 +254,8 @@ mod tests {
         assert!(sign_plaintexts_actions(&predicates).is_empty());
     }
 
+    /// Plaintexts that name a key other than the ballots public key are not
+    /// signed.
     #[test]
     fn sign_plaintexts_requires_matching_public_key() {
         let mut predicates = mix_complete();
