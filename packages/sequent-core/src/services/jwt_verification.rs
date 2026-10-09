@@ -19,11 +19,12 @@ const MAX_JWKS_BYTES: usize = 1024 * 1024;
 
 #[derive(Default)]
 struct CachedKeys {
-    keys: Option<JwkSet>,
+    keys: Option<Arc<JwkSet>>,
     fetched: Option<Instant>,
+    attempted: Option<Instant>,
 }
 
-type RealmCache = HashMap<String, Arc<Mutex<CachedKeys>>>;
+type RealmCache = HashMap<String, (Instant, Arc<Mutex<CachedKeys>>)>;
 
 fn cache() -> &'static Mutex<RealmCache> {
     static CACHE: OnceLock<Mutex<RealmCache>> = OnceLock::new();
@@ -111,17 +112,33 @@ fn verify_with_jwks(token: &str, issuer: &str, keys: &JwkSet) -> Result<Value> {
     Ok(decode::<Value>(token, &key, &validation)?.claims)
 }
 
+fn jwks_client() -> Result<&'static Client> {
+    static CLIENT: OnceLock<std::result::Result<Client, reqwest::Error>> =
+        OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            Client::builder()
+                .redirect(Policy::none())
+                .timeout(Duration::from_secs(5))
+                .build()
+        })
+        .as_ref()
+        .map_err(|error| {
+            anyhow!("Cannot initialize signing-key client: {error}")
+        })
+}
+
 async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
     let base = configured_base(base)?;
     let endpoint = format!(
         "{}/realms/{realm}/protocol/openid-connect/certs",
         base.as_str().trim_end_matches('/')
     );
-    let client = Client::builder()
-        .redirect(Policy::none())
-        .timeout(Duration::from_secs(5))
-        .build()?;
-    let mut response = client.get(endpoint).send().await?.error_for_status()?;
+    let mut response = jwks_client()?
+        .get(endpoint)
+        .send()
+        .await?
+        .error_for_status()?;
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await? {
         ensure!(
@@ -135,7 +152,7 @@ async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
     Ok(keys)
 }
 
-async fn realm_keys(base: &str, realm: &str, kid: &str) -> Result<JwkSet> {
+async fn realm_keys(base: &str, realm: &str, kid: &str) -> Result<Arc<JwkSet>> {
     let cache_key = format!("{base}/realms/{realm}");
     let entry = {
         let mut entries = cache().lock().await;
@@ -143,39 +160,56 @@ async fn realm_keys(base: &str, realm: &str, kid: &str) -> Result<JwkSet> {
             && entries.len() >= MAX_CACHED_REALMS
         {
             // Bound memory even when unverified hints name arbitrary realms.
-            if let Some(key) = entries.keys().next().cloned() {
+            if let Some(key) = entries
+                .iter()
+                .min_by_key(|(_, (used, _))| *used)
+                .map(|(key, _)| key.clone())
+            {
                 entries.remove(&key);
             }
         }
-        Arc::clone(entries.entry(cache_key).or_default())
+        let (used, keys) = entries
+            .entry(cache_key)
+            .or_insert_with(|| (Instant::now(), Arc::default()));
+        *used = Instant::now();
+        Arc::clone(keys)
     };
     // Coalesce concurrent downloads for a realm, including invalid-token floods.
     let mut cached = entry.lock().await;
-    let elapsed = cached.fetched.map(|time| time.elapsed());
     let known_key = cached
         .keys
         .as_ref()
         .is_some_and(|keys| keys.find(kid).is_some());
-    let refresh = match elapsed {
-        None => true,
-        Some(age) => {
-            age >= CACHE_TTL || (!known_key && age >= REFRESH_INTERVAL)
-        }
-    };
-    if refresh {
-        cached.fetched = Some(Instant::now());
-        cached.keys = None;
-        cached.keys = Some(download_keys(base, realm).await?);
+    if known_key
+        && cached
+            .fetched
+            .is_some_and(|time| time.elapsed() < CACHE_TTL)
+    {
+        return cached
+            .keys
+            .clone()
+            .ok_or_else(|| anyhow!("No trusted signing keys"));
     }
-    cached
-        .keys
-        .clone()
-        .ok_or_else(|| anyhow!("No trusted signing keys"))
+    let retry_allowed = match cached.attempted {
+        Some(time) => time.elapsed() >= REFRESH_INTERVAL,
+        None => true,
+    };
+    ensure!(retry_allowed, "Signing-key refresh is rate limited");
+    let result = download_keys(base, realm).await;
+    let completed = Instant::now();
+    cached.attempted = Some(completed);
+    // Keep still-fresh keys after a transient failure, without extending their
+    // successful-fetch timestamp or ever serving them after CACHE_TTL.
+    let keys = Arc::new(result?);
+    cached.fetched = Some(completed);
+    cached.keys = Some(Arc::clone(&keys));
+    Ok(keys)
 }
 
 pub(super) async fn verify_bearer(token: &str) -> Result<Value> {
     let internal_base =
         std::env::var("KEYCLOAK_URL").context("KEYCLOAK_URL must be set")?;
+    validate_configured_base("KEYCLOAK_URL", &internal_base)?;
     let mut bases = vec![internal_base.clone()];
     for variable in [
         "KEYCLOAK_PUBLIC_URL",
@@ -183,17 +217,29 @@ pub(super) async fn verify_bearer(token: &str) -> Result<Value> {
         "HARVEST_JWT_ISSUER_URLS",
     ] {
         if let Ok(value) = std::env::var(variable) {
-            bases.extend(
-                value
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|base| !base.is_empty())
-                    .map(str::to_owned),
-            );
+            for base in value
+                .split(',')
+                .map(str::trim)
+                .filter(|base| !base.is_empty())
+            {
+                validate_configured_base(variable, base)?;
+                bases.push(base.to_owned());
+            }
         }
     }
     let trusted_bases: Vec<_> = bases.iter().map(String::as_str).collect();
     verify_bearer_with_config(token, &trusted_bases, &internal_base).await
+}
+
+fn validate_configured_base(variable: &str, base: &str) -> Result<()> {
+    configured_base(base).map(|_| ()).map_err(|error| {
+        // Report the setting name without logging a potentially sensitive value.
+        tracing::warn!(
+            setting = variable,
+            "Invalid Keycloak issuer configuration"
+        );
+        error.context(format!("Invalid {variable} issuer configuration"))
+    })
 }
 
 async fn verify_bearer_with_config(
