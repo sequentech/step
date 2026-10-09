@@ -121,7 +121,9 @@ update_permissions:
           filter:
               tenant_id:
                   _eq: X-Hasura-Tenant-Id
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: admin-user
     - comment: ""
       permission:
