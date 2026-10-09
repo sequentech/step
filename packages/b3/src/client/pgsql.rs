@@ -1237,7 +1237,7 @@ pub(crate) mod tests {
         assert_eq!(msg.version, board_message.version);
     }
 
-    const INVALID_BOARD: &'static str = "invalid board-name";
+    const INVALID_BOARD: &str = "invalid board-name";
 
     // Connects a client to an in-memory server that completes the startup
     // handshake and then returns the first bytes the client sends after it.
