@@ -19,6 +19,19 @@ AS $$
     END;
 $$;
 
+-- An unset voting_channels column enables online voting only, as
+-- VotingChannels::default() reads it when a vote is cast.
+CREATE OR REPLACE FUNCTION "sequent_backend"."election_channel_enabled"(voting_channels jsonb, channel text)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+AS $$
+    SELECT CASE
+        WHEN voting_channels IS NULL THEN channel = 'online'
+        ELSE COALESCE((voting_channels -> channel) = 'true'::jsonb, false)
+    END;
+$$;
+
 CREATE OR REPLACE FUNCTION "sequent_backend"."guard_election_server_state"()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -72,9 +85,9 @@ BEGIN
             OR COALESCE(old_status -> channel.status_key, 'null'::jsonb)
                 IN ('null'::jsonb, '"NOT_STARTED"'::jsonb);
         voting_started := true;
-        IF COALESCE((old_voting_channels -> channel.channel_key) = 'true'::jsonb, false)
+        IF "sequent_backend"."election_channel_enabled"(old_voting_channels, channel.channel_key)
             IS DISTINCT FROM
-           COALESCE((NEW.voting_channels -> channel.channel_key) = 'true'::jsonb, false) THEN
+           "sequent_backend"."election_channel_enabled"(NEW.voting_channels, channel.channel_key) THEN
             RAISE EXCEPTION 'The % channel of election % cannot be switched after its voting started',
                 channel.channel_key, NEW.id
                 USING ERRCODE = '42501';

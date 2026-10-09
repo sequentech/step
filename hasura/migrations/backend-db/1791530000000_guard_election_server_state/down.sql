@@ -7,3 +7,5 @@ ON "sequent_backend"."election";
 DROP FUNCTION IF EXISTS "sequent_backend"."guard_election_server_state"();
 
 DROP FUNCTION IF EXISTS "sequent_backend"."election_server_status"(jsonb);
+
+DROP FUNCTION IF EXISTS "sequent_backend"."election_channel_enabled"(jsonb, text);
