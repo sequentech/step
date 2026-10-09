@@ -84,9 +84,12 @@ fn recorded_destination(
     attributes: Option<&HashMap<String, Vec<String>>>,
 ) -> Option<(String, Option<String>)> {
     match channel {
-        MessageChannel::WHATSAPP
-        | MessageChannel::VIBER
-        | MessageChannel::SMS => first(attributes, MESSAGE_NUMBER_ATTR_NAME)
+        MessageChannel::WHATSAPP | MessageChannel::VIBER => {
+            first(attributes, MESSAGE_NUMBER_ATTR_NAME)
+                .map(|n| (n.to_string(), None))
+        }
+        MessageChannel::SMS => first(attributes, MESSAGE_NUMBER_ATTR_NAME)
+            .or_else(|| first(attributes, MOBILE_PHONE_ATTR_NAME))
             .map(|n| (n.to_string(), None)),
         MessageChannel::MESSENGER => messenger(attributes),
         MessageChannel::EMAIL => email.map(|e| (e.to_string(), None)),
@@ -117,17 +120,19 @@ fn messenger(
     Some((id.to_string(), Some(page.to_string())))
 }
 
-/// The voter's one channel, or `None` when the record has no usable
-/// destination at all.
+/// The voter's one channel, or `None` when the record has none that can be
+/// used. Never another channel than the record's: a recorded channel whose
+/// destination is missing gives `None`, not the email.
 ///
-/// 1. A first-release record (`verified-channels` present): its
-///    `message-channel` if verified, else the first verified channel in
+/// 1. A first-release record (`verified-channels` present and not empty):
+///    its `message-channel` if verified, else the first verified channel in
 ///    [`CHANNEL_ORDER`], each with that release's destination attribute.
 ///    The realm migration removes `verified-channels` when it rewrites the
 ///    record, so a rewritten record never takes this path.
-/// 2. `message-channel` with its recorded destination.
-/// 3. Legacy: the email, else the mobile number. This defines the voter's
-///    one channel; it is not a fallback.
+/// 2. `message-channel` with its recorded destination (SMS also reads the
+///    mobile number when there's no `message-number`: the same channel).
+/// 3. Legacy, with neither: the email, else the mobile number. This defines
+///    the voter's one channel; it is not a fallback.
 pub fn voter_channel(
     email: Option<&str>,
     attributes: Option<&HashMap<String, Vec<String>>>,
@@ -142,32 +147,27 @@ pub fn voter_channel(
         source,
     };
 
-    if let Some(verified) =
-        attributes.and_then(|a| a.get(VERIFIED_CHANNELS_ATTR_NAME))
+    if let Some(verified) = attributes
+        .and_then(|a| a.get(VERIFIED_CHANNELS_ATTR_NAME))
+        .filter(|values| !values.is_empty())
     {
         let verified: Vec<MessageChannel> = verified
             .iter()
             .filter_map(|value| MessageChannel::from_str(value).ok())
             .collect();
-        let candidates = recorded
+        let mut candidates = recorded
             .filter(|channel| verified.contains(channel))
             .into_iter()
             .chain(CHANNEL_ORDER.into_iter().filter(|c| verified.contains(c)));
-        for channel in candidates {
-            if let Some(found) =
-                verified_destination(channel, email, attributes)
-            {
-                return Some(build(
-                    channel,
-                    found,
-                    VoterChannelSource::VERIFIED_CHANNELS,
-                ));
-            }
-        }
-    } else if let Some(channel) = recorded {
-        if let Some(found) = recorded_destination(channel, email, attributes) {
-            return Some(build(channel, found, VoterChannelSource::RECORDED));
-        }
+        return candidates.find_map(|channel| {
+            verified_destination(channel, email, attributes).map(|found| {
+                build(channel, found, VoterChannelSource::VERIFIED_CHANNELS)
+            })
+        });
+    }
+    if let Some(channel) = recorded {
+        return recorded_destination(channel, email, attributes)
+            .map(|found| build(channel, found, VoterChannelSource::RECORDED));
     }
 
     if let Some(email) = email {

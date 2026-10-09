@@ -40,7 +40,10 @@ public record VoterChannel(
     LEGACY
   }
 
-  /** The voter's one channel, or empty when the record has no usable destination. */
+  /**
+   * The voter's one channel, or empty when the record has none that can be used. Never another
+   * channel than the record's.
+   */
   public static Optional<VoterChannel> of(UserModel user) {
     return resolve(user.getEmail(), user::getAttributeStream);
   }
@@ -92,18 +95,25 @@ public record VoterChannel(
           return found;
         }
       }
-    } else if (recorded.isPresent()) {
+      // Never another channel: none of the verified ones can be used.
+      return Optional.empty();
+    }
+    if (recorded.isPresent()) {
       MessageChannel channel = recorded.get();
-      Optional<VoterChannel> found =
-          switch (channel) {
-            case WHATSAPP, VIBER, SMS ->
-                phone(channel, first.apply(MessagingAttributes.MESSAGE_NUMBER), Source.RECORDED);
-            case MESSENGER -> messenger(first, Source.RECORDED);
-            case EMAIL -> phone(channel, mail, Source.RECORDED);
-          };
-      if (found.isPresent()) {
-        return found;
-      }
+      // An empty result means no channel, never the email.
+      return switch (channel) {
+        case WHATSAPP, VIBER ->
+            phone(channel, first.apply(MessagingAttributes.MESSAGE_NUMBER), Source.RECORDED);
+        case SMS ->
+            phone(
+                channel,
+                first
+                    .apply(MessagingAttributes.MESSAGE_NUMBER)
+                    .or(() -> first.apply(Utils.PHONE_NUMBER_ATTRIBUTE)),
+                Source.RECORDED);
+        case MESSENGER -> messenger(first, Source.RECORDED);
+        case EMAIL -> phone(channel, mail, Source.RECORDED);
+      };
     }
 
     if (mail.isPresent()) {

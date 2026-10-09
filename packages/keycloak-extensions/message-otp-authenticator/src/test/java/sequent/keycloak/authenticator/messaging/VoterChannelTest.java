@@ -104,11 +104,52 @@ class VoterChannelTest {
   }
 
   @Test
-  void recordedChannelWithoutDestinationIsLegacy() {
-    VoterChannel found =
+  void recordedChannelWithoutDestinationHasNoChannel() {
+    // Never another channel: the voter's channel can't be used, so none is.
+    assertTrue(
         resolve(
                 "voter@example.org",
                 Map.of(MessagingAttributes.MESSAGE_CHANNEL, List.of("WHATSAPP")))
+            .isEmpty());
+    assertTrue(
+        resolve(
+                "voter@example.org",
+                Map.of(
+                    MessagingAttributes.MESSAGE_CHANNEL, List.of("MESSENGER"),
+                    MessagingAttributes.MESSENGER_ID, List.of("psid-1"),
+                    Utils.PHONE_NUMBER_ATTRIBUTE, List.of("+15550000003")))
+            .isEmpty());
+  }
+
+  @Test
+  void recordedSmsReadsTheMobileNumberWithoutAMessageNumber() {
+    VoterChannel found =
+        resolve(
+                "voter@example.org",
+                Map.of(
+                    MessagingAttributes.MESSAGE_CHANNEL, List.of("SMS"),
+                    Utils.PHONE_NUMBER_ATTRIBUTE, List.of("+15550000003")))
+            .orElseThrow();
+    assertEquals(MessageChannel.SMS, found.channel());
+    assertEquals("+15550000003", found.destination());
+    assertEquals(VoterChannel.Source.RECORDED, found.source());
+  }
+
+  @Test
+  void firstReleaseRecordWithoutDestinationHasNoChannel() {
+    assertTrue(
+        resolve(
+                "voter@example.org",
+                Map.of(
+                    MessagingAttributes.VERIFIED_CHANNELS, List.of("WHATSAPP"),
+                    Utils.PHONE_NUMBER_ATTRIBUTE, List.of("+15550000003")))
+            .isEmpty());
+  }
+
+  @Test
+  void emptyVerifiedChannelsIsNotAFirstReleaseRecord() {
+    VoterChannel found =
+        resolve("voter@example.org", Map.of(MessagingAttributes.VERIFIED_CHANNELS, List.of()))
             .orElseThrow();
     assertEquals(MessageChannel.EMAIL, found.channel());
     assertEquals(VoterChannel.Source.LEGACY, found.source());
