@@ -244,7 +244,8 @@ failed attempt can't be attributed to a single account. **Shared-candidate failu
   limits repeated failures for those values.
 
 With the default, a caller who mistypes their PIN also adds a failure to the other voters who
-share the same identifier value(s), within the realm's **Brute Force Detection** settings.
+share the same identifier value(s), and enough failures can lock them all out, as the realm's
+**Brute Force Detection** settings determine.
 Existing authenticator configurations that don't set this option use the default.
 
 ---
