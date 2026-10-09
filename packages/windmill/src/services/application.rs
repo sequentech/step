@@ -39,6 +39,8 @@ use sequent_core::types::templates::AudienceSelection::SELECTED;
 use sequent_core::types::templates::TemplateMethod::{EMAIL, SMS};
 use unicode_normalization::char::decompose_canonical;
 
+const FIELD_EMBASSY: &str = "embassy";
+
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum ECardType {
@@ -418,7 +420,7 @@ fn automatic_verification(
                 rejection_reason = Some(ApplicationRejectReason::ALREADY_APPROVED);
                 rejection_message = None;
             } else {
-                if !fields_match.get("embassy").unwrap_or(&false) {
+                if fields_match.get(FIELD_EMBASSY) == Some(&false) {
                     return Ok(ApplicationVerificationResult {
                         user_id: user.id,
                         username,
@@ -441,7 +443,7 @@ fn automatic_verification(
                 rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
                 rejection_message = None;
             }
-        } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
+        } else if mismatches == 2 && !fields_match.get(FIELD_EMBASSY).unwrap_or(&false) {
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
             matched_type = ApplicationType::MANUAL;
@@ -1181,6 +1183,150 @@ fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const ID_CARD_TYPE: &str = "sequent.read-only.id-card-type";
+    const ID_CARD_NUMBER: &str = "sequent.read-only.id-card-number";
+
+    fn annotations_with_search_attributes(search_attributes: &str) -> ApplicationAnnotations {
+        ApplicationAnnotations {
+            session_id: None,
+            credentials: None,
+            verified_by: None,
+            rejection_reason: None,
+            rejection_message: None,
+            unset_attributes: Some("email".to_string()),
+            search_attributes: Some(search_attributes.to_string()),
+            update_attributes: None,
+            mismatches: None,
+            fields_match: None,
+            manual_verify_reason: None,
+        }
+    }
+
+    fn voter(attributes: &[(&str, &str)]) -> User {
+        User {
+            id: Some("voter-id".to_string()),
+            username: Some("voter".to_string()),
+            first_name: Some("Maria".to_string()),
+            last_name: Some("Santos".to_string()),
+            enabled: Some(true),
+            attributes: Some(
+                attributes
+                    .iter()
+                    .map(|(key, value)| (key.to_string(), vec![value.to_string()]))
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+    }
+
+    fn applicant(fields: &[(&str, &str)]) -> HashMap<String, String> {
+        fields
+            .iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn single_mismatch_without_embassy_search_attribute_requires_manual_review() -> Result<()> {
+        let annotations =
+            annotations_with_search_attributes(&format!("{ID_CARD_NUMBER},{ID_CARD_TYPE}"));
+        let users = vec![voter(&[
+            (ID_CARD_TYPE, "philSysID"),
+            (ID_CARD_NUMBER, "1111"),
+        ])];
+        let applicant_data = applicant(&[
+            (ID_CARD_TYPE, "philSysID"),
+            (ID_CARD_NUMBER, "2222"),
+            ("country", "Spain/Madrid"),
+            ("embassy", "Madrid PE"),
+        ]);
+
+        let result = automatic_verification(users, &annotations, &applicant_data)?;
+
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+        assert_eq!(result.application_type, ApplicationType::MANUAL);
+        assert_eq!(result.user_id, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn single_date_of_birth_mismatch_with_embassy_search_attribute_requires_manual_review(
+    ) -> Result<()> {
+        let annotations =
+            annotations_with_search_attributes("firstName,lastName,embassy,dateOfBirth");
+        let users = vec![voter(&[
+            (ID_CARD_TYPE, "philSysID"),
+            ("embassy", "Madrid PE"),
+            ("dateOfBirth", "1980-01-01"),
+        ])];
+        let applicant_data = applicant(&[
+            (ID_CARD_TYPE, "philSysID"),
+            ("firstName", "Maria"),
+            ("lastName", "Santos"),
+            ("country", "Spain/Madrid"),
+            ("embassy", "Madrid PE"),
+            ("dateOfBirth", "1990-02-02"),
+        ]);
+
+        let result = automatic_verification(users, &annotations, &applicant_data)?;
+
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+        assert_eq!(result.user_id, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn single_embassy_mismatch_is_accepted() -> Result<()> {
+        let annotations =
+            annotations_with_search_attributes("firstName,lastName,embassy,dateOfBirth");
+        let users = vec![voter(&[
+            (ID_CARD_TYPE, "philSysID"),
+            ("embassy", "Rome PE"),
+            ("dateOfBirth", "1980-01-01"),
+        ])];
+        let applicant_data = applicant(&[
+            (ID_CARD_TYPE, "philSysID"),
+            ("firstName", "Maria"),
+            ("lastName", "Santos"),
+            ("country", "Spain/Madrid"),
+            ("embassy", "Madrid PE"),
+            ("dateOfBirth", "1980-01-01"),
+        ]);
+
+        let result = automatic_verification(users, &annotations, &applicant_data)?;
+
+        assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+        assert_eq!(result.application_type, ApplicationType::AUTOMATIC);
+        assert_eq!(result.user_id, Some("voter-id".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn exact_match_without_embassy_search_attribute_is_accepted() -> Result<()> {
+        let annotations =
+            annotations_with_search_attributes(&format!("{ID_CARD_NUMBER},{ID_CARD_TYPE}"));
+        let users = vec![voter(&[
+            (ID_CARD_TYPE, "philSysID"),
+            (ID_CARD_NUMBER, "1111"),
+        ])];
+        let applicant_data = applicant(&[
+            (ID_CARD_TYPE, "philSysID"),
+            (ID_CARD_NUMBER, "1111"),
+            ("country", "Spain/Madrid"),
+            ("embassy", "Madrid PE"),
+        ]);
+
+        let result = automatic_verification(users, &annotations, &applicant_data)?;
+
+        assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+        assert_eq!(result.user_id, Some("voter-id".to_string()));
+
+        Ok(())
+    }
 
     #[test]
     fn test_accent_mark() {
