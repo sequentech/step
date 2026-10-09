@@ -53,6 +53,7 @@ use crate::tasks::manage_election_event_enrollment::manage_election_event_enroll
 use crate::tasks::manage_election_event_lockdown::manage_election_event_lockdown;
 use crate::tasks::manage_election_init_report::manage_election_init_report;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
+use crate::tasks::manage_electoral_log_dead_letters::manage_electoral_log_dead_letters;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
@@ -278,6 +279,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             publish_electoral_log_checkpoint,
             publish_periodic_electoral_log_checkpoints,
             purge_queue_archives,
+            manage_electoral_log_dead_letters,
             export_certificate_authority,
             create_transmission_package_task,
             send_transmission_package_task,
@@ -334,6 +336,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             publish_electoral_log_checkpoint::NAME => Queue::Short.queue_name(),
             publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
             purge_queue_archives::NAME => Queue::Beat.queue_name(),
+            manage_electoral_log_dead_letters::NAME => Queue::Short.queue_name(),
             generate_activity_logs_report::NAME => Queue::Reports.queue_name(), // Using reports queue because there is more memory allocated for that queue
             export_tasks_execution::NAME => Queue::ImportExport.queue_name(),
             export_trustees_task::NAME => Queue::ImportExport.queue_name(),

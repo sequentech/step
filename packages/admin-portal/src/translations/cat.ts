@@ -1378,6 +1378,9 @@ const catalanTranslation: TranslationType = {
                 "electoral-log-console-read": "Explorar Registre Electoral",
                 "electoral-log-console-query": "Consultar Registre Electoral",
                 "electoral-log-personal-data-read": "Llegir Dades Personals del Registre Electoral",
+                "task-queues-read": "Llegir Cues de Tasques",
+                "task-queues-write": "Gestionar Cues de Tasques",
+                "task-queues-query": "Consultar Cues de Tasques",
                 "tasks-read": "Llegir l'Execució de Tasques",
                 "keys-read": "Llegir Claus",
                 "document-upload": "Pujar Documents",
@@ -1798,6 +1801,7 @@ const catalanTranslation: TranslationType = {
             search: "Cercar",
             usersAndRoles: "Usuaris i Rols",
             electoralLogConsole: "Registre Electoral",
+            taskQueues: "Cues de Tasques",
             logs: "Bitàcora",
             settings: "Configuració",
             help: "Ajuda",
@@ -3009,6 +3013,133 @@ const catalanTranslation: TranslationType = {
             },
             query: {
                 help: "Les consultes s'executen sobre la base de dades del registre electoral en una transacció de només lectura. Les seves taules són electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending i ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
+                run: "Executar Consulta",
+                summary: "Files: {{rows}} · {{ms}} ms",
+                truncated: "Només es mostren les primeres {{rows}} files.",
+                error: "No s'ha pogut executar la consulta.",
+            },
+        },
+        taskQueues: {
+            title: "Cues de Tasques",
+            subtitle:
+                "Les cues de tasques de l'entorn: què està esperant, què s'ha processat i quant ha trigat. Les llistes de les cues no mostren mai els arguments de les tasques.",
+            notAllowed:
+                "Necessiteu el permís task-queues-read del tenant de superadministració per obrir les cues de tasques.",
+            live: "En directe",
+            updated: "Actualitzat a les {{time}}",
+            error: "No s'han pogut carregar les cues de tasques.",
+            columns: {
+                queue: "Cua",
+                ready: "Preparats",
+                runningOrScheduled: "En curs o programats",
+                oldest: "Més antic",
+                processed: "Processats (última hora)",
+                lastHour: "Resultats (última hora)",
+                sent: "Enviats (total)",
+            },
+            outcomes: {
+                succeeded: "Correctes",
+                failed: "Fallits",
+                expired: "Caducats",
+                rejected: "Rebutjats",
+                discarded: "Descartats",
+                unknown: "Desconegut",
+            },
+            graphs: {
+                title: "Rendiment",
+                period: "Període",
+                periods: {
+                    hour: "Última hora",
+                    sixHours: "Últimes 6 hores",
+                    day: "Últimes 24 hores",
+                    week: "Últims 7 dies",
+                },
+                outcomes: "Missatges processats per resultat",
+                durations: "Temps mitjà d'espera i de procés",
+                wait: "Espera",
+                processing: "Procés",
+                seconds: "Segons",
+                empty: "No s'ha processat cap missatge d'aquesta cua en aquest període.",
+            },
+            messages: {
+                title: "Missatges",
+                states: {
+                    queued: "En cua",
+                    archived: "Arxivats",
+                },
+                argumentsHidden:
+                    "Els arguments de les tasques no es mostren mai, perquè poden contenir dades de votants.",
+                refresh: "Actualitzar",
+                newest: "Més recents",
+                newer: "Més nous",
+                older: "Més antics",
+                empty: "No hi ha missatges",
+                unreadable: "Missatge il·legible",
+                columns: {
+                    id: "ID",
+                    task: "Tasca",
+                    outcome: "Resultat",
+                    event: "Esdeveniment",
+                    error: "Error",
+                    enqueued: "Encuat",
+                    reads: "Lectures",
+                    retries: "Reintents",
+                    archived: "Arxivat",
+                    visible: "Visible des de",
+                    size: "Mida",
+                    taskId: "ID de tasca",
+                },
+            },
+            deadLetters: {
+                help: "Aquests esdeveniments del registre electoral no s'han pogut processar. Seleccioneu esdeveniments per reenviar-los a la cua d'esdeveniments o per descartar-los; els esdeveniments descartats es queden a l'arxiu.",
+                noWrite:
+                    "Necessiteu el permís task-queues-write per reenviar o descartar aquests esdeveniments.",
+                replay: "Reenviar",
+                discard: "Descartar",
+                cancel: "Cancel·lar",
+                confirmTitle: {
+                    replay: "Reenviar els esdeveniments?",
+                    discard: "Descartar els esdeveniments?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "Es reenviarà {{count}} esdeveniment a la cua d'esdeveniments del registre electoral. Si torna a fallar, tornarà aquí.",
+                    replay_many:
+                        "Es reenviaran {{count}} esdeveniments a la cua d'esdeveniments del registre electoral. Els esdeveniments que tornin a fallar tornaran aquí.",
+                    replay_other:
+                        "Es reenviaran {{count}} esdeveniments a la cua d'esdeveniments del registre electoral. Els esdeveniments que tornin a fallar tornaran aquí.",
+                    discard_one:
+                        "Es mourà {{count}} esdeveniment a l'arxiu i no s'afegirà al registre electoral.",
+                    discard_many:
+                        "Es mouran {{count}} esdeveniments a l'arxiu i no s'afegiran al registre electoral.",
+                    discard_other:
+                        "Es mouran {{count}} esdeveniments a l'arxiu i no s'afegiran al registre electoral.",
+                },
+                queued: {
+                    replay_one:
+                        "Reenviament de {{count}} esdeveniment encuat com a tasca {{taskId}}.",
+                    replay_many:
+                        "Reenviament de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                    replay_other:
+                        "Reenviament de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                    discard_one: "Descart de {{count}} esdeveniment encuat com a tasca {{taskId}}.",
+                    discard_many:
+                        "Descart de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                    discard_other:
+                        "Descart de {{count}} esdeveniments encuat com a tasca {{taskId}}.",
+                },
+                failed: "No s'ha pogut encuar l'operació.",
+            },
+            tabs: {
+                queues: "Cues",
+                query: "Consulta",
+            },
+            query: {
+                help: "Les consultes s'executen sobre la base de dades de cues de tasques de l'entorn en una transacció de només lectura, amb el seu rol de lectura. Cada cua té una taula de missatges en espera, pgmq.q_<cua>, i una altra de missatges processats, pgmq.a_<cua>.",
+                arguments:
+                    "Les consultes llegeixen els missatges tal com estan desats, amb els arguments de les seves tasques, que poden incloure dades de votants.",
                 placeholder: "SELECT …",
                 limits: "Només lectura · fins a 1.000 files · límit de 30 s · cada consulta queda anotada als registres del servidor amb el vostre usuari",
                 run: "Executar Consulta",

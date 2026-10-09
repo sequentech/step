@@ -121,6 +121,77 @@ actions:
       permissions:
           - role: electoral-log-console-query
       comment: A read-only SQL query on the tenant's electoral-log database
+    - name: task_queues_overview
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/task-queues/overview
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: task-queues-read
+      comment: The depth and last hour's outcomes of every task queue
+    - name: task_queues_throughput
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/task-queues/throughput
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: task-queues-read
+      comment: Processed messages of a task queue over time, by outcome
+    - name: task_queues_messages
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/task-queues/messages
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: task-queues-read
+      comment: Messages of a task queue, without their tasks' arguments
+    - name: task_queues_query
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/task-queues/query
+          forward_client_headers: true
+          timeout: 45
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: task-queues-query
+      comment: A read-only SQL query on the environment's task-queue database
+    - name: task_queues_dead_letters
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/task-queues/dead-letters
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: task-queues-write
+      comment: Replay or discard dead-lettered electoral-log events
     - name: call_plugin_route
       definition:
           kind: synchronous

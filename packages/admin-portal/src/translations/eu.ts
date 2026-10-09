@@ -1371,6 +1371,9 @@ const basqueTranslation: TranslationType = {
                 "electoral-log-console-query": "Hauteskunde Erregistroa Kontsultatu",
                 "electoral-log-personal-data-read":
                     "Hauteskunde Erregistroko Datu Pertsonalak Irakurri",
+                "task-queues-read": "Ataza-ilarak Irakurri",
+                "task-queues-write": "Ataza-ilarak Kudeatu",
+                "task-queues-query": "Ataza-ilarak Kontsultatu",
                 "tasks-read": "Irakurri Ataza Exekuzioa",
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",
@@ -1779,6 +1782,7 @@ const basqueTranslation: TranslationType = {
             search: "Bilatu",
             usersAndRoles: "Erabiltzaileak eta Rolak",
             electoralLogConsole: "Hauteskunde Erregistroa",
+            taskQueues: "Ataza-ilarak",
             logs: "Egunkariak",
             settings: "Ezarpenak",
             help: "Laguntza",
@@ -2988,6 +2992,134 @@ const basqueTranslation: TranslationType = {
             },
             query: {
                 help: "Kontsultak hauteskunde-erregistroaren datu-basean exekutatzen dira, irakurtzeko soilik den transakzio batean. Bere taulak hauek dira: electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending eta ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Irakurtzeko soilik · gehienez 1.000 errenkada · 30 s-ko muga · kontsulta bakoitza zerbitzariaren erregistroetan gordetzen da zure erabiltzailearekin",
+                run: "Exekutatu Kontsulta",
+                summary: "Errenkadak: {{rows}} · {{ms}} ms",
+                truncated: "Lehen {{rows}} errenkadak bakarrik erakusten dira.",
+                error: "Ezin izan da kontsulta exekutatu.",
+            },
+        },
+        taskQueues: {
+            title: "Ataza-ilarak",
+            subtitle:
+                "Ingurunearen ataza-ilarak: zer dagoen zain, zer prozesatu den eta zenbat denbora behar izan duen. Ilaren zerrendek ez dituzte inoiz atazen argumentuak erakusten.",
+            notAllowed:
+                "Super-administrazio tenantaren task-queues-read baimena behar duzu ataza-ilarak irekitzeko.",
+            live: "Zuzenean",
+            updated: "Eguneratuta: {{time}}",
+            error: "Ezin izan dira ataza-ilarak kargatu.",
+            columns: {
+                queue: "Ilara",
+                ready: "Prest",
+                runningOrScheduled: "Exekutatzen edo programatuta",
+                oldest: "Zaharrena",
+                processed: "Prozesatuak (azken ordua)",
+                lastHour: "Emaitzak (azken ordua)",
+                sent: "Bidaliak (guztira)",
+            },
+            outcomes: {
+                succeeded: "Ondo",
+                failed: "Huts eginda",
+                expired: "Iraungita",
+                rejected: "Baztertuta",
+                discarded: "Alde batera utzita",
+                unknown: "Ezezaguna",
+            },
+            graphs: {
+                title: "Errendimendua",
+                period: "Epea",
+                periods: {
+                    hour: "Azken ordua",
+                    sixHours: "Azken 6 orduak",
+                    day: "Azken 24 orduak",
+                    week: "Azken 7 egunak",
+                },
+                outcomes: "Prozesatutako mezuak emaitzaren arabera",
+                durations: "Batez besteko itxaron- eta prozesatze-denbora",
+                wait: "Itxaronaldia",
+                processing: "Prozesatzea",
+                seconds: "Segundoak",
+                empty: "Epe honetan ez da ilara honetako mezurik prozesatu.",
+            },
+            messages: {
+                title: "Mezuak",
+                states: {
+                    queued: "Ilaran",
+                    archived: "Artxibatuak",
+                },
+                argumentsHidden:
+                    "Atazen argumentuak ez dira inoiz erakusten, hautesleen datuak izan ditzaketelako.",
+                refresh: "Freskatu",
+                newest: "Berrienak",
+                newer: "Berriagoak",
+                older: "Zaharragoak",
+                empty: "Ez dago mezurik",
+                unreadable: "Mezu irakurtezina",
+                columns: {
+                    id: "IDa",
+                    task: "Ataza",
+                    outcome: "Emaitza",
+                    event: "Gertaera",
+                    error: "Errorea",
+                    enqueued: "Ilaratuta",
+                    reads: "Irakurketak",
+                    retries: "Berriro saiakerak",
+                    archived: "Artxibatuta",
+                    visible: "Ikusgai noiztik",
+                    size: "Tamaina",
+                    taskId: "Atazaren IDa",
+                },
+            },
+            deadLetters: {
+                help: "Hauteskunde-erregistroko gertaera hauek ezin izan dira prozesatu. Hautatu gertaerak gertaera-ilarara berriro bidaltzeko edo alde batera uzteko; alde batera utzitako gertaerak artxiboan geratzen dira.",
+                noWrite:
+                    "task-queues-write baimena behar duzu gertaera hauek berriro bidaltzeko edo alde batera uzteko.",
+                replay: "Berriro bidali",
+                discard: "Alde batera utzi",
+                cancel: "Utzi",
+                confirmTitle: {
+                    replay: "Gertaerak berriro bidali?",
+                    discard: "Gertaerak alde batera utzi?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "{{count}} gertaera hauteskunde-erregistroko gertaera-ilarara bidaliko da berriro. Berriro huts egiten badu, hona itzuliko da.",
+                    replay_many:
+                        "{{count}} gertaera hauteskunde-erregistroko gertaera-ilarara bidaliko dira berriro. Berriro huts egiten duten gertaerak hona itzuliko dira.",
+                    replay_other:
+                        "{{count}} gertaera hauteskunde-erregistroko gertaera-ilarara bidaliko dira berriro. Berriro huts egiten duten gertaerak hona itzuliko dira.",
+                    discard_one:
+                        "{{count}} gertaera artxibora eramango da eta ez da hauteskunde-erregistroan gehituko.",
+                    discard_many:
+                        "{{count}} gertaera artxibora eramango dira eta ez dira hauteskunde-erregistroan gehituko.",
+                    discard_other:
+                        "{{count}} gertaera artxibora eramango dira eta ez dira hauteskunde-erregistroan gehituko.",
+                },
+                queued: {
+                    replay_one:
+                        "{{count}} gertaeraren birbidalketa {{taskId}} ataza gisa ilaratu da.",
+                    replay_many:
+                        "{{count}} gertaeraren birbidalketa {{taskId}} ataza gisa ilaratu da.",
+                    replay_other:
+                        "{{count}} gertaeraren birbidalketa {{taskId}} ataza gisa ilaratu da.",
+                    discard_one:
+                        "{{count}} gertaera alde batera uztea {{taskId}} ataza gisa ilaratu da.",
+                    discard_many:
+                        "{{count}} gertaera alde batera uztea {{taskId}} ataza gisa ilaratu da.",
+                    discard_other:
+                        "{{count}} gertaera alde batera uztea {{taskId}} ataza gisa ilaratu da.",
+                },
+                failed: "Ezin izan da eragiketa ilaratu.",
+            },
+            tabs: {
+                queues: "Ilarak",
+                query: "Kontsulta",
+            },
+            query: {
+                help: "Kontsultak ingurunearen ataza-ilaren datu-basean exekutatzen dira, irakurtzeko soilik den transakzio batean, bere irakurketa-rolarekin. Ilara bakoitzak zain dauden mezuen taula bat du, pgmq.q_<ilara>, eta prozesatutako mezuena beste bat, pgmq.a_<ilara>.",
+                arguments:
+                    "Kontsultek mezuak gordeta dauden bezala irakurtzen dituzte, atazen argumentuekin, eta horiek hautesleen datuak izan ditzakete.",
                 placeholder: "SELECT …",
                 limits: "Irakurtzeko soilik · gehienez 1.000 errenkada · 30 s-ko muga · kontsulta bakoitza zerbitzariaren erregistroetan gordetzen da zure erabiltzailearekin",
                 run: "Exekutatu Kontsulta",

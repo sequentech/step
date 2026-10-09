@@ -155,14 +155,40 @@ pub async fn generate_hasura_pool() -> Result<Arc<Pool>> {
     }
 }
 
+/// The user of read-only queue inspection (the reader role), for Harvest.
+pub const QUEUE_DB_READER_USER_ENV: &str = "QUEUE_DB_READER_USER";
+pub const QUEUE_DB_READER_PASSWORD_ENV: &str = "QUEUE_DB_READER_PASSWORD";
+
+fn queue_db_config() -> Result<deadpool_postgres::Config> {
+    Ok(Config::builder()
+        .add_source(Environment::default().separator("__"))
+        .build()?
+        .get("queue_db")?)
+}
+
 /// The environment's task-queue database (`QUEUE_DB__*`), where PGMQ keeps the queues.
 #[instrument(err)]
 pub async fn generate_queue_pool() -> Result<Arc<Pool>> {
-    let config: deadpool_postgres::Config = Config::builder()
-        .add_source(Environment::default().separator("__"))
-        .build()?
-        .get("queue_db")?;
+    create_queue_pool(queue_db_config()?)
+}
 
+/// The task-queue database as its reader role (`QUEUE_DB_READER_USER` and
+/// `QUEUE_DB_READER_PASSWORD`), for the Task Queues page.
+#[instrument(err)]
+pub async fn generate_queue_reader_pool() -> Result<Arc<Pool>> {
+    let mut config = queue_db_config()?;
+    config.user = Some(
+        env::var(QUEUE_DB_READER_USER_ENV)
+            .map_err(|_| anyhow!("{QUEUE_DB_READER_USER_ENV} is not set"))?,
+    );
+    config.password = Some(
+        env::var(QUEUE_DB_READER_PASSWORD_ENV)
+            .map_err(|_| anyhow!("{QUEUE_DB_READER_PASSWORD_ENV} is not set"))?,
+    );
+    create_queue_pool(config)
+}
+
+fn create_queue_pool(config: deadpool_postgres::Config) -> Result<Arc<Pool>> {
     cfg_if::cfg_if! {
         if #[cfg(any(feature = "fips_core", feature = "fips_full"))] {
             if  config.ssl_mode == Some(SslMode::Prefer) ||
@@ -212,6 +238,8 @@ static KEYCLOAK_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
 static QUEUE_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
+static QUEUE_READER_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
+
 static HASURA_POOL: OnceCell<Arc<Pool>> = OnceCell::const_new();
 
 pub async fn get_keycloak_pool() -> Arc<Pool> {
@@ -238,6 +266,15 @@ pub async fn get_queue_pool() -> Arc<Pool> {
         })
         .await
         .clone()
+}
+
+/// The reader pool, or an error when the reader role is not configured; a later call
+/// tries again.
+pub async fn get_queue_reader_pool() -> Result<Arc<Pool>> {
+    QUEUE_READER_POOL
+        .get_or_try_init(|| async { generate_queue_reader_pool().await })
+        .await
+        .cloned()
 }
 
 pub async fn get_hasura_pool() -> Arc<Pool> {

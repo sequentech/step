@@ -4463,6 +4463,7 @@ dependencies = [
  "electoral-log",
  "graphql_client",
  "handlebars",
+ "pgmq-broker",
  "regex",
  "reqwest 0.12.24",
  "rocket",

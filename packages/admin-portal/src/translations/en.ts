@@ -1362,6 +1362,9 @@ const englishTranslation = {
                 "electoral-log-console-read": "Browse Electoral Log",
                 "electoral-log-console-query": "Query Electoral Log",
                 "electoral-log-personal-data-read": "Read Electoral Log Personal Data",
+                "task-queues-read": "Read Task Queues",
+                "task-queues-write": "Manage Task Queues",
+                "task-queues-query": "Query Task Queues",
                 "tasks-read": "Read Tasks Execution",
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
@@ -1764,6 +1767,7 @@ const englishTranslation = {
             search: "Search",
             usersAndRoles: "Users and Roles",
             electoralLogConsole: "Electoral Log",
+            taskQueues: "Task Queues",
             logs: "Logs",
             settings: "Settings",
             help: "Help",
@@ -2972,6 +2976,128 @@ const englishTranslation = {
             },
             query: {
                 help: "Queries run on the electoral-log database in a read-only transaction. Its tables are electoral_log_messages, ballot_box_ballot, ballot_box_voter, ballot_box_pending and ballot_box_sequencer.",
+                placeholder: "SELECT …",
+                limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
+                run: "Run Query",
+                summary: "Rows: {{rows}} · {{ms}} ms",
+                truncated: "Only the first {{rows}} rows are shown.",
+                error: "The query could not run.",
+            },
+        },
+        taskQueues: {
+            title: "Task Queues",
+            subtitle:
+                "The environment's task queues: what is waiting, what was processed and how long it took. The queue lists never show task arguments.",
+            notAllowed:
+                "You need the task-queues-read permission of the super-admin tenant to open the task queues.",
+            live: "Live",
+            updated: "Updated at {{time}}",
+            error: "The task queues could not be loaded.",
+            columns: {
+                queue: "Queue",
+                ready: "Ready",
+                runningOrScheduled: "Running or scheduled",
+                oldest: "Oldest",
+                processed: "Processed (last hour)",
+                lastHour: "Outcomes (last hour)",
+                sent: "Sent (total)",
+            },
+            outcomes: {
+                succeeded: "Succeeded",
+                failed: "Failed",
+                expired: "Expired",
+                rejected: "Rejected",
+                discarded: "Discarded",
+                unknown: "Unknown",
+            },
+            graphs: {
+                title: "Throughput",
+                period: "Period",
+                periods: {
+                    hour: "Last hour",
+                    sixHours: "Last 6 hours",
+                    day: "Last 24 hours",
+                    week: "Last 7 days",
+                },
+                outcomes: "Processed messages by outcome",
+                durations: "Mean wait and processing time",
+                wait: "Wait",
+                processing: "Processing",
+                seconds: "Seconds",
+                empty: "No messages of this queue were processed in this period.",
+            },
+            messages: {
+                title: "Messages",
+                states: {
+                    queued: "Queued",
+                    archived: "Archived",
+                },
+                argumentsHidden:
+                    "Task arguments are never shown, because they can contain voters' data.",
+                refresh: "Refresh",
+                newest: "Newest",
+                newer: "Newer",
+                older: "Older",
+                empty: "No messages",
+                unreadable: "Unreadable message",
+                columns: {
+                    id: "ID",
+                    task: "Task",
+                    outcome: "Outcome",
+                    event: "Event",
+                    error: "Error",
+                    enqueued: "Enqueued",
+                    reads: "Reads",
+                    retries: "Retries",
+                    archived: "Archived",
+                    visible: "Visible from",
+                    size: "Size",
+                    taskId: "Task ID",
+                },
+            },
+            deadLetters: {
+                help: "These electoral-log events could not be processed. Select events to replay them to the event queue or to discard them; discarded events stay in the archive.",
+                noWrite:
+                    "You need the task-queues-write permission to replay or discard these events.",
+                replay: "Replay",
+                discard: "Discard",
+                cancel: "Cancel",
+                confirmTitle: {
+                    replay: "Replay events?",
+                    discard: "Discard events?",
+                },
+                confirmBody: {
+                    replay_one:
+                        "{{count}} event will be sent back to the electoral-log event queue. If it fails again, it returns here.",
+                    replay_many:
+                        "{{count}} events will be sent back to the electoral-log event queue. Events that fail again return here.",
+                    replay_other:
+                        "{{count}} events will be sent back to the electoral-log event queue. Events that fail again return here.",
+                    discard_one:
+                        "{{count}} event will be moved to the archive and not added to the electoral log.",
+                    discard_many:
+                        "{{count}} events will be moved to the archive and not added to the electoral log.",
+                    discard_other:
+                        "{{count}} events will be moved to the archive and not added to the electoral log.",
+                },
+                queued: {
+                    replay_one: "Replay of {{count}} event queued as task {{taskId}}.",
+                    replay_many: "Replay of {{count}} events queued as task {{taskId}}.",
+                    replay_other: "Replay of {{count}} events queued as task {{taskId}}.",
+                    discard_one: "Discard of {{count}} event queued as task {{taskId}}.",
+                    discard_many: "Discard of {{count}} events queued as task {{taskId}}.",
+                    discard_other: "Discard of {{count}} events queued as task {{taskId}}.",
+                },
+                failed: "The operation could not be queued.",
+            },
+            tabs: {
+                queues: "Queues",
+                query: "Query",
+            },
+            query: {
+                help: "Queries run on the environment's task-queue database in a read-only transaction, as its reader role. Each queue has a table of waiting messages, pgmq.q_<queue>, and one of processed messages, pgmq.a_<queue>.",
+                arguments:
+                    "Queries read the messages as they are stored, with their tasks' arguments, which can include voters' data.",
                 placeholder: "SELECT …",
                 limits: "Read-only · up to 1,000 rows · 30 s timeout · each query is recorded in the server logs with your user",
                 run: "Run Query",
