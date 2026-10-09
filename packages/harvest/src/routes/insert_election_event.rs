@@ -43,18 +43,26 @@ pub struct CreateElectionEventOutput {
     task_execution: Option<TasksExecution>,
 }
 
+fn authorize_insert_election_event(
+    claims: &JwtClaims,
+    object: &CreateElectionEventInput,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(object.tenant_id.clone()),
+        vec![Permissions::ELECTION_EVENT_CREATE],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/insert-election-event", format = "json", data = "<body>")]
 pub async fn insert_election_event_f(
     body: Json<CreateElectionEventInput>,
     claims: JwtClaims,
 ) -> Result<Json<CreateElectionEventOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ELECTION_EVENT_CREATE],
-    )?;
+    let object = body.into_inner();
+    authorize_insert_election_event(&claims, &object)?;
 
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let executer_name = claims
@@ -64,7 +72,6 @@ pub async fn insert_election_event_f(
 
     let celery_app = get_celery_app().await;
     // always set an id;
-    let object = body.into_inner().clone();
     let id = object.id.clone().unwrap_or(Uuid::new_v4().to_string());
 
     // Insert the task execution record
@@ -547,5 +554,58 @@ mod tests {
         let json = serde_json::to_value(&without).unwrap();
         assert_eq!(json["error"], "disk full");
         assert!(json.get("problems").is_none());
+    }
+}
+
+#[cfg(test)]
+mod insert_election_event_tests {
+    use super::*;
+
+    fn admin(tenant_id: &str) -> JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": tenant_id,
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": [
+                    Permissions::ELECTION_EVENT_CREATE.to_string()
+                ]
+            }
+        }))
+        .unwrap()
+    }
+
+    fn event_in(tenant_id: &str) -> CreateElectionEventInput {
+        serde_json::from_value(serde_json::json!({
+            "tenant_id": tenant_id,
+            "name": "event"
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn create_is_allowed_in_the_callers_tenant() {
+        let tenant_id = Uuid::new_v4().to_string();
+        assert!(authorize_insert_election_event(
+            &admin(&tenant_id),
+            &event_in(&tenant_id)
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn create_is_rejected_in_another_tenant() {
+        let result = authorize_insert_election_event(
+            &admin(&Uuid::new_v4().to_string()),
+            &event_in(&Uuid::new_v4().to_string()),
+        );
+        assert_eq!(
+            result.map_err(|(status, _)| status),
+            Err(Status::Unauthorized)
+        );
     }
 }
