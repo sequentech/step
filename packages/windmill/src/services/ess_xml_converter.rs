@@ -30,6 +30,26 @@ pub const ESS_AREA_GROUPING_ANNOTATION_KEY: &str = "ess:area_grouping";
 /// another grouping is ever supported again.
 pub const AREA_GROUPING_PARTY: &str = "PARTY";
 
+/// Upper bound on the canonical CSV one conversion may produce, the same
+/// size a canonical CSV upload may be. Party grouping writes a sheet for
+/// every party with votes in a contest, with one row per candidate, so the
+/// CSV grows with parties times candidates rather than with the file's own
+/// size. A file whose conversion would go past this bound is refused with a
+/// single `ESS_OUTPUT_TOO_LARGE` validation error.
+const MAX_CANONICAL_CSV_BYTES: u64 = 50 * 1024 * 1024;
+
+/// Bytes counted for each canonical CSV row on top of the channel, area,
+/// contest and candidate it repeats: enough for its field name, value,
+/// separators and line terminator. Because every row costs at least this
+/// much, `MAX_CANONICAL_CSV_BYTES` also bounds the number of rows.
+const CANONICAL_CSV_ROW_OVERHEAD_BYTES: u64 = 64;
+
+/// Scalar rows (`total_votes` to `census`) written on every party sheet.
+const SCALAR_ROWS_PER_PARTY_SHEET: u64 = 7;
+
+/// Validation error code for a file refused by `MAX_CANONICAL_CSV_BYTES`.
+const ESS_OUTPUT_TOO_LARGE: &str = "ess_output_too_large";
+
 /// What a conversion produced: the canonical CSV, any validation errors, and
 /// which ES&S element the area names were taken from (recorded on the import
 /// for audit — see `ESS_AREA_GROUPING_ANNOTATION_KEY`).
@@ -132,6 +152,22 @@ fn party_precondition_error(
         field: None,
         params,
     }
+}
+
+/// Builds the validation error for a file whose conversion would go past
+/// `MAX_CANONICAL_CSV_BYTES`.
+fn output_too_large_error(selected_channel: &VotingChannel) -> TallySheetImportValidationError {
+    party_precondition_error(
+        selected_channel,
+        ESS_OUTPUT_TOO_LARGE,
+        format!(
+            "Converting this file would produce more than {MAX_CANONICAL_CSV_BYTES} bytes of tally sheet data (a sheet for every party with votes in each contest, with one row per candidate), more than one import accepts, so it was not converted"
+        ),
+        HashMap::from([(
+            "maxBytes".to_string(),
+            MAX_CANONICAL_CSV_BYTES.to_string(),
+        )]),
+    )
 }
 
 /// Writes the canonical CSV header row. Shared so every conversion path —
@@ -573,6 +609,10 @@ fn empty_canonical_csv() -> Result<Vec<u8>> {
 /// validation error at import time, same as it would for any other
 /// unrecognized area name; this function doesn't need its own separate
 /// check for it.
+///
+/// Each party sheet's size is projected before it is written, and the
+/// conversion stops with one `ESS_OUTPUT_TOO_LARGE` error, and no rows, as
+/// soon as the projected total would go past `MAX_CANONICAL_CSV_BYTES`.
 #[instrument(skip_all, err)]
 fn convert_party_grouped(
     document: &Document<'_>,
@@ -615,6 +655,8 @@ fn convert_party_grouped(
 
     let party_names = party_names_by_id(document)?;
     let party_ballots_and_blanks = party_ballots_and_blanks_by_id(document)?;
+    let channel_bytes = selected_channel.to_string().len() as u64;
+    let mut projected_csv_bytes: u64 = 0;
 
     for contest in document
         .descendants()
@@ -659,6 +701,20 @@ fn convert_party_grouped(
             }
         };
 
+        let mut candidate_votes_sum_by_party: HashMap<&str, u64> = HashMap::new();
+        for candidate in &candidates {
+            for (party_id, votes) in &candidate.votes_by_key {
+                *candidate_votes_sum_by_party
+                    .entry(party_id.as_str())
+                    .or_default() += votes;
+            }
+        }
+        let rows_per_party_sheet = SCALAR_ROWS_PER_PARTY_SHEET + candidates.len() as u64;
+        let candidate_ids_bytes: u64 = candidates
+            .iter()
+            .map(|candidate| candidate.external_id.len() as u64)
+            .sum();
+
         for (party_id, totals) in totals_by_party {
             let Some(party_name) = party_names.get(&party_id) else {
                 validation_errors.push(xml_error(
@@ -672,10 +728,10 @@ fn convert_party_grouped(
                 continue;
             };
 
-            let candidate_votes_sum = candidates
-                .iter()
-                .map(|candidate| candidate.votes_by_key.get(&party_id).copied().unwrap_or(0))
-                .sum::<u64>();
+            let candidate_votes_sum = candidate_votes_sum_by_party
+                .get(party_id.as_str())
+                .copied()
+                .unwrap_or(0);
             if candidate_votes_sum == 0 && totals.over_votes == 0 && totals.under_votes == 0 {
                 // This party has no data at all for this contest — the
                 // structurally-guaranteed case for a party that never sees
@@ -683,6 +739,21 @@ fn convert_party_grouped(
                 // zero-valued split entry for it regardless of relevance).
                 // Not an error, just not applicable here.
                 continue;
+            }
+
+            let row_bytes = channel_bytes
+                + party_name.len() as u64
+                + contest_external_id.len() as u64
+                + CANONICAL_CSV_ROW_OVERHEAD_BYTES;
+            let sheet_bytes = rows_per_party_sheet
+                .saturating_mul(row_bytes)
+                .saturating_add(candidate_ids_bytes);
+            projected_csv_bytes = projected_csv_bytes.saturating_add(sheet_bytes);
+            if projected_csv_bytes > MAX_CANONICAL_CSV_BYTES {
+                return Ok((
+                    empty_canonical_csv()?,
+                    vec![output_too_large_error(&selected_channel)],
+                ));
             }
 
             let (party_ballots_cast, party_whole_ballot_blanks) = party_ballots_and_blanks
@@ -2286,5 +2357,119 @@ mod tests {
         assert_eq!(errors[0].contest_external_id, Some("contest-1".to_string()));
         assert!(!csv.contains("contest-1"));
         assert!(csv.contains("PAPER,Area A,contest-2,candidate_votes,cand-2,5"));
+    }
+
+    /// A file where each of `party_names` owns one ballot style with one
+    /// ballot, cast for the first of `candidate_count` candidates in
+    /// `contest-1`. Every party therefore gets a sheet, and the file converts
+    /// to `party_names.len() * (7 + candidate_count)` rows with no
+    /// validation errors.
+    fn file_with_one_ballot_per_party(party_names: &[String], candidate_count: usize) -> Vec<u8> {
+        let mut precinct_parties = String::new();
+        let mut parties = String::new();
+        let mut first_candidate_splits = String::new();
+        for (index, name) in party_names.iter().enumerate() {
+            precinct_parties.push_str(&format!(
+                r#"<PrecinctParty partyId="{index}" ballotsCast="1" blanksCast="0"><PrecinctPartySplit refBStyleId="b{index}" ballotsCast="1" blanksCast="0" /></PrecinctParty>"#
+            ));
+            parties.push_str(&format!(r#"<Party id="{index}" name="{name}" />"#));
+            first_candidate_splits.push_str(&format!(
+                r#"<CandidatePrecinctSplitVotes refBStyleId="b{index}" votes="1" />"#
+            ));
+        }
+        let party_count = party_names.len();
+        let candidates: String = (0..candidate_count)
+            .map(|index| {
+                let (votes, splits) = if index == 0 {
+                    (party_count, first_candidate_splits.clone())
+                } else {
+                    (
+                        0,
+                        r#"<CandidatePrecinctSplitVotes refBStyleId="b0" votes="0" />"#.to_string(),
+                    )
+                };
+                format!(
+                    r#"<Candidate altId1="cand-{index}" type="NORMAL"><CandidatePrecinctVotes refPrecinctId="p1" votes="{votes}">{splits}</CandidatePrecinctVotes></Candidate>"#
+                )
+            })
+            .collect();
+        format!(
+            r#"<ElectionReport>
+                <JurisdictionMap>
+                    <Precinct id="p1" name="Precinct 1">
+                        <PrecinctReportingGroup reportingGroupId="1" ballotsCast="{party_count}" blanksCast="0" />
+                        {precinct_parties}
+                    </Precinct>
+                </JurisdictionMap>
+                <PartyMap>{parties}</PartyMap>
+                <Contest altId1="contest-1">{candidates}</Contest>
+            </ElectionReport>"#
+        )
+        .into_bytes()
+    }
+
+    /// "Area A" (a configured Area) followed by `count - 1` other parties,
+    /// each named `Party <index>` and then `padding` filler characters.
+    fn party_names_with_padding(count: usize, padding: usize) -> Vec<String> {
+        std::iter::once("Area A".to_string())
+            .chain((1..count).map(|index| format!("Party {index}{}", "x".repeat(padding))))
+            .collect()
+    }
+
+    fn csv_row_count(csv: &[u8]) -> usize {
+        String::from_utf8(csv.to_vec()).unwrap().lines().count() - 1
+    }
+
+    #[test]
+    fn party_grouping_converts_a_file_within_the_output_limit() {
+        let xml = file_with_one_ballot_per_party(&party_names_with_padding(20, 0), 50);
+
+        let (csv, errors) = convert_for_test(
+            &xml,
+            VotingChannel::PAPER,
+            &single_choice_config(&["contest-1"]),
+            &party_area_names(),
+        )
+        .unwrap();
+
+        assert!(errors.is_empty());
+        assert_eq!(csv_row_count(&csv), 20 * (7 + 50));
+        let csv = String::from_utf8(csv).unwrap();
+        assert!(csv.contains("PAPER,Area A,contest-1,candidate_votes,cand-0,1"));
+        assert!(csv.contains("PAPER,Party 19,contest-1,candidate_votes,cand-49,0"));
+    }
+
+    #[test]
+    fn party_grouping_refuses_a_conversion_with_too_many_rows() {
+        let xml = file_with_one_ballot_per_party(&party_names_with_padding(1_000, 0), 1_000);
+
+        let (csv, errors) = convert_for_test(
+            &xml,
+            VotingChannel::PAPER,
+            &single_choice_config(&["contest-1"]),
+            &party_area_names(),
+        )
+        .unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_output_too_large");
+        assert!(csv_has_no_rows(&csv));
+    }
+
+    #[test]
+    fn party_grouping_refuses_a_conversion_with_too_many_bytes() {
+        let xml = file_with_one_ballot_per_party(&party_names_with_padding(64, 4_096), 250);
+
+        let (csv, errors) = convert_for_test(
+            &xml,
+            VotingChannel::PAPER,
+            &single_choice_config(&["contest-1"]),
+            &party_area_names(),
+        )
+        .unwrap();
+
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "ess_output_too_large");
+        assert!(csv_has_no_rows(&csv));
     }
 }

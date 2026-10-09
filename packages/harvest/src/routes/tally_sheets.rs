@@ -824,15 +824,20 @@ async fn build_canonical_csv_conversion(
             )
             .await
             .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
-            let conversion =
+            let source_bytes = source_bytes.to_vec();
+            let selected_channel = selected_channel.clone();
+            let conversion = tokio::task::spawn_blocking(move || {
                 convert_ess_enhanced_xml_to_csv_for_reporting_group(
-                    source_bytes,
-                    selected_channel.clone(),
+                    &source_bytes,
+                    selected_channel,
                     DEFAULT_IMPORT_REPORTING_GROUP_ID,
                     &contest_vote_config,
                     &configured_area_names,
                 )
-                .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
+            })
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?
+            .map_err(|e| (Status::BadRequest, format!("{e:?}")))?;
             Ok(CanonicalCsvConversion {
                 canonical_csv: conversion.canonical_csv,
                 validation_errors: conversion.validation_errors,
