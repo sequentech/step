@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use super::document_visibility::DocumentVisibility;
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
 use crate::postgres::{election_event, template};
@@ -500,6 +501,7 @@ pub trait TemplateRenderer: Debug {
             })?;
 
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        let document_visibility = DocumentVisibility::for_report(&self.get_report_type(), false);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
@@ -675,7 +677,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &enc_report_name,
                 Some(document_id.to_string()),
-                true,
+                document_visibility.is_public(),
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
@@ -715,7 +717,7 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &final_report_name,
                 Some(document_id.to_string()),
-                true,
+                document_visibility.is_public(),
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
