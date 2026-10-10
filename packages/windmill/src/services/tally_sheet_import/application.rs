@@ -643,9 +643,9 @@ async fn generated_tally_sheet_is_stale(
     election_event_id: &str,
     item: &TallySheetImportItemReviewSnapshot,
 ) -> Result<bool> {
-    let Some(generated_tally_sheet_id) = item.generated_tally_sheet_id.as_ref() else {
+    if item.generated_tally_sheet_id.is_none() {
         return Ok(false);
-    };
+    }
 
     let latest_sheet = get_latest_ballot_box_tally_sheet(
         transaction,
@@ -658,14 +658,33 @@ async fn generated_tally_sheet_is_stale(
     )
     .await?;
 
+    Ok(!generated_tally_sheet_matches_import_item(
+        item,
+        latest_sheet.as_ref(),
+    )?)
+}
+
+fn generated_tally_sheet_matches_import_item(
+    item: &TallySheetImportItemReviewSnapshot,
+    latest_sheet: Option<&TallySheet>,
+) -> Result<bool> {
     let Some(latest_sheet) = latest_sheet else {
-        return Ok(true);
+        return Ok(false);
     };
 
-    Ok(
-        latest_sheet.id.as_str() != generated_tally_sheet_id.as_str()
-            || latest_sheet.status != TallySheetStatus::PENDING,
-    )
+    if item.generated_tally_sheet_id.as_deref() != Some(latest_sheet.id.as_str())
+        || latest_sheet.status != TallySheetStatus::PENDING
+    {
+        return Ok(false);
+    }
+
+    let latest_hash = latest_sheet
+        .content
+        .as_ref()
+        .map(hash_area_contest_results)
+        .transpose()?;
+
+    Ok(latest_hash.as_deref() == Some(item.incoming_content_hash.as_str()))
 }
 
 fn baseline_matches_import_item(
@@ -919,4 +938,166 @@ fn summarize_preview_items(
     }
 
     summary
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const GENERATED_TALLY_SHEET_ID: &str = "6b1b5d2e-4f43-4c2a-9a52-0d0d9e6f1a11";
+    const NEWER_TALLY_SHEET_ID: &str = "0c8f3f4e-2b8e-4f6e-8b5e-5c4f2a7d9b22";
+    const ELECTION_ID: &str = "1f6e8f0a-7c1d-4d6b-9f2e-3a4b5c6d7e01";
+    const AREA_ID: &str = "2a7f9b1c-8d2e-4e7c-a03f-4b5c6d7e8f02";
+    const CONTEST_ID: &str = "3b8a0c2d-9e3f-4f8d-b14a-5c6d7e8f9a03";
+    const CANDIDATE_ID: &str = "4c9b1d3e-af4a-4a9e-825b-6d7e8f9a0b04";
+
+    fn ballot_box_content(candidate_votes: u64) -> AreaContestResults {
+        AreaContestResults {
+            area_id: AREA_ID.to_string(),
+            contest_id: CONTEST_ID.to_string(),
+            total_votes: Some(candidate_votes),
+            total_valid_votes: Some(candidate_votes),
+            candidate_results: HashMap::from([(
+                CANDIDATE_ID.to_string(),
+                CandidateResults {
+                    candidate_id: CANDIDATE_ID.to_string(),
+                    total_votes: Some(candidate_votes),
+                },
+            )]),
+            ..AreaContestResults::default()
+        }
+    }
+
+    fn import_item(
+        imported_content: &AreaContestResults,
+    ) -> Result<TallySheetImportItemReviewSnapshot> {
+        Ok(TallySheetImportItemReviewSnapshot {
+            id: Uuid::new_v4().to_string(),
+            election_id: ELECTION_ID.to_string(),
+            area_id: AREA_ID.to_string(),
+            contest_id: CONTEST_ID.to_string(),
+            channel: VotingChannel::PAPER,
+            generated_tally_sheet_id: Some(GENERATED_TALLY_SHEET_ID.to_string()),
+            baseline_approved_tally_sheet_id: None,
+            baseline_approved_version: None,
+            baseline_content_hash: None,
+            incoming_content_hash: hash_area_contest_results(imported_content)?,
+            status: TallySheetImportItemStatus::PENDING_REVIEW,
+        })
+    }
+
+    fn tally_sheet(
+        id: &str,
+        content: Option<AreaContestResults>,
+        status: TallySheetStatus,
+    ) -> TallySheet {
+        TallySheet {
+            id: id.to_string(),
+            tenant_id: Uuid::new_v4().to_string(),
+            election_event_id: Uuid::new_v4().to_string(),
+            election_id: ELECTION_ID.to_string(),
+            contest_id: CONTEST_ID.to_string(),
+            area_id: AREA_ID.to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            reviewed_at: None,
+            reviewed_by_user_id: None,
+            content,
+            channel: Some(VotingChannel::PAPER.to_string()),
+            deleted_at: None,
+            created_by_user_id: Uuid::new_v4().to_string(),
+            status,
+            version: 1,
+            import_id: None,
+        }
+    }
+
+    #[test]
+    fn generated_sheet_with_imported_content_matches_import_item() -> Result<()> {
+        let imported_content = ballot_box_content(10);
+        let item = import_item(&imported_content)?;
+        let sheet = tally_sheet(
+            GENERATED_TALLY_SHEET_ID,
+            Some(imported_content),
+            TallySheetStatus::PENDING,
+        );
+
+        assert!(generated_tally_sheet_matches_import_item(
+            &item,
+            Some(&sheet)
+        )?);
+        Ok(())
+    }
+
+    #[test]
+    fn generated_sheet_with_content_changed_after_import_does_not_match() -> Result<()> {
+        let item = import_item(&ballot_box_content(10))?;
+        let sheet = tally_sheet(
+            GENERATED_TALLY_SHEET_ID,
+            Some(ballot_box_content(11)),
+            TallySheetStatus::PENDING,
+        );
+
+        assert!(!generated_tally_sheet_matches_import_item(
+            &item,
+            Some(&sheet)
+        )?);
+        Ok(())
+    }
+
+    #[test]
+    fn generated_sheet_without_content_does_not_match() -> Result<()> {
+        let item = import_item(&ballot_box_content(10))?;
+        let sheet = tally_sheet(GENERATED_TALLY_SHEET_ID, None, TallySheetStatus::PENDING);
+
+        assert!(!generated_tally_sheet_matches_import_item(
+            &item,
+            Some(&sheet)
+        )?);
+        Ok(())
+    }
+
+    #[test]
+    fn reviewed_generated_sheet_does_not_match() -> Result<()> {
+        let imported_content = ballot_box_content(10);
+        let item = import_item(&imported_content)?;
+        let sheet = tally_sheet(
+            GENERATED_TALLY_SHEET_ID,
+            Some(imported_content),
+            TallySheetStatus::APPROVED,
+        );
+
+        assert!(!generated_tally_sheet_matches_import_item(
+            &item,
+            Some(&sheet)
+        )?);
+        Ok(())
+    }
+
+    #[test]
+    fn newer_ballot_box_version_does_not_match() -> Result<()> {
+        let imported_content = ballot_box_content(10);
+        let item = import_item(&imported_content)?;
+        let sheet = tally_sheet(
+            NEWER_TALLY_SHEET_ID,
+            Some(imported_content),
+            TallySheetStatus::PENDING,
+        );
+
+        assert!(!generated_tally_sheet_matches_import_item(
+            &item,
+            Some(&sheet)
+        )?);
+        Ok(())
+    }
+
+    #[test]
+    fn missing_ballot_box_sheet_does_not_match() -> Result<()> {
+        let item = import_item(&ballot_box_content(10))?;
+
+        assert!(!generated_tally_sheet_matches_import_item(&item, None)?);
+        Ok(())
+    }
 }
