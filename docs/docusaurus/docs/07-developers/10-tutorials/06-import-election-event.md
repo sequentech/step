@@ -626,6 +626,10 @@ The import process may take time for large election events. Consider:
 - Implementing webhooks for import completion notifications
 - Logging import operations for audit trails
 
+### Imported Keys Ceremonies
+
+A keys ceremony is restored when it has no public key yet, or when its public key is the one on the imported bulletin board. Otherwise it is left out, and a new keys ceremony can be run for the imported event. An archive with a tally session that uses a keys ceremony that is left out is rejected. Generating ballots for a publication fails while an election's keys ceremony reports a public key that is not on its bulletin board.
+
 ## 8. Next Steps
 
 Now that you can import election events via the API, explore other operations:
