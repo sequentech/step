@@ -60,6 +60,7 @@ import {
     EElectionEventAutomaticRecountPolicy,
     EElectionEventWeightedVotingPolicy,
     EElectionEventDelegatedVotingPolicy,
+    EKioskChannelAuthenticationPolicy,
     EResultsWebsiteAccess,
     EResultsWebsiteStatus,
     EResultsWebsiteVisibilityScope,
@@ -852,6 +853,13 @@ export const EditElectionEventDataForm: React.FC<{
         return Object.values(EElectionEventDelegatedVotingPolicy).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.delegatedVotingPolicy.options.${value}`),
+        }))
+    }
+
+    const kioskChannelAuthenticationPolicyOptions = () => {
+        return Object.values(EKioskChannelAuthenticationPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.kioskChannelAuthenticationPolicy.options.${value}`),
         }))
     }
 
@@ -1731,6 +1739,23 @@ export const EditElectionEventDataForm: React.FC<{
                                 t("electionEventScreen.field.delegatedVotingPolicy.policyLabel")
                             )}
                             defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
+                            emptyText={undefined}
+                            validate={required()}
+                        />
+                        <SelectInput
+                            source={"presentation.kiosk_channel_authentication_policy"}
+                            choices={kioskChannelAuthenticationPolicyOptions()}
+                            label={String(
+                                t(
+                                    "electionEventScreen.field.kioskChannelAuthenticationPolicy.policyLabel"
+                                )
+                            )}
+                            helperText={String(
+                                t(
+                                    "electionEventScreen.field.kioskChannelAuthenticationPolicy.helperText"
+                                )
+                            )}
+                            defaultValue={EKioskChannelAuthenticationPolicy.CLIENT_IDENTITY}
                             emptyText={undefined}
                             validate={required()}
                         />

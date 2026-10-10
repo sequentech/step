@@ -423,3 +423,47 @@ fn jwt_authentication_seconds_preserve_grace_eligibility() {
         assert!(voter_authentication_time(invalid).is_err());
     }
 }
+
+#[test]
+fn kiosk_votes_require_a_kiosk_attestation_under_the_attested_policy() {
+    let presentation: ElectionEventPresentation =
+        serde_json::from_value(json!({"kiosk_channel_authentication_policy": "attested"})).unwrap();
+    for attested in [
+        None,
+        Some(VotingStatusChannel::ONLINE),
+        Some(VotingStatusChannel::TELEPHONE),
+    ] {
+        assert!(matches!(
+            check_voting_channel_attestation(
+                Some(&presentation),
+                VotingStatusChannel::KIOSK,
+                attested
+            ),
+            Err(CastVoteError::VotingChannelNotEnabled(_))
+        ));
+    }
+    assert!(check_voting_channel_attestation(
+        Some(&presentation),
+        VotingStatusChannel::KIOSK,
+        Some(VotingStatusChannel::KIOSK)
+    )
+    .is_ok());
+    for channel in [
+        VotingStatusChannel::ONLINE,
+        VotingStatusChannel::EARLY_VOTING,
+        VotingStatusChannel::TELEPHONE,
+    ] {
+        assert!(check_voting_channel_attestation(Some(&presentation), channel, None).is_ok());
+    }
+}
+
+#[test]
+fn kiosk_votes_keep_client_identity_without_the_attested_policy() {
+    let default_presentation = ElectionEventPresentation::default();
+    for presentation in [None, Some(&default_presentation)] {
+        assert!(
+            check_voting_channel_attestation(presentation, VotingStatusChannel::KIOSK, None)
+                .is_ok()
+        );
+    }
+}

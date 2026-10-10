@@ -29,3 +29,44 @@ hostname when normal and kiosk login hostnames serve the same realms. Use
 dynamic hostname resolution with trusted proxy headers, and restrict the
 proxy routes to the declared normal and kiosk hostnames. Client certificate
 enforcement, if required, is configured separately at the edge.
+
+## Kiosk channel attestation
+
+Votes cast with a token from the `voting-portal-kiosk` or
+`onsite-voting-portal` client are counted in the kiosk channel. By default the
+client identity (the token's `azp`) decides this. When an election event sets
+its **Kiosk Channel Authentication Policy** to `attested`
+(`presentation.kiosk_channel_authentication_policy`), a kiosk vote also needs
+this top-level claim in the access token:
+
+| Claim                        | Value   |
+| ---------------------------- | ------- |
+| `voting_channel_attestation` | `KIOSK` |
+
+A kiosk vote without the claim is rejected. Online and telephone votes do not
+use the claim.
+
+The event realm must issue the claim only to logins made on a kiosk device.
+With standard Keycloak features, configure each kiosk client of the realm as
+follows, and disable a kiosk client that the event does not use:
+
+1. In **Settings**, turn on **Client authentication**. In **Credentials**,
+   select the **X509 Certificate** client authenticator, with a subject DN
+   expression that matches only the kiosk device certificates. The token
+   endpoint then asks for the device certificate on the authorization code
+   exchange, on token refresh and on direct access grants.
+2. Keep **Implicit flow** disabled, so that every token is issued by the token
+   endpoint.
+3. Add a **Hardcoded claim** mapper with claim name
+   `voting_channel_attestation`, claim value `KIOSK`, JSON type `String`, added
+   to the access token.
+
+The proxy in front of the kiosk Keycloak hostname (`KIOSK_KEYCLOAK_URL`) must
+request and verify the device certificate and forward it through the X.509
+certificate lookup configured in Keycloak, as described in
+[X.509 client certificate architecture](../06-keycloak/x509_client_cert_architecture.md).
+The proxies in front of the other Keycloak hostnames must drop that header.
+
+Add the mapper only to clients that require the device certificate. Set the
+policy to `attested` after the realm is configured: until then every kiosk vote
+of the event is rejected.

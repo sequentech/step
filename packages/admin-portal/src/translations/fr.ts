@@ -694,6 +694,15 @@ const frenchTranslation: TranslationType = {
                         disabled: "Désactivé",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Politique d'authentification du canal kiosque",
+                    helperText:
+                        "Avec Attestation, un vote en kiosque n'est accepté que si la connexion porte l'attestation du canal kiosque configurée dans Keycloak.",
+                    options: {
+                        "client-identity": "Identité du client",
+                        "attested": "Attestation",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Politique de détection de la langue",
                     options: {
