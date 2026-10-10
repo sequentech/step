@@ -56,13 +56,11 @@ fn keeps_archived_styles_generated_when_their_keys_are_verified() -> Result<()> 
         &ids,
         &election_public_keys
     )?);
-    for public_key in [
+    let item = archived_publication(
+        &election,
         json!({"public_key": "demo-public-key", "is_demo": true}),
-        Value::Null,
-    ] {
-        let item = archived_publication(&election, public_key);
-        assert!(has_verified_public_keys(&item, &ids, &HashMap::new())?);
-    }
+    );
+    assert!(has_verified_public_keys(&item, &ids, &HashMap::new())?);
     Ok(())
 }
 
@@ -78,6 +76,12 @@ fn does_not_keep_archived_styles_generated_when_their_keys_are_not_verified() ->
     let other_key = HashMap::from([(imported_election, "other-public-key".to_owned())]);
     assert!(!has_verified_public_keys(&item, &ids, &other_key)?);
     assert!(!has_verified_public_keys(&item, &ids, &HashMap::new())?);
+    let without_public_key = archived_publication(&election, Value::Null);
+    assert!(!has_verified_public_keys(
+        &without_public_key,
+        &ids,
+        &other_key
+    )?);
     Ok(())
 }
 

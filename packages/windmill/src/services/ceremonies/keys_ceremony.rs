@@ -82,18 +82,22 @@ pub enum CeremonyPublicKeyState {
     NotOnBoard,
 }
 
+const STATUS_PUBLIC_KEY_FIELD: &str = "public_key";
+
+/// Reads only the status's public key field, so that other malformed status
+/// fields do not hide a reported key.
 pub fn ceremony_public_key_state(
     keys_ceremony: &KeysCeremony,
     board_public_key: Option<&str>,
 ) -> CeremonyPublicKeyState {
     match keys_ceremony
-        .status()
-        .ok()
-        .and_then(|status| status.public_key)
+        .status
+        .as_ref()
+        .and_then(|status| status.get(STATUS_PUBLIC_KEY_FIELD))
     {
-        None => CeremonyPublicKeyState::NoPublicKey,
-        Some(public_key) if board_public_key == Some(public_key.as_str()) => {
-            CeremonyPublicKeyState::OnBoard(public_key)
+        None | Some(Value::Null) => CeremonyPublicKeyState::NoPublicKey,
+        Some(Value::String(public_key)) if board_public_key == Some(public_key.as_str()) => {
+            CeremonyPublicKeyState::OnBoard(public_key.clone())
         }
         Some(_) => CeremonyPublicKeyState::NotOnBoard,
     }
@@ -760,10 +764,13 @@ mod tests {
         status.public_key = None;
         without_public_key.status = Some(serde_json::to_value(status).expect("serializable"));
 
-        let mut malformed_status = without_public_key.clone();
-        malformed_status.status = Some(serde_json::json!({"public_key": 7}));
+        let mut without_status = without_public_key.clone();
+        without_status.status = None;
 
-        for ceremony in [without_public_key, malformed_status] {
+        let mut malformed_status = without_public_key.clone();
+        malformed_status.status = Some(serde_json::json!({"trustees": 7}));
+
+        for ceremony in [without_public_key, without_status, malformed_status] {
             for board_public_key in [None, Some("public-key")] {
                 assert_eq!(
                     ceremony_public_key_state(&ceremony, board_public_key),
@@ -771,5 +778,32 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn checks_the_reported_public_key_when_other_status_fields_are_malformed() {
+        let mut ceremony = keys_ceremony(
+            KeysCeremonyExecutionStatus::SUCCESS,
+            TrusteeStatus::KEY_CHECKED,
+        );
+        ceremony.status = Some(serde_json::json!({"public_key": "public-key"}));
+        assert!(ceremony.status().is_err());
+
+        assert_eq!(
+            ceremony_public_key_state(&ceremony, Some("public-key")),
+            CeremonyPublicKeyState::OnBoard("public-key".to_string())
+        );
+        for board_public_key in [None, Some("other-public-key")] {
+            assert_eq!(
+                ceremony_public_key_state(&ceremony, board_public_key),
+                CeremonyPublicKeyState::NotOnBoard
+            );
+        }
+
+        ceremony.status = Some(serde_json::json!({"public_key": 7}));
+        assert_eq!(
+            ceremony_public_key_state(&ceremony, Some("public-key")),
+            CeremonyPublicKeyState::NotOnBoard
+        );
     }
 }

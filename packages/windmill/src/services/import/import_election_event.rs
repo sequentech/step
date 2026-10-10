@@ -25,7 +25,7 @@ use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -61,7 +61,7 @@ use sequent_core::util::version::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -92,6 +92,7 @@ use crate::postgres::election::{clear_election_keys_ceremony, insert_elections};
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -1520,6 +1521,17 @@ async fn verify_imported_keys_ceremonies(
         keys_ceremony::get_keys_ceremonies(hasura_transaction, &tenant_id, election_event_id)
             .await?;
 
+    let tally_keys_ceremony_ids: HashSet<String> = get_tally_sessions_by_election_event_id(
+        hasura_transaction,
+        &tenant_id,
+        election_event_id,
+        false,
+    )
+    .await?
+    .into_iter()
+    .map(|tally_session| tally_session.keys_ceremony_id)
+    .collect();
+
     let mut ceremony_public_keys = HashMap::new();
     for keys_ceremony in &keys_ceremonies {
         let has_board = keys_ceremony.is_default()
@@ -1543,6 +1555,11 @@ async fn verify_imported_keys_ceremonies(
                 ceremony_public_keys.insert(keys_ceremony.id.clone(), public_key);
             }
             CeremonyPublicKeyState::NotOnBoard => {
+                ensure!(
+                    !tally_keys_ceremony_ids.contains(&keys_ceremony.id),
+                    "Keys ceremony {} reports a public key that is not on its board and is used by an imported tally session",
+                    keys_ceremony.id
+                );
                 warn!(
                     keys_ceremony_id = keys_ceremony.id,
                     "Leaving out the imported keys ceremony: its public key is not on its board"
