@@ -1108,6 +1108,20 @@ async fn a_refused_roles_partial_import_is_an_error() {
     peer.finish();
 }
 
+#[rocket::async_test]
+async fn a_roles_partial_import_rejects_a_realm_that_leaves_its_segment() {
+    let peer = HttpServer::start(vec![]);
+    let result = partial_import_realm_roles(
+        &peer.public_client(),
+        "../../other-realm",
+        &[],
+        IfResourceExists::Skip,
+    )
+    .await;
+    assert!(result.is_err(), "{result:?}");
+    assert!(peer.finish().is_empty());
+}
+
 #[test]
 fn partial_import_policies_have_keycloak_names() {
     for (policy, name) in [

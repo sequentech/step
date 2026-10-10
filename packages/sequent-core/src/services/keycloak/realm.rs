@@ -306,6 +306,7 @@ pub async fn partial_import_realm_roles(
     roles: &[RoleRepresentation],
     if_resource_exists: IfResourceExists,
 ) -> Result<PartialImportSummary> {
+    validate_keycloak_path_segment(realm)?;
     let req_url =
         format!("{}/admin/realms/{}/partialImport", client.url, realm);
     let payload = json!({
