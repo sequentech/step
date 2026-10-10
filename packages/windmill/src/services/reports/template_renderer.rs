@@ -616,6 +616,7 @@ pub trait TemplateRenderer: Debug {
                 generate_mode,
                 task_execution.clone(),
                 &ext_cfg,
+                zip_temp_dir_path,
             )
             .await
             .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?
@@ -757,6 +758,7 @@ pub trait TemplateRenderer: Debug {
         Ok(())
     }
 
+    /// Renders the report as a single PDF written in `output_dir`.
     async fn generate_single_report(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -765,6 +767,7 @@ pub trait TemplateRenderer: Debug {
         generate_mode: GenerateReportMode,
         task_execution: Option<TasksExecution>,
         ext_cfg: &ReportExtraConfig,
+        output_dir: &Path,
     ) -> Result<(String, u64, String, String)> {
         let rendered_system_template = match self
             .generate_report(
@@ -800,10 +803,8 @@ pub trait TemplateRenderer: Debug {
         let fmt_extension = format!(".{extension_suffix}");
         let report_name = format!("{}{}", self.prefix(), fmt_extension);
 
-        let final_path = format!("/tmp/{}", report_name);
-        fs::write(&final_path, &content_bytes)?;
-        let file_size =
-            get_file_size(&final_path).with_context(|| "Error obtaining file size for zip file")?;
+        let (final_path, file_size) =
+            write_single_report_file(output_dir, &report_name, &content_bytes)?;
 
         Ok((
             final_path,
@@ -870,5 +871,49 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error sending email: no email provided")
             })?])
         }
+    }
+}
+
+/// Writes `content` as `report_name` in `output_dir` and returns the path
+/// and the size of the file.
+fn write_single_report_file(
+    output_dir: &Path,
+    report_name: &str,
+    content: &[u8],
+) -> Result<(String, u64)> {
+    let final_path = output_dir.join(report_name).to_string_lossy().to_string();
+    fs::write(&final_path, content)?;
+    let file_size =
+        get_file_size(&final_path).with_context(|| "Error obtaining file size for zip file")?;
+    Ok((final_path, file_size))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Reports of the same name written in different directories keep their
+    /// own content and go away with their directory.
+    #[test]
+    fn single_reports_with_the_same_name_keep_their_own_files() -> Result<()> {
+        let report_name = "ballot_receipt_same-event.pdf";
+        let first_dir = tempdir()?;
+        let second_dir = tempdir()?;
+
+        let (first_path, first_size) =
+            write_single_report_file(first_dir.path(), report_name, b"first receipt")?;
+        let (second_path, _) =
+            write_single_report_file(second_dir.path(), report_name, b"second receipt")?;
+
+        assert_eq!(fs::read(&first_path)?, b"first receipt");
+        assert_eq!(first_size, b"first receipt".len() as u64);
+        assert_eq!(fs::read(&second_path)?, b"second receipt");
+
+        drop(first_dir);
+        drop(second_dir);
+
+        assert!(!Path::new(&first_path).exists());
+        assert!(!Path::new(&second_path).exists());
+        Ok(())
     }
 }
