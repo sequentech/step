@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod auditable_ballots;
+pub mod batch_anonymity;
 pub mod encrypter;
 pub mod insert_ballots;
 pub mod keys_ceremony;
