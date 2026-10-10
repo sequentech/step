@@ -33,6 +33,11 @@ const frenchTranslation: TranslationType = {
                 "Il y a eu un problème lors de l'importation du vote auditable. Avez-vous choisi le bon fichier ?",
             importErrorMoreInfo: "Plus d'informations",
             importErrorTitle: "Erreur",
+            styleErrorTitle: "La vérification du vote a échoué",
+            styleErrorDescription:
+                "Le style de vote de ce vote auditable n'est pas celui publié pour l'élection : sa clé publique ou ses scrutins et candidats diffèrent, ou il n'est pas publié. Ce vote n'est pas fiable.",
+            legacyBallotWarning:
+                "Ce vote auditable utilise un ancien format dont l'identifiant de vote ne couvre pas le style de vote. Son identifiant ne peut pas confirmer que le vote a été chiffré avec la clé publiée de l'élection.",
             useSampleLink: "Utiliser un vote exemple",
             nextButton: "Continuer",
             ballotIdLabel: "ID du bulletin",

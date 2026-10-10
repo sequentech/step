@@ -31,6 +31,11 @@ const englishTranslation = {
                 "There was a problem importing the auditable ballot. Did you choose  the right file?",
             importErrorMoreInfo: "More info",
             importErrorTitle: "Error",
+            styleErrorTitle: "Ballot verification failed",
+            styleErrorDescription:
+                "The ballot style in this auditable ballot is not the one published for the election: its public key or its contests and candidates differ, or it is not published. The ballot cannot be trusted.",
+            legacyBallotWarning:
+                "This auditable ballot uses an older ballot format whose Ballot ID does not cover the ballot style. Its Ballot ID cannot confirm that the ballot was encrypted with the published election key.",
             useSampleLink: "Use a sample ballot",
             nextButton: "Next",
             ballotIdLabel: "Ballot ID",

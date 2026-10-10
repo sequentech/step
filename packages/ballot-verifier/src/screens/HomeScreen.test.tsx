@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {render, screen, waitFor, within} from "@testing-library/react"
+import {act, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {MockedProvider} from "@apollo/client/testing"
 import {configureStore} from "@reduxjs/toolkit"
@@ -17,6 +17,7 @@ import ballotStyles from "../store/ballotStyles/ballotStylesSlice"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {resetSequentCore, sequentCore} from "../__mocks__/sequentCore"
 import {
+    ballotStyle,
     IDS,
     multiContestBallot,
     recordSequentCore,
@@ -27,9 +28,31 @@ import {
 } from "../__mocks__/auditableBallots"
 
 const eventPath = `/tenant/${IDS.tenant}/event/${IDS.event}`
-const noBallotStyles = {
+const publishedBallotStyles = {
     request: {query: GET_BALLOT_STYLES},
-    result: {data: {sequent_backend_ballot_publication: [], sequent_backend_ballot_style: []}},
+    result: {
+        data: {
+            sequent_backend_ballot_publication: [
+                {id: "publication-1", published_at: "2026-01-01T00:00:00+00:00"},
+            ],
+            sequent_backend_ballot_style: [ballotStyle(), ballotStyle(true)].map((style) => ({
+                id: style.id,
+                ballot_publication_id: "publication-1",
+                election_id: style.election_id,
+                election_event_id: style.election_event_id,
+                status: null,
+                tenant_id: style.tenant_id,
+                ballot_eml: JSON.stringify(style),
+                ballot_signature: null,
+                created_at: "2026-01-01T00:00:00+00:00",
+                area_id: style.area_id,
+                annotations: null,
+                labels: null,
+                last_updated_at: "2026-01-01T00:00:00+00:00",
+                deleted_at: null,
+            })),
+        },
+    },
 }
 
 /** Holds the import state the way App does, and reports every verified ballot. */
@@ -59,7 +82,7 @@ function renderImportStep() {
     render(
         <ThemeProvider theme={theme}>
             <Provider store={configureStore({reducer: {ballotStyles}})}>
-                <MockedProvider mocks={[noBallotStyles]} addTypename={false}>
+                <MockedProvider mocks={[publishedBallotStyles]} addTypename={false}>
                     <MemoryRouter initialEntries={[`${eventPath}/start`]}>
                         <TenantEventProvider tenantId={IDS.tenant} eventId={IDS.event}>
                             <Routes>
@@ -83,6 +106,9 @@ const nextButton = () => screen.getByRole("button", {name: "Next"})
 const importError = () => screen.queryByRole("alert")
 
 async function importFile(contents: string, name = "audited-ballot.json") {
+    await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+    })
     const dropZone = screen.getByTestId("drop-label-file")
     userEvent.upload(
         screen.getByTestId("drop-input-file"),
@@ -119,6 +145,36 @@ beforeEach(() => {
     jest.spyOn(console, "info").mockImplementation(() => undefined)
 })
 afterEach(() => jest.restoreAllMocks())
+
+describe("comparing the audited ballot style with the published one", () => {
+    it("rejects a ballot whose ballot style carries another public key", async () => {
+        const single = singleContestBallot()
+        const forged = {
+            ...single.ballot,
+            config: {...single.ballot.config, public_key: {public_key: "forged", is_demo: false}},
+        }
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep()
+
+        await importFile(JSON.stringify(forged))
+
+        await waitFor(() => expect(screen.getByTestId("style-error")).toBeVisible())
+        expect(lastReported()).toBeNull()
+        expect(nextButton()).toBeDisabled()
+    })
+
+    it("accepts a ballot of the legacy version with a warning", async () => {
+        const single = singleContestBallot()
+        const legacy = {...single.ballot, version: 2}
+        recordSequentCore(single)
+        const {lastReported} = renderImportStep()
+
+        await importFile(JSON.stringify(legacy))
+
+        await waitFor(() => expect(screen.getByTestId("legacy-ballot-warning")).toBeVisible())
+        expect(lastReported()).toEqual(confirmationOf(single))
+    })
+})
 
 describe("importing an audited ballot", () => {
     it("verifies a signed single-contest ballot and continues once its ballot ID is entered", async () => {

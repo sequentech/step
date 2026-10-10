@@ -35,6 +35,11 @@ const catalanTranslation: TranslationType = {
                 "Hi ha hagut un problema en importar el vot auditable. Has triat el fitxer correcte?",
             importErrorMoreInfo: "Més informació",
             importErrorTitle: "Error",
+            styleErrorTitle: "La verificació del vot ha fallat",
+            styleErrorDescription:
+                "L'estil de vot d'aquest vot auditable no és el publicat per a l'elecció: la seva clau pública o les seves contendes i candidatures difereixen, o no està publicat. No es pot confiar en el vot.",
+            legacyBallotWarning:
+                "Aquest vot auditable usa un format anterior l'ID de vot del qual no cobreix l'estil de vot. El seu ID de vot no pot confirmar que es va xifrar amb la clau publicada de l'elecció.",
             useSampleLink: "Utilitza vot d'exemple",
             nextButton: "Continuar",
             ballotIdLabel: "ID de papereta",
