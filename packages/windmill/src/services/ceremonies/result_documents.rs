@@ -62,6 +62,7 @@ async fn generic_save_documents(
     document_paths: &ResultDocumentPaths,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: &str,
     hasura_transaction: &Transaction<'_>,
     tally_type_enum: TallyType,
 ) -> Result<ResultDocuments> {
@@ -85,6 +86,7 @@ async fn generic_save_documents(
         report_type.clone(),
         tenant_id,
         election_event_id,
+        election_id,
     )
     .await?;
 
@@ -97,6 +99,7 @@ async fn generic_save_documents(
         report_type.clone(),
         tenant_id,
         election_event_id,
+        election_id,
     )
     .await?;
 
@@ -109,6 +112,7 @@ async fn generic_save_documents(
         report_type.clone(),
         tenant_id,
         election_event_id,
+        election_id,
     )
     .await?;
 
@@ -122,6 +126,7 @@ async fn generic_save_documents(
             report_type.clone(),
             tenant_id,
             election_event_id,
+            election_id,
         )
         .await?;
     }
@@ -135,6 +140,7 @@ async fn generic_save_documents(
             report_type.clone(),
             tenant_id,
             election_event_id,
+            election_id,
         )
         .await?;
     }
@@ -153,6 +159,7 @@ async fn process_and_upload_document(
     report_type: Option<ReportType>,
     tenant_id: &str,
     election_event_id: &str,
+    election_id: &str,
 ) -> Result<Option<String>> {
     if let Some(mut path) = path_option {
         // Encrypt the file if necessary before uploading
@@ -161,7 +168,7 @@ async fn process_and_upload_document(
                 hasura_transaction,
                 tenant_id,
                 election_event_id,
-                None,
+                &[election_id.to_string()],
                 report_type,
                 &path,
                 all_reports,
@@ -284,7 +291,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 hasura_transaction,
                 &tenant_id,
                 &election_event_id,
-                Some(elections_ids_clone.clone()),
+                &elections_ids_clone,
                 dir_report_type.clone(),
                 &original_tarfile_path,
                 &all_reports,
@@ -350,7 +357,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
                 hasura_transaction,
                 &tenant_id,
                 &election_event_id,
-                Some(elections_ids_clone),
+                &elections_ids_clone,
                 dir_report_type,
                 &tarfile_path,
                 &all_reports,
@@ -518,6 +525,7 @@ impl GenerateResultDocuments for ElectionReportDataComputed {
             document_paths,
             &tenant_id.to_string(),
             &election_event_id.to_string(),
+            &election_id,
             &hasura_transaction,
             tally_type_enum,
         )
@@ -614,6 +622,7 @@ impl GenerateResultDocuments for ReportDataComputed {
             document_paths,
             &self.tenant_id.to_string(),
             &self.election_event_id.to_string(),
+            &self.election_id,
             &hasura_transaction,
             tally_type_enum,
         )
@@ -918,6 +927,7 @@ async fn save_area_documents(
         document_paths,
         &tenant_id.to_string(),
         &election_event_id.to_string(),
+        election_id,
         &hasura_transaction,
         tally_type_enum.clone(),
     )
