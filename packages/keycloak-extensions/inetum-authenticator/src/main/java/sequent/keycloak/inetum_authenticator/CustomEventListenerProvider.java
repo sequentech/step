@@ -191,8 +191,9 @@ public class CustomEventListenerProvider implements EventListenerProvider {
     // Prepare message body based on event type.
     String body;
     if (Utils.EVENT_TYPE_COMMUNICATIONS.equals(
-        event.getDetails() != null ? event.getDetails().get("type") : null)) {
-      String msgBody = Optional.ofNullable(event.getDetails().get("msgBody")).orElse("");
+        event.getDetails() != null ? event.getDetails().get(Utils.EVENT_DETAIL_TYPE) : null)) {
+      String msgBody =
+          Optional.ofNullable(event.getDetails().get(Utils.EVENT_DETAIL_MSG_BODY)).orElse("");
       body = String.format("%s %s", Utils.EVENT_TYPE_COMMUNICATIONS, msgBody);
     } else {
       // Use the event error (or another appropriate field) as body for
