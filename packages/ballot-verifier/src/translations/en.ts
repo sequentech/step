@@ -31,6 +31,11 @@ const englishTranslation = {
                 "There was a problem importing the auditable ballot. Did you choose  the right file?",
             importErrorMoreInfo: "More info",
             importErrorTitle: "Error",
+            verificationErrorTitle: "Ballot verification failed",
+            unpublishedStyleErrorDescription:
+                "This auditable ballot does not match any ballot published for this election event, so it cannot be verified.",
+            unavailableStyleErrorDescription:
+                "The ballots published for this election event could not be loaded, so this auditable ballot cannot be verified yet. Please try again.",
             useSampleLink: "Use a sample ballot",
             nextButton: "Next",
             ballotIdLabel: "Ballot ID",

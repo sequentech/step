@@ -34,6 +34,11 @@ const galegoTranslation: TranslationType = {
                 "Houbo un problema ao importar a papeleta auditábel. Escolléchelo arquivo correcto?",
             importErrorMoreInfo: "Máis información",
             importErrorTitle: "Erro",
+            verificationErrorTitle: "A verificación da papeleta fallou",
+            unpublishedStyleErrorDescription:
+                "Esta papeleta auditábel non corresponde a ningunha papeleta publicada para este evento electoral, polo que non se pode verificar.",
+            unavailableStyleErrorDescription:
+                "Non se puideron cargar as papeletas publicadas para este evento electoral, polo que esta papeleta auditábel aínda non se pode verificar. Por favor, ténteo de novo.",
             useSampleLink: "Usar unha papeleta de exemplo",
             nextButton: "Seguinte",
             ballotIdLabel: "ID de papeleta",

@@ -33,6 +33,11 @@ const frenchTranslation: TranslationType = {
                 "Il y a eu un problème lors de l'importation du vote auditable. Avez-vous choisi le bon fichier ?",
             importErrorMoreInfo: "Plus d'informations",
             importErrorTitle: "Erreur",
+            verificationErrorTitle: "La vérification du vote a échoué",
+            unpublishedStyleErrorDescription:
+                "Ce vote auditable ne correspond à aucun bulletin publié pour cet événement électoral ; il ne peut donc pas être vérifié.",
+            unavailableStyleErrorDescription:
+                "Les bulletins publiés pour cet événement électoral n'ont pas pu être chargés ; ce vote auditable ne peut donc pas encore être vérifié. Veuillez réessayer.",
             useSampleLink: "Utiliser un vote exemple",
             nextButton: "Continuer",
             ballotIdLabel: "ID du bulletin",
