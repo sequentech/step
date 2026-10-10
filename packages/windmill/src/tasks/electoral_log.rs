@@ -9,10 +9,11 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_board_client;
+use crate::services::protocol_manager::{get_board_client, get_protocol_manager};
 use crate::services::users::get_user_area_id;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
+use b3::messages::message::Signer;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::ElectoralLogMessage;
@@ -21,7 +22,9 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, info, instrument};
+use strand::backend::ristretto::RistrettoCtx;
+use strand::signature::StrandSignaturePk;
+use tracing::{error, event, info, instrument};
 
 use lapin::{
     options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
@@ -120,6 +123,17 @@ pub struct LogEventInput {
     pub body: LogEventBody,
 }
 
+/// Parses the row an internal producer queued and returns it rebuilt from its
+/// signed message, checked with the election event's system key.
+fn verified_internal_message(
+    input: &LogEventInput,
+    system_pk: &StrandSignaturePk,
+) -> anyhow::Result<ElectoralLogMessage> {
+    let row: ElectoralLogMessage = deserialize_str(&input.body.as_raw())
+        .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
+    row.rebuild_verified(system_pk, &input.election_event_id)
+}
+
 /// Enqueue the electoral log event.
 /// This task is routed to the durable electoral_log_batch_queue.
 #[instrument(skip_all, err)]
@@ -159,6 +173,8 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .await
         .with_context(|| "Error starting keycloak transaction")?;
 
+    let mut system_pks: HashMap<String, StrandSignaturePk> = HashMap::new();
+
     for input in events.iter() {
         let election_event =
             get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
@@ -170,9 +186,35 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
 
         let event_message = match &input.message_type {
             LogMessageType::Internal => {
-                let message: ElectoralLogMessage = deserialize_str(&input.body.as_raw())
-                    .with_context(|| "Error parsing input.body into a ElectoralLogMessage")?;
-                message
+                let system_pk = match system_pks.get(&board_name) {
+                    Some(system_pk) => system_pk.clone(),
+                    None => {
+                        let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+                            &hasura_tx,
+                            &input.tenant_id,
+                            Some(&election_event.id),
+                            &board_name,
+                        )
+                        .await
+                        .with_context(|| "Error getting protocol manager")?;
+                        let system_pk =
+                            StrandSignaturePk::from_sk(protocol_manager.get_signing_key())
+                                .with_context(|| "Error getting protocol manager public key")?;
+                        system_pks.insert(board_name.clone(), system_pk.clone());
+                        system_pk
+                    }
+                };
+                match verified_internal_message(input, &system_pk) {
+                    Ok(message) => message,
+                    Err(err) => {
+                        error!(
+                            tenant_id = %input.tenant_id,
+                            election_event_id = %input.election_event_id,
+                            "Dropping internal electoral log message: {err:?}"
+                        );
+                        continue;
+                    }
+                }
             }
             LogMessageType::KeycloakEvent(event_type) => {
                 let user_id = input
@@ -358,4 +400,78 @@ pub async fn electoral_log_batch_dispatcher() -> Result<()> {
     }
     info!("finishing electoral_log_batch_dispatcher");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use electoral_log::messages::message::{Message, SigningData};
+    use electoral_log::messages::newtypes::{
+        CastVoteHash, ElectionIdString, EventIdString, PseudonymHash, VoterCountryString,
+        VoterIpString, VotingChannelString,
+    };
+    use strand::signature::StrandSignatureSk;
+
+    const EVENT_ID: &str = "event-id";
+
+    fn queued_cast_vote(system_sk: &StrandSignatureSk) -> anyhow::Result<LogEventInput> {
+        let signing_data = SigningData::new(system_sk.clone(), "voter-id", system_sk.clone());
+        let message = Message::cast_vote_with_channel_message(
+            EventIdString(EVENT_ID.to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            VotingChannelString("ONLINE".to_string()),
+            Some("voter-id".to_string()),
+            Some("voter".to_string()),
+            "area-id".to_string(),
+        )?;
+        let board_message: ElectoralLogMessage = (&message).try_into()?;
+        Ok(LogEventInput {
+            election_event_id: EVENT_ID.to_string(),
+            message_type: LogMessageType::Internal,
+            user_id: Some("voter-id".to_string()),
+            username: Some("voter".to_string()),
+            tenant_id: "tenant-id".to_string(),
+            body: LogEventBody::Plain(serde_json::to_string(&board_message)?),
+        })
+    }
+
+    #[test]
+    fn internal_message_signed_with_the_event_key_is_accepted() -> anyhow::Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let input = queued_cast_vote(&system_sk)?;
+
+        let message = verified_internal_message(&input, &system_pk)?;
+
+        assert_eq!(message.statement_kind, "CastVote");
+        assert_eq!(message.user_id.as_deref(), Some("voter-id"));
+        Ok(())
+    }
+
+    #[test]
+    fn internal_message_signed_with_another_key_is_rejected() -> anyhow::Result<()> {
+        let input = queued_cast_vote(&StrandSignatureSk::r#gen()?)?;
+        let event_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+
+        assert!(verified_internal_message(&input, &event_pk).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn internal_message_for_another_election_event_is_rejected() -> anyhow::Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let input = LogEventInput {
+            election_event_id: "other-event-id".to_string(),
+            ..queued_cast_vote(&system_sk)?
+        };
+
+        assert!(verified_internal_message(&input, &system_pk).is_err());
+        Ok(())
+    }
 }
