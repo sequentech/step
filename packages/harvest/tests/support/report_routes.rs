@@ -266,9 +266,38 @@ fn report_request(tenant_id: &str, report_id: &str) -> Value {
 }
 
 #[rocket::async_test]
-async fn a_report_is_generated_under_the_tenant_its_request_names() {
-    // Pinned as found: the caller's own tenant is authorized, while the
-    // report is read, and its task row written, in the body's tenant.
+async fn a_report_is_generated_under_the_tenant_the_caller_may_read() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let report_id = event
+        .report(&services.hasura, "CREDENTIALS", TEMPLATE_ALIAS)
+        .await;
+
+    let (status, body) = json(
+        post(
+            &client,
+            "/generate-report",
+            &reader(&event, &[Permissions::REPORT_READ]),
+            &report_request(&event.tenant_id, &report_id),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let tasks = services.ledger.tasks();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].tenant_id, event.tenant_id);
+    let sent = services.tasks.sent();
+    assert_eq!(sent[0].name, "generate_report");
+    assert_eq!(sent[0].kwargs["report"]["tenant_id"], event.tenant_id);
+    assert_eq!(sent[0].kwargs["document_id"], body["document_id"]);
+    assert_eq!(sent[0].kwargs["may_read_secret_attributes"], false);
+    assert!(services.electoral_log.entries().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_report_of_another_tenant_is_refused() {
     let services = Services::on_test_database().await;
     let client = services.client().await;
     let caller = rows::event(&services.hasura).await;
@@ -277,26 +306,49 @@ async fn a_report_is_generated_under_the_tenant_its_request_names() {
         .report(&services.hasura, "CREDENTIALS", TEMPLATE_ALIAS)
         .await;
 
-    let (status, body) = json(
-        post(
-            &client,
-            "/generate-report",
-            &reader(&caller, &[Permissions::REPORT_READ]),
-            &report_request(&other.tenant_id, &report_id),
-        )
-        .await,
+    let response = post(
+        &client,
+        "/generate-report",
+        &reader(&caller, &[Permissions::REPORT_READ]),
+        &report_request(&other.tenant_id, &report_id),
     )
     .await;
+    let (status, _) = text(response).await;
+    assert_eq!(status, Status::Unauthorized);
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+}
+
+#[rocket::async_test]
+async fn a_report_is_found_only_in_the_election_event_its_request_names() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let report_id = event
+        .report(&services.hasura, "CREDENTIALS", TEMPLATE_ALIAS)
+        .await;
+    let claims = reader(&event, &[Permissions::REPORT_READ]);
+    let mut request = report_request(&event.tenant_id, &report_id);
+
+    request["election_event_id"] = json!(uuid::Uuid::new_v4().to_string());
+    let response = post(&client, "/generate-report", &claims, &request).await;
+    assert_eq!(
+        text(response).await,
+        (Status::NotFound, "Report not found".into())
+    );
+    request["election_event_id"] = json!("not-an-election-event-id");
+    let response = post(&client, "/generate-report", &claims, &request).await;
+    let (status, _) = text(response).await;
+    assert_eq!(status, Status::BadRequest);
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+
+    request["election_event_id"] =
+        json!(event.election_event_id.to_uppercase());
+    let (status, body) =
+        json(post(&client, "/generate-report", &claims, &request).await).await;
     assert_eq!(status, Status::Ok, "{body}");
-    let tasks = services.ledger.tasks();
-    assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].tenant_id, other.tenant_id);
-    let sent = services.tasks.sent();
-    assert_eq!(sent[0].name, "generate_report");
-    assert_eq!(sent[0].kwargs["report"]["tenant_id"], other.tenant_id);
-    assert_eq!(sent[0].kwargs["document_id"], body["document_id"]);
-    assert_eq!(sent[0].kwargs["may_read_secret_attributes"], false);
-    assert!(services.electoral_log.entries().is_empty());
+    assert_eq!(services.ledger.tasks().len(), 1);
 }
 
 #[rocket::async_test]

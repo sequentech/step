@@ -12,7 +12,10 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::{
-    services::jwt::{self, JwtClaims},
+    services::{
+        jwt::{self, JwtClaims},
+        uuid_validation::parse_uuid_v4_field,
+    },
     types::{hasura::core::TasksExecution, permissions::Permissions},
 };
 use serde::{Deserialize, Serialize};
@@ -285,6 +288,45 @@ pub struct GenerateReportResponse {
     pub task_execution: TasksExecution,
 }
 
+const REPORT_NOT_FOUND: &str = "Report not found";
+
+/// Checks REPORT_READ for the tenant the report is loaded from.
+fn authorize_generate_report(
+    claims: &JwtClaims,
+    input: &GenerateReportBody,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::REPORT_READ],
+    )
+}
+
+/// Treats the report as not found when the request names an election event
+/// other than the report's. The requested id must be a valid UUID and is
+/// compared with the report's in its canonical form.
+fn ensure_report_event(
+    report_election_event_id: &str,
+    requested_election_event_id: Option<&str>,
+) -> Result<(), (Status, String)> {
+    match requested_election_event_id {
+        None => Ok(()),
+        Some(election_event_id) => {
+            let election_event_id =
+                parse_uuid_v4_field(election_event_id, "election_event_id")
+                    .map_err(|error| (Status::BadRequest, error.to_string()))?;
+            if election_event_id.to_string() == report_election_event_id {
+                Ok(())
+            } else {
+                Err((Status::NotFound, REPORT_NOT_FOUND.to_string()))
+            }
+        }
+    }
+}
+
+/// Queues a report of the requested tenant, which the caller must be
+/// authorized for.
 #[instrument(skip(claims, services))]
 #[post("/generate-report", format = "json", data = "<body>")]
 pub async fn generate_report(
@@ -294,12 +336,7 @@ pub async fn generate_report(
 ) -> Result<Json<GenerateReportResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::REPORT_READ],
-    )?;
+    authorize_generate_report(&claims, &input)?;
 
     let mut hasura_db_client: DbClient =
         services.databases.hasura().await.get().await.map_err(|e| {
@@ -340,7 +377,11 @@ pub async fn generate_report(
             format!("Error getting report by id: {e:?}"),
         )
     })?
-    .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    .ok_or_else(|| (Status::NotFound, REPORT_NOT_FOUND.to_string()))?;
+    ensure_report_event(
+        &report.election_event_id,
+        input.election_event_id.as_deref(),
+    )?;
     let report_type =
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
@@ -527,6 +568,93 @@ pub async fn encrypt_report_route(
 #[cfg(test)]
 #[path = "../../tests/support/report_routes.rs"]
 mod route_tests;
+
+#[cfg(test)]
+mod generate_report_scope_tests {
+    use super::*;
+    use crate::test_claims::Claims;
+
+    /// Request for report "report" of the given tenant in election event
+    /// "event".
+    fn request(tenant_id: &str) -> GenerateReportBody {
+        GenerateReportBody {
+            report_id: "report".into(),
+            tenant_id: tenant_id.into(),
+            report_mode: GenerateReportMode::REAL,
+            election_event_id: Some("event".into()),
+        }
+    }
+
+    /// Admin of the given tenant with REPORT_READ.
+    fn report_reader(tenant_id: &str) -> JwtClaims {
+        Claims::new(tenant_id, "admin")
+            .roles([Permissions::REPORT_READ])
+            .build()
+    }
+
+    /// Another tenant is refused for a caller who is not a super admin.
+    #[test]
+    fn generate_report_requires_access_to_the_requested_tenant() {
+        assert_eq!(
+            authorize_generate_report(
+                &report_reader("tenant-a"),
+                &request("tenant-b")
+            )
+            .unwrap_err()
+            .0,
+            Status::Unauthorized
+        );
+        assert!(authorize_generate_report(
+            &report_reader("tenant-a"),
+            &request("tenant-a")
+        )
+        .is_ok());
+    }
+
+    /// REPORT_READ is required also for the caller's own tenant.
+    #[test]
+    fn generate_report_requires_report_read() {
+        assert!(authorize_generate_report(
+            &Claims::new("tenant-a", "admin").build(),
+            &request("tenant-a")
+        )
+        .is_err());
+    }
+
+    /// An omitted election event is accepted; another one is not found.
+    #[test]
+    fn generate_report_rejects_an_election_event_other_than_the_reports() {
+        let event = Uuid::new_v4().to_string();
+        let other_event = Uuid::new_v4().to_string();
+        assert_eq!(
+            ensure_report_event(&event, Some(&other_event))
+                .unwrap_err()
+                .0,
+            Status::NotFound
+        );
+        assert!(ensure_report_event(&event, Some(&event)).is_ok());
+        assert!(ensure_report_event(&event, None).is_ok());
+    }
+
+    /// The report's election event matches however its UUID is cased.
+    #[test]
+    fn generate_report_compares_election_event_ids_as_uuids() {
+        let event = Uuid::new_v4().to_string();
+        assert!(
+            ensure_report_event(&event, Some(&event.to_uppercase())).is_ok()
+        );
+    }
+
+    /// A malformed election event id is a client error.
+    #[test]
+    fn generate_report_rejects_a_malformed_election_event_id() {
+        let event = Uuid::new_v4().to_string();
+        assert_eq!(
+            ensure_report_event(&event, Some("event")).unwrap_err().0,
+            Status::BadRequest
+        );
+    }
+}
 
 /// Why a real report can't be generated here while its action needs
 /// signatures: the election returns and the initialization report are

@@ -30,6 +30,9 @@ const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const UUID_EVENT_ID: &str = "00000000-0000-0000-0000-00000000000e";
 const ELECTION_ID: &str = "00000000-0000-0000-0000-000000000001";
+// Routes that check ids as version 4 UUIDs before reaching a backend.
+const V4_EVENT_ID: &str = "00000000-0000-4000-8000-00000000000e";
+const V4_ELECTION_ID: &str = "00000000-0000-4000-8000-000000000001";
 const PEM: &str =
     "-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n";
 
@@ -182,7 +185,9 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/count-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/count-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Voter, "/create-ballot-receipt", {"ballot_id": "test-ballot", "ballot_tracker_url": "https://tracker.invalid/test", "election_event_id": EVENT_ID, "election_id": ELECTION_ID}, [CAST_VOTE], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/create-election", {"election_event_id": EVENT_ID, "external_id": "test-election", "presentation": {}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/create-election", {"election_event_id": V4_EVENT_ID, "external_id": "test-election", "presentation": {}}, [ELECTION_EVENT_WRITE], BACKEND, UNAUTHORIZED),
+        // The election event id is checked before any backend.
+        case!(Admin, "/create-election", {"election_event_id": EVENT_ID, "external_id": "test-election", "presentation": {}}, [ELECTION_EVENT_WRITE], BAD_REQUEST, UNAUTHORIZED),
         case!(Admin, "/create-keys-ceremony", {"election_event_id": EVENT_ID, "threshold": 1, "trustee_names": ["test-trustee"], "is_automatic_ceremony": false}, [ADMIN_CEREMONY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/create-new-tally-sheet", {"election_event_id": EVENT_ID, "channel": "PAPER", "content": {"area_id": AREA_ID, "contest_id": "test-contest", "candidate_results": {}}, "contest_id": "test-contest", "area_id": AREA_ID}, [TALLY_SHEET_CREATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/create-permission", {"tenant_id": TENANT_ID, "permission": {}}, [USER_PERMISSION_CREATE], BACKEND_TEXT, UNAUTHORIZED),
@@ -234,8 +239,11 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-election-event-logs", {"election_event_id": EVENT_ID, "format": "CSV"}, [REPORT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tally-results", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tasks-execution", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [TASKS_READ], BACKEND, UNAUTHORIZED),
-        // The task row is written before the permission check.
-        case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, BACKEND),
+        case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
+        // The permission is checked before the task row is written.
+        case!(Admin, "/export-template", {"tenant_id": OTHER_TENANT_ID}, [TEMPLATE_WRITE], UNAUTHORIZED, UNAUTHORIZED),
+        // A super admin may name another tenant.
+        case!(SuperAdmin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tenant-config", {"tenant_id": TENANT_ID}, [TENANT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tenant-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
@@ -251,8 +259,10 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/generate-google-meeting", {"summary": "test", "description": "test", "start_date_time": "2030-01-01T10:00:00Z", "end_date_time": "2030-01-01T11:00:00Z", "time_zone": "UTC", "attendee_emails": []}, [GOOGLE_MEET_LINK], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-preview-url", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [GENERATE_PREVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
-        // The permission is checked in the caller's tenant, not the body's.
-        case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": OTHER_TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
+        // The permission is checked in the body's tenant, where the report is read.
+        case!(Admin, "/generate-report", {"report_id": "test-report", "tenant_id": OTHER_TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], UNAUTHORIZED, UNAUTHORIZED),
+        // A super admin may name another tenant.
+        case!(SuperAdmin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-template", {"type": "BallotImages", "election_event_id": EVENT_ID, "election_id": "test-election", "tally_session_id": "test-session"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
@@ -316,8 +326,9 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/messaging/accounts/test", {"id": ELECTION_ID, "purpose": "NOTICE", "destination": "+34600000000"}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/messaging/accounts/upsert", {"name": "SMS", "sender": {"provider": "AWS_SNS", "sender_id": null, "origination_number": null, "region": null}}, [MESSAGING_ACCOUNT_WRITE], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/messaging/event-config", {"election_event_id": UUID_EVENT_ID, "config": {"version": 1}}, [MESSAGING_CONFIG_WRITE], BACKEND, UNAUTHORIZED),
-        // The task row is written before the permission check.
-        case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, BACKEND),
+        case!(Admin, "/miru/create-transmission-package", {"election_event_id": V4_EVENT_ID, "election_id": V4_ELECTION_ID, "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BACKEND, UNAUTHORIZED),
+        // The election and its event are checked after the permission and before the task row.
+        case!(Admin, "/miru/create-transmission-package", {"election_event_id": EVENT_ID, "election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "force": false}, [MIRU_CREATE], BAD_REQUEST, UNAUTHORIZED),
         case!(Admin, "/miru/send-transmission-package", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session"}, [MIRU_SEND], BACKEND, UNAUTHORIZED),
         case!(Admin, "/miru/upload-signature", {"election_id": "test-election", "area_id": AREA_ID, "tally_session_id": "test-session", "document_id": "test-document", "password": "test-password"}, [MIRU_SIGN], BACKEND_TEXT, UNAUTHORIZED),
         // Plugins receive the claims and make their own decisions.
