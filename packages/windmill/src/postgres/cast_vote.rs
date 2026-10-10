@@ -304,6 +304,137 @@ pub async fn compare_and_set_cast_vote_status(
     Ok(updated == 1)
 }
 
+/// Cast vote annotation recording when a Datafix `SetVoted` sent for the vote
+/// got no usable reply, so VoterView may have recorded it.
+pub const DATAFIX_SET_VOTED_UNCONFIRMED_ANNOTATION: &str = "datafix_set_voted_unconfirmed_at";
+
+/// Returns whether any `in-progress` vote of the voter in the event carries
+/// `DATAFIX_SET_VOTED_UNCONFIRMED_ANNOTATION`.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn has_unconfirmed_set_voted(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id_string: &str,
+) -> Result<bool> {
+    let in_progress_status = CastVoteStatus::InProgress.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM sequent_backend.cast_vote
+                    WHERE
+                        tenant_id = $1 AND
+                        election_event_id = $2 AND
+                        voter_id_string = $3 AND
+                        status = $4 AND
+                        annotations ? $5
+                ) AS found
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &voter_id_string,
+                &in_progress_status,
+                &DATAFIX_SET_VOTED_UNCONFIRMED_ANNOTATION,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error checking for an unconfirmed SetVoted: {}", err))?;
+
+    Ok(row.get("found"))
+}
+
+/// Records `DATAFIX_SET_VOTED_UNCONFIRMED_ANNOTATION` on the vote while it is
+/// still `in-progress`.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn mark_set_voted_unconfirmed(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    cast_vote_id: &Uuid,
+) -> Result<()> {
+    let in_progress_status = CastVoteStatus::InProgress.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET annotations = COALESCE(annotations, '{}'::jsonb) || jsonb_build_object($1::text, NOW())
+                WHERE
+                    id = $2 AND
+                    status = $3 AND
+                    tenant_id = $4 AND
+                    election_event_id = $5
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &DATAFIX_SET_VOTED_UNCONFIRMED_ANNOTATION,
+                cast_vote_id,
+                &in_progress_status,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error recording an unconfirmed SetVoted: {}", err))?;
+
+    Ok(())
+}
+
+/// Removes `DATAFIX_SET_VOTED_UNCONFIRMED_ANNOTATION` from every `in-progress`
+/// vote of the voter in the event.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn clear_unconfirmed_set_voted(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id_string: &str,
+) -> Result<()> {
+    let in_progress_status = CastVoteStatus::InProgress.to_string();
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE sequent_backend.cast_vote
+                SET annotations = annotations - $1::text
+                WHERE
+                    tenant_id = $2 AND
+                    election_event_id = $3 AND
+                    voter_id_string = $4 AND
+                    status = $5 AND
+                    annotations ? $1::text
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &DATAFIX_SET_VOTED_UNCONFIRMED_ANNOTATION,
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &voter_id_string,
+                &in_progress_status,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error clearing an unconfirmed SetVoted: {}", err))?;
+
+    Ok(())
+}
+
 /// Loads a single cast vote by id within the given tenant and event, or `None`
 /// when no such row exists.
 #[instrument(skip(hasura_transaction), err)]
