@@ -6,33 +6,40 @@ use super::{get_tenant_realm, KeycloakAdminClient};
 use crate::types::keycloak::Permission;
 use keycloak::{KeycloakAdmin, KeycloakAdminToken, KeycloakError};
 use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 const TENANT_ID: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
 const GROUP_ID: &str = "7b5d27d5-9eb6-4261-8265-6d5fd48e1cfb";
 
 struct RequestRecorder {
     url: String,
+    address: SocketAddr,
     request_lines: Arc<Mutex<Vec<String>>>,
+    shutdown: Arc<AtomicBool>,
+    worker: Option<JoinHandle<()>>,
 }
 
 impl RequestRecorder {
     fn start() -> Self {
         let listener =
             TcpListener::bind("127.0.0.1:0").expect("bind request recorder");
-        let url = format!(
-            "http://{}",
-            listener.local_addr().expect("request recorder address")
-        );
+        let address = listener.local_addr().expect("request recorder address");
+        let url = format!("http://{address}");
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let stopping = Arc::clone(&shutdown);
         let request_lines = Arc::new(Mutex::new(Vec::new()));
         let recorded = Arc::clone(&request_lines);
-        thread::spawn(move || {
+        let worker = thread::spawn(move || {
             for stream in listener.incoming() {
                 let Ok(mut stream) = stream else {
                     break;
                 };
+                if stopping.load(Ordering::SeqCst) {
+                    break;
+                }
                 let mut buffer = [0; 8192];
                 let read = stream.read(&mut buffer).unwrap_or(0);
                 let request = String::from_utf8_lossy(&buffer[..read]);
@@ -48,7 +55,13 @@ impl RequestRecorder {
                 );
             }
         });
-        Self { url, request_lines }
+        Self {
+            url,
+            address,
+            request_lines,
+            shutdown,
+            worker: Some(worker),
+        }
     }
 
     fn client(&self) -> KeycloakAdminClient {
@@ -77,6 +90,18 @@ impl RequestRecorder {
     }
 }
 
+impl Drop for RequestRecorder {
+    /// Stops the listener thread and waits for it, so no test leaves a
+    /// thread or an open socket behind.
+    fn drop(&mut self) {
+        self.shutdown.store(true, Ordering::SeqCst);
+        let _ = TcpStream::connect(self.address);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
 fn assert_rejected_without_request<T: std::fmt::Debug>(
     recorder: &RequestRecorder,
     result: anyhow::Result<T>,
@@ -101,7 +126,10 @@ async fn delete_permission_rejects_names_that_are_not_one_path_segment() {
     let realm = get_tenant_realm(TENANT_ID);
     for permission_name in [
         "../../other-realm",
+        ".",
         "..",
+        " user-read",
+        "user-read ",
         "%2e%2e",
         ".\t.",
         "..\\..\\other-realm",
