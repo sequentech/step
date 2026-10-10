@@ -195,6 +195,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {"attributes": {"permission_labels": ["test-label"]}}}, [USER_CREATE, PERMISSION_LABEL_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}}, [VOTER_CREATE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "secret_attributes": {"test-secret": ["value"]}}, [VOTER_CREATE, VOTER_SECRET_ATTRIBUTE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [USER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
+        case!(Admin, "/create-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user": {}, "user_roles_ids": ["test-role"]}, [VOTER_CREATE, USER_WRITE, ROLE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(UuidTenant, "/delete-certificate-authority", {"ids": [], "election_event_id": UUID_EVENT_ID}, [CA_WRITE], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/delete-election-event", {"election_event_id": EVENT_ID}, [ELECTION_EVENT_DELETE], BACKEND, BACKEND),

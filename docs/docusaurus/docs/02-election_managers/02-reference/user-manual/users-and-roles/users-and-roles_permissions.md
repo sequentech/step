@@ -41,6 +41,27 @@ Assign read and write independently where duties require it. For example, an imp
 receive secret-write without secret-read, while a support operator who must inspect a value can
 receive secret-read without permission to change it.
 
+## User Creation and Import Permissions
+
+Creating a tenant user or importing a file of tenant users needs `user-create`; creating a voter or
+importing a file of voters into an election event needs `voter-create`. Some fields determine what a
+user can access, so setting them needs the same permissions as changing them on an existing user:
+
+| Operation | Required permissions |
+|---|---|
+| Assign roles while creating a user | The create permission, `user-write` and `role-write` |
+| Import a CSV whose `group_name` column names a group other than `voter` | The create permission, `user-write` and `role-write` |
+| Import a CSV with a non-empty `permission_labels` value | The create permission and `permission-label-write` |
+
+If a row needs a permission the importing user lacks, the whole import is rejected and the error
+names the row and the column. Empty `group_name` and `permission_labels` cells need no extra
+permission. The voters file inside an election event import follows the same rules, according to the
+permissions of the user who imports the event.
+
+Users always belong to the tenant they are created or imported into. Creating a user with a
+`tenant-id` attribute is rejected. A `tenant-id` column in an import CSV is not used: it must be
+empty or hold the id of that tenant, and the import is rejected for any other value.
+
 ## Monitoring Dashboard Permissions
 
 Once an election event is set up for monitoring, its **Dashboard** tab shows the event's monitoring

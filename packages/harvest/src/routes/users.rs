@@ -788,6 +788,19 @@ pub struct CreateUserBody {
     secret_attributes: Option<HashMap<String, Option<Vec<String>>>>,
 }
 
+/// A new user always gets the id of the tenant it is created in, so the request
+/// must not carry a `tenant-id` attribute of its own.
+fn reject_tenant_id_attribute(user: &User) -> Result<(), String> {
+    if user
+        .attributes
+        .as_ref()
+        .is_some_and(|attributes| attributes.contains_key(TENANT_ID_ATTR_NAME))
+    {
+        return Err(format!("Cannot set {TENANT_ID_ATTR_NAME} attribute"));
+    }
+    Ok(())
+}
+
 #[instrument(skip(claims, body))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
@@ -801,6 +814,7 @@ pub async fn create_user(
         UserScope::of(input.election_event_id.as_deref()),
         input.secret_attributes.as_ref(),
         input.user.attributes.as_ref(),
+        input.user_roles_ids.as_deref(),
     )
     .map_err(|error| {
         ErrorResponse::new(
@@ -818,6 +832,13 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
+    reject_tenant_id_attribute(&input.user).map_err(|message| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &message,
+            ErrorCode::UnknownError,
+        )
+    })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -1885,6 +1906,31 @@ pub async fn get_user_profile_configuration(
 
 #[cfg(test)]
 mod tests {
+    /// A new user always gets the id of the tenant it is created in, so a
+    /// request that carries a `tenant-id` attribute, whatever its value, is
+    /// refused while other attributes are accepted.
+    #[test]
+    fn creating_with_a_tenant_id_attribute_is_rejected() {
+        let user = |attributes: serde_json::Value| -> super::User {
+            serde_json::from_value(serde_json::json!({
+                "username": "new-user",
+                "attributes": attributes,
+            }))
+            .expect("valid user")
+        };
+        for tenant_id in ["tenant", "another-tenant"] {
+            let message = super::reject_tenant_id_attribute(&user(
+                serde_json::json!({"tenant-id": [tenant_id]}),
+            ))
+            .expect_err("tenant-id must be rejected");
+            assert!(message.contains(super::TENANT_ID_ATTR_NAME), "{message}");
+        }
+        assert!(super::reject_tenant_id_attribute(&user(
+            serde_json::json!({"customerReference": ["REF-1"]})
+        ))
+        .is_ok());
+    }
+
     #[test]
     fn blank_secret_values_are_audited_as_clears() {
         let attributes = std::collections::HashMap::from([
