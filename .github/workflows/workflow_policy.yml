@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Workflow policy
+
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+  push:
+    branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+' ]
+    paths:
+      - '.github/**'
+
+permissions:
+  contents: read
+
+jobs:
+  release-credentials:
+    name: Check release credentials
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyYAML
+        run: python3 -m pip install 'PyYAML==6.0.2'
+
+      - name: Test the workflow check
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
+      - name: Check the workflows
+        run: python3 .github/scripts/check_workflow_secrets.py .github/workflows
