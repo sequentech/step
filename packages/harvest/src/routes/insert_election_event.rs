@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::access::import_users_privileges;
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
@@ -224,7 +225,8 @@ async fn refuse(
 
 /// What the import task learns from the caller's token, never from the
 /// request body: whether they may write encrypted voter attributes (and who
-/// does), and who started the import, whom its log entries name.
+/// does), what the voters file may grant, and who started the import, whom its
+/// log entries name.
 fn stamp_initiators(
     input: &mut import_election_event::ImportElectionEventBody,
     claims: &JwtClaims,
@@ -240,6 +242,10 @@ fn stamp_initiators(
         .may_write_secret_attributes
         .then(|| ElectoralLogAdminContext::from_claims(claims));
     input.importer = Some(ElectoralLogAdminContext::from_claims(claims));
+    input.privileges = import_users_privileges(|permissions| {
+        authorize(claims, true, Some(input.tenant_id.clone()), permissions)
+            .is_ok()
+    });
 }
 
 #[instrument(skip(claims))]
@@ -439,6 +445,10 @@ mod tests {
             // Forged by the caller: the token decides.
             "may_write_secret_attributes": true,
             "importer": {"user_id": "someone-else", "username": "someone-else"},
+            "privileges": {
+                "group_assignment": "AnyGroup",
+                "permission_labels": "Allowed"
+            },
         }))
         .unwrap()
     }
@@ -465,6 +475,42 @@ mod tests {
         assert!(input.may_write_secret_attributes);
         assert_eq!(input.secret_write_initiator.unwrap().user_id, "writer-id");
         assert_eq!(input.importer.unwrap().user_id, "writer-id");
+    }
+
+    #[test]
+    fn the_import_privileges_come_from_the_token() {
+        use crate::test_claims::Claims;
+        use windmill::services::import::import_users::{
+            GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
+        };
+
+        let mut input = body("tenant");
+        let operator = Claims::new("tenant", "operator-id")
+            .roles([Permissions::VOTER_CREATE])
+            .build();
+        stamp_initiators(&mut input, &operator);
+        assert_eq!(input.privileges, ImportUsersPrivileges::default());
+
+        let mut input = body("tenant");
+        let administrator = Claims::new("tenant", "administrator-id")
+            .roles([
+                Permissions::USER_WRITE,
+                Permissions::ROLE_WRITE,
+                Permissions::PERMISSION_LABEL_WRITE,
+            ])
+            .build();
+        stamp_initiators(&mut input, &administrator);
+        assert_eq!(
+            input.privileges,
+            ImportUsersPrivileges {
+                group_assignment: GroupAssignmentPolicy::AnyGroup,
+                permission_labels: PermissionLabelPolicy::Allowed,
+            }
+        );
+
+        let mut input = body("another-tenant");
+        stamp_initiators(&mut input, &administrator);
+        assert_eq!(input.privileges, ImportUsersPrivileges::default());
     }
 
     fn mismatch() -> Problem {
