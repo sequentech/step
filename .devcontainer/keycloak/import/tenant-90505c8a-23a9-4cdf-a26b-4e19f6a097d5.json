@@ -5706,7 +5706,7 @@
       "id": "14301189-f3d6-4e1e-babb-44b71d5abb2b",
       "alias": "user session count limiter config",
       "config": {
-        "errorMessage": "Sesi\u00f3n de voto ya iniciada. Cierre la sesi\u00f3n abierta en otra ventana para continuar.",
+        "errorMessage": "Sesión de voto ya iniciada. Cierre la sesión abierta en otra ventana para continuar.",
         "userClientLimit": "0",
         "behavior": "Deny new session",
         "userRealmLimit": "1"

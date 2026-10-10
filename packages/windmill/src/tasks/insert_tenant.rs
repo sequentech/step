@@ -1,8 +1,8 @@
-use super::tenant_bootstrap_admin::TenantBootstrapAdminPolicy;
 // SPDX-FileCopyrightText: 2023 Eduardo Robles <edu@sequentech.io>
 // SPDX-FileCopyrightText: 2023 Felix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::tenant_bootstrap_admin::TenantBootstrapAdminPolicy;
 use crate::postgres::tenant::{
     get_tenant_by_id_if_exist, get_tenant_by_slug_if_exist, insert_tenant,
 };
