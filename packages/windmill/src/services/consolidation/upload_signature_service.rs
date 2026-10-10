@@ -16,10 +16,12 @@ use super::{
         create_transmission_package_log, error_sending_transmission_package_to_ccs_log,
         send_transmission_package_to_ccs_log, sign_transmission_package_log,
     },
-    rsa::{derive_public_key_from_p12, rsa_sign_data},
+    rsa::rsa_sign_data,
     send_transmission_package_service::get_latest_miru_document,
     signatures::{
-        check_certificate_cas, ecdsa_sign_data, get_p12_cert, get_p12_fingerprint, get_pk12_id,
+        check_certificate_cas, ecdsa_sign_data, get_certificate_public_key_pem,
+        get_p12_certificate, get_p12_fingerprint, get_pk12_id, verify_certificate_signature,
+        write_certificate_pem,
     },
     transmission_package::{compress_hash_eml, create_transmission_package},
     zip::unzip_file,
@@ -49,6 +51,7 @@ use crate::{
 use anyhow::{anyhow, Context, Result};
 use chrono::{Local, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
+use openssl::x509::X509;
 use reqwest::multipart;
 use sequent_core::{
     ballot::Annotations,
@@ -62,6 +65,7 @@ use sequent_core::{
     util::temp_path::{generate_temp_file, get_file_size, read_temp_file},
 };
 use std::collections::HashMap;
+use std::fs;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
@@ -154,27 +158,16 @@ async fn update_signatures(
 }
 
 #[instrument(skip_all, err)]
-pub fn derive_public_key_from_private_key(
-    private_key_temp_file: &NamedTempFile,
-    password: &str,
-) -> Result<String> {
-    let pk12_file_path = private_key_temp_file.path();
-    let pk12_file_path_string = pk12_file_path.to_string_lossy().to_string();
-    derive_public_key_from_p12(&pk12_file_path_string, password)
-}
-
-#[instrument(skip_all, err)]
 pub fn check_sbei_certificate(
     transmission_data: &MiruTallySessionData,
     sbei: &MiruSbeiUser,
     area_id: &str,
     election_id: &str,
     use_root_ca: bool,
-    p12_file: &NamedTempFile,
-    password: &str,
+    certificate: &X509,
     election_event_annotations: &MiruElectionEventAnnotations,
 ) -> Result<String> {
-    let p12_cert_path = get_p12_cert(p12_file, password)?;
+    let p12_cert_path = write_certificate_pem(certificate)?;
     // return certificate fingerprint
     let input_pk_fingerprint = get_p12_fingerprint(&p12_cert_path)?;
     let found = transmission_data.clone().into_iter().find(|data| {
@@ -223,7 +216,7 @@ pub fn create_server_signature(
     sbei: &MiruSbeiUser,
     private_key_temp_file: &NamedTempFile,
     password: &str,
-    public_key: &str,              // public key pem
+    certificate: &X509,
     certificate_fingerprint: &str, // certificate fingerprint
 ) -> Result<MiruSignature> {
     let temp_pem_file_path = eml_data.path();
@@ -245,9 +238,11 @@ pub fn create_server_signature(
             return Err(anyhow!("Unexpected p12 key {:?}", pk12_id));
         }
     };
+    let signed_data = fs::read(temp_pem_file_path).with_context(|| "Error reading eml file")?;
+    verify_certificate_signature(certificate, &signed_data, &signature)?;
     Ok(MiruSignature {
         sbei_miru_id: sbei.miru_id.clone(),
-        pub_key: public_key.to_string(),
+        pub_key: get_certificate_public_key_pem(certificate)?,
         signature: signature,
         certificate_fingerprint: certificate_fingerprint.to_string(),
     })
@@ -386,8 +381,7 @@ pub async fn upload_transmission_package_signature_service(
     let eml = String::from_utf8(eml_bytes)?;
 
     // ECDSA sign er file
-    let public_key_pem_string =
-        derive_public_key_from_private_key(&private_key_temp_file, password)?;
+    let certificate = get_p12_certificate(&private_key_temp_file, password)?;
 
     let certificate_fingerprint = check_sbei_certificate(
         &transmission_data,
@@ -395,8 +389,7 @@ pub async fn upload_transmission_package_signature_service(
         area_id,
         election_id,
         election_event_annotations.use_root_ca,
-        &private_key_temp_file,
-        password,
+        &certificate,
         &election_event_annotations,
     )?;
 
@@ -405,7 +398,7 @@ pub async fn upload_transmission_package_signature_service(
         &sbei_user,
         &private_key_temp_file,
         password,
-        &public_key_pem_string,
+        &certificate,
         &certificate_fingerprint,
     )?;
 
@@ -503,4 +496,301 @@ pub async fn upload_transmission_package_signature_service(
         .await
         .with_context(|| "error comitting transaction")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::{engine::general_purpose, Engine as _};
+    use openssl::asn1::Asn1Time;
+    use openssl::bn::{BigNum, MsbOption};
+    use openssl::ec::{EcGroup, EcKey};
+    use openssl::hash::MessageDigest;
+    use openssl::nid::Nid;
+    use openssl::pkcs12::Pkcs12;
+    use openssl::pkey::{PKey, Private};
+    use openssl::rsa::Rsa;
+    use openssl::sign::Signer;
+    use openssl::stack::Stack;
+    use openssl::x509::extension::{BasicConstraints, KeyUsage};
+    use openssl::x509::{X509Builder, X509NameBuilder};
+    use std::io::Write;
+
+    const P12_PASSWORD: &str = "p12-password";
+    const AREA_ID: &str = "area-id";
+    const ELECTION_ID: &str = "election-id";
+    const SIGNED_DATA: &[u8] = b"<EML>signed data</EML>";
+
+    struct TestPki {
+        root: X509,
+        intermediate: X509,
+        intermediate_key: PKey<Private>,
+    }
+
+    fn ec_key() -> Result<PKey<Private>> {
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)?;
+        Ok(PKey::from_ec_key(EcKey::generate(&group)?)?)
+    }
+
+    fn p384_key() -> Result<PKey<Private>> {
+        let group = EcGroup::from_curve_name(Nid::SECP384R1)?;
+        Ok(PKey::from_ec_key(EcKey::generate(&group)?)?)
+    }
+
+    fn rsa_key(public_exponent: u32) -> Result<PKey<Private>> {
+        let public_exponent = BigNum::from_u32(public_exponent)?;
+        Ok(PKey::from_rsa(Rsa::generate_with_e(
+            2048,
+            &public_exponent,
+        )?)?)
+    }
+
+    fn sign_base64(key: &PKey<Private>, data: &[u8]) -> Result<String> {
+        let mut signer = Signer::new(MessageDigest::sha256(), key)?;
+        Ok(general_purpose::STANDARD.encode(signer.sign_oneshot_to_vec(data)?))
+    }
+
+    fn certificate(
+        common_name: &str,
+        key: &PKey<Private>,
+        issuer: Option<(&X509, &PKey<Private>)>,
+        is_ca: bool,
+    ) -> Result<X509> {
+        let mut name_builder = X509NameBuilder::new()?;
+        name_builder.append_entry_by_nid(Nid::COMMONNAME, common_name)?;
+        let name = name_builder.build();
+
+        let mut serial = BigNum::new()?;
+        serial.rand(64, MsbOption::MAYBE_ZERO, false)?;
+        let serial = serial.to_asn1_integer()?;
+        let not_before = Asn1Time::days_from_now(0)?;
+        let not_after = Asn1Time::days_from_now(30)?;
+
+        let mut builder = X509Builder::new()?;
+        builder.set_version(2)?;
+        builder.set_serial_number(&serial)?;
+        builder.set_subject_name(&name)?;
+        builder.set_pubkey(key)?;
+        builder.set_not_before(&not_before)?;
+        builder.set_not_after(&not_after)?;
+        if is_ca {
+            builder.append_extension(BasicConstraints::new().critical().ca().build()?)?;
+            builder.append_extension(KeyUsage::new().critical().key_cert_sign().build()?)?;
+        }
+        let signing_key = match issuer {
+            Some((issuer_certificate, issuer_key)) => {
+                builder.set_issuer_name(issuer_certificate.subject_name())?;
+                issuer_key
+            }
+            None => {
+                builder.set_issuer_name(&name)?;
+                key
+            }
+        };
+        builder.sign(signing_key, MessageDigest::sha256())?;
+        Ok(builder.build())
+    }
+
+    fn test_pki() -> Result<TestPki> {
+        let root_key = ec_key()?;
+        let root = certificate("Test Root CA", &root_key, None, true)?;
+        let intermediate_key = ec_key()?;
+        let intermediate = certificate(
+            "Test Intermediate CA",
+            &intermediate_key,
+            Some((&root, &root_key)),
+            true,
+        )?;
+        Ok(TestPki {
+            root,
+            intermediate,
+            intermediate_key,
+        })
+    }
+
+    fn issue_sbei_certificate(pki: &TestPki, key: &PKey<Private>) -> Result<X509> {
+        certificate(
+            "SBEI",
+            key,
+            Some((&pki.intermediate, &pki.intermediate_key)),
+            false,
+        )
+    }
+
+    fn p12_file(
+        key: &PKey<Private>,
+        certificate: Option<&X509>,
+        cas: &[&X509],
+    ) -> Result<NamedTempFile> {
+        let mut builder = Pkcs12::builder();
+        builder.name("sbei").pkey(key);
+        if let Some(certificate) = certificate {
+            builder.cert(certificate);
+        }
+        if !cas.is_empty() {
+            let mut stack = Stack::new()?;
+            for ca in cas {
+                stack.push((*ca).clone())?;
+            }
+            builder.ca(stack);
+        }
+        let der = builder.build2(P12_PASSWORD)?.to_der()?;
+        let mut file = NamedTempFile::new()?;
+        file.write_all(&der)?;
+        Ok(file)
+    }
+
+    fn event_annotations(pki: &TestPki) -> Result<MiruElectionEventAnnotations> {
+        Ok(MiruElectionEventAnnotations {
+            event_id: "event-id".to_string(),
+            event_name: "event".to_string(),
+            sbei_users: vec![],
+            root_ca: String::from_utf8(pki.root.to_pem()?)?,
+            intermediate_cas: String::from_utf8(pki.intermediate.to_pem()?)?,
+            use_root_ca: true,
+        })
+    }
+
+    fn sbei_user(certificate_fingerprint: Option<String>) -> MiruSbeiUser {
+        MiruSbeiUser {
+            username: "sbei".to_string(),
+            miru_id: "sbei-miru-id".to_string(),
+            miru_role: "role".to_string(),
+            miru_name: "SBEI".to_string(),
+            miru_election_id: "miru-election-id".to_string(),
+            certificate_fingerprint,
+        }
+    }
+
+    fn sbei_certificate_fingerprint(
+        p12_file: &NamedTempFile,
+        sbei: &MiruSbeiUser,
+        annotations: &MiruElectionEventAnnotations,
+    ) -> Result<String> {
+        let certificate = get_p12_certificate(p12_file, P12_PASSWORD)?;
+        check_sbei_certificate(
+            &vec![],
+            sbei,
+            AREA_ID,
+            ELECTION_ID,
+            annotations.use_root_ca,
+            &certificate,
+            annotations,
+        )
+    }
+
+    fn sha256_fingerprint_hex(certificate: &X509) -> Result<String> {
+        Ok(certificate
+            .digest(MessageDigest::sha256())?
+            .iter()
+            .map(|byte| format!("{:02X}", byte))
+            .collect::<Vec<_>>()
+            .join(":"))
+    }
+
+    #[test]
+    fn check_sbei_certificate_accepts_key_with_its_ca_issued_certificate() -> Result<()> {
+        let pki = test_pki()?;
+        let sbei_key = ec_key()?;
+        let sbei_certificate = issue_sbei_certificate(&pki, &sbei_key)?;
+        let p12 = p12_file(&sbei_key, Some(&sbei_certificate), &[&pki.intermediate])?;
+
+        let fingerprint =
+            sbei_certificate_fingerprint(&p12, &sbei_user(None), &event_annotations(&pki)?)?;
+
+        assert!(fingerprint.ends_with(&format!(
+            "Fingerprint={}",
+            sha256_fingerprint_hex(&sbei_certificate)?
+        )));
+        Ok(())
+    }
+
+    #[test]
+    fn check_sbei_certificate_rejects_key_without_its_certificate() -> Result<()> {
+        let pki = test_pki()?;
+        let other_key = ec_key()?;
+        let other_certificate = issue_sbei_certificate(&pki, &other_key)?;
+        let p12 = p12_file(&ec_key()?, None, &[&other_certificate])?;
+
+        let result =
+            sbei_certificate_fingerprint(&p12, &sbei_user(None), &event_annotations(&pki)?);
+
+        assert!(result.is_err(), "unexpected fingerprint {:?}", result);
+        Ok(())
+    }
+
+    #[test]
+    fn check_sbei_certificate_rejects_key_paired_with_ca_certificate() -> Result<()> {
+        let pki = test_pki()?;
+        let p12 = p12_file(&ec_key()?, None, &[&pki.intermediate])?;
+
+        let result =
+            sbei_certificate_fingerprint(&p12, &sbei_user(None), &event_annotations(&pki)?);
+
+        assert!(result.is_err(), "unexpected fingerprint {:?}", result);
+        Ok(())
+    }
+
+    #[test]
+    fn check_sbei_certificate_rejects_pinned_certificate_with_other_key() -> Result<()> {
+        let pki = test_pki()?;
+        let sbei_key = ec_key()?;
+        let sbei_certificate = issue_sbei_certificate(&pki, &sbei_key)?;
+        let annotations = event_annotations(&pki)?;
+        let sbei_p12 = p12_file(&sbei_key, Some(&sbei_certificate), &[&pki.intermediate])?;
+        let pinned_fingerprint =
+            sbei_certificate_fingerprint(&sbei_p12, &sbei_user(None), &annotations)?;
+        let pinned_sbei = sbei_user(Some(pinned_fingerprint));
+        let other_key_p12 = p12_file(&ec_key()?, None, &[&sbei_certificate])?;
+
+        let result = sbei_certificate_fingerprint(&other_key_p12, &pinned_sbei, &annotations);
+
+        assert!(result.is_err(), "unexpected fingerprint {:?}", result);
+        assert!(sbei_certificate_fingerprint(&sbei_p12, &pinned_sbei, &annotations).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn published_public_key_is_the_p12_certificate_key() -> Result<()> {
+        for key in [ec_key()?, p384_key()?, rsa_key(65537)?, rsa_key(3)?] {
+            let key_certificate = certificate("SBEI", &key, None, false)?;
+            let p12 = p12_file(&key, Some(&key_certificate), &[])?;
+
+            let p12_certificate = get_p12_certificate(&p12, P12_PASSWORD)?;
+            let public_key_pem = get_certificate_public_key_pem(&p12_certificate)?;
+
+            assert!(PKey::public_key_from_pem(public_key_pem.as_bytes())?.public_eq(&key));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn signature_check_accepts_signature_by_certificate_key() -> Result<()> {
+        for key in [ec_key()?, p384_key()?, rsa_key(65537)?] {
+            let key_certificate = certificate("SBEI", &key, None, false)?;
+
+            verify_certificate_signature(
+                &key_certificate,
+                SIGNED_DATA,
+                &sign_base64(&key, SIGNED_DATA)?,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn signature_check_rejects_signature_by_other_key() -> Result<()> {
+        for (key, other_key) in [(ec_key()?, ec_key()?), (rsa_key(65537)?, rsa_key(65537)?)] {
+            let key_certificate = certificate("SBEI", &key, None, false)?;
+
+            let result = verify_certificate_signature(
+                &key_certificate,
+                SIGNED_DATA,
+                &sign_base64(&other_key, SIGNED_DATA)?,
+            );
+
+            assert!(result.is_err());
+        }
+        Ok(())
+    }
 }

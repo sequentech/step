@@ -2,13 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
+use base64::{engine::general_purpose, Engine as _};
+use openssl::hash::MessageDigest;
 use openssl::pkcs12::Pkcs12;
 use openssl::pkey::PKey;
+use openssl::sign::Verifier;
+use openssl::x509::X509;
 use sequent_core::signatures::ecies_encrypt::ECIES_TOOL_PATH;
 use sequent_core::signatures::shell::run_shell_command;
 use sequent_core::util::temp_path::*;
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use tempfile::{tempdir, NamedTempFile, TempPath};
 use tracing::{info, instrument};
 
@@ -46,20 +50,54 @@ pub fn ecdsa_sign_data(
     Ok(encrypted_base64)
 }
 
-pub fn get_p12_cert(p12_file: &NamedTempFile, password: &str) -> Result<TempPath> {
-    let p12_file_path = p12_file.path().to_string_lossy().to_string();
-    let cert_temp_file =
+/// Returns the certificate of the p12 private key, requiring both to be
+/// present and the certificate public key to match the private key.
+#[instrument(skip_all, err)]
+pub fn get_p12_certificate(p12_file: &NamedTempFile, password: &str) -> Result<X509> {
+    let p12_data = fs::read(p12_file.path()).with_context(|| "Error reading p12 file")?;
+    let parsed = Pkcs12::from_der(&p12_data)?.parse2(password)?;
+    let pkey = parsed.pkey.ok_or(anyhow!("Can't find pkey"))?;
+    let certificate = parsed
+        .cert
+        .ok_or(anyhow!("Can't find the certificate of the p12 private key"))?;
+    if !certificate.public_key()?.public_eq(&pkey) {
+        return Err(anyhow!(
+            "The p12 certificate does not match its private key"
+        ));
+    }
+    Ok(certificate)
+}
+
+pub fn write_certificate_pem(certificate: &X509) -> Result<TempPath> {
+    let mut cert_temp_file =
         generate_temp_file("p12", "cert").with_context(|| "Error creating temp file")?;
-    let cert_temp_path = cert_temp_file.into_temp_path();
-    let cert_temp_path_string = cert_temp_path.to_string_lossy().to_string();
+    cert_temp_file
+        .write_all(&certificate.to_pem()?)
+        .with_context(|| "Error writing certificate to temp file")?;
+    Ok(cert_temp_file.into_temp_path())
+}
 
-    let cert_command = format!(
-        "openssl pkcs12 -in {} -passin pass:{} -nokeys -out {}",
-        p12_file_path, password, cert_temp_path_string
-    );
-    run_shell_command(&cert_command)?;
+#[instrument(skip_all, err)]
+pub fn get_certificate_public_key_pem(certificate: &X509) -> Result<String> {
+    let public_key_pem = certificate.public_key()?.public_key_to_pem()?;
+    Ok(String::from_utf8(public_key_pem)?)
+}
 
-    Ok(cert_temp_path)
+/// Checks that `signature_base64` is a SHA-256 signature of `data` made with
+/// the key of `certificate`.
+#[instrument(skip_all, err)]
+pub fn verify_certificate_signature(
+    certificate: &X509,
+    data: &[u8],
+    signature_base64: &str,
+) -> Result<()> {
+    let signature = general_purpose::STANDARD.decode(signature_base64)?;
+    let public_key = certificate.public_key()?;
+    let mut verifier = Verifier::new(MessageDigest::sha256(), &public_key)?;
+    if !verifier.verify_oneshot(&signature, data)? {
+        return Err(anyhow!("The signature does not match the p12 certificate"));
+    }
+    Ok(())
 }
 
 #[instrument(err, ret)]

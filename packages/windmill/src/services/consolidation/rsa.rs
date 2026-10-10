@@ -51,19 +51,6 @@ pub fn encrypt_with_rsa_private_key(private_key_pem: &str, data: &[u8]) -> Resul
     Ok(encrypted_data)
 }
 
-pub fn derive_public_key_from_p12(pk12_file_path_string: &str, password: &str) -> Result<String> {
-    let command = format!(
-        "java -jar {} public-key {} {}",
-        ECIES_TOOL_PATH, pk12_file_path_string, password
-    );
-
-    let public_pem = run_shell_command(&command)?.replace("\n\n", "\n");
-
-    info!("public pem: '{}'", public_pem);
-
-    Ok(public_pem)
-}
-
 #[instrument(skip_all, err)]
 pub fn rsa_sign_data(
     pk12_file_path_string: &str,
