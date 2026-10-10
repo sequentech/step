@@ -48,7 +48,7 @@ use velvet::cli::state::State;
 use velvet::cli::CliRun;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::config::vote_receipt::PipeConfigVoteReceipts;
-use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig, MALFORMED_PLAINTEXT_LINE};
+use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
 use velvet::pipes::pipe_name::PipeName;
 
 #[derive(Debug, Clone)]
@@ -67,6 +67,8 @@ fn decode_plaintexts_to_biguints(
     plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
     contest: &Contest,
 ) -> Vec<String> {
+    use velvet::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
+
     let mut malformed_count = 0usize;
     let lines = plaintexts
         .iter()
@@ -782,6 +784,7 @@ pub async fn run_velvet_tally(
 mod tests {
     use super::*;
     use sequent_core::ballot_codec::vec::encode_vec_to_array;
+    use velvet::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
 
     /// A plaintext that does not decode still takes its place in the ballots
     /// file, so the file keeps one line per decrypted plaintext.

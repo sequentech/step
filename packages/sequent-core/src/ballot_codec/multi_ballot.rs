@@ -509,10 +509,10 @@ impl BallotChoices {
     /// vote in every contest. Like any decoded ballot, it takes the next
     /// serial number.
     pub fn undecodable_ballot(
-        contests: &Vec<Contest>,
+        contests: &[Contest],
         serial_number_counter: Option<&mut u32>,
     ) -> DecodedBallotChoices {
-        let mut sorted_contests = contests.clone();
+        let mut sorted_contests: Vec<&Contest> = contests.iter().collect();
         sorted_contests.sort_by_key(|c| c.id.clone());
 
         let choices = sorted_contests

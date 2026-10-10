@@ -30,13 +30,14 @@ pub const DEFAULT_DIR_CONFIGS: &str = "default/configs";
 pub const DEFAULT_DIR_BALLOTS: &str = "default/ballots";
 pub const DEFAULT_DIR_TALLY_SHEETS: &str = "default/tally_sheets";
 
+/// Written to a ballots file in place of a plaintext that does not decode
+/// into a number, so that the ballot is still counted.
+pub const MALFORMED_PLAINTEXT_LINE: &str = "malformed";
+
 pub const ELECTION_CONFIG_FILE: &str = "election-config.json";
 pub const CONTEST_CONFIG_FILE: &str = "contest-config.json";
 pub const AREA_CONFIG_FILE: &str = "area-config.json";
 pub const BALLOTS_FILE: &str = "ballots.csv";
-/// Written to a ballots file in place of a plaintext that does not decode
-/// into a number, so that the ballot is still counted.
-pub const MALFORMED_PLAINTEXT_LINE: &str = "malformed";
 const UUID_LEN: usize = 36;
 
 #[derive(Debug)]
