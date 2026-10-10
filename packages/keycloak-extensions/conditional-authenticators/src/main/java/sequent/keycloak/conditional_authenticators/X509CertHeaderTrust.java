@@ -76,7 +76,7 @@ final class X509CertHeaderTrust {
                 expected.getBytes(StandardCharsets.UTF_8),
                 presented.getBytes(StandardCharsets.UTF_8));
     if (!trusted) {
-      log.warnv(
+      log.debugv(
           "isTrusted(): {0} missing or not matching, ignoring the client certificate header",
           PROXY_SECRET_HEADER);
     }
