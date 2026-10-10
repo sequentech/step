@@ -415,6 +415,9 @@ async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
             .status(),
         Status::Ok
     );
+    std::env::set_var("KIOSK_KEYCLOAK_URL", "");
+    std::env::set_var("HARVEST_JWT_ISSUER_URLS", " , ");
+    assert!(verify_bearer(&valid).await.is_ok());
     std::env::set_var("KIOSK_KEYCLOAK_URL", "not-a-url");
     let error = verify_bearer(&valid).await.unwrap_err();
     assert!(format!("{error:#}").contains("KIOSK_KEYCLOAK_URL"));
