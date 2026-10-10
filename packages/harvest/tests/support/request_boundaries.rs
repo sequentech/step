@@ -10,6 +10,7 @@ use rocket::http::{ContentType, Header, Status};
 use rocket::local::asynchronous::Client;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::signing::SigningAction;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use windmill::services::external::datafix_types::{
@@ -26,6 +27,7 @@ mod route_permissions;
 
 const TENANT_ID: &str = "tenant-a";
 const OTHER_TENANT_ID: &str = "tenant-b";
+const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
@@ -401,6 +403,118 @@ async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
             );
         }
     }
+}
+
+#[rocket::async_test]
+async fn role_permission_changes_reject_role_ids_that_are_not_one_path_segment()
+{
+    let sign_permission =
+        SigningAction::OpenVoting.sign_permission().to_string();
+    let client = client().await;
+    for path in ["/set-role-permission", "/delete-role-permission"] {
+        for permission_name in ["test-permission", sign_permission.as_str()] {
+            let response = client
+                .post(path)
+                .header(ContentType::JSON)
+                .header(authorization_for(
+                    UUID_TENANT_ID,
+                    &[
+                        Permissions::USER_PERMISSION_WRITE,
+                        Permissions::ROLE_WRITE,
+                    ],
+                ))
+                .body(
+                    json!({
+                        "tenant_id": UUID_TENANT_ID,
+                        "role_id": "../../other-realm",
+                        "permission_name": permission_name,
+                    })
+                    .to_string(),
+                )
+                .dispatch()
+                .await;
+            assert_eq!(
+                response.status(),
+                Status::BadRequest,
+                "{path}: {permission_name} must reject before any backend call"
+            );
+        }
+    }
+}
+
+#[rocket::async_test]
+async fn realm_routes_reject_event_ids_that_are_not_uuids() {
+    let password_policy = json!({
+        "minimum_length": 8,
+        "maximum_length": 64,
+        "include_uppercase": true,
+        "include_lowercase": true,
+        "include_digits": true,
+        "include_special_characters": false,
+    });
+    let client = client().await;
+    for (path, permission, mut body) in [
+        (
+            "/get-realm-attributes",
+            Permissions::KEYCLOAK_REALM_ATTRIBUTES_READ,
+            json!({}),
+        ),
+        (
+            "/update-realm-attributes",
+            Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
+            json!({"attributes": {}}),
+        ),
+        (
+            "/get-realm-password-policy",
+            Permissions::ELECTION_EVENT_READ,
+            json!({}),
+        ),
+        (
+            "/update-realm-password-policy",
+            Permissions::ELECTION_EVENT_WRITE,
+            password_policy,
+        ),
+    ] {
+        body["election_event_id"] = json!("x/../tenant-other-event-other");
+        let response = client
+            .post(path)
+            .header(ContentType::JSON)
+            .header(authorization_for(UUID_TENANT_ID, &[permission]))
+            .body(body.to_string())
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::BadRequest,
+            "{path} must reject before any backend call"
+        );
+    }
+}
+
+#[rocket::async_test]
+async fn role_deletion_rejects_role_ids_that_are_not_one_path_segment() {
+    let client = client().await;
+    let response = client
+        .post("/delete-role")
+        .header(ContentType::JSON)
+        .header(authorization_for(
+            UUID_TENANT_ID,
+            &[Permissions::ROLE_WRITE],
+        ))
+        .body(
+            json!({
+                "tenant_id": UUID_TENANT_ID,
+                "role_id": "../../other-realm",
+            })
+            .to_string(),
+        )
+        .dispatch()
+        .await;
+    assert_eq!(
+        response.status(),
+        Status::BadRequest,
+        "/delete-role must reject before any backend call"
+    );
 }
 
 #[rocket::async_test]
