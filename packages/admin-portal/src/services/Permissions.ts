@@ -226,6 +226,17 @@ const AdminOperationMap: Record<string, IPermissions> = {
     ReplaceMessagingAccountCredentials: IPermissions.MESSAGING_ACCOUNT_WRITE,
     DeleteMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
     TestMessagingAccount: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    GetMessagingAudiencePreview: IPermissions.MESSAGING_CONFIG_READ,
+    GetMessagingVoterCounts: IPermissions.MESSAGING_CONFIG_READ,
+    RecountMessagingVoters: IPermissions.MESSAGING_CONFIG_READ,
+    // also granted to messaging-config-read; the call site picks the role
+    GetMessagingMonthlyVolumes: IPermissions.MESSAGING_ACCOUNT_READ,
+    MessagingAccountChangeImpact: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderMessages: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderMessage: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    MessagingFakeProviderGetStarted: IPermissions.MESSAGING_ACCOUNT_WRITE,
+    // Approvals: look an application up by its support reference
+    FindApplicationsBySupportReference: IPermissions.APPLICATION_READ,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {

@@ -36,6 +36,16 @@ it.each([
     ["GetMessagingAccounts", IPermissions.MESSAGING_ACCOUNT_READ],
     ["MessagingAccountCallbackUrl", IPermissions.MESSAGING_ACCOUNT_WRITE],
     ["UpsertMessagingAccount", IPermissions.MESSAGING_ACCOUNT_WRITE],
+    // Second pass: the role each Hasura action grants.
+    ["GetMessagingAudiencePreview", IPermissions.MESSAGING_CONFIG_READ],
+    ["GetMessagingVoterCounts", IPermissions.MESSAGING_CONFIG_READ],
+    ["RecountMessagingVoters", IPermissions.MESSAGING_CONFIG_READ],
+    ["GetMessagingMonthlyVolumes", IPermissions.MESSAGING_ACCOUNT_READ],
+    ["MessagingAccountChangeImpact", IPermissions.MESSAGING_ACCOUNT_WRITE],
+    ["MessagingFakeProviderMessages", IPermissions.MESSAGING_ACCOUNT_WRITE],
+    ["MessagingFakeProviderMessage", IPermissions.MESSAGING_ACCOUNT_WRITE],
+    ["MessagingFakeProviderGetStarted", IPermissions.MESSAGING_ACCOUNT_WRITE],
+    ["FindApplicationsBySupportReference", IPermissions.APPLICATION_READ],
 ])("requires the role for %s in both modes", (name, role) => {
     expect(getOperationRole(operation(name))).toBe(role)
     expect(getOperationRole(operation(name), true)).toBe(role)

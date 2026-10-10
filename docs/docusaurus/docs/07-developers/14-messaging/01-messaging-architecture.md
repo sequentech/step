@@ -27,6 +27,7 @@ flowchart LR
   P -->|public: /webhooks/...| C[messaging-webhooks]
   C -->|internal: POST /messaging/callbacks, relay signature| H
   B[beat: retry and reconcile sweeps] --> D
+  D -->|a token per send| R[(messaging_rate_bucket)]
 ```
 
 Harvest is never public. Provider callbacks are the only inbound traffic
@@ -41,9 +42,15 @@ from outside, and they reach harvest only through the
 | `sequent-core/src/types/voter_channel.rs` | `voter_channel`: the one rule that reads a voter's channel from Keycloak attributes, mirrored by Java `VoterChannel` |
 | `packages/messaging` | Provider adapters behind `ChannelSender`, `preflight`, attempt decisions, destination masking and keyed digests, Messenger link references, rates, webhook verification and parsing, and the relay envelope (`relay.rs`). No database access |
 | `packages/messaging-webhooks` | The public webhook component: a relay with no database and no secrets except the relay secret |
+| `messaging/src/rate_limit.rs` | The rules of the per-account token bucket: capacity, refill, the OTP reserve, and "not throttled" |
 | `windmill/src/postgres/messaging.rs` | Accounts, the event configuration table, the `message` ledger, `messenger_link` and `messenger_contact` |
-| `windmill/src/services/messaging` | Credentials, event configuration, `deliver`, callback handling, links, retries and reconciliation |
-| `harvest/src/routes/messaging.rs` | Internal Keycloak routes, admin actions and the relayed callback route |
+| `windmill/src/postgres/rate_bucket.rs` | The shared per-account bucket (`messaging_rate_bucket`) and `CAPACITY_BUSY` |
+| `windmill/src/postgres/messaging_insights.rs` | Monthly volumes and the support reference search |
+| `windmill/src/services/messaging` | Credentials, event configuration, `deliver_within` and its send gate, callback handling, links, retries and reconciliation, the account checks (`accounts.rs`, `checks.rs`), and the event statistics, audience preview and voter counts (`insights.rs`) |
+| `harvest/src/routes/messaging.rs` | Internal Keycloak routes, account actions and the relayed callback route |
+| `harvest/src/routes/messaging_insights.rs` | Event statistics, voter counts and recount, audience preview, monthly volumes and the support reference search |
+| `harvest/src/services/otp_capacity.rs` | The places and budgets of the sends Keycloak asks for |
+| `harvest/src/routes/fake_provider.rs` | Development only: the [fake provider routes](03-messaging-development.md#fake-provider-routes), mounted only by `MESSAGING_FAKE_PROVIDER_ROUTES` |
 | `keycloak-extensions/message-otp-authenticator/.../messaging` | The `messageSender` SPI and its `harvest` implementation |
 
 Keycloak stays the authority on codes: it generates, expires, counts
@@ -181,8 +188,9 @@ Hasura verifies their tokens.
 | Permission | Reaches |
 |---|---|
 | `messaging-account-read` | The account list, with `credentials` holding only when each credential was last replaced (never a value), and without `webhook_key` |
-| `messaging-account-write` | Account actions: upsert (with the credentials typed with it), credentials, check, test, delete, callback URL |
-| `messaging-config-read` | The event configuration, `message` (including `logical_key`, to tell a message's latest attempt), the safe `messaging_account` columns and `messaging_callback_status`, for the event tab, Send Notification, Logs and the voter drawer |
+| `messaging-account-write` | Account actions: upsert (with the credentials typed with it), credentials, check, test, delete, callback URL, `messaging_account_change_impact`; and, only where the fake provider routes are mounted, `messaging_fake_provider_messages`, `messaging_fake_provider_message` and `messaging_fake_provider_get_started` |
+| `messaging-config-read` | The event configuration, `message` (including `logical_key`, to tell a message's latest attempt), the safe `messaging_account` columns and `messaging_callback_status`, for the event tab, Send Notification, Logs and the voter drawer; the actions `messaging_event_stats`, `messaging_voter_counts`, `messaging_recount_voters` and `messaging_audience_preview` |
+| `messaging-account-read` or `messaging-config-read` | `messaging_monthly_volumes` |
 | `messaging-config-write` | `update_event_messaging_config` |
 
 `admin-user` no longer selects `messaging_account` or `message`, and
@@ -205,24 +213,36 @@ with "Enter the credentials again for the new address".
 
 ## Sending
 
-`deliver` handles one logical message, identified by a `logical_key` that is
-stable across retries (`send-template:<task id>:<voter>`,
-`keycloak:otp:<code id>`):
+`deliver_within` handles one logical message, identified by a
+`logical_key` that is stable across retries
+(`send-template:<task id>:<voter>`, `keycloak:otp:<code id>`), under a
+`SendPolicy` that says how long it may wait and what it does when it can't
+send yet. `deliver` is the same with windmill's default policy. Nothing is
+written to the ledger until the attempt can go:
 
 1. Read the voter's channel (`voter_channel`). There is no channel selection
    in the request: an old payload's `channel_selection` parses and is
    ignored.
-2. Choose the account: the event's for that channel, else the tenant
-   default, else the environment transports for email and SMS.
+2. Choose the account (`dispatch::account_for`): the event's for that
+   channel, else the tenant default, else the environment transports for
+   email and SMS. A configured account that no longer exists is
+   `ConfiguredAccountMissing`, "No sending account for the channel": never
+   the environment transport.
 3. Run `preflight`: recipient kind, purpose, the Post's channels, approved
    template, conversation window, allowed calling codes, code expiry. A
    refusal is recorded as one `FAILED` attempt with its reason and never
    reaches the provider. Nothing tries another channel.
-4. Insert the attempt as `QUEUED` and commit.
-5. Wait for the account's sending rate, set `dispatched_at`, send, and
-   record `ACCEPTED`, `FAILED` or `UNKNOWN`. (A rate bucket shared by every
-   process, with headroom reserved for codes, is planned and not yet
-   available.)
+4. The [send-time gate](#send-time-readiness-gate): an account that isn't
+   ready for the purpose sends nothing.
+5. [Capacity](#sending-capacity): the caller's place, then a token from the
+   account's shared bucket.
+6. Insert the attempt as `QUEUED`, set `dispatched_at` and commit, in one
+   transaction; send; record `ACCEPTED`, `FAILED` or `UNKNOWN`.
+
+A message stopped at 4 or 5 is one `FAILED` attempt, a transient failure,
+never handed to the provider (`dispatched_at` stays empty), unless it is a
+due retry (see [Retries and the sweep](#retries-and-the-sweep)). The
+retry rules then decide whether it is tried again.
 
 Timeouts, lost responses and 5xx answers are `UNKNOWN`. SDK retries are
 disabled so that only the ledger decides. States only move along
@@ -235,6 +255,84 @@ A voter with no channel gets one `FAILED` row with no channel
 channel". It is never counted under a channel: the event tab shows it on a
 row of its own. Every outcome has one reason string, shared by the ledger,
 the log and the Admin Portal, which translates each one.
+
+### Send-time readiness gate
+
+Every send through an account checks the account's readiness for the
+purpose first (`accounts::send_readiness`, which applies
+`purpose_readiness`, the function the event configuration's save uses).
+That covers harvest's codes and Keycloak notices, the Messenger code after
+Get Started, windmill's bulk sends and application results, and the
+sweep's retries. A refused send is recorded `FAILED` with
+`not_ready_reason`, such as "Not sent: the account isn't ready
+(NOT_CONNECTED)", and the Admin Portal shows the blocker in the
+administrator's language.
+
+- An account whose latest check is of another identity (see
+  [Account checks](#account-checks)) has the blocker `UNCHECKED` and is
+  ready for nothing.
+- The administrator's test message is exempt
+  (`ReadinessGate::NOT_CHECKED_FOR_TEST_MESSAGE`): it is how an account is
+  tried before it is ready.
+- The environment's email and SMS transports have no account and are
+  outside the gate.
+
+### Sending capacity
+
+Each account that sets `limits.messages_per_second` has one token bucket,
+shared by every harvest and windmill process, in
+`sequent_backend.messaging_rate_bucket` (`account_id`, `tokens`,
+`refilled_at`).
+
+- The bucket holds one second of sending and refills at
+  `messages_per_second`. Each message handed to the provider takes one
+  token. `rate_bucket::try_take` refills by the elapsed time and takes the
+  token in one `UPDATE … RETURNING`, using `statement_timestamp()`, so
+  concurrent takers never spend more than the bucket holds. The first take
+  creates the bucket full.
+- `limits.otp_reserved_per_second` is a floor, not a separate rate:
+  windmill's bulk sends and retries take only while the bucket is above it
+  (`ShareRule::BY_PURPOSE`), so that many tokens are always there for codes.
+  With no codes being sent, a bulk send may use the full rate. The reserve
+  is capped at the rate minus one, so notices always get a token per
+  second.
+- Without `messages_per_second` (or with 0) the account has no bucket and
+  nothing is throttled: "No sending limit: messages are not throttled".
+  There are no global limits.
+
+Every send Keycloak asks for, codes and Keycloak notices (reset links,
+temporary passwords) alike, is interactive, because a voter is waiting
+(`harvest/src/services/otp_capacity.rs`):
+
+- It takes from the whole bucket, the reserve included
+  (`ShareRule::WHOLE_BUCKET`).
+- It holds one of the account's **places** until it is recorded:
+  `limits.otp_concurrency`, empty or 0 meaning 8. The places are per
+  harvest process; the shared bucket is the account's limit across
+  replicas. A place is taken before any database connection.
+- The wait for a place and a token ends 5 s (`CAPACITY_BUDGET`) after
+  harvest received the request, timed by the route's first guard, before
+  the token check and the body. A send still waiting is recorded `FAILED`
+  with `CAPACITY_BUSY`, "Not sent: the account stayed at its sending limit
+  for too long", and never handed to the provider. Keycloak gets the same
+  state and reason, records the reason in its event and log, and shows
+  Resend after its timer.
+- The provider's answer is awaited until 8 s (`ANSWER_BUDGET`) after the
+  request. Later, the attempt is `UNKNOWN`, "The provider didn't answer in
+  time: the message may have been sent". So harvest always answers before
+  Keycloak's own 10 s timeout (`timeout-seconds` of the `harvest` message
+  sender).
+
+The Messenger code a Get Started releases gets a code's capacity too: harvest
+answers Meta's callback once the events are stored and the link is bound,
+then sends the code in the background, with its own place, the whole bucket
+and the 5 s budget. Its outcome is in the ledger; if harvest stops first,
+the link stays bound without the code sent, and the voter taps Get Started
+again.
+
+Windmill takes its token before it writes the `QUEUED` row, so nothing
+waits with a committed `QUEUED` row. Bulk sends from the Celery task wait
+as long as needed.
 
 ### Retries and the sweep
 
@@ -266,6 +364,13 @@ the log and the Admin Portal, which translates each one.
   never resent automatically.
 - Retries never wait on reconciliation: they run first, or as their own
   beat task.
+- A due retry that can't be sent yet, because its account isn't ready or
+  has no capacity before the pass's deadline (25 s by default), writes no
+  new attempt (`WhenNotSendable::KEEP_RETRY_DUE`): the failed attempt stays
+  due a minute later, and the log says it is waiting for capacity or
+  readiness. Once the account is ready, the normal retry rules apply. A
+  retry still waiting 1 hour after the failed attempt stops with "Can't be
+  retried: the message couldn't be prepared again".
 - The reconcile sweep pages by keyset over `QUEUED` and `UNKNOWN` rows,
   takes only accounts whose provider can reconcile (Infobip), and backs off
   per row with `last_reconciled_at`. Each pass has a cap and a time budget;
@@ -276,8 +381,9 @@ the log and the Admin Portal, which translates each one.
   (`UNKNOWN`), never resent.
 - Notices sent through harvest carry `election_ids`, so Post restrictions
   apply.
-- The sweeps and link expiry run on the `beat` queue, not the bulk send
-  queue. (A daily account check is planned and not yet available.)
+- The sweeps, link expiry, the [account checks](#account-checks) and the
+  pass that picks events for a [voter recount](#voter-counts) run on the
+  `beat` queue, not the bulk send queue.
 - A replayed job writes no second electoral log entry and doesn't count
   twice: statistics come from the ledger.
 
@@ -287,12 +393,148 @@ the log and the Admin Portal, which translates each one.
 session and the challenge, and the code encrypted with the master key. The
 reference lives at most ten minutes and never longer than the code. When
 the voter taps Get Started on `m.me/<username>?ref=<reference>`, the
-callback binds that conversation, writes `messenger_contact`, sends the
-code and deletes it. `/messages/link/confirm`, called by Keycloak after the
+callback binds that conversation and writes `messenger_contact`; once
+harvest has answered the callback, it sends the code (with a code's
+[capacity](#sending-capacity)) and deletes it. `/messages/link/confirm`, called by Keycloak after the
 code was accepted in the original session, returns the Page-scoped ID to
 store on the voter. A new link for the session replaces the previous one; a
 reference for another Page, another session, or one already used or
 expired is refused. There is no word typed into the chat.
+
+## Accounts
+
+### Account checks
+
+A check asks the provider about the account and stores the result as its
+status (`AccountCheck`); readiness always comes from it. Besides
+connected, production access and approved templates, `details` holds what
+the provider reported: the token's validity, expiry and missing
+permissions (Meta `debug_token`); the app secret, checked with
+`appsecret_proof`; the WhatsApp number's status, display-name status,
+quality rating and messaging limit; template category and status per
+language; the Viber partner login (Infobip balance); the Messenger Page's
+`pages_messaging`, app subscription and Get Started button; and the
+callback readiness. WhatsApp approval comes from the number's status and
+display-name status; an administrator's entry counts only while the check
+reports nothing. `FLAGGED` and `RATE_LIMITED` are a quality warning, not a
+pending approval.
+
+- **Identity-stamped.** Each check records the identity it checked
+  (`details.identity`: the provider and its sender ids, from
+  `AccountSender::identity()`) and when it started. A check counts only
+  for the identity it names: once the WhatsApp number or business account,
+  the Viber sender, the Messenger Page, or the SNS, SES or SMTP sender
+  changes, the account is ready for nothing (`UNCHECKED`) until it is
+  checked again. A check stored before checks named an identity counts
+  until the next identity change.
+- **No stale results.** A check is stored only if the account's identity
+  and credentials are still the ones it started with, compared under a row
+  lock; the provider is called without the lock. Otherwise it is dropped
+  and logged, and **Check connection** answers 409, "The account changed
+  while it was checked: check it again". Number-change flags written
+  meanwhile are merged, never overwritten.
+- **Daily.** Beat runs `check_messaging_accounts` every hour on the `beat`
+  queue. A pass checks the accounts that are due: checked for another
+  identity first, then never checked, then those last checked more than 24
+  hours ago, taking tenants in turn until its 20-minute budget is spent. An
+  account whose check can't run records the attempt and waits 3 hours.
+  Accounts of removed providers are never checked.
+- The callback status in a check comes from the environment of the process
+  that ran it: harvest for **Check connection**, windmill for the daily
+  pass. Both must have the same `MESSAGING_WEBHOOKS_PUBLIC_URL`.
+
+### Credentials and identity changes
+
+- **Candidate credentials.** When typed credentials replace stored ones
+  the check uses (access token, app secret, API key, SMTP, AWS and partner
+  secrets), harvest first checks the account with the candidates, after
+  the address rules (`https`, the endpoint variables), and saves nothing
+  unless the check connects. Meta candidates must also pass `debug_token`
+  (valid, not expired, allowed to send) and the app secret's proof. The
+  refusal is "`<why>`; The new credentials didn't connect: the previous
+  ones are kept"; at a changed address only the second part, so the probed
+  answer isn't echoed. The previous credentials keep sending until then;
+  credentials are read per use, so a replacement needs no restart. First
+  entries (nothing to keep) are saved and checked afterwards.
+- **Identity change.** Saving a new identity leaves the account unchecked.
+  After the save answers, harvest checks it in the background, in its own
+  transaction; if that check can't run, the daily pass picks it up first.
+  When the sender changed, the public projection of every event whose
+  settings use the account is published again, so the voter pages name and
+  link the current Page or label.
+- **Page change impact.** `messaging_account_change_impact` returns
+  `{affected_voters, events}`: the voters whose
+  `sequent.read-only.messenger-page` is the account's current Page, across
+  the realms of the events that use the account, read from the Keycloak
+  database.
+- **WhatsApp number changes.** A `user_changed_number` system message
+  flags the voters the ledger reached at the old number (up to 20), with
+  masked numbers, in `details.number_changes` (the newest 50 are kept),
+  and logs "A voter changed their WhatsApp number: ask them to verify their
+  contact again". Nothing changes automatically.
+- **Delete.** Deleting an account locks its row and refuses with 409, "Used
+  by an election event's messaging settings: remove it there first", while
+  any event configuration references it. A configuration save locks the
+  accounts it references (`FOR SHARE`), so a delete and a save never both
+  win.
+
+## Statistics and volumes
+
+### Event statistics
+
+`messaging_event_stats` counts an event's messages from the ledger, per
+message by the state of its latest attempt, per channel, with Unresolved
+apart and the no-channel row on its own. Only "Sent, last 24 h" is
+windowed; the state columns count all of the event's messages, so the
+Failed count matches the Logs filter, which has no time window. The event
+tab lists the configured channels, every other channel with messages or
+voters, then the no-channel row.
+
+### Voter counts
+
+Voters per channel are counted in one SQL aggregate over the Keycloak
+database that applies `voter_channel`'s rule (channel values trimmed and
+case-insensitive), and cached per event in
+`sequent_backend.messaging_voter_count` (scope `ALL`, `VOTED` or
+`NOT_VOTED`, area, channel or none, voters, voters whose Post doesn't
+offer the channel for notices, `computed_at`), with the latest run in
+`messaging_voter_count_run` (`COUNTED`, `TIMED_OUT` or `FAILED`, and the
+reason).
+
+- The windmill task `recount_messaging_voters` counts under a statement
+  timeout of 600 s (`MESSAGING_VOTER_RECOUNT_TIMEOUT_SECS`). A count that
+  times out or fails keeps the previous counts and records why.
+- A recount is asked for by `messaging_recount_voters` (the **Recount**
+  button) and after every save of the event's settings, deduplicated while
+  one is pending (30 minutes). Every hour, beat recounts up to 12 events
+  with a messaging configuration, never counted first, then those not
+  counted for 6 hours, 120 s apart.
+- `messaging_voter_counts` returns the cache and its run; the event tab and
+  Send Notification show "Counted at" with Recount.
+
+### Audience preview
+
+`messaging_audience_preview` gives Send Notification's "Each voter's
+channel" table: per channel, the voters, how many will get the notice,
+and the account it sends from (`dispatch::account_for`, the send path's
+own choice), or why not (not offered, no account, a deleted account, no
+channel). All, Voted and Not voted read the cache; selected voters are
+counted in the request, within 20 s, and the answer says when that timed
+out.
+
+### Monthly volumes
+
+`messaging_monthly_volumes(month, election event?)` counts the tenant's
+**dispatched attempts**, those handed to a provider (`dispatched_at` set,
+or for older rows a provider message ID, `ACCEPTED` or `DELIVERED`), each
+in the month of its attempt, by channel, account, destination country,
+billing category and billable. Invoices bill per attempt, so a retry counts
+again; refused attempts (not offered, no account, capacity busy, a code
+expired before sending) never reached a provider and don't count. An
+attempt whose account was deleted has no account any more
+(`ON DELETE SET NULL`): for WhatsApp, Viber and Messenger it shows as a
+deleted account; for email and SMS the ledger can't tell a deleted account
+from the deployment's own sender. No prices are computed.
 
 ## Data
 
@@ -326,12 +568,12 @@ table.
 |---|---|
 | `channel`, `account_id`, `purpose` | Where and why it was sent |
 | `template_alias`, `language` | What to render again on a retry |
-| `masked_destination`, `destination_digest` | Country code plus last 3 digits, or the first 2 characters of an email; a keyed digest per tenant |
+| `masked_destination`, `destination_digest` | `Destination::masked`: a number's country code and last 3 digits (`+966 ••• ••• 567`); an email's first 2 characters, fewer when its local part is that short, and its domain (`ma••••••••@example.com`); a Page-scoped ID's last 3 digits (`••• 321`). The hidden parts have a fixed length. A keyed digest per tenant |
 | `destination_country` | ISO 3166 code, from the dial code |
 | `attempt`, `state`, `provider_message_id` | The attempt and its state |
 | `error`, `failure` | Sanitized reason and its class |
 | `next_retry_at` | When the sweep retries a transient failure |
-| `dispatched_at` | Set right before the provider call: tells never-sent from maybe-sent |
+| `dispatched_at` | Set with the `QUEUED` row, right before the provider call: tells never-sent from maybe-sent, and what monthly volumes count |
 | `last_reconciled_at` | Reconciliation backoff |
 | `billing`, `billing_category`, `billable` | Billing evidence for monthly volumes |
 | `created_at`, `accepted_at`, `delivered_at`, `failed_at` | Timestamps |
@@ -365,18 +607,22 @@ marked as such.
 
 | Setting | Where | Purpose |
 |---|---|---|
-| `MESSAGING_WEBHOOKS_PUBLIC_URL` | harvest, windmill | Public base of the webhook component; account callback URLs are `<base>/webhooks/<meta\|viber\|aws>/<key>`. Unset: accounts show "Callback address not configured" (`callback_readiness`). The query action `messaging_callback_status` (`messaging-config-read` or `messaging-account-read`) gives each account's callback blockers and reasons (`CALLBACK_NOT_CONFIGURED`; `REPORT_CREDENTIALS_MISSING` for Viber without report credentials): receipts then read *Unavailable*, and without the address Messenger isn't ready for OTP (`callback_blocker`), in the backend and the Admin Portal alike |
-| `MESSAGING_RELAY_SECRET` | messaging-webhooks, harvest | Relay HMAC secret. Nothing else reads it |
+| `MESSAGING_WEBHOOKS_PUBLIC_URL` | harvest, windmill, beat (one value for all three) | Public base of the webhook component; account callback URLs are `<base>/webhooks/<meta\|viber\|aws>/<key>`. Unset: accounts show "Callback address not configured" (`callback_readiness`). The query action `messaging_callback_status` (`messaging-config-read` or `messaging-account-read`) gives each account's callback blockers and reasons (`CALLBACK_NOT_CONFIGURED`; `REPORT_CREDENTIALS_MISSING` for Viber without report credentials): receipts then read *Unavailable*, and without the address Messenger isn't ready for OTP (`callback_blocker`), in the backend and the Admin Portal alike |
+| `MESSAGING_RELAY_SECRET` | messaging-webhooks, harvest | Relay HMAC secret, at least 32 bytes. Nothing else reads it. Without a usable one the component doesn't start and harvest refuses every relayed callback with 503 |
+| `MESSAGING_RELAY_SECRET_POLICY` | messaging-webhooks, harvest | `STRICT` (default) refuses the development stack's committed secret; `ALLOW_DEV_SECRET` is set only in the development compose file |
 | `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` | messaging-webhooks | Largest callback body, 262144 by default. Harvest accepts envelopes up to twice that |
 | `HARVEST_DOMAIN` | messaging-webhooks | Where the envelope goes |
-| `MESSAGING_META_GRAPH_URL` | harvest, windmill | Meta Graph API base, `https://graph.facebook.com` by default |
-| `MESSAGING_INFOBIP_URL` | harvest, windmill | Infobip base; unset, each account's own `base_url` is used |
-| `MESSAGING_AWS_ENDPOINT_URL` | harvest, windmill | AWS endpoint override; unset, the real AWS endpoints are used |
+| `MESSAGING_META_GRAPH_URL` | harvest, windmill, beat | Meta Graph API base, `https://graph.facebook.com` by default |
+| `MESSAGING_INFOBIP_URL` | harvest, windmill, beat | Infobip base; unset, each account's own `base_url` is used |
+| `MESSAGING_AWS_ENDPOINT_URL` | harvest, windmill, beat | AWS endpoint override; unset, the real AWS endpoints are used |
 | `MESSAGE_SENDER_POLICY` or `--spi-message-sender-auto-policy` | Keycloak | `HARVEST_WHEN_CONFIGURED` (default) routes messaging-app channels through harvest when its address is known; `KEYCLOAK_ONLY` keeps email and SMS only. Read at run time by the `auto` sender. An unreadable value means `KEYCLOAK_ONLY` |
 | `sequent.message-sender-policy` | Realm attribute | The same two values for one realm; it can't undo the deployment's `KEYCLOAK_ONLY` |
 | `--spi-message-sender-harvest-url` | Keycloak | Harvest's internal base URL, `http://$HARVEST_DOMAIN` by default |
 | `--spi-message-sender-harvest-channels` | Keycloak | Channels sent through harvest, `WHATSAPP,VIBER,MESSENGER` by default |
+| `--spi-message-sender-harvest-timeout-seconds` | Keycloak | How long Keycloak waits for harvest, 10 s by default. Harvest answers within 8 s; keep it above that |
 | `reconcile_messages_interval` | beat | Seconds between reconciliation passes, 60 by default |
+| `MESSAGING_VOTER_RECOUNT_TIMEOUT_SECS` | windmill | Statement timeout of a voter recount, 600 by default |
+| `MESSAGING_FAKE_PROVIDER_ROUTES` | harvest | Development only: `ENABLED` mounts the [fake provider routes](03-messaging-development.md#fake-provider-routes). Unset or `DISABLED` (the default) in every real deployment |
 
 For Meta and Infobip, an endpoint variable that is set wins over the
 account's own API address; when it's unset, the account's address is used,

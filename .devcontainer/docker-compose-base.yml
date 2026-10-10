@@ -756,6 +756,15 @@ services:
       MESSAGING_RELAY_SECRET_POLICY: ALLOW_DEV_SECRET
       MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
       MESSAGING_WEBHOOKS_MAX_BODY_BYTES: ${MESSAGING_WEBHOOKS_MAX_BODY_BYTES:-262144}
+      # Development only (this file is included by docker-compose.yml alone;
+      # the remote and air-gap compose files never set it): mounts harvest's
+      # internal /fake-provider/* routes. Unset or blank means DISABLED.
+      MESSAGING_FAKE_PROVIDER_ROUTES: ${MESSAGING_FAKE_PROVIDER_ROUTES:-}
+      # Provider API addresses; the development .env points them at the
+      # fake provider routes. Unset or blank leaves each account's own.
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
     networks:
       - default
       - monitoring-renderer
@@ -1114,6 +1123,12 @@ services:
       AWS_SM_KEY_PREFIX: ${AWS_SM_KEY_PREFIX}
       # Account callback URLs point at the messaging-webhooks component.
       MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      # Provider API addresses, the same as harvest's: the development .env
+      # points them at harvest's fake provider routes. Unset or blank leaves
+      # each account's own.
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
 
       KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
       KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY: ${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
@@ -1217,6 +1232,11 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
       AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
       AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
+      # Messaging, the same values as harvest and windmill.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
+      MESSAGING_META_GRAPH_URL: ${MESSAGING_META_GRAPH_URL:-}
+      MESSAGING_INFOBIP_URL: ${MESSAGING_INFOBIP_URL:-}
+      MESSAGING_AWS_ENDPOINT_URL: ${MESSAGING_AWS_ENDPOINT_URL:-}
 
   postgres-b4:
     profiles: ["full", "base"]

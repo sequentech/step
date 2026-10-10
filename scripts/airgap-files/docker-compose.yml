@@ -712,6 +712,8 @@ services:
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
+      # Messaging, the same callback base as harvest and windmill.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
 
 networks:
   # Harvest and the monitoring renderer only; no route out.

@@ -798,6 +798,8 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
+      # Messaging, the same callback base as harvest and windmill.
+      MESSAGING_WEBHOOKS_PUBLIC_URL: ${MESSAGING_WEBHOOKS_PUBLIC_URL}
 
   postgres-b3:
     profiles: ["full", "base"]

@@ -51,15 +51,23 @@ needs `messaging-account-read`; adding, editing, checking, testing and
 deleting them needs `messaging-account-write`.
 
 Each account shows three separate states, with the time of the last check
-and a short reason when one is missing:
+(*Checked …*, or *Not checked yet*) and a short reason when one is missing:
 
-- **Connected**: the provider accepted the credentials.
+- **Connected**: the provider accepted the credentials at the last check.
+  An account never checked is not connected yet.
 - **Ready for OTP** and **Ready for notices**: the purpose can be enabled
   for an event. A connected account is not ready while any prerequisite is
   missing, and the screen names it:
+  - *Not checked for its current number, Page or sender*: the account's
+    WhatsApp number or business account, Viber sender, Messenger Page, or
+    SMS or email sender changed after its last check. Nothing that check
+    said counts for the new one, so the account is ready for nothing until
+    it is checked again (see [Changing the number or the Page](#changing-the-number-or-the-page)).
   - *Needs provider approval*: WhatsApp accounts start as pending until
     the organization's arrangement with Meta is approved (see
-    [Going live](#going-live)).
+    [Going live](#going-live)). The check reads it from the number's status
+    and display-name status; *Entered by an administrator* is used only
+    while the check reports nothing.
   - *Needs production access*: the provider account is still in a sandbox
     (SES, SNS), the WhatsApp number is not verified, or the app is not
     subscribed to the Facebook Page.
@@ -74,10 +82,63 @@ An administrator can't declare an account ready. An account saved with the
 earlier "Confirmed by an administrator" setting is now read from its check
 like any other.
 
+Readiness is checked again **every time a message is sent**: a code or
+notice through an account that isn't ready for it is not sent, and is
+recorded as failed with *Not sent: the account isn't ready* and what is
+missing. A notice from Send Notification or an enrollment result waits for
+the account: it is retried once the account is ready again, if that
+happens within an hour; after that it stays failed with *Can't be retried:
+the message couldn't be prepared again*. Codes and Keycloak's own notices
+are never retried (see [Delivery](#delivery)). **Send test message** is
+the exception: it is how you try an account before it is ready.
+
+### Connection checks
+
+**Check connection** asks the provider about the account and stores the
+result. Every account is also checked **once a day**, and soon after its
+number, Page or sender changes; the drawer says when it was last checked.
+An account whose check can't run is tried again 3 hours later. If the
+account changes while its check runs, that check is discarded and **Check
+connection** says *The account changed while it was checked: check it
+again*.
+
+The account's drawer shows what the provider reported at the last check,
+or *Not reported*:
+
+- the access token: valid, when it expires, and missing permissions
+  (WhatsApp and Messenger);
+- the app secret: accepted, refused or couldn't be checked;
+- the WhatsApp number's status, display-name status, quality rating and
+  messaging limit. A quality warning from Meta is shown as a warning,
+  not as pending approval: the number still sends;
+- the Viber partner login;
+- the Messenger Page's `pages_messaging` permission, the app's subscription
+  and the Get Started button;
+- the callback address;
+- each bound template's category and status per language;
+- voters who changed their WhatsApp number (see
+  [Changing the number or the Page](#changing-the-number-or-the-page)).
+
+**Send test message** sends one message for a chosen purpose and
+destination. *Accepted* means the provider took the message, not that it
+was delivered.
+
+### Credentials
+
 Credentials are write-only. After saving, the account only shows when each
 was last replaced. The account and the credentials typed with it are saved
 together, in one step: either both are stored or neither is, and the drawer
 shows the reason when the save is refused.
+
+**Replacing a credential** that the connection check uses (an access
+token, app secret, API key, or SMTP or AWS secret) checks the new one with
+the provider **before** saving it. If it doesn't connect, nothing is saved,
+the previous credential keeps sending, and the drawer says why, followed by
+*The new credentials didn't connect: the previous ones are kept*. For
+WhatsApp and Messenger, the new token must also be valid, not expired and
+allowed to send, and Meta must accept the app secret. A credential entered
+for the first time has nothing to keep: it is saved and then checked. A
+replaced credential takes effect at once, with no restart.
 
 Changing the address the credentials are sent to (the Graph API base URL,
 the Infobip API base URL or the SMTP server) needs the credentials again,
@@ -86,34 +147,33 @@ the address changes, the drawer opens those credential fields and says
 *Enter the credentials again for the new address*; it doesn't save until
 they are typed. The address must start with `https://`.
 
-**Check connection** asks the provider about the account and stores the
-result. **Send test message** sends one message for a chosen purpose and
-destination. *Accepted* means the provider took the message, not that it
-was delivered.
+### Sending limits
 
-Accounts also take a sending rate, a share of it kept for codes, and the
-country calling codes the account may send to.
+- **Messages per second**: the rate the provider allows the account. All
+  of the platform's servers share it. Empty: messages are not throttled.
+- **Reserved for OTPs per second**: a floor in that rate. Bulk sends stop
+  at it, so codes always go first; with no codes being sent, a bulk send
+  can use the full rate.
+- **Codes sent at once**: how many codes, reset links and temporary
+  passwords the account may have in flight at once on each server; empty
+  means 8. Further ones wait their turn.
+- **Allowed destinations**: the country calling codes the account may send
+  to. Empty: any.
 
-Deleting an account doesn't check whether an election event still uses it.
-Before deleting one, choose another account in the events that use it:
-otherwise their messages on that channel fail with *No sending account for
-the channel* (email and SMS then go out through the deployment's own
-sender).
+A code that can't get its turn within 5 seconds is not sent: it fails with
+*Not sent: the account stayed at its sending limit for too long*, and the
+voter presses **Resend code** after the usual wait. A provider that takes
+too long to answer a code leaves it *Unknown*: *The provider didn't answer
+in time: the message may have been sent*.
 
-:::note Not available yet
+### Deleting an account
 
-These account features are planned and not in this release:
-
-- checking a new credential with the provider before saving it, keeping the
-  previous one until the check connects;
-- a daily connection check of every account (today the check runs when you
-  press **Check connection**);
-- one sending rate shared by every process that sends for the account, with
-  its share for codes kept free during bulk sends, and the account saying
-  when it has no rate;
-- refusing to delete an account an election event uses.
-
-:::
+An account that an election event's messaging settings use can't be
+deleted: the list says *The account was not deleted: Used by an election
+event's messaging settings: remove it there first*. Choose another account
+in those events first. Messages sent through a deleted account keep their
+records; [monthly volumes](#monthly-volumes) show them as a deleted
+account.
 
 ### Callback URL
 
@@ -156,11 +216,31 @@ For this to work:
 
 The connection check reports each of these.
 
-Changing an account's Page disconnects the voters connected to the old
-Page, because Page-scoped IDs belong to a Page. The drawer warns about it
-before saving; those voters get codes again only after connecting Messenger
-again. (Showing how many voters are affected is planned, not yet
-available.)
+### Changing the number or the Page
+
+Changing a WhatsApp account's number or business account, a Viber
+account's sender, a Messenger account's Page, or an SMS or email account's
+sender makes it a different sender:
+
+- The drawer warns before saving: *Saving checks the account again in the
+  background*. Until that check succeeds, the account is *Not checked for
+  its current number, Page or sender*, and codes and notices through it
+  fail as not ready; the test message is still sent.
+- A new WhatsApp number needs its templates approved in that business
+  account before it can send codes, and voters see a new chat.
+- **Changing a Messenger Page disconnects the voters connected to the old
+  Page**, because Page-scoped IDs belong to a Page. The drawer says how many
+  voters are connected to the old Page and must connect again, across the
+  election events that use the account. Those voters get codes again only
+  after connecting Messenger again.
+- Once saved, the events that use the account show voters the new Page or
+  name on their pages.
+
+When Meta reports that a voter changed their WhatsApp number, the account
+lists the voters who had that number, with masked numbers, and says *A
+voter changed their WhatsApp number: ask them to verify their contact
+again*. Nothing is changed automatically: the voter changes the channel
+from the voting portal (see [Changing the channel](#changing-the-channel)).
 
 ### Viber delivery reports
 
@@ -221,40 +301,43 @@ don't pass today's checks shows *Configuration needs saving again*: fix the
 problems the tab shows, then save. Until then, sends still check every
 reference they use.
 
-For each channel the tab selects an account and has separate **OTPs** and
-**Notices** switches. A switch that can't be turned on is disabled with the
-missing prerequisite, such as "Add an account in Settings > Messaging
-first". Saving checks every reference and prerequisite and names what is
-missing; nothing is saved while anything is wrong.
+For each channel the tab selects an account and has separate **OTPs**
+and **Notices** switches. A switch that can't be turned on is disabled with
+the missing prerequisite, such as "Add an account in Settings > Messaging
+first" or *Not checked for its current number, Page or sender*. Saving
+checks every reference and prerequisite and names what is missing; nothing
+is saved while anything is wrong.
+
+**Delivery status** shows how each channel's messages are doing:
 
 | Column | What it shows |
 |---|---|
-| Channel | The channel, with its icon |
-| OTPs, Notices | Whether codes and notices are sent on this channel |
-| Sends from | The account |
+| Channel | The channel, with its icon. A channel the event doesn't use, but that has messages or voters, is shown too, marked *Not offered by this event* |
 | Voters using it | Voters of the event whose channel this is |
-| Sent, last 24 h | Messages sent in the last 24 hours |
+| Sent, last 24 h | Messages whose latest attempt was in the last 24 hours, in any state, failed ones included |
+| Queued, Accepted | Messages recorded but not yet handed over, and messages the provider took |
 | Delivered | Messages the provider reported delivered, or *Unavailable* when the account has no receipts or no callback address |
 | Failed | Messages whose latest attempt failed. Opens the event's Logs, filtered to this channel's failed messages |
 | Unknown | Messages whose outcome is not confirmed yet |
 | Unresolved | Unknown messages older than 24 hours (see [Unknown and Unresolved](#unknown-and-unresolved)) |
 
 Counts are per message, by the state of its latest attempt: a message
-retried twice counts once. Logs filters on the same thing: the **Status**
-filter matches each message's current state, so the Failed link opens the
-same messages the count shows. Failures of voters with no contact channel
-are never counted under a channel; they show on a row of their own, *No
-contact channel*, whose failed count opens Logs filtered to them (the
-Channel filter's *No contact channel* choice).
+retried twice counts once. Only *Sent, last 24 h* is limited in time; the
+state columns count all of the event's messages. Logs filters on the same
+thing: the **Status** filter matches each message's current state, so the
+Failed link opens the same messages the count shows. Failures of voters
+with no contact channel are never counted under a channel; they show on a
+row of their own, *No contact channel*, whose failed count opens Logs
+filtered to them (the Channel filter's *No contact channel* choice). When
+the counts can't be loaded, the tab says so and shows dashes, never zero.
 
-:::note Not available yet
-
-The message counts (Voters using it, Sent last 24 h and the states) come
-from an action that is planned and not in this release. Until it is
-available, the tab says the counts could not be loaded and shows dashes,
-never zero.
-
-:::
+**Voters using it** is counted in the background, not each time the tab
+opens, so large events don't slow it down. Under the table the tab says
+*Counted at* and the time, or *Not counted yet*, and has a **Recount**
+button. Voters are counted again after every save of the event's messaging
+settings, when you press Recount, and regularly for events with messaging
+settings (every 6 hours or so). A recount that takes too long or fails
+says so, and the previous counts stay.
 
 - **Template bindings** map each purpose and language to the provider's
   approved template. A binding may name one message (a message key, such
@@ -296,11 +379,11 @@ voter pages.
   same browser session; only then is the Messenger contact saved. Opening
   the link alone neither verifies the contact nor lets the Page send.
 - **Pending review**: the page names the channel the result will be sent
-  to, and a reference code to give support, such as `Q5KW-8RFX` (shown
-  once the backend returns the application's ID to Keycloak; not yet in
-  this release). The reference comes from the application's ID only. Staff
-  find the application by typing the reference in the **Approvals**
-  search box, in any case, with or without the dash.
+  to, and a reference code to give support, such as `Q5KW-8RFX`, once the
+  application is stored. The reference comes from the application's ID
+  only. Staff find the application by typing the reference in the
+  **Approvals** search box, in any case, with or without the dash; the
+  search runs on the server, across the event's applications.
 - **Sign-in**: the code goes only to the voter's channel, and the page
   names it.
 - **Password reset**: the reset code or link goes to the voter's channel.
@@ -318,7 +401,9 @@ voter pages.
   reason.
 
 Masked destinations show the country code and the last three digits of a
-number, or the first two characters of an email address.
+number (*+966 ••• ••• 567*), the first two characters of an email address
+and its domain (fewer when the part before the `@` is that short), or the
+last three digits of a Messenger contact.
 
 The voter may wait 60 seconds between resends, and a failed send starts
 that wait too. Wrong codes are counted per code step: after 5 the step ends
@@ -386,18 +471,39 @@ administrator's language.
 ### Send Notification
 
 Send Notification has no channel choice: every notice goes to each voter's
-own channel. The **Each voter's channel** table shows the channels the
-event sends notices on and the account each sends from (the event's
-account, else the tenant's default account; email and SMS without an
-account use the deployment's own sender). An event without messaging
-settings sends by email and SMS, as before. An event whose settings turn on
-notices for no channel can't be sent to: the screen says so and nothing is
-scheduled. Without `messaging-config-read` the screen says the channels
-can't be shown; each voter still gets the notice on their own channel.
-(How many of the selected voters use each channel is planned, not yet
-available.) Each send is kept as an archived scheduled event that holds
-what was sent, for its retries; it never appears in the event's Scheduled
-Events list and can't be edited there.
+own channel. The **Each voter's channel** table shows, for the voters the
+notification is for:
+
+| Column | What it shows |
+|---|---|
+| Channel | Each channel the voters use, in channel order, then voters with no contact channel |
+| Voters | How many of them use it |
+| Sends from | The event's account for the channel, else the tenant's default account; email and SMS without an account use the deployment's own sender |
+
+Under the table: the voters in the audience, and how many will get the
+notification. A row also says when its voters won't get it, and why:
+
+- some voters' Posts don't offer the channel for notices (*N of them don't
+  get it*), or none of them do (*Not sent* under Sends from);
+- no account sends on the channel;
+- the account the event names was deleted (*Deleted account*): those
+  notices fail with *No sending account for the channel*, and never go out
+  through another sender;
+- the voters have no contact channel.
+
+The counts for all voters, voters who voted and voters who didn't come
+from the event's voter counts, with *Counted at* and **Recount**, as on the
+event's Messaging tab. Selected voters are counted when you select them;
+if that takes too long, the screen says so and shows no counts, and each
+voter still gets the notification on their own channel.
+
+An event without messaging settings sends by email and SMS, as before. An
+event whose settings turn on notices for no channel can't be sent to: the
+screen says so and nothing is scheduled. Without `messaging-config-read`
+the screen says the channels can't be shown; each voter still gets the
+notice on their own channel. Each send is kept as an archived scheduled
+event that holds what was sent, for its retries; it never appears in the
+event's Scheduled Events list and can't be edited there.
 
 > Each voter gets one message on their own channel. If delivery fails, it is
 > retried on that channel and the failure shows on the event's Messaging
@@ -496,6 +602,13 @@ What to do with Unknown and Unresolved messages:
 | The worker stopped before recording the outcome | Message | May have been sent; shown as Unknown and never resent |
 | The code expired before it could be sent | Message | The code was too old to send |
 | Delivery couldn't be confirmed | Message | Unknown for more than 24 hours (Unresolved) |
+| Not sent: the account isn't ready (…) | Message | The account wasn't ready for the purpose when the message was due; what is missing is named in brackets. Nothing was handed to the provider |
+| Not sent: the account stayed at its sending limit for too long | Message | A code, reset link or temporary password waited more than 5 seconds for the account's sending limit; nothing was handed to the provider |
+| The provider didn't answer in time: the message may have been sent | Message | The provider took too long to answer a code or Keycloak notice; shown as Unknown |
+| The new credentials didn't connect: the previous ones are kept | Account | A replaced credential failed its check; nothing was saved |
+| Used by an election event's messaging settings: remove it there first | Account | The account can't be deleted while an event uses it |
+| The account changed while it was checked: check it again | Account | Its number, Page, sender or credentials changed during the check, so the result was discarded |
+| A voter changed their WhatsApp number: ask them to verify their contact again | Account | Meta reported a voter's new WhatsApp number |
 
 The Admin Portal shows every reason in the administrator's language.
 
@@ -503,11 +616,44 @@ The Admin Portal shows every reason in the administrator's language.
 
 Every attempt is recorded with the channel, account, purpose, masked
 recipient, recipient country, provider message ID, state and the billing
-data the provider reports, so monthly volumes per channel and country can
-be reconciled with invoices. The electoral log records each attempt's
+data the provider reports. The electoral log records each attempt's
 channel, account, purpose and outcome with the masked recipient. Codes,
 message bodies, credentials and messages voters send to the accounts are
 never recorded.
+
+### Monthly volumes
+
+**Settings > Messaging** shows **Monthly volumes** under the account list,
+for a month you choose (months in UTC), to reconcile the providers'
+invoices. Viewing it needs `messaging-account-read` or
+`messaging-config-read`. It counts **attempts handed to a provider**, each
+in the month it was made, so a retry counts again, as providers bill it:
+
+| Column | What it shows |
+|---|---|
+| Channel | The channel |
+| Sent from | The account. *Deleted account* for WhatsApp, Viber and Messenger attempts whose account was deleted since; for email and SMS, *Deployment sender or a deleted account*, because the records can't tell them apart |
+| Destination country | The recipient's country, for phone numbers |
+| Billing category | Authentication, Utility, Service, Transactional or Email: the one expected when sending, or the one the provider reported |
+| Billable | What the provider reported, or *Not reported* |
+| Attempts | How many |
+
+Messages never handed to a provider (refused, waiting for the sending
+limit, or a code that expired first) aren't counted. No prices are shown.
+
+## Sent messages (development stacks only)
+
+On a development or demonstration stack whose fake provider is turned on,
+**Settings > Messaging** has two tabs, **Accounts** and **Sent messages**.
+Sent messages shows what the fake provider received, as the voters' apps
+would show it; none of it reached a real voter, and codes are visible so
+that you can sign in as a test voter. Choose **All** or a channel; the
+choice is kept in the address as `?channel=` (`all`, `whatsapp`, `viber`,
+`messenger`, `sms` or `email`), so a link opens the same view. The
+Messenger view has a **Get Started** box: paste the link from the
+enrollment page and press Get Started to stand in for the voter's tap.
+Real deployments never show this tab. See
+[Messaging development](../../07-developers/14-messaging/03-messaging-development.md#sent-messages-viewer).
 
 ## Going live
 
@@ -520,7 +666,8 @@ In short:
 - **WhatsApp**: the organization holds the Meta business portfolio, the
   WhatsApp Business Account and the number, through a Solution Partner.
   Once Meta approves the arrangement and the templates, enter the
-  credentials and record the account's provider approval. A Solution
+  credentials and run **Check connection**: the check reads the approval
+  from the number's status. A Solution
   Partner that serves the Cloud API from its own address is entered with
   its API base URL.
 - **Viber**: choose the partner. Infobip is built in; another partner needs

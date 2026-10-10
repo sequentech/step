@@ -294,6 +294,7 @@ scripts/dev/step-dev scenario list
 scripts/dev/step-dev scenario up kiosk-voter         # kiosk voting open
 scripts/dev/step-dev scenario up completed-ceremony  # keys ceremony, ballots, online voting open
 scripts/dev/step-dev scenario up published-results   # votes cast, tallied, results published
+scripts/dev/step-dev scenario up messaging           # messaging on the fake provider; also messaging-second-organization
 scripts/dev/step-dev scenario urls kiosk-voter
 scripts/dev/step-dev scenario status
 scripts/dev/step-dev scenario reset kiosk-voter

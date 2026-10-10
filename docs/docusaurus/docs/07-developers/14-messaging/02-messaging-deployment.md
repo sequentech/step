@@ -32,22 +32,37 @@ backend becomes reachable.
 | `messaging-webhooks` | `MESSAGING_RELAY_SECRET`, `HARVEST_DOMAIN`, `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` (optional), `ROCKET_ADDRESS`, `ROCKET_PORT` |
 | harvest | `MESSAGING_RELAY_SECRET`, `MESSAGING_WEBHOOKS_PUBLIC_URL`, and the endpoint variables if used |
 | windmill | `MESSAGING_WEBHOOKS_PUBLIC_URL`, and the endpoint variables if used |
+| beat | `MESSAGING_WEBHOOKS_PUBLIC_URL`, and the endpoint variables if used |
 
 - `MESSAGING_WEBHOOKS_PUBLIC_URL` is the public base address of the
-  component, such as `https://callbacks.example.org`. Harvest and windmill
-  build each account's callback URL from it; the component itself doesn't
-  read it. Without it, accounts show "Callback address not configured",
-  delivery shows as unavailable and Messenger is not ready for codes. It
-  must be `https`: otherwise accounts show "Callback address must be
-  https" next to the URL (the development stack's `http://` address is the
-  only expected exception).
-- `MESSAGING_RELAY_SECRET` is a long random value shared by the component
-  and harvest only. Store it like any other deployment secret. Rotating it
-  means changing both together; callbacks during the change get 503 and the
-  providers retry them.
+  component, such as `https://callbacks.example.org`. Give harvest,
+  windmill and beat **the same value**: harvest builds each account's
+  callback URL from it and fills the callback status of **Check
+  connection**, and windmill fills it in the daily account check, so two
+  values would make the account's status change with whichever ran last.
+  The component itself doesn't read it. Without it, accounts show
+  "Callback address not configured", delivery shows as unavailable and
+  Messenger is not ready for codes. It must be `https`: otherwise accounts
+  show "Callback address must be https" next to the URL (the development
+  stack's `http://` address is the only expected exception).
+- `MESSAGING_RELAY_SECRET` is a random value of at least 32 bytes
+  (`openssl rand -hex 32`), shared by the component and harvest only.
+  Store it like any other deployment secret. The development stack's
+  committed value is refused unless `MESSAGING_RELAY_SECRET_POLICY` is
+  `ALLOW_DEV_SECRET`, which only the development compose file sets: leave
+  the policy unset. Without a usable secret the component doesn't start and
+  harvest answers relayed callbacks with 503. Rotating it means changing
+  both together; callbacks during the change get 503 and the providers
+  retry them.
 - The endpoint variables (`MESSAGING_META_GRAPH_URL`,
   `MESSAGING_INFOBIP_URL`, `MESSAGING_AWS_ENDPOINT_URL`) stay unset in a
-  normal deployment.
+  normal deployment. When one is set, give harvest, windmill and beat the
+  same value.
+- `MESSAGING_FAKE_PROVIDER_ROUTES` is **never set** in a real deployment.
+  It mounts development-only routes in harvest that answer as the
+  providers (see
+  [Fake provider routes](03-messaging-development.md#fake-provider-routes));
+  unset, those routes don't exist.
 
 The component is built like harvest (`Dockerfile.cargo-packages` and the
 product images) and runs with its own command. It is stateless: run as many
@@ -76,7 +91,22 @@ configure on the platform side.
 - **SMS (SNS)** and **SMTP** have no receipts and need no callback.
 
 Run **Check connection** on each account afterwards; it reports what is
-still missing.
+still missing. After that, every account is checked again once a day, and
+its readiness gates every send through it.
+
+## Sending limits
+
+Set **Messages per second** on each account to the rate the provider
+allows. All harvest and windmill processes share that rate through one
+bucket per account in the database. **Reserved for OTPs per second** keeps
+part of it for codes during bulk sends, and **Codes sent at once** (8 by
+default) limits the sends Keycloak asks for that one harvest process has
+in flight for the account. An account without a rate isn't throttled.
+
+A send Keycloak asks for waits at most 5 s for its account's capacity, and
+harvest answers it within 8 s. Keep the Keycloak sender's
+`--spi-message-sender-harvest-timeout-seconds` at its default (10) or
+above.
 
 ## Deployment prerequisites
 
