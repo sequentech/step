@@ -117,6 +117,9 @@ impl<'r> FromRequest<'r> for UserLocation {
     }
 }
 
+/// Placeholder printed in place of secret values in `Debug` output.
+pub const REDACTED: &str = "<redacted>";
+
 #[derive(Debug)]
 pub struct DatafixClaims {
     pub jwt_claims: JwtClaims,
@@ -125,10 +128,18 @@ pub struct DatafixClaims {
     pub datafix_event_id: String,
 }
 
-#[derive(Debug)]
 struct DatafixCredentials {
     client_id: String,
     client_secret: String,
+}
+
+impl std::fmt::Debug for DatafixCredentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DatafixCredentials")
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -146,7 +157,7 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     let mut missing_headers = vec![];
     for header in required_headers {
         if !headers.contains(header) {
-            warn!("DatafixClaims guard: No {header} in headers: {headers:?}");
+            warn!("DatafixClaims guard: No {header} in headers");
             missing_headers.push(header);
         }
     }
@@ -161,15 +172,11 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
         headers.get_one(AUTHORIZATION_HEADER).unwrap_or_default(),
     );
 
-    info!(
-        "tenant-id: {:?} event-id: {:?} authorization: {:?}",
-        tenant_id, event_id, authorization
-    );
+    info!("tenant-id: {:?} event-id: {:?}", tenant_id, event_id);
 
     let mut auth_collection = authorization.split(":");
     let client_id = auth_collection.nth(0); // get the first item and consumes it
     let client_secret = auth_collection.nth(0);
-    info!("{:?}:{:?}", client_id, client_secret);
     let (client_id, client_secret) =
         if let (Some(client_id), Some(client_secret)) =
             (client_id, client_secret)
@@ -191,13 +198,25 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
 
 /// TokenResponse, timestamp before sending the request and the credentials to
 /// make sure the requester is the same.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct TokenResponseExtended {
     token_resp: PubKeycloakAdminToken,
     stamp: Instant,
     client_id: String,
     client_secret: String,
     tenant_id: String,
+}
+
+impl std::fmt::Debug for TokenResponseExtended {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenResponseExtended")
+            .field("token_resp", &self.token_resp)
+            .field("stamp", &self.stamp)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &REDACTED)
+            .field("tenant_id", &self.tenant_id)
+            .finish()
+    }
 }
 
 /// Last access token can be reused if it´s not expired, this is to avoid
@@ -219,7 +238,7 @@ impl LastDatafixAccessToken {
 
 /// Reads the access token if it has been requested successfully before and it
 /// is not expired.
-#[instrument(skip(lst_acc_tkn))]
+#[instrument(skip(client_secret, lst_acc_tkn))]
 async fn read_access_token(
     client_id: &str,
     client_secret: &str,
@@ -252,7 +271,7 @@ async fn read_access_token(
 }
 
 /// Request a new access token and writes it to the cache
-#[instrument(err, skip(lst_acc_tkn))]
+#[instrument(err, skip(client_secret, lst_acc_tkn))]
 async fn request_access_token(
     client_id: String,
     client_secret: String,
