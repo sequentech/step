@@ -113,8 +113,30 @@ fn voterview_client() -> Result<reqwest::Client> {
         .map_err(|err| anyhow!("Failed to build the VoterView HTTP client: {err}"))
 }
 
+/// Decodes a response body with the charset its `Content-Type` declares, as
+/// `Response::text()` does, falling back to UTF-8.
+fn decode_body(content_type: Option<&str>, body: &[u8]) -> String {
+    let encoding = content_type
+        .and_then(|value| {
+            value.split(';').skip(1).find_map(|parameter| {
+                let (name, label) = parameter.split_once('=')?;
+                name.trim()
+                    .eq_ignore_ascii_case("charset")
+                    .then(|| label.trim().trim_matches('"'))
+            })
+        })
+        .and_then(|label| encoding_rs::Encoding::for_label(label.as_bytes()))
+        .unwrap_or(encoding_rs::UTF_8);
+    encoding.decode(body).0.into_owned()
+}
+
 /// Reads the response body, up to [`MAX_VOTERVIEW_RESPONSE_BYTES`].
 async fn read_limited_text(mut response: Response) -> Result<String> {
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     let too_large = || anyhow!("VoterView response exceeds {MAX_VOTERVIEW_RESPONSE_BYTES} bytes");
     if response
         .content_length()
@@ -133,7 +155,7 @@ async fn read_limited_text(mut response: Response) -> Result<String> {
         }
         body.extend_from_slice(&chunk);
     }
-    Ok(String::from_utf8_lossy(&body).into_owned())
+    Ok(decode_body(content_type.as_deref(), &body))
 }
 
 #[instrument(skip(election_event), err)]
@@ -222,6 +244,31 @@ pub fn parse_tag(open_tag: &str, close_tag: &str, response_txt: &str) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decodes_the_declared_charset() {
+        let (latin1, _, _) = encoding_rs::WINDOWS_1252.encode("<a>caf\u{e9}</a>");
+        assert_eq!(
+            decode_body(Some("text/xml; charset=\"ISO-8859-1\""), &latin1),
+            "<a>caf\u{e9}</a>"
+        );
+        let utf16: Vec<u8> = "<a>caf\u{e9}</a>"
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        assert_eq!(
+            decode_body(Some("text/xml; charset=utf-16le"), &utf16),
+            "<a>caf\u{e9}</a>"
+        );
+        assert_eq!(
+            decode_body(None, "<a>caf\u{e9}</a>".as_bytes()),
+            "<a>caf\u{e9}</a>"
+        );
+        assert_eq!(
+            decode_body(Some("text/xml; charset=unknown"), b"<a/>"),
+            "<a/>"
+        );
+    }
     use serde_json::Value;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
