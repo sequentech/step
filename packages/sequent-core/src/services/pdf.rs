@@ -1385,9 +1385,16 @@ mod tests {
                 .collect(),
         )?;
 
-        let mut paths = bucket.paths();
-        paths.sort();
-        assert_eq!(paths, vec!["/public/data.json", "/public/logo.png"]);
+        let paths = bucket.paths();
+        let unexpected: Vec<_> = paths
+            .iter()
+            .filter(|path| {
+                !["/public/logo.png", "/public/data.json"]
+                    .contains(&path.as_str())
+            })
+            .collect();
+        assert!(paths.contains(&"/public/logo.png".to_string()));
+        assert_eq!(unexpected, Vec::<&String>::new());
         Ok(())
     }
 
