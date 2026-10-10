@@ -26,7 +26,6 @@ insert_permissions:
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
           columns:
-              - annotations
               - area_ids
               - configuration
               - created_at
@@ -189,7 +188,6 @@ update_permissions:
                         - permission_label:
                               _contained_in: X-Hasura-Permission-Labels
           columns:
-              - annotations
               - area_ids
               - configuration
               - created_at
