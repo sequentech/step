@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::utils::{
     DATAFIX_ID_KEY, DATAFIX_LAST_APPLIED_SEQUENCE_KEY, DATAFIX_LAST_APPLY_HAD_FAILURES_KEY,
-    DATAFIX_PSW_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY,
+    DATAFIX_PSW_POLICY_KEY, DATAFIX_SET_VOTED_CONFLICT_POLICY_KEY, DATAFIX_VOTERVIEW_REQ_KEY,
 };
 use anyhow::{anyhow, Result};
 use rand::{distr, Rng};
@@ -222,6 +222,31 @@ pub struct DatafixAnnotations {
     /// Whether the last apply finished with per-row failures. Only that state
     /// permits another apply at the same Sequence.
     pub last_apply_had_failures: bool,
+    /// See `DATAFIX_SET_VOTED_CONFLICT_POLICY_KEY`.
+    pub set_voted_conflict_policy: DatafixSetVotedConflictPolicy,
+}
+
+/// What happens to an in-progress vote when VoterView refuses its `SetVoted`:
+/// the voter is already marked as voted and no earlier `SetVoted` for the
+/// voter is unconfirmed, or the request is rejected.
+#[derive(
+    Default, Display, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, EnumString,
+)]
+pub enum DatafixSetVotedConflictPolicy {
+    /// The vote becomes valid and reconciliation settles the conflict.
+    #[strum(serialize = "validate-and-reconcile")]
+    #[serde(rename = "validate-and-reconcile")]
+    ValidateAndReconcile,
+    /// The vote stays in progress, blocking the tally, until VoterView
+    /// accepts `SetVoted` or an operator resolves the voter.
+    #[default]
+    #[strum(serialize = "hold-for-review")]
+    #[serde(rename = "hold-for-review")]
+    HoldForReview,
+    /// The vote is discarded.
+    #[strum(serialize = "discard")]
+    #[serde(rename = "discard")]
+    Discard,
 }
 
 #[derive(Default, Display, Serialize, Deserialize, Debug, Clone, EnumString)]
@@ -325,6 +350,15 @@ impl ValidateAnnotations for ElectionEventDatafix {
             })
             .transpose()?
             .unwrap_or(false);
+        let set_voted_conflict_policy = annotations
+            .get(DATAFIX_SET_VOTED_CONFLICT_POLICY_KEY)
+            .map(|value| {
+                value.parse::<DatafixSetVotedConflictPolicy>().map_err(|err| {
+                    anyhow!("Invalid {DATAFIX_SET_VOTED_CONFLICT_POLICY_KEY} value '{value}': {err}")
+                })
+            })
+            .transpose()?
+            .unwrap_or_default();
 
         Ok(DatafixAnnotations {
             id,
@@ -332,6 +366,7 @@ impl ValidateAnnotations for ElectionEventDatafix {
             voterview_request,
             last_applied_sequence,
             last_apply_had_failures,
+            set_voted_conflict_policy,
         })
     }
 }
@@ -343,9 +378,8 @@ pub enum SoapRequest {
 }
 
 /// Classified outcome of a VoterView SOAP call. `AlreadyVoted`/`AlreadyNotVoted`
-/// are the idempotent "already in that state" replies the caller treats as
-/// success; `Fault` carries a transport/SOAP-fault detail and `Rejected` an
-/// application `Success=false` message.
+/// are the "already in that state" replies; `Fault` carries a transport/SOAP-fault
+/// detail and `Rejected` an application `Success=false` message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SoapRequestResponse {
     Ok,
