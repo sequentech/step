@@ -1415,6 +1415,7 @@ pub trait TemplateRenderer: Debug {
         Ok(ReportOutcome::Released)
     }
 
+    /// Renders the report as a single PDF written in `output_dir`.
     async fn generate_single_report(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -1538,6 +1539,8 @@ pub trait TemplateRenderer: Debug {
     }
 }
 
+/// Writes `content` as `report_name` in `output_dir` and returns the path of
+/// the file.
 fn write_single_report_file(
     output_dir: &Path,
     report_name: &str,
@@ -1552,6 +1555,8 @@ fn write_single_report_file(
 mod tests {
     use super::*;
 
+    /// Reports of the same name written in different directories keep their
+    /// own content and go away with their directory.
     #[test]
     fn single_reports_with_the_same_name_keep_their_own_files() -> Result<()> {
         let report_name = "ballot_receipt_same-event.pdf";
