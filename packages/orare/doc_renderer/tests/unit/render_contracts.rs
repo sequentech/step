@@ -1,11 +1,27 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
+use sequent_core::services::pdf::PdfResourcePolicy;
 
 #[test]
 fn wire_input_requires_the_selected_variants_fields() {
     let raw: Input = serde_json::from_str(r#"{"raw":{"html":"<p>synthetic</p>"}}"#).unwrap();
-    assert!(matches!(raw, Input::Raw { html, pdf_options: None } if html == "<p>synthetic</p>"));
+    assert!(matches!(
+        raw,
+        Input::Raw { html, pdf_options: None, resource_policy: PdfResourcePolicy::Restricted }
+            if html == "<p>synthetic</p>"
+    ));
+    let no_scripts: Input = serde_json::from_str(
+        r#"{"raw":{"html":"<p>synthetic</p>","resource_policy":"RestrictedNoScripts"}}"#,
+    )
+    .unwrap();
+    assert!(matches!(
+        no_scripts,
+        Input::Raw {
+            resource_policy: PdfResourcePolicy::RestrictedNoScripts,
+            ..
+        }
+    ));
     let stored: Input = serde_json::from_str(
         r#"{"s3":{"bucket":"synthetic","input_path":"in.html","output_path":"out.pdf"}}"#,
     )
@@ -16,6 +32,7 @@ fn wire_input_requires_the_selected_variants_fields() {
     for invalid in [
         r#"{"raw":{}}"#,
         r#"{"raw":{"html":12}}"#,
+        r#"{"raw":{"html":"<p>synthetic</p>","resource_policy":"Unrestricted"}}"#,
         r#"{"s3":{"bucket":"synthetic","input_path":"in.html"}}"#,
         r#"{"unknown":{}}"#,
     ] {
@@ -36,6 +53,7 @@ async fn raw_html_produces_a_real_pdf_and_s3_is_rejected_locally() {
     let reply = handle_render_impl(Input::Raw {
         html: "<html><body>synthetic PDF contract</body></html>".into(),
         pdf_options: None,
+        resource_policy: PdfResourcePolicy::default(),
     })
     .await
     .unwrap()
