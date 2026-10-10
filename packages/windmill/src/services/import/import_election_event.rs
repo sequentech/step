@@ -1480,14 +1480,14 @@ mod import_scope_tests {
             "tenant_id": tenant,
             "election_event": {
                 "id": event, "tenant_id": tenant, "is_archived": false,
-                "encryption_protocol": "RSA"
+                "encryption_protocol": "RSA", "name": "event"
             },
             "elections": [
-                {"id": election, "tenant_id": tenant, "election_event_id": event}
+                {"id": election, "tenant_id": tenant, "election_event_id": event, "name": "election"}
             ],
             "contests": [{
                 "id": new_id(), "tenant_id": tenant, "election_event_id": event,
-                "election_id": election
+                "election_id": election, "name": "contest"
             }],
             "candidates": [
                 {"id": new_id(), "tenant_id": tenant, "election_event_id": event}
