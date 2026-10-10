@@ -573,13 +573,17 @@ fn validate_import_scope(
         Uuid::parse_str(tenant_id).with_context(|| format!("Invalid tenant id {tenant_id}"))?;
     let event = Uuid::parse_str(election_event_id)
         .with_context(|| format!("Invalid election event id {election_event_id}"))?;
-    let in_scope = |row_tenant_id: &str, row_event_id: &str| {
-        Uuid::parse_str(row_tenant_id).is_ok_and(|id| id == tenant)
-            && Uuid::parse_str(row_event_id).is_ok_and(|id| id == event)
+    let in_scope = |row_tenant_id: &str, row_event_id: &str| -> Result<bool> {
+        let row_tenant = Uuid::parse_str(row_tenant_id)
+            .with_context(|| format!("Invalid tenant id {row_tenant_id}"))?;
+        let row_event = Uuid::parse_str(row_event_id)
+            .with_context(|| format!("Invalid election event id {row_event_id}"))?;
+        Ok(row_tenant == tenant && row_event == event)
     };
 
     if data.tenant_id != tenant
         || !in_scope(&data.election_event.tenant_id, &data.election_event.id)
+            .context("Invalid imported election event")?
     {
         return Err(anyhow!(
             "Imported election event does not match tenant {tenant} and election event {event}"
@@ -587,7 +591,9 @@ fn validate_import_scope(
     }
 
     for (id, row_tenant_id, row_event_id) in import_row_scopes(data) {
-        if !in_scope(row_tenant_id, row_event_id) {
+        if !in_scope(row_tenant_id, row_event_id)
+            .with_context(|| format!("Invalid imported row {id}"))?
+        {
             return Err(anyhow!(
                 "Imported row {id} does not belong to tenant {tenant} and election event {event}"
             ));
@@ -1836,6 +1842,20 @@ mod import_scope_tests {
         let mut input = bundle(&tenant, &event);
         input["election_event"]["tenant_id"] = json!(other_tenant);
         assert!(import(&input, Some(new_id()), &tenant).is_err());
+    }
+
+    /// A row whose tenant id is not a UUID is reported with that value, not
+    /// as a row of another tenant.
+    #[test]
+    fn names_a_row_tenant_id_that_is_not_a_uuid() {
+        let tenant = new_id();
+        let mut input = bundle(&tenant, &new_id());
+        input["areas"][0]["tenant_id"] = json!("not-a-uuid");
+        let error = import(&input, Some(new_id()), &tenant).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("Invalid tenant id not-a-uuid"),
+            "{error:#}"
+        );
     }
 
     #[test]
