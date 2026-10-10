@@ -117,6 +117,9 @@ public final class HarvestEndpoint {
     if (uri.getHost() == null) {
       throw new IllegalStateException("Harvest URL has no host: " + baseUrl);
     }
+    if (uri.getRawQuery() != null || uri.getRawFragment() != null) {
+      throw new IllegalStateException("Harvest URL must not have a query or fragment: " + baseUrl);
+    }
     return scheme;
   }
 

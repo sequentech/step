@@ -120,6 +120,29 @@ class HarvestEndpointTest {
         () -> resolve(Map.of(HarvestEndpoint.ENV_HARVEST_URL, "ftp://harvest:8400")));
   }
 
+  /** Paths are appended to the base URL, so a query or fragment there would swallow them. */
+  @Test
+  void rejectsHarvestUrlWithQueryOrFragment() {
+    assertThrows(
+        IllegalStateException.class,
+        () -> resolve(Map.of(HarvestEndpoint.ENV_HARVEST_URL, "https://harvest:8400?target=x")));
+    assertThrows(
+        IllegalStateException.class,
+        () -> resolve(Map.of(HarvestEndpoint.ENV_HARVEST_URL, "https://harvest:8400#section")));
+    assertThrows(
+        IllegalStateException.class,
+        () -> resolve(Map.of(HarvestEndpoint.ENV_HARVEST_URL, "https://harvest:8400/api?")));
+  }
+
+  /** A base URL with a path prefix keeps it, without a trailing slash, before the appended path. */
+  @Test
+  void keepsHarvestUrlBasePath() {
+    Optional<HarvestEndpoint> endpoint =
+        resolve(Map.of(HarvestEndpoint.ENV_HARVEST_URL, "https://gateway:8443/harvest/"));
+
+    assertEquals("https://gateway:8443/harvest" + PATH, endpoint.orElseThrow().url(PATH));
+  }
+
   @Test
   void rejectsHarvestUrlWithoutHost() {
     assertThrows(

@@ -9,17 +9,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.keycloak.models.UserModel;
 
 /**
  * Checks that the user harvest returns for an accepted enrollment application matches the applicant
  * data on the configured search attributes.
  *
- * <p>The comparison follows harvest's automatic verification rules (at most one mismatch, and it
- * cannot be on another attribute while the embassy matches; first and middle name compared together
- * for some ID card types), with a normalization that is never stricter than harvest's: it ignores
- * case, accents and any character that is not a letter or a digit.
+ * <p>The comparison follows harvest's automatic verification rules (the first value of each user
+ * attribute; at most one mismatch, and it cannot be on another attribute while the embassy matches;
+ * first and middle name compared together for some ID card types), with a normalization that is
+ * never stricter than harvest's: it ignores case, accents and any character that is not a letter or
+ * a digit.
  */
 final class ApplicantMatcher {
 
@@ -51,10 +51,8 @@ final class ApplicantMatcher {
       if (combinedName && UserModel.FIRST_NAME.equals(attribute)) {
         matches = combinedNameMatches(user, applicantData);
       } else {
-        String applicantValue = normalize(applicantData.get(attribute));
         matches =
-            userValues(user, attribute)
-                .anyMatch(userValue -> applicantValue.equals(normalize(userValue)));
+            normalize(applicantData.get(attribute)).equals(normalize(userValue(user, attribute)));
       }
       if (EMBASSY_ATTRIBUTE.equals(attribute)) {
         embassyMatches = matches;
@@ -73,28 +71,25 @@ final class ApplicantMatcher {
             ? ""
             : normalize(applicantFirstName) + normalize(applicantData.get(MIDDLE_NAME_ATTRIBUTE));
     String userFirstName = user.getFirstName();
-    if (userFirstName == null) {
-      return applicantName.isEmpty();
-    }
-    return userValues(user, MIDDLE_NAME_ATTRIBUTE)
-        .anyMatch(
-            userMiddleName ->
-                applicantName.equals(normalize(userFirstName) + normalize(userMiddleName)));
+    String userName =
+        userFirstName == null
+            ? ""
+            : normalize(userFirstName) + normalize(user.getFirstAttribute(MIDDLE_NAME_ATTRIBUTE));
+    return applicantName.equals(userName);
   }
 
-  private static Stream<String> userValues(UserModel user, String attribute) {
+  private static String userValue(UserModel user, String attribute) {
     switch (attribute) {
       case UserModel.FIRST_NAME:
-        return Stream.of(user.getFirstName());
+        return user.getFirstName();
       case UserModel.LAST_NAME:
-        return Stream.of(user.getLastName());
+        return user.getLastName();
       case UserModel.USERNAME:
-        return Stream.of(user.getUsername());
+        return user.getUsername();
       case UserModel.EMAIL:
-        return Stream.of(user.getEmail());
+        return user.getEmail();
       default:
-        List<String> values = user.getAttributeStream(attribute).toList();
-        return values.isEmpty() ? Stream.of((String) null) : values.stream();
+        return user.getFirstAttribute(attribute);
     }
   }
 

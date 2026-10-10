@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.keycloak.models.UserModel;
 
@@ -31,29 +30,27 @@ class ApplicantMatcherTest {
           ID_CARD_NUMBER,
           ApplicantMatcher.EMBASSY_ATTRIBUTE);
 
-  private static UserModel user(String firstName, String lastName, Map<String, String> attributes) {
+  private static UserModel user(
+      String firstName, String lastName, Map<String, List<String>> attributes) {
     UserModel user = mock(UserModel.class);
     when(user.getFirstName()).thenReturn(firstName);
     when(user.getLastName()).thenReturn(lastName);
     attributes.forEach(
-        (name, value) ->
-            when(user.getAttributeStream(name)).thenAnswer(invocation -> Stream.of(value)));
+        (name, values) -> when(user.getFirstAttribute(name)).thenReturn(values.get(0)));
     return user;
   }
 
+  private static Map<String, List<String>> registeredVoterAttributes() {
+    Map<String, List<String>> attributes = new HashMap<>();
+    attributes.put(ApplicantMatcher.MIDDLE_NAME_ATTRIBUTE, List.of("Santos"));
+    attributes.put(DATE_OF_BIRTH, List.of("1980-01-31"));
+    attributes.put(ID_CARD_NUMBER, List.of("1234-5678"));
+    attributes.put(ApplicantMatcher.EMBASSY_ATTRIBUTE, List.of("Madrid"));
+    return attributes;
+  }
+
   private static UserModel registeredVoter() {
-    return user(
-        "José",
-        "Dela-Cruz",
-        Map.of(
-            ApplicantMatcher.MIDDLE_NAME_ATTRIBUTE,
-            "Santos",
-            DATE_OF_BIRTH,
-            "1980-01-31",
-            ID_CARD_NUMBER,
-            "1234-5678",
-            ApplicantMatcher.EMBASSY_ATTRIBUTE,
-            "Madrid"));
+    return user("José", "Dela-Cruz", registeredVoterAttributes());
   }
 
   private static Map<String, String> applicant(String cardType) {
@@ -143,6 +140,33 @@ class ApplicantMatcherTest {
     assertTrue(
         ApplicantMatcher.matchesApplicant(
             registeredVoter(), applicantWithoutCardType, SEARCH_ATTRIBUTES));
+  }
+
+  /** Harvest compares the first value of a user attribute, so a later value does not count. */
+  @Test
+  void comparesOnlyTheFirstValueOfMultiValuedAttributes() {
+    Map<String, List<String>> attributes = registeredVoterAttributes();
+    attributes.put(ID_CARD_NUMBER, List.of("9999-0000", "1234-5678"));
+
+    assertFalse(
+        ApplicantMatcher.matchesApplicant(
+            user("José", "Dela-Cruz", attributes),
+            applicant(CARD_TYPE_PHILSYS),
+            SEARCH_ATTRIBUTES));
+  }
+
+  /** The combined first and middle name also uses only the first middle name of the user. */
+  @Test
+  void comparesOnlyTheFirstMiddleNameForCombinedNameCardTypes() {
+    Map<String, List<String>> attributes = registeredVoterAttributes();
+    attributes.put(ApplicantMatcher.MIDDLE_NAME_ATTRIBUTE, List.of("Reyes", "Santos"));
+    Map<String, String> seamanBookApplicant = applicant(CARD_TYPE_SEAMAN_BOOK);
+    seamanBookApplicant.put(UserModel.FIRST_NAME, "Jose Santos");
+    seamanBookApplicant.remove(ApplicantMatcher.MIDDLE_NAME_ATTRIBUTE);
+
+    assertFalse(
+        ApplicantMatcher.matchesApplicant(
+            user("José", "Dela-Cruz", attributes), seamanBookApplicant, SEARCH_ATTRIBUTES));
   }
 
   @Test

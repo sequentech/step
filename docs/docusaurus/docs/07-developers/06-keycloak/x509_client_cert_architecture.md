@@ -186,7 +186,7 @@ The truststore provider and the voter enrollment authenticator
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `HARVEST_URL` | unset | Base URL with scheme, for example `https://harvest:8400`. Takes precedence over `HARVEST_DOMAIN`. |
+| `HARVEST_URL` | unset | Base URL with scheme, for example `https://harvest:8400`. It may end in a path prefix but must not have a query or fragment. Takes precedence over `HARVEST_DOMAIN`. |
 | `HARVEST_DOMAIN` | | `host:port` of harvest. Used as `http://<HARVEST_DOMAIN>` when `HARVEST_URL` is not set. |
 | `HARVEST_TLS_POLICY` | `PLAINTEXT_ALLOWED` | `PLAINTEXT_ALLOWED` accepts `http` and `https`. `REQUIRE_TLS` accepts only an `https` base URL. |
 

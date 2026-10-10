@@ -126,6 +126,9 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   private String clientSecret = System.getenv("KEYCLOAK_CLIENT_SECRET");
   private String access_token;
 
+  /** Environment variable lookup used to resolve the harvest endpoint; replaced in tests. */
+  UnaryOperator<String> environment = System::getenv;
+
   @Override
   public void authenticate(AuthenticationFlowContext context) {
     log.info("authenticate(): start");
@@ -981,7 +984,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       String labels)
       throws IOException, InterruptedException {
     HttpClient client = HttpClient.newHttpClient();
-    String url = verifyApplicationUrl(System::getenv);
+    String url = verifyApplicationUrl(environment);
     String requestBody =
         String.format(
             "{\"tenant_id\": \"%s\", \"election_event_id\": \"%s\", \"area_id\": \"%s\", \"applicant_id\": \"%s\", \"applicant_data\" : %s, \"annotations\": %s, \"labels\": \"%s\"}",
