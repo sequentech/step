@@ -28,6 +28,7 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::traits::Identity;
 use rand::RngCore;
+use zeroize::ZeroizeOnDrop;
 
 use crate::context::{Ctx, Element, Exponent, Plaintext};
 use crate::elgamal::Ciphertext;
@@ -44,7 +45,7 @@ pub struct RistrettoCtx;
 #[derive(PartialEq, Eq, Clone)]
 /// A ristretto [RistrettoPoint](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/ristretto/struct.RistrettoPoint.html) newtype.
 pub struct RistrettoPointS(pub(crate) RistrettoPoint);
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Clone, ZeroizeOnDrop)]
 /// A ristretto [Scalar](https://docs.rs/curve25519-dalek/latest/curve25519_dalek/scalar/struct.Scalar.html) newtype.
 pub struct ScalarS(pub(crate) Scalar);
 
@@ -476,6 +477,12 @@ impl std::fmt::Debug for RistrettoPointS {
     }
 }
 
+impl std::fmt::Debug for ScalarS {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ScalarS").finish_non_exhaustive()
+    }
+}
+
 pub(crate) fn to_ristretto_point_array(
     input: &[u8],
 ) -> Result<[u8; 32], StrandError> {
@@ -666,5 +673,44 @@ mod tests {
     fn test_cp_borsh() {
         let ctx = RistrettoCtx;
         test_cp_borsh_generic(&ctx);
+    }
+
+    #[test]
+    fn test_scalar_debug_redacts_value() {
+        let scalar = ScalarS(Scalar::from(0x0123_4567_89ab_cdefu64));
+        let bytes = scalar.0.to_bytes();
+
+        let debug = format!("{:?}", scalar);
+
+        assert!(!debug.contains(&format!("{:?}", bytes)));
+        assert!(!debug.contains(&hex::encode(bytes)));
+    }
+
+    #[test]
+    fn test_scalar_is_zeroized_on_drop() {
+        let mut scalar =
+            std::mem::ManuallyDrop::new(ScalarS(Scalar::from(42u64)));
+
+        // SAFETY: only the plain scalar bytes are read after the drop.
+        unsafe { std::mem::ManuallyDrop::drop(&mut scalar) };
+
+        assert_eq!(scalar.0.to_bytes(), [0u8; 32]);
+    }
+
+    #[cfg(not(feature = "wasm"))]
+    #[test]
+    fn test_product_shuffle_secrets_are_zeroized_on_drop() {
+        fn assert_zeroize_on_drop<T: zeroize::ZeroizeOnDrop>(_: &T) {}
+
+        let ctx = RistrettoCtx;
+        let pk = PrivateKey::gen(&ctx).get_pk();
+        let es = crate::util::random_product_ciphertexts(2, 1, &ctx);
+        let hs = ctx.generators(es.rows().len() + 1, &[]).unwrap();
+        let shuffler = crate::shuffler_product::Shuffler::new(&pk, &hs, &ctx);
+
+        let (_, rs, perm) = shuffler.gen_shuffle(&es);
+
+        assert_zeroize_on_drop(&perm);
+        assert_zeroize_on_drop(&rs[0][0]);
     }
 }

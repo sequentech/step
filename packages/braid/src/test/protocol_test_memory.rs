@@ -16,6 +16,7 @@ use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use zeroize::Zeroizing;
 
 use b3::messages::artifact::{Ballots, Configuration, Plaintexts};
 use b3::messages::message::Message;
@@ -200,8 +201,8 @@ pub fn create_protocol_test<C: Ctx>(
                 Trustee::new(
                     i.to_string(),
                     "foo".to_string(),
-                    sk,
-                    encryption_key,
+                    Arc::new(sk),
+                    Arc::new(Zeroizing::new(encryption_key)),
                     None,
                     None,
                 ),

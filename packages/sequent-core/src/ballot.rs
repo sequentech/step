@@ -43,11 +43,19 @@ pub type I18nContent<T = Option<String>> = HashMap<String, T>;
 
 pub type Annotations = HashMap<String, String>;
 
-#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Eq, Clone)]
 pub struct ReplicationChoice<C: Ctx> {
     pub ciphertext: Ciphertext<C>,
     pub plaintext: C::P,
     pub randomness: C::X,
+}
+
+impl<C: Ctx> std::fmt::Debug for ReplicationChoice<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReplicationChoice")
+            .field("ciphertext", &self.ciphertext)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(
@@ -3221,5 +3229,32 @@ mod support_materials_policy_tests {
             materials.effective_policy(),
             SupportMaterialsPolicy::MandatoryForVoting
         );
+    }
+}
+
+#[cfg(test)]
+mod replication_choice_tests {
+    use super::*;
+    use crate::encrypt::encrypt_plaintext_candidate;
+
+    #[test]
+    fn test_debug_redacts_plaintext_and_randomness() {
+        let ctx = RistrettoCtx;
+        let plaintext = [7u8; 30];
+        let (choice, _proof) = encrypt_plaintext_candidate(
+            &ctx,
+            ctx.generator().clone(),
+            plaintext,
+            b"replication choice debug",
+        )
+        .unwrap();
+        let randomness = choice.randomness.strand_serialize().unwrap();
+
+        let debug = format!("{:?}", choice);
+
+        assert!(debug.starts_with("ReplicationChoice"));
+        assert!(!debug.contains(&format!("{:?}", plaintext)));
+        assert!(!debug.contains(&format!("{:?}", randomness)));
+        assert!(!debug.contains(&hex::encode(&randomness)));
     }
 }
