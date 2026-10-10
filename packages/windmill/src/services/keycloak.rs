@@ -10,9 +10,11 @@ use rocket::http::Status;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::RoleAction;
 use sequent_core::services::s3::{get_file_from_s3, get_private_bucket};
+use sequent_core::types::permissions::RealmRolePolicy;
 use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
 use std::env;
+use std::path::Path;
 use tempfile::NamedTempFile;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -163,12 +165,25 @@ pub fn find_group_by_name(
         .find(|group| group.name.as_deref() == Some(group_name))
 }
 
+fn require_ordinary_permissions(csv_path: &Path) -> anyhow::Result<()> {
+    let mut reader = csv::Reader::from_path(csv_path)
+        .map_err(|e| anyhow!("Error reading roles and permissions config file: {e}"))?;
+    for result in reader.records() {
+        let record = result.map_err(|e| anyhow!("Error reading CSV record: {e:?}"))?;
+        for permission in record.get(1).unwrap_or_default().split('|') {
+            RealmRolePolicy::require_ordinary(permission)?;
+        }
+    }
+    Ok(())
+}
+
 #[instrument(err, skip_all)]
 pub async fn read_roles_config_file(
     temp_file: NamedTempFile,
     realm: &RealmRepresentation,
     tenant_id: &str,
 ) -> Result<()> {
+    require_ordinary_permissions(temp_file.path())?;
     let keycloak_pub_client = KeycloakAdminClient::pub_new().await?;
     let keycloak_client = KeycloakAdminClient::new()
         .await
@@ -323,7 +338,10 @@ pub async fn read_roles_config_file(
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_realm_config_s3_key, parse_realm_config, read_roles_config_file};
+    use super::{
+        normalize_realm_config_s3_key, parse_realm_config, read_roles_config_file,
+        require_ordinary_permissions,
+    };
     use keycloak::types::RealmRepresentation;
     use std::io::Write;
     use tempfile::NamedTempFile;
@@ -404,5 +422,12 @@ mod tests {
 
             assert!(format!("{error}").contains("reserved"), "{error}");
         }
+    }
+
+    #[test]
+    fn roles_config_with_ordinary_permissions_is_accepted() {
+        let file = roles_config("admin,election-event-read|tally-read\nauditors,logs-read\n");
+
+        require_ordinary_permissions(file.path()).expect("ordinary permissions");
     }
 }

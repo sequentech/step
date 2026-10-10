@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, require_ordinary_permission};
 
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -35,6 +35,9 @@ pub async fn create_role(
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_READ],
     )?;
+    for permission in input.role.permissions.iter().flatten() {
+        require_ordinary_permission(permission)?;
+    }
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
