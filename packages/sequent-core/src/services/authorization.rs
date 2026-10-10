@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2023 Félix Robles <felix@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use super::jwt::JwtClaims;
+use super::jwt::{decode_permission_labels, JwtClaims};
 use crate::ballot::{VotingStatus, VotingStatusChannel};
 use crate::types::permissions::{Permissions, VoterPermissions};
 use anyhow::Context;
@@ -122,6 +122,22 @@ pub fn authorize_with(
     }
 }
 
+/// The election permission labels of an admin, applied as Hasura applies
+/// `X-Hasura-Permission-Labels` to elections: an election without a label is
+/// open to every admin, a labelled one only to admins holding its label.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PermissionLabels(HashSet<String>);
+
+impl PermissionLabels {
+    pub fn from_claims(claims: &JwtClaims) -> Self {
+        Self(decode_permission_labels(claims).into_iter().collect())
+    }
+
+    pub fn allows(&self, election_label: Option<&str>) -> bool {
+        election_label.map_or(true, |label| self.0.contains(label))
+    }
+}
+
 // returns area_id
 #[instrument(skip(claims))]
 pub fn authorize_voter_election(
@@ -186,5 +202,47 @@ mod voter_client_tests {
         }
         assert!("admin-portal".parse::<VoterClient>().is_err());
         assert!("".parse::<VoterClient>().is_err());
+    }
+}
+
+#[cfg(test)]
+mod permission_label_tests {
+    use super::*;
+
+    fn admin(permission_labels: Option<&str>) -> JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": "tenant",
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": ["admin-user"],
+                "x-hasura-permission-labels": permission_labels
+            }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn labelled_admin_is_allowed_unlabelled_and_own_label_elections_only() {
+        let labels =
+            PermissionLabels::from_claims(&admin(Some(r#"{"north", "east"}"#)));
+        assert!(labels.allows(None));
+        assert!(labels.allows(Some("north")));
+        assert!(labels.allows(Some("east")));
+        assert!(!labels.allows(Some("south")));
+        assert!(!labels.allows(Some("")));
+    }
+
+    #[test]
+    fn admin_without_labels_is_allowed_unlabelled_elections_only() {
+        for claim in [None, Some("{}"), Some("")] {
+            let labels = PermissionLabels::from_claims(&admin(claim));
+            assert!(labels.allows(None), "{claim:?}");
+            assert!(!labels.allows(Some("north")), "{claim:?}");
+        }
     }
 }
