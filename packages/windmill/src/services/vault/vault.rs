@@ -117,6 +117,18 @@ pub async fn save_secret(
 }
 
 #[instrument(skip(hasura_transaction, value), err)]
+pub async fn replace_secret(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    delete_secret_by_key(hasura_transaction, tenant_id, election_event_id, key).await?;
+    save_secret(hasura_transaction, tenant_id, election_event_id, key, value).await
+}
+
+#[instrument(skip(hasura_transaction, value), err)]
 pub async fn save_secret_and_return(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
