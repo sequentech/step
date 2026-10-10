@@ -232,14 +232,18 @@ async fn accept_datafix_ballot_locked(
     result
 }
 
-/// Maps a post-insert error to the caller's retry contract: an exceeded revote
-/// limit is terminal and surfaced as `SkipRetryFailure`, every other error
+/// Maps a post-insert error to the caller's retry contract: a refusal that a
+/// retry cannot change, such as an exceeded revote limit or voting being
+/// closed, is terminal and surfaced as `SkipRetryFailure`, every other error
 /// propagates for the normal retry path.
 #[instrument]
 fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResult, CastVoteError> {
     match cast_vote_err {
         CastVoteError::InsertFailedExceedsAllowedRevotes
-        | CastVoteError::CheckVotesInOtherAreasFailed(_) => {
+        | CastVoteError::CheckVotesInOtherAreasFailed(_)
+        | CastVoteError::CheckStatusFailed(_)
+        | CastVoteError::VotingChannelNotEnabled(_)
+        | CastVoteError::BallotIdMismatch(_) => {
             Ok(InsertCastVoteResult::SkipRetryFailure(cast_vote_err))
         }
         _ => Err(cast_vote_err),

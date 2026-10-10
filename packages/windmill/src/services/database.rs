@@ -248,8 +248,9 @@ pub async fn try_get_queue_pool() -> Result<Arc<Pool>> {
     QUEUE_POOL
         .get_or_try_init(|| async {
             let pool = generate_queue_pool().await?;
-            assert_standard_conforming_strings(&pool)
+            tokio::time::timeout(QUEUE_DB_TIMEOUT, assert_standard_conforming_strings(&pool))
                 .await
+                .map_err(|_| anyhow!("Task-queue DB: standard_conforming_strings check timed out"))?
                 .map_err(|error| {
                     anyhow!("Task-queue DB: standard_conforming_strings check failed: {error}")
                 })?;

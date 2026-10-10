@@ -53,10 +53,11 @@ Each component connects with a role of its own:
 
 The connection is configured with `QUEUE_DB__HOST`, `QUEUE_DB__PORT`,
 `QUEUE_DB__DBNAME`, `QUEUE_DB__USER`, `QUEUE_DB__PASSWORD` and, optionally,
-`QUEUE_DB__SSL_MODE` (`Disable`, `Prefer` or `Require`) and `QUEUE_DB_CA_PATH`;
-with `Require` and a CA, Keycloak verifies the server's certificate and host name. The
-user is the component's role. Keycloak also reads `QUEUE_DB__POOL__MAX_SIZE` (10 by
-default) for its connection pool. Every service needs `ENV_SLUG`: a service refuses a
+`QUEUE_DB__SSL_MODE` (`Disable`, `Prefer` or `Require`) and `QUEUE_DB_CA_PATH`.
+Windmill, Beat and Harvest need the CA with `Prefer` or `Require`; with `Require` and
+a CA, Keycloak verifies the server's certificate and host name. The user is the
+component's role. Keycloak also reads `QUEUE_DB__POOL__MAX_SIZE` (10 by default) for
+its connection pool. Every service needs `ENV_SLUG`: a service refuses a
 task-queue database that is not set up, or that belongs to another environment, and
 does not create queues.
 
@@ -66,11 +67,14 @@ does not create queues.
    database. In a deployment the infrastructure code does this, per environment; in
    development `.devcontainer/postgresql/init-task-queues.sh` does it when the
    `postgres` volume is created. A volume created before the task queues, also on a
-   remote or airgap host, needs the script run once by hand; it is idempotent:
+   remote or airgap host, needs the script run once by hand, and then the setup; both
+   are idempotent. On a remote host, first add the `QUEUE_DB_*` settings of
+   `.env.remote-deployment.example` to its `.env`.
 
    ```sh
    docker compose up -d postgres
    docker exec postgres sh /docker-entrypoint-initdb.d/30-task-queues.sh
+   docker compose up task-queues-setup
    ```
 2. **Set up** the database as its owner:
 
