@@ -197,6 +197,25 @@ class CatalogTest(unittest.TestCase):
         self.assertNotIn("users", dev)
         self.assertEqual(dev["realm"], realm["realm"])
 
+    def test_messaging_realm_keeps_all_fixture_portal_clients(self):
+        from scripts.dev.scenario import messaging
+        from scripts.dev.scenario.settings import PORTAL_CLIENTS
+
+        fixture = fixtures.election_event("http://127.0.0.1:3000", "messaging")[
+            "keycloak_event_realm"
+        ]
+        realm = messaging.dev_event_realm(fixture)
+        imported = {client["clientId"]: client for client in realm["clients"]}
+        originals = {client["clientId"]: client for client in fixture["clients"]}
+        for client_id in PORTAL_CLIENTS:
+            with self.subTest(client=client_id):
+                self.assertIn(client_id, imported)
+                self.assertEqual(
+                    imported[client_id]["redirectUris"], originals[client_id]["redirectUris"]
+                )
+                self.assertIsNot(imported[client_id], originals[client_id])
+        self.assertFalse(imported["voting-portal-kiosk"].get("authenticationFlowBindingOverrides"))
+
     def test_every_scenario_tenant_is_a_known_organization(self):
         from scripts.dev.scenario import tenants
 

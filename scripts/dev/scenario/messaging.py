@@ -420,6 +420,14 @@ def dev_event_realm(fixture_realm: dict[str, Any]) -> dict[str, Any]:
     fixture_clients = {
         client["clientId"]: client for client in fixture_realm.get("clients") or []
     }
+    existing_clients = {client["clientId"] for client in realm.get("clients") or []}
+    for client_id, client in fixture_clients.items():
+        if client_id not in existing_clients:
+            added = copy.deepcopy(client)
+            # Fixture flow IDs belong to a different realm. New portal clients
+            # inherit this realm's single-channel browser policy.
+            added.pop("authenticationFlowBindingOverrides", None)
+            realm.setdefault("clients", []).append(added)
     for client in realm.get("clients") or []:
         source = fixture_clients.get(client["clientId"])
         if source is None:
