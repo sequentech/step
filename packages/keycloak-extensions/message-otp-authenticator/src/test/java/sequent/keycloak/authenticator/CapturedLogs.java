@@ -5,6 +5,7 @@
 package sequent.keycloak.authenticator;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -16,7 +17,7 @@ public final class CapturedLogs implements AutoCloseable {
   private final Logger logger;
   private final Level previousLevel;
   private final boolean previousUseParentHandlers;
-  private final List<String> messages = new ArrayList<>();
+  private final List<String> messages = Collections.synchronizedList(new ArrayList<>());
   private final Handler handler =
       new Handler() {
         private final SimpleFormatter formatter = new SimpleFormatter();
@@ -44,7 +45,9 @@ public final class CapturedLogs implements AutoCloseable {
   }
 
   public String text() {
-    return String.join("\n", messages);
+    synchronized (messages) {
+      return String.join("\n", messages);
+    }
   }
 
   @Override

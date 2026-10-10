@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -31,7 +32,7 @@ class AuthorizedElectionsServiceTokenTest {
   private static final String TOKEN_PATH =
       "/realms/tenant-" + TENANT_ID + "/protocol/openid-connect/token";
 
-  private final List<String> logMessages = new ArrayList<>();
+  private final List<String> logMessages = Collections.synchronizedList(new ArrayList<>());
   private final List<Logger> capturedLoggers = new ArrayList<>();
   private final Handler logHandler =
       new Handler() {
@@ -94,7 +95,9 @@ class AuthorizedElectionsServiceTokenTest {
   }
 
   private String capturedLogs() {
-    return String.join("\n", logMessages);
+    synchronized (logMessages) {
+      return String.join("\n", logMessages);
+    }
   }
 
   @Test
