@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::validate_keycloak_path_segment;
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
 use crate::util::convert_vec::convert_map;
@@ -306,6 +307,7 @@ impl KeycloakAdminClient {
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> Result<(Vec<User>, i32)> {
+        validate_keycloak_path_segment(realm)?;
         let user_representations: Vec<UserRepresentation> = self
             .client
             .realm_users_get(
@@ -344,6 +346,8 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn get_user(&self, realm: &str, user_id: &str) -> Result<User> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
         let current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
@@ -366,6 +370,8 @@ impl KeycloakAdminClient {
         password: Option<String>,
         temporary: Option<bool>,
     ) -> Result<User> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
         let credentials = match password {
             Some(val) => Some(
                 [
@@ -414,6 +420,8 @@ impl KeycloakAdminClient {
         credentials: Option<Vec<CredentialRepresentation>>,
         temporary: Option<bool>,
     ) -> Result<User> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
@@ -484,6 +492,8 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn delete_user(&self, realm: &str, user_id: &str) -> Result<()> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
         self.client
             .realm_users_with_user_id_delete(realm, user_id)
             .await
@@ -499,6 +509,7 @@ impl KeycloakAdminClient {
         attributes: Option<HashMap<String, Vec<String>>>,
         groups: Option<Vec<String>>,
     ) -> Result<User> {
+        validate_keycloak_path_segment(realm)?;
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
         new_user_keycloak.id = None;
         new_user_keycloak.attributes = attributes.clone();
@@ -536,6 +547,7 @@ impl KeycloakAdminClient {
         self: &KeycloakAdminClient,
         realm: &str,
     ) -> Result<Vec<UserProfileAttribute>> {
+        validate_keycloak_path_segment(realm)?;
         Ok(self.get_user_profile_configuration(realm).await?.attributes)
     }
 
@@ -544,6 +556,7 @@ impl KeycloakAdminClient {
         self: &KeycloakAdminClient,
         realm: &str,
     ) -> Result<UserProfileConfiguration> {
+        validate_keycloak_path_segment(realm)?;
         let response: UPConfig = self
             .client
             .realm_users_profile_get(&realm)
@@ -558,6 +571,8 @@ impl KeycloakAdminClient {
         realm: &str,
         user_id: &str,
     ) -> Result<Vec<GroupInfo>> {
+        validate_keycloak_path_segment(realm)?;
+        validate_keycloak_path_segment(user_id)?;
         let response: Vec<GroupRepresentation> = self
             .client
             .realm_users_with_user_id_groups_get(

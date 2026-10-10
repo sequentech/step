@@ -14,6 +14,7 @@ use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::services::jwt;
 use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::keycloak::validate_keycloak_scope;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::types::keycloak::Permission;
 use sequent_core::types::permissions::Permissions;
@@ -36,6 +37,8 @@ pub async fn get_permissions(
     body: Json<GetPermissionsBody>,
 ) -> Result<Json<DataList<Permission>>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -73,6 +76,8 @@ pub async fn create_permission(
     body: Json<CreatePermissionsBody>,
 ) -> Result<Json<Permission>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,
@@ -138,6 +143,8 @@ async fn edit_role_permission(
     input: SetOrDeleteRolePermissionsBody,
     change: RolePermissionChange,
 ) -> Result<Json<OptionalId>, (Status, String)> {
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     let holds_user_permission_write = claims
         .hasura_claims
         .allowed_roles
@@ -173,6 +180,8 @@ pub async fn delete_permission(
     body: Json<DeletePermissionBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
+    validate_keycloak_scope(&input.tenant_id, None)
+        .map_err(|error| (Status::BadRequest, error.to_string()))?;
     authorize(
         &claims,
         true,

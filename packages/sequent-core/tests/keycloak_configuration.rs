@@ -807,8 +807,6 @@ async fn group_updates_report_rejection_and_require_an_identifier() {
         Exchange::json("PUT", group_path, 403, json!({"error": "forbidden"})),
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
         Exchange::json("PUT", group_path, 204, Value::Null),
-        // The current implementation authenticates before validating the id.
-        Exchange::json("POST", token_endpoint, 200, http::token_json()),
     ]);
     let _environment = admin_environment(&peer.url);
     let mut group: GroupRepresentation =
@@ -824,8 +822,22 @@ async fn group_updates_report_rejection_and_require_an_identifier() {
     group.id = None;
     assert!(peer.client().update_group("north", &group).await.is_err());
     let requests = peer.finish();
-    assert_eq!(requests.len(), 5);
+    assert_eq!(requests.len(), 4);
     assert_eq!(requests[1].json(), requests[3].json());
+}
+
+#[rocket::async_test]
+async fn group_updates_reject_identifiers_that_leave_their_path_segment() {
+    let peer = HttpServer::start(vec![]);
+    let bad = "../../other-realm";
+    let group: GroupRepresentation =
+        serde_json::from_value(json!({"id": "group-1", "name": "Clerks"}))
+            .unwrap();
+    let outside: GroupRepresentation =
+        serde_json::from_value(json!({"id": bad, "name": "Clerks"})).unwrap();
+    assert!(peer.client().update_group(bad, &group).await.is_err());
+    assert!(peer.client().update_group("north", &outside).await.is_err());
+    assert!(peer.finish().is_empty());
 }
 
 #[rocket::async_test]

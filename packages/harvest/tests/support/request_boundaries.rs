@@ -24,8 +24,8 @@ mod http;
 #[path = "route_permissions.rs"]
 mod route_permissions;
 
-const TENANT_ID: &str = "tenant-a";
-const OTHER_TENANT_ID: &str = "tenant-b";
+const TENANT_ID: &str = "7d6f1c2a-5b0e-4e0a-9a43-2f6c1b8d9e10";
+const OTHER_TENANT_ID: &str = "c1a9d4f7-3e58-4b62-8f0d-6a2e7b9c4d31";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
@@ -135,13 +135,13 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
             ),
             http::Exchange::json(
                 "POST",
-                "/admin/realms/tenant-tenant-a/groups",
+                &format!("/admin/realms/tenant-{TENANT_ID}/groups"),
                 201,
                 json!({}),
             ),
             http::Exchange::json(
                 "GET",
-                "/admin/realms/tenant-tenant-a/groups",
+                &format!("/admin/realms/tenant-{TENANT_ID}/groups"),
                 200,
                 json!([{"id":"new-role", "name":"Election observer"}]),
             ),
@@ -374,11 +374,11 @@ async fn document_password_requires_both_download_and_password_permissions() {
 async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
     // Choose an ordinary tenant even when the caller's environment names our
     // usual fixture tenant as super-admin. Never mutate process-global settings.
-    let tenant_id =
+    let (tenant_id, other_tenant_id) =
         if std::env::var("SUPER_ADMIN_TENANT_ID").as_deref() == Ok(TENANT_ID) {
-            OTHER_TENANT_ID
+            (OTHER_TENANT_ID, TENANT_ID)
         } else {
-            TENANT_ID
+            (TENANT_ID, OTHER_TENANT_ID)
         };
     let client = client().await;
     for path in ["/set-user-role", "/delete-user-role"] {
@@ -387,7 +387,7 @@ async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
             (tenant_id, vec![Permissions::USER_WRITE]),
             (tenant_id, vec![Permissions::ROLE_WRITE]),
             (
-                "fixture-other-request-tenant",
+                other_tenant_id,
                 vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
             ),
         ] {
