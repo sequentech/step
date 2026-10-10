@@ -114,7 +114,7 @@ encryption_key = "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg"
 
 ### Sample Configurations
 
-`packages/braid/scripts/trustee1.toml`, `trustee2.toml` and `trustee3.toml` (also used in the examples above) are sample configurations for the local development environment, which mounts them read-only into the trustee containers and sets `TRUSTEE_SAMPLE_KEYS_POLICY=Allow`. The braid images do not include them. With the default policy `Deny`, a trustee whose configuration is one of these samples, whatever its source, stops at startup with an error. Replace that configuration with one produced by `gen_trustee_config`, or leave it out so that the trustee generates one.
+`packages/braid/scripts/trustee1.toml`, `trustee2.toml` and `trustee3.toml` (also used in the examples above) are sample configurations for the local development environment, which mounts them read-only into the trustee containers and sets `TRUSTEE_SAMPLE_KEYS_POLICY=Allow`. The braid images do not include them. With the default policy `Deny`, a trustee whose configuration is one of these samples, whatever its source, stops at startup with an error; a configuration counts as a sample when it uses the secret keys of one of them. The examples above use the credentials of `trustee1.toml`: to run them as written, set `TRUSTEE_SAMPLE_KEYS_POLICY=Allow`, or replace the keys with generated ones. Replace that configuration with one produced by `gen_trustee_config`, or leave it out so that the trustee generates one.
 
 ## Configuration Generation
 
