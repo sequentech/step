@@ -4,6 +4,9 @@
 
 use keycloak::types::{RealmRepresentation, UserRepresentation};
 
+const ADMIN_USERNAME: &str = "admin";
+const UPDATE_PASSWORD_ACTION: &str = "UPDATE_PASSWORD";
+
 pub(super) enum TenantBootstrapAdminPolicy {
     ServiceAccount,
     PasswordlessAdmin,
@@ -19,8 +22,9 @@ impl TenantBootstrapAdminPolicy {
                 Self::PasswordlessAdmin => {
                     user.credentials = None;
                     let actions = user.required_actions.get_or_insert_with(Vec::new);
-                    if !actions.iter().any(|action| action == "UPDATE_PASSWORD") {
-                        actions.push("UPDATE_PASSWORD".to_string());
+                    let update_password = UPDATE_PASSWORD_ACTION.to_string();
+                    if !actions.contains(&update_password) {
+                        actions.push(update_password);
                     }
                     true
                 }
@@ -37,7 +41,7 @@ impl TenantBootstrapAdminPolicy {
             .is_some_and(|id| !id.is_empty())
         {
             Self::ServiceAccount
-        } else if user.username.as_deref() == Some("admin") {
+        } else if user.username.as_deref() == Some(ADMIN_USERNAME) {
             Self::PasswordlessAdmin
         } else {
             Self::DiscardHumanSeed
