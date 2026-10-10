@@ -68,6 +68,8 @@ pub async fn write_export_roles_permissions_config(
     Ok(temp_file)
 }
 
+/// Builds the tenant configuration archive in a temp file, removed when the
+/// export ends, and uploads it as the document `document_id`.
 #[instrument(err)]
 pub async fn process_export_zip(
     tenant_id: &str,

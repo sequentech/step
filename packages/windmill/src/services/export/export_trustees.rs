@@ -18,6 +18,8 @@ use zip::write::FileOptions;
 const EXPORT_TRUSTEES_FILENAME: &str = "export-trustees.zip";
 const EXPORT_TRUSTEES_TEMP_PREFIX: &str = "export-trustees-";
 
+/// Exports the configuration of every trustee of the tenant as an encrypted
+/// zip and uploads it as the document `document_id`.
 #[instrument(err, skip(transaction))]
 pub async fn read_trustees_config_base(
     transaction: &Transaction<'_>,
@@ -78,6 +80,9 @@ pub async fn read_trustees_config_base(
     Ok(())
 }
 
+/// Zips each trustee's configuration as `<name>/<name>.toml`, encrypts the
+/// archive with `encryption_password` and returns the encrypted file, which
+/// is removed when it is dropped.
 async fn write_encrypted_trustees_zip(
     trustee_configs: &[(String, String)],
     encryption_password: &str,
@@ -148,6 +153,8 @@ mod tests {
     use std::io::Read;
     use std::path::Path;
 
+    /// Decrypts the archive at `path` and returns its entries as
+    /// `(name, content)` pairs.
     fn read_encrypted_trustees_zip(path: &Path, password: &str) -> Result<Vec<(String, String)>> {
         let decrypted = NamedTempFile::new()?;
         decrypt_file_aes_256_cbc(
@@ -166,10 +173,13 @@ mod tests {
         Ok(entries)
     }
 
+    /// The configuration of a single trustee, as the archive writer takes it.
     fn trustee_config(name: &str, config: &str) -> Vec<(String, String)> {
         vec![(name.to_string(), config.to_string())]
     }
 
+    /// Archives written one after the other each hold only the configuration
+    /// of their own trustee.
     #[tokio::test]
     async fn each_trustee_export_keeps_its_own_archive() -> Result<()> {
         let first =
@@ -190,6 +200,7 @@ mod tests {
         Ok(())
     }
 
+    /// The encrypted archive no longer exists once the export drops it.
     #[tokio::test]
     async fn trustee_export_archive_is_removed_when_dropped() -> Result<()> {
         let encrypted =
