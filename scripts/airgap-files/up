@@ -33,6 +33,11 @@ docker system prune -f
 
 echo "Loading environment variables..."
 source .env
+# Host-side requests must target the address the ports are published on.
+HASURA_HOST="${BIND_ADDRESS:-127.0.0.1}"
+if [[ "$HASURA_HOST" == "0.0.0.0" ]]; then
+    HASURA_HOST=127.0.0.1
+fi
 echo "Creating resources..."
 mkdir -p simplesaml
 touch simplesaml/{authsources,saml20-sp-remote}.php
@@ -105,12 +110,12 @@ update_trustee_public_keys() {
                         }')
 
                     # Perform the curl request and capture response body and HTTP status code
-                    RESPONSE=$(curl -s -w "|||%{http_code}" 'http://localhost:8080/v2/query' \
+                    RESPONSE=$(curl -s -w "|||%{http_code}" "http://$HASURA_HOST:8080/v2/query" \
                         -H 'Accept: */*' \
                         -H 'Cache-Control: no-cache' \
                         -H 'Content-Type: application/json' \
                         -H 'Hasura-Client-Name: hasura-console' \
-                        -H 'Origin: http://localhost:8080' \
+                        -H "Origin: http://$HASURA_HOST:8080" \
                         -H "x-hasura-admin-secret: $KEYCLOAK_ADMIN_CLIENT_SECRET" \
                         --data-raw "$JSON_DATA")
 
@@ -153,7 +158,7 @@ if [[ -n "$ezip_path" && -n "$password" ]]; then
     RETRY_INTERVAL=10 # seconds
 
     for ((i=1;i<=MAX_RETRIES;i++)); do
-        if curl -s http://localhost:8080/healthz >/dev/null; then
+        if curl -s http://$HASURA_HOST:8080/healthz >/dev/null; then
             echo "GraphQL is up!"
             break
         else
