@@ -62,6 +62,17 @@ fn parse_requested<T: FromStr>(
     })
 }
 
+/// Whether the stored setting `current` differs from the `requested` one. A
+/// stored value that does not parse counts as different.
+fn differs_from_current<T: FromStr + PartialEq>(
+    current: &str,
+    requested: &T,
+) -> bool {
+    !current
+        .parse::<T>()
+        .is_ok_and(|current| &current == requested)
+}
+
 #[instrument(skip(claims))]
 #[post("/set-voter-authentication", format = "json", data = "<input>")]
 pub async fn set_voter_authentication(
@@ -121,7 +132,7 @@ pub async fn set_voter_authentication(
 
     // Update enrollment if it has changed
     if let Some(enrollment) =
-        enrollment.filter(|value| prev_enrollment != value.to_string())
+        enrollment.filter(|value| differs_from_current(&prev_enrollment, value))
     {
         let enable_enrollment = enrollment == Enrollment::ENABLED;
         info!("Updating enrollment to: {}", enable_enrollment);
@@ -141,7 +152,9 @@ pub async fn set_voter_authentication(
         })?;
     }
 
-    if let Some(otp) = otp.filter(|value| prev_otp != value.to_string()) {
+    if let Some(otp) =
+        otp.filter(|value| differs_from_current(&prev_otp, value))
+    {
         let new_otp_state = match otp {
             Otp::ENABLED => "REQUIRED".to_string(),
             Otp::DISABLED => "DISABLED".to_string(),
@@ -246,6 +259,20 @@ mod voter_authentication_tests {
             parse_requested::<Otp>("disabled", "otp"),
             Ok(Some(Otp::DISABLED))
         );
+    }
+
+    #[test]
+    fn unchanged_settings_are_detected_by_value() {
+        assert!(!differs_from_current("enabled", &Enrollment::ENABLED));
+        assert!(!differs_from_current("disabled", &Otp::DISABLED));
+        assert!(differs_from_current("disabled", &Enrollment::ENABLED));
+        assert!(differs_from_current("enabled", &Otp::DISABLED));
+    }
+
+    #[test]
+    fn unparsable_stored_settings_count_as_changed() {
+        assert!(differs_from_current("REQUIRED", &Otp::ENABLED));
+        assert!(differs_from_current("", &Enrollment::DISABLED));
     }
 
     #[test]
