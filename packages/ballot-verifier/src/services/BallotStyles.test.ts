@@ -4,6 +4,7 @@
 
 import {AppDispatch} from "../store/store"
 import {
+    EPublishedBallotStyleLookup,
     GetPublishedBallotStylesQuery,
     findPublishedBallotStyle,
     updateBallotStyleAndSelection,
@@ -89,20 +90,32 @@ describe("findPublishedBallotStyle", () => {
         ],
     } as GetPublishedBallotStylesQuery
 
-    it("returns the ballot style with that id from a published publication", () => {
-        expect(findPublishedBallotStyle(data, "published-style")).toEqual({id: "published-style"})
+    it("finds the ballot style with that id from a published publication", () => {
+        expect(findPublishedBallotStyle(data, "published-style")).toEqual({
+            status: EPublishedBallotStyleLookup.FOUND,
+            ballotStyle: {id: "published-style"},
+        })
     })
 
     it.each([
         ["of a publication that is not published", "draft-style"],
         ["that is not listed", "unknown-style"],
-        ["whose ballot style cannot be read", "unreadable-style"],
-    ])("returns null for an id %s", (_, ballotStyleId) => {
-        expect(findPublishedBallotStyle(data, ballotStyleId)).toBeNull()
+        ["that is missing", undefined],
+    ])("reports an id %s as not published", (_, ballotStyleId) => {
+        expect(findPublishedBallotStyle(data, ballotStyleId)).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_PUBLISHED,
+        })
     })
 
-    it("returns null before the ballot styles load or without an id", () => {
-        expect(findPublishedBallotStyle(undefined, "published-style")).toBeNull()
-        expect(findPublishedBallotStyle(data, undefined)).toBeNull()
+    it("reports a published ballot style that cannot be read apart from an unpublished one", () => {
+        expect(findPublishedBallotStyle(data, "unreadable-style")).toEqual({
+            status: EPublishedBallotStyleLookup.UNREADABLE,
+        })
+    })
+
+    it("reports ballot styles that have not loaded apart from an unpublished one", () => {
+        expect(findPublishedBallotStyle(undefined, "published-style")).toEqual({
+            status: EPublishedBallotStyleLookup.NOT_LOADED,
+        })
     })
 })

@@ -19,12 +19,7 @@ import {
     theme,
     Dialog,
 } from "@sequentech/ui-essentials"
-import {
-    IAuditableBallot,
-    IAuditableMultiBallot,
-    IAuditableSingleBallot,
-    IBallotStyle,
-} from "@sequentech/ui-core"
+import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@sequentech/ui-core"
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
@@ -41,7 +36,9 @@ import {TenantEventContext} from ".."
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {useAppDispatch} from "../store/hooks"
 import {
+    EPublishedBallotStyleLookup,
     GetPublishedBallotStylesQuery,
+    PublishedBallotStyleLookup,
     findPublishedBallotStyle,
     updateBallotStyleAndSelection,
 } from "../services/BallotStyles"
@@ -174,7 +171,7 @@ export const HomeScreen: React.FC<IProps> = ({
 
     const handleAuditableBallot = (
         auditableBallot: IAuditableBallot | null,
-        ballotStyle: IBallotStyle | null
+        ballotStyleLookup: PublishedBallotStyleLookup
     ) => {
         if (!auditableBallot?.config?.id) {
             setShowError(true)
@@ -182,12 +179,17 @@ export const HomeScreen: React.FC<IProps> = ({
             setConfirmationBallot(null)
             return
         }
-        if (null === ballotStyle) {
+        if (EPublishedBallotStyleLookup.FOUND !== ballotStyleLookup.status) {
             setShowError(false)
-            setFailedCheck(EBallotCiphertextCheck.UNPUBLISHED_STYLE)
+            setFailedCheck(
+                EPublishedBallotStyleLookup.NOT_PUBLISHED === ballotStyleLookup.status
+                    ? EBallotCiphertextCheck.UNPUBLISHED_STYLE
+                    : EBallotCiphertextCheck.UNAVAILABLE_STYLE
+            )
             setConfirmationBallot(null)
             return
         }
+        const {ballotStyle} = ballotStyleLookup
         // The ballot is decoded and checked with the given ballot style, never
         // with the copy of it that the file carries.
         const publishedBallot: IAuditableBallot = {...auditableBallot, config: ballotStyle}
@@ -297,7 +299,10 @@ export const HomeScreen: React.FC<IProps> = ({
         }
         // The sample is generated here rather than uploaded, so the ballot
         // style it carries is the one to check it against.
-        handleAuditableBallot(auditableBallot, auditableBallot.config)
+        handleAuditableBallot(auditableBallot, {
+            status: EPublishedBallotStyleLookup.FOUND,
+            ballotStyle: auditableBallot.config,
+        })
         let ballotHash = ballotService.hashBallot512(auditableBallot)
         setBallotId(ballotHash)
     }
@@ -378,6 +383,21 @@ export const HomeScreen: React.FC<IProps> = ({
                 <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
                 <Typography variant="body2">
                     {t("homeScreen.unpublishedStyleErrorDescription")}
+                </Typography>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{
+                    display:
+                        EBallotCiphertextCheck.UNAVAILABLE_STYLE === failedCheck
+                            ? undefined
+                            : "none",
+                }}
+                data-testid="unavailable-style-error"
+            >
+                <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.unavailableStyleErrorDescription")}
                 </Typography>
             </Alert>
             <DropFile handleFiles={handleFiles} />
