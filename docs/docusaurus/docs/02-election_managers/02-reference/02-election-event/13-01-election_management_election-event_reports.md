@@ -71,6 +71,12 @@ To protect sensitive information, reports can be encrypted with a user-chosen pa
 
 > **Note:** Encrypted reports retain their encryption when exported and re-imported. The same password must be used to decrypt them regardless of context.
 
+#### Tally Result Documents
+
+The result documents of a tally follow the **Electoral Results** or **Initialization Report** report of each election, depending on the tally type. An election's documents are encrypted when its own report uses a configured password; an election without its own report follows a report of that type with no election, if there is one.
+
+The tally archive covers every election in the tally. It is encrypted when any of those elections requires a password, so when several of them do, give their reports the same password. If their passwords differ, saving the tally results fails with an error that asks for the same password.
+
 ---
 
 With these instructions, users can configure one-off or scheduled reports, and choose to encrypt sensitive report outputs. Adjust terminology or examples according to your UI labels and workflow.
