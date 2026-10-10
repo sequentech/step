@@ -7524,6 +7524,8 @@ type ballot_publication {
   deleted_at: timestamptz
   """An object relationship"""
   election: election
+  """An object relationship"""
+  election_event: election_event
   election_event_id: uuid!
   election_id: uuid
   election_ids: [uuid!]
@@ -7572,6 +7574,7 @@ input ballot_publication_bool_exp {
   created_by_user_id: String_comparison_exp
   deleted_at: timestamptz_comparison_exp
   election: election_bool_exp
+  election_event: election_event_bool_exp
   election_event_id: uuid_comparison_exp
   election_id: uuid_comparison_exp
   election_ids: uuid_array_comparison_exp
@@ -7625,6 +7628,7 @@ input ballot_publication_insert_input {
   created_by_user_id: String
   deleted_at: timestamptz
   election: election_obj_rel_insert_input
+  election_event: election_event_obj_rel_insert_input
   election_event_id: uuid
   election_id: uuid
   election_ids: [uuid!]
@@ -7689,6 +7693,7 @@ input ballot_publication_order_by {
   created_by_user_id: order_by
   deleted_at: order_by
   election: election_order_by
+  election_event: election_event_order_by
   election_event_id: order_by
   election_id: order_by
   election_ids: order_by
@@ -10920,6 +10925,15 @@ type election_event_mutation_response {
   affected_rows: Int!
   """data from the rows affected by the mutation"""
   returning: [election_event!]!
+}
+
+"""
+input type for inserting object relation for remote table "sequent_backend.election_event"
+"""
+input election_event_obj_rel_insert_input {
+  data: election_event_insert_input!
+  """upsert condition"""
+  on_conflict: election_event_on_conflict
 }
 
 """
