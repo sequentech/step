@@ -120,6 +120,6 @@ fn test_get_winners() {
         },
     ];
 
-    let winners = MarkWinners::get_winners(&contest_result);
+    let winners = MarkWinners::get_winners(&contest_result).expect("winners");
     assert_eq!(winners, expected_winners);
 }
