@@ -10,26 +10,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 The **ballot tracker** (the Ballot ID shown to the voter) is a hash of the
-encrypted ballot. From ballot version 3 on it also covers the ballot format
+encrypted ballot. From ballot version 2 on it also covers the ballot format
 (single-contest or multi-contest) and the ballot style the ballot was encrypted
 with. The ballot style covers the election, the area, the election public key
 and the contests and candidates in their order, so a ballot only matches its
 tracker under that exact ballot style.
 
-When a vote is cast, the server checks that a version 3 ballot names a ballot
+When a vote is cast, the server checks that a version 2 ballot names a ballot
 style currently published for the voter's area and election, and that its
 ballot style hash matches that ballot style.
 
-Ballots of version 2 have a tracker that covers only the issue date and the
-contests. Ballots cast with version 2 keep their tracker and still verify. The
-**ballot tracker policy** decides whether new version 2 ballots are accepted.
+Ballots of version 1 have a tracker that covers only the issue date and the
+contests. Ballots cast with version 1 keep their tracker and still verify. The
+**ballot tracker policy** decides whether new version 1 ballots are accepted.
+
+The ballot verifier compares the ballot style inside an auditable ballot with
+the published ballot styles. It reports a failed verification when the public
+key, the election, the area or the order of contests and candidates differ, or
+when no published ballot style has the same id. For an auditable ballot of
+version 1 it shows a warning, because the Ballot ID of such a ballot does not
+cover the ballot style.
 
 ## Values
 
 The policy is stored in the election event presentation, in the
 `ballot_tracker_policy` field.
 
-| Value | Wire value | New version 2 ballots |
+| Value | Wire value | New version 1 ballots |
 |---|---|---|
 | **Style bound** (default) | `style-bound` | Rejected |
 | **Allow legacy** | `allow-legacy` | Accepted without the ballot style check |
@@ -37,7 +44,7 @@ The policy is stored in the election event presentation, in the
 When the field is absent the policy is **Style bound**. Version 3 ballots are
 checked against the published ballot style under both values.
 
-Use **Allow legacy** only while a voting client that still produces version 2
+Use **Allow legacy** only while a voting client that still produces version 1
 ballots is in use.
 
 ## Rejected ballots
