@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
+use crate::types::permissions::RealmRolePolicy;
 use anyhow::{anyhow, Result};
 use keycloak::types::GroupRepresentation;
 use std::convert::From;
@@ -142,6 +143,9 @@ impl KeycloakAdminClient {
 
     #[instrument(skip(self), err)]
     pub async fn create_role(self, realm: &str, role: &Role) -> Result<Role> {
+        for permission in role.permissions.iter().flatten() {
+            RealmRolePolicy::require_ordinary(permission)?;
+        }
         self.client
             .realm_groups_post(realm, role.clone().into())
             .await

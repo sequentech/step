@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::access::{read_permission, UserScope};
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, require_ordinary_permission};
 use crate::services::dependencies::HarvestServices;
 use crate::services::role_permissions;
 
@@ -42,6 +42,9 @@ pub async fn create_role(
         Some(input.tenant_id.clone()),
         vec![Permissions::ROLE_CREATE],
     )?;
+    for permission in input.role.permissions.iter().flatten() {
+        require_ordinary_permission(permission)?;
+    }
     role_permissions::create_role(
         services,
         &claims,

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::jwt::JwtClaims;
 use crate::ballot::{VotingStatus, VotingStatusChannel};
-use crate::types::permissions::{Permissions, VoterPermissions};
+use crate::types::permissions::{
+    Permissions, RealmRolePolicy, VoterPermissions,
+};
 use anyhow::Context;
 use rocket::http::Status;
 use rocket::response::status::Unauthorized;
@@ -122,6 +124,12 @@ pub fn authorize_with(
     }
 }
 
+/// Rejects a permission name that is reserved for the platform.
+pub fn require_ordinary_permission(name: &str) -> Result<(), (Status, String)> {
+    RealmRolePolicy::require_ordinary(name)
+        .map_err(|error| (Status::BadRequest, error.to_string()))
+}
+
 // returns area_id
 #[instrument(skip(claims))]
 pub fn authorize_voter_election(
@@ -186,5 +194,24 @@ mod voter_client_tests {
         }
         assert!("admin-portal".parse::<VoterClient>().is_err());
         assert!("".parse::<VoterClient>().is_err());
+    }
+}
+
+#[cfg(test)]
+mod permission_name_tests {
+    use super::*;
+
+    #[test]
+    fn a_reserved_permission_name_is_a_bad_request() {
+        let (status, message) =
+            require_ordinary_permission("service-account").unwrap_err();
+
+        assert_eq!(status, Status::BadRequest);
+        assert!(message.contains("service-account"), "{message}");
+    }
+
+    #[test]
+    fn an_ordinary_permission_name_is_accepted() {
+        assert_eq!(require_ordinary_permission("election-event-read"), Ok(()));
     }
 }

@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::access::{deletable_permission, RolePermissionEdit};
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, require_ordinary_permission};
 use crate::services::dependencies::HarvestServices;
 use crate::services::role_permissions::change_role_permission;
 
@@ -79,6 +79,9 @@ pub async fn create_permission(
         Some(input.tenant_id.clone()),
         vec![Permissions::USER_PERMISSION_CREATE],
     )?;
+    if let Some(name) = &input.permission.name {
+        require_ordinary_permission(name)?;
+    }
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
         .await
@@ -147,6 +150,12 @@ async fn edit_role_permission(
         holds_user_permission_write,
     );
     authorize(claims, true, Some(input.tenant_id.clone()), edit.required())?;
+    match change {
+        RolePermissionChange::Added => {
+            require_ordinary_permission(&input.permission_name)?
+        }
+        RolePermissionChange::Removed => {}
+    }
     change_role_permission(
         services,
         claims,

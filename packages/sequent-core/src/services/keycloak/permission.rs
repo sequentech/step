@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::keycloak::KeycloakAdminClient;
 use crate::types::keycloak::*;
+use crate::types::permissions::RealmRolePolicy;
 use anyhow::{anyhow, Result};
 use keycloak::types::RoleRepresentation;
 use rocket::futures::future::join_all;
@@ -35,6 +36,15 @@ impl From<Permission> for RoleRepresentation {
             scope_param_required: None,
         }
     }
+}
+
+/// Checks the role as Keycloak stores it, which can be spelled differently
+/// from the name the role was requested by.
+fn require_ordinary_role(role: &RoleRepresentation) -> Result<()> {
+    if let Some(name) = role.name.as_deref() {
+        RealmRolePolicy::require_ordinary(name)?;
+    }
+    Ok(())
 }
 
 impl KeycloakAdminClient {
@@ -73,11 +83,13 @@ impl KeycloakAdminClient {
         role_id: &str,
         permission_name: &str,
     ) -> Result<()> {
+        RealmRolePolicy::require_ordinary(permission_name)?;
         let role_representation = self
             .client
             .realm_roles_with_role_name_get(realm, permission_name)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
+        require_ordinary_role(&role_representation)?;
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
@@ -96,6 +108,9 @@ impl KeycloakAdminClient {
         role_id: &str,
         permissions_name: &Vec<String>,
     ) -> Result<()> {
+        for permission_name in permissions_name {
+            RealmRolePolicy::require_ordinary(permission_name)?;
+        }
         let permission_roles: Vec<_> = permissions_name
             .into_iter()
             .map(|permission_name| {
@@ -111,6 +126,9 @@ impl KeycloakAdminClient {
         // after a failed lookup would silently install only part of the policy.
         let successful_results =
             results.into_iter().collect::<Result<Vec<_>, _>>()?;
+        for role in &successful_results {
+            require_ordinary_role(role)?;
+        }
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
@@ -163,8 +181,10 @@ impl KeycloakAdminClient {
         realm: &str,
         permission: &Permission,
     ) -> Result<Permission> {
+        let role: RoleRepresentation = permission.clone().into();
+        require_ordinary_role(&role)?;
         self.client
-            .realm_roles_post(realm, permission.clone().into())
+            .realm_roles_post(realm, role)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
 
