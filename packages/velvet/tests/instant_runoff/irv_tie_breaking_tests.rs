@@ -7,7 +7,10 @@ use sequent_core::ballot::{Candidate, Contest, TieBreakingPolicy, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::ceremonies::{TallySessionResolutionData, TieBreakingMethod};
-use velvet::pipes::do_tally::counting_algorithm::instant_runoff::{BallotsStatus, RunoffStatus};
+use std::collections::HashSet;
+use velvet::pipes::do_tally::counting_algorithm::instant_runoff::{
+    BallotsStatus, ECandidateStatus, RunoffStatus,
+};
 
 /// Helper: Create a simple 3-candidate contest
 fn create_test_contest_3_candidates() -> Contest {
@@ -51,6 +54,22 @@ fn create_test_contest_3_candidates() -> Contest {
         created_at: None,
         annotations: None,
         tie_breaking_policy: None, // Will be set per test
+    }
+}
+
+/// Helper: Create a contest with one candidate per suffix
+fn create_test_contest(suffixes: &[&str], policy: TieBreakingPolicy) -> Contest {
+    Contest {
+        candidates: suffixes
+            .iter()
+            .map(|suffix| Candidate {
+                id: format!("candidate_{}", suffix),
+                name: Some(format!("Candidate {}", suffix.to_uppercase())),
+                ..Default::default()
+            })
+            .collect(),
+        tie_breaking_policy: Some(policy),
+        ..create_test_contest_3_candidates()
     }
 }
 
@@ -386,6 +405,348 @@ fn test_tie_breaking_state_history_recorded() -> Result<()> {
         Some("candidate_a"),
         "Should record the externally resolved candidate"
     );
+
+    Ok(())
+}
+
+fn ids(suffixes: &[&str]) -> Vec<String> {
+    suffixes
+        .iter()
+        .map(|suffix| format!("candidate_{}", suffix))
+        .collect()
+}
+
+fn external_resolution(round: u64, tied: &[&str], winner: &str) -> TallySessionResolutionData {
+    TallySessionResolutionData {
+        round_number: Some(round),
+        tied_candidate_ids: ids(tied),
+        vote_count: 0,
+        method_used: TieBreakingMethod::ExternalProcedure,
+        resolved_by_candidate_id: Some(format!("candidate_{}", winner)),
+    }
+}
+
+fn run_runoff(
+    contest: &Contest,
+    votes: &Vec<(DecodedVoteContest, Weight)>,
+    resolutions: Vec<TallySessionResolutionData>,
+) -> RunoffStatus {
+    let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, contest);
+    let mut runoff = RunoffStatus::initialize_runoff(contest);
+    runoff.tie_resolutions.extend(resolutions);
+    runoff.run(&mut ballots_status);
+    runoff
+}
+
+fn status_of(runoff: &RunoffStatus, suffix: &str) -> Option<ECandidateStatus> {
+    runoff
+        .candidates_status
+        .get(&format!("candidate_{}", suffix))
+        .copied()
+}
+
+fn eliminated_in_round(runoff: &RunoffStatus, round_index: usize) -> HashSet<String> {
+    runoff
+        .rounds
+        .get(round_index)
+        .and_then(|round| round.eliminated_candidates.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|candidate| candidate.id)
+        .collect()
+}
+
+fn winner_id(runoff: &RunoffStatus) -> Option<String> {
+    runoff
+        .get_last_round()
+        .and_then(|round| round.winner)
+        .map(|winner| winner.id)
+}
+
+/// Round 1: A=4, B=3, C=3. B and C tie for the lowest count and no earlier
+/// round separates them. C's voters rank B second, so eliminating C elects B
+/// and eliminating B elects A.
+fn create_unbreakable_lowest_tie_votes() -> Vec<(DecodedVoteContest, Weight)> {
+    let mut votes = vec![];
+    votes.extend((0..4).map(|_| create_vote(&["a"])));
+    votes.extend((0..3).map(|_| create_vote(&["b"])));
+    votes.extend((0..3).map(|_| create_vote(&["c", "b"])));
+    votes
+}
+
+/// Round 1: A=5 and B, C, D with 2 votes each, which together outnumber A.
+fn create_three_way_lowest_tie_votes() -> Vec<(DecodedVoteContest, Weight)> {
+    let mut votes = vec![];
+    votes.extend((0..5).map(|_| create_vote(&["a"])));
+    for suffix in ["b", "c", "d"] {
+        votes.extend((0..2).map(|_| create_vote(&[suffix])));
+    }
+    votes
+}
+
+/// A resolution whose winner is not one of the tied candidates must be
+/// ignored, leaving the tie pending and every tied candidate active.
+#[test]
+fn test_ignored_resolution_with_winner_outside_tie() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c"], TieBreakingPolicy::EXTERNAL_PROCEDURE);
+    let runoff = run_runoff(
+        &contest,
+        &create_two_round_tie_votes(),
+        vec![external_resolution(2, &["a", "c"], "b")],
+    );
+
+    let tie_info = runoff
+        .pending_tie_resolution
+        .as_ref()
+        .expect("A winner outside the tie must not resolve it");
+    assert_eq!(tie_info.round_number, Some(2));
+    assert_eq!(winner_id(&runoff), None);
+    assert_eq!(status_of(&runoff, "a"), Some(ECandidateStatus::Active));
+    assert_eq!(status_of(&runoff, "c"), Some(ECandidateStatus::Active));
+
+    Ok(())
+}
+
+/// A resolution must list exactly the tied candidates: repeating one of them
+/// in place of another does not match the tie.
+#[test]
+fn test_ignored_resolution_with_duplicated_tied_candidate() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c"], TieBreakingPolicy::EXTERNAL_PROCEDURE);
+    let runoff = run_runoff(
+        &contest,
+        &create_two_round_tie_votes(),
+        vec![external_resolution(2, &["a", "a"], "a")],
+    );
+
+    let tie_info = runoff
+        .pending_tie_resolution
+        .as_ref()
+        .expect("A resolution for a different tied set must not resolve the tie");
+    assert_eq!(tie_info.round_number, Some(2));
+    assert_eq!(winner_id(&runoff), None);
+
+    Ok(())
+}
+
+/// The RANDOM policy must draw the same winner for the same ballots, however
+/// often the count is repeated and in whatever order the ballots arrive.
+#[test]
+fn test_random_tie_break_is_reproducible() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c"], TieBreakingPolicy::RANDOM);
+    let votes = vec![
+        create_vote(&["a", "b", "c"]),
+        create_vote(&["b", "c", "a"]),
+        create_vote(&["c", "a", "b"]),
+    ];
+
+    let winners: HashSet<Option<String>> = (0..64)
+        .map(|iteration| {
+            let mut shuffled = votes.clone();
+            shuffled.rotate_left(iteration % votes.len());
+            winner_id(&run_runoff(&contest, &shuffled, vec![]))
+        })
+        .collect();
+
+    assert_eq!(winners.len(), 1, "Draws differ: {:?}", winners);
+    assert!(winners.iter().all(|winner| winner.is_some()));
+
+    Ok(())
+}
+
+/// An unbreakable tie for the lowest count goes to the EXTERNAL_PROCEDURE
+/// policy instead of eliminating every tied candidate at once.
+#[test]
+fn test_unbreakable_lowest_tie_with_external_policy_pauses() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c"], TieBreakingPolicy::EXTERNAL_PROCEDURE);
+    let runoff = run_runoff(&contest, &create_unbreakable_lowest_tie_votes(), vec![]);
+
+    let tie_info = runoff
+        .pending_tie_resolution
+        .as_ref()
+        .expect("The lowest tie must wait for an external resolution");
+    assert_eq!(tie_info.round_number, Some(1));
+    assert_eq!(tie_info.vote_count, 3);
+    assert_eq!(
+        tie_info
+            .tied_candidate_ids
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>(),
+        ids(&["b", "c"]).into_iter().collect::<HashSet<_>>()
+    );
+    assert_eq!(runoff.rounds.len(), 1);
+    assert_eq!(winner_id(&runoff), None);
+    assert_eq!(status_of(&runoff, "b"), Some(ECandidateStatus::Active));
+    assert_eq!(status_of(&runoff, "c"), Some(ECandidateStatus::Active));
+
+    Ok(())
+}
+
+/// The candidate chosen by the external procedure advances and the other
+/// tied candidate is eliminated.
+#[test]
+fn test_unbreakable_lowest_tie_external_resolution_applied() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c"], TieBreakingPolicy::EXTERNAL_PROCEDURE);
+    let runoff = run_runoff(
+        &contest,
+        &create_unbreakable_lowest_tie_votes(),
+        vec![external_resolution(1, &["c", "b"], "b")],
+    );
+
+    assert!(runoff.pending_tie_resolution.is_none());
+    assert_eq!(
+        eliminated_in_round(&runoff, 0),
+        ids(&["c"]).into_iter().collect::<HashSet<_>>()
+    );
+    assert_eq!(winner_id(&runoff), Some("candidate_b".to_string()));
+    let last_round = runoff.get_last_round().expect("rounds were run");
+    assert_eq!(
+        last_round
+            .candidates_wins
+            .get("candidate_b")
+            .map(|o| o.wins),
+        Some(6)
+    );
+
+    Ok(())
+}
+
+/// The RANDOM policy eliminates a single drawn candidate from an unbreakable
+/// lowest tie and records the draw.
+#[test]
+fn test_unbreakable_lowest_tie_with_random_policy_eliminates_one() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c"], TieBreakingPolicy::RANDOM);
+    let runoff = run_runoff(&contest, &create_unbreakable_lowest_tie_votes(), vec![]);
+
+    let eliminated = eliminated_in_round(&runoff, 0);
+    assert_eq!(eliminated.len(), 1, "Eliminated: {:?}", eliminated);
+    let expected_winner = if eliminated.contains("candidate_b") {
+        "candidate_a"
+    } else {
+        "candidate_b"
+    };
+    assert_eq!(winner_id(&runoff), Some(expected_winner.to_string()));
+
+    assert_eq!(runoff.tie_resolutions.len(), 1);
+    let draw = &runoff.tie_resolutions[0];
+    assert_eq!(draw.round_number, Some(1));
+    assert_eq!(draw.method_used, TieBreakingMethod::Random);
+    assert_eq!(
+        draw.tied_candidate_ids
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>(),
+        ids(&["b", "c"]).into_iter().collect::<HashSet<_>>()
+    );
+    let survivor = draw
+        .resolved_by_candidate_id
+        .clone()
+        .expect("The draw records the candidate that advances");
+    assert!(!eliminated.contains(&survivor));
+
+    Ok(())
+}
+
+/// Candidates tied for the lowest count are still eliminated together when
+/// their combined votes are fewer than those of the next candidate, since
+/// eliminating them one by one cannot change the result.
+#[test]
+fn test_lowest_tie_below_next_candidate_is_eliminated_together() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c", "d"], TieBreakingPolicy::EXTERNAL_PROCEDURE);
+    let mut votes = vec![];
+    votes.extend((0..4).map(|_| create_vote(&["a"])));
+    votes.push(create_vote(&["b", "d"]));
+    votes.push(create_vote(&["c", "d"]));
+    votes.extend((0..3).map(|_| create_vote(&["d"])));
+
+    let runoff = run_runoff(&contest, &votes, vec![]);
+
+    assert!(runoff.pending_tie_resolution.is_none());
+    assert!(runoff.tie_resolutions.is_empty());
+    assert_eq!(
+        eliminated_in_round(&runoff, 0),
+        ids(&["b", "c"]).into_iter().collect::<HashSet<_>>()
+    );
+    assert_eq!(winner_id(&runoff), Some("candidate_d".to_string()));
+
+    Ok(())
+}
+
+/// A lowest tie among three candidates is resolved one advancing candidate
+/// at a time until a single candidate is left to eliminate.
+#[test]
+fn test_three_way_lowest_tie_external_resolutions_applied_in_turn() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c", "d"], TieBreakingPolicy::EXTERNAL_PROCEDURE);
+    let votes = create_three_way_lowest_tie_votes();
+
+    let runoff = run_runoff(&contest, &votes, vec![]);
+    let tie_info = runoff
+        .pending_tie_resolution
+        .as_ref()
+        .expect("The three-way lowest tie must wait for a resolution");
+    assert_eq!(tie_info.round_number, Some(1));
+    assert_eq!(tie_info.tied_candidate_ids.len(), 3);
+
+    let runoff = run_runoff(
+        &contest,
+        &votes,
+        vec![external_resolution(1, &["b", "c", "d"], "c")],
+    );
+    let tie_info = runoff
+        .pending_tie_resolution
+        .as_ref()
+        .expect("The two remaining tied candidates need their own resolution");
+    assert_eq!(tie_info.round_number, Some(1));
+    assert_eq!(
+        tie_info
+            .tied_candidate_ids
+            .iter()
+            .cloned()
+            .collect::<HashSet<_>>(),
+        ids(&["b", "d"]).into_iter().collect::<HashSet<_>>()
+    );
+    assert_eq!(status_of(&runoff, "b"), Some(ECandidateStatus::Active));
+    assert_eq!(status_of(&runoff, "c"), Some(ECandidateStatus::Active));
+    assert_eq!(status_of(&runoff, "d"), Some(ECandidateStatus::Active));
+
+    let runoff = run_runoff(
+        &contest,
+        &votes,
+        vec![
+            external_resolution(1, &["b", "c", "d"], "c"),
+            external_resolution(1, &["d", "b"], "d"),
+        ],
+    );
+    assert!(runoff.pending_tie_resolution.is_none());
+    assert_eq!(
+        eliminated_in_round(&runoff, 0),
+        ids(&["b"]).into_iter().collect::<HashSet<_>>()
+    );
+    assert_eq!(status_of(&runoff, "c"), Some(ECandidateStatus::Active));
+    assert_eq!(status_of(&runoff, "d"), Some(ECandidateStatus::Active));
+
+    Ok(())
+}
+
+/// The RANDOM policy draws one advancing candidate at a time from a three-way
+/// lowest tie and eliminates only the candidate left at the end.
+#[test]
+fn test_three_way_lowest_tie_with_random_policy_eliminates_one() -> Result<()> {
+    let contest = create_test_contest(&["a", "b", "c", "d"], TieBreakingPolicy::RANDOM);
+    let runoff = run_runoff(&contest, &create_three_way_lowest_tie_votes(), vec![]);
+
+    assert_eq!(eliminated_in_round(&runoff, 0).len(), 1);
+    let first_round_draws: Vec<&TallySessionResolutionData> = runoff
+        .tie_resolutions
+        .iter()
+        .filter(|draw| draw.round_number == Some(1))
+        .collect();
+    assert_eq!(first_round_draws.len(), 2);
+    assert_eq!(first_round_draws[0].tied_candidate_ids.len(), 3);
+    assert_eq!(first_round_draws[1].tied_candidate_ids.len(), 2);
+    assert!(first_round_draws
+        .iter()
+        .all(|draw| draw.method_used == TieBreakingMethod::Random));
 
     Ok(())
 }
