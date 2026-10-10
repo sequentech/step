@@ -19,7 +19,7 @@ use std::io::BufRead;
 use std::path::Path;
 
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
@@ -59,15 +59,24 @@ impl DecodeMCBallots {
                 }
             }
 
-            let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
-            let decoded = BallotChoices::decode_from_bigint(
-                &plaintext,
-                contests,
-                Some(serial_number_counter),
-            )
-            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+            // A line that is not a number, such as MALFORMED_PLAINTEXT_LINE, or a
+            // value that does not fit the ballot layout stands for a plaintext
+            // that did not decode.
+            let decoded = match plaintext {
+                Ok(plaintext) => BallotChoices::decode_from_bigint(
+                    &plaintext,
+                    contests,
+                    Some(serial_number_counter),
+                ),
+                Err(error) => Err(error.to_string()),
+            };
+            let decoded = match decoded {
+                Ok(decoded) => decoded,
+                Err(error) => {
+                    warn!("Counting an undecodable ballot as invalid: {error}");
+                    BallotChoices::undecodable_ballot(contests, Some(serial_number_counter))
+                }
+            };
 
             decoded_ballots.push(decoded);
         }
@@ -235,6 +244,7 @@ mod tests {
     use super::*;
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::contests::get_contest_1;
+    use crate::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
     use sequent_core::ballot_codec::multi_ballot::{
         ContestChoice, ContestChoices, DecodedContestChoice,
     };
@@ -285,7 +295,11 @@ mod tests {
 
         let path = std::env::temp_dir().join(format!("velvet-ballots-{}.csv", Uuid::new_v4()));
         let mut file = fs::File::create(&path).expect("ballots file");
-        writeln!(file, "{encoded}\n{capacity}\nmalformed\n\n{encoded}\n").expect("write ballots");
+        writeln!(
+            file,
+            "{encoded}\n{capacity}\n{MALFORMED_PLAINTEXT_LINE}\n\n{encoded}\n"
+        )
+        .expect("write ballots");
         let mut serial_number_counter = 1;
 
         let decoded = DecodeMCBallots::decode_ballots(&path, &contests, &mut serial_number_counter)
@@ -304,17 +318,16 @@ mod tests {
             }
         }
         for index in [1, 2] {
-            assert!(!decoded[index].is_explicit_invalid);
             assert_eq!(
-                decoded[index].serial_number,
-                Some(format!("{:09}", index + 1))
+                decoded[index],
+                BallotChoices::undecodable_ballot(&contests, Some(&mut (index as u32 + 1)))
             );
             assert_eq!(decoded[index].choices.len(), contests.len());
-            for (contest, contest_choices) in contests.iter().zip(&decoded[index].choices) {
-                assert_eq!(contest_choices.contest_id, contest.id);
-                assert!(contest_choices.choices.is_empty());
-                assert!(!contest_choices.invalid_errors.is_empty());
-            }
+            assert!(decoded[index]
+                .choices
+                .iter()
+                .all(|contest_choices| contest_choices.choices.is_empty()
+                    && !contest_choices.invalid_errors.is_empty()));
         }
     }
 }

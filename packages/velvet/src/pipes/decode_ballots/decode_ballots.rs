@@ -52,12 +52,20 @@ impl DecodeBallots {
                 }
             }
 
-            let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
-            let decoded_vote = contest
-                .decode_plaintext_contest_bigint(&plaintext)
-                .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+            let decoded_vote = match plaintext {
+                Ok(plaintext) => contest
+                    .decode_plaintext_contest_bigint(&plaintext)
+                    .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?,
+                // A line that is not a number, such as MALFORMED_PLAINTEXT_LINE,
+                // stands for a plaintext that did not decode.
+                Err(_) => {
+                    warn!(
+                        "Counting an undecodable ballot of contest {} as invalid",
+                        contest.id
+                    );
+                    DecodedVoteContest::undecodable(contest)
+                }
+            };
 
             decoded_ballots.push(decoded_vote);
         }
@@ -144,6 +152,7 @@ impl Pipe for DecodeBallots {
 mod tests {
     use super::*;
     use crate::fixtures::contests::get_contest_1;
+    use crate::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
     use sequent_core::plaintext::DecodedVoteChoice;
     use std::io::Write;
     use uuid::Uuid;
@@ -174,7 +183,11 @@ mod tests {
             .expect("vote should encode");
         let path = std::env::temp_dir().join(format!("velvet-ballots-{}.csv", Uuid::new_v4()));
         let mut file = fs::File::create(&path).expect("ballots file");
-        writeln!(file, "{encoded}\nmalformed\nnot-a-number\n{encoded}\n").expect("write ballots");
+        writeln!(
+            file,
+            "{encoded}\n{MALFORMED_PLAINTEXT_LINE}\nnot-a-number\n{encoded}\n"
+        )
+        .expect("write ballots");
 
         let decoded =
             DecodeBallots::decode_ballots(&path, &contest).expect("ballots should decode");
@@ -191,11 +204,7 @@ mod tests {
         for index in [1, 2] {
             assert!(decoded[index].is_invalid());
             assert!(!decoded[index].is_explicit_invalid);
-            assert_eq!(decoded[index].contest_id, contest.id);
-            assert!(decoded[index]
-                .choices
-                .iter()
-                .all(|choice| !choice.is_selected()));
+            assert_eq!(decoded[index], DecodedVoteContest::undecodable(&contest));
         }
     }
 }
