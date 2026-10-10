@@ -46,16 +46,22 @@ mod tests {
         );
     }
 
-    /// Passwordless service users and their client authentication remain unchanged.
+    /// Service-account users keep their client binding and the client keeps its secret.
     #[test]
-    fn passwordless_users_and_service_client_configuration_are_preserved() {
+    fn service_account_users_and_client_configuration_are_preserved() {
         let mut realm: RealmRepresentation = serde_json::from_value(json!({
-            "users": [{"username": "custom-service-account", "serviceAccountClientId": "custom-client", "groups": ["/admin"]}],
+            "users": [{"username": "custom-service-account", "serviceAccountClientId": "custom-client", "groups": ["/admin"], "credentials": []}],
             "clients": [{"clientId": "custom-client", "serviceAccountsEnabled": true, "secret": "synthetic-client-secret"}]
         })).unwrap();
-        let before = serde_json::to_value(&realm).unwrap();
+        let mut expected = realm.clone();
+        expected.users.as_mut().unwrap()[0].credentials = None;
+
         remove_user_credentials(&mut realm);
-        assert_eq!(serde_json::to_value(realm).unwrap(), before);
+
+        assert_eq!(
+            serde_json::to_value(realm).unwrap(),
+            serde_json::to_value(expected).unwrap()
+        );
         remove_user_credentials(&mut RealmRepresentation::default());
     }
 
