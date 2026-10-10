@@ -5,61 +5,67 @@
 
 Parent issue: https://github.com/sequentech/meta/issues/13755
 
-Prepared 2026-10-10 for `/workspaces/step`, branch
-`feat/meta-13755-msg-integration/ovcs`, code checkpoint `7627b1d3c9`.
+Prepared and activated 2026-10-10 for `/workspaces/step`, branch
+`feat/meta-13755-msg-integration/ovcs`. Code fixes: `7627b1d3c9`, `31ad9a5302`, `86dabdc370`;
+regenerated GraphQL contracts: `1e4c23dfbc`.
 This packet supplements [the handover](INFRA-MSG-HANDOVER.md).
-The devcontainer was left running; no live data, migrations, metadata or
-service configuration was changed while preparing this packet.
+
+## Ready scenarios
+
+Both events have eight synthetic voters, published ballots and online voting open.
+They are ready for the user acceptance matrix below; do not create replacement events.
+
+| Organization       | Voting                                                                                                                            | Admin event                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| First organization | [Open voting](http://localhost:3000/tenant/90505c8a-23a9-4cdf-a26b-4e19f6a097d5/event/770e64cf-7820-47a2-85bd-368c39425e8a/login) | [Open admin](http://localhost:3002/sequent_backend_election_event/770e64cf-7820-47a2-85bd-368c39425e8a) |
+| Staff Association  | [Open voting](http://localhost:3000/tenant/a0d6d85b-930e-4641-adcb-df6fa3ff60e8/event/2189d11a-5b03-4982-b10f-5f5e632ffabf/login) | [Open admin](http://localhost:3002/sequent_backend_election_event/2189d11a-5b03-4982-b10f-5f5e632ffabf) |
+
+Development admin credentials are `admin` / `admin`, followed by the configured
+email code. The scenario runner enrolled the second organization's administrator.
+Use the admin portal tenant selector for Staff Association before opening its event.
 
 ## Readiness observed
 
-| Check                            | Result                                                                                                    |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Devcontainer and backend project | `step_devcontainer`, running; Keycloak, Hasura, Harvest and relay healthy                                 |
-| Keycloak image/container         | Created October 7; rebuild/recreation still needed for the new Java/React code                            |
-| Harvest fake routes              | Disabled; Meta endpoint override unset                                                                    |
-| Live database                    | `messaging_event_config` table exists; this alone does not prove all migrations are current               |
-| Live GraphQL                     | Older messaging actions exist; new fake-provider viewer and insight actions absent                        |
-| Portal dev servers               | Neither admin port 3002 nor voting port 3000 was listening                                                |
-| Scenario state                   | Both messaging scenarios absent; no synthetic event created yet                                           |
-| Scenario tooling                 | 146 scenario/organization/monitoring tests passed; both profiles render; existing step-cli `--help` works |
+| Check                | Result                                                                                                                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Devcontainer         | Original container from October 7 remains running, never recreated or restarted                                                                                              |
+| Backend              | Keycloak, Hasura, Harvest and relay healthy; Windmill and beat running                                                                                                       |
+| Keycloak             | Current image rebuilt before activation; deployed message-OTP bytecode matches local source                                                                                  |
+| Migration / metadata | All migrations present, including `1791200000000_messaging_second_pass`; all nine new viewer/insight actions present                                                         |
+| Fake provider        | Enabled; Meta, Infobip and AWS endpoint overrides point to Harvest's fake routes                                                                                             |
+| Service activation   | Beat and messaging-webhooks recreated by name; other backend services were already refreshed                                                                                 |
+| GraphQL              | All four portals regenerated successfully; shared and CLI schemas refreshed separately                                                                                       |
+| Portals              | Existing admin server preserved; missing voting server started; both return HTTP 200                                                                                         |
+| Scenarios            | Both created successfully with key ceremonies, published ballots and online voting open                                                                                      |
+| Checks               | 147 scenario/organization/monitoring tests; four portal type checks; focused results publication test, lint/formatting and REUSE pass; R10 review has no actionable findings |
+| Provider smoke       | WhatsApp/Viber/SMS/email accepted; signed WhatsApp/Viber reports through relay answered HTTP 200; SMS/email correctly have no receipts                                       |
+| Messenger refusal    | Account test to an unconnected recipient refused with `OUTSIDE_CONVERSATION_WINDOW`; Get Started/user verification still needs the matrix below                              |
 
-The backend has mixed deployment versions. GraphQL generation was withheld
-because the live metadata lacks required actions; it would generate against
-an incomplete schema. User testing starts after activation below. The
-scenario fixtures are prepared and validated; live journey results are pending.
+Browser smoke: a synthetic voter in each organization can sign in, load its
+published ballot and see **Change how we contact you**; the second has desktop
+and mobile screenshots. The in-container browser
+routes host-facing localhost service URLs to the same running internal services;
+no API responses are mocked. The fake Messenger tester now reuses the saved
+conversation for later sign-in links; all 14 fake-provider tests, Harvest
+all-target clippy, Rust formatting and REUSE pass. Full channel journeys remain
+user acceptance.
 
-## Activate the stack
+The public development callback URL is HTTP, so account checks warn **Callback
+address must be https**. Fake reports use the internal relay and were verified;
+real provider activation requires a reachable HTTPS callback URL. Synthetic
+account-test messages for `+15550999001` (Viber normalizes away the plus) and
+`activation-smoke@fake-provider.example.org` are visible in Sent messages;
+exclude these from counts for the eight-voter bulk test. The unconnected
+Messenger test attempts are deliberate failures, not failed scenario setup.
 
-Follow the handover's **User stack steps** in order: development-only provider
-environment values, migration status/application, metadata, GraphQL types,
-Keycloak rebuild, then recreate the named messaging/backend services.
-These are the restart steps you retained. Never rebuild/recreate the devcontainer,
-change Compose projects, or use `compose down`.
+No further backend rebuild/restart is required for these fake-provider tests.
+Fresh enrollment/manual review, Messenger Page changes, full browser journeys,
+real Meta credentials and OTP-under-bulk latency remain acceptance work.
 
-Confirm Harvest's fake routes are enabled before creating scenario accounts;
-otherwise their synthetic credentials would be sent to real provider endpoints.
-Verify the three endpoint overrides point to Harvest's fake-provider paths,
-and Settings > Messaging shows **Sent messages** after metadata is applied.
-New GraphQL schemas/types should be reviewed and committed separately.
+## Resume or recreate the scenarios (reference)
 
-Start the two portal dev servers in separate devcontainer terminals if they
-are not already running (leave existing servers alone):
-
-```sh
-cd /workspaces/step
-devenv shell -- yarn --cwd packages/admin-portal start
-```
-
-```sh
-cd /workspaces/step
-devenv shell -- yarn --cwd packages/voting-portal start
-```
-
-## Create the prepared scenarios
-
-Run these from the devcontainer after activation. Use devenv: the system
-Python 3.10 cannot run the scenario CLI.
+The scenarios already exist. These commands resume their recorded state if
+needed. Use devenv: the system Python 3.10 cannot run the scenario CLI.
 
 ```sh
 cd /workspaces/step
@@ -86,9 +92,12 @@ devenv shell -- scripts/dev/step-dev scenario status messaging-second-organizati
 Every imported voter's synthetic password is `E2e-voter-2026!`. Usernames are
 `e2e-messaging-a1` through `a4`, `b1`/`b2`, `c1`/`c2`; the second scenario
 uses the same suffixes with `e2e-messaging-second-organization-`.
-Imported voters start with verified synthetic email addresses. The scenario's
-sign-in uses its configured channel step; enrollment/contact-change verification
-is a separate journey, not something proved by successful scenario creation.
+Imported voters start with verified synthetic email addresses but no explicit
+messaging channel. Their initial password login is the bootstrap session;
+the conditional channel code step starts after **Change how we contact you**
+stores a verified channel. Verify Email there for b1 and the three control
+voters as well, using their imported addresses. Enrollment/contact verification
+is a separate journey, not proved by successful scenario creation.
 
 ## First scenario: successful paths
 
@@ -99,19 +108,19 @@ no real messaging app or real phone number is needed.
 Use these voters to prepare one contact per channel through the voting
 portal's **Change how we contact you** flow:
 
-| Voter suffix | Channel   | Synthetic contact                                       |
-| ------------ | --------- | ------------------------------------------------------- |
-| a1           | WhatsApp  | +15550101001                                            |
-| a2           | Viber     | +15550101002                                            |
-| a3           | Messenger | Account bound by Get Started on the session's m.me link |
-| a4           | SMS       | +15550101004                                            |
-| b1           | Email     | Keep the imported synthetic address                     |
+| Voter suffix | Channel   | Synthetic contact                                        |
+| ------------ | --------- | -------------------------------------------------------- |
+| a1           | WhatsApp  | +15550101001                                             |
+| a2           | Viber     | +15550101002                                             |
+| a3           | Messenger | Account bound by Get Started on the session's m.me link  |
+| a4           | SMS       | +15550101004                                             |
+| b1           | Email     | Verify the imported synthetic address in the change flow |
 
 Verify each change with the code in its Sent messages channel view. Messenger:
 paste the connect page's m.me link in Sent messages > Messenger > Get Started;
 then enter the received code in the original voter session. A successful change
 replaces the contact, rather than adding another verified channel. The remaining
-three voters retain email and serve as controls for bulk counts.
+three voters use their verified Email channel and serve as controls for bulk counts.
 
 If contact change is refused, capture its reason and check enabled reachable
 code-step configuration: CHOSEN or NONE. Do not bypass the runtime gate.

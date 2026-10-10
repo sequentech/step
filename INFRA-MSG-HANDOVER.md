@@ -7,27 +7,61 @@ Parent issue: https://github.com/sequentech/meta/issues/13755
 
 Updated 2026-10-10. Work is in `/workspaces/step` on
 `feat/meta-13755-msg-integration/ovcs`, based on `ovcs` at `8780ca92`.
-The final fix-round commit is the commit containing this file. Nothing was
-pushed, rebased, deployed or restarted during this continuation.
+Code checkpoint `7627b1d3c9` contains the final fix round; `31ad9a5302`
+fixes activation prerequisites; `86dabdc370` fixes fake Messenger identity
+reuse. Generated GraphQL contracts are committed separately (`1e4c23dfbc`). Nothing was pushed or rebased. The user subsequently authorized
+stack activation; the devcontainer itself was never recreated or restarted.
 
 ## Prepared user testing continuation
 
 [INFRA-MSG-USER-TESTING.md](INFRA-MSG-USER-TESTING.md) contains verified setup
-commands, fixture identities, both tenants' expected channel behavior, the
-Page-change regression and a results worksheet. Read-only preflight found old
-Keycloak, disabled Harvest fake routes and missing new live GraphQL actions.
-Both scenario states are absent. Scenario/organization/monitoring tests passed
-146/146; both profiles render and the existing step-cli runs. No live data or
-service changes were made. Activate the stack before running the prepared scenarios.
+commands, live event links, fixture identities, both tenants' expected channel
+behavior, the Page-change regression and a results worksheet. Both synthetic
+scenarios now have ballots published and online voting open. The current
+Keycloak image matches the local message-OTP authenticator bytecode. All
+migrations and messaging metadata were already present; they were verified,
+not unnecessarily reapplied. Fake routes and provider overrides are enabled.
+Beat and the callback relay were recreated by name; existing Harvest, Windmill
+and Keycloak were already refreshed. Portal servers serve ports 3000 and 3002.
 
 ## Scope and current boundary
 
 The second-pass messaging implementation and fix round 3 are complete on the
-code side. Live-stack acceptance remains pending. The user explicitly retained
-migrations and service restarts: **"Keep restarts with me; finish code and
-handover."** Do not report stack journeys, OTP load latency, real Meta checks,
-or local CI as passed. W4 (local CI and PR splitting) still follows the planned
-user review of W3.
+code side. The later instruction **"Do these, and make sure everything is
+ready"** authorized activation of the named services and test scenarios.
+Manual journey acceptance, OTP load latency, real Meta checks and local CI
+remain pending. W4 (local CI and PR splitting) still follows user review of W3.
+
+Activation fixed two reproduced setup failures: results queries used String
+where the live schema requires UUID; scenario realm construction dropped the
+kiosk client and copied foreign authentication-flow bindings when restoring it.
+Regression tests ran red first; the final scenario suite passed 147 tests.
+All four portal type checks, the focused results publication test, query lint
+and formatting, and REUSE passed. Independent R10 review found no actionable
+issues. Synthetic WhatsApp/Viber/SMS/email test sends succeeded; signed
+WhatsApp/Viber reports reached Harvest through the relay with HTTP 200.
+Both organizations' real browser voter login and published ballot loading
+passed, with the contact-change entry visible and second-organization desktop
+and mobile screenshots captured. Messenger correctly refused an
+unconnected account-test recipient. SMS/email report
+delivery receipts as unavailable. These are readiness checks, not proof of
+the complete manual acceptance matrix.
+
+The final review also found that fake Messenger Get Started assigned a new
+identity to each one-time link, preventing subsequent sign-in. The fake route
+now reuses the saved recipient from this tenant/account's pending, unexpired
+link; new enrollment and reconnect retain distinct synthetic identities.
+Nothing is returned from the encrypted held payload. The regression first
+observed EXPIRED instead of CODE_SENT and now covers verification followed by
+a new sign-in reference, actual code delivery to the saved recipient and
+confirmation. The running Harvest watcher rebuilds this source automatically.
+All 14 fake-provider tests passed, including the later sign-in confirmation;
+Harvest all-target clippy, workspace Rust formatting and REUSE passed. R10
+cleared the source fix and required Rust target-directory export.
+
+User changes to the Keycloak image build context and concurrent admin messaging
+layout/story edits remain unstaged and intact. They were not folded into the
+activation commits. `devenv.lock` remains unchanged.
 
 The implementation provides one verified voter channel without fallback,
 account readiness and event configuration, same-channel retries, reserved OTP
@@ -92,6 +126,7 @@ Reproduce Rust checks from the repository root in devenv, using
 
 ```sh
 cd packages
+export CARGO_TARGET_DIR="$PWD/rust-local-target"
 cargo test -p messaging -p messaging-webhooks
 cargo test -p windmill --lib
 cargo test -p windmill --test postgres_messaging --test postgres_messaging_account_checks --test postgres_messaging_accounts --test postgres_messaging_config --test postgres_messaging_dispatch --test postgres_messaging_insights --test postgres_messaging_migration --test postgres_messaging_rate_bucket --test postgres_messaging_retry
@@ -126,7 +161,13 @@ Final workspace `cargo fmt --all --check` and all-target clippy for messaging,
 relay, Windmill and Harvest passed. Shared sequent-core type tests passed 60/60.
 The final all-crate clippy run followed the Page-change fix.
 
-## User stack steps
+## Stack activation reference (completed for this checkout)
+
+No further backend rebuild/restart is needed for the prepared fake-provider
+tests. The steps below remain a reference for another checkout. Public
+callback readiness warns that the development HTTP address is not HTTPS;
+real provider activation still requires a reachable HTTPS callback address.
+Fake reports use the internal component URL and were verified separately.
 
 Use the checkout's Compose project `step_devcontainer`, resolving host bind
 paths from its host checkout (`/home/enes/step/.devcontainer` in this session).
@@ -168,7 +209,7 @@ Never recreate the devcontainer or run `compose down`.
 
 ## Remaining W3 acceptance
 
-After the stack is rebuilt from the final code:
+Use the already prepared scenarios and the user-testing worksheet:
 
 - Confirm Settings > Messaging loads and event configuration saves.
 - Run WhatsApp enrollment; read exactly one code in Sent messages; verify
@@ -178,8 +219,8 @@ After the stack is rebuilt from the final code:
   an unfinished link and with password-authenticated sign-in reconnect.
 - Verify sign-in, contact replacement, neutral password reset, manual-review
   notice, bulk delivery and preview/count agreement on every configured channel.
-- Run the `messaging` and `messaging-second-organization` scenarios; the latter
-  uses `staff-association`. Capture desktop/mobile screenshots and evidence.
+- Both scenarios are already running; the second uses `staff-association`.
+  Capture desktop/mobile screenshots and evidence during manual acceptance.
 - Check the component's Meta handshake returns the challenge as plain text.
 - Run `scripts/dev/step-dev bench messaging-otp` under saturated bulk load and
   retain measured samples; unit capacity tests do not establish live latency.
