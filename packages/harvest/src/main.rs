@@ -66,7 +66,8 @@ fn build_application() -> rocket::Rocket<rocket::Build> {
 fn build_application_with(
     services: HarvestServices,
 ) -> rocket::Rocket<rocket::Build> {
-    rocket::build()
+    let fake_provider_routes = services.messaging_fake_provider_routes;
+    let rocket = rocket::build()
         .register(
             "/",
             catchers![
@@ -171,9 +172,16 @@ fn build_application_with(
                 routes::messaging::replace_messaging_account_credentials,
                 routes::messaging::check_messaging_account,
                 routes::messaging::messaging_account_callback_url,
+                routes::messaging::messaging_account_change_impact,
                 routes::messaging::messaging_callback_status,
                 routes::messaging::test_messaging_account,
                 routes::messaging::update_event_messaging_config,
+                routes::messaging_insights::messaging_event_stats,
+                routes::messaging_insights::messaging_audience_preview,
+                routes::messaging_insights::messaging_voter_counts,
+                routes::messaging_insights::messaging_recount_voters,
+                routes::messaging_insights::messaging_monthly_volumes,
+                routes::messaging_insights::find_by_support_reference,
                 routes::upload_document::get_upload_url,
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_private_key,
@@ -279,5 +287,7 @@ fn build_application_with(
         )
         .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
-        .manage(services)
+        .manage(services);
+    // Only with MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED (development).
+    routes::fake_provider::mount(rocket, fake_provider_routes)
 }

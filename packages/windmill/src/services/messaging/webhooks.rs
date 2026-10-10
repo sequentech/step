@@ -10,11 +10,10 @@
 //! voters write are acknowledged and dropped: nothing they send is stored
 //! or answered.
 
-use super::accounts::runtime_account;
-use super::audit::post_attempt_outcomes_or_warn;
-use super::dispatch::{retry_refusal, Dispatcher};
+use super::accounts::{flag_number_change, runtime_account};
+use super::dispatch::{retry_refusal, Dispatcher, SendPolicy};
 use super::keys::{tenant_key, TenantKey};
-use super::links::bind_referral;
+use super::links::{bind_referral, send_bound_code, BoundCode};
 use crate::postgres::messaging::{
     deliver_messages_up_to, find_message_by_provider_id, find_message_by_reference,
     get_messaging_account_by_webhook_key, record_messenger_contact, transition_message,
@@ -95,7 +94,9 @@ pub async fn meta_subscription(
     Ok(meta::verify_subscription(mode, token, challenge, &expected))
 }
 
-#[instrument(skip_all, err)]
+/// Meta's events, applied in full: a code a referral releases is sent
+/// before this returns, under windmill's policy. Harvest answers the
+/// callback first and sends the codes afterwards ([`meta_callback`]).
 pub async fn meta_events(
     client: &mut DbClient,
     dispatcher: &Dispatcher,
@@ -103,14 +104,30 @@ pub async fn meta_events(
     signature: Option<&str>,
     body: &[u8],
 ) -> Result<WebhookOutcome> {
+    let (outcome, codes) = meta_callback(client, webhook_key, signature, body).await?;
+    send_codes(client, dispatcher, codes).await;
+    Ok(outcome)
+}
+
+/// Meta's events, stored, with each Messenger link a referral opened
+/// bound: what the callback is answered after. The codes those links
+/// release are returned, to be sent once the callback is answered
+/// ([`send_bound_code`]), each with its own capacity.
+#[instrument(skip_all, err)]
+pub async fn meta_callback(
+    client: &mut DbClient,
+    webhook_key: &str,
+    signature: Option<&str>,
+    body: &[u8],
+) -> Result<(WebhookOutcome, Vec<BoundCode>)> {
     let Some(account) = account_for_key(client, webhook_key, META_PROVIDERS).await? else {
-        return Ok(WebhookOutcome::NotFound);
+        return Ok((WebhookOutcome::NotFound, vec![]));
     };
     let Some(secret) = credential(client, &account, CredentialName::APP_SECRET).await? else {
-        return Ok(WebhookOutcome::Unauthorized);
+        return Ok((WebhookOutcome::Unauthorized, vec![]));
     };
     if !meta::verify_signature(&secret, signature, body) {
-        return Ok(WebhookOutcome::Unauthorized);
+        return Ok((WebhookOutcome::Unauthorized, vec![]));
     }
     // A verified body that isn't this account's, or isn't JSON, can't
     // become usable by retrying it: taken and ignored, with its reason.
@@ -123,11 +140,11 @@ pub async fn meta_events(
                 key = webhook_key.get(..6).unwrap_or_default(),
                 "Meta callback ignored: {reason}"
             );
-            return Ok(WebhookOutcome::Accepted);
+            return Ok((WebhookOutcome::Accepted, vec![]));
         }
     };
-    apply_events(client, dispatcher, &account, events).await?;
-    Ok(WebhookOutcome::Accepted)
+    let codes = store_events(client, &account, events).await?;
+    Ok((WebhookOutcome::Accepted, codes))
 }
 
 /// Infobip Viber delivery reports. They come only through the account's
@@ -338,12 +355,38 @@ async fn record_contact(
     Ok(())
 }
 
+/// The events, applied in full: a code a referral releases is sent before
+/// this returns, under windmill's policy.
 pub async fn apply_events(
     client: &mut DbClient,
     dispatcher: &Dispatcher,
     account: &MessagingAccount,
     events: Vec<WebhookEvent>,
 ) -> Result<()> {
+    let codes = store_events(client, account, events).await?;
+    send_codes(client, dispatcher, codes).await;
+    Ok(())
+}
+
+/// Sends the codes referrals released, one after the other, under
+/// windmill's policy; a failure is logged and the next one still goes.
+async fn send_codes(client: &mut DbClient, dispatcher: &Dispatcher, codes: Vec<BoundCode>) {
+    for code in codes {
+        if let Err(error) = send_bound_code(client, dispatcher, &code, SendPolicy::default()).await
+        {
+            warn!(link = %code.link_id, "could not send a Messenger code: {error:#}");
+        }
+    }
+}
+
+/// Applies the events: statuses, Get Started, number changes; a referral
+/// binds its link. Returns the codes the bound links release, unsent.
+pub async fn store_events(
+    client: &mut DbClient,
+    account: &MessagingAccount,
+    events: Vec<WebhookEvent>,
+) -> Result<Vec<BoundCode>> {
+    let mut codes = vec![];
     for event in events {
         let result = match &event {
             WebhookEvent::Status(report) => apply_status(client, account, report).await,
@@ -357,11 +400,9 @@ pub async fn apply_events(
             {
                 // The window opens before the code that follows is sent.
                 match record_contact(client, account, &referral.page_scoped_id, referral.at).await {
-                    Ok(()) => match bind_referral(client, dispatcher, account, referral).await {
-                        Ok(Some(sent)) => {
-                            let tx = client.transaction().await?;
-                            post_attempt_outcomes_or_warn(&tx, &sent.recorded, None, None).await;
-                            tx.commit().await?;
+                    Ok(()) => match bind_referral(client, account, referral).await {
+                        Ok(Some(code)) => {
+                            codes.push(code);
                             Ok(())
                         }
                         Ok(None) => Ok(()),
@@ -374,12 +415,21 @@ pub async fn apply_events(
             WebhookEvent::DeliveredUpTo(delivered) => {
                 apply_delivered_up_to(client, account, delivered).await
             }
+            // Flagged and logged; no voter's contact changes automatically.
+            WebhookEvent::NumberChanged(change) if account.channel == MessageChannel::WHATSAPP => {
+                let tx = client.transaction().await?;
+                match flag_number_change(&tx, account, change).await {
+                    Ok(_) => tx.commit().await.map_err(Into::into),
+                    Err(error) => Err(error),
+                }
+            }
+            WebhookEvent::NumberChanged(_) => Ok(()),
         };
         if let Err(error) = result {
             warn!(account = %account.id, "could not apply a webhook event: {error:#}");
         }
     }
-    Ok(())
+    Ok(codes)
 }
 
 async fn apply_delivered_up_to(

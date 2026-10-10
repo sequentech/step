@@ -22,6 +22,9 @@ import {
 import {
     acceptedCredentials,
     accountDeliveryFeedback,
+    accountIdentity,
+    checkedForAnotherIdentity,
+    checkIsFor,
     accountSenderLabel,
     accountSummary,
     bindingProviderLanguage,
@@ -1029,5 +1032,55 @@ describe("withCallbackStatus (R4-04)", () => {
 
     it("leaves the accounts as they are when the status can't be read", () => {
         expect(withCallbackStatus([account], undefined)).toEqual([account])
+    })
+})
+
+describe("check identity (R5-09)", () => {
+    const sender = (phone_number_id: string) => ({
+        provider: EMessagingProvider.WHATSAPP_CLOUD_API as const,
+        business_account_id: " 1 ",
+        phone_number_id,
+        display_phone_number: "+63 917 000 0000",
+        api_version: "v23.0",
+    })
+
+    it("is the sender's identifying ids, trimmed, without names or labels", () => {
+        expect(accountIdentity(sender("2"))).toEqual({
+            provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+            ids: {business_account_id: "1", phone_number_id: "2"},
+        })
+        expect(
+            accountIdentity({
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                base_url: "https://api.example.test/",
+                sender: "Elections",
+                templates: {},
+            } as unknown as Parameters<typeof accountIdentity>[0]).ids
+        ).toEqual({base_url: "https://api.example.test", sender: "Elections"})
+    })
+
+    it("counts a check only for the identity it names; an older check names none", () => {
+        const check = {...readyCheck([]), details: {identity: accountIdentity(sender("2"))}}
+        expect(checkIsFor(check, accountIdentity(sender("2")))).toBe(true)
+        expect(checkIsFor(check, accountIdentity(sender("3")))).toBe(false)
+        expect(checkIsFor(readyCheck([]), accountIdentity(sender("3")))).toBe(true)
+    })
+
+    it("makes an account whose check was of another number ready for nothing", () => {
+        const check = {...readyCheck([]), details: {identity: accountIdentity(sender("2"))}}
+        // Only the sender and the status matter here.
+        const moved = {sender: sender("3"), status: check} as unknown as IMessagingAccount
+        expect(checkedForAnotherIdentity(moved)).toBe(true)
+        expect(checkedForAnotherIdentity({...moved, sender: sender("2")})).toBe(false)
+        const readiness = purposeReadiness(
+            EMessagingProvider.WHATSAPP_CLOUD_API,
+            providerCapabilities(EMessagingProvider.WHATSAPP_CLOUD_API, EMessageChannel.WHATSAPP),
+            EProviderApproval.CONFIRMED,
+            check,
+            EMessagePurpose.NOTICE,
+            null,
+            accountIdentity(sender("3"))
+        )
+        expect(readiness.blockers).toEqual([EReadinessBlocker.UNCHECKED])
     })
 })

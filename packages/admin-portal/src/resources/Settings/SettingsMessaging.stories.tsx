@@ -60,6 +60,14 @@ const meta = {
                 data: {delete_messaging_account: {id: SMS_ACCOUNT_ID}},
             }),
             MessagingAccountCallbackUrl: callbackUrlHandler,
+            GetMessagingMonthlyVolumes: ({variables}) => ({
+                data: {messaging_monthly_volumes: {month: variables.month, rows: []}},
+            }),
+            // The dev fake provider routes aren't mounted: no Sent messages tab
+            // (its stories are under Settings/Sent messages).
+            MessagingFakeProviderMessages: () => {
+                throw new Error("Synthetic http exception when calling webhook")
+            },
         })
         await graphql.ready
     },
@@ -76,7 +84,7 @@ const accountRow = (canvasElement: HTMLElement, name: string) =>
     within(canvasElement).findByRole("row", {name: new RegExp(name)})
 
 export const Accounts: Story = {
-    parameters: {widgets: ["ReadinessCell"]},
+    parameters: {widgets: ["ReadinessCell", "MessagingAccountList"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
@@ -144,7 +152,12 @@ export const CheckConnection: Story = {
             expect(
                 graphql.calls
                     .map(({name}) => name)
-                    .filter((name) => name !== "GetMessagingCallbackStatus")
+                    .filter(
+                        (name) =>
+                            name !== "GetMessagingCallbackStatus" &&
+                            name !== "MessagingFakeProviderMessages" &&
+                            name !== "GetMessagingMonthlyVolumes"
+                    )
             ).toEqual(["GetMessagingAccounts", "CheckMessagingAccount", "GetMessagingAccounts"])
         )
         expect(graphql.calls.find(({name}) => name === "CheckMessagingAccount")).toMatchObject({

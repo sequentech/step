@@ -30,10 +30,18 @@ const SAME_EVERYWHERE =
 // Only placeholders and punctuation: "{{channel}}: {{purpose}}", never words.
 const PLACEHOLDERS_ONLY = /^(\s|[:·-]|\{\{\w+\}\})*$/
 const SAME_IN: Record<string, string[]> = {
-    es: ["messagingEvent.column.post"],
-    ca: ["messagingEvent.column.post"],
+    es: [
+        "messagingEvent.column.post",
+        "messagingAccounts.status.no",
+        "messagingAccounts.status.templateCategory.MARKETING",
+    ],
+    ca: ["messagingEvent.column.post", "messagingAccounts.status.no"],
     eu: ["messagingEvent.column.post"],
-    fr: ["messagingEvent.column.post", "messagingAccounts.column.actions"],
+    fr: [
+        "messagingEvent.column.post",
+        "messagingAccounts.column.actions",
+        "messagingAccounts.status.templateCategory.MARKETING",
+    ],
     gl: ["messagingEvent.column.post"],
     nl: [
         "messagingEvent.column.status",
@@ -44,6 +52,7 @@ const SAME_IN: Record<string, string[]> = {
         "messagingAccounts.column.name",
         "messagingAccounts.column.provider",
         "messagingAccounts.editor.provider",
+        "messagingAccounts.status.templateCategory.MARKETING",
     ],
     // "Channel" and "Post" are kept as loanwords, as in the rest of the Tagalog texts.
     tl: [
@@ -54,6 +63,7 @@ const SAME_IN: Record<string, string[]> = {
         "messaging.logs.channel",
         "messagingAccounts.column.channel",
         "messagingAccounts.editor.channel",
+        "messagingAccounts.status.templateCategory.MARKETING",
     ],
 }
 

@@ -53,7 +53,12 @@ const account = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccount 
         api_base_url: null,
     },
     credentials: {ACCESS_TOKEN: {replaced_at: "2026-09-30T10:00:00Z"}},
-    limits: {messages_per_second: 20, otp_reserved_per_second: 5, allowed_calling_codes: ["63"]},
+    limits: {
+        messages_per_second: 20,
+        otp_reserved_per_second: 5,
+        otp_concurrency: 4,
+        allowed_calling_codes: ["63"],
+    },
     provider_approval: EProviderApproval.PENDING,
     status: {connected: true, production_access: true, approved_templates: {}},
     is_default: true,
@@ -232,11 +237,13 @@ describe("validateAccountForm", () => {
             limits: {
                 messagesPerSecond: "10",
                 otpReservedPerSecond: "12",
+                otpConcurrency: "0",
                 allowedCallingCodes: "63 x",
             },
         })
         expect(validateAccountForm(values)).toEqual({
             "limits.otpReservedPerSecond": EAccountFormError.OTP_ABOVE_TOTAL,
+            "limits.otpConcurrency": EAccountFormError.AT_LEAST_ONE,
             "limits.allowedCallingCodes": EAccountFormError.INVALID_CALLING_CODE,
         })
         expect(
@@ -245,12 +252,14 @@ describe("validateAccountForm", () => {
                 limits: {
                     messagesPerSecond: "-1",
                     otpReservedPerSecond: "1.5",
+                    otpConcurrency: "two",
                     allowedCallingCodes: "",
                 },
             })
         ).toEqual({
             "limits.messagesPerSecond": EAccountFormError.NOT_A_COUNT,
             "limits.otpReservedPerSecond": EAccountFormError.NOT_A_COUNT,
+            "limits.otpConcurrency": EAccountFormError.NOT_A_COUNT,
         })
     })
 

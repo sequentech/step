@@ -69,3 +69,5 @@ keycloak = "24.0"
 openssl = "0.10"
 # The loopback provider messages are sent to in route tests.
 messaging = { path = "../messaging", features = ["test-support"] }
+# The webhook component, in front of the fake provider routes' reports.
+messaging-webhooks = { path = "../messaging-webhooks" }

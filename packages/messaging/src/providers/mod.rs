@@ -14,10 +14,12 @@ pub mod whatsapp;
 
 use crate::sender::{ChannelSender, FailureKind, SendOutcome};
 use anyhow::{anyhow, Result};
+use chrono::{TimeZone, Utc};
 use sequent_core::types::messaging::{
-    AccountLimits, AccountSender, CredentialName, MessageChannel, MessageReason, MessagingProvider,
-    ProviderSupport,
+    AccountLimits, AccountSender, AppSecretStatus, CredentialName, MessageChannel, MessagePurpose,
+    MessageReason, MessagingProvider, ProviderSupport, TemplateStatus, TokenStatus,
 };
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -195,7 +197,9 @@ pub async fn build(
         ));
     }
     for credential in provider.required_credentials() {
-        account.credential(credential)?;
+        account
+            .credential(credential)
+            .map_err(|_| anyhow!(missing_credential_reason(credential)))?;
     }
     let account = &Account {
         sender: endpoints.apply(&account.sender),
@@ -246,6 +250,196 @@ pub(crate) fn meta_outcome(outcome: SendOutcome) -> SendOutcome {
         }
         other => other,
     }
+}
+
+/// Meta's `debug_token` on the account's own token: whether it is valid,
+/// when it expires, and which of the `needed` permissions it lacks. `None`
+/// when Meta didn't answer it: the check says nothing it didn't read.
+pub(crate) async fn meta_token_status(
+    http: &reqwest::Client,
+    base_url: &str,
+    token: &str,
+    needed: &[&str],
+) -> Option<TokenStatus> {
+    let (status, body) = exchange(
+        http.get(format!("{base_url}/debug_token"))
+            .query(&[("input_token", token)])
+            .bearer_auth(token),
+    )
+    .await
+    .ok()?;
+    if status != 200 {
+        return None;
+    }
+    let body: Value = serde_json::from_str(&body).ok()?;
+    let data = body.get("data")?;
+    let valid = data["is_valid"].as_bool()?;
+    // 0 means the token doesn't expire.
+    let expires_at = data["expires_at"]
+        .as_i64()
+        .filter(|seconds| *seconds > 0)
+        .and_then(|seconds| Utc.timestamp_opt(seconds, 0).single())
+        .map(|at| at.to_rfc3339());
+    let missing_scopes = match data["scopes"].as_array() {
+        Some(scopes) => needed
+            .iter()
+            .filter(|scope| !scopes.iter().any(|s| s.as_str() == Some(scope)))
+            .map(|scope| scope.to_string())
+            .collect(),
+        None => vec![],
+    };
+    Some(TokenStatus {
+        valid,
+        expires_at,
+        missing_scopes,
+    })
+}
+
+/// Meta's `message_templates` answer: every template with its category
+/// and status per language, and the languages approved per purpose
+/// (authentication templates carry codes, utility templates notices).
+pub(crate) fn meta_templates(
+    body: &str,
+) -> (Vec<TemplateStatus>, BTreeMap<MessagePurpose, Vec<String>>) {
+    let body: Value = serde_json::from_str(body).unwrap_or_default();
+    let mut templates = vec![];
+    let mut approved: BTreeMap<MessagePurpose, Vec<String>> = BTreeMap::new();
+    for template in body["data"].as_array().cloned().unwrap_or_default() {
+        let (Some(name), Some(language), Some(status)) = (
+            template["name"].as_str(),
+            template["language"].as_str(),
+            template["status"].as_str(),
+        ) else {
+            continue;
+        };
+        let category = template["category"].as_str();
+        templates.push(TemplateStatus {
+            name: name.to_string(),
+            language: language.to_string(),
+            category: category.map(str::to_string),
+            status: status.to_string(),
+        });
+        if status != "APPROVED" {
+            continue;
+        }
+        let purpose = match category {
+            Some("AUTHENTICATION") => MessagePurpose::OTP,
+            Some("UTILITY") => MessagePurpose::NOTICE,
+            _ => continue,
+        };
+        let languages = approved.entry(purpose).or_default();
+        if !languages.iter().any(|l| l == language) {
+            languages.push(language.to_string());
+        }
+    }
+    (templates, approved)
+}
+
+/// The reason given when a provider has an API for templates and it
+/// couldn't be read.
+pub const TEMPLATES_NOT_READ: &str = "The provider's templates couldn't be read";
+
+// The provider checks' reasons (R5-15): constants, or a constant start
+// followed by one value, so the Admin Portal translates every one of them
+// (`messagingReasons.ts`). Never a provider's body or a credential.
+
+/// The provider's API didn't answer.
+pub const PROVIDER_UNREACHABLE: &str = "The provider couldn't be reached";
+/// Followed by the HTTP status the provider answered a check with.
+pub const PROVIDER_STATUS_PREFIX: &str = "The provider answered with status ";
+/// Followed by the name of the credential the account lacks.
+pub const MISSING_CREDENTIAL_PREFIX: &str = "Missing credential: ";
+/// Followed by what the provider's SDK said (AWS).
+pub const CHECK_FAILED_PREFIX: &str = "The provider's check failed: ";
+/// Followed by Meta's code for the number's status (`PENDING`, ...).
+pub const NUMBER_STATUS_PREFIX: &str = "The number's status is ";
+/// Followed by Meta's code for the display name's review.
+pub const NUMBER_NAME_PREFIX: &str = "The number's display name is ";
+pub const NUMBER_IN_SANDBOX: &str = "The number is in sandbox mode";
+pub const NUMBER_NOT_VERIFIED: &str = "The number's code is not verified";
+pub const SMS_SANDBOX: &str = "The account is in the SMS sandbox";
+pub const SES_SANDBOX: &str = "The account is in the SES sandbox";
+pub const SES_SENDING_DISABLED: &str = "Sending is disabled for this account";
+pub const SMTP_REFUSED: &str = "SMTP server unreachable or credentials rejected";
+/// Meta's `debug_token` says the token isn't valid, or it has expired.
+pub const TOKEN_INVALID: &str = "The access token isn't valid or has expired";
+/// The token lacks the permission to send (R5-11).
+pub const TOKEN_CANNOT_SEND: &str = "The access token lacks the permission to send";
+/// Meta's `debug_token` didn't answer.
+pub const TOKEN_NOT_CHECKED: &str = "The access token couldn't be checked";
+/// Meta refused the proof made with the app secret (R5-16).
+pub const APP_SECRET_REFUSED: &str = "Meta refused the app secret";
+/// The proof made with the app secret couldn't be checked (R5-16).
+pub const APP_SECRET_NOT_CHECKED: &str = "The app secret couldn't be checked";
+
+/// [`PROVIDER_STATUS_PREFIX`] with the status.
+pub fn provider_status_reason(status: u16) -> String {
+    format!("{PROVIDER_STATUS_PREFIX}{status}")
+}
+
+/// [`MISSING_CREDENTIAL_PREFIX`] with the credential's name.
+pub fn missing_credential_reason(name: CredentialName) -> String {
+    format!("{MISSING_CREDENTIAL_PREFIX}{name}")
+}
+
+/// [`CHECK_FAILED_PREFIX`] with what failed.
+pub fn check_failed_reason(detail: impl std::fmt::Display) -> String {
+    format!("{CHECK_FAILED_PREFIX}{detail}")
+}
+
+/// The permission a Meta token needs to send, by provider: WhatsApp's and
+/// the Page's messaging permission. `None` for other providers.
+pub fn meta_send_scope(provider: MessagingProvider) -> Option<&'static str> {
+    match provider {
+        MessagingProvider::WHATSAPP_CLOUD_API => Some("whatsapp_business_messaging"),
+        MessagingProvider::MESSENGER_SEND_API => Some("pages_messaging"),
+        _ => None,
+    }
+}
+
+/// Checks the account's app secret with Meta (R5-16): a Graph lookup of
+/// `object_id` with `appsecret_proof`, the HMAC-SHA256 of the token keyed
+/// by the secret. Graph refuses a proof that doesn't match the app's
+/// secret, with an error that names `appsecret_proof`. `None` when the
+/// account has no app secret.
+pub(crate) async fn meta_app_secret_status(
+    http: &reqwest::Client,
+    base_url: &str,
+    object_id: &str,
+    token: &str,
+    app_secret: Option<&str>,
+) -> Option<AppSecretStatus> {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    let app_secret = app_secret.filter(|secret| !secret.is_empty())?;
+    let not_checked = || AppSecretStatus {
+        valid: None,
+        reason: Some(APP_SECRET_NOT_CHECKED.to_string()),
+    };
+    let Ok(mut mac) = Hmac::<Sha256>::new_from_slice(app_secret.as_bytes()) else {
+        return Some(not_checked());
+    };
+    mac.update(token.as_bytes());
+    let proof = hex::encode(mac.finalize().into_bytes());
+    Some(
+        match exchange(
+            http.get(format!("{base_url}/{object_id}"))
+                .query(&[("fields", "id"), ("appsecret_proof", proof.as_str())])
+                .bearer_auth(token),
+        )
+        .await
+        {
+            Ok((200, _)) => AppSecretStatus {
+                valid: Some(true),
+                reason: None,
+            },
+            Ok((400 | 403, body)) if body.contains("appsecret_proof") => AppSecretStatus {
+                valid: Some(false),
+                reason: Some(APP_SECRET_REFUSED.to_string()),
+            },
+            _ => not_checked(),
+        },
+    )
 }
 
 /// Sends a request and reads its body, keeping the error for outcome

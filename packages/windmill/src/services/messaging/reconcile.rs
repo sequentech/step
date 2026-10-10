@@ -26,7 +26,10 @@
 
 use super::accounts::runtime_account;
 use super::audit::{AttemptOutcome, ENVIRONMENT_PROVIDER};
-use super::dispatch::{attempt_outcome, deliver, retry_refusal, Delivery, Dispatcher};
+use super::dispatch::{
+    attempt_outcome, deliver_within, retry_refusal, Delivery, Dispatcher, SendPolicy,
+    WhenNotSendable,
+};
 use crate::postgres::messaging::{
     cancel_retry, expire_messenger_links, get_messaging_account, list_due_retries,
     list_reconcilable_unknown, list_stale_queued, list_unlogged, mark_reconciled,
@@ -382,7 +385,17 @@ async fn sweep_retries(
             let RetryContent::Message(delivery) = content else {
                 continue;
             };
-            match deliver(client, dispatcher, &delivery).await {
+            // A retry waits for capacity only within the pass's budget,
+            // and one that can't be sent yet (no capacity, the account not
+            // ready) stays due for a later pass instead of failing.
+            let policy = SendPolicy {
+                capacity_deadline: Some(tokio::time::Instant::from_std(
+                    started + limits.retry_budget,
+                )),
+                when_not_sendable: WhenNotSendable::KEEP_RETRY_DUE,
+                ..SendPolicy::default()
+            };
+            match deliver_within(client, dispatcher, &delivery, policy).await {
                 Ok(result) => {
                     summary.retried += usize::from(!result.recorded.is_empty());
                     if result.newly_sent() {

@@ -6,6 +6,7 @@
 // packages/sequent-core/src/types/messaging.rs. The server stays
 // authoritative; these let the screens explain a blocked control before saving.
 import {
+    EApprovalSource,
     ECredentialName,
     EDeliveryFeedback,
     EMessageChannel,
@@ -19,6 +20,7 @@ import {
     GENERATED_CREDENTIALS,
     IAccountCallbackStatus,
     IAccountCheck,
+    IAccountIdentity,
     IAccountSender,
     IAccountSummary,
     IEventChannelConfig,
@@ -140,9 +142,104 @@ export const accountCapabilities = (account: IMessagingAccount): IProviderCapabi
     senderCapabilities(account.sender, account.channel)
 
 /**
- * Readiness of `purpose` for `language` (any language when null) on an account.
- * It always comes from the provider's check: no statement of an administrator
- * replaces it. An account of a removed provider is unsupported.
+ * Port of `AccountCheck::approval`: the provider approval the check reported,
+ * where the provider has an API for it, else the one an administrator entered.
+ */
+export const accountApproval = (
+    entered: EProviderApproval | null | undefined,
+    check: IAccountCheck | null | undefined
+): {approval: EProviderApproval | null; source: EApprovalSource} => {
+    const reported = check?.details?.provider_approval
+    return reported
+        ? {approval: reported, source: EApprovalSource.PROVIDER_CHECK}
+        : {approval: entered ?? null, source: EApprovalSource.ADMIN_ENTERED}
+}
+
+/**
+ * What identifies a sender to its provider (`AccountSender::identity`): the
+ * provider and its identifying ids, trimmed, absent ones left out. Names,
+ * labels, API versions and templates are not part of it. Keep in step with
+ * the Rust function; `messaging.test.ts` holds the same cases.
+ */
+export const accountIdentity = (sender: IAccountSender): IAccountIdentity => {
+    const fields: Array<[string, string | null | undefined]> = (() => {
+        switch (sender.provider) {
+            case EMessagingProvider.AWS_SES:
+                return [
+                    ["from_address", sender.from_address],
+                    ["region", sender.region],
+                ]
+            case EMessagingProvider.SMTP:
+                return [
+                    ["from_address", sender.from_address],
+                    ["server_url", sender.server_url],
+                ]
+            case EMessagingProvider.AWS_SNS:
+                return [
+                    ["sender_id", sender.sender_id],
+                    ["origination_number", sender.origination_number],
+                    ["region", sender.region],
+                ]
+            case EMessagingProvider.WHATSAPP_CLOUD_API:
+                return [
+                    ["business_account_id", sender.business_account_id],
+                    ["phone_number_id", sender.phone_number_id],
+                ]
+            case EMessagingProvider.MESSENGER_SEND_API:
+                return [["page_id", sender.page_id]]
+            case EMessagingProvider.VIBER_INFOBIP:
+                return [
+                    ["base_url", sender.base_url?.replace(/\/+$/, "")],
+                    ["sender", sender.sender],
+                ]
+            default:
+                return []
+        }
+    })()
+    const ids: Record<string, string> = {}
+    for (const [name, value] of fields) {
+        const trimmed = value?.trim()
+        if (trimmed) ids[name] = trimmed
+    }
+    return {provider: sender.provider, ids}
+}
+
+const sameIdentity = (a: IAccountIdentity, b: IAccountIdentity): boolean => {
+    const keys = (identity: IAccountIdentity) => Object.keys(identity.ids).sort()
+    return (
+        a.provider === b.provider &&
+        keys(a).join() === keys(b).join() &&
+        keys(a).every((key) => a.ids[key] === b.ids[key])
+    )
+}
+
+/**
+ * Whether a check describes an account whose identity is `current`
+ * (`AccountCheck::is_for`). A check that doesn't name its identity was
+ * stored before identities were recorded and counts.
+ */
+export const checkIsFor = (
+    check: IAccountCheck | null | undefined,
+    current: IAccountIdentity
+): boolean => {
+    const checked = check?.details?.identity
+    return !checked || sameIdentity(checked, current)
+}
+
+/**
+ * Whether the account's last check was of another identity (an earlier
+ * number, Page or sender): it sends nothing until checked as it is now.
+ */
+export const checkedForAnotherIdentity = (account: IMessagingAccount): boolean =>
+    !!account.status?.checked_at && !checkIsFor(account.status, accountIdentity(account.sender))
+
+/**
+ * Readiness of `purpose` for `language` (any language when null) on an account
+ * whose identity is `identity` (null: unknown, the check is taken as the
+ * account's). It always comes from the provider's check: no statement of an
+ * administrator replaces it. An account of a removed provider is unsupported.
+ * A check of another identity readies nothing: the same rule decides at
+ * config save and at send time.
  */
 export const purposeReadiness = (
     provider: EMessagingProvider,
@@ -150,7 +247,8 @@ export const purposeReadiness = (
     approval: EProviderApproval | null | undefined,
     check: IAccountCheck | null | undefined,
     purpose: EMessagePurpose,
-    language: string | null | undefined
+    language: string | null | undefined,
+    identity?: IAccountIdentity | null
 ): IPurposeReadiness => {
     if (isUnsupportedProvider(provider)) {
         return {purpose, blockers: [EReadinessBlocker.UNSUPPORTED_PROVIDER]}
@@ -159,14 +257,25 @@ export const purposeReadiness = (
         return {purpose, blockers: [EReadinessBlocker.UNSUPPORTED_PURPOSE]}
     }
     const blockers: EReadinessBlocker[] = []
-    if (!check?.connected) {
+    const unchecked = !!check?.checked_at && !!identity && !checkIsFor(check, identity)
+    if (unchecked) {
+        blockers.push(EReadinessBlocker.UNCHECKED)
+    }
+    if (!unchecked && !check?.connected) {
         blockers.push(EReadinessBlocker.NOT_CONNECTED)
     }
     if (!capabilities.purposes.includes(purpose)) {
         blockers.push(EReadinessBlocker.UNSUPPORTED_PURPOSE)
     }
-    if (capabilities.requires_provider_approval && approval !== EProviderApproval.CONFIRMED) {
+    if (
+        capabilities.requires_provider_approval &&
+        accountApproval(approval, check).approval !== EProviderApproval.CONFIRMED
+    ) {
         blockers.push(EReadinessBlocker.NEEDS_PROVIDER_APPROVAL)
+    }
+    if (unchecked) {
+        // The rest comes from the check, which describes another identity.
+        return {purpose, blockers}
     }
     if (!check?.production_access) {
         blockers.push(EReadinessBlocker.NEEDS_PRODUCTION_ACCESS)
@@ -339,6 +448,7 @@ export const accountSummary = (account: IMessagingAccount): IAccountSummary => (
     provider: account.provider,
     capabilities: accountCapabilities(account),
     provider_approval: account.provider_approval ?? EProviderApproval.PENDING,
+    identity: accountIdentity(account.sender),
     check: account.status ?? {connected: false, production_access: false},
     public_label: accountSenderLabel(account.sender),
     messenger_page:
@@ -515,7 +625,8 @@ export const validateEventMessagingConfig = (
                 account.provider_approval,
                 account.check,
                 purpose,
-                null
+                null,
+                account.identity
             )
             if (readiness.blockers.length) {
                 errors.push({

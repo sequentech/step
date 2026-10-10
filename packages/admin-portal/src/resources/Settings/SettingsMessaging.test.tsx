@@ -51,6 +51,11 @@ jest.mock(
     {virtual: true}
 )
 jest.mock("./MessagingTestDialog", () => ({MessagingTestDialog: () => null}))
+jest.mock("./MessagingMonthlyVolumes", () => ({MessagingMonthlyVolumes: () => null}))
+// The Sent messages tab has its own tests (SentMessages/); here, only the accounts.
+jest.mock("./SentMessages/MessagingTabs", () => ({
+    MessagingTabs: ({accounts}: {accounts: React.ReactNode}) => accounts,
+}))
 // The drawer's editor, reduced to what it was given.
 jest.mock("./MessagingAccountEditor", () => ({
     MESSAGING_ACCOUNT_EDITOR_TITLE: "editor-title",

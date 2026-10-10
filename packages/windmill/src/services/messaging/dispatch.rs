@@ -7,7 +7,7 @@
 //! the provider said. Nothing here ever tries another channel: a message
 //! that can't go out on its channel gets one FAILED row with its reason.
 
-use super::accounts::runtime_account;
+use super::accounts::{not_ready_reason, runtime_account, send_readiness};
 use super::audit::{AttemptOutcome, MessageKind, ENVIRONMENT_PROVIDER};
 use super::config::get_event_messaging_config;
 use super::keys::{tenant_key, TenantKey};
@@ -16,6 +16,7 @@ use crate::postgres::messaging::{
     last_get_started_at, list_attempts, list_messaging_accounts, mark_dispatched,
     transition_message, MessageRecord, MessagingAccount, NewMessage, StateChange,
 };
+use crate::postgres::rate_bucket::{self, Take};
 use crate::services::providers::email_sender::{EmailSender, TransportFailure};
 use crate::services::providers::sms_sender::SmsSender;
 use anyhow::{anyhow, Result};
@@ -26,20 +27,19 @@ use deadpool_postgres::Transaction;
 use messaging::attempts::{decide, next_retry_at, AttemptRecord, Dispatch};
 use messaging::destination::Destination;
 use messaging::providers::{self, Endpoints};
-use messaging::rate_limit::RateLimiter;
+use messaging::rate_limit::BucketShare;
 use messaging::sender::{
     preflight, ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome,
 };
 use sequent_core::types::messaging::{
     AccountCheck, AccountSender, BillingCategory, DeliveryFeedback, EventMessagingConfig,
     MessageAttemptState, MessageChannel, MessageContent, MessagePurpose, MessageReason,
-    NoticeRecipient, OutOfWindowPolicy, ProviderCapabilities, RecipientKind,
+    NoticeRecipient, OutOfWindowPolicy, ProviderCapabilities, RecipientKind, RETRY_PREPARE_HOURS,
 };
 use sequent_core::types::templates::SendTemplateBody;
 use sequent_core::types::voter_channel::{VoterChannel, VoterChannelSource};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use tokio::sync::OnceCell;
+use tokio::time::Instant;
 use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
@@ -156,20 +156,127 @@ pub fn attempt_outcome(record: &MessageRecord, provider: &str) -> AttemptOutcome
     }
 }
 
-/// Shared by every delivery of a process: HTTP clients and per-account
-/// rates.
+/// Shared by every delivery of a process: provider endpoints and the HTTP
+/// client. Sending rates are per account and shared by every process, in
+/// Postgres ([`rate_bucket`]).
 pub struct Dispatcher {
     pub endpoints: Endpoints,
     http: reqwest::Client,
-    limiters: Mutex<
-        HashMap<
-            Uuid,
-            (
-                sequent_core::types::messaging::AccountLimits,
-                Arc<RateLimiter>,
-            ),
-        >,
-    >,
+}
+
+/// The share of its account's bucket a delivery takes.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum ShareRule {
+    /// By purpose ([`BucketShare::of`]): codes the whole bucket, notices
+    /// only above the account's OTP reserve. Windmill's bulk sends and
+    /// retries.
+    #[default]
+    BY_PURPOSE,
+    /// The whole bucket, whatever the purpose: a voter is waiting.
+    /// Everything Keycloak asks harvest to send, codes and notices.
+    WHOLE_BUCKET,
+}
+
+/// The caller's place for the delivery among its account's messages in
+/// flight (harvest's places, taken before any database connection).
+#[allow(non_camel_case_types)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Place {
+    /// The send isn't limited by places: windmill's sends.
+    #[default]
+    NOT_REQUIRED,
+    /// The caller holds a place until this call returns.
+    HELD,
+    /// No place came free within the budget: the attempt isn't sent and
+    /// takes no token ([`rate_bucket::CAPACITY_BUSY`]).
+    NOT_GRANTED,
+}
+
+/// What a due retry does when it can't be sent yet: its account isn't
+/// ready, or has no capacity before the deadline.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum WhenNotSendable {
+    /// The attempt is recorded FAILED with the reason, a transient
+    /// failure: the retry rules then apply as for any other.
+    #[default]
+    RECORD_FAILED,
+    /// The sweep's retries: no new attempt. The failed attempt stays due,
+    /// [`RETRY_WAIT_MINUTES`] later, with a log line saying what it waits
+    /// for; after [`RETRY_PREPARE_HOURS`] of waiting it isn't retried
+    /// ([`MessageReason::RETRY_NOT_PREPARED`]). First attempts are always
+    /// recorded.
+    KEEP_RETRY_DUE,
+}
+
+/// Whether the account's readiness is checked before sending.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum ReadinessGate {
+    /// Every send through an account: an account that isn't ready for the
+    /// purpose sends nothing ([`not_ready_reason`]).
+    #[default]
+    CHECKED,
+    /// An administrator's test message through a chosen account: the test
+    /// is how an account is tried before it is ready.
+    NOT_CHECKED_FOR_TEST_MESSAGE,
+}
+
+/// How a delivery may wait and what it does when it can't be sent yet.
+/// The default is windmill's bulk sends: readiness checked, the share by
+/// purpose, waiting for capacity as long as needed, recorded FAILED when
+/// the account isn't ready.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SendPolicy {
+    /// When waiting for the account's capacity ends. The attempt is then
+    /// not sent ([`rate_bucket::CAPACITY_BUSY`]). `None`: no limit.
+    pub capacity_deadline: Option<Instant>,
+    pub share: ShareRule,
+    pub place: Place,
+    pub when_not_sendable: WhenNotSendable,
+    pub readiness: ReadinessGate,
+    /// When the provider's answer is no longer awaited: the attempt is
+    /// then UNKNOWN ([`PROVIDER_ANSWER_LATE`]), since it may have been
+    /// sent. `None`: the provider client's own timeout.
+    pub answer_by: Option<Instant>,
+}
+
+/// The reason of an attempt whose provider didn't answer by the caller's
+/// deadline ([`SendPolicy::answer_by`]).
+pub const PROVIDER_ANSWER_LATE: &str =
+    "The provider didn't answer in time: the message may have been sent";
+
+/// How much later a waiting retry is due again ([`WhenNotSendable`]).
+pub const RETRY_WAIT_MINUTES: i64 = 1;
+
+/// Takes one token of `account`'s bucket as `policy` allows: `false` when
+/// no place was granted or the deadline passed first.
+async fn take_capacity(
+    client: &DbClient,
+    account: &MessagingAccount,
+    purpose: MessagePurpose,
+    policy: &SendPolicy,
+) -> Result<bool> {
+    if policy.place == Place::NOT_GRANTED {
+        return Ok(false);
+    }
+    let share = match policy.share {
+        ShareRule::BY_PURPOSE => BucketShare::of(purpose),
+        ShareRule::WHOLE_BUCKET => BucketShare::WHOLE,
+    };
+    let taken = rate_bucket::take(
+        client,
+        &account.id,
+        &account.limits,
+        share,
+        policy.capacity_deadline,
+    )
+    .await?;
+    Ok(match taken {
+        Take::Unthrottled | Take::Taken => true,
+        Take::DeadlinePassed => false,
+    })
 }
 
 static DISPATCHER: OnceCell<Dispatcher> = OnceCell::const_new();
@@ -179,7 +286,6 @@ impl Dispatcher {
         Ok(Dispatcher {
             endpoints,
             http: providers::http_client()?,
-            limiters: Mutex::new(HashMap::new()),
         })
     }
 
@@ -191,21 +297,6 @@ impl Dispatcher {
 
     pub fn http(&self) -> &reqwest::Client {
         &self.http
-    }
-
-    /// The account's limiter, made again when the account's limits changed.
-    fn limiter(&self, account: &MessagingAccount) -> Arc<RateLimiter> {
-        let Ok(mut limiters) = self.limiters.lock() else {
-            return Arc::new(RateLimiter::new(&account.limits));
-        };
-        match limiters.get(&account.id) {
-            Some((limits, limiter)) if *limits == account.limits => limiter.clone(),
-            _ => {
-                let limiter = Arc::new(RateLimiter::new(&account.limits));
-                limiters.insert(account.id, (account.limits.clone(), limiter.clone()));
-                limiter
-            }
-        }
     }
 }
 
@@ -301,17 +392,47 @@ fn transport_outcome(sent: std::result::Result<(), TransportFailure>) -> SendOut
     }
 }
 
+/// The account the event's configuration names for a channel doesn't
+/// exist (deleted since, or not an id): nothing goes out on the channel,
+/// never through the deployment's own email or SMS sender. Shown as
+/// [`MessageReason::NO_ACCOUNT_FOR_CHANNEL`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfiguredAccountMissing {
+    pub channel: MessageChannel,
+    pub account_id: String,
+}
+
+impl std::fmt::Display for ConfiguredAccountMissing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(MessageReason::NO_ACCOUNT_FOR_CHANNEL.as_str())
+    }
+}
+
+impl std::error::Error for ConfiguredAccountMissing {}
+
 /// The account for `channel`: the event's choice, otherwise the tenant
-/// default. `None` with no account; email and SMS then use the environment.
-async fn account_for(
+/// default. `Ok(None)` only when neither exists: email and SMS then use the
+/// deployment's sender. An account the configuration names that doesn't
+/// exist is an error, [`ConfiguredAccountMissing`] (downcast it), never
+/// `None`.
+pub async fn account_for(
     tx: &deadpool_postgres::Transaction<'_>,
     tenant_id: &Uuid,
     config: Option<&EventMessagingConfig>,
     channel: MessageChannel,
 ) -> Result<Option<MessagingAccount>> {
     if let Some(channel_config) = config.and_then(|c| c.channel(channel)) {
-        let id = Uuid::parse_str(&channel_config.account_id)?;
-        return get_messaging_account(tx, tenant_id, &id).await;
+        let missing = || ConfiguredAccountMissing {
+            channel,
+            account_id: channel_config.account_id.clone(),
+        };
+        let Ok(id) = Uuid::parse_str(&channel_config.account_id) else {
+            return Err(missing().into());
+        };
+        return match get_messaging_account(tx, tenant_id, &id).await? {
+            Some(account) => Ok(Some(account)),
+            None => Err(missing().into()),
+        };
     }
     Ok(list_messaging_accounts(tx, tenant_id)
         .await?
@@ -572,12 +693,164 @@ pub async fn retry_refusal(
 /// Sends `delivery` on its recipient's channel, unless an earlier attempt
 /// was accepted, may have reached the provider, or failed for good, or a
 /// retry isn't due yet. A transient failure schedules the next attempt on
-/// the same channel; the retry sweep sends it.
-#[instrument(skip_all, fields(logical_key = %delivery.logical_key, purpose = %delivery.purpose), err)]
+/// the same channel; the retry sweep sends it. Windmill's policy: see
+/// [`SendPolicy`]'s default.
 pub async fn deliver(
     client: &mut DbClient,
     dispatcher: &Dispatcher,
     delivery: &Delivery,
+) -> Result<DeliveryResult> {
+    deliver_within(client, dispatcher, delivery, SendPolicy::default()).await
+}
+
+/// The account `delivery` goes through on `channel`: the chosen one (on
+/// its channel only), else the event's choice, else the tenant's default.
+/// `Err(reason)`: the chosen or configured account doesn't exist (or is
+/// for another channel), so nothing is sent, never through the
+/// deployment's sender.
+async fn delivery_account(
+    tx: &Transaction<'_>,
+    delivery: &Delivery,
+    config: Option<&EventMessagingConfig>,
+    channel: MessageChannel,
+) -> Result<std::result::Result<Option<MessagingAccount>, MessageReason>> {
+    match delivery.account_id {
+        Some(account_id) => Ok(get_messaging_account(tx, &delivery.tenant_id, &account_id)
+            .await?
+            .filter(|account| account.channel == channel)
+            .map(Some)
+            .ok_or(MessageReason::NO_ACCOUNT_FOR_CHANNEL)),
+        None => match account_for(tx, &delivery.tenant_id, config, channel).await {
+            Ok(account) => Ok(Ok(account)),
+            Err(error) if error.is::<ConfiguredAccountMissing>() => {
+                Ok(Err(MessageReason::NO_ACCOUNT_FOR_CHANNEL))
+            }
+            Err(error) => Err(error),
+        },
+    }
+}
+
+/// The account a first attempt of `delivery` would go through: what
+/// harvest takes a place on before it takes a connection for the send.
+/// `None` for the environment's email and SMS.
+pub async fn account_for_delivery(
+    client: &mut DbClient,
+    delivery: &Delivery,
+) -> Result<Option<MessagingAccount>> {
+    let tx = client.transaction().await?;
+    let config = match &delivery.election_event_id {
+        Some(event) => get_event_messaging_config(&tx, &delivery.tenant_id, event).await?,
+        None => None,
+    };
+    let account =
+        delivery_account(&tx, delivery, config.as_ref(), delivery.recipient.channel).await?;
+    tx.commit().await?;
+    // A missing account is refused by the send itself.
+    Ok(account.unwrap_or(None))
+}
+
+/// Keeps the due retry `latest` waiting for `waiting_for` (no new
+/// attempt): due again [`RETRY_WAIT_MINUTES`] later, or, after
+/// [`RETRY_PREPARE_HOURS`] since it failed, not retried
+/// ([`MessageReason::RETRY_NOT_PREPARED`]).
+async fn keep_retry_due(
+    client: &mut DbClient,
+    latest: &MessageRecord,
+    waiting_for: &str,
+) -> Result<DeliveryResult> {
+    let tx = client.transaction().await?;
+    let now = Utc::now();
+    let current = if now - latest.created_at >= Duration::hours(RETRY_PREPARE_HOURS) {
+        info!(message_id = %latest.id, %waiting_for, "retry waited too long: not retried");
+        cancel_retry(&tx, &latest.id, MessageReason::RETRY_NOT_PREPARED).await?
+    } else {
+        let due = now + Duration::minutes(RETRY_WAIT_MINUTES);
+        info!(message_id = %latest.id, %waiting_for, %due, "retry waiting for capacity or readiness: still due");
+        tx.query_opt(
+            r#"
+            UPDATE sequent_backend.message
+            SET next_retry_at = $2, updated_at = now()
+            WHERE id = $1 AND state = 'FAILED' AND next_retry_at IS NOT NULL
+            RETURNING *
+            "#,
+            &[&latest.id, &due],
+        )
+        .await?
+        .map(MessageRecord::try_from)
+        .transpose()?
+    };
+    tx.commit().await?;
+    Ok(DeliveryResult::from_record(
+        current.as_ref().unwrap_or(latest),
+    ))
+}
+
+/// The error and retry of an attempt that failed with `failure`: a
+/// transient failure is retried on the same channel when its purpose and
+/// origin allow it; otherwise why not is recorded next to the failure.
+async fn failure_change(
+    tx: &Transaction<'_>,
+    delivery: &Delivery,
+    attempt: i32,
+    failure: &ProviderFailure,
+) -> Result<StateChange> {
+    let mut error = match &failure.code {
+        Some(code) => format!("{} ({code})", failure.reason),
+        None => failure.reason.clone(),
+    };
+    let mut retry_at = next_retry_at(delivery.purpose, attempt, failure.kind, Utc::now());
+    if retry_at.is_some() {
+        // The ledger keeps no content: only a message whose origin can
+        // render it again is retried.
+        if let Some(reason) = retry_refusal(
+            tx,
+            &delivery.tenant_id,
+            Some(&delivery.logical_key),
+            delivery.template_alias.as_deref(),
+        )
+        .await?
+        {
+            retry_at = None;
+            error = reason.not_retried_after(Some(&error));
+        }
+    }
+    Ok(StateChange {
+        error: Some(error),
+        failure: Some(failure.kind),
+        next_retry_at: retry_at,
+        ..Default::default()
+    })
+}
+
+fn not_sent_yet(reason: impl ToString) -> ProviderFailure {
+    ProviderFailure {
+        kind: FailureKind::TRANSIENT,
+        code: None,
+        reason: reason.to_string(),
+    }
+}
+
+/// [`deliver`] under `policy`. In order, before anything is written:
+///
+/// 1. refusals that never change (channel not offered, no account, invalid
+///    destination, no content, preflight): one FAILED row;
+/// 2. the readiness gate ([`ReadinessGate`]): an account that isn't ready
+///    for the purpose sends nothing ([`not_ready_reason`]);
+/// 3. the account's capacity: the caller's place, then a token of the
+///    bucket ([`rate_bucket::CAPACITY_BUSY`] past the deadline).
+///
+/// A message stopped by 2 or 3 is a transient failure, FAILED and never
+/// handed to the provider (a due retry under
+/// [`WhenNotSendable::KEEP_RETRY_DUE`] stays due instead). Only then is the
+/// attempt written, QUEUED and dispatched in one transaction, so nothing
+/// waits with a QUEUED row; the provider's answer is awaited until
+/// [`SendPolicy::answer_by`].
+#[instrument(skip_all, fields(logical_key = %delivery.logical_key, purpose = %delivery.purpose), err)]
+pub async fn deliver_within(
+    client: &mut DbClient,
+    dispatcher: &Dispatcher,
+    delivery: &Delivery,
+    policy: SendPolicy,
 ) -> Result<DeliveryResult> {
     // Only a concurrent worker recording the same attempt makes it loop.
     for _ in 0..4 {
@@ -587,7 +860,7 @@ pub async fn deliver(
             None => None,
         };
         let records = list_attempts(&tx, &delivery.tenant_id, &delivery.logical_key).await?;
-        let latest = records.iter().max_by_key(|r| r.attempt);
+        let latest = records.iter().max_by_key(|r| r.attempt).cloned();
         let (attempt, channel) = match decide(
             delivery.purpose,
             delivery.recipient.channel,
@@ -618,18 +891,17 @@ pub async fn deliver(
                 return current.ok_or_else(|| anyhow!("inconsistent attempts"));
             }
             Dispatch::RetryLater { .. } | Dispatch::GiveUp => {
-                let current = latest.map(DeliveryResult::from_record);
+                let current = latest.as_ref().map(DeliveryResult::from_record);
                 tx.commit().await?;
                 return current.ok_or_else(|| anyhow!("inconsistent attempts"));
             }
         };
 
-        let account = match delivery.account_id {
-            Some(account_id) => get_messaging_account(&tx, &delivery.tenant_id, &account_id)
-                .await?
-                .filter(|account| account.channel == channel),
-            None => account_for(&tx, &delivery.tenant_id, config.as_ref(), channel).await?,
-        };
+        let (account, account_missing) =
+            match delivery_account(&tx, delivery, config.as_ref(), channel).await? {
+                Ok(account) => (account, None),
+                Err(reason) => (None, Some(reason)),
+            };
         let provider = account
             .as_ref()
             .map(|a| a.provider.to_string())
@@ -678,6 +950,9 @@ pub async fn deliver(
                     .contains(&channel)
                 {
                     return Err(MessageReason::channel_not_offered(delivery.purpose).to_string());
+                }
+                if let Some(reason) = account_missing {
+                    return Err(reason.to_string());
                 }
                 let destination =
                     destination.map_err(|_| MessageReason::INVALID_DESTINATION.to_string())?;
@@ -777,7 +1052,18 @@ pub async fn deliver(
                 ))
             }
             .await;
+        // The send-time gate: the account must be ready for the purpose
+        // now, for its current identity. The environment's email and SMS
+        // (no account) are outside it.
+        let blocker = match (&prepared, &account, policy.readiness) {
+            (Ok(_), Some(account), ReadinessGate::CHECKED) => {
+                send_readiness(account, delivery.purpose).err()
+            }
+            _ => None,
+        };
         let refusal = match &prepared {
+            Err(reason) => Some(reason.clone()),
+            Ok(_) if blocker.is_some() => None,
             Ok((sender, message, _)) => {
                 let limits = account
                     .as_ref()
@@ -787,7 +1073,6 @@ pub async fn deliver(
                     .err()
                     .map(|error| error.to_string())
             }
-            Err(reason) => Some(reason.clone()),
         };
         if let Some(reason) = refusal {
             // Refused before the provider: one FAILED row, never another
@@ -813,39 +1098,73 @@ pub async fn deliver(
             delivery.purpose,
             in_window,
         ));
+        // Nothing is written until the attempt can go.
+        tx.commit().await?;
+
+        let not_sent = match (blocker, &account) {
+            (Some(blocker), _) => {
+                let reason = not_ready_reason(blocker);
+                info!(%channel, %blocker, "the account isn't ready: not sent");
+                Some(not_sent_yet(reason))
+            }
+            (None, Some(account)) => {
+                if take_capacity(client, account, delivery.purpose, &policy).await? {
+                    None
+                } else {
+                    info!(%channel, place = ?policy.place, "{}", rate_bucket::CAPACITY_BUSY);
+                    Some(not_sent_yet(rate_bucket::CAPACITY_BUSY))
+                }
+            }
+            (None, None) => None,
+        };
+        if let (Some(failure), WhenNotSendable::KEEP_RETRY_DUE, Some(latest)) =
+            (&not_sent, policy.when_not_sendable, &latest)
+        {
+            if attempt > 1 {
+                return keep_retry_due(client, latest, &failure.reason).await;
+            }
+        }
+        let not_sent = not_sent.or_else(|| {
+            message
+                .expires_at
+                .is_some_and(|expires_at| expires_at <= Utc::now())
+                .then(|| ProviderFailure {
+                    kind: FailureKind::PERMANENT,
+                    code: None,
+                    reason: MessageReason::CODE_EXPIRED_BEFORE_SENDING.to_string(),
+                })
+        });
+
+        let mut tx = client.transaction().await?;
         let Some(queued) = insert_message(&tx, &record).await? else {
             // Another worker recorded this attempt first: decide again.
             tx.commit().await?;
             continue;
         };
-        tx.commit().await?;
-
-        if let Some(account) = &account {
-            dispatcher.limiter(account).acquire(delivery.purpose).await;
-        }
-        let outcome = if message
-            .expires_at
-            .is_some_and(|expires_at| expires_at <= Utc::now())
-        {
+        let outcome = match not_sent {
             // Never handed to the provider: `dispatched_at` stays empty.
-            refused(MessageReason::CODE_EXPIRED_BEFORE_SENDING.as_str())
-        } else {
-            let tx = client.transaction().await?;
-            let dispatching = mark_dispatched(&tx, &queued.id).await?;
-            tx.commit().await?;
-            if !dispatching {
-                // The sweep found the attempt stale while it waited and
-                // recorded it: it is not sent.
-                let tx = client.transaction().await?;
-                let current = get_message(&tx, &queued.id).await?;
+            Some(failure) => SendOutcome::Rejected(failure),
+            None => {
+                mark_dispatched(&tx, &queued.id).await?;
                 tx.commit().await?;
-                return current
-                    .map(|r| DeliveryResult::from_record(&r))
-                    .ok_or_else(|| anyhow!("attempt disappeared"));
+                let outcome = match policy.answer_by {
+                    Some(answer_by) => {
+                        match tokio::time::timeout_at(answer_by, sender.send(&message)).await {
+                            Ok(outcome) => outcome,
+                            Err(_) => {
+                                warn!(message_id = %queued.id, %channel, "{PROVIDER_ANSWER_LATE}");
+                                SendOutcome::Unknown {
+                                    reason: PROVIDER_ANSWER_LATE.to_string(),
+                                }
+                            }
+                        }
+                    }
+                    None => sender.send(&message).await,
+                };
+                tx = client.transaction().await?;
+                outcome
             }
-            sender.send(&message).await
         };
-        let tx = client.transaction().await?;
         let change = match &outcome {
             SendOutcome::Accepted {
                 provider_message_id,
@@ -854,33 +1173,7 @@ pub async fn deliver(
                 ..Default::default()
             },
             SendOutcome::Rejected(failure) => {
-                let mut error = match &failure.code {
-                    Some(code) => format!("{} ({code})", failure.reason),
-                    None => failure.reason.clone(),
-                };
-                let mut retry_at =
-                    next_retry_at(delivery.purpose, attempt, failure.kind, Utc::now());
-                if retry_at.is_some() {
-                    // The ledger keeps no content: only a message whose
-                    // origin can render it again is retried.
-                    if let Some(reason) = retry_refusal(
-                        &tx,
-                        &delivery.tenant_id,
-                        Some(&delivery.logical_key),
-                        delivery.template_alias.as_deref(),
-                    )
-                    .await?
-                    {
-                        retry_at = None;
-                        error = reason.not_retried_after(Some(&error));
-                    }
-                }
-                StateChange {
-                    error: Some(error),
-                    failure: Some(failure.kind),
-                    next_retry_at: retry_at,
-                    ..Default::default()
-                }
+                failure_change(&tx, delivery, attempt, failure).await?
             }
             SendOutcome::Unknown { reason } => StateChange {
                 error: Some(reason.clone()),

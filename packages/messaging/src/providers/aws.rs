@@ -5,7 +5,10 @@
 //! Amazon SES (email) and SNS (SMS). Without account keys the service's own
 //! AWS role is used, as before.
 
-use super::{Account, Endpoints, PROVIDER_TIMEOUT};
+use super::{
+    check_failed_reason, Account, Endpoints, PROVIDER_TIMEOUT, PROVIDER_UNREACHABLE, SES_SANDBOX,
+    SES_SENDING_DISABLED, SMS_SANDBOX,
+};
 use crate::sender::{ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -189,18 +192,18 @@ impl ChannelSender for SnsSender {
                 production_access: !status.is_in_sandbox(),
                 approved_templates: Default::default(),
                 checked_at: Some(Utc::now().to_rfc3339()),
-                reason: status
-                    .is_in_sandbox()
-                    .then(|| "the account is in the SMS sandbox".to_string()),
+                reason: status.is_in_sandbox().then(|| SMS_SANDBOX.to_string()),
+                details: Default::default(),
             },
-            Err(error) => not_connected(&format!(
-                "SNS check failed{}",
-                error
+            // The service's error code, never its message; no code: AWS
+            // wasn't reached.
+            Err(error) => not_connected(
+                &error
                     .as_service_error()
                     .and_then(|e| e.code())
-                    .map(|code| format!(": {code}"))
-                    .unwrap_or_default()
-            )),
+                    .map(check_failed_reason)
+                    .unwrap_or_else(|| PROVIDER_UNREACHABLE.to_string()),
+            ),
         }
     }
 }
@@ -313,21 +316,23 @@ impl ChannelSender for SesSender {
                 approved_templates: Default::default(),
                 checked_at: Some(Utc::now().to_rfc3339()),
                 reason: if !account.sending_enabled() {
-                    Some("sending is disabled for this account".to_string())
+                    Some(SES_SENDING_DISABLED.to_string())
                 } else if !account.production_access_enabled() {
-                    Some("the account is in the SES sandbox".to_string())
+                    Some(SES_SANDBOX.to_string())
                 } else {
                     None
                 },
+                details: Default::default(),
             },
-            Err(error) => not_connected(&format!(
-                "SES check failed{}",
-                error
+            // The service's error code, never its message; no code: AWS
+            // wasn't reached.
+            Err(error) => not_connected(
+                &error
                     .as_service_error()
                     .and_then(|e| e.code())
-                    .map(|code| format!(": {code}"))
-                    .unwrap_or_default()
-            )),
+                    .map(check_failed_reason)
+                    .unwrap_or_else(|| PROVIDER_UNREACHABLE.to_string()),
+            ),
         }
     }
 }

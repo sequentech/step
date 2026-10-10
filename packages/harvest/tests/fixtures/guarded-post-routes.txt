@@ -5,6 +5,7 @@
 # /messaging/callbacks takes the webhook component's relay signature instead
 # of claims, and refuses any request without it the same way.
 /acknowledge-support-materials
+/applications/support-reference
 /apply-reconciliation-changes
 /cast-ballot
 /change-application-status
@@ -102,13 +103,19 @@
 /messages/send
 /messaging/accounts/callback-status
 /messaging/accounts/callback-url
+/messaging/accounts/change-impact
 /messaging/accounts/check
 /messaging/accounts/credentials
 /messaging/accounts/delete
 /messaging/accounts/test
 /messaging/accounts/upsert
+/messaging/audience-preview
 /messaging/callbacks
 /messaging/event-config
+/messaging/event-stats
+/messaging/monthly-volumes
+/messaging/recount-voters
+/messaging/voter-counts
 /miru/create-transmission-package
 /miru/send-transmission-package
 /miru/upload-signature

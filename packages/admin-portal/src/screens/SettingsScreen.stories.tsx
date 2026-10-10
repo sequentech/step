@@ -48,6 +48,9 @@ const meta = {
                 GetMessagingCallbackStatus: () => ({
                     data: {messaging_callback_status: {accounts: []}},
                 }),
+                GetMessagingMonthlyVolumes: ({variables}) => ({
+                    data: {messaging_monthly_volumes: {month: variables.month, rows: []}},
+                }),
             },
             {schema: !messaging}
         )
@@ -125,6 +128,7 @@ export const OpenTheMessagingAccounts: Story = {
         expect(graphql.calls.map(({name}) => name).sort()).toEqual([
             "GetMessagingAccounts",
             "GetMessagingCallbackStatus",
+            "GetMessagingMonthlyVolumes",
         ])
     },
 }

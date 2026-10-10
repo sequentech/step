@@ -16,7 +16,7 @@ use crate::route_services::{
     http, json, post, post_as, text, Services, RELAY_SECRET,
 };
 use crate::test_claims::Claims;
-use messaging::providers::AWS_ENDPOINT_URL_ENV;
+use messaging::providers::{AWS_ENDPOINT_URL_ENV, META_GRAPH_URL_ENV};
 use messaging::relay::{
     self, CallbackEnvelope, CallbackMethod, CallbackProvider, RelayResponse,
 };
@@ -117,6 +117,27 @@ fn in_production() -> Reply {
         "text/xml",
         r#"<GetSMSSandboxAccountStatusResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><GetSMSSandboxAccountStatusResult><IsInSandbox>false</IsInSandbox></GetSMSSandboxAccountStatusResult><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></GetSMSSandboxAccountStatusResponse>"#.to_string(),
     )
+}
+
+/// The loopback Graph API, as the deployment's Meta address, answering the
+/// check of a replaced Page token: the Page is found. The check's other
+/// requests find no answer, which it reports without refusing the token.
+/// The dispatcher reads it once per process: only in an isolated test,
+/// before the first request.
+async fn page_found() -> TestServer {
+    // The Page, then `debug_token`: a replacing token must be able to send
+    // (R5-11).
+    let server = TestServer::start(vec![
+        Reply::Json(200, json!({"id": "page-1", "name": "Elections"})),
+        Reply::Json(
+            200,
+            json!({"data": {"is_valid": true, "expires_at": 0,
+                            "scopes": ["pages_messaging"]}}),
+        ),
+    ])
+    .await;
+    std::env::set_var(META_GRAPH_URL_ENV, &server.base_url);
+    server
 }
 
 /// The loopback provider, as the deployment's AWS endpoint. The dispatcher
@@ -526,8 +547,78 @@ async fn a_deleted_account_is_gone_with_its_credentials() {
     );
 }
 
+/// BC-F13 (T2 gap): the drawer's warning before a Page change, as the
+/// route answers it: the voters connected to the account's current Page in
+/// the realms of the events that use it, and how many events those are.
+#[rocket::async_test]
+async fn a_page_change_answers_how_many_voters_must_connect_again() {
+    use sequent_core::types::keycloak::MESSENGER_PAGE_ATTR_NAME;
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let id = account(&client, &event, messenger()).await;
+    configure(
+        &services,
+        &event,
+        json!({"version": 1, "channels": [{"channel": "MESSENGER",
+            "account_id": id, "purposes": ["OTP"], "templates": []}],
+            "election_channels": {}}),
+    )
+    .await;
+    let realm = rows::keycloak_realm(&services.hasura, &event.realm()).await;
+    for (name, page) in [
+        ("on-page", "page-1"),
+        ("also", "page-1"),
+        ("other", "page-2"),
+    ] {
+        let user =
+            rows::keycloak_user(&services.hasura, &realm, name, true).await;
+        rows::execute(
+            &services.hasura,
+            "INSERT INTO user_attribute (name, value, user_id)
+             VALUES ($1, $2, $3)",
+            &[&MESSENGER_PAGE_ATTR_NAME, &page, &user],
+        )
+        .await;
+    }
+    for (new_page, voters) in [("page-3", 2), ("page-1", 0)] {
+        assert_eq!(
+            json(
+                post(
+                    &client,
+                    "/messaging/accounts/change-impact",
+                    &admin(&event),
+                    &json!({"account_id": id, "page_id": new_page}),
+                )
+                .await,
+            )
+            .await,
+            (Status::Ok, json!({"affected_voters": voters, "events": 1})),
+            "{new_page}"
+        );
+    }
+    assert_eq!(
+        refusal(
+            post(
+                &client,
+                "/messaging/accounts/change-impact",
+                &admin(&event),
+                &json!({"account_id": Uuid::new_v4(), "page_id": "page-3"}),
+            )
+            .await,
+        )
+        .await,
+        (Status::NotFound, "unknown account".to_string())
+    );
+}
+
 #[rocket::async_test]
 async fn replaced_credentials_are_named_and_the_verify_token_shown_once() {
+    if !isolated("routes::messaging::route_tests::replaced_credentials_are_named_and_the_verify_token_shown_once") {
+        return;
+    }
+    // The replaced token is checked before it is saved.
+    let _graph = page_found().await;
     let services = services().await;
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
@@ -567,6 +658,66 @@ async fn replaced_credentials_are_named_and_the_verify_token_shown_once() {
     for value in ["rotated", "page-token", APP_SECRET, token.as_str()] {
         assert!(!recorded.contains(value), "{recorded}");
     }
+}
+
+/// R5-04 regression: the candidate check called the provider at the
+/// address being saved before the save's own rules ran, so an
+/// administrator could make harvest probe an internal `http://` address
+/// and read the outcome from the refusal. The save's rules run first; the
+/// provider is never called.
+#[rocket::async_test]
+async fn a_refused_address_is_never_called_by_the_candidate_check() {
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let id = account(
+        &client,
+        &event,
+        json!({"name": "Viber", "sender": {
+            "provider": "VIBER_INFOBIP",
+            "base_url": "https://127.0.0.1:1",
+            "sender": "Elections",
+        }}),
+    )
+    .await;
+    let (status, replaced) = json(
+        credentials(
+            &client,
+            &event,
+            json!({"id": id, "credentials": {"API_KEY": "first-key"}}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{replaced}");
+    let internal = TestServer::start(vec![Reply::Json(404, json!({}))]).await;
+    let (status, refused) = refusal(
+        post(
+            &client,
+            "/messaging/accounts/upsert",
+            &admin(&event),
+            &json!({
+                "id": id,
+                "name": "Viber",
+                "sender": {
+                    "provider": "VIBER_INFOBIP",
+                    "base_url": internal.base_url,
+                    "sender": "Elections",
+                },
+                "credentials": {"API_KEY": "probe"},
+            }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(
+        (status, refused.as_str()),
+        (
+            Status::BadRequest,
+            "The provider address must start with https://"
+        )
+    );
+    assert_eq!(internal.served(), 0, "the refused address was called");
 }
 
 #[rocket::async_test]
@@ -762,7 +913,8 @@ async fn keycloak_sends_a_message_once_per_logical_key() {
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let sns = sns_answering(vec![published("sns-1"), published("sns-2")]).await;
-    texts_account(&client, &event).await;
+    let id = texts_account(&client, &event).await;
+    checked(&services, &id).await;
 
     let (status, first) = json(
         send(
@@ -1954,9 +2106,12 @@ async fn changes_whose_commit_fails_are_not_reported_as_done() {
         http::Exchange::json("PUT", &realm, 204, json!({})),
     ]);
     std::env::set_var("KEYCLOAK_URL", &peer.url);
+    // Set before the first request: the dispatcher reads them once. The
+    // replaced token's check connects, so the save reaches its commit.
+    let _graph = page_found().await;
+    let _sns = sns_answering(vec![in_production()]).await;
     let client = services.client().await;
     let (id, _) = meta_account(&client, &event).await;
-    let _sns = sns_answering(vec![in_production()]).await;
     let texts = texts_account(&client, &event).await;
     let before = stored_account(&services, &id).await;
     // This process has the database to itself: from here on, every commit
@@ -2086,4 +2241,340 @@ async fn messaging_routes_answer_without_a_database() {
             "{provider} {method}"
         );
     }
+}
+
+/// The reason of a message an account that isn't ready refused at send
+/// time (`windmill::services::messaging::accounts::not_ready_reason`).
+const NOT_CONNECTED_REASON: &str =
+    "Not sent: the account isn't ready (NOT_CONNECTED)";
+/// `windmill::postgres::rate_bucket::CAPACITY_BUSY`.
+const CAPACITY_BUSY: &str =
+    "Not sent: the account stayed at its sending limit for too long";
+
+/// Sets the account's sending limits and freezes its bucket at `tokens`
+/// for an hour: nothing refills it during the test.
+async fn saturated(
+    services: &Services,
+    account_id: &str,
+    limits: Value,
+    tokens: f64,
+) {
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.messaging_account SET limits = $2
+         WHERE id = $1",
+        &[&uuid(account_id), &limits],
+    )
+    .await;
+    rows::execute(
+        &services.hasura,
+        "INSERT INTO sequent_backend.messaging_rate_bucket
+             (account_id, tokens, refilled_at)
+         VALUES ($1, $2, now() + interval '1 hour')
+         ON CONFLICT (account_id) DO UPDATE
+         SET tokens = EXCLUDED.tokens, refilled_at = EXCLUDED.refilled_at",
+        &[&uuid(account_id), &tokens],
+    )
+    .await;
+}
+
+fn code(event: &Event, logical_key: &str) -> Value {
+    let mut code = notice(event, logical_key);
+    code["purpose"] = json!("OTP");
+    code["election_event_id"] = json!(event.election_event_id);
+    code["content"]["code"] = json!("482619");
+    code["expires_at"] = json!("2099-01-01T00:00:00+02:00");
+    code
+}
+
+/// R5-01: Keycloak's codes and notices through an account that isn't ready
+/// are FAILED with the readiness reason and never reach the provider.
+#[rocket::async_test]
+async fn keycloak_sends_nothing_through_an_account_that_isnt_ready() {
+    if !isolated(
+        "routes::messaging::route_tests::keycloak_sends_nothing_through_an_account_that_isnt_ready",
+    ) {
+        return;
+    }
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let sns = sns_answering(vec![published("sns-1")]).await;
+    // Never checked: not connected.
+    let id = texts_account(&client, &event).await;
+
+    // A code's failure is never retried by its origin; a Keycloak notice's
+    // says why next to it (its content isn't stored).
+    for (body, reason) in [
+        (
+            notice(&event, "not-ready-notice"),
+            format!(
+                "{NOT_CONNECTED_REASON}; Can't be retried: no stored template"
+            ),
+        ),
+        (
+            code(&event, "not-ready-code"),
+            NOT_CONNECTED_REASON.to_string(),
+        ),
+    ] {
+        let (status, refused) =
+            json(send(&client, &services, &event.tenant_id, &body).await).await;
+        assert_eq!(status, Status::Ok, "{refused}");
+        assert_eq!(refused["state"], "FAILED", "{refused}");
+        assert_eq!(refused["reason"], reason, "{refused}");
+    }
+    assert!(sns.requests().is_empty());
+
+    // Once a check passes, the account sends.
+    checked(&services, &id).await;
+    let (_, sent) = json(
+        send(
+            &client,
+            &services,
+            &event.tenant_id,
+            &notice(&event, "ready"),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(sent["state"], "ACCEPTED", "{sent}");
+    assert_eq!(sns.requests().len(), 1);
+}
+
+/// R5-02: under saturation, Keycloak hears FAILED with the capacity reason
+/// well before its own 10 s timeout, and nothing reaches the provider.
+#[rocket::async_test]
+async fn a_saturated_account_answers_keycloak_before_its_timeout() {
+    if !isolated(
+        "routes::messaging::route_tests::a_saturated_account_answers_keycloak_before_its_timeout",
+    ) {
+        return;
+    }
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let sns = sns_answering(vec![published("sns-1")]).await;
+    let id = texts_account(&client, &event).await;
+    checked(&services, &id).await;
+    saturated(
+        &services,
+        &id,
+        json!({"messages_per_second": 1, "otp_reserved_per_second": 0}),
+        0.0,
+    )
+    .await;
+
+    let asked = Instant::now();
+    let (status, busy) = json(
+        send(&client, &services, &event.tenant_id, &code(&event, "busy")).await,
+    )
+    .await;
+    assert!(
+        asked.elapsed() < Duration::from_secs(8),
+        "{:?}",
+        asked.elapsed()
+    );
+    assert_eq!(status, Status::Ok, "{busy}");
+    assert_eq!(busy["state"], "FAILED", "{busy}");
+    assert_eq!(busy["reason"], CAPACITY_BUSY, "{busy}");
+    assert!(sns.requests().is_empty());
+}
+
+/// R5-02: a notice Keycloak sends (a reset link, a temporary password) is
+/// interactive: it takes from the whole bucket, the OTP reserve included.
+#[rocket::async_test]
+async fn keycloak_notices_take_from_the_whole_bucket() {
+    if !isolated(
+        "routes::messaging::route_tests::keycloak_notices_take_from_the_whole_bucket",
+    ) {
+        return;
+    }
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let sns = sns_answering(vec![published("sns-1")]).await;
+    let id = texts_account(&client, &event).await;
+    checked(&services, &id).await;
+    // One token left, all of it in the OTP reserve.
+    saturated(
+        &services,
+        &id,
+        json!({"messages_per_second": 10, "otp_reserved_per_second": 9}),
+        1.0,
+    )
+    .await;
+
+    let asked = Instant::now();
+    let (_, sent) = json(
+        send(
+            &client,
+            &services,
+            &event.tenant_id,
+            &notice(&event, "reset"),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(sent["state"], "ACCEPTED", "{sent}");
+    assert!(
+        asked.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        asked.elapsed()
+    );
+    assert_eq!(sns.requests().len(), 1);
+}
+
+/// R5-02: a provider that doesn't answer in time leaves the message
+/// UNKNOWN (it may have been sent), answered before Keycloak's timeout.
+#[rocket::async_test]
+async fn a_provider_that_answers_too_late_leaves_the_message_unknown() {
+    if !isolated(
+        "routes::messaging::route_tests::a_provider_that_answers_too_late_leaves_the_message_unknown",
+    ) {
+        return;
+    }
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let sns = TestServer::start_with(
+        vec![published("sns-1")],
+        messaging::test_server::ServerOptions {
+            latency: Duration::from_secs(12),
+            ..Default::default()
+        },
+    )
+    .await;
+    std::env::set_var(AWS_ENDPOINT_URL_ENV, &sns.base_url);
+    let id = texts_account(&client, &event).await;
+    checked(&services, &id).await;
+
+    let asked = Instant::now();
+    let (status, late) = json(
+        send(&client, &services, &event.tenant_id, &code(&event, "late")).await,
+    )
+    .await;
+    assert!(
+        asked.elapsed() < Duration::from_millis(9500),
+        "{:?}",
+        asked.elapsed()
+    );
+    assert_eq!(status, Status::Ok, "{late}");
+    assert_eq!(late["state"], "UNKNOWN", "{late}");
+    assert_eq!(
+        late["reason"],
+        "The provider didn't answer in time: the message may have been sent",
+        "{late}"
+    );
+}
+
+/// R5-07: Meta's callback is answered once its events are stored and the
+/// link bound; the code it releases is sent afterwards, with its own place,
+/// bucket and budget, and its outcome is in the ledger.
+#[rocket::async_test]
+async fn a_get_started_is_answered_before_the_code_it_releases_is_sent() {
+    if !isolated(
+        "routes::messaging::route_tests::a_get_started_is_answered_before_the_code_it_releases_is_sent",
+    ) {
+        return;
+    }
+    let graph = TestServer::start(vec![Reply::Json(
+        200,
+        json!({"message_id": "m_code"}),
+    )])
+    .await;
+    std::env::set_var(META_GRAPH_URL_ENV, &graph.base_url);
+    let services = services()
+        .await
+        .with_messaging_webhooks_url("https://callbacks.example.org");
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let (id, _) = meta_account(&client, &event).await;
+    checked(&services, &id).await;
+    configure(
+        &services,
+        &event,
+        json!({"version": 1, "channels": [{
+            "channel": "MESSENGER", "account_id": id, "purposes": ["OTP"],
+        }]}),
+    )
+    .await;
+    saturated(
+        &services,
+        &id,
+        json!({"messages_per_second": 1, "otp_reserved_per_second": 0}),
+        0.0,
+    )
+    .await;
+    let service = service_token(&services, &event.tenant_id);
+    let (status, created) = json(
+        post_as(
+            &client,
+            "/messages/link",
+            &service,
+            &link(&event, chrono::Duration::minutes(5)),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{created}");
+    let reference = created["reference"].as_str().unwrap();
+    let body =
+        json!({"object": "page", "entry": [{"id": "page-1", "messaging": [
+            {"sender": {"id": "6543210"}, "recipient": {"id": "page-1"},
+             "timestamp": chrono::Utc::now().timestamp_millis(),
+             "postback": {"title": "Get Started", "payload": "GET_STARTED",
+                          "referral": {"ref": reference, "source": "SHORTLINK",
+                                       "type": "OPEN_THREAD"}}}
+        ]}]})
+        .to_string();
+    let key = webhook_key(&services, &id).await;
+
+    let asked = Instant::now();
+    assert_eq!(
+        meta_post(
+            &client,
+            &key,
+            Some(&hub_signature(body.as_bytes())),
+            body.as_bytes()
+        )
+        .await,
+        Ok(200)
+    );
+    assert!(
+        asked.elapsed() < Duration::from_secs(2),
+        "{:?}",
+        asked.elapsed()
+    );
+    let bound: Option<String> = rows::query(
+        &services.hasura,
+        "SELECT page_scoped_id FROM sequent_backend.messenger_link
+         WHERE tenant_id = $1",
+        &[&uuid(&event.tenant_id)],
+    )
+    .await[0]
+        .get(0);
+    assert_eq!(bound.as_deref(), Some("6543210"));
+
+    // The code waited for capacity after the answer, then was recorded.
+    let attempts = loop {
+        let attempts: Vec<(String, Option<String>)> = rows::query(
+            &services.hasura,
+            "SELECT state, error FROM sequent_backend.message
+             WHERE tenant_id = $1 AND logical_key LIKE 'messenger-link:%'",
+            &[&uuid(&event.tenant_id)],
+        )
+        .await
+        .iter()
+        .map(|row| (row.get(0), row.get(1)))
+        .collect();
+        if !attempts.is_empty() || asked.elapsed() > Duration::from_secs(15) {
+            break attempts;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    };
+    assert_eq!(
+        attempts,
+        vec![("FAILED".to_string(), Some(CAPACITY_BUSY.to_string()))]
+    );
+    assert!(graph.requests().is_empty());
 }

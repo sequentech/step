@@ -41,8 +41,12 @@ import {
     MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
 } from "@/types/messaging"
-import {accountSenderLabel, accountUnsupported} from "@/services/messaging"
-import {reasonText} from "@/services/messagingReasons"
+import {
+    accountSenderLabel,
+    accountUnsupported,
+    checkedForAnotherIdentity,
+} from "@/services/messaging"
+import {actionRefusalReason, reasonText} from "@/services/messagingReasons"
 import {CHECK_MESSAGING_ACCOUNT} from "@/queries/CheckMessagingAccount"
 import {DELETE_MESSAGING_ACCOUNT} from "@/queries/DeleteMessagingAccount"
 import {accountReadiness} from "./messagingAccountForm"
@@ -53,6 +57,8 @@ import {
     formatDate,
 } from "./MessagingAccountEditor"
 import {MessagingTestDialog} from "./MessagingTestDialog"
+import {MessagingTabs} from "./SentMessages/MessagingTabs"
+import {MessagingMonthlyVolumes} from "./MessagingMonthlyVolumes"
 
 const WRITE_ROLE = {headers: {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_WRITE}}
 
@@ -96,7 +102,8 @@ export const sortAccounts = (accounts: IMessagingAccount[]): IMessagingAccount[]
             a.name.localeCompare(b.name)
     )
 
-export const SettingsMessaging: React.FC = () => {
+/** The Accounts tab: the tenant's sending accounts. */
+const MessagingAccountList: React.FC = () => {
     const {t, i18n} = useTranslation()
     const notify = useNotify()
     const authContext = useContext(AuthContext)
@@ -152,8 +159,15 @@ export const SettingsMessaging: React.FC = () => {
             await deleteAccount({variables: {id: account.id}})
             notify(t("messagingAccounts.delete.success"), {type: "success"})
             await reload()
-        } catch {
-            notify(t("messagingAccounts.delete.error"), {type: "error"})
+        } catch (error) {
+            // Refused while an election event's settings use it: say why.
+            const reason = actionRefusalReason(error)
+            notify(
+                reason
+                    ? t("messagingAccounts.delete.refused", {reason: reasonText(t, reason)})
+                    : t("messagingAccounts.delete.error"),
+                {type: "error"}
+            )
         }
     }
 
@@ -271,10 +285,17 @@ export const SettingsMessaging: React.FC = () => {
                                                             : t("messaging.readiness.notConnected")
                                                     }
                                                     reasons={
-                                                        !readiness.connected &&
-                                                        account.status?.reason
-                                                            ? [reasonText(t, account.status.reason)]
-                                                            : []
+                                                        checkedForAnotherIdentity(account)
+                                                            ? [t("messaging.blocker.UNCHECKED")]
+                                                            : !readiness.connected &&
+                                                                account.status?.reason
+                                                              ? [
+                                                                    reasonText(
+                                                                        t,
+                                                                        account.status.reason
+                                                                    ),
+                                                                ]
+                                                              : []
                                                     }
                                                 />
                                             )}
@@ -467,3 +488,21 @@ export const SettingsMessaging: React.FC = () => {
         </Box>
     )
 }
+
+/**
+ * Settings > Messaging: the accounts and their monthly volumes, and the Sent
+ * messages tab where the dev fake provider routes answer (`MessagingTabs`).
+ */
+export const SettingsMessaging: React.FC<{sentMessagesRefreshMs?: number}> = ({
+    sentMessagesRefreshMs,
+}) => (
+    <MessagingTabs
+        accounts={
+            <>
+                <MessagingAccountList />
+                <MessagingMonthlyVolumes />
+            </>
+        }
+        refreshMs={sentMessagesRefreshMs}
+    />
+)

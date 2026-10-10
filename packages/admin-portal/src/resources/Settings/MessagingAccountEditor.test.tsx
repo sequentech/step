@@ -10,6 +10,8 @@ import {
     EMessagingProvider,
     EProviderApproval,
     EReadinessPolicy,
+    IAccountCheck,
+    IAccountCheckDetails,
     IMessagingAccount,
 } from "@/types/messaging"
 import {MessagingAccountEditor} from "./MessagingAccountEditor"
@@ -20,13 +22,18 @@ const mockUpsert = jest.fn()
 const mockReplace = jest.fn()
 const mockNotify = jest.fn()
 const mockCallback = jest.fn()
+const mockImpact = jest.fn()
 jest.mock("@apollo/client", () => ({
     gql: jest.fn(() => ({})),
     useMutation: (document: {name: string}) => [
         document.name === "upsert" ? mockUpsert : mockReplace,
     ],
-    useQuery: (_document: unknown, options: {skip?: boolean}) =>
-        options.skip ? {data: undefined, loading: false} : mockCallback(options),
+    useQuery: (document: {name: string}, options: {skip?: boolean}) =>
+        options.skip
+            ? {data: undefined, loading: false}
+            : document.name === "impact"
+              ? mockImpact(options)
+              : mockCallback(options),
 }))
 jest.mock("@/queries/UpsertMessagingAccount", () => ({UPSERT_MESSAGING_ACCOUNT: {name: "upsert"}}))
 jest.mock("@/queries/ReplaceMessagingAccountCredentials", () => ({
@@ -35,11 +42,18 @@ jest.mock("@/queries/ReplaceMessagingAccountCredentials", () => ({
 jest.mock("@/queries/MessagingAccountCallbackUrl", () => ({
     MESSAGING_ACCOUNT_CALLBACK_URL: {name: "callback"},
 }))
+jest.mock("@/queries/MessagingAccountChangeImpact", () => ({
+    MESSAGING_ACCOUNT_CHANGE_IMPACT: {name: "impact"},
+}))
 jest.mock("react-i18next", () => ({
     // Keys only; a reason given to a text is appended, so tests can read it.
     useTranslation: () => ({
-        t: (key: string, options?: {reason?: string}) =>
-            options?.reason ? `${key}: ${options.reason}` : key,
+        t: (key: string, options?: {reason?: string; count?: number}) =>
+            options?.reason
+                ? `${key}: ${options.reason}`
+                : options?.count !== undefined
+                  ? `${key}: ${options.count}`
+                  : key,
         i18n: {language: "en"},
     }),
 }))
@@ -107,6 +121,8 @@ beforeEach(() => {
     mockReplace.mockReset()
     mockNotify.mockReset()
     mockCallback.mockReset()
+    mockImpact.mockReset()
+    mockImpact.mockReturnValue({data: undefined, loading: true})
     mockCallback.mockReturnValue({
         data: {messaging_account_callback_url: {callback_url: CALLBACK_URL, reason: null}},
         loading: false,
@@ -227,7 +243,34 @@ it("warns that voters must reconnect when the Page changes", () => {
     fireEvent.change(screen.getByLabelText(/messagingAccounts.field.page_id/), {
         target: {value: "9999"},
     })
-    expect(screen.getByText("messagingAccounts.warning.pageChange")).toBeInTheDocument()
+    expect(screen.getByText(/messagingAccounts.warning.pageChange /)).toBeInTheDocument()
+    expect(screen.getByText(/messagingAccounts.warning.pageChangeCounting/)).toBeInTheDocument()
+    expect(screen.getByText(/messagingAccounts.warning.recheck/)).toBeInTheDocument()
+})
+
+it("counts the voters who must reconnect when the Page changes (BC-F13)", () => {
+    mockImpact.mockReturnValue({
+        data: {messaging_account_change_impact: {affected_voters: 42, events: 2}},
+        loading: false,
+    })
+    renderEditor(messenger())
+    expect(mockImpact).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText(/messagingAccounts.field.page_id/), {
+        target: {value: "9999"},
+    })
+    expect(mockImpact).toHaveBeenCalledWith(
+        expect.objectContaining({variables: {accountId: "account-1"}})
+    )
+    expect(screen.getByText(/messagingAccounts.warning.pageChangeCount: 42/)).toBeInTheDocument()
+})
+
+it("says the count could not be read when the impact query fails", () => {
+    mockImpact.mockReturnValue({data: undefined, loading: false, error: new Error("down")})
+    renderEditor(messenger())
+    fireEvent.change(screen.getByLabelText(/messagingAccounts.field.page_id/), {
+        target: {value: "9999"},
+    })
+    expect(screen.getByText(/messagingAccounts.warning.pageChangeCountError/)).toBeInTheDocument()
 })
 
 it("saves the account with only the credentials that were typed, in one call", async () => {
@@ -247,6 +290,7 @@ it("saves the account with only the credentials that were typed, in one call", a
             limits: {
                 messages_per_second: null,
                 otp_reserved_per_second: null,
+                otp_concurrency: null,
                 allowed_calling_codes: [],
             },
             providerApproval: null,
@@ -325,10 +369,135 @@ it("leaves WhatsApp's provider approval to the administrator", () => {
             provider_approval: EProviderApproval.CONFIRMED,
         })
     )
-    expect(screen.getByText("messaging.approval.CONFIRMED")).toBeInTheDocument()
+    expect(screen.getAllByText("messaging.approval.CONFIRMED").length).toBeGreaterThan(0)
     expect(screen.getByLabelText("messagingAccounts.field.provider_approval")).not.toHaveAttribute(
         "aria-disabled"
     )
+    expect(screen.getByText(/messagingAccounts.status.approvalEntered\b/)).toBeInTheDocument()
+})
+
+const whatsapp = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccount =>
+    messenger({
+        channel: EMessageChannel.WHATSAPP,
+        provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+        sender: {
+            provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+            business_account_id: "1",
+            phone_number_id: "2",
+            display_phone_number: "+63 917 000 0000",
+            api_version: "v23.0",
+        },
+        provider_approval: EProviderApproval.PENDING,
+        ...overrides,
+    })
+
+const checked = (details: IAccountCheckDetails): IAccountCheck => ({
+    connected: true,
+    production_access: true,
+    approved_templates: {},
+    checked_at: "2026-10-09T08:00:00Z",
+    reason: null,
+    details,
+})
+
+it("uses the approval the provider's check reports, with no choice to make", () => {
+    renderEditor(
+        whatsapp({
+            status: checked({
+                whatsapp_number: {
+                    status: "CONNECTED",
+                    name_status: "APPROVED",
+                    quality_rating: "GREEN",
+                    messaging_limit: "TIER_1K",
+                },
+                provider_approval: EProviderApproval.CONFIRMED,
+                templates: [
+                    {
+                        name: "otp_code",
+                        language: "en",
+                        category: "AUTHENTICATION",
+                        status: "APPROVED",
+                    },
+                ],
+            }),
+        })
+    )
+    expect(screen.queryByLabelText("messagingAccounts.field.provider_approval")).toBeNull()
+    expect(screen.getByText("messaging.approval.CONFIRMED")).toBeInTheDocument()
+    expect(screen.getByText(/messagingAccounts.status.approvalFromCheck/)).toBeInTheDocument()
+    expect(screen.getByText("messagingAccounts.status.quality.GREEN")).toBeInTheDocument()
+    expect(screen.getByText("TIER_1K")).toBeInTheDocument()
+    expect(screen.getByText("otp_code")).toBeInTheDocument()
+    expect(
+        screen.getByText("messagingAccounts.status.templateCategory.AUTHENTICATION")
+    ).toBeInTheDocument()
+    expect(screen.getByText("messagingAccounts.status.templateStatus.APPROVED")).toBeInTheDocument()
+})
+
+it("shows an account whose last check was of another number as unchecked (R5-09)", () => {
+    renderEditor(
+        whatsapp({
+            status: checked({
+                identity: {
+                    provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+                    ids: {business_account_id: "1", phone_number_id: "earlier"},
+                },
+            }),
+        })
+    )
+    expect(screen.getByText("messagingAccounts.status.unchecked")).toBeInTheDocument()
+    expect(screen.queryByText("messagingAccounts.status.qualityRating")).toBeNull()
+})
+
+it("shows a check of the current number, and a quality flag as a warning only (R5-17)", () => {
+    renderEditor(
+        whatsapp({
+            status: checked({
+                identity: {
+                    provider: EMessagingProvider.WHATSAPP_CLOUD_API,
+                    ids: {business_account_id: "1", phone_number_id: "2"},
+                },
+                whatsapp_number: {status: "FLAGGED", name_status: "APPROVED"},
+                app_secret: {valid: false, reason: "Meta refused the app secret"},
+            }),
+        })
+    )
+    expect(screen.queryByText("messagingAccounts.status.unchecked")).toBeNull()
+    expect(screen.getByText(/messagingAccounts.status.numberQualityWarning/)).toBeInTheDocument()
+    expect(screen.getByText("messagingAccounts.status.appSecret")).toBeInTheDocument()
+    expect(screen.getByText("messaging.reason.APP_SECRET_REFUSED")).toBeInTheDocument()
+})
+
+it("lists WhatsApp's number changes and the voters to ask, changing nothing", () => {
+    renderEditor(
+        whatsapp({
+            status: checked({
+                number_changes: [
+                    {
+                        masked_old_number: "+63*******000",
+                        masked_new_number: "+63*******111",
+                        voter_ids: ["voter-1"],
+                        reported_at: "2026-10-09T09:00:00Z",
+                    },
+                ],
+            }),
+        })
+    )
+    expect(screen.getByText("messagingAccounts.status.numberChanges.title")).toBeInTheDocument()
+    expect(screen.getByText(/messagingAccounts.status.numberChanges.voters/)).toBeInTheDocument()
+})
+
+it("shows the Page's permission, subscription and Get Started button", () => {
+    renderEditor(
+        messenger({
+            status: checked({
+                messenger: {pages_messaging: true, subscribed: true, get_started: false},
+                token: {valid: true, expires_at: null, missing_scopes: []},
+            }),
+        })
+    )
+    expect(screen.getByText("messagingAccounts.status.getStartedMissing")).toBeInTheDocument()
+    expect(screen.getByText("messagingAccounts.status.tokenNoExpiry")).toBeInTheDocument()
 })
 
 it("shows an account of a removed provider as unsupported, to be replaced, not saved", () => {
@@ -546,5 +715,30 @@ it("says the callback URL could not be loaded when its query fails (R4-18)", () 
     renderEditor(messenger())
     expect(screen.getByLabelText("messagingAccounts.webhook.url")).toHaveValue(
         "messagingAccounts.webhook.loadError"
+    )
+})
+
+it("says what empty limits mean, and edits the codes sent at once", async () => {
+    mockUpsert.mockResolvedValue({data: {upsert_messaging_account: {id: "account-1"}}})
+    renderEditor(messenger())
+    expect(screen.getByText("messagingAccounts.limits.messagesPerSecondHelp")).toBeInTheDocument()
+    expect(screen.getByText("messagingAccounts.limits.otpReservedHelp")).toBeInTheDocument()
+    expect(screen.getByText("messagingAccounts.limits.otpConcurrencyHelp")).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText("messagingAccounts.limits.otpConcurrency"), {
+        target: {value: "0"},
+    })
+    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+    expect(screen.getByText("messagingAccounts.error.AT_LEAST_ONE")).toBeInTheDocument()
+    expect(mockUpsert).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText("messagingAccounts.limits.otpConcurrency"), {
+        target: {value: "4"},
+    })
+    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+    await waitFor(() =>
+        expect(mockUpsert).toHaveBeenCalledWith({
+            variables: expect.objectContaining({
+                limits: expect.objectContaining({otp_concurrency: 4}),
+            }),
+        })
     )
 })

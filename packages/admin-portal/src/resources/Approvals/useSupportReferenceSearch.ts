@@ -6,23 +6,30 @@ import {useApolloClient} from "@apollo/client"
 import {useListContext, useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
 import {
-    APPLICATION_IDS_PAGE,
-    GET_APPLICATION_IDS,
-    IGetApplicationIdsResult,
-} from "@/queries/GetApplicationIds"
+    FIND_APPLICATIONS_BY_SUPPORT_REFERENCE,
+    IFindApplicationsBySupportReferenceResult,
+} from "@/queries/FindApplicationsBySupportReference"
+import {IPermissions} from "@/types/keycloak"
 import {
     ISupportReferenceMatch,
     SUPPORT_REFERENCE_FILTER,
-    findBySupportReference,
     normalizeSupportReference,
 } from "./supportReference"
 
 /**
+ * How long the search must stay the same before a reference is looked up: the
+ * server hashes the event's applications for each lookup, so not one per
+ * keystroke.
+ */
+export const SUPPORT_REFERENCE_DEBOUNCE_MS = 400
+
+/**
  * When the queue's search reads as a support reference (the one the pending
- * page gives the voter), finds the applications it belongs to and adds them
- * to the search's matches. The reference can't be turned back into an id, so
- * the ids of the queue's applications (`scope`: the event and Post) are read
- * and their references compared, in the browser.
+ * page gives the voter), asks the server for the applications it belongs to
+ * within the queue's scope (`scope`: the event and its label) and adds them
+ * to the search's matches. The list then reads them with the viewer's own
+ * permissions, so the search shows nothing the queue wouldn't. It asks once
+ * the search has stayed the same for [`SUPPORT_REFERENCE_DEBOUNCE_MS`].
  */
 export const useSupportReferenceSearch = (scope: Record<string, unknown>) => {
     const {filterValues, setFilters} = useListContext()
@@ -34,43 +41,39 @@ export const useSupportReferenceSearch = (scope: Record<string, unknown>) => {
     const resolved = (
         filterValues?.[SUPPORT_REFERENCE_FILTER] as ISupportReferenceMatch | undefined
     )?.reference
-    const scopeKey = JSON.stringify(scope)
+    const electionEventId =
+        typeof scope.election_event_id === "string" ? scope.election_event_id : undefined
+    const permissionLabel =
+        typeof scope.permission_label === "string" ? scope.permission_label : undefined
 
     useEffect(() => {
-        if (!reference || resolved === reference) return
+        if (!reference || resolved === reference || !electionEventId) return
         let cancelled = false
-        const where = {
-            _and: Object.entries(scope)
-                .filter(([, value]) => value !== undefined && value !== null)
-                .map(([key, value]) => ({[key]: {_eq: value}})),
-        }
-        const resolve = async () => {
-            const ids: string[] = []
-            for (let offset = 0; ; offset += APPLICATION_IDS_PAGE) {
-                const {data} = await client.query<IGetApplicationIdsResult>({
-                    query: GET_APPLICATION_IDS,
-                    variables: {where, offset},
+        const lookUp = () =>
+            client
+                .query<IFindApplicationsBySupportReferenceResult>({
+                    query: FIND_APPLICATIONS_BY_SUPPORT_REFERENCE,
+                    variables: {electionEventId, reference, permissionLabel},
                     fetchPolicy: "network-only",
+                    context: {headers: {"x-hasura-role": IPermissions.APPLICATION_READ}},
                 })
-                const page = data?.sequent_backend_applications ?? []
-                ids.push(...page.map((application) => application.id))
-                if (page.length < APPLICATION_IDS_PAGE) break
-            }
-            return findBySupportReference(ids, reference)
-        }
-        resolve()
-            .then((matches) => {
-                if (cancelled) return
-                const match: ISupportReferenceMatch = {reference, ids: matches}
-                setFilters({...filterValues, [SUPPORT_REFERENCE_FILTER]: match}, {})
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    notify(t("approvalsScreen.list.referenceError"), {type: "error"})
-                }
-            })
+                .then(({data}) => {
+                    if (cancelled) return
+                    const match: ISupportReferenceMatch = {
+                        reference,
+                        ids: data?.find_applications_by_support_reference?.application_ids ?? [],
+                    }
+                    setFilters({...filterValues, [SUPPORT_REFERENCE_FILTER]: match}, {})
+                })
+                .catch(() => {
+                    if (!cancelled) {
+                        notify(t("approvalsScreen.list.referenceError"), {type: "error"})
+                    }
+                })
+        const timer = setTimeout(lookUp, SUPPORT_REFERENCE_DEBOUNCE_MS)
         return () => {
             cancelled = true
+            clearTimeout(timer)
         }
-    }, [reference, resolved, scopeKey])
+    }, [reference, resolved, electionEventId, permissionLabel])
 }

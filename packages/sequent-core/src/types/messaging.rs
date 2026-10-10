@@ -717,6 +717,11 @@ pub enum OutOfWindowPolicy {
 pub enum ReadinessBlocker {
     /// The account's provider was removed: replace the account.
     UNSUPPORTED_PROVIDER,
+    /// The account's last check was of another identity (another WhatsApp
+    /// number or business account, Messenger Page, Viber sender, SNS or SES
+    /// identity): nothing it said counts until the account is checked as
+    /// it is now ([`AccountCheck::is_for`]).
+    UNCHECKED,
     NOT_CONNECTED,
     UNSUPPORTED_PURPOSE,
     NEEDS_PROVIDER_APPROVAL,
@@ -760,6 +765,226 @@ pub struct AccountCheck {
     pub checked_at: Option<String>,
     /// Short, non-sensitive reason when not connected.
     pub reason: Option<String>,
+    /// What the provider reported beyond connection, for the account and
+    /// the event tab. Checks stored before it existed read as empty.
+    #[serde(default)]
+    pub details: AccountCheckDetails,
+}
+
+impl AccountCheck {
+    /// Whether this check describes an account whose identity is
+    /// `current`. A check that doesn't name its identity was stored before
+    /// identities were recorded; it describes the identity the account had
+    /// then, which an identity change records, so it counts until then.
+    pub fn is_for(&self, current: &AccountIdentity) -> bool {
+        self.details
+            .identity
+            .as_ref()
+            .map_or(true, |checked| checked == current)
+    }
+
+    /// The provider approval readiness uses: the one the check reported,
+    /// where the provider has an API for it, else the one an administrator
+    /// entered, with where it came from.
+    pub fn approval(
+        &self,
+        entered: ProviderApproval,
+    ) -> (ProviderApproval, ApprovalSource) {
+        match self.details.provider_approval {
+            Some(reported) => (reported, ApprovalSource::PROVIDER_CHECK),
+            None => (entered, ApprovalSource::ADMIN_ENTERED),
+        }
+    }
+}
+
+/// Where an account's provider approval comes from.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum ApprovalSource {
+    /// The provider reports it, and the check read it.
+    PROVIDER_CHECK,
+    /// The provider has no API for it: an administrator entered it, and it
+    /// is shown as such.
+    ADMIN_ENTERED,
+}
+
+/// The provider's details from a check. Every part is optional: a provider
+/// reports only some of them, and a part it couldn't read is absent, never
+/// guessed.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct AccountCheckDetails {
+    /// Meta's `debug_token`: the access token's validity and expiry.
+    #[serde(default)]
+    pub token: Option<TokenStatus>,
+    /// WhatsApp: the number's status, quality rating and messaging limit.
+    #[serde(default)]
+    pub whatsapp_number: Option<WhatsAppNumberStatus>,
+    /// Templates at the provider, with their category and status per
+    /// language (WhatsApp, Messenger). Absent for providers without an API
+    /// for them (Viber's partner templates are entered by an administrator).
+    #[serde(default)]
+    pub templates: Vec<TemplateStatus>,
+    /// Why `templates` couldn't be read, when the provider has an API for
+    /// them.
+    #[serde(default)]
+    pub templates_reason: Option<String>,
+    /// Messenger: the `pages_messaging` permission, the app's subscription
+    /// to the Page and its Get Started button.
+    #[serde(default)]
+    pub messenger: Option<MessengerPageStatus>,
+    /// Viber (Infobip): whether the partner accepted the account's login.
+    #[serde(default)]
+    pub partner_login: Option<PartnerLogin>,
+    /// The account's callback address at the check (`callback_readiness`).
+    #[serde(default)]
+    pub callback: Option<CallbackStatus>,
+    /// The provider's approval, where its API reports it (the WhatsApp
+    /// number's status and display name). Absent where there is no API:
+    /// the administrator's entry is used then ([`AccountCheck::approval`]).
+    #[serde(default)]
+    pub provider_approval: Option<ProviderApproval>,
+    /// Why `provider_approval` is `PENDING`, as the provider said it.
+    #[serde(default)]
+    pub provider_approval_reason: Option<String>,
+    /// WhatsApp `user_changed_number` signals: voters to verify again.
+    /// Logged and shown; nothing changes automatically. Kept across checks,
+    /// newest first, at most [`NUMBER_CHANGES_KEPT`].
+    #[serde(default)]
+    pub number_changes: Vec<NumberChange>,
+    /// The identity the check checked. Absent in checks stored before it
+    /// existed: they describe the identity the account had then, and an
+    /// identity change records it here, so they stop counting.
+    #[serde(default)]
+    pub identity: Option<AccountIdentity>,
+    /// When the check started (RFC 3339). Its result is stored only if the
+    /// account's identity and credentials are what the check started with.
+    #[serde(default)]
+    pub started_at: Option<String>,
+    /// When a check of the account was last attempted, whether or not its
+    /// result could be stored (RFC 3339). The daily pass orders by it, so
+    /// an account whose check fails to run backs off.
+    #[serde(default)]
+    pub attempted_at: Option<String>,
+    /// Meta: whether the app secret matched the app of the account's token
+    /// (`appsecret_proof`). Absent where it wasn't checked.
+    #[serde(default)]
+    pub app_secret: Option<AppSecretStatus>,
+}
+
+/// Whether an account's Meta app secret matched its app.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct AppSecretStatus {
+    /// `Some(false)`: Meta refused the secret's proof. `None`: the proof
+    /// couldn't be checked; `reason` says why.
+    pub valid: Option<bool>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// What a check is a check of: the provider and the sender's identifying
+/// ids. Two checks describe the same sender only if their identities are
+/// equal; names and labels are not part of it.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct AccountIdentity {
+    pub provider: MessagingProvider,
+    /// The identifying ids by name, trimmed; absent ids are left out.
+    #[serde(default)]
+    pub ids: BTreeMap<String, String>,
+}
+
+/// How many [`NumberChange`]s an account keeps.
+pub const NUMBER_CHANGES_KEPT: usize = 50;
+
+/// An access token as Meta's `debug_token` describes it.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct TokenStatus {
+    pub valid: bool,
+    /// RFC 3339; absent when the token doesn't expire.
+    #[serde(default)]
+    pub expires_at: Option<String>,
+    /// Permissions the account needs that the token lacks.
+    #[serde(default)]
+    pub missing_scopes: Vec<String>,
+}
+
+/// A WhatsApp number as the Cloud API describes it. Values are Meta's.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct WhatsAppNumberStatus {
+    /// `CONNECTED`, `PENDING`, `FLAGGED`, `RESTRICTED`, ...
+    #[serde(default)]
+    pub status: Option<String>,
+    /// The display name's review: `APPROVED`, `PENDING_REVIEW`, ...
+    #[serde(default)]
+    pub name_status: Option<String>,
+    /// `GREEN`, `YELLOW`, `RED` or `UNKNOWN`.
+    #[serde(default)]
+    pub quality_rating: Option<String>,
+    /// Business-initiated conversations per day, such as `TIER_1K`.
+    #[serde(default)]
+    pub messaging_limit: Option<String>,
+}
+
+/// A template at the provider, for one language.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct TemplateStatus {
+    pub name: String,
+    pub language: String,
+    /// `AUTHENTICATION`, `UTILITY`, `MARKETING`.
+    #[serde(default)]
+    pub category: Option<String>,
+    /// `APPROVED`, `PENDING`, `REJECTED`, `PAUSED`, ...
+    pub status: String,
+}
+
+/// A Messenger Page as the Graph API describes it. `None`: not reported.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct MessengerPageStatus {
+    #[serde(default)]
+    pub pages_messaging: Option<bool>,
+    pub subscribed: bool,
+    #[serde(default)]
+    pub get_started: Option<bool>,
+}
+
+/// A partner login check.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct PartnerLogin {
+    pub accepted: bool,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// The callback address at the check: its URL, or why there is none.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct CallbackStatus {
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// A WhatsApp `user_changed_number` signal. Only masked numbers are kept.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+pub struct NumberChange {
+    pub masked_old_number: String,
+    #[serde(default)]
+    pub masked_new_number: Option<String>,
+    /// Voters the account sent to at the old number (from the ledger's
+    /// keyed digest), to verify again.
+    #[serde(default)]
+    pub voter_ids: Vec<String>,
+    /// RFC 3339.
+    pub reported_at: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -789,8 +1014,13 @@ impl PurposeReadiness {
     Default,
 )]
 pub enum ReadinessPolicy {
-    /// From the provider's answers to the connection check.
+    /// From the provider's answers to the connection check. Rows a
+    /// development build stored as `UNCHECKED` read as this: "needs a
+    /// check" is the check's identity ([`AccountCheck::is_for`]), never a
+    /// stored policy, so older binaries parse every row.
     #[default]
+    #[serde(alias = "UNCHECKED")]
+    #[strum(to_string = "PROVIDER_CHECK", serialize = "UNCHECKED")]
     PROVIDER_CHECK,
     /// Removed: an administrator's statement replaced the provider check.
     /// It no longer bypasses anything. Stored accounts still parse, and
@@ -805,23 +1035,34 @@ impl ReadinessPolicy {
     }
 }
 
-/// Readiness of `purpose` for `language` on an account.
+/// Readiness of `purpose` for `language` on an account whose identity is
+/// `identity` (`None`: not known, so the check is taken as the account's).
+/// The same function decides at config save and at send time.
 pub fn purpose_readiness(
     capabilities: &ProviderCapabilities,
     approval: ProviderApproval,
-    policy: ReadinessPolicy,
+    identity: Option<&AccountIdentity>,
     check: &AccountCheck,
     purpose: MessagePurpose,
     language: Option<&str>,
 ) -> PurposeReadiness {
     let mut blockers = vec![];
-    let checked = policy.effective() == ReadinessPolicy::PROVIDER_CHECK;
+    // A check of another identity (an earlier number or Page) says nothing
+    // about this one: none of it counts until the account is checked as it
+    // is now.
+    let unchecked = check.checked_at.is_some()
+        && identity.is_some_and(|current| !check.is_for(current));
+    if unchecked {
+        blockers.push(ReadinessBlocker::UNCHECKED);
+    }
+    let checked = !unchecked;
     if checked && !check.connected {
         blockers.push(ReadinessBlocker::NOT_CONNECTED);
     }
     if !capabilities.purposes.contains(&purpose) {
         blockers.push(ReadinessBlocker::UNSUPPORTED_PURPOSE);
     }
+    let (approval, _) = check.approval(approval);
     if capabilities.requires_provider_approval
         && approval != ProviderApproval::CONFIRMED
     {
@@ -859,6 +1100,10 @@ pub struct AccountSummary {
     pub provider_approval: ProviderApproval,
     pub readiness: ReadinessPolicy,
     pub check: AccountCheck,
+    /// The account's identity now; `check` counts only if it is of this
+    /// identity ([`AccountCheck::is_for`]).
+    #[serde(default)]
+    pub identity: Option<AccountIdentity>,
     /// Public, non-secret label shown to voters (sender name, Page name).
     pub public_label: Option<String>,
     /// Messenger only: the Page voters open to connect.
@@ -1146,7 +1391,7 @@ impl EventMessagingConfig {
                 let mut readiness = purpose_readiness(
                     &account.capabilities,
                     account.provider_approval,
-                    account.readiness,
+                    account.identity.as_ref(),
                     &account.check,
                     *purpose,
                     None,
@@ -1613,6 +1858,68 @@ pub struct HttpApiSender {
 }
 
 impl AccountSender {
+    /// What identifies the sender to its provider: a check of another
+    /// identity says nothing about this one. Names, labels, API versions
+    /// and templates are not part of it.
+    pub fn identity(&self) -> AccountIdentity {
+        let ids: Vec<(&str, Option<&str>)> = match self {
+            AccountSender::AWS_SES {
+                from_address,
+                region,
+                ..
+            } => vec![
+                ("from_address", Some(from_address.as_str())),
+                ("region", region.as_deref()),
+            ],
+            AccountSender::SMTP {
+                from_address,
+                server_url,
+                ..
+            } => vec![
+                ("from_address", Some(from_address.as_str())),
+                ("server_url", Some(server_url.as_str())),
+            ],
+            AccountSender::AWS_SNS {
+                sender_id,
+                origination_number,
+                region,
+            } => vec![
+                ("sender_id", sender_id.as_deref()),
+                ("origination_number", origination_number.as_deref()),
+                ("region", region.as_deref()),
+            ],
+            AccountSender::WHATSAPP_CLOUD_API {
+                business_account_id,
+                phone_number_id,
+                ..
+            } => vec![
+                ("business_account_id", Some(business_account_id.as_str())),
+                ("phone_number_id", Some(phone_number_id.as_str())),
+            ],
+            AccountSender::MESSENGER_SEND_API { page_id, .. } => {
+                vec![("page_id", Some(page_id.as_str()))]
+            }
+            AccountSender::VIBER_INFOBIP {
+                base_url, sender, ..
+            } => vec![
+                ("base_url", Some(base_url.trim_end_matches('/'))),
+                ("sender", Some(sender.as_str())),
+            ],
+            AccountSender::HTTP_API(_) | AccountSender::CONSOLE {} => vec![],
+        };
+        AccountIdentity {
+            provider: self.provider(),
+            ids: ids
+                .into_iter()
+                .filter_map(|(name, value)| {
+                    let value = value?.trim();
+                    (!value.is_empty())
+                        .then(|| (name.to_string(), value.to_string()))
+                })
+                .collect(),
+        }
+    }
+
     /// What this account can do on `channel`.
     pub fn capabilities(
         &self,
@@ -1840,6 +2147,11 @@ pub struct AccountLimits {
     /// phone messages to. Empty: any.
     #[serde(default)]
     pub allowed_calling_codes: Vec<String>,
+    /// Sends Keycloak asks for (codes and notices) this account may have in
+    /// flight at once per harvest process; empty (or 0) means 8. The
+    /// account's bucket is the limit across processes.
+    #[serde(default)]
+    pub otp_concurrency: Option<u32>,
 }
 
 /// Internal request from Keycloak or windmill to send one message.
@@ -1999,6 +2311,7 @@ mod tests {
             approved_templates,
             checked_at: Some("2026-10-02T00:00:00Z".to_string()),
             reason: None,
+            details: AccountCheckDetails::default(),
         }
     }
 
@@ -2017,6 +2330,7 @@ mod tests {
             provider_approval: ProviderApproval::PENDING,
             readiness: ReadinessPolicy::PROVIDER_CHECK,
             check,
+            identity: None,
             public_label: Some(format!("{id} label")),
             messenger_page: None,
             callback_blockers: vec![],
@@ -2046,37 +2360,201 @@ mod tests {
 
     #[test]
     fn an_admin_confirmation_no_longer_bypasses_the_provider_check() {
-        let readiness = |policy| {
+        let readiness = purpose_readiness(
+            &caps(
+                MessagingProvider::WHATSAPP_CLOUD_API,
+                MessageChannel::WHATSAPP,
+            ),
+            ProviderApproval::CONFIRMED,
+            None,
+            &AccountCheck::default(),
+            MessagePurpose::OTP,
+            Some("en"),
+        );
+        assert_eq!(
+            readiness.blockers,
+            vec![
+                ReadinessBlocker::NOT_CONNECTED,
+                ReadinessBlocker::NEEDS_PRODUCTION_ACCESS,
+                ReadinessBlocker::NEEDS_APPROVED_TEMPLATE,
+            ]
+        );
+        // Stored accounts with the removed policy still parse, and count
+        // as the provider check.
+        assert_eq!(
+            "ADMIN_CONFIRMED".parse::<ReadinessPolicy>(),
+            Ok(ReadinessPolicy::ADMIN_CONFIRMED)
+        );
+        assert_eq!(
+            ReadinessPolicy::ADMIN_CONFIRMED.effective(),
+            ReadinessPolicy::PROVIDER_CHECK
+        );
+    }
+
+    fn whatsapp_sender(phone_number_id: &str) -> AccountSender {
+        AccountSender::WHATSAPP_CLOUD_API {
+            business_account_id: " 100 ".to_string(),
+            phone_number_id: phone_number_id.to_string(),
+            display_phone_number: "+1 555 0100".to_string(),
+            display_name: Some("Elections".to_string()),
+            api_version: "v23.0".to_string(),
+            api_base_url: None,
+        }
+    }
+
+    /// AP-B3, R5-09: a check of another identity (an earlier number or
+    /// Page) makes the account ready for nothing until it is checked as it
+    /// is now. "Needs a check" is the check's identity, not a stored
+    /// policy.
+    #[test]
+    fn a_check_of_another_identity_is_ready_for_nothing() {
+        let old = whatsapp_sender("200");
+        let new = whatsapp_sender("300");
+        let mut check = ready_check(&[(MessagePurpose::OTP, "en")]);
+        check.details.identity = Some(old.identity());
+        let readiness = |identity: Option<&AccountIdentity>,
+                         check: &AccountCheck| {
             purpose_readiness(
                 &caps(
                     MessagingProvider::WHATSAPP_CLOUD_API,
                     MessageChannel::WHATSAPP,
                 ),
                 ProviderApproval::CONFIRMED,
-                policy,
-                &AccountCheck::default(),
+                identity,
+                check,
                 MessagePurpose::OTP,
                 Some("en"),
             )
         };
-        let unchecked = vec![
-            ReadinessBlocker::NOT_CONNECTED,
-            ReadinessBlocker::NEEDS_PRODUCTION_ACCESS,
-            ReadinessBlocker::NEEDS_APPROVED_TEMPLATE,
-        ];
+        assert!(readiness(Some(&old.identity()), &check).is_ready());
+        assert!(readiness(None, &check).is_ready());
         assert_eq!(
-            readiness(ReadinessPolicy::ADMIN_CONFIRMED).blockers,
-            unchecked
+            readiness(Some(&new.identity()), &check).blockers,
+            vec![ReadinessBlocker::UNCHECKED]
+        );
+        // A check stored before identities were recorded counts for the
+        // identity the account has.
+        check.details.identity = None;
+        assert!(readiness(Some(&new.identity()), &check).is_ready());
+    }
+
+    /// R5-09: a development row stored as `UNCHECKED` reads as the provider
+    /// check, and nothing writes the value again.
+    #[test]
+    fn stored_unchecked_rows_read_as_the_provider_check() {
+        for (text, policy) in [
+            ("PROVIDER_CHECK", ReadinessPolicy::PROVIDER_CHECK),
+            ("ADMIN_CONFIRMED", ReadinessPolicy::ADMIN_CONFIRMED),
+            ("UNCHECKED", ReadinessPolicy::PROVIDER_CHECK),
+        ] {
+            assert_eq!(text.parse::<ReadinessPolicy>(), Ok(policy));
+            assert_eq!(
+                serde_json::from_value::<ReadinessPolicy>(serde_json::json!(
+                    text
+                ))
+                .unwrap(),
+                policy
+            );
+        }
+        assert_eq!(
+            ReadinessPolicy::PROVIDER_CHECK.to_string(),
+            "PROVIDER_CHECK"
         );
         assert_eq!(
-            readiness(ReadinessPolicy::PROVIDER_CHECK).blockers,
-            unchecked
+            serde_json::to_value(ReadinessPolicy::PROVIDER_CHECK).unwrap(),
+            serde_json::json!("PROVIDER_CHECK")
         );
-        // Stored accounts with the removed policy still parse.
+    }
+
+    /// The identity is the provider and the identifying ids, trimmed;
+    /// names, labels and API versions are not part of it.
+    #[test]
+    fn an_identity_is_the_identifying_ids() {
+        let mut renamed = whatsapp_sender("200");
+        if let AccountSender::WHATSAPP_CLOUD_API {
+            display_name,
+            api_version,
+            business_account_id,
+            ..
+        } = &mut renamed
+        {
+            *display_name = Some("Other".to_string());
+            *api_version = "v24.0".to_string();
+            *business_account_id = "100".to_string();
+        }
+        assert_eq!(whatsapp_sender("200").identity(), renamed.identity());
+        assert_ne!(
+            whatsapp_sender("200").identity(),
+            whatsapp_sender("300").identity()
+        );
         assert_eq!(
-            "ADMIN_CONFIRMED".parse::<ReadinessPolicy>(),
-            Ok(ReadinessPolicy::ADMIN_CONFIRMED)
+            serde_json::to_value(whatsapp_sender("200").identity()).unwrap(),
+            serde_json::json!({
+                "provider": "WHATSAPP_CLOUD_API",
+                "ids": {"business_account_id": "100", "phone_number_id": "200"}
+            })
         );
+        let sns = AccountSender::AWS_SNS {
+            sender_id: Some("Elections".to_string()),
+            origination_number: None,
+            region: Some(" ".to_string()),
+        };
+        assert_eq!(
+            sns.identity().ids,
+            BTreeMap::from([(
+                "sender_id".to_string(),
+                "Elections".to_string()
+            )])
+        );
+    }
+
+    /// A check stored before `details` existed still parses.
+    #[test]
+    fn checks_stored_without_details_parse() {
+        let check: AccountCheck = serde_json::from_value(serde_json::json!({
+            "connected": true,
+            "production_access": true,
+            "checked_at": "2026-10-01T00:00:00Z",
+            "reason": null
+        }))
+        .unwrap();
+        assert_eq!(check.details, AccountCheckDetails::default());
+    }
+
+    /// The provider's approval comes from the check where it reports one;
+    /// the administrator's entry only where it doesn't.
+    #[test]
+    fn a_reported_approval_wins_over_the_entered_one() {
+        let mut check = ready_check(&[(MessagePurpose::OTP, "en")]);
+        let readiness = |check: &AccountCheck, entered| {
+            purpose_readiness(
+                &caps(
+                    MessagingProvider::WHATSAPP_CLOUD_API,
+                    MessageChannel::WHATSAPP,
+                ),
+                entered,
+                None,
+                check,
+                MessagePurpose::OTP,
+                Some("en"),
+            )
+        };
+        assert_eq!(
+            check.approval(ProviderApproval::CONFIRMED),
+            (ProviderApproval::CONFIRMED, ApprovalSource::ADMIN_ENTERED)
+        );
+        assert!(readiness(&check, ProviderApproval::CONFIRMED).is_ready());
+        check.details.provider_approval = Some(ProviderApproval::PENDING);
+        assert_eq!(
+            check.approval(ProviderApproval::CONFIRMED),
+            (ProviderApproval::PENDING, ApprovalSource::PROVIDER_CHECK)
+        );
+        assert_eq!(
+            readiness(&check, ProviderApproval::CONFIRMED).blockers,
+            vec![ReadinessBlocker::NEEDS_PROVIDER_APPROVAL]
+        );
+        check.details.provider_approval = Some(ProviderApproval::CONFIRMED);
+        assert!(readiness(&check, ProviderApproval::PENDING).is_ready());
     }
 
     #[test]
@@ -2334,7 +2812,7 @@ mod tests {
                 MessageChannel::WHATSAPP,
             ),
             ProviderApproval::PENDING,
-            ReadinessPolicy::PROVIDER_CHECK,
+            None,
             &ready_check(&[]),
             MessagePurpose::OTP,
             Some("en"),
@@ -2355,7 +2833,7 @@ mod tests {
             purpose_readiness(
                 &caps(MessagingProvider::VIBER_INFOBIP, MessageChannel::VIBER),
                 ProviderApproval::PENDING,
-                ReadinessPolicy::PROVIDER_CHECK,
+                None,
                 &check,
                 MessagePurpose::OTP,
                 Some(language),
@@ -2374,7 +2852,7 @@ mod tests {
         let readiness = purpose_readiness(
             &caps(MessagingProvider::AWS_SNS, MessageChannel::SMS),
             ProviderApproval::PENDING,
-            ReadinessPolicy::PROVIDER_CHECK,
+            None,
             &check,
             MessagePurpose::NOTICE,
             None,

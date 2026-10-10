@@ -4,9 +4,12 @@
 
 //! Meta webhooks (WhatsApp Cloud API and Messenger): the subscription
 //! handshake, payload signatures and the events Step uses. Messages voters
-//! write are dropped here: only statuses, Get Started and referrals pass.
+//! write are dropped here: only statuses, Get Started and referrals, and
+//! WhatsApp's `user_changed_number` system messages pass.
 
-use super::{DeliveredUpTo, MessengerContact, MessengerReferral, StatusReport, WebhookEvent};
+use super::{
+    DeliveredUpTo, MessengerContact, MessengerReferral, NumberChange, StatusReport, WebhookEvent,
+};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, TimeZone, Utc};
 use hmac::{Hmac, Mac};
@@ -121,8 +124,7 @@ pub fn parse_events(account: &AccountSender, body: &[u8]) -> Result<Vec<WebhookE
 }
 
 fn whatsapp_events(value: &Value) -> Vec<WebhookEvent> {
-    // Incoming `messages` are not kept or answered.
-    value["statuses"]
+    let mut events: Vec<WebhookEvent> = value["statuses"]
         .as_array()
         .cloned()
         .unwrap_or_default()
@@ -138,7 +140,31 @@ fn whatsapp_events(value: &Value) -> Vec<WebhookEvent> {
                 at: timestamp(&status["timestamp"]),
             }))
         })
-        .collect()
+        .collect();
+    // Incoming `messages` are not kept or answered. Only the system message
+    // saying a person changed their number is read, and only its numbers
+    // (never its text).
+    events.extend(
+        value["messages"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter(|message| {
+                message["type"] == "system" && message["system"]["type"] == "user_changed_number"
+            })
+            .filter_map(|message| {
+                Some(WebhookEvent::NumberChanged(NumberChange {
+                    old_number: message["from"].as_str()?.to_string(),
+                    new_number: message["system"]["new_wa_id"]
+                        .as_str()
+                        .or_else(|| message["system"]["wa_id"].as_str())
+                        .map(str::to_string),
+                    at: timestamp(&message["timestamp"]),
+                }))
+            }),
+    );
+    events
 }
 
 fn messenger_events(event: &Value) -> Vec<WebhookEvent> {
@@ -243,6 +269,33 @@ mod tests {
         assert_eq!(
             verify_subscription(Some("subscribe"), Some(""), Some("42"), ""),
             None
+        );
+    }
+
+    /// BC-F19: the number-change system message is read for its numbers
+    /// only; other incoming messages stay dropped.
+    #[test]
+    fn whatsapp_number_changes_are_parsed() {
+        let body = json!({
+            "object": "whatsapp_business_account",
+            "entry": [{"id": "waba-1", "changes": [{"field": "messages", "value": {
+                "metadata": {"phone_number_id": "pn-1"},
+                "messages": [
+                    {"from": "639171234567", "id": "wamid.s", "timestamp": "1760000000",
+                     "type": "system", "system": {"body": "User A changed from +63 917 123 4567 to +63 917 765 4321",
+                     "wa_id": "639177654321", "type": "user_changed_number"}},
+                    {"from": "639171234567", "id": "wamid.t", "type": "text", "text": {"body": "hi"}}
+                ]
+            }}]}]
+        });
+        let events = parse_events(&whatsapp_account(), body.to_string().as_bytes()).unwrap();
+        assert_eq!(
+            events,
+            vec![WebhookEvent::NumberChanged(NumberChange {
+                old_number: "639171234567".to_string(),
+                new_number: Some("639177654321".to_string()),
+                at: Utc.timestamp_opt(1760000000, 0).single(),
+            })]
         );
     }
 

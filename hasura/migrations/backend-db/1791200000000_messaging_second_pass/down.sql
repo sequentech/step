@@ -4,6 +4,10 @@
 -- The deleted inbound messages can't be restored, and the event
 -- configurations stay in the annotations, which up.sql never changed.
 
+DROP INDEX "sequent_backend"."message_tenant_attempt_month";
+DROP TABLE "sequent_backend"."messaging_voter_count_run";
+DROP TABLE "sequent_backend"."messaging_voter_count";
+
 UPDATE "sequent_backend"."messenger_link"
     SET "link_word_digest" = "reference_digest"
     WHERE "link_word_digest" IS NULL;

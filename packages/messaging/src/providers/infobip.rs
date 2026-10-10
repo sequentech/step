@@ -11,7 +11,9 @@
 //! never name a per-request report URL: one could bypass the subscription's
 //! security setting.
 
-use super::{exchange, Account};
+use super::{
+    exchange, missing_credential_reason, provider_status_reason, Account, PROVIDER_UNREACHABLE,
+};
 use crate::parameters::{parse_all, TemplateParameter};
 use crate::sender::{
     outcome_from_http, ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome,
@@ -22,9 +24,12 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use chrono::Utc;
 use sequent_core::types::messaging::{
-    AccountCheck, AccountSender, CredentialName, MessageAttemptState, MessageChannel,
-    MessagePurpose, MessagingProvider, ProviderCapabilities,
+    AccountCheck, AccountCheckDetails, AccountSender, CredentialName, MessageAttemptState,
+    MessageChannel, MessagePurpose, MessagingProvider, PartnerLogin, ProviderCapabilities,
 };
+
+/// Why a Viber account isn't connected: Infobip refused its API key.
+pub const PARTNER_LOGIN_REFUSED: &str = "Infobip refused the account's API key";
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -242,7 +247,7 @@ impl ChannelSender for InfobipViberSender {
         let Ok(authorization) = self.authorization() else {
             return AccountCheck {
                 checked_at: now,
-                reason: Some("missing API key".to_string()),
+                reason: Some(missing_credential_reason(CredentialName::API_KEY)),
                 ..Default::default()
             };
         };
@@ -254,10 +259,13 @@ impl ChannelSender for InfobipViberSender {
         .await;
         let reason = match balance {
             Ok((200, _)) => None,
-            Ok((status, _)) => Some(format!("Infobip answered with status {status}")),
-            Err(_) => Some("Infobip unreachable".to_string()),
+            Ok((401 | 403, _)) => Some(PARTNER_LOGIN_REFUSED.to_string()),
+            Ok((status, _)) => Some(provider_status_reason(status)),
+            Err(_) => Some(PROVIDER_UNREACHABLE.to_string()),
         };
         let connected = reason.is_none();
+        // Infobip has no API for Viber template approval: the templates are
+        // the ones an administrator entered, and are shown as such.
         AccountCheck {
             connected,
             production_access: connected,
@@ -267,6 +275,13 @@ impl ChannelSender for InfobipViberSender {
                 .map(|(purpose, languages)| (*purpose, languages.keys().cloned().collect()))
                 .collect(),
             checked_at: now,
+            details: AccountCheckDetails {
+                partner_login: Some(PartnerLogin {
+                    accepted: connected,
+                    reason: reason.clone(),
+                }),
+                ..Default::default()
+            },
             reason,
         }
     }
@@ -472,6 +487,33 @@ mod tests {
         assert_eq!(
             check.approved_templates,
             BTreeMap::from([(MessagePurpose::OTP, vec!["en".to_string()])])
+        );
+        assert_eq!(
+            check.details.partner_login,
+            Some(PartnerLogin {
+                accepted: true,
+                reason: None
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn a_refused_partner_login_is_not_connected() {
+        let server = TestServer::start(vec![Reply::Json(401, json!({}))]).await;
+        let sender =
+            InfobipViberSender::new(account(&server.base_url), reqwest::Client::new()).unwrap();
+        let check = sender.check().await;
+        assert!(!check.connected);
+        assert_eq!(
+            check.reason.as_deref(),
+            Some("Infobip refused the account's API key")
+        );
+        assert_eq!(
+            check.details.partner_login,
+            Some(PartnerLogin {
+                accepted: false,
+                reason: Some("Infobip refused the account's API key".to_string())
+            })
         );
     }
 }

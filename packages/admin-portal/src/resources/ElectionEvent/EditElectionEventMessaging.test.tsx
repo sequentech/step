@@ -18,6 +18,7 @@ import {
     IMessagingAccount,
 } from "@/types/messaging"
 import {emptyEventMessagingConfig} from "@/services/messaging"
+import {IVoterCounts} from "@/queries/GetMessagingVoterCounts"
 import {
     MessagingChannels,
     MessagingDeliveryStatus,
@@ -64,6 +65,9 @@ jest.mock("@/hooks/useMessagingAccounts", () => ({
 jest.mock("@/hooks/useEventMessagingConfig", () => ({
     useEventMessagingConfig: () => ({config: undefined, loading: false, refetch: jest.fn()}),
     useEventMessagingConfigAuthor: () => ({updatedBy: undefined, refetch: jest.fn()}),
+}))
+jest.mock("@/hooks/useZonedTime", () => ({
+    useZonedTime: () => (value?: string | null) => (value ? `zoned ${value}` : ""),
 }))
 jest.mock("@/components/styles/ElectionHeaderStyles", () => ({
     ElectionHeaderStyles: {AccordionTitle: "span"},
@@ -443,7 +447,6 @@ describe("MessagingTemplateBindings", () => {
 describe("MessagingDeliveryStatus", () => {
     const stats = (overrides: Partial<IChannelMessageStats>): IChannelMessageStats => ({
         channel: EMessageChannel.SMS,
-        voters: 40,
         sent_last_24h: 6,
         queued: 0,
         accepted: 4,
@@ -467,7 +470,6 @@ describe("MessagingDeliveryStatus", () => {
                     stats({}),
                     stats({
                         channel: EMessageChannel.WHATSAPP,
-                        voters: 9,
                         sent_last_24h: 8,
                         accepted: 2,
                         delivered: 5,
@@ -486,12 +488,29 @@ describe("MessagingDeliveryStatus", () => {
         expect(whatsappRow.getByText("5")).toBeVisible()
     })
 
+    const counted = (
+        channels: IVoterCounts["channels"],
+        status: Partial<IVoterCounts["status"]> = {}
+    ): IVoterCounts => ({
+        total: channels.reduce((sum, entry) => sum + entry.voters, 0),
+        channels,
+        status: {
+            computed_at: "2026-10-09T08:00:00Z",
+            pending: false,
+            outcome: "COUNTED",
+            ...status,
+        } as IVoterCounts["status"],
+    })
+
     it("shows voters, the last 24 hours and Unresolved apart, in channel order", () => {
         render(
             <MessagingDeliveryStatus
                 config={config}
                 accounts={[account({}), whatsapp]}
                 stats={[stats({})]}
+                voterCounts={counted([
+                    {channel: EMessageChannel.SMS, voters: 12040, not_offered: 0},
+                ])}
             />
         )
         expect(
@@ -504,7 +523,7 @@ describe("MessagingDeliveryStatus", () => {
         )
         expect(cells).toEqual([
             "messaging.channel.SMS",
-            "40",
+            "12,040",
             "6",
             "0",
             "4",
@@ -543,6 +562,129 @@ describe("MessagingDeliveryStatus", () => {
         expect(screen.getByRole("status")).toHaveTextContent("messagingEvent.delivery.loadError")
         expect(screen.queryByRole("button", {name: /showFailed/})).toBeNull()
         expect(within(row(EMessageChannel.SMS)).queryByText("0")).toBeNull()
+    })
+})
+
+describe("MessagingDeliveryStatus rows and voter counts (R8-01, R8-02)", () => {
+    const config = configWith([[EMessageChannel.SMS, "sms-1", [EMessagePurpose.NOTICE]]])
+    const counts = (
+        channels: IVoterCounts["channels"],
+        computedAt: string | null = "2026-10-09T08:00:00Z"
+    ): IVoterCounts => ({
+        total: channels.reduce((sum, entry) => sum + entry.voters, 0),
+        channels,
+        status: {
+            computed_at: computedAt,
+            pending: false,
+            outcome: computedAt ? "COUNTED" : null,
+        } as IVoterCounts["status"],
+    })
+    const failedOn = (channel: EMessageChannel | null): IChannelMessageStats => ({
+        channel,
+        sent_last_24h: 0,
+        queued: 0,
+        accepted: 0,
+        delivered: 0,
+        failed: 3,
+        unknown: 0,
+        unresolved: 0,
+    })
+    const rows = () =>
+        Array.from(document.querySelectorAll("tr[data-channel]")).map((tr) =>
+            tr.getAttribute("data-channel")
+        )
+
+    it("shows every channel voters or messages are on, those the event doesn't offer said so", () => {
+        render(
+            <MessagingDeliveryStatus
+                config={config}
+                accounts={[account({})]}
+                stats={[failedOn(EMessageChannel.EMAIL), failedOn(null)]}
+                voterCounts={counts([
+                    {channel: EMessageChannel.WHATSAPP, voters: 2, not_offered: 2},
+                    {channel: EMessageChannel.SMS, voters: 5, not_offered: 0},
+                    {channel: EMessageChannel.EMAIL, voters: 40000, not_offered: 40000},
+                ])}
+            />
+        )
+        expect(rows()).toEqual(["WHATSAPP", "SMS", "EMAIL", "NONE"])
+        expect(screen.getAllByText("messagingEvent.delivery.notConfigured")).toHaveLength(2)
+        const email = within(row(EMessageChannel.EMAIL))
+        expect(email.getByText("40,000")).toBeVisible()
+        // Its refused messages are counted, not "unavailable".
+        expect(email.queryByText("messaging.deliveryUnavailable")).toBeNull()
+        expect(
+            within(row(EMessageChannel.SMS)).queryByText("messagingEvent.delivery.notConfigured")
+        ).toBeNull()
+        expect(screen.getByText(/messaging.voterCount.countedAt/)).toBeVisible()
+    })
+
+    it("shows the voters and messages of an event without a configuration", () => {
+        render(
+            <MessagingDeliveryStatus
+                config={configWith([])}
+                accounts={[]}
+                stats={[failedOn(EMessageChannel.EMAIL)]}
+                voterCounts={counts([{channel: null, voters: 4, not_offered: 0}])}
+            />
+        )
+        expect(rows()).toEqual(["EMAIL", "NONE"])
+        expect(screen.queryByText("messagingEvent.delivery.empty")).toBeNull()
+    })
+
+    it("says no channel is in use only with no voter or message on any", () => {
+        render(
+            <MessagingDeliveryStatus
+                config={configWith([])}
+                accounts={[]}
+                stats={[]}
+                voterCounts={counts([])}
+                onRecount={jest.fn()}
+            />
+        )
+        expect(screen.getByText("messagingEvent.delivery.empty")).toBeVisible()
+        expect(screen.getByRole("button", {name: "messaging.voterCount.recount"})).toBeEnabled()
+    })
+
+    it("shows no voter count before the first count, and asks for a recount", () => {
+        const onRecount = jest.fn()
+        render(
+            <MessagingDeliveryStatus
+                config={config}
+                accounts={[account({})]}
+                stats={[]}
+                voterCounts={counts([], null)}
+                onRecount={onRecount}
+            />
+        )
+        expect(within(row(EMessageChannel.SMS)).getAllByRole("cell")[1]).toHaveTextContent("–")
+        expect(screen.getByText("messaging.voterCount.never")).toBeVisible()
+        fireEvent.click(screen.getByRole("button", {name: "messaging.voterCount.recount"}))
+        expect(onRecount).toHaveBeenCalled()
+    })
+
+    it("can't ask again while a recount is on its way, and says a count took too long", () => {
+        render(
+            <MessagingDeliveryStatus
+                config={config}
+                accounts={[account({})]}
+                stats={[]}
+                voterCounts={{
+                    ...counts([{channel: EMessageChannel.SMS, voters: 5, not_offered: 0}]),
+                    status: {
+                        computed_at: "2026-10-09T08:00:00Z",
+                        pending: true,
+                        outcome: "TIMED_OUT",
+                    } as IVoterCounts["status"],
+                }}
+                onRecount={jest.fn()}
+            />
+        )
+        expect(screen.getByRole("button", {name: "messaging.voterCount.recount"})).toBeDisabled()
+        const status = screen.getByText(/messaging.voterCount.countedAt/)
+        expect(status).toHaveTextContent("messaging.voterCount.timedOut")
+        expect(status).toHaveTextContent("messaging.voterCount.previous")
+        expect(status).toHaveTextContent("messaging.voterCount.pending")
     })
 })
 

@@ -5349,6 +5349,8 @@ const catalanTranslation: TranslationType = {
                 providerLanguage: "Idioma del proveïdor",
                 voters: "Votants que el fan servir",
                 sent24h: "Enviats, últimes 24 h",
+                sent24hHelp:
+                    "Cada missatge amb l'últim intent en les darreres 24 hores, en qualsevol estat, inclosos els fallits. Les columnes d'estat compten tots els missatges de l'esdeveniment.",
             },
             outOfWindow: {
                 utility:
@@ -5385,6 +5387,7 @@ const catalanTranslation: TranslationType = {
                 showing: "Es mostren {{shown}} de {{total}} Posts. Cerqueu per trobar-ne d'altres.",
             },
             delivery: {
+                notConfigured: "Aquest esdeveniment no l'ofereix",
                 empty: "No s'utilitza cap canal.",
                 help: "Els recomptes són per missatge, segons l'estat del seu darrer intent. Acceptat vol dir que el proveïdor ha acceptat el missatge, no que el votant l'hagi rebut. Desconegut vol dir que el lliurament encara no està confirmat; passades 24 hores es mostra com a Sense resoldre, mai com a fallit. Un compte sense informes de lliurament mostra el lliurament com a no disponible.",
                 loadError: "No s'han pogut carregar els recomptes de missatges.",
@@ -5463,6 +5466,7 @@ const catalanTranslation: TranslationType = {
                     "No s'ha pogut confirmar el lliurament en 24 hores. Això no vol dir que hagi fallat.",
             },
             blocker: {
+                UNCHECKED: "Sense comprovar per al número, la pàgina o el remitent actuals",
                 NOT_CONNECTED: "Sense connexió",
                 UNSUPPORTED_PURPOSE: "Aquest proveïdor no ho admet",
                 NEEDS_PROVIDER_APPROVAL: "Necessita l'aprovació del proveïdor",
@@ -5565,6 +5569,66 @@ const catalanTranslation: TranslationType = {
                 noReadPermission:
                     "Per mostrar el canal de cada votant cal el permís messaging-config-read. Cada votant rep igualment la notificació pel seu propi canal.",
             },
+            audience: {
+                notOfferedRow:
+                    "Cap Post d'aquests votants no ofereix aquest canal per als avisos, de manera que cap d'ells no el rep: {{reason}}.",
+                willSend: "Rebran la notificació: {{willSend}}",
+                selectedTimedOut:
+                    "Comptar els votants seleccionats ha trigat massa, de manera que no es mostren recomptes. Cada votant rep igualment la notificació pel seu propi canal.",
+                notSent: "No s'envia",
+                deletedAccount: "Compte eliminat",
+                notOffered: "{{notOffered}} d'ells no el reben: {{reason}}.",
+                noAccountHelp:
+                    "Cap compte no envia per aquest canal, així que els avisos d'aquests votants fallen: {{reason}}.",
+                noChannelHelp:
+                    "Aquests votants no tenen cap canal de contacte registrat. No reben res, i cadascun apareix com a fallit: {{reason}}.",
+                total: "Votants d'aquesta audiència: {{total}}",
+                loadError:
+                    "No s'ha pogut carregar el nombre de votants. Cada votant rep igualment la notificació pel seu propi canal.",
+            },
+            voterCount: {
+                countedAt: "Comptat: {{time}}.",
+                never: "Encara no s'ha comptat.",
+                pending: "Hi ha un recompte en curs.",
+                timedOut: "El darrer recompte ha trigat massa i s'ha aturat.",
+                failed: "El darrer recompte ha fallat.",
+                previous: "Els recomptes que es mostren són de l'anterior.",
+                recount: "Torna a comptar",
+                recountAsked: "S'ha demanat un recompte. Els recomptes s'actualitzaran quan acabi.",
+                recountAlreadyAsked: "Ja hi ha un recompte en curs.",
+                recountError: "No s'ha pogut demanar el recompte.",
+                loadError: "No s'han pogut carregar els recomptes de votants.",
+            },
+            volumes: {
+                title: "Volums mensuals",
+                intro: "Intents lliurats a un proveïdor cada mes, per canal, compte d'enviament, país de destinació i categoria de facturació, per conciliar les factures dels proveïdors. Cada intent compta el mes en què es va fer, de manera que un reintent torna a comptar. La categoria de facturació és la prevista en enviar, o la que ha informat el proveïdor; si un intent és facturable és el que ha informat el proveïdor. No es mostren preus.",
+                month: "Mes",
+                monthHelp: "Els mesos es compten en UTC.",
+                loading: "S'estan carregant els volums mensuals",
+                loadError: "No s'han pogut carregar els volums.",
+                empty: "No s'ha lliurat cap intent a un proveïdor el {{month}}.",
+                noPermission:
+                    "Per veure els volums cal el permís messaging-account-read o messaging-config-read.",
+                notReported: "Sense informar",
+                deploymentOrDeleted: "Remitent de la instal·lació o un compte eliminat",
+                category: {
+                    AUTHENTICATION: "Autenticació",
+                    UTILITY: "Utilitat",
+                    SERVICE: "Servei",
+                    TRANSACTIONAL: "Transaccional",
+                    EMAIL: "Correu electrònic",
+                },
+                billableYes: "Facturable",
+                billableNo: "No facturable",
+                total: "Tots els intents",
+                column: {
+                    account: "Enviat des de",
+                    country: "País de destinació",
+                    category: "Categoria de facturació",
+                    billable: "Facturable",
+                    messages: "Intents",
+                },
+            },
             voter: {
                 title: "Missatgeria",
                 notSet: "Sense definir",
@@ -5594,6 +5658,19 @@ const catalanTranslation: TranslationType = {
                 },
             },
             reason: {
+                CANDIDATE_REFUSED:
+                    "Les noves credencials no s'han connectat: es mantenen les anteriors",
+                ACCOUNT_IN_USE:
+                    "La fan servir els paràmetres de missatgeria d'un esdeveniment electoral: traieu-la d'allà primer",
+                NUMBER_CHANGED:
+                    "Un votant ha canviat el número de WhatsApp: demaneu-li que torni a verificar el contacte",
+                IDENTITY_CHANGED:
+                    "La identitat d'enviament del compte ha canviat: es torna a comprovar",
+                TEMPLATES_NOT_READ: "No s'han pogut llegir les plantilles del proveïdor",
+                PARTNER_LOGIN_REFUSED: "Infobip ha rebutjat la clau d'API del compte",
+                NO_PAGES_MESSAGING: "El testimoni de la pàgina no té el permís pages_messaging",
+                NOT_SUBSCRIBED: "L'aplicació no està subscrita a la pàgina",
+                NUMBER_STATUS_NOT_READ: "No s'ha pogut llegir l'estat del número",
                 CALLBACK_NOT_CONFIGURED: "Adreça de retorn no configurada",
                 UNSUPPORTED_PROVIDER: "Proveïdor no compatible: substituïu aquest compte",
                 CREDENTIALS_FOLLOW_ENDPOINT:
@@ -5613,6 +5690,9 @@ const catalanTranslation: TranslationType = {
                 WORKER_STOPPED_AFTER_SENDING:
                     "El procés s'ha aturat abans de registrar el resultat",
                 CODE_EXPIRED_BEFORE_SENDING: "El codi ha caducat abans que es pogués enviar",
+                CAPACITY_BUSY: "No enviat: el compte ha estat al seu límit d'enviament massa temps",
+                PROVIDER_ANSWER_LATE:
+                    "El proveïdor no ha respost a temps: potser s'ha enviat el missatge",
                 UNRESOLVED: "No s'ha pogut confirmar el lliurament",
                 SELECTED_WITHOUT_VOTERS: "Seleccioneu almenys un votant",
                 WRONG_RECIPIENT_KIND: "La destinació no és del tipus al qual envia aquest canal",
@@ -5624,6 +5704,25 @@ const catalanTranslation: TranslationType = {
                 MISSING_CODE: "No hi ha cap codi per enviar",
                 ENDPOINT_NOT_HTTPS: "L'adreça del proveïdor ha de començar per https://",
                 PROVIDER_CODE: "Codi d'error del proveïdor {{code}}",
+                CHECK_DROPPED: "El compte ha canviat mentre es comprovava: torneu-lo a comprovar",
+                ACCOUNT_NOT_READY: "No enviat: el compte no està llest ({{blocker}})",
+                PROVIDER_UNREACHABLE: "No s'ha pogut contactar amb el proveïdor",
+                PROVIDER_STATUS: "El proveïdor ha respost amb l'estat {{status}}",
+                MISSING_CREDENTIAL: "Falta la credencial: {{credential}}",
+                PROVIDER_CHECK_FAILED: "La comprovació del proveïdor ha fallat: {{detail}}",
+                NUMBER_STATUS: "L'estat del número és {{status}}",
+                NUMBER_NAME_STATUS: "El nom visible del número és {{status}}",
+                NUMBER_IN_SANDBOX: "El número és en mode sandbox",
+                NUMBER_NOT_VERIFIED: "El codi del número no està verificat",
+                SMS_SANDBOX: "El compte és al sandbox d'SMS",
+                SES_SANDBOX: "El compte és al sandbox de SES",
+                SES_SENDING_DISABLED: "L'enviament està desactivat per a aquest compte",
+                SMTP_REFUSED: "El servidor SMTP no és accessible o ha rebutjat les credencials",
+                TOKEN_INVALID: "El token d'accés no és vàlid o ha caducat",
+                TOKEN_CANNOT_SEND: "El token d'accés no té el permís per enviar",
+                TOKEN_NOT_CHECKED: "No s'ha pogut comprovar el token d'accés",
+                APP_SECRET_REFUSED: "Meta ha rebutjat el secret de l'aplicació",
+                APP_SECRET_NOT_CHECKED: "No s'ha pogut comprovar el secret de l'aplicació",
                 RETRY_NOT_PREPARED:
                     "No es pot reintentar: no s'ha pogut tornar a preparar el missatge",
                 NOT_THE_VOTERS_CHANNEL: "No és el canal del votant",
@@ -5633,6 +5732,80 @@ const catalanTranslation: TranslationType = {
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Estat al proveïdor",
+                daily: "Els comptes es comproven un cop al dia i cada vegada que comproveu la connexió.",
+                unchecked:
+                    "El número, la pàgina o el remitent han canviat des de l'última comprovació. Fins que el compte no es torni a comprovar, els codis i els avisos que hi passin fallen per no estar llest; el missatge de prova sí que s'envia.",
+                notReported: "No informat",
+                yes: "Sí",
+                no: "No",
+                token: "Testimoni d'accés",
+                tokenExpires: "Vàlid · caduca el {{date}}",
+                tokenNoExpiry: "Vàlid · no caduca",
+                tokenInvalid: "No vàlid",
+                missingScopes: "Falten permisos: {{scopes}}",
+                numberStatus: "Estat del número",
+                nameStatus: "Nom visible: {{status}}",
+                qualityRating: "Qualificació de qualitat",
+                quality: {
+                    GREEN: "Alta",
+                    YELLOW: "Mitjana",
+                    RED: "Baixa",
+                    UNKNOWN: "Desconeguda",
+                },
+                messagingLimit: "Límit de missatges",
+                pagesMessaging: "Permís per enviar (pages_messaging)",
+                subscribed: "Aplicació subscrita a la pàgina",
+                getStarted: "Botó Comença",
+                getStartedMissing:
+                    "Sense el botó, els votants que mai no han escrit a la pàgina no poden iniciar la conversa que els porta el codi.",
+                partnerLogin: "Accés del soci",
+                appSecret: "Secret de l'aplicació",
+                notChecked: "No s'ha pogut comprovar",
+                numberQualityWarning:
+                    "Un avís de qualitat de Meta: el número continua enviant, però una qualitat baixa pot reduir-ne el límit de missatges.",
+                accepted: "Acceptat",
+                refused: "Rebutjat",
+                callback: "Adreça de retorn",
+                callbackReady: "Configurada",
+                approvalFromCheck: "Informada per la comprovació del proveïdor",
+                approvalEntered:
+                    "Introduïda per un administrador: la comprovació del proveïdor no la va informar",
+                approvalEnteredHelp:
+                    "Només s'utilitza fins que la comprovació del proveïdor informi de l'aprovació.",
+                templates: {
+                    title: "Plantilles al proveïdor",
+                    none: "Sense plantilles",
+                    name: "Plantilla",
+                    language: "Idioma",
+                    category: "Categoria",
+                    status: "Estat",
+                    entered:
+                        "Les plantilles de Viber les introdueix un administrador a Plantilles aprovades: el soci no té API per a l'aprovació de plantilles.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Autenticació",
+                    UTILITY: "Utilitat",
+                    MARKETING: "Màrqueting",
+                },
+                templateStatus: {
+                    APPROVED: "Aprovada",
+                    PENDING: "En revisió",
+                    REJECTED: "Rebutjada",
+                    PAUSED: "En pausa",
+                    DISABLED: "Desactivada",
+                },
+                numberChanges: {
+                    title: "Votants que han canviat el número de WhatsApp",
+                    description:
+                        "WhatsApp ha informat d'aquests canvis de número. Demaneu a aquests votants que tornin a verificar el contacte; no s'ha canviat res automàticament.",
+                    item: "{{old}} va canviar a {{new}} el {{date}}.",
+                    voters: "Votants: {{voters}}",
+                    noVoters:
+                        "Cap votant no ha rebut missatges d'aquest compte al número anterior.",
+                },
+            },
             tab: "MISSATGERIA",
             description:
                 "Comptes que envien als votants els seus codis i avisos. Cada esdeveniment electoral tria el compte de cada canal; els esdeveniments nous comencen amb el compte predeterminat.",
@@ -5670,6 +5843,7 @@ const catalanTranslation: TranslationType = {
                 error: "No s'ha pogut comprovar {{name}}.",
             },
             delete: {
+                refused: "El compte no s'ha eliminat: {{reason}}",
                 title: "Suprimeix el compte",
                 body: "Voleu suprimir {{name}}? Els esdeveniments electorals que l'utilitzen deixaran d'enviar pel seu canal.",
                 success: "Compte suprimit",
@@ -5734,6 +5908,7 @@ const catalanTranslation: TranslationType = {
             error: {
                 REQUIRED: "Obligatori",
                 NOT_A_COUNT: "Introduïu un nombre enter",
+                AT_LEAST_ONE: "Introduïu 1 o més",
                 OTP_ABOVE_TOTAL: "No pot superar els missatges per segon",
                 INVALID_CALLING_CODE:
                     "Introduïu prefixos telefònics de país d'1 a 3 dígits, com 63",
@@ -5744,6 +5919,13 @@ const catalanTranslation: TranslationType = {
                     "Torneu a introduir les credencials per a la nova adreça",
             },
             warning: {
+                pageChangeCount:
+                    "Votants connectats a {{page}} que s'hauran de tornar a connectar: {{count}}.",
+                pageChangeCounting: "S'estan comptant els votants connectats a la pàgina…",
+                pageChangeCountError:
+                    "No s'ha pogut llegir el nombre de votants connectats a la pàgina.",
+                recheck:
+                    "En desar, el compte es torna a comprovar en segon pla. Fins que aquesta comprovació no surti bé, els codis i els avisos que hi passin fallen per no estar llest; el missatge de prova sí que s'envia.",
                 pageChange:
                     "Les converses de Messenger pertanyen a una pàgina. Després de canviar la pàgina, els votants connectats a {{page}} només rebran codis quan tornin a connectar Messenger.",
                 numberChange:
@@ -5762,8 +5944,13 @@ const catalanTranslation: TranslationType = {
             limits: {
                 title: "Límits d'enviament",
                 messagesPerSecond: "Missatges per segon",
+                messagesPerSecondHelp: "Buit: els missatges no es limiten.",
                 otpReservedPerSecond: "Reservats per a codis per segon",
-                otpReservedHelp: "Es mantenen lliures per als codis durant els enviaments massius.",
+                otpReservedHelp:
+                    "Un mínim dins de l'únic pressupost d'enviament compartit del compte: els avisos s'hi aturen i els codis van primer. Si no s'envien codis, un enviament massiu pot fer servir tot el ritme.",
+                otpConcurrency: "Codis enviats alhora",
+                otpConcurrencyHelp:
+                    "Buit: 8. Es compta per procés del servidor; els altres codis esperen el seu torn.",
                 allowedCallingCodes: "Destinacions permeses (prefixos telefònics de país)",
                 allowedCallingCodesHelp:
                     "Separats per comes, per exemple 63, 971. Buit permet qualsevol destinació.",
@@ -5887,6 +6074,92 @@ const catalanTranslation: TranslationType = {
                 confirmBody:
                     "L'usuari i la contrasenya d'informes actuals deixen de funcionar immediatament. Fins que la subscripció d'Infobip no tingui els nous, els informes de lliurament de Viber es rebutgen i els missatges es queden com a Acceptat.",
                 confirm: "Substitueix",
+            },
+        },
+        sentMessages: {
+            tab: "Missatges enviats",
+            accountsTab: "Comptes",
+            tabsLabel: "Seccions de missatgeria",
+            description:
+                "Missatges que ha rebut el proveïdor simulat d'aquest entorn de desenvolupament, tal com els mostrarien les aplicacions dels votants. Cap no ha arribat a un votant real. Aquesta pestanya només apareix on les rutes del proveïdor simulat estan habilitades.",
+            modeLabel: "Mostra missatges de",
+            all: "Tots",
+            refresh: "Actualitza",
+            refreshing: "S'està actualitzant…",
+            refreshError:
+                "No s'han pogut actualitzar els missatges. La llista que es mostra és l'última que s'ha llegit.",
+            empty: "Encara no hi ha missatges.",
+            emptyChannel: "Encara no hi ha missatges de {{channel}}.",
+            column: {
+                time: "Hora",
+                channel: "Canal",
+                from: "De",
+                to: "Per a",
+                message: "Missatge",
+                report: "Informe de lliurament",
+            },
+            report: {
+                accepted: "Informe acceptat pel component de webhooks (HTTP 200)",
+                refused: "Informe rebutjat: HTTP {{status}}",
+                pending: "Informe encara no enviat",
+                notSent: "Informe no enviat: {{reason}}",
+                noAnswer: "L'informe no ha obtingut resposta: {{reason}}",
+                noReason: "sense motiu indicat",
+                unavailable: "Aquest canal no té informes de lliurament",
+            },
+            content: {
+                template: "Plantilla {{name}} ({{language}})",
+                noText: "(sense text)",
+                code: "Codi",
+                copyCode: "Copia el codi",
+                copied: "Codi copiat",
+                copyFailed: "No s'ha pogut copiar el codi",
+                truncated:
+                    "Retallat: el proveïdor simulat només conserva els primers 64 KiB de cada camp.",
+            },
+            chat: {
+                phone: "{{channel}} en un telèfon",
+                chats: "Xats de {{channel}}",
+                open: "Obre el xat amb {{recipient}} des de {{sender}}",
+                back: "Torna als xats",
+                from: "De {{sender}}",
+                messages: "Missatges per a {{recipient}}",
+            },
+            getStarted: {
+                title: "Comença",
+                help: "Enganxeu l'enllaç de Messenger que mostra la pàgina d'inscripció i premeu Comença, com ho faria el votant a Messenger. Després, el codi arriba al xat.",
+                link: "Enllaç de Messenger",
+                submit: "Comença",
+                accepted: "El component de webhooks ha respost 200. El codi arriba al xat.",
+                answered: "El component de webhooks ha respost {{status}}.",
+                failed: "No s'ha pogut començar: {{reason}}",
+            },
+            email: {
+                inbox: "Safata d'entrada",
+                reading: "Correu seleccionat",
+                noSubject: "(sense assumpte)",
+                from: "De",
+                to: "Per a",
+                view: "Mostra el correu com a",
+                html: "HTML",
+                text: "Text pla",
+                htmlFrame: "Contingut del correu",
+                noContent: "Aquest correu no té contingut.",
+                loading: "S'està carregant el correu…",
+                loadError:
+                    "No s'ha pogut llegir l'HTML del correu: potser el proveïdor simulat ja no el conserva.",
+            },
+            reason: {
+                NO_ACCOUNT: "Cap compte no fa servir aquest remitent",
+                SEVERAL_ACCOUNTS: "Diversos comptes fan servir aquest remitent",
+                ACCOUNTS_UNREADABLE: "No s'han pogut llegir els comptes",
+                UNREACHABLE: "El component de webhooks no ha respost",
+                LINK_UNREADABLE: "Enganxeu l'enllaç m.me de la pàgina d'inscripció",
+                LINK_WITHOUT_REF: "L'enllaç no té ref: copieu l'enllaç sencer",
+                NO_PAGE_ACCOUNT:
+                    "Cap compte de Messenger d'aquesta organització no fa servir aquesta pàgina",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Diversos comptes de Messenger d'aquesta organització fan servir aquesta pàgina",
             },
         },
     },

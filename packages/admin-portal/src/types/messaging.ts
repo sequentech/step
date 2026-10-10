@@ -90,15 +90,29 @@ export enum EOutOfWindowPolicy {
 /**
  * How an account's readiness is established. Readiness always comes from the
  * provider's check; `ADMIN_CONFIRMED` is parse-only, read as `PROVIDER_CHECK`
- * and never written.
+ * and never written. Whether the check counts is the check's identity
+ * (`checkIsFor`), never a stored policy.
  */
 export enum EReadinessPolicy {
     PROVIDER_CHECK = "PROVIDER_CHECK",
     ADMIN_CONFIRMED = "ADMIN_CONFIRMED",
 }
 
+/** Where an account's provider approval comes from (`AccountCheck::approval`). */
+export enum EApprovalSource {
+    /** The provider reports it, and the check read it. */
+    PROVIDER_CHECK = "PROVIDER_CHECK",
+    /** The provider has no API for it: an administrator entered it. */
+    ADMIN_ENTERED = "ADMIN_ENTERED",
+}
+
 export enum EReadinessBlocker {
     UNSUPPORTED_PROVIDER = "UNSUPPORTED_PROVIDER",
+    /**
+     * The account's last check was of another identity (an earlier number,
+     * Page or sender): nothing it said counts until it is checked again.
+     */
+    UNCHECKED = "UNCHECKED",
     NOT_CONNECTED = "NOT_CONNECTED",
     UNSUPPORTED_PURPOSE = "UNSUPPORTED_PURPOSE",
     NEEDS_PROVIDER_APPROVAL = "NEEDS_PROVIDER_APPROVAL",
@@ -156,12 +170,98 @@ export interface IProviderCapabilities {
 
 export type IApprovedTemplates = Partial<Record<EMessagePurpose, string[]>>
 
+/** Meta's `debug_token` of the account's access token. */
+export interface ITokenStatus {
+    valid: boolean
+    /** Absent when the token doesn't expire. */
+    expires_at?: string | null
+    missing_scopes?: string[]
+}
+
+/** A WhatsApp number as the Cloud API describes it; values are Meta's. */
+export interface IWhatsAppNumberStatus {
+    status?: string | null
+    name_status?: string | null
+    quality_rating?: string | null
+    messaging_limit?: string | null
+}
+
+/** A template at the provider, for one language. */
+export interface ITemplateStatus {
+    name: string
+    language: string
+    category?: string | null
+    status: string
+}
+
+/** A Messenger Page's setup; `null`: not reported. */
+export interface IMessengerPageStatus {
+    pages_messaging?: boolean | null
+    subscribed: boolean
+    get_started?: boolean | null
+}
+
+export interface IPartnerLogin {
+    accepted: boolean
+    reason?: string | null
+}
+
+export interface ICallbackStatus {
+    url?: string | null
+    reason?: string | null
+}
+
+/** A WhatsApp `user_changed_number` signal: masked numbers and the voters to verify again. */
+export interface INumberChange {
+    masked_old_number: string
+    masked_new_number?: string | null
+    voter_ids?: string[]
+    reported_at: string
+}
+
+/** What the provider reported beyond connection (`AccountCheckDetails`). Every part is optional. */
+export interface IAccountCheckDetails {
+    token?: ITokenStatus | null
+    whatsapp_number?: IWhatsAppNumberStatus | null
+    templates?: ITemplateStatus[]
+    templates_reason?: string | null
+    messenger?: IMessengerPageStatus | null
+    partner_login?: IPartnerLogin | null
+    callback?: ICallbackStatus | null
+    /** Reported by the provider's check; absent where the provider has no API for it. */
+    provider_approval?: EProviderApproval | null
+    provider_approval_reason?: string | null
+    number_changes?: INumberChange[]
+    /** The identity the check checked; absent in checks stored before it existed. */
+    identity?: IAccountIdentity | null
+    /** When the check started. */
+    started_at?: string | null
+    /** When a check last failed to run; the daily pass backs off from it. */
+    attempted_at?: string | null
+    /** Meta: whether the app secret matched the token's app. */
+    app_secret?: IAppSecretStatus | null
+}
+
+/** What a check is a check of (`AccountIdentity`): the provider and the sender's ids. */
+export interface IAccountIdentity {
+    provider: EMessagingProvider
+    ids: Record<string, string>
+}
+
+export interface IAppSecretStatus {
+    /** `false`: Meta refused it; `null`: it couldn't be checked (`reason`). */
+    valid?: boolean | null
+    reason?: string | null
+}
+
 export interface IAccountCheck {
     connected: boolean
     production_access: boolean
     approved_templates?: IApprovedTemplates
     checked_at?: string | null
     reason?: string | null
+    /** Absent in checks stored before it existed. */
+    details?: IAccountCheckDetails | null
     /**
      * What stops callbacks (delivery reports, Messenger's Get Started) from
      * reaching the account, from the action `messaging_callback_status`
@@ -188,6 +288,11 @@ export interface IPurposeReadiness {
 export interface IAccountLimits {
     messages_per_second?: number | null
     otp_reserved_per_second?: number | null
+    /**
+     * Codes sent at once through the account, per harvest process; further
+     * codes wait their turn. Absent: 8.
+     */
+    otp_concurrency?: number | null
     allowed_calling_codes?: string[]
 }
 
@@ -347,6 +452,8 @@ export interface IAccountSummary {
     /** What the account can do; `null` when its sender cannot serve the channel. */
     capabilities: IProviderCapabilities | null
     provider_approval: EProviderApproval
+    /** The account's identity now: `check` counts only if it is of it. */
+    identity?: IAccountIdentity | null
     check: IAccountCheck
     public_label?: string | null
     messenger_page?: IMessengerPage | null

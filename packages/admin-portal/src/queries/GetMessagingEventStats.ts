@@ -5,15 +5,15 @@ import {gql} from "@apollo/client"
 
 import {IChannelMessageStats} from "@/types/messaging"
 
-// Per channel of an event: voters whose channel it is, messages sent in the
-// last 24 hours, and messages per state of their latest attempt (so retries
-// don't count twice), with Unknown older than 24 hours apart as unresolved.
+// Per channel of an event: messages sent in the last 24 hours, and messages
+// per state of their latest attempt (so retries don't count twice), with
+// Unknown older than 24 hours apart as unresolved. Voters per channel are
+// counted apart (GetMessagingVoterCounts).
 export const GET_MESSAGING_EVENT_STATS = gql`
     query GetMessagingEventStats($electionEventId: uuid!) {
         messaging_event_stats(election_event_id: $electionEventId) {
             channels {
                 channel
-                voters
                 sent_last_24h
                 queued
                 accepted

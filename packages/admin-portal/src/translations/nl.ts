@@ -5358,6 +5358,8 @@ const dutchTranslation: TranslationType = {
                 providerLanguage: "Taal van de provider",
                 voters: "Kiezers die het gebruiken",
                 sent24h: "Verzonden, laatste 24 u",
+                sent24hHelp:
+                    "Elk bericht waarvan de laatste poging in de afgelopen 24 uur was, in elke status, ook mislukte. De statuskolommen tellen alle berichten van het evenement.",
             },
             outOfWindow: {
                 utility:
@@ -5395,6 +5397,7 @@ const dutchTranslation: TranslationType = {
                 showing: "{{shown}} van {{total}} Posts getoond. Zoek om andere te vinden.",
             },
             delivery: {
+                notConfigured: "Niet aangeboden door dit evenement",
                 empty: "Er wordt geen kanaal gebruikt.",
                 help: "De tellingen zijn per bericht, volgens de status van de laatste poging. Geaccepteerd betekent dat de provider het bericht heeft geaccepteerd, niet dat de kiezer het heeft ontvangen. Onbekend betekent dat de aflevering nog niet is bevestigd; na 24 uur wordt dit getoond als Onopgelost, nooit als mislukt. Een account zonder afleverrapporten toont de aflevering als niet beschikbaar.",
                 loadError: "De berichttellingen konden niet worden geladen.",
@@ -5475,6 +5478,8 @@ const dutchTranslation: TranslationType = {
                     "De aflevering kon niet binnen 24 uur worden bevestigd. Dat betekent niet dat ze mislukt is.",
             },
             blocker: {
+                UNCHECKED:
+                    "Niet gecontroleerd voor het huidige nummer, de huidige pagina of afzender",
                 NOT_CONNECTED: "Niet verbonden",
                 UNSUPPORTED_PURPOSE: "Niet ondersteund door deze provider",
                 NEEDS_PROVIDER_APPROVAL: "Goedkeuring van de provider nodig",
@@ -5577,6 +5582,67 @@ const dutchTranslation: TranslationType = {
                 noReadPermission:
                     "Voor het tonen van het kanaal van elke kiezer is de machtiging messaging-config-read nodig. Elke kiezer krijgt de melding toch via zijn eigen kanaal.",
             },
+            audience: {
+                notOfferedRow:
+                    "Geen enkele Post van deze kiezers biedt dit kanaal aan voor berichten, dus niemand van hen ontvangt het: {{reason}}.",
+                willSend: "Ontvangen de melding: {{willSend}}",
+                selectedTimedOut:
+                    "Het tellen van de geselecteerde kiezers duurde te lang, dus er worden geen aantallen getoond. Elke kiezer ontvangt de melding toch via het eigen kanaal.",
+                notSent: "Niet verzonden",
+                deletedAccount: "Verwijderd account",
+                notOffered: "{{notOffered}} van hen ontvangen het niet: {{reason}}.",
+                noAccountHelp:
+                    "Geen account verzendt via dit kanaal, dus de berichten aan deze kiezers mislukken: {{reason}}.",
+                noChannelHelp:
+                    "Deze kiezers hebben geen contactkanaal geregistreerd. Ze ontvangen niets, en elk staat als mislukt: {{reason}}.",
+                total: "Kiezers in dit publiek: {{total}}",
+                loadError:
+                    "Het aantal kiezers kon niet worden geladen. Elke kiezer ontvangt de melding toch via het eigen kanaal.",
+            },
+            voterCount: {
+                countedAt: "Geteld: {{time}}.",
+                never: "Nog niet geteld.",
+                pending: "Er is een nieuwe telling onderweg.",
+                timedOut: "De laatste telling duurde te lang en is gestopt.",
+                failed: "De laatste telling is mislukt.",
+                previous: "De getoonde aantallen zijn van de telling daarvoor.",
+                recount: "Opnieuw tellen",
+                recountAsked:
+                    "Nieuwe telling aangevraagd. De aantallen worden bijgewerkt als die klaar is.",
+                recountAlreadyAsked: "Er is al een nieuwe telling onderweg.",
+                recountError: "De nieuwe telling kon niet worden aangevraagd.",
+                loadError: "De aantallen kiezers konden niet worden geladen.",
+            },
+            volumes: {
+                title: "Maandvolumes",
+                intro: "Pogingen die elke maand aan een provider zijn overgedragen, per kanaal, verzendaccount, land van bestemming en factuurcategorie, om de facturen van de providers te controleren. Elke poging telt in de maand waarin ze is gedaan, dus een nieuwe poging telt opnieuw. De factuurcategorie is die die bij het verzenden werd verwacht, of die die de provider heeft gemeld; of een poging factureerbaar is, is wat de provider heeft gemeld. Er worden geen prijzen getoond.",
+                month: "Maand",
+                monthHelp: "Maanden worden geteld in UTC.",
+                loading: "De maandvolumes worden geladen",
+                loadError: "De volumes konden niet worden geladen.",
+                empty: "In {{month}} is geen poging aan een provider overgedragen.",
+                noPermission:
+                    "Voor het tonen van de volumes is de machtiging messaging-account-read of messaging-config-read nodig.",
+                notReported: "Niet gemeld",
+                deploymentOrDeleted: "Afzender van de installatie of een verwijderd account",
+                category: {
+                    AUTHENTICATION: "Authenticatie",
+                    UTILITY: "Service",
+                    SERVICE: "Servicegesprek",
+                    TRANSACTIONAL: "Transactioneel",
+                    EMAIL: "E-mail",
+                },
+                billableYes: "Factureerbaar",
+                billableNo: "Niet factureerbaar",
+                total: "Alle pogingen",
+                column: {
+                    account: "Verzonden vanaf",
+                    country: "Land van bestemming",
+                    category: "Factuurcategorie",
+                    billable: "Factureerbaar",
+                    messages: "Pogingen",
+                },
+            },
             voter: {
                 title: "Berichten",
                 notSet: "Niet ingesteld",
@@ -5606,6 +5672,19 @@ const dutchTranslation: TranslationType = {
                 },
             },
             reason: {
+                CANDIDATE_REFUSED:
+                    "De nieuwe inloggegevens maakten geen verbinding: de vorige blijven in gebruik",
+                ACCOUNT_IN_USE:
+                    "Gebruikt door de berichtinstellingen van een verkiezingsevenement: verwijder het daar eerst",
+                NUMBER_CHANGED:
+                    "Een kiezer heeft een ander WhatsApp-nummer: vraag hem zijn contactgegevens opnieuw te verifiëren",
+                IDENTITY_CHANGED:
+                    "De verzendidentiteit van het account is gewijzigd: het wordt opnieuw gecontroleerd",
+                TEMPLATES_NOT_READ: "De sjablonen van de provider konden niet worden gelezen",
+                PARTNER_LOGIN_REFUSED: "Infobip heeft de API-sleutel van het account geweigerd",
+                NO_PAGES_MESSAGING: "Het paginatoken heeft geen pages_messaging-machtiging",
+                NOT_SUBSCRIBED: "De app is niet geabonneerd op de pagina",
+                NUMBER_STATUS_NOT_READ: "De status van het nummer kon niet worden gelezen",
                 CALLBACK_NOT_CONFIGURED: "Callbackadres niet ingesteld",
                 UNSUPPORTED_PROVIDER: "Niet-ondersteunde provider: vervang dit account",
                 CREDENTIALS_FOLLOW_ENDPOINT:
@@ -5626,6 +5705,9 @@ const dutchTranslation: TranslationType = {
                 WORKER_STOPPED_AFTER_SENDING:
                     "Het proces stopte voordat de uitkomst was vastgelegd",
                 CODE_EXPIRED_BEFORE_SENDING: "De code verliep voordat hij kon worden verzonden",
+                CAPACITY_BUSY: "Niet verzonden: het account zat te lang aan zijn verzendlimiet",
+                PROVIDER_ANSWER_LATE:
+                    "De provider antwoordde niet op tijd: het bericht is mogelijk verzonden",
                 UNRESOLVED: "Aflevering kon niet worden bevestigd",
                 SELECTED_WITHOUT_VOTERS: "Selecteer ten minste één kiezer",
                 WRONG_RECIPIENT_KIND:
@@ -5639,6 +5721,26 @@ const dutchTranslation: TranslationType = {
                 MISSING_CODE: "Geen code om te verzenden",
                 ENDPOINT_NOT_HTTPS: "Het adres van de provider moet beginnen met https://",
                 PROVIDER_CODE: "Foutcode van de provider {{code}}",
+                CHECK_DROPPED:
+                    "Het account is gewijzigd tijdens de controle: controleer het opnieuw",
+                ACCOUNT_NOT_READY: "Niet verzonden: het account is niet klaar ({{blocker}})",
+                PROVIDER_UNREACHABLE: "De provider was niet bereikbaar",
+                PROVIDER_STATUS: "De provider antwoordde met status {{status}}",
+                MISSING_CREDENTIAL: "Ontbrekende referentie: {{credential}}",
+                PROVIDER_CHECK_FAILED: "De controle van de provider is mislukt: {{detail}}",
+                NUMBER_STATUS: "De status van het nummer is {{status}}",
+                NUMBER_NAME_STATUS: "De weergavenaam van het nummer is {{status}}",
+                NUMBER_IN_SANDBOX: "Het nummer staat in sandboxmodus",
+                NUMBER_NOT_VERIFIED: "De code van het nummer is niet geverifieerd",
+                SMS_SANDBOX: "Het account staat in de sms-sandbox",
+                SES_SANDBOX: "Het account staat in de SES-sandbox",
+                SES_SENDING_DISABLED: "Verzenden is uitgeschakeld voor dit account",
+                SMTP_REFUSED: "SMTP-server onbereikbaar of referenties geweigerd",
+                TOKEN_INVALID: "Het toegangstoken is niet geldig of verlopen",
+                TOKEN_CANNOT_SEND: "Het toegangstoken heeft geen toestemming om te verzenden",
+                TOKEN_NOT_CHECKED: "Het toegangstoken kon niet worden gecontroleerd",
+                APP_SECRET_REFUSED: "Meta heeft het app-geheim geweigerd",
+                APP_SECRET_NOT_CHECKED: "Het app-geheim kon niet worden gecontroleerd",
                 RETRY_NOT_PREPARED:
                     "Kan niet opnieuw worden geprobeerd: het bericht kon niet opnieuw worden voorbereid",
                 NOT_THE_VOTERS_CHANNEL: "Niet het kanaal van de kiezer",
@@ -5648,6 +5750,80 @@ const dutchTranslation: TranslationType = {
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Status bij de provider",
+                daily: "Accounts worden één keer per dag gecontroleerd en telkens wanneer u de verbinding controleert.",
+                unchecked:
+                    "Het nummer, de pagina of de afzender is sinds de laatste controle gewijzigd. Tot het account opnieuw is gecontroleerd, mislukken codes en meldingen via dit account omdat het niet klaar is; het testbericht wordt wel verzonden.",
+                notReported: "Niet gemeld",
+                yes: "Ja",
+                no: "Nee",
+                token: "Toegangstoken",
+                tokenExpires: "Geldig · verloopt op {{date}}",
+                tokenNoExpiry: "Geldig · verloopt niet",
+                tokenInvalid: "Niet geldig",
+                missingScopes: "Ontbrekende machtigingen: {{scopes}}",
+                numberStatus: "Status van het nummer",
+                nameStatus: "Weergavenaam: {{status}}",
+                qualityRating: "Kwaliteitsbeoordeling",
+                quality: {
+                    GREEN: "Hoog",
+                    YELLOW: "Gemiddeld",
+                    RED: "Laag",
+                    UNKNOWN: "Onbekend",
+                },
+                messagingLimit: "Berichtenlimiet",
+                pagesMessaging: "Machtiging om te verzenden (pages_messaging)",
+                subscribed: "App geabonneerd op de pagina",
+                getStarted: "Knop Aan de slag",
+                getStartedMissing:
+                    "Zonder de knop kunnen kiezers die de pagina nooit een bericht stuurden het gesprek dat hun code brengt niet starten.",
+                partnerLogin: "Aanmelding bij de partner",
+                appSecret: "App-geheim",
+                notChecked: "Kon niet worden gecontroleerd",
+                numberQualityWarning:
+                    "Een kwaliteitswaarschuwing van Meta: het nummer verzendt nog, maar een lage kwaliteit kan de berichtenlimiet verlagen.",
+                accepted: "Geaccepteerd",
+                refused: "Geweigerd",
+                callback: "Callbackadres",
+                callbackReady: "Ingesteld",
+                approvalFromCheck: "Gemeld door de controle van de provider",
+                approvalEntered:
+                    "Ingevoerd door een beheerder: de controle van de provider meldde het niet",
+                approvalEnteredHelp:
+                    "Wordt alleen gebruikt totdat de controle van de provider de goedkeuring meldt.",
+                templates: {
+                    title: "Sjablonen bij de provider",
+                    none: "Geen sjablonen",
+                    name: "Sjabloon",
+                    language: "Taal",
+                    category: "Categorie",
+                    status: "Toestand",
+                    entered:
+                        "Viber-sjablonen worden door een beheerder ingevoerd onder Goedgekeurde sjablonen: de partner heeft geen API voor sjabloongoedkeuring.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Authenticatie",
+                    UTILITY: "Service",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Goedgekeurd",
+                    PENDING: "In beoordeling",
+                    REJECTED: "Afgewezen",
+                    PAUSED: "Gepauzeerd",
+                    DISABLED: "Uitgeschakeld",
+                },
+                numberChanges: {
+                    title: "Kiezers die hun WhatsApp-nummer hebben gewijzigd",
+                    description:
+                        "WhatsApp heeft deze nummerwijzigingen gemeld. Vraag deze kiezers hun contactgegevens opnieuw te verifiëren; er is niets automatisch gewijzigd.",
+                    item: "{{old}} is gewijzigd in {{new}} op {{date}}.",
+                    voters: "Kiezers: {{voters}}",
+                    noVoters:
+                        "Geen enkele kiezer ontving berichten van dit account op het oude nummer.",
+                },
+            },
             tab: "BERICHTEN",
             description:
                 "Accounts die kiezers hun codes en berichten sturen. Elk verkiezingsevenement kiest het account per kanaal; nieuwe evenementen beginnen met het standaardaccount.",
@@ -5685,6 +5861,7 @@ const dutchTranslation: TranslationType = {
                 error: "{{name}} kon niet worden gecontroleerd.",
             },
             delete: {
+                refused: "Het account is niet verwijderd: {{reason}}",
                 title: "Account verwijderen",
                 body: "{{name}} verwijderen? Verkiezingsevenementen die het gebruiken, versturen dan niets meer via dat kanaal.",
                 success: "Account verwijderd",
@@ -5748,6 +5925,7 @@ const dutchTranslation: TranslationType = {
             error: {
                 REQUIRED: "Verplicht",
                 NOT_A_COUNT: "Voer een geheel getal in",
+                AT_LEAST_ONE: "Voer 1 of meer in",
                 OTP_ABOVE_TOTAL: "Mag niet hoger zijn dan het aantal berichten per seconde",
                 INVALID_CALLING_CODE: "Voer landnummers van 1 tot 3 cijfers in, zoals 63",
                 DUPLICATE_LANGUAGE: "Deze taal heeft al een sjabloon voor dit doel",
@@ -5757,6 +5935,13 @@ const dutchTranslation: TranslationType = {
                     "Voer de inloggegevens opnieuw in voor het nieuwe adres",
             },
             warning: {
+                pageChangeCount:
+                    "Kiezers verbonden met {{page}} die opnieuw moeten verbinden: {{count}}.",
+                pageChangeCounting: "Kiezers verbonden met de pagina worden geteld…",
+                pageChangeCountError:
+                    "Het aantal kiezers verbonden met de pagina kon niet worden gelezen.",
+                recheck:
+                    "Bij opslaan wordt het account op de achtergrond opnieuw gecontroleerd. Tot die controle slaagt, mislukken codes en meldingen via dit account omdat het niet klaar is; het testbericht wordt wel verzonden.",
                 pageChange:
                     "Messenger-gesprekken horen bij een pagina. Na het wijzigen van de pagina krijgen de kiezers die met {{page}} verbonden zijn pas weer codes nadat ze Messenger opnieuw hebben verbonden.",
                 numberChange:
@@ -5775,8 +5960,13 @@ const dutchTranslation: TranslationType = {
             limits: {
                 title: "Verzendlimieten",
                 messagesPerSecond: "Berichten per seconde",
+                messagesPerSecondHelp: "Leeg: berichten worden niet beperkt.",
                 otpReservedPerSecond: "Gereserveerd voor codes per seconde",
-                otpReservedHelp: "Blijft vrij voor codes tijdens bulkverzendingen.",
+                otpReservedHelp:
+                    "Een ondergrens in het ene gedeelde verzendbudget van het account: meldingen stoppen daar en codes gaan voor. Als er geen codes worden verzonden, kan een bulkverzending het volledige tempo gebruiken.",
+                otpConcurrency: "Codes tegelijk verzonden",
+                otpConcurrencyHelp:
+                    "Leeg: 8. Geteld per serverproces; verdere codes wachten op hun beurt.",
                 allowedCallingCodes: "Toegestane bestemmingen (landnummers)",
                 allowedCallingCodesHelp:
                     "Gescheiden door komma's, bijvoorbeeld 63, 971. Leeg staat elke bestemming toe.",
@@ -5900,6 +6090,91 @@ const dutchTranslation: TranslationType = {
                 confirmBody:
                     "De huidige gebruikersnaam en het wachtwoord voor rapporten werken meteen niet meer. Tot het Infobip-abonnement de nieuwe heeft, worden Viber-afleverrapporten geweigerd en blijven berichten op Geaccepteerd staan.",
                 confirm: "Vervangen",
+            },
+        },
+        sentMessages: {
+            tab: "Verzonden berichten",
+            accountsTab: "Verzendaccounts",
+            tabsLabel: "Onderdelen van berichten",
+            description:
+                "Berichten die de gesimuleerde provider van deze ontwikkelomgeving ontving, zoals de apps van de kiezers ze zouden tonen. Geen ervan heeft een echte kiezer bereikt. Dit tabblad verschijnt alleen waar de routes van de gesimuleerde provider zijn ingeschakeld.",
+            modeLabel: "Berichten tonen van",
+            all: "Alle",
+            refresh: "Vernieuwen",
+            refreshing: "Bezig met vernieuwen…",
+            refreshError:
+                "De berichten konden niet worden vernieuwd. De getoonde lijst is de laatst gelezen lijst.",
+            empty: "Nog geen berichten.",
+            emptyChannel: "Nog geen {{channel}}-berichten.",
+            column: {
+                time: "Tijd",
+                channel: "Kanaal",
+                from: "Van",
+                to: "Aan",
+                message: "Bericht",
+                report: "Afleverrapport",
+            },
+            report: {
+                accepted: "Rapport geaccepteerd door het webhookonderdeel (HTTP 200)",
+                refused: "Rapport geweigerd: HTTP {{status}}",
+                pending: "Rapport nog niet verzonden",
+                notSent: "Rapport niet verzonden: {{reason}}",
+                noAnswer: "Het rapport kreeg geen antwoord: {{reason}}",
+                noReason: "geen reden opgegeven",
+                unavailable: "Geen afleverrapporten op dit kanaal",
+            },
+            content: {
+                template: "Sjabloon {{name}} ({{language}})",
+                noText: "(geen tekst)",
+                code: "Code",
+                copyCode: "Code kopiëren",
+                copied: "Code gekopieerd",
+                copyFailed: "De code kon niet worden gekopieerd",
+                truncated:
+                    "Ingekort: de gesimuleerde provider bewaart alleen de eerste 64 KiB van elk veld.",
+            },
+            chat: {
+                phone: "{{channel}} op een telefoon",
+                chats: "{{channel}}-chats",
+                open: "Chat met {{recipient}} vanaf {{sender}} openen",
+                back: "Terug naar de chats",
+                from: "Van {{sender}}",
+                messages: "Berichten aan {{recipient}}",
+            },
+            getStarted: {
+                title: "Aan de slag",
+                help: "Plak de Messenger-link die de inschrijvingspagina toont en druk op Aan de slag, zoals de kiezer in Messenger zou doen. Daarna komt de code in de chat.",
+                link: "Messenger-link",
+                submit: "Aan de slag",
+                accepted: "Het webhookonderdeel antwoordde 200. De code komt in de chat.",
+                answered: "Het webhookonderdeel antwoordde {{status}}.",
+                failed: "Aan de slag is mislukt: {{reason}}",
+            },
+            email: {
+                inbox: "Postvak IN",
+                reading: "Geselecteerde e-mail",
+                noSubject: "(geen onderwerp)",
+                from: "Van",
+                to: "Aan",
+                view: "E-mail tonen als",
+                html: "HTML",
+                text: "Platte tekst",
+                htmlFrame: "Inhoud van de e-mail",
+                noContent: "Deze e-mail heeft geen inhoud.",
+                loading: "E-mail laden…",
+                loadError:
+                    "De HTML van de e-mail kon niet worden gelezen: de gesimuleerde provider bewaart hem misschien niet meer.",
+            },
+            reason: {
+                NO_ACCOUNT: "Geen account gebruikt deze afzender",
+                SEVERAL_ACCOUNTS: "Meerdere accounts gebruiken deze afzender",
+                ACCOUNTS_UNREADABLE: "De accounts konden niet worden gelezen",
+                UNREACHABLE: "Het webhookonderdeel antwoordde niet",
+                LINK_UNREADABLE: "Plak de m.me-link van de inschrijvingspagina",
+                LINK_WITHOUT_REF: "De link heeft geen ref: kopieer de hele link",
+                NO_PAGE_ACCOUNT: "Geen Messenger-account van deze organisatie gebruikt deze pagina",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Meerdere Messenger-accounts van deze organisatie gebruiken deze pagina",
             },
         },
     },

@@ -763,7 +763,30 @@ public class Utils {
                 expiresAt,
                 codeTemplateKey(isOtl)));
     // Harvest writes the attempt's one electoral-log entry (R2-07): none here.
-    return response.attemptState();
+    return recordSendOutcome(context, channel, response);
+  }
+
+  /**
+   * A send harvest didn't accept: its state and reason go into the event's details ({@code
+   * send_state}, {@code send_reason}) and the log, so administrators see why. The page stays
+   * generic. Harvest's reason is short and never holds content or the destination.
+   *
+   * @return the send's state
+   */
+  MessageAttemptState recordSendOutcome(
+      Object context, MessageChannel channel, SendMessageResponse response) {
+    MessageAttemptState state = response.attemptState();
+    String reason = response.reason();
+    if (state == MessageAttemptState.ACCEPTED || reason == null || reason.isBlank()) {
+      return state;
+    }
+    log.warnv(
+        "sendCode(): not accepted: channel={0}, state={1}, reason={2}", channel, state, reason);
+    EventBuilder event = getEvent(context);
+    if (event != null) {
+      event.detail("send_state", state.name()).detail("send_reason", reason);
+    }
+    return state;
   }
 
   /** What the communications log keeps of a message sent by the sender: never its content. */

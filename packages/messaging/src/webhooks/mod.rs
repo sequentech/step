@@ -6,7 +6,8 @@
 //! turns a payload into [`WebhookEvent`]s. A callback never authenticates a
 //! voter.
 //!
-//! Only statuses and Messenger's Get Started and referrals are kept.
+//! Only statuses, Messenger's Get Started and referrals, and WhatsApp's
+//! number-change signals are kept.
 //! Messages voters write are acknowledged and dropped: nothing they send is
 //! stored or answered.
 
@@ -27,6 +28,19 @@ pub enum WebhookEvent {
     MessengerGetStarted(MessengerContact),
     MessengerReferral(MessengerReferral),
     DeliveredUpTo(DeliveredUpTo),
+    /// WhatsApp's `user_changed_number` system message: the person who had
+    /// `old_number` now uses `new_number`. Voters at the old number are
+    /// flagged for verification again; nothing changes automatically.
+    NumberChanged(NumberChange),
+}
+
+/// A WhatsApp `user_changed_number` signal, with the numbers as Meta sends
+/// them (digits, no `+`). Only their masked forms and digests are kept.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NumberChange {
+    pub old_number: String,
+    pub new_number: Option<String>,
+    pub at: Option<DateTime<Utc>>,
 }
 
 /// Every message accepted for `recipient` up to an instant was delivered.

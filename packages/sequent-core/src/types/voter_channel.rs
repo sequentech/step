@@ -66,6 +66,13 @@ pub struct VoterChannel {
     pub source: VoterChannelSource,
 }
 
+/// A channel as a record holds it: trimmed and in any case, as the
+/// authenticator reads it (`MessageChannel.parse`). Anything else is no
+/// channel.
+pub fn parse_channel_value(value: &str) -> Option<MessageChannel> {
+    MessageChannel::from_str(&value.trim().to_ascii_uppercase()).ok()
+}
+
 fn first<'a>(
     attributes: Option<&'a HashMap<String, Vec<String>>>,
     name: &str,
@@ -139,7 +146,7 @@ pub fn voter_channel(
 ) -> Option<VoterChannel> {
     let email = email.filter(|e| !e.is_empty());
     let recorded = first(attributes, MESSAGE_CHANNEL_ATTR_NAME)
-        .and_then(|value| MessageChannel::from_str(value).ok());
+        .and_then(parse_channel_value);
     let build = |channel, (destination, messenger_page), source| VoterChannel {
         channel,
         destination,
@@ -153,7 +160,7 @@ pub fn voter_channel(
     {
         let verified: Vec<MessageChannel> = verified
             .iter()
-            .filter_map(|value| MessageChannel::from_str(value).ok())
+            .filter_map(|value| parse_channel_value(value))
             .collect();
         let mut candidates = recorded
             .filter(|channel| verified.contains(channel))

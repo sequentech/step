@@ -9,8 +9,11 @@
 //! code; Step only holds it, encrypted, until it is sent.
 
 use super::accounts::{callback_readiness_with, CallbackReadiness};
+use super::audit::post_attempt_outcomes_or_warn;
 use super::config::get_event_messaging_config;
-use super::dispatch::{deliver, Delivery, DeliveryResult, Dispatcher, Recipient};
+use super::dispatch::{
+    deliver_within, Delivery, DeliveryResult, Dispatcher, Recipient, SendPolicy,
+};
 use super::keys::{tenant_key, TenantKey};
 use crate::postgres::messaging::{
     get_messaging_account, get_messenger_link_by_reference, get_pending_messenger_link,
@@ -256,18 +259,27 @@ pub async fn confirm_link(
     Ok(result)
 }
 
+/// A code a Get Started released: the link it was held by, now bound to
+/// the voter's conversation, and the code's delivery. Sent by
+/// [`send_bound_code`], after the provider's callback is answered.
+#[derive(Debug, Clone)]
+pub struct BoundCode {
+    pub link_id: Uuid,
+    /// The Page's account the code goes through.
+    pub account: MessagingAccount,
+    pub delivery: Delivery,
+}
+
 /// A voter opened the Page with a reference: bind the conversation to the
-/// pending link and send the held code there. The caller recorded the
-/// conversation's Get Started first, so the code goes out inside the
-/// 24-hour window. Returns the code's delivery, or `None` when no link
-/// matched.
+/// pending link, and return the held code to send there. The caller
+/// recorded the conversation's Get Started first, so the code goes out
+/// inside the 24-hour window. `None` when no link matched.
 #[instrument(skip_all, err)]
 pub async fn bind_referral(
     client: &mut DbClient,
-    dispatcher: &Dispatcher,
     account: &MessagingAccount,
     referral: &MessengerReferral,
-) -> Result<Option<DeliveryResult>> {
+) -> Result<Option<BoundCode>> {
     if referral.reference.is_empty() {
         return Ok(None);
     }
@@ -319,11 +331,11 @@ pub async fn bind_referral(
     )
     .await?;
     tx.commit().await?;
-
-    let result = deliver(
-        client,
-        dispatcher,
-        &Delivery {
+    info!(link = %link.id, "Messenger link bound: its code is sent next");
+    Ok(Some(BoundCode {
+        link_id: link.id,
+        account: account.clone(),
+        delivery: Delivery {
             tenant_id: link.tenant_id,
             election_event_id: link.election_event_id,
             purpose: MessagePurpose::OTP,
@@ -342,8 +354,23 @@ pub async fn bind_referral(
             template_key: Some(OTP_TEMPLATE_KEY.to_string()),
             provider_template: None,
         },
-    )
-    .await?;
+    }))
+}
+
+/// Sends a code [`bind_referral`] released, under `policy` (harvest: its
+/// own place and budget, after the callback was answered). Marks the link
+/// CODE_SENT when the code may have reached the provider, and hands the
+/// attempt's outcome to the electoral log. If this never runs (the process
+/// stopped first), the link stays bound without CODE_SENT and the voter
+/// taps Get Started again.
+#[instrument(skip_all, fields(link = %code.link_id), err)]
+pub async fn send_bound_code(
+    client: &mut DbClient,
+    dispatcher: &Dispatcher,
+    code: &BoundCode,
+    policy: SendPolicy,
+) -> Result<DeliveryResult> {
+    let result = deliver_within(client, dispatcher, &code.delivery, policy).await?;
     let sent = matches!(
         result.state,
         MessageAttemptState::ACCEPTED
@@ -354,14 +381,15 @@ pub async fn bind_referral(
     if sent {
         update_messenger_link(
             &tx,
-            &link.id,
+            &code.link_id,
             MessengerLinkState::CODE_SENT,
             None,
             result.message_id.as_ref(),
         )
         .await?;
     }
+    post_attempt_outcomes_or_warn(&tx, &result.recorded, None, None).await;
     tx.commit().await?;
-    info!(link = %link.id, state = %result.state, "Messenger link interaction");
-    Ok(Some(result))
+    info!(link = %code.link_id, state = %result.state, "Messenger link interaction");
+    Ok(result)
 }

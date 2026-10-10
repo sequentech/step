@@ -322,6 +322,7 @@ IMMUDB_PASSWORD = "immudb"
 IMMUDB_SERVER_URL = "http://127.0.0.1:3323"
 
 [profiles.windmill.excluded_files]
+"src/services/messaging/insights_tests.rs" = "Standalone unit-test module under cfg(test); the messaging audience preview and stats remain measured."
 "src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
 "src/services/ceremonies/tally_ceremony_state_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony use case remains measured."

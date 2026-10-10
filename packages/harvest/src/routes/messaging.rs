@@ -9,6 +9,7 @@
 
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
+use crate::services::otp_capacity::{Admitted, Arrival};
 use crate::services::service_auth::VerifiedServiceClaims;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
@@ -42,27 +43,34 @@ use std::str::FromStr;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 use windmill::postgres::messaging::{
-    get_messaging_account, insert_messaging_account,
+    account_endpoint, check_account_update, get_messaging_account,
+    identity_changed, insert_messaging_account,
     update_messaging_account_reentering, AccountSettings, MessagingAccount,
 };
 use windmill::services::messaging::accounts::{
     callback_blocker_reason, callback_blockers_with, callback_readiness_with,
-    check_account, delete_account, generate_report_credentials,
-    replace_credentials,
+    candidate_check_needed, candidate_refusal, check_account, check_candidate,
+    delete_account, entered_credentials, generate_report_credentials,
+    messenger_page_change_impact, replace_checked_credentials,
+    replace_credentials, store_candidate_check, CredentialsOutcome,
+    DeleteOutcome, StoredCheck, ACCOUNT_IN_USE_REASON,
+    CANDIDATE_REFUSED_REASON, CHECK_DROPPED_REASON,
 };
 use windmill::services::messaging::audit::post_attempt_outcomes_or_warn;
 use windmill::services::messaging::config::{
-    save_event_messaging_config_as, SaveOutcome,
+    projections_using_account, save_event_messaging_config_as, SaveOutcome,
 };
 use windmill::services::messaging::dispatch::{
-    deliver, notice_recipient, record_refusal, Delivery, Dispatcher,
-    ProviderTemplate, Recipient, Refusal,
+    account_for_delivery, deliver_within, notice_recipient, record_refusal,
+    Delivery, Dispatcher, Place, ProviderTemplate, ReadinessGate, Recipient,
+    Refusal, SendPolicy,
 };
 use windmill::services::messaging::links::{
-    confirm_link, create_link, link_status, LinkError,
+    confirm_link, create_link, link_status, send_bound_code, BoundCode,
+    LinkError,
 };
 use windmill::services::messaging::webhooks::{
-    aws_events, meta_events, meta_subscription, viber_events, WebhookOutcome,
+    aws_events, meta_callback, meta_subscription, viber_events, WebhookOutcome,
 };
 use windmill::tasks::send_template::find_voter;
 
@@ -104,10 +112,15 @@ fn parse_time(value: &str) -> Result<DateTime<Utc>, RouteError> {
 }
 
 /// Sends one message for Keycloak: codes, and enrollment and credential
-/// notices. Codes are sent at once, never queued behind bulk sends.
+/// notices. Every one is interactive (`otp_capacity`): a place of its
+/// account's, taken before any database connection is held for the send,
+/// then a token of the whole bucket, within the budgets counted from the
+/// request's arrival; never queued behind bulk sends.
 #[instrument(skip_all)]
 #[post("/messages/send", format = "json", data = "<body>")]
 pub async fn send_message(
+    // First: the budgets count from before the token check and the body.
+    arrival: Arrival,
     claims: VerifiedServiceClaims,
     body: Json<SendMessageRequest>,
     services: &State<HarvestServices>,
@@ -122,10 +135,12 @@ pub async fn send_message(
     if request.purpose == MessagePurpose::OTP && expires_at.is_none() {
         return Err(bad_request("codes need expires_at"));
     }
-    let mut client = db_client(services).await?;
-    let election_event_id = claims
-        .require_event(&client, request.election_event_id.as_deref())
-        .await?;
+    let election_event_id = {
+        let client = db_client(services).await?;
+        claims
+            .require_event(&client, request.election_event_id.as_deref())
+            .await?
+    };
     let logical_key = format!("keycloak:{}", request.logical_key);
     let destination = request
         .destination
@@ -161,37 +176,65 @@ pub async fn send_message(
     };
     let result = match recipient {
         Ok((channel, destination)) => {
-            deliver(
+            let delivery = Delivery {
+                tenant_id,
+                election_event_id,
+                purpose: request.purpose,
+                recipient: Recipient {
+                    voter_id: request.voter_id.clone(),
+                    channel,
+                    destination,
+                    // The voter's Posts: windmill refuses a channel they
+                    // don't offer ("Channel not offered for notices"/"…for
+                    // codes").
+                    election_ids: request.election_ids.clone(),
+                },
+                content: Some(request.content.clone()),
+                language: request.language.clone(),
+                template_alias: None,
+                logical_key,
+                expires_at,
+                account_id: None,
+                template_key: request.template_key.clone(),
+                provider_template: None,
+            };
+            // The account, read on a connection given back before waiting
+            // for one of its places.
+            let account = {
+                let mut client = db_client(services).await?;
+                account_for_delivery(&mut client, &delivery)
+                    .await
+                    .map_err(internal)?
+            };
+            let admitted = match &account {
+                Some(account) => {
+                    services
+                        .otp_capacity
+                        .admit(account.id, &account.limits, arrival)
+                        .await
+                }
+                // The environment's email and SMS have no account limits.
+                None => Admitted {
+                    place: Place::NOT_REQUIRED,
+                    permit: None,
+                },
+            };
+            let mut client = db_client(services).await?;
+            let result = deliver_within(
                 &mut client,
                 dispatcher().await?,
-                &Delivery {
-                    tenant_id,
-                    election_event_id,
-                    purpose: request.purpose,
-                    recipient: Recipient {
-                        voter_id: request.voter_id.clone(),
-                        channel,
-                        destination,
-                        // The voter's Posts: windmill refuses a channel
-                        // they don't offer ("Channel not offered for
-                        // notices"/"…for codes").
-                        election_ids: request.election_ids.clone(),
-                    },
-                    content: Some(request.content.clone()),
-                    language: request.language.clone(),
-                    template_alias: None,
-                    logical_key,
-                    expires_at,
-                    account_id: None,
-                    template_key: request.template_key.clone(),
-                    provider_template: None,
-                },
+                &delivery,
+                services.otp_capacity.policy(arrival, admitted.place),
             )
-            .await
+            .await;
+            // The place is kept until the send is recorded.
+            drop(admitted);
+            result
         }
         // One FAILED row with the reason: nothing goes anywhere else.
         Err((channel, reason)) => {
             info!(%reason, "notice refused before sending");
+            let mut client = db_client(services).await?;
             record_refusal(
                 &mut client,
                 &Refusal {
@@ -231,6 +274,10 @@ pub async fn send_message(
             .message_id
             .map(|id| id.to_string())
             .unwrap_or_default(),
+        // The ledger's state and reason, also for a send past its capacity
+        // budget (FAILED, `CAPACITY_BUSY`) or refused by its account's
+        // readiness: Keycloak shows Resend after its timer and records the
+        // reason.
         state: result.state,
         reason: result.reason,
     }))
@@ -500,6 +547,43 @@ impl MetaHub {
 /// Runs the provider's own verification and parsing on the original bytes.
 /// The account comes from the envelope's key only, never from the payload.
 /// `Err` is a failure the provider should retry.
+/// Sends a code a Get Started released, after the callback was answered:
+/// spawned, with its own place, bucket and budget counted from now. Its
+/// outcome is in the ledger (and the electoral log); if harvest stops
+/// first, the link stays bound without CODE_SENT and the voter taps Get
+/// Started again.
+fn send_code_after_answer(services: &State<HarvestServices>, code: BoundCode) {
+    let databases = services.databases.clone();
+    let capacity = services.otp_capacity.clone();
+    tokio::spawn(async move {
+        let arrival = Arrival(tokio::time::Instant::now());
+        let admitted = capacity
+            .admit(code.account.id, &code.account.limits, arrival)
+            .await;
+        let sent = async {
+            let mut client = databases
+                .hasura()
+                .await
+                .get()
+                .await
+                .map_err(|error| anyhow::anyhow!("{error}"))?;
+            let dispatcher = Dispatcher::global().await?;
+            send_bound_code(
+                &mut client,
+                dispatcher,
+                &code,
+                capacity.policy(arrival, admitted.place),
+            )
+            .await
+        }
+        .await;
+        drop(admitted);
+        if let Err(error) = sent {
+            warn!(link = %code.link_id, "could not send a Messenger code: {error:#}");
+        }
+    });
+}
+
 async fn provider_callback(
     envelope: &CallbackEnvelope,
     services: &State<HarvestServices>,
@@ -534,16 +618,25 @@ async fn provider_callback(
             };
         }
         (CallbackProvider::META, CallbackMethod::POST) => {
-            let dispatcher =
-                dispatcher().await.map_err(|_| Status::ServiceUnavailable)?;
-            meta_events(
+            // Answered once the events are stored and the links bound; the
+            // codes those links release are sent after the answer.
+            match meta_callback(
                 &mut client,
-                dispatcher,
                 key,
                 envelope.header("x-hub-signature-256"),
                 &body,
             )
             .await
+            {
+                Ok((outcome, codes)) => {
+                    drop(client);
+                    for code in codes {
+                        send_code_after_answer(services, code);
+                    }
+                    Ok(outcome)
+                }
+                Err(error) => Err(error),
+            }
         }
         (CallbackProvider::VIBER, CallbackMethod::POST) => {
             let dispatcher =
@@ -754,13 +847,62 @@ pub async fn upsert_messaging_account(
         sender: input.sender,
         limits: input.limits.unwrap_or_default(),
         provider_approval: input.provider_approval.unwrap_or_default(),
-        readiness: input.readiness.unwrap_or_default(),
+        // Parse-only: readiness is the server's (an identity change leaves
+        // the account unchecked until a check of its new identity runs).
+        readiness: ReadinessPolicy::PROVIDER_CHECK,
         is_default: input.is_default.unwrap_or(false),
     };
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
     let reentered: BTreeSet<CredentialName> = values.keys().copied().collect();
-    let account = match input.id.as_deref().map(parse_uuid).transpose()? {
+    let id = input.id.as_deref().map(parse_uuid).transpose()?;
+    // Credentials typed to replace stored ones are checked first, with the
+    // settings saved with them; nothing is written unless the check
+    // connects, so the stored ones stay in use (BC-F11).
+    let mut candidate_check = None;
+    let mut identity_change = false;
+    let mut public_change = false;
+    if let Some(id) = id {
+        let current = get_messaging_account(&tx, &tenant_id, &id)
+            .await
+            .map_err(internal)?
+            .ok_or((Status::NotFound, "unknown account".to_string()))?;
+        identity_change = identity_changed(&current.sender, &settings.sender);
+        public_change = current.sender != settings.sender;
+        // Settings and values the account can't take are refused for what
+        // they are, before any provider is called (R5-04): an address
+        // that isn't https, a provider or channel change, a new address
+        // without its credentials.
+        check_account_update(&current, &settings, &reentered)
+            .map_err(bad_request)?;
+        entered_credentials(&current, &values).map_err(bad_request)?;
+        // A candidate check against a new address answers only "didn't
+        // connect": what an address answered isn't shown (R5-04).
+        let new_address = account_endpoint(&current.sender)
+            != account_endpoint(&settings.sender);
+        if candidate_check_needed(&current, &values) {
+            let check = check_candidate(
+                &tx,
+                &current,
+                &settings.sender,
+                &values,
+                &dispatcher().await?.endpoints,
+            )
+            .await
+            .map_err(internal)?;
+            if let Some(reason) = candidate_refusal(&check, current.provider) {
+                warn!(account = %id, "account not saved: {reason}");
+                return Err(bad_request(if new_address {
+                    CANDIDATE_REFUSED_REASON.to_string()
+                } else {
+                    reason
+                })
+                .into());
+            }
+            candidate_check = Some(check);
+        }
+    }
+    let account = match id {
         Some(id) => update_messaging_account_reentering(
             &tx, &tenant_id, &id, &settings, &reentered,
         )
@@ -782,11 +924,144 @@ pub async fn upsert_messaging_account(
             .await
             .map_err(bad_request)?;
     }
+    // The candidate's check describes the account as saved: it is its
+    // status, and readiness comes from it again.
+    if let Some(check) = &candidate_check {
+        store_candidate_check(&tx, &account, check.clone())
+            .await
+            .map_err(internal)?;
+    }
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    // After the answer, not inside the Hasura action (R5-18): an identity
+    // change left the account unchecked, and it is checked in the
+    // background, in its own transaction; a check that can't run leaves it
+    // unchecked (shown with its reason) for the daily pass to retry
+    // (AP-B3). The events whose settings send through the account publish
+    // its new Page or label (R5-10).
+    let recheck = identity_change && candidate_check.is_none();
+    if recheck || public_change {
+        let databases = services.databases.clone();
+        let account_id = account.id;
+        tokio::spawn(async move {
+            let mut client = match databases.hasura().await.get().await {
+                Ok(client) => client,
+                Err(error) => {
+                    warn!(
+                        account = %account_id,
+                        "account change not followed up: {error}"
+                    );
+                    return;
+                }
+            };
+            if recheck {
+                recheck_after_identity_change(
+                    &mut client,
+                    &tenant_id,
+                    &account_id,
+                )
+                .await;
+            }
+            if public_change {
+                republish_projections(&mut client, &tenant_id, &account_id)
+                    .await;
+            }
+        });
+    }
     Ok(Json(MessagingAccountOutput::of(
         &account,
         services.messaging_webhooks_url.as_deref(),
     )))
+}
+
+/// Publishes again the public projection of every election event whose
+/// settings send through the account, after its sender changed (R5-10):
+/// the voters' pages name and link the account's current Page and label.
+/// A realm that can't be updated is logged; the next save of the event's
+/// settings publishes it.
+async fn republish_projections(
+    client: &mut DbClient,
+    tenant_id: &Uuid,
+    account_id: &Uuid,
+) {
+    let projections = async {
+        let tx = client.transaction().await?;
+        let projections =
+            projections_using_account(&tx, tenant_id, account_id).await?;
+        tx.commit().await?;
+        anyhow::Ok(projections)
+    }
+    .await;
+    let projections = match projections {
+        Ok(projections) => projections,
+        Err(error) => {
+            warn!(
+                account = %account_id,
+                "messaging settings not published again: {error:#}"
+            );
+            return;
+        }
+    };
+    for (event_id, projection) in projections {
+        let published = async {
+            update_realm_attributes(
+                &tenant_id.to_string(),
+                &event_id.to_string(),
+                HashMap::from([(
+                    REALM_ATTR_MESSAGING.to_string(),
+                    serde_json::to_string(&projection)?,
+                )]),
+            )
+            .await
+        }
+        .await;
+        match published {
+            Ok(()) => info!(
+                account = %account_id,
+                event = %event_id,
+                "messaging settings published again after the account changed"
+            ),
+            Err(error) => warn!(
+                account = %account_id,
+                event = %event_id,
+                "messaging settings not published again: {error:#}"
+            ),
+        }
+    }
+}
+
+/// Runs the check of an account whose identity just changed. A check that
+/// can't run is logged; the account stays unchecked.
+async fn recheck_after_identity_change(
+    client: &mut DbClient,
+    tenant_id: &Uuid,
+    account_id: &Uuid,
+) {
+    let result = async {
+        let endpoints = &dispatcher()
+            .await
+            .map_err(|(_, e)| anyhow::anyhow!(e))?
+            .endpoints;
+        let tx = client.transaction().await?;
+        let check =
+            check_account(&tx, tenant_id, account_id, endpoints).await?;
+        tx.commit().await?;
+        anyhow::Ok(check)
+    }
+    .await;
+    match result {
+        Ok(Some(StoredCheck { check, stored })) => info!(
+            account = %account_id,
+            stored,
+            connected = check.connected,
+            reason = check.reason.as_deref().unwrap_or("-"),
+            "account checked after its identity changed"
+        ),
+        Ok(None) => {}
+        Err(error) => warn!(
+            account = %account_id,
+            "account left unchecked after its identity changed: {error:#}"
+        ),
+    }
 }
 
 fn parse_credentials(
@@ -819,11 +1094,20 @@ pub async fn delete_messaging_account(
     let id = parse_uuid(&body.id)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
-    if !delete_account(&tx, &tenant_id, &id)
+    match delete_account(&tx, &tenant_id, &id)
         .await
         .map_err(internal)?
     {
-        return Err((Status::NotFound, "unknown account".to_string()).into());
+        DeleteOutcome::Deleted => {}
+        DeleteOutcome::NotFound => {
+            return Err((Status::NotFound, "unknown account".to_string()).into())
+        }
+        // Refused while an election event's settings send through it.
+        DeleteOutcome::InUse(_) => {
+            return Err(
+                (Status::Conflict, ACCOUNT_IN_USE_REASON.to_string()).into()
+            )
+        }
     }
     tx.commit().await.map_err(|e| internal(e.into()))?;
     Ok(Json(MessagingAccountOutput {
@@ -867,6 +1151,67 @@ pub async fn messaging_account_callback_url(
     Ok(Json(CallbackUrlOutput {
         callback_url: readiness.url().map(str::to_string),
         reason: readiness.reason().map(str::to_string),
+    }))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct ChangeImpactInput {
+    account_id: String,
+    /// The Page the account would move to; any other Page when absent.
+    page_id: Option<String>,
+}
+
+#[derive(Serialize, Debug, PartialEq, Eq)]
+pub struct ChangeImpactOutput {
+    /// Voters whose `messenger-page` is the account's current Page, in the
+    /// realms of the events that use the account: they connect again after
+    /// a Page change.
+    affected_voters: i64,
+    /// How many election events use the account.
+    events: usize,
+}
+
+/// What changing a Messenger account's Page does: how many voters must
+/// connect again (BC-F13). The drawer warns with the count before saving.
+#[instrument(skip_all)]
+#[post("/messaging/accounts/change-impact", format = "json", data = "<body>")]
+pub async fn messaging_account_change_impact(
+    claims: JwtClaims,
+    body: Json<ChangeImpactInput>,
+    services: &State<HarvestServices>,
+) -> Result<Json<ChangeImpactOutput>, JsonRefusal> {
+    let tenant_id =
+        authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
+    let input = body.into_inner();
+    let id = parse_uuid(&input.account_id)?;
+    let mut client = db_client(services).await?;
+    let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    let mut keycloak = services
+        .databases
+        .keycloak()
+        .await
+        .get()
+        .await
+        .map_err(|error| internal(anyhow::anyhow!("{error}")))?;
+    let keycloak_tx = keycloak
+        .transaction()
+        .await
+        .map_err(|e| internal(e.into()))?;
+    let impact = messenger_page_change_impact(
+        &tx,
+        &keycloak_tx,
+        &tenant_id,
+        &id,
+        input.page_id.as_deref(),
+    )
+    .await
+    .map_err(internal)?
+    .ok_or((Status::NotFound, "unknown account".to_string()))?;
+    keycloak_tx.commit().await.map_err(|e| internal(e.into()))?;
+    tx.commit().await.map_err(|e| internal(e.into()))?;
+    Ok(Json(ChangeImpactOutput {
+        affected_voters: impact.affected_voters,
+        events: impact.election_event_ids.len(),
     }))
 }
 
@@ -969,16 +1314,25 @@ pub async fn replace_messaging_account_credentials(
     let values = parse_credentials(input.credentials)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
-    let replaced = replace_credentials(
+    // Typed credentials that replace stored ones are saved only when the
+    // check with them connects; otherwise the stored ones stay (BC-F11).
+    let replaced = match replace_checked_credentials(
         &tx,
         &tenant_id,
         &id,
         &values,
         input.generate_verify_token.unwrap_or(false),
+        &dispatcher().await?.endpoints,
     )
     .await
     .map_err(bad_request)?
-    .ok_or((Status::NotFound, "unknown account".to_string()))?;
+    .ok_or((Status::NotFound, "unknown account".to_string()))?
+    {
+        CredentialsOutcome::Replaced(replaced, _) => replaced,
+        CredentialsOutcome::Refused(reason) => {
+            return Err(bad_request(reason).into())
+        }
+    };
     let mut names: Vec<String> =
         replaced.replaced.iter().map(|n| n.to_string()).collect();
     let report = match input.generate_report_credentials.unwrap_or(false) {
@@ -1030,11 +1384,17 @@ pub async fn check_messaging_account(
     let id = parse_uuid(&body.id)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
-    let status =
+    let checked =
         check_account(&tx, &tenant_id, &id, &dispatcher().await?.endpoints)
             .await
             .map_err(internal)?
             .ok_or((Status::NotFound, "unknown account".to_string()))?;
+    // Saved meanwhile with another identity or credentials: the result
+    // describes what the account no longer is, and wasn't stored.
+    if !checked.stored {
+        return Err((Status::Conflict, CHECK_DROPPED_REASON.to_string()).into());
+    }
+    let status = checked.check;
     let readiness = get_messaging_account(&tx, &tenant_id, &id)
         .await
         .map_err(internal)?
@@ -1113,7 +1473,7 @@ pub async fn test_messaging_account(
             "This is a test message from Step.".to_string()
         }
     };
-    let result = deliver(
+    let result = deliver_within(
         &mut client,
         dispatcher().await?,
         &Delivery {
@@ -1140,6 +1500,11 @@ pub async fn test_messaging_account(
             account_id: Some(id),
             template_key: None,
             provider_template: template,
+        },
+        // The test is how an account is tried before it is ready.
+        SendPolicy {
+            readiness: ReadinessGate::NOT_CHECKED_FOR_TEST_MESSAGE,
+            ..SendPolicy::default()
         },
     )
     .await
@@ -1213,6 +1578,11 @@ pub async fn update_event_messaging_config(
     .await
     .map_err(internal)?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
+    // Who is offered what changed: the voter counts are recounted.
+    crate::routes::messaging_insights::recount_after_save(
+        services, &tenant_id, &event_id,
+    )
+    .await;
     Ok(Json(EventConfigOutput {
         errors: Value::Array(vec![]),
     }))

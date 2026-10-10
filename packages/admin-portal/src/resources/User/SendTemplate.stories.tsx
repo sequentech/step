@@ -25,6 +25,7 @@ import {
     EOutOfWindowPolicy,
     IEventMessagingConfig,
 } from "@/types/messaging"
+import {ESendsFrom, IAudienceChannel} from "@/queries/GetMessagingAudiencePreview"
 import {AudienceSelection, SendTemplate} from "./SendTemplate"
 
 interface Scenario {
@@ -36,6 +37,8 @@ interface Scenario {
     /** The event's stored configuration; `null` for an event without one. */
     config?: IEventMessagingConfig | null
     roles?: string[]
+    /** The audience preview's rows, or `"FAIL"` when it can't be read. */
+    preview?: IAudienceChannel[] | "FAIL"
 }
 
 const welcome = {
@@ -139,7 +142,34 @@ const electionEvent = eventRecord()
 // Reads the event's messaging configuration and safe account columns.
 const ROLES = [IPermissions.MESSAGING_CONFIG_READ]
 const READS = ["GetEventMessagingConfig", "GetMessagingAccountSummaries"]
-const callNames = () => graphql.calls.map((call) => call.name).sort()
+// The audience preview is read once the channels are known; asserted on its own.
+const PREVIEW = "GetMessagingAudiencePreview"
+const callNames = () =>
+    graphql.calls
+        .map((call) => call.name)
+        .filter((name) => name !== PREVIEW)
+        .sort()
+const previewCalls = () => graphql.calls.filter((call) => call.name === PREVIEW)
+
+// The two selected voters: one on SMS, one on Email.
+const preview: IAudienceChannel[] = [
+    {
+        channel: EMessageChannel.SMS,
+        voters: 1,
+        not_offered: 0,
+        sends_from: ESendsFrom.ACCOUNT,
+        account_id: SMS_ACCOUNT_ID,
+        account_name: "Election office SMS",
+    },
+    {
+        channel: EMessageChannel.EMAIL,
+        voters: 1,
+        not_offered: 0,
+        sends_from: ESendsFrom.ACCOUNT,
+        account_id: EMAIL_ACCOUNT_ID,
+        account_name: "Election office email",
+    },
+]
 
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
@@ -175,6 +205,28 @@ const meta = {
                                   ],
                     },
                 }),
+                GetMessagingAudiencePreview: () => {
+                    if (args.preview === "FAIL") throw new Error("Synthetic preview failure")
+                    const channels = args.preview ?? preview
+                    return {
+                        data: {
+                            messaging_audience_preview: {
+                                total: channels.reduce((sum, row) => sum + row.voters, 0),
+                                will_send: channels
+                                    .filter((row) => !!row.channel && !!row.sends_from)
+                                    .filter((row) => row.sends_from !== ESendsFrom.NONE)
+                                    .reduce((sum, row) => sum + row.voters - row.not_offered, 0),
+                                channels,
+                                // Selected voters are counted when asked.
+                                status: {
+                                    computed_at: "2026-10-09T08:00:00Z",
+                                    pending: false,
+                                    outcome: "COUNTED",
+                                },
+                            },
+                        },
+                    }
+                },
                 CreateScheduledEvent: () => {
                     if (args.failure) throw new Error("Synthetic scheduler failure")
                     return {data: {createScheduledEvent: {id: storyId(9, 9)}}}
@@ -252,8 +304,16 @@ export const Populated: Story = {
         const table = within(canvas.getByRole("table", {name: "Each voter's channel"}))
         expect(table.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
             "Channel",
+            "Voters",
             "Sends from",
         ])
+        // The voters of the send, counted on the server the way the send reads them.
+        await expect(await canvas.findByText("Voters in this audience: 2")).toBeVisible()
+        expect(previewCalls().map((call) => call.variables)).toContainEqual({
+            electionEventId: EVENT_ID,
+            audienceSelection: AudienceSelection.SELECTED,
+            voterIds: [STORY_IDS.user, STORY_IDS.secondUser],
+        })
         // Channel order: SMS before Email.
         expect(
             table
@@ -380,7 +440,8 @@ export const TemplatesOfEveryChannel: Story = {
         const options = within(await within(document.body).findByRole("listbox"))
             .getAllByRole("option")
             .map((option) => option.textContent)
-        expect(options).toEqual(["welcome", "reminder", "voting-opens"])
+        // The templates list reads newest id first (react-admin's default sort).
+        expect(options).toEqual(["voting-opens", "reminder", "welcome"])
     },
 }
 
@@ -488,7 +549,7 @@ export const EventThatSendsNoNotices: Story = {
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         // Never shown as SMS and Email: every voter's notice would be refused.
-        await expect(await canvas.findByText(/turns on notices for no channel/)).toBeVisible()
+        await expect(await canvas.findByText(/turn on notices for no channel/)).toBeVisible()
         expect(canvas.queryByRole("table", {name: "Each voter's channel"})).toBeNull()
         await send(canvasElement)
         expect(callNames()).toEqual(READS)

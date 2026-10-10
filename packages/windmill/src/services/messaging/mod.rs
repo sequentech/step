@@ -9,8 +9,10 @@
 
 pub mod accounts;
 pub mod audit;
+pub mod checks;
 pub mod config;
 pub mod dispatch;
+pub mod insights;
 pub mod keys;
 pub mod links;
 pub mod reconcile;

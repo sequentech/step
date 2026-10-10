@@ -33,6 +33,7 @@ import {
     IMessagingAccount,
     IMessagingConfigError,
 } from "@/types/messaging"
+import {ERecountOutcome, IVoterCounts} from "@/queries/GetMessagingVoterCounts"
 import {EditElectionEventMessaging} from "./EditElectionEventMessaging"
 
 type SaveResult = "saved" | "rejected" | "fails"
@@ -50,6 +51,12 @@ interface Scenario {
     noContactFailures?: boolean
     /** Who last wrote the configuration (`updated_by`). */
     updatedBy?: string
+    /** The channel whose account's identity changed and wasn't checked since. */
+    unchecked?: EMessageChannel
+    /** The event's voters as last counted; `"NEVER"`: not counted yet. */
+    voterCounts?: IVoterCounts | "NEVER"
+    /** The event has no message yet. */
+    noMessages?: boolean
 }
 
 const account = (
@@ -221,7 +228,6 @@ const stats = (
     counts: Partial<IChannelMessageStats>
 ): IChannelMessageStats => ({
     channel,
-    voters: 0,
     sent_last_24h: 0,
     queued: 0,
     accepted: 0,
@@ -235,22 +241,32 @@ const stats = (
 // Per message, by the state of its latest attempt.
 const STATS: IChannelMessageStats[] = [
     stats(EMessageChannel.EMAIL, {
-        voters: 1840,
         sent_last_24h: 12,
         accepted: 2,
         delivered: 310,
         failed: 3,
     }),
     stats(EMessageChannel.SMS, {
-        voters: 412,
         sent_last_24h: 30,
         accepted: 120,
         failed: 4,
         unknown: 1,
         unresolved: 2,
     }),
-    stats(EMessageChannel.VIBER, {voters: 96, sent_last_24h: 5, queued: 5, delivered: 41}),
+    stats(EMessageChannel.VIBER, {sent_last_24h: 5, queued: 5, delivered: 41}),
 ]
+
+// Counted in the background this morning; some voters have no contact channel.
+const VOTER_COUNTS: IVoterCounts = {
+    total: 2355,
+    channels: [
+        {channel: EMessageChannel.VIBER, voters: 96, not_offered: 0},
+        {channel: EMessageChannel.SMS, voters: 412, not_offered: 0},
+        {channel: EMessageChannel.EMAIL, voters: 1840, not_offered: 0},
+        {channel: null, voters: 7, not_offered: 0},
+    ],
+    status: {computed_at: FIXED_TIME, pending: false, outcome: ERecountOutcome.COUNTED},
+}
 
 const REJECTED: IMessagingConfigError[] = [
     {
@@ -314,6 +330,20 @@ const meta = {
                     sequent_backend_messaging_account: ACCOUNTS.map(
                         ({credentials: _credentials, ...entry}) => ({
                             ...entry,
+                            // Its last check was of an earlier sender.
+                            status:
+                                entry.channel === args.unchecked && entry.status
+                                    ? {
+                                          ...entry.status,
+                                          details: {
+                                              ...entry.status.details,
+                                              identity: {
+                                                  provider: entry.provider,
+                                                  ids: {sender_id: "Earlier sender"},
+                                              },
+                                          },
+                                      }
+                                    : entry.status,
                             __typename: "sequent_backend_messaging_account",
                         })
                     ),
@@ -334,15 +364,37 @@ const meta = {
                         : [],
                 },
             }),
+            GetMessagingVoterCounts: () => ({
+                data: {
+                    messaging_voter_counts:
+                        args.voterCounts === "NEVER"
+                            ? {
+                                  total: 0,
+                                  channels: [],
+                                  status: {computed_at: null, pending: false, outcome: null},
+                              }
+                            : (args.voterCounts ?? VOTER_COUNTS),
+                },
+            }),
+            RecountMessagingVoters: () => ({
+                data: {
+                    messaging_recount_voters: {
+                        requested: true,
+                        status: {...VOTER_COUNTS.status, pending: true},
+                    },
+                },
+            }),
             GetMessagingEventStats: () => ({
                 data: {
                     messaging_event_stats: {
-                        channels: args.noContactFailures
-                            ? [
-                                  ...STATS,
-                                  {...stats(EMessageChannel.EMAIL, {failed: 6}), channel: null},
-                              ]
-                            : STATS,
+                        channels: args.noMessages
+                            ? []
+                            : args.noContactFailures
+                              ? [
+                                    ...STATS,
+                                    {...stats(EMessageChannel.EMAIL, {failed: 6}), channel: null},
+                                ]
+                              : STATS,
                     },
                 },
             }),
@@ -449,11 +501,24 @@ export const Populated: Story = {
         await expect(email.getByText("Delivery unavailable")).toBeVisible()
         const viber = within(delivery.getByText("Viber").closest("tr") as HTMLElement)
         expect(viber.getByText("41")).toBeVisible()
+        // Voters as last counted, with when.
+        expect(canvas.getByText(/^Counted at /)).toBeVisible()
+        expect(
+            within(delivery.getByText("Email").closest("tr") as HTMLElement).getByText("1,840")
+        ).toBeVisible()
+        expect(
+            within(
+                canvasElement.querySelector(
+                    'table[aria-label="Delivery status"] tr[data-channel="NONE"]'
+                ) as HTMLElement
+            ).getByText("7")
+        ).toBeVisible()
         expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
         for (const operation of [
             "GetEventMessagingConfig",
             "GetMessagingAccountSummaries",
             "GetMessagingEventStats",
+            "GetMessagingVoterCounts",
         ]) {
             expect(graphql.calls.find(({name}) => name === operation)?.headers).toEqual({
                 "x-hasura-role": IPermissions.MESSAGING_CONFIG_READ,
@@ -462,6 +527,15 @@ export const Populated: Story = {
     },
 }
 
+const deliveryRows = (canvasElement: HTMLElement) =>
+    Array.from(
+        canvasElement.querySelectorAll('table[aria-label="Delivery status"] tr[data-channel]')
+    ).map((row) => row.getAttribute("data-channel"))
+
+/**
+ * Without a configuration the event's voters and messages still show, on
+ * every channel they're on, each said not to be offered by the event.
+ */
 export const NotConfigured: Story = {
     parameters: {
         widgets: ["Section", "Helper", "MessagingChannels", "MessagingDeliveryStatus"],
@@ -469,7 +543,58 @@ export const NotConfigured: Story = {
     args: {configured: false},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(deliveryRows(canvasElement)).toEqual(["VIBER", "SMS", "EMAIL", "NONE"])
+        )
+        expect(canvas.getAllByText("Not offered by this event")).toHaveLength(3)
+        expect(canvas.queryByText("No channel is in use.")).toBeNull()
+        const email = within(
+            canvasElement.querySelector(
+                'table[aria-label="Delivery status"] tr[data-channel="EMAIL"]'
+            ) as HTMLElement
+        )
+        expect(email.getByText("1,840")).toBeVisible()
+        // Its refused messages are counted as they are, not "unavailable".
+        expect(email.queryByText("Delivery unavailable")).toBeNull()
+    },
+}
+
+/** No configuration, no message and voters never counted: nothing in use, and Recount. */
+export const NothingInUse: Story = {
+    parameters: {widgets: ["MessagingDeliveryStatus"]},
+    args: {configured: false, noMessages: true, voterCounts: "NEVER"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
         await expect(await canvas.findByText("No channel is in use.")).toBeVisible()
+        expect(canvas.getByText("Not counted yet.")).toBeVisible()
+        expect(canvas.getByRole("button", {name: "Recount"})).toBeEnabled()
+    },
+}
+
+/**
+ * Recount asks for the event's voters to be counted again; the last count
+ * that took too long says so and keeps the counts before it.
+ */
+export const RecountVoters: Story = {
+    parameters: {widgets: ["MessagingDeliveryStatus"]},
+    args: {
+        voterCounts: {
+            ...VOTER_COUNTS,
+            status: {...VOTER_COUNTS.status, outcome: ERecountOutcome.TIMED_OUT},
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(/The last recount took too long and was stopped\./)
+        ).toBeVisible()
+        expect(canvas.getByText(/The counts shown are from the count before it\./)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Recount"}))
+        await notified("Recount asked for. The counts update when it finishes.")
+        expect(graphql.calls.find(({name}) => name === "RecountMessagingVoters")).toMatchObject({
+            variables: {electionEventId: EVENT_ID},
+            headers: {"x-hasura-role": IPermissions.MESSAGING_CONFIG_READ},
+        })
     },
 }
 
@@ -681,5 +806,25 @@ export const MigratedConfigurationNeedsSaving: Story = {
         await expect(
             within(canvasElement).getByText(/didn't pass the checks a save makes/)
         ).toBeVisible()
+    },
+}
+
+/**
+ * An account whose number changed is ready for nothing until its check
+ * runs: the purposes it doesn't send yet can't be turned on, and each says
+ * why. A purpose already on can still be turned off.
+ */
+export const AccountNotCheckedSinceItsNumberChanged: Story = {
+    args: {unchecked: EMessageChannel.SMS},
+    play: async ({canvasElement}) => {
+        const sms = await channelRow(canvasElement, EMessageChannel.SMS)
+        await waitFor(() => expect(purposeSwitch(sms, "OTPs")).toBeDisabled())
+        expect(purposeSwitch(sms, "Notices")).toBeEnabled()
+        expect(
+            within(sms).getAllByText("Missing: Not checked for its current number, Page or sender")
+        ).toHaveLength(2)
+        // The other channels keep their own readiness.
+        const email = await channelRow(canvasElement, EMessageChannel.EMAIL)
+        expect(within(email).queryByText(/Not checked for its current/)).toBeNull()
     },
 }

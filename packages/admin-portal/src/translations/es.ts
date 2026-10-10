@@ -5336,6 +5336,8 @@ const spanishTranslation: TranslationType = {
                 providerLanguage: "Idioma del proveedor",
                 voters: "Votantes que lo usan",
                 sent24h: "Enviados, últimas 24 h",
+                sent24hHelp:
+                    "Cada mensaje cuyo último intento fue en las últimas 24 horas, en cualquier estado, incluidos los fallidos. Las columnas de estado cuentan todos los mensajes del evento.",
             },
             outOfWindow: {
                 utility:
@@ -5372,6 +5374,7 @@ const spanishTranslation: TranslationType = {
                 showing: "Se muestran {{shown}} de {{total}} Posts. Busque para encontrar otros.",
             },
             delivery: {
+                notConfigured: "Este evento no lo ofrece",
                 empty: "No se usa ningún canal.",
                 help: "Los recuentos son por mensaje, según el estado de su último intento. Aceptado significa que el proveedor aceptó el mensaje, no que el votante lo recibiera. Desconocido significa que la entrega aún no está confirmada; pasadas 24 horas se muestra como Sin resolver, nunca como fallido. Una cuenta sin informes de entrega muestra la entrega como no disponible.",
                 loadError: "No se pudieron cargar los recuentos de mensajes.",
@@ -5451,6 +5454,7 @@ const spanishTranslation: TranslationType = {
                     "No se pudo confirmar la entrega en 24 horas. Esto no significa que haya fallado.",
             },
             blocker: {
+                UNCHECKED: "Sin comprobar para su número, página o remitente actuales",
                 NOT_CONNECTED: "Sin conexión",
                 UNSUPPORTED_PURPOSE: "No lo admite este proveedor",
                 NEEDS_PROVIDER_APPROVAL: "Necesita la aprobación del proveedor",
@@ -5554,6 +5558,66 @@ const spanishTranslation: TranslationType = {
                 noReadPermission:
                     "Para mostrar el canal de cada votante se necesita el permiso messaging-config-read. Cada votante recibe igualmente la notificación por su propio canal.",
             },
+            audience: {
+                notOfferedRow:
+                    "Ningún Post de estos votantes ofrece este canal para avisos, así que ninguno de ellos lo recibe: {{reason}}.",
+                willSend: "Recibirán la notificación: {{willSend}}",
+                selectedTimedOut:
+                    "Contar los votantes seleccionados tardó demasiado, así que no se muestran recuentos. Cada votante recibe igualmente la notificación por su propio canal.",
+                notSent: "No se envía",
+                deletedAccount: "Cuenta eliminada",
+                notOffered: "{{notOffered}} de ellos no lo reciben: {{reason}}.",
+                noAccountHelp:
+                    "Ninguna cuenta envía por este canal, así que los avisos de estos votantes fallan: {{reason}}.",
+                noChannelHelp:
+                    "Estos votantes no tienen canal de contacto registrado. No reciben nada, y cada uno aparece como fallido: {{reason}}.",
+                total: "Votantes de esta audiencia: {{total}}",
+                loadError:
+                    "No se pudo cargar el número de votantes. Cada votante recibe igualmente la notificación por su propio canal.",
+            },
+            voterCount: {
+                countedAt: "Contado: {{time}}.",
+                never: "Aún no se ha contado.",
+                pending: "Hay un recuento en curso.",
+                timedOut: "El último recuento tardó demasiado y se detuvo.",
+                failed: "El último recuento falló.",
+                previous: "Los recuentos que se muestran son del anterior.",
+                recount: "Volver a contar",
+                recountAsked: "Se pidió un recuento. Los recuentos se actualizan cuando termine.",
+                recountAlreadyAsked: "Ya hay un recuento en curso.",
+                recountError: "No se pudo pedir el recuento.",
+                loadError: "No se pudieron cargar los recuentos de votantes.",
+            },
+            volumes: {
+                title: "Volúmenes mensuales",
+                intro: "Intentos entregados a un proveedor cada mes, por canal, cuenta de envío, país de destino y categoría de facturación, para conciliar las facturas de los proveedores. Cada intento cuenta en el mes en que se hizo, así que un reintento vuelve a contar. La categoría de facturación es la prevista al enviar, o la que informó el proveedor; si un intento es facturable es lo que informó el proveedor. No se muestran precios.",
+                month: "Mes",
+                monthHelp: "Los meses se cuentan en UTC.",
+                loading: "Cargando los volúmenes mensuales",
+                loadError: "No se pudieron cargar los volúmenes.",
+                empty: "No se entregó ningún intento a un proveedor en {{month}}.",
+                noPermission:
+                    "Para ver los volúmenes se necesita el permiso messaging-account-read o messaging-config-read.",
+                notReported: "Sin informar",
+                deploymentOrDeleted: "Remitente de la instalación o una cuenta eliminada",
+                category: {
+                    AUTHENTICATION: "Autenticación",
+                    UTILITY: "Utilidad",
+                    SERVICE: "Servicio",
+                    TRANSACTIONAL: "Transaccional",
+                    EMAIL: "Correo electrónico",
+                },
+                billableYes: "Facturable",
+                billableNo: "No facturable",
+                total: "Todos los intentos",
+                column: {
+                    account: "Enviado desde",
+                    country: "País de destino",
+                    category: "Categoría de facturación",
+                    billable: "Facturable",
+                    messages: "Intentos",
+                },
+            },
             voter: {
                 title: "Mensajería",
                 notSet: "Sin definir",
@@ -5583,6 +5647,19 @@ const spanishTranslation: TranslationType = {
                 },
             },
             reason: {
+                CANDIDATE_REFUSED:
+                    "Las nuevas credenciales no conectaron: se mantienen las anteriores",
+                ACCOUNT_IN_USE:
+                    "La usan los ajustes de mensajería de un evento electoral: quítela allí primero",
+                NUMBER_CHANGED:
+                    "Un votante cambió su número de WhatsApp: pídale que verifique de nuevo su contacto",
+                IDENTITY_CHANGED:
+                    "La identidad de envío de la cuenta cambió: se comprueba de nuevo",
+                TEMPLATES_NOT_READ: "No se pudieron leer las plantillas del proveedor",
+                PARTNER_LOGIN_REFUSED: "Infobip rechazó la clave de API de la cuenta",
+                NO_PAGES_MESSAGING: "El token de la página no tiene el permiso pages_messaging",
+                NOT_SUBSCRIBED: "La aplicación no está suscrita a la página",
+                NUMBER_STATUS_NOT_READ: "No se pudo leer el estado del número",
                 CALLBACK_NOT_CONFIGURED: "Dirección de retorno no configurada",
                 UNSUPPORTED_PROVIDER: "Proveedor no compatible: sustituya esta cuenta",
                 CREDENTIALS_FOLLOW_ENDPOINT:
@@ -5602,6 +5679,10 @@ const spanishTranslation: TranslationType = {
                 WORKER_STOPPED_AFTER_SENDING:
                     "El proceso se detuvo antes de registrar el resultado",
                 CODE_EXPIRED_BEFORE_SENDING: "El código caducó antes de poder enviarse",
+                CAPACITY_BUSY:
+                    "No enviado: la cuenta estuvo en su límite de envío durante demasiado tiempo",
+                PROVIDER_ANSWER_LATE:
+                    "El proveedor no respondió a tiempo: es posible que el mensaje se haya enviado",
                 UNRESOLVED: "No se pudo confirmar la entrega",
                 SELECTED_WITHOUT_VOTERS: "Seleccione al menos un votante",
                 WRONG_RECIPIENT_KIND: "El destino no es del tipo al que envía este canal",
@@ -5613,6 +5694,25 @@ const spanishTranslation: TranslationType = {
                 MISSING_CODE: "No hay código que enviar",
                 ENDPOINT_NOT_HTTPS: "La dirección del proveedor debe empezar por https://",
                 PROVIDER_CODE: "Código de error del proveedor {{code}}",
+                CHECK_DROPPED: "La cuenta cambió mientras se comprobaba: compruébela de nuevo",
+                ACCOUNT_NOT_READY: "No enviado: la cuenta no está lista ({{blocker}})",
+                PROVIDER_UNREACHABLE: "No se pudo contactar con el proveedor",
+                PROVIDER_STATUS: "El proveedor respondió con el estado {{status}}",
+                MISSING_CREDENTIAL: "Falta la credencial: {{credential}}",
+                PROVIDER_CHECK_FAILED: "La comprobación del proveedor falló: {{detail}}",
+                NUMBER_STATUS: "El estado del número es {{status}}",
+                NUMBER_NAME_STATUS: "El nombre visible del número es {{status}}",
+                NUMBER_IN_SANDBOX: "El número está en modo sandbox",
+                NUMBER_NOT_VERIFIED: "El código del número no está verificado",
+                SMS_SANDBOX: "La cuenta está en el sandbox de SMS",
+                SES_SANDBOX: "La cuenta está en el sandbox de SES",
+                SES_SENDING_DISABLED: "El envío está desactivado para esta cuenta",
+                SMTP_REFUSED: "El servidor SMTP no es accesible o rechazó las credenciales",
+                TOKEN_INVALID: "El token de acceso no es válido o ha caducado",
+                TOKEN_CANNOT_SEND: "El token de acceso no tiene el permiso para enviar",
+                TOKEN_NOT_CHECKED: "No se pudo comprobar el token de acceso",
+                APP_SECRET_REFUSED: "Meta rechazó el secreto de la aplicación",
+                APP_SECRET_NOT_CHECKED: "No se pudo comprobar el secreto de la aplicación",
                 RETRY_NOT_PREPARED:
                     "No se puede reintentar: no se pudo volver a preparar el mensaje",
                 NOT_THE_VOTERS_CHANNEL: "No es el canal del votante",
@@ -5622,6 +5722,80 @@ const spanishTranslation: TranslationType = {
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Estado en el proveedor",
+                daily: "Las cuentas se comprueban una vez al día y cada vez que compruebe la conexión.",
+                unchecked:
+                    "El número, la página o el remitente cambiaron desde la última comprobación. Hasta que la cuenta se compruebe de nuevo, los códigos y avisos que pasen por ella fallan por no estar lista; el mensaje de prueba sí se envía.",
+                notReported: "No informado",
+                yes: "Sí",
+                no: "No",
+                token: "Token de acceso",
+                tokenExpires: "Válido · caduca el {{date}}",
+                tokenNoExpiry: "Válido · no caduca",
+                tokenInvalid: "No válido",
+                missingScopes: "Faltan permisos: {{scopes}}",
+                numberStatus: "Estado del número",
+                nameStatus: "Nombre visible: {{status}}",
+                qualityRating: "Calificación de calidad",
+                quality: {
+                    GREEN: "Alta",
+                    YELLOW: "Media",
+                    RED: "Baja",
+                    UNKNOWN: "Desconocida",
+                },
+                messagingLimit: "Límite de mensajes",
+                pagesMessaging: "Permiso para enviar (pages_messaging)",
+                subscribed: "Aplicación suscrita a la página",
+                getStarted: "Botón Empezar",
+                getStartedMissing:
+                    "Sin el botón, los votantes que nunca escribieron a la página no pueden iniciar la conversación que les trae su código.",
+                partnerLogin: "Acceso del socio",
+                appSecret: "Secreto de la aplicación",
+                notChecked: "No se pudo comprobar",
+                numberQualityWarning:
+                    "Un aviso de calidad de Meta: el número sigue enviando, pero una calidad baja puede reducir su límite de mensajes.",
+                accepted: "Aceptado",
+                refused: "Rechazado",
+                callback: "Dirección de retorno",
+                callbackReady: "Configurada",
+                approvalFromCheck: "Informada por la comprobación del proveedor",
+                approvalEntered:
+                    "Introducida por un administrador: la comprobación del proveedor no la informó",
+                approvalEnteredHelp:
+                    "Solo se usa hasta que la comprobación del proveedor informe de la aprobación.",
+                templates: {
+                    title: "Plantillas en el proveedor",
+                    none: "Sin plantillas",
+                    name: "Plantilla",
+                    language: "Idioma",
+                    category: "Categoría",
+                    status: "Estado",
+                    entered:
+                        "Las plantillas de Viber las introduce un administrador en Plantillas aprobadas: el socio no tiene API para la aprobación de plantillas.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Autenticación",
+                    UTILITY: "Utilidad",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Aprobada",
+                    PENDING: "En revisión",
+                    REJECTED: "Rechazada",
+                    PAUSED: "En pausa",
+                    DISABLED: "Desactivada",
+                },
+                numberChanges: {
+                    title: "Votantes que cambiaron su número de WhatsApp",
+                    description:
+                        "WhatsApp informó de estos cambios de número. Pida a estos votantes que verifiquen de nuevo su contacto; no se cambió nada automáticamente.",
+                    item: "{{old}} cambió a {{new}} el {{date}}.",
+                    voters: "Votantes: {{voters}}",
+                    noVoters:
+                        "Ningún votante recibió mensajes de esta cuenta en el número anterior.",
+                },
+            },
             tab: "MENSAJERÍA",
             description:
                 "Cuentas que envían a los votantes sus códigos y avisos. Cada evento electoral elige la cuenta de cada canal; los eventos nuevos empiezan con la cuenta predeterminada.",
@@ -5659,6 +5833,7 @@ const spanishTranslation: TranslationType = {
                 error: "No se pudo comprobar {{name}}.",
             },
             delete: {
+                refused: "La cuenta no se eliminó: {{reason}}",
                 title: "Eliminar cuenta",
                 body: "¿Eliminar {{name}}? Los eventos electorales que la usan dejarán de enviar por su canal.",
                 success: "Cuenta eliminada",
@@ -5722,6 +5897,7 @@ const spanishTranslation: TranslationType = {
             error: {
                 REQUIRED: "Obligatorio",
                 NOT_A_COUNT: "Introduce un número entero",
+                AT_LEAST_ONE: "Introduce 1 o más",
                 OTP_ABOVE_TOTAL: "No puede superar los mensajes por segundo",
                 INVALID_CALLING_CODE:
                     "Introduce prefijos telefónicos de país de 1 a 3 dígitos, como 63",
@@ -5732,6 +5908,13 @@ const spanishTranslation: TranslationType = {
                     "Vuelva a introducir las credenciales para la nueva dirección",
             },
             warning: {
+                pageChangeCount:
+                    "Votantes conectados a {{page}} que deberán volver a conectarse: {{count}}.",
+                pageChangeCounting: "Contando los votantes conectados a la página…",
+                pageChangeCountError:
+                    "No se pudo leer el número de votantes conectados a la página.",
+                recheck:
+                    "Al guardar, la cuenta se comprueba de nuevo en segundo plano. Hasta que esa comprobación salga bien, los códigos y avisos que pasen por ella fallan por no estar lista; el mensaje de prueba sí se envía.",
                 pageChange:
                     "Las conversaciones de Messenger pertenecen a una página. Tras cambiar la página, los votantes conectados a {{page}} solo recibirán códigos después de volver a conectar Messenger.",
                 numberChange:
@@ -5750,8 +5933,13 @@ const spanishTranslation: TranslationType = {
             limits: {
                 title: "Límites de envío",
                 messagesPerSecond: "Mensajes por segundo",
+                messagesPerSecondHelp: "Vacío: los mensajes no se limitan.",
                 otpReservedPerSecond: "Reservados para códigos por segundo",
-                otpReservedHelp: "Se mantienen libres para los códigos durante los envíos masivos.",
+                otpReservedHelp:
+                    "Un mínimo dentro del único presupuesto de envío compartido de la cuenta: los avisos se detienen en él y los códigos van primero. Si no se envían códigos, un envío masivo puede usar todo el ritmo.",
+                otpConcurrency: "Códigos enviados a la vez",
+                otpConcurrencyHelp:
+                    "Vacío: 8. Se cuenta por proceso del servidor; los demás códigos esperan su turno.",
                 allowedCallingCodes: "Destinos permitidos (prefijos telefónicos de país)",
                 allowedCallingCodesHelp:
                     "Separados por comas, por ejemplo 63, 971. Vacío permite cualquier destino.",
@@ -5875,6 +6063,91 @@ const spanishTranslation: TranslationType = {
                 confirmBody:
                     "El usuario y la contraseña de informes actuales dejan de funcionar de inmediato. Hasta que la suscripción de Infobip tenga los nuevos, los informes de entrega de Viber se rechazan y los mensajes se quedan en Aceptado.",
                 confirm: "Reemplazar",
+            },
+        },
+        sentMessages: {
+            tab: "Mensajes enviados",
+            accountsTab: "Cuentas",
+            tabsLabel: "Secciones de mensajería",
+            description:
+                "Mensajes que recibió el proveedor simulado de este entorno de desarrollo, tal como los mostrarían las aplicaciones de los votantes. Ninguno llegó a un votante real. Esta pestaña solo aparece donde las rutas del proveedor simulado están habilitadas.",
+            modeLabel: "Mostrar mensajes de",
+            all: "Todos",
+            refresh: "Actualizar",
+            refreshing: "Actualizando…",
+            refreshError:
+                "No se pudieron actualizar los mensajes. La lista mostrada es la última que se leyó.",
+            empty: "Aún no hay mensajes.",
+            emptyChannel: "Aún no hay mensajes de {{channel}}.",
+            column: {
+                time: "Hora",
+                channel: "Canal",
+                from: "De",
+                to: "Para",
+                message: "Mensaje",
+                report: "Informe de entrega",
+            },
+            report: {
+                accepted: "Informe aceptado por el componente de webhooks (HTTP 200)",
+                refused: "Informe rechazado: HTTP {{status}}",
+                pending: "Informe aún no enviado",
+                notSent: "Informe no enviado: {{reason}}",
+                noAnswer: "El informe no obtuvo respuesta: {{reason}}",
+                noReason: "sin motivo indicado",
+                unavailable: "Este canal no tiene informes de entrega",
+            },
+            content: {
+                template: "Plantilla {{name}} ({{language}})",
+                noText: "(sin texto)",
+                code: "Código",
+                copyCode: "Copiar código",
+                copied: "Código copiado",
+                copyFailed: "No se pudo copiar el código",
+                truncated:
+                    "Recortado: el proveedor simulado solo conserva los primeros 64 KiB de cada campo.",
+            },
+            chat: {
+                phone: "{{channel}} en un teléfono",
+                chats: "Chats de {{channel}}",
+                open: "Abrir el chat con {{recipient}} desde {{sender}}",
+                back: "Volver a los chats",
+                from: "De {{sender}}",
+                messages: "Mensajes para {{recipient}}",
+            },
+            getStarted: {
+                title: "Empezar",
+                help: "Pegue el enlace de Messenger que muestra la página de inscripción y pulse Empezar, como haría el votante en Messenger. Después, el código llega al chat.",
+                link: "Enlace de Messenger",
+                submit: "Empezar",
+                accepted: "El componente de webhooks respondió 200. El código llega al chat.",
+                answered: "El componente de webhooks respondió {{status}}.",
+                failed: "No se pudo empezar: {{reason}}",
+            },
+            email: {
+                inbox: "Bandeja de entrada",
+                reading: "Correo seleccionado",
+                noSubject: "(sin asunto)",
+                from: "De",
+                to: "Para",
+                view: "Mostrar el correo como",
+                html: "HTML",
+                text: "Texto sin formato",
+                htmlFrame: "Contenido del correo",
+                noContent: "Este correo no tiene contenido.",
+                loading: "Cargando el correo…",
+                loadError:
+                    "No se pudo leer el HTML del correo: puede que el proveedor simulado ya no lo conserve.",
+            },
+            reason: {
+                NO_ACCOUNT: "Ninguna cuenta usa este remitente",
+                SEVERAL_ACCOUNTS: "Varias cuentas usan este remitente",
+                ACCOUNTS_UNREADABLE: "No se pudieron leer las cuentas",
+                UNREACHABLE: "El componente de webhooks no respondió",
+                LINK_UNREADABLE: "Pegue el enlace m.me de la página de inscripción",
+                LINK_WITHOUT_REF: "El enlace no tiene ref: copie el enlace completo",
+                NO_PAGE_ACCOUNT: "Ninguna cuenta de Messenger de esta organización usa esta página",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Varias cuentas de Messenger de esta organización usan esta página",
             },
         },
     },

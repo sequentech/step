@@ -5269,6 +5269,8 @@ const englishTranslation = {
                 providerLanguage: "Provider language",
                 voters: "Voters using it",
                 sent24h: "Sent, last 24 h",
+                sent24hHelp:
+                    "Every message whose latest attempt was in the last 24 hours, in any state, failed ones included. The state columns count all of the event's messages.",
             },
             outOfWindow: {
                 utility:
@@ -5305,6 +5307,7 @@ const englishTranslation = {
                 showing: "Showing {{shown}} of {{total}} Posts. Search to find others.",
             },
             delivery: {
+                notConfigured: "Not offered by this event",
                 empty: "No channel is in use.",
                 help: "Counts are per message, by the state of its latest attempt. Accepted means the provider accepted the message, not that the voter received it. Unknown means delivery is not confirmed yet; after 24 hours it is shown as Unresolved, never as failed. An account without delivery reports shows delivery as unavailable.",
                 loadError: "The message counts could not be loaded.",
@@ -5383,6 +5386,7 @@ const englishTranslation = {
                     "Delivery couldn't be confirmed within 24 hours. This doesn't mean it failed.",
             },
             blocker: {
+                UNCHECKED: "Not checked for its current number, Page or sender",
                 NOT_CONNECTED: "Not connected",
                 UNSUPPORTED_PURPOSE: "Not supported by this provider",
                 NEEDS_PROVIDER_APPROVAL: "Needs provider approval",
@@ -5485,6 +5489,66 @@ const englishTranslation = {
                 noReadPermission:
                     "Showing each voter's channel needs the messaging-config-read permission. Each voter still gets the notification on their own channel.",
             },
+            audience: {
+                notOfferedRow:
+                    "None of these voters' Posts offer this channel for notices, so none of them gets it: {{reason}}.",
+                willSend: "Will get the notification: {{willSend}}",
+                selectedTimedOut:
+                    "Counting the selected voters took too long, so no counts are shown. Each voter still gets the notification on their own channel.",
+                notSent: "Not sent",
+                deletedAccount: "Deleted account",
+                notOffered: "{{notOffered}} of them don't get it: {{reason}}.",
+                noAccountHelp:
+                    "No account sends on this channel, so these voters' notices fail: {{reason}}.",
+                noChannelHelp:
+                    "These voters have no contact channel on record. They get nothing, and each shows as failed: {{reason}}.",
+                total: "Voters in this audience: {{total}}",
+                loadError:
+                    "The voter counts could not be loaded. Each voter still gets the notification on their own channel.",
+            },
+            voterCount: {
+                countedAt: "Counted at {{time}}.",
+                never: "Not counted yet.",
+                pending: "A recount is on its way.",
+                timedOut: "The last recount took too long and was stopped.",
+                failed: "The last recount failed.",
+                previous: "The counts shown are from the count before it.",
+                recount: "Recount",
+                recountAsked: "Recount asked for. The counts update when it finishes.",
+                recountAlreadyAsked: "A recount is already on its way.",
+                recountError: "The recount could not be asked for.",
+                loadError: "The voter counts could not be loaded.",
+            },
+            volumes: {
+                title: "Monthly volumes",
+                intro: "Attempts handed to a provider each month, by channel, sending account, destination country and billing category, to reconcile the providers' invoices. Each attempt counts in the month it was made, so a retry counts again. The billing category is the one expected when sending, or the one the provider reported; whether an attempt is billable is what the provider reported. No prices are shown.",
+                month: "Month",
+                monthHelp: "Months are counted in UTC.",
+                loading: "Loading the monthly volumes",
+                loadError: "The volumes could not be loaded.",
+                empty: "No attempt was handed to a provider in {{month}}.",
+                noPermission:
+                    "Showing the volumes needs the messaging-account-read or messaging-config-read permission.",
+                notReported: "Not reported",
+                deploymentOrDeleted: "Deployment sender or a deleted account",
+                category: {
+                    AUTHENTICATION: "Authentication",
+                    UTILITY: "Utility",
+                    SERVICE: "Service",
+                    TRANSACTIONAL: "Transactional",
+                    EMAIL: "Email",
+                },
+                billableYes: "Billable",
+                billableNo: "Not billable",
+                total: "All attempts",
+                column: {
+                    account: "Sent from",
+                    country: "Destination country",
+                    category: "Billing category",
+                    billable: "Billable",
+                    messages: "Attempts",
+                },
+            },
             voter: {
                 title: "Messaging",
                 notSet: "Not set",
@@ -5514,6 +5578,17 @@ const englishTranslation = {
                 },
             },
             reason: {
+                CANDIDATE_REFUSED: "The new credentials didn't connect: the previous ones are kept",
+                ACCOUNT_IN_USE:
+                    "Used by an election event's messaging settings: remove it there first",
+                NUMBER_CHANGED:
+                    "A voter changed their WhatsApp number: ask them to verify their contact again",
+                IDENTITY_CHANGED: "The account's sending identity changed: it is checked again",
+                TEMPLATES_NOT_READ: "The provider's templates couldn't be read",
+                PARTNER_LOGIN_REFUSED: "Infobip refused the account's API key",
+                NO_PAGES_MESSAGING: "The Page token lacks the pages_messaging permission",
+                NOT_SUBSCRIBED: "The app is not subscribed to the Page",
+                NUMBER_STATUS_NOT_READ: "The number's status couldn't be read",
                 CALLBACK_NOT_CONFIGURED: "Callback address not configured",
                 UNSUPPORTED_PROVIDER: "Unsupported provider: replace this account",
                 CREDENTIALS_FOLLOW_ENDPOINT: "Enter the credentials again for the new address",
@@ -5530,6 +5605,9 @@ const englishTranslation = {
                 WORKER_STOPPED_BEFORE_SENDING: "The worker stopped before sending",
                 WORKER_STOPPED_AFTER_SENDING: "The worker stopped before recording the outcome",
                 CODE_EXPIRED_BEFORE_SENDING: "The code expired before it could be sent",
+                CAPACITY_BUSY: "Not sent: the account stayed at its sending limit for too long",
+                PROVIDER_ANSWER_LATE:
+                    "The provider didn't answer in time: the message may have been sent",
                 UNRESOLVED: "Delivery couldn't be confirmed",
                 SELECTED_WITHOUT_VOTERS: "Select at least one voter",
                 WRONG_RECIPIENT_KIND: "The destination isn't the kind this channel sends to",
@@ -5541,6 +5619,25 @@ const englishTranslation = {
                 MISSING_CODE: "No code to send",
                 ENDPOINT_NOT_HTTPS: "The provider address must start with https://",
                 PROVIDER_CODE: "Provider error code {{code}}",
+                CHECK_DROPPED: "The account changed while it was checked: check it again",
+                ACCOUNT_NOT_READY: "Not sent: the account isn't ready ({{blocker}})",
+                PROVIDER_UNREACHABLE: "The provider couldn't be reached",
+                PROVIDER_STATUS: "The provider answered with status {{status}}",
+                MISSING_CREDENTIAL: "Missing credential: {{credential}}",
+                PROVIDER_CHECK_FAILED: "The provider's check failed: {{detail}}",
+                NUMBER_STATUS: "The number's status is {{status}}",
+                NUMBER_NAME_STATUS: "The number's display name is {{status}}",
+                NUMBER_IN_SANDBOX: "The number is in sandbox mode",
+                NUMBER_NOT_VERIFIED: "The number's code is not verified",
+                SMS_SANDBOX: "The account is in the SMS sandbox",
+                SES_SANDBOX: "The account is in the SES sandbox",
+                SES_SENDING_DISABLED: "Sending is disabled for this account",
+                SMTP_REFUSED: "SMTP server unreachable or credentials rejected",
+                TOKEN_INVALID: "The access token isn't valid or has expired",
+                TOKEN_CANNOT_SEND: "The access token lacks the permission to send",
+                TOKEN_NOT_CHECKED: "The access token couldn't be checked",
+                APP_SECRET_REFUSED: "Meta refused the app secret",
+                APP_SECRET_NOT_CHECKED: "The app secret couldn't be checked",
                 RETRY_NOT_PREPARED: "Can't be retried: the message couldn't be prepared again",
                 NOT_THE_VOTERS_CHANNEL: "Not the voter's channel",
                 REPORT_CREDENTIALS_MISSING:
@@ -5549,6 +5646,79 @@ const englishTranslation = {
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Provider status",
+                daily: "Accounts are checked once a day and whenever you check the connection.",
+                unchecked:
+                    "The number, Page or sender changed since the last check. Until the account is checked again, codes and notices through it fail as not ready; the test message is still sent.",
+                notReported: "Not reported",
+                yes: "Yes",
+                no: "No",
+                token: "Access token",
+                tokenExpires: "Valid · expires {{date}}",
+                tokenNoExpiry: "Valid · doesn't expire",
+                tokenInvalid: "Not valid",
+                missingScopes: "Missing permissions: {{scopes}}",
+                numberStatus: "Number status",
+                nameStatus: "Display name: {{status}}",
+                qualityRating: "Quality rating",
+                quality: {
+                    GREEN: "High",
+                    YELLOW: "Medium",
+                    RED: "Low",
+                    UNKNOWN: "Unknown",
+                },
+                messagingLimit: "Messaging limit",
+                pagesMessaging: "Permission to send (pages_messaging)",
+                subscribed: "App subscribed to the Page",
+                getStarted: "Get Started button",
+                getStartedMissing:
+                    "Without the button, voters who never wrote to the Page can't start the conversation that brings their code.",
+                partnerLogin: "Partner login",
+                appSecret: "App secret",
+                notChecked: "Couldn't be checked",
+                numberQualityWarning:
+                    "A quality warning from Meta: the number still sends, but low quality can lower its messaging limit.",
+                accepted: "Accepted",
+                refused: "Refused",
+                callback: "Callback address",
+                callbackReady: "Configured",
+                approvalFromCheck: "Reported by the provider's check",
+                approvalEntered:
+                    "Entered by an administrator: the provider's check didn't report it",
+                approvalEnteredHelp:
+                    "It is used only until the provider's check reports the approval.",
+                templates: {
+                    title: "Templates at the provider",
+                    none: "No templates",
+                    name: "Template",
+                    language: "Language",
+                    category: "Category",
+                    status: "Status",
+                    entered:
+                        "Viber templates are entered by an administrator under Approved templates: the partner has no API for template approval.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Authentication",
+                    UTILITY: "Utility",
+                    MARKETING: "Marketing",
+                },
+                templateStatus: {
+                    APPROVED: "Approved",
+                    PENDING: "In review",
+                    REJECTED: "Rejected",
+                    PAUSED: "Paused",
+                    DISABLED: "Disabled",
+                },
+                numberChanges: {
+                    title: "Voters who changed their WhatsApp number",
+                    description:
+                        "WhatsApp reported these number changes. Ask these voters to verify their contact again; nothing was changed automatically.",
+                    item: "{{old}} changed to {{new}} on {{date}}.",
+                    voters: "Voters: {{voters}}",
+                    noVoters: "No voter received messages from this account at the old number.",
+                },
+            },
             tab: "MESSAGING",
             description:
                 "Accounts that send voters their codes and notices. Each election event chooses the account for each channel; new events start with the default account.",
@@ -5586,6 +5756,7 @@ const englishTranslation = {
                 error: "{{name}} could not be checked.",
             },
             delete: {
+                refused: "The account was not deleted: {{reason}}",
                 title: "Delete account",
                 body: "Delete {{name}}? Election events that use it stop sending on its channel.",
                 success: "Account deleted",
@@ -5648,6 +5819,7 @@ const englishTranslation = {
             error: {
                 REQUIRED: "Required",
                 NOT_A_COUNT: "Enter a whole number",
+                AT_LEAST_ONE: "Enter 1 or more",
                 OTP_ABOVE_TOTAL: "Cannot exceed the messages per second",
                 INVALID_CALLING_CODE: "Enter country calling codes of 1 to 3 digits, such as 63",
                 DUPLICATE_LANGUAGE: "This language already has a template for this purpose",
@@ -5656,6 +5828,12 @@ const englishTranslation = {
                 CREDENTIALS_FOLLOW_ENDPOINT: "Enter the credentials again for the new address",
             },
             warning: {
+                pageChangeCount: "Voters connected to {{page}} who must connect again: {{count}}.",
+                pageChangeCounting: "Counting the voters connected to the Page…",
+                pageChangeCountError:
+                    "The number of voters connected to the Page could not be read.",
+                recheck:
+                    "Saving checks the account again in the background. Until that check succeeds, codes and notices through it fail as not ready; the test message is still sent.",
                 pageChange:
                     "Messenger conversations belong to a Page. After changing the Page, the voters connected to {{page}} get codes only after connecting Messenger again.",
                 numberChange:
@@ -5674,8 +5852,13 @@ const englishTranslation = {
             limits: {
                 title: "Sending limits",
                 messagesPerSecond: "Messages per second",
+                messagesPerSecondHelp: "Empty: messages are not throttled.",
                 otpReservedPerSecond: "Reserved for OTPs per second",
-                otpReservedHelp: "Kept free for codes during bulk sends.",
+                otpReservedHelp:
+                    "A floor in the account's one shared sending budget: notices stop at it and codes go first. With no codes being sent, a bulk send can use the full rate.",
+                otpConcurrency: "Codes sent at once",
+                otpConcurrencyHelp:
+                    "Empty: 8. Counted per server process; further codes wait their turn.",
                 allowedCallingCodes: "Allowed destinations (country calling codes)",
                 allowedCallingCodesHelp:
                     "Separated by commas, for example 63, 971. Empty allows any destination.",
@@ -5795,6 +5978,90 @@ const englishTranslation = {
                 confirmBody:
                     "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, Viber delivery reports are refused and messages stay Accepted.",
                 confirm: "Replace",
+            },
+        },
+        sentMessages: {
+            tab: "Sent messages",
+            accountsTab: "Accounts",
+            tabsLabel: "Messaging sections",
+            description:
+                "Messages the fake provider of this development stack received, shown as the voters' apps would show them. None of them reached a real voter. This tab is shown only where the fake provider routes are enabled.",
+            modeLabel: "Show messages from",
+            all: "All",
+            refresh: "Refresh",
+            refreshing: "Refreshing…",
+            refreshError:
+                "The messages could not be refreshed. The list shown is the last one read.",
+            empty: "No messages yet.",
+            emptyChannel: "No {{channel}} messages yet.",
+            column: {
+                time: "Time",
+                channel: "Channel",
+                from: "From",
+                to: "To",
+                message: "Message",
+                report: "Delivery report",
+            },
+            report: {
+                accepted: "Report accepted by the webhook component (HTTP 200)",
+                refused: "Report refused: HTTP {{status}}",
+                pending: "Report pending",
+                notSent: "Report not sent: {{reason}}",
+                noAnswer: "The report got no answer: {{reason}}",
+                noReason: "no reason given",
+                unavailable: "No delivery reports on this channel",
+            },
+            content: {
+                template: "Template {{name}} ({{language}})",
+                noText: "(no text)",
+                code: "Code",
+                copyCode: "Copy code",
+                copied: "Code copied",
+                copyFailed: "The code could not be copied",
+                truncated: "Cut: the fake provider keeps only the first 64 KiB of each field.",
+            },
+            chat: {
+                phone: "{{channel}} on a phone",
+                chats: "{{channel}} chats",
+                open: "Open the chat with {{recipient}} from {{sender}}",
+                back: "Back to the chats",
+                from: "From {{sender}}",
+                messages: "Messages to {{recipient}}",
+            },
+            getStarted: {
+                title: "Get Started",
+                help: "Paste the Messenger link the enrollment page shows, then press Get Started, as the voter would in Messenger. The code then arrives in the chat.",
+                link: "Messenger link",
+                submit: "Get Started",
+                accepted: "The webhook component answered 200. The code arrives in the chat.",
+                answered: "The webhook component answered {{status}}.",
+                failed: "Get Started failed: {{reason}}",
+            },
+            email: {
+                inbox: "Inbox",
+                reading: "Selected email",
+                noSubject: "(no subject)",
+                from: "From",
+                to: "To",
+                view: "Show the email as",
+                html: "HTML",
+                text: "Plain text",
+                htmlFrame: "Email content",
+                noContent: "This email has no content.",
+                loading: "Loading the email…",
+                loadError:
+                    "The email's HTML could not be read: the fake provider may no longer keep it.",
+            },
+            reason: {
+                NO_ACCOUNT: "No account uses this sender",
+                SEVERAL_ACCOUNTS: "Several accounts use this sender",
+                ACCOUNTS_UNREADABLE: "The accounts couldn't be read",
+                UNREACHABLE: "The webhook component didn't answer",
+                LINK_UNREADABLE: "Paste the m.me link from the enrollment page",
+                LINK_WITHOUT_REF: "The link has no ref: copy the whole link",
+                NO_PAGE_ACCOUNT: "No Messenger account of this organization uses this Page",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Several Messenger accounts of this organization use this Page",
             },
         },
     },

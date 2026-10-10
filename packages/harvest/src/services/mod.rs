@@ -10,6 +10,7 @@ pub mod monitoring_cache;
 pub mod monitoring_checks;
 pub mod monitoring_config_cache;
 pub mod monitoring_svg;
+pub mod otp_capacity;
 pub mod role_permissions;
 pub mod service_auth;
 pub mod signing_gate;

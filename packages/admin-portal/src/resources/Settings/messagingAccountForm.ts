@@ -16,6 +16,8 @@ import {
 } from "@/types/messaging"
 import {
     accountCapabilities,
+    accountIdentity,
+    checkedForAnotherIdentity,
     isUnsupportedProvider,
     providerCapabilities,
     providersForChannel,
@@ -86,6 +88,7 @@ export interface IViberTemplateRow {
 export interface IAccountFormLimits {
     messagesPerSecond: string
     otpReservedPerSecond: string
+    otpConcurrency: string
     allowedCallingCodes: string
 }
 
@@ -118,7 +121,12 @@ export const emptyAccountForm = (
     name: "",
     sender: initialSender(provider),
     viberTemplates: [],
-    limits: {messagesPerSecond: "", otpReservedPerSecond: "", allowedCallingCodes: ""},
+    limits: {
+        messagesPerSecond: "",
+        otpReservedPerSecond: "",
+        otpConcurrency: "",
+        allowedCallingCodes: "",
+    },
     providerApproval: EProviderApproval.PENDING,
     isDefault: false,
     credentials: {},
@@ -183,6 +191,7 @@ export const formFromAccount = (account: IMessagingAccount): IAccountFormValues 
     limits: {
         messagesPerSecond: countText(account.limits?.messages_per_second),
         otpReservedPerSecond: countText(account.limits?.otp_reserved_per_second),
+        otpConcurrency: countText(account.limits?.otp_concurrency),
         allowedCallingCodes: (account.limits?.allowed_calling_codes ?? []).join(", "),
     },
     providerApproval: account.provider_approval ?? EProviderApproval.PENDING,
@@ -290,6 +299,7 @@ const count = (text: string): number | null => (COUNT.test(text.trim()) ? Number
 export const limitsFromForm = (values: IAccountFormValues): IAccountLimits => ({
     messages_per_second: count(values.limits.messagesPerSecond),
     otp_reserved_per_second: count(values.limits.otpReservedPerSecond),
+    otp_concurrency: count(values.limits.otpConcurrency),
     allowed_calling_codes: parseCallingCodes(values.limits.allowedCallingCodes).codes,
 })
 
@@ -297,6 +307,8 @@ export enum EAccountFormError {
     REQUIRED = "REQUIRED",
     NOT_A_COUNT = "NOT_A_COUNT",
     OTP_ABOVE_TOTAL = "OTP_ABOVE_TOTAL",
+    /** Codes sent at once: 0 would never send a code. */
+    AT_LEAST_ONE = "AT_LEAST_ONE",
     INVALID_CALLING_CODE = "INVALID_CALLING_CODE",
     DUPLICATE_LANGUAGE = "DUPLICATE_LANGUAGE",
     NOT_A_URL = "NOT_A_URL",
@@ -379,10 +391,12 @@ export const validateAccountForm = (
             errors[`sender.${key}`] = EAccountFormError.REQUIRED
         }
     }
-    const {messagesPerSecond, otpReservedPerSecond, allowedCallingCodes} = values.limits
+    const {messagesPerSecond, otpReservedPerSecond, otpConcurrency, allowedCallingCodes} =
+        values.limits
     for (const [key, text] of [
         ["messagesPerSecond", messagesPerSecond],
         ["otpReservedPerSecond", otpReservedPerSecond],
+        ["otpConcurrency", otpConcurrency],
     ]) {
         if (text.trim() && count(text) === null) {
             errors[`limits.${key}`] = EAccountFormError.NOT_A_COUNT
@@ -392,6 +406,9 @@ export const validateAccountForm = (
     const reserved = count(otpReservedPerSecond)
     if (total !== null && reserved !== null && reserved > total) {
         errors["limits.otpReservedPerSecond"] = EAccountFormError.OTP_ABOVE_TOTAL
+    }
+    if (count(otpConcurrency) === 0) {
+        errors["limits.otpConcurrency"] = EAccountFormError.AT_LEAST_ONE
     }
     if (parseCallingCodes(allowedCallingCodes).invalid.length) {
         errors["limits.allowedCallingCodes"] = EAccountFormError.INVALID_CALLING_CODE
@@ -488,10 +505,16 @@ export const accountReadiness = (account: IMessagingAccount): IAccountReadiness 
             account.provider_approval,
             account.status,
             purpose,
-            null
+            null,
+            accountIdentity(account.sender)
         )
     return {
-        connected: (account.status?.connected ?? false) && !isUnsupportedProvider(account.provider),
+        // A check of another identity (an earlier number or Page) says
+        // nothing about the account as it is now.
+        connected:
+            (account.status?.connected ?? false) &&
+            !isUnsupportedProvider(account.provider) &&
+            !checkedForAnotherIdentity(account),
         purposes: {
             [EMessagePurpose.OTP]: readiness(EMessagePurpose.OTP),
             [EMessagePurpose.NOTICE]: readiness(EMessagePurpose.NOTICE),

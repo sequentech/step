@@ -14,7 +14,8 @@ import {parseActionResponseBody} from "@/services/graphqlActionError"
  *
  * Sources: `sequent_core::types::messaging::MessageReason`, the preflight
  * refusals (`messaging::sender::PreflightError`), the account refusals in
- * `windmill::postgres::messaging` and `callback_readiness`.
+ * `windmill::postgres::messaging` and `windmill::services::messaging::accounts`,
+ * the provider checks (`messaging::providers`) and `callback_readiness`.
  */
 export const KNOWN_REASONS: Record<string, string> = {
     // MessageReason
@@ -33,6 +34,11 @@ export const KNOWN_REASONS: Record<string, string> = {
     "The worker stopped before sending": "WORKER_STOPPED_BEFORE_SENDING",
     "The worker stopped before recording the outcome": "WORKER_STOPPED_AFTER_SENDING",
     "The code expired before it could be sent": "CODE_EXPIRED_BEFORE_SENDING",
+    // The account's shared sending capacity (windmill::postgres::rate_bucket)
+    "Not sent: the account stayed at its sending limit for too long": "CAPACITY_BUSY",
+    // windmill::services::messaging::dispatch: the provider's answer came
+    // after the caller's deadline (harvest answers before Keycloak's timeout)
+    "The provider didn't answer in time: the message may have been sent": "PROVIDER_ANSWER_LATE",
     "Delivery couldn't be confirmed": "UNRESOLVED",
     "Select at least one voter": "SELECTED_WITHOUT_VOTERS",
     "Unsupported provider: replace this account": "UNSUPPORTED_PROVIDER",
@@ -51,7 +57,74 @@ export const KNOWN_REASONS: Record<string, string> = {
         "REPORT_CREDENTIALS_MISSING",
     "Enter the credentials again for the new address": "CREDENTIALS_FOLLOW_ENDPOINT",
     "The provider address must start with https://": "ENDPOINT_NOT_HTTPS",
+    // Account checks and changes (windmill::services::messaging::accounts,
+    // windmill::postgres::messaging, the provider checks)
+    "The new credentials didn't connect: the previous ones are kept": "CANDIDATE_REFUSED",
+    "Used by an election event's messaging settings: remove it there first": "ACCOUNT_IN_USE",
+    "A voter changed their WhatsApp number: ask them to verify their contact again":
+        "NUMBER_CHANGED",
+    "The account's sending identity changed: it is checked again": "IDENTITY_CHANGED",
+    "The account changed while it was checked: check it again": "CHECK_DROPPED",
+    "The provider's templates couldn't be read": "TEMPLATES_NOT_READ",
+    "Infobip refused the account's API key": "PARTNER_LOGIN_REFUSED",
+    "the Page token lacks the pages_messaging permission": "NO_PAGES_MESSAGING",
+    "the app is not subscribed to the Page": "NOT_SUBSCRIBED",
+    "The number's status couldn't be read": "NUMBER_STATUS_NOT_READ",
+    // Provider checks (messaging::providers), R5-15
+    "The provider couldn't be reached": "PROVIDER_UNREACHABLE",
+    "The number is in sandbox mode": "NUMBER_IN_SANDBOX",
+    "The number's code is not verified": "NUMBER_NOT_VERIFIED",
+    "The account is in the SMS sandbox": "SMS_SANDBOX",
+    "The account is in the SES sandbox": "SES_SANDBOX",
+    "Sending is disabled for this account": "SES_SENDING_DISABLED",
+    "SMTP server unreachable or credentials rejected": "SMTP_REFUSED",
+    "The access token isn't valid or has expired": "TOKEN_INVALID",
+    "The access token lacks the permission to send": "TOKEN_CANNOT_SEND",
+    "The access token couldn't be checked": "TOKEN_NOT_CHECKED",
+    "Meta refused the app secret": "APP_SECRET_REFUSED",
+    "The app secret couldn't be checked": "APP_SECRET_NOT_CHECKED",
 }
+
+/**
+ * Reasons with a value in them, as the backend writes them: the start of the
+ * text (a constant in the backend's sources), the translation key, and the
+ * name of the value the translation takes. `translate` turns the value into
+ * text where it is one of ours (a blocker, a credential); a provider's own
+ * value (a status code, its error) is shown as it came.
+ */
+export interface IReasonShape {
+    prefix: string
+    suffix?: string
+    code: string
+    param: string
+    translate?: (t: TFunction, value: string) => string
+}
+
+/** The value's own label under `base`, or the value as it came when it has none. */
+const translatedKey = (base: string) => (t: TFunction, value: string) =>
+    /^[A-Z_]+$/.test(value) ? String(t(`${base}.${value}`, {defaultValue: value})) : value
+
+export const REASON_SHAPES: IReasonShape[] = [
+    // windmill::services::messaging::accounts::not_ready_reason (R5-01)
+    {
+        prefix: "Not sent: the account isn't ready (",
+        suffix: ")",
+        code: "ACCOUNT_NOT_READY",
+        param: "blocker",
+        translate: translatedKey("messaging.blocker"),
+    },
+    // messaging::providers (R5-15)
+    {prefix: "The provider answered with status ", code: "PROVIDER_STATUS", param: "status"},
+    {
+        prefix: "Missing credential: ",
+        code: "MISSING_CREDENTIAL",
+        param: "credential",
+        translate: translatedKey("messaging.credential"),
+    },
+    {prefix: "The provider's check failed: ", code: "PROVIDER_CHECK_FAILED", param: "detail"},
+    {prefix: "The number's status is ", code: "NUMBER_STATUS", param: "status"},
+    {prefix: "The number's display name is ", code: "NUMBER_NAME_STATUS", param: "status"},
+]
 
 /** A failure the provider reported by its code only (`provider code <code>`). */
 const PROVIDER_CODE = /^provider code (.+)$/
@@ -67,6 +140,17 @@ const oneReason = (t: TFunction, text: string): string => {
     if (code) return String(t(`messaging.reason.${code}`))
     const providerCode = PROVIDER_CODE.exec(text)
     if (providerCode) return String(t("messaging.reason.PROVIDER_CODE", {code: providerCode[1]}))
+    for (const shape of REASON_SHAPES) {
+        const suffix = shape.suffix ?? ""
+        if (!text.startsWith(shape.prefix) || !text.endsWith(suffix)) continue
+        const value = text.slice(shape.prefix.length, text.length - suffix.length).trim()
+        if (!value) continue
+        return String(
+            t(`messaging.reason.${shape.code}`, {
+                [shape.param]: shape.translate ? shape.translate(t, value) : value,
+            })
+        )
+    }
     return text
 }
 

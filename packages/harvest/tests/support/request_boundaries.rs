@@ -29,7 +29,7 @@ const OTHER_TENANT_ID: &str = "tenant-b";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 172;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 179;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -225,8 +225,16 @@ fn status_failure(code: u16) -> Status {
 }
 
 async fn client() -> Client {
+    // The production services as a deployment that leaves
+    // MESSAGING_FAKE_PROVIDER_ROUTES unset has them, whatever the developer's
+    // environment says: the fake provider routes have their own case.
+    let services = crate::services::dependencies::HarvestServices {
+        messaging_fake_provider_routes:
+            crate::routes::fake_provider::FakeProviderRoutes::DISABLED,
+        ..crate::services::dependencies::HarvestServices::production()
+    };
     Client::tracked(
-        crate::build_application()
+        crate::build_application_with(services)
             .configure(rocket::Config {
                 log_level: rocket::config::LogLevel::Off,
                 ..Default::default()
@@ -535,6 +543,132 @@ async fn without_a_relay_secret_relayed_callbacks_are_refused_with_503() {
         .dispatch()
         .await;
     assert_eq!(response.status(), Status::ServiceUnavailable);
+}
+
+/// `MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED` adds exactly the fake
+/// provider's routes under `/fake-provider`, and nothing else; without it
+/// they don't exist. The viewer's two routes (the Hasura actions) refuse a
+/// request without valid claims before reading the body or reaching a
+/// backend. The provider routes take what a provider would.
+#[rocket::async_test]
+async fn fake_provider_routes_are_mounted_only_by_their_switch() {
+    use crate::route_services::Services;
+    use std::collections::BTreeSet;
+    fn routes(client: &Client) -> BTreeSet<(String, String)> {
+        client
+            .rocket()
+            .routes()
+            .map(|route| {
+                (route.method.to_string(), route.uri.path().to_string())
+            })
+            .collect()
+    }
+    let off = Services::without_database().client().await;
+    let on = Services::without_database()
+        .with_fake_provider_routes()
+        .client()
+        .await;
+    let (off_routes, on_routes) = (routes(&off), routes(&on));
+    assert!(
+        off_routes
+            .iter()
+            .all(|(_, path)| !path.starts_with("/fake-provider")),
+        "{off_routes:?}"
+    );
+    let added: BTreeSet<(String, String)> =
+        on_routes.difference(&off_routes).cloned().collect();
+    let expected: BTreeSet<(String, String)> = [
+        (
+            "POST",
+            "/fake-provider/meta/<_version>/<sender_id>/messages",
+        ),
+        ("GET", "/fake-provider/meta/<path..>"),
+        ("POST", "/fake-provider/meta/messenger/get-started"),
+        ("POST", "/fake-provider/infobip/viber/2/messages"),
+        ("GET", "/fake-provider/infobip/account/1/balance"),
+        ("GET", "/fake-provider/infobip/viber/2/logs"),
+        ("POST", "/fake-provider/aws/<path..>"),
+        ("GET", "/fake-provider/aws/<path..>"),
+        ("POST", "/fake-provider/messages"),
+        ("POST", "/fake-provider/message"),
+    ]
+    .into_iter()
+    .map(|(method, path)| (method.to_string(), path.to_string()))
+    .collect();
+    assert_eq!(added, expected);
+    assert!(off_routes.is_subset(&on_routes), "nothing else changes");
+
+    let admin = authorization(&[Permissions::MESSAGING_ACCOUNT_WRITE]);
+    for path in [
+        "/fake-provider/messages",
+        "/fake-provider/message",
+        "/fake-provider/meta/messenger/get-started",
+    ] {
+        for authorization in [None, Some("Bearer fixture.e30.fixture")] {
+            let mut request = on
+                .post(path)
+                .header(ContentType::JSON)
+                .body("{malformed body");
+            if let Some(value) = authorization {
+                request = request.header(Header::new("Authorization", value));
+            }
+            let response = tokio::time::timeout(
+                std::time::Duration::from_secs(3),
+                request.dispatch(),
+            )
+            .await
+            .unwrap_or_else(|_| panic!("{path} contacted a backend"));
+            assert_eq!(response.status(), Status::Unauthorized, "{path}");
+        }
+        let response = off
+            .post(path)
+            .header(ContentType::JSON)
+            .header(admin.clone())
+            .body("{}")
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::NotFound,
+            "{path} without the switch"
+        );
+    }
+
+    // A send without an account's credential is refused as the provider
+    // refuses it, before any backend: nothing is kept or reported.
+    for (path, content_type, body, refused) in [
+        (
+            "/fake-provider/meta/v23.0/123456/messages",
+            ContentType::JSON,
+            json!({"messaging_product": "whatsapp", "to": "+34600000001",
+                   "type": "text", "text": {"body": "Your code is 111111"}})
+            .to_string(),
+            Status::Unauthorized,
+        ),
+        (
+            "/fake-provider/infobip/viber/2/messages",
+            ContentType::JSON,
+            json!({"messages": [{"sender": "Elections",
+                   "destinations": [{"to": "+34600000001", "messageId": "m-1"}],
+                   "content": {"text": "Your code is 111111"}}]})
+            .to_string(),
+            Status::Unauthorized,
+        ),
+        (
+            "/fake-provider/aws/",
+            ContentType::Form,
+            "Action=Publish&PhoneNumber=%2B34600000001&Message=x".to_string(),
+            Status::Forbidden,
+        ),
+    ] {
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            on.post(path).header(content_type).body(body).dispatch(),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("{path} contacted a backend"));
+        assert_eq!(response.status(), refused, "{path}");
+    }
 }
 
 #[rocket::async_test]

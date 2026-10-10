@@ -54,8 +54,13 @@ import {
     IGetMessagingEventStatsResult,
 } from "@/queries/GetMessagingEventStats"
 import {UPDATE_EVENT_MESSAGING_CONFIG} from "@/queries/UpdateEventMessagingConfig"
+import {IVoterCounts} from "@/queries/GetMessagingVoterCounts"
+import {useMessagingVoterCounts} from "@/hooks/useMessagingVoterCounts"
+import {useFormatCount} from "@/services/messagingFormat"
+import {MessagingVoterCountStatus} from "@/components/MessagingVoterCountStatus"
 import {IPermissions} from "@/types/keycloak"
 import {
+    EDeliveryFeedback,
     EMessageAttemptState,
     EMessageChannel,
     EMessagePurpose,
@@ -74,6 +79,7 @@ import {
 import {
     accountCapabilities,
     accountDeliveryFeedback,
+    accountIdentity,
     accountSummary,
     deliverySummary,
     purposeReadiness,
@@ -295,7 +301,8 @@ export const MessagingChannels: React.FC<MessagingChannelsProps> = ({
                                           account.provider_approval,
                                           account.status,
                                           purpose,
-                                          null
+                                          null,
+                                          accountIdentity(account.sender)
                                       ).blockers
                                     : []
                                 const blocked = !account || blockers.length > 0
@@ -803,6 +810,13 @@ export interface MessagingDeliveryStatusProps {
     loading?: boolean
     /** The counts could not be read: the cells say so instead of showing 0. */
     unavailable?: boolean
+    /** The event's voters per channel, as last counted; `undefined` while loading. */
+    voterCounts?: IVoterCounts | null
+    /** The voter counts could not be read: their cells show "–". */
+    votersUnavailable?: boolean
+    /** Asks for the voters to be counted again; absent where it can't be asked. */
+    onRecount?: () => void
+    recounting?: boolean
     /**
      * Opens Logs filtered to the channel's failed messages (`null`: those of
      * voters with no contact channel); absent without access to Logs.
@@ -811,8 +825,11 @@ export interface MessagingDeliveryStatusProps {
 }
 
 /**
- * Per channel in use: voters whose channel it is, messages sent in the last 24
- * hours, and messages by the state of their latest attempt. Without receipts,
+ * Per channel: voters whose channel it is (as last counted, with when), messages
+ * sent in the last 24 hours, and messages by the state of their latest
+ * attempt. The rows are the configured channels, and every other channel some
+ * voter or message is on (said not to be offered by the event: its notices are
+ * refused), then the voters with no contact channel. Without receipts,
  * delivery is unavailable, never 0. Unknown for more than 24 hours is shown
  * apart as unresolved: delivery couldn't be confirmed, which isn't a failure.
  */
@@ -822,23 +839,63 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
     stats,
     loading,
     unavailable,
+    voterCounts,
+    votersUnavailable,
+    onRecount,
+    recounting,
     onShowFailed,
 }) => {
     const {t} = useTranslation()
+    const formatCount = useFormatCount()
     const perChannel = useMemo(() => statsByChannel(stats), [stats])
     const noChannel = useMemo(() => noChannelStats(stats), [stats])
+    const votersOn = useMemo(() => {
+        const byChannel = new Map<EMessageChannel | null, number>()
+        for (const entry of voterCounts?.channels ?? []) {
+            byChannel.set(entry.channel ?? null, entry.voters)
+        }
+        return byChannel
+    }, [voterCounts])
     const configured = config.channels.map((entry) => entry.channel)
-    const channels = MESSAGE_CHANNELS.filter((channel) => configured.includes(channel))
-    if (!channels.length) {
-        return <Helper>{t("messagingEvent.delivery.empty")}</Helper>
-    }
+    const channels = MESSAGE_CHANNELS.filter(
+        (channel) =>
+            configured.includes(channel) || !!perChannel[channel] || !!votersOn.get(channel)
+    )
+    const noChannelVoters = votersOn.get(null) ?? 0
+    const showNoChannel = !!noChannel || noChannelVoters > 0
     const count = (value: number | null): string => {
         if (loading || unavailable || value === null) return "–"
-        return value.toLocaleString()
+        return formatCount(value)
+    }
+    // Never counted, still loading or unreadable: "–", never 0.
+    const voters = (channel: EMessageChannel | null): string =>
+        !voterCounts || votersUnavailable || !voterCounts.status.computed_at
+            ? "–"
+            : formatCount(votersOn.get(channel) ?? 0)
+    const countStatus = (
+        <MessagingVoterCountStatus
+            status={voterCounts?.status}
+            onRecount={onRecount}
+            recounting={recounting}
+        />
+    )
+    if (!channels.length && !showNoChannel) {
+        return (
+            <>
+                <Helper>{t("messagingEvent.delivery.empty")}</Helper>
+                {countStatus}
+            </>
+        )
     }
     return (
         <>
             <Helper>{t("messagingEvent.delivery.help")}</Helper>
+            {countStatus}
+            {votersUnavailable ? (
+                <Typography variant="caption" role="status" sx={{color: "text.secondary"}}>
+                    {t("messaging.voterCount.loadError")}
+                </Typography>
+            ) : null}
             {unavailable ? (
                 <Typography variant="caption" role="status" sx={{color: "text.secondary"}}>
                     {t("messagingEvent.delivery.loadError")}
@@ -849,7 +906,9 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                     <TableRow>
                         <TableCell>{t("messagingEvent.column.channel")}</TableCell>
                         <TableCell align="right">{t("messagingEvent.column.voters")}</TableCell>
-                        <TableCell align="right">{t("messagingEvent.column.sent24h")}</TableCell>
+                        <TableCell align="right" title={t("messagingEvent.column.sent24hHelp")}>
+                            {t("messagingEvent.column.sent24h")}
+                        </TableCell>
                         {[
                             EMessageAttemptState.QUEUED,
                             EMessageAttemptState.ACCEPTED,
@@ -872,8 +931,13 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                 </TableHead>
                 <TableBody>
                     {channels.map((channel) => {
+                        const offered = configured.includes(channel)
                         const account = accountOf(config, accounts, channel)
-                        const {feedback, reason} = accountDeliveryFeedback(account)
+                        // A channel the event doesn't configure sends nothing: its
+                        // messages are the refused ones, counted as they are.
+                        const {feedback, reason} = offered
+                            ? accountDeliveryFeedback(account)
+                            : {feedback: EDeliveryFeedback.PROVIDER_RECEIPTS, reason: undefined}
                         const summary = deliverySummary(perChannel[channel], feedback)
                         const channelName = t(`messaging.channel.${channel}`)
                         const failed = count(summary.failed)
@@ -881,8 +945,17 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                             <TableRow key={channel} data-channel={channel}>
                                 <TableCell>
                                     <ChannelLabel channel={channel} label={channelName} />
+                                    {offered ? null : (
+                                        <Typography
+                                            variant="caption"
+                                            component="div"
+                                            sx={{color: "text.secondary"}}
+                                        >
+                                            {t("messagingEvent.delivery.notConfigured")}
+                                        </Typography>
+                                    )}
                                 </TableCell>
-                                <TableCell align="right">{count(summary.voters)}</TableCell>
+                                <TableCell align="right">{voters(channel)}</TableCell>
                                 <TableCell align="right">{count(summary.sentLast24h)}</TableCell>
                                 <TableCell align="right">{count(summary.queued)}</TableCell>
                                 <TableCell align="right">{count(summary.accepted)}</TableCell>
@@ -922,14 +995,14 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                             </TableRow>
                         )
                     })}
-                    {noChannel ? (
+                    {showNoChannel ? (
                         // Voters with no contact channel: their failures are never
                         // counted under a channel, so they show on their own row.
                         <TableRow data-channel="NONE">
                             <TableCell title={t("messagingEvent.delivery.noChannelHelp")}>
                                 {t("messaging.reason.NO_CONTACT_CHANNEL")}
                             </TableCell>
-                            <TableCell align="right">{count(noChannel.voters ?? null)}</TableCell>
+                            <TableCell align="right">{voters(null)}</TableCell>
                             <TableCell align="right">–</TableCell>
                             <TableCell align="right">–</TableCell>
                             <TableCell align="right">–</TableCell>
@@ -945,10 +1018,10 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                                             "messagingEvent.delivery.showFailedNoChannel"
                                         )}
                                     >
-                                        {count(noChannel.failed)}
+                                        {count(noChannel?.failed ?? 0)}
                                     </Link>
                                 ) : (
-                                    count(noChannel.failed)
+                                    count(noChannel?.failed ?? 0)
                                 )}
                             </TableCell>
                             <TableCell align="right">–</TableCell>
@@ -1016,6 +1089,13 @@ export const EditElectionEventMessaging: React.FC = () => {
         skip: !record?.id || !readRole,
         context: roleContext(readRole),
     })
+    const {
+        counts: voterCounts,
+        unavailable: votersUnavailable,
+        recount,
+        recounting,
+        refetch: refetchVoterCounts,
+    } = useMessagingVoterCounts(record?.id)
     const {
         config: initial,
         loading: configLoading,
@@ -1119,6 +1199,8 @@ export const EditElectionEventMessaging: React.FC = () => {
             notify(t("messagingEvent.saved"), {type: "success"})
             await refetchConfig()
             refetchAuthor().catch(() => undefined)
+            // The save asked for a recount: show it on its way.
+            refetchVoterCounts().catch(() => undefined)
         } catch (error) {
             console.error(error)
             notify(t("messagingEvent.saveError"), {type: "error"})
@@ -1184,6 +1266,10 @@ export const EditElectionEventMessaging: React.FC = () => {
                     stats={stats?.messaging_event_stats?.channels}
                     loading={statsLoading}
                     unavailable={!!statsError}
+                    voterCounts={voterCounts}
+                    votersUnavailable={votersUnavailable}
+                    onRecount={recount}
+                    recounting={recounting}
                     onShowFailed={canReadLogs ? showFailed : undefined}
                 />
             </Section>

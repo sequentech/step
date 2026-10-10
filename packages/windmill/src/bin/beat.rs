@@ -13,6 +13,9 @@ use sequent_core::monitoring::cadence::{Cadence, SNAPSHOT_INTERVAL_ENV, VOTER_FU
 use sequent_core::util::init_log::init_log;
 use tokio::time::Duration;
 use windmill::services::celery_app::{set_is_app_active, Queue};
+use windmill::services::messaging::checks::{
+    check_messaging_accounts, CHECK_PASS_INTERVAL_SECONDS,
+};
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
@@ -23,6 +26,9 @@ use windmill::tasks::recompute_schedule_instants::{
     recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
 };
 use windmill::tasks::reconcile_messages::reconcile_messages;
+use windmill::tasks::recount_messaging_voters::{
+    recount_messaging_voters_due, RECOUNT_PASS_INTERVAL_SECONDS,
+};
 use windmill::tasks::refresh_monitoring_snapshot::{
     refresh_monitoring_snapshots, scheduled_fan_out,
 };
@@ -141,6 +147,19 @@ async fn main() -> Result<()> {
                 schedule = DeltaSchedule::new(Duration::from_secs(SEAL_BALLOT_BOXES_INTERVAL_SECONDS)),
                 args = (),
             },
+            // Hourly passes; each checks only the accounts due (daily, or
+            // after an identity change).
+            check_messaging_accounts::NAME => {
+                check_messaging_accounts,
+                schedule = DeltaSchedule::new(Duration::from_secs(CHECK_PASS_INTERVAL_SECONDS)),
+                args = (),
+            },
+            // Hourly passes; each asks for the voter recounts due, staggered.
+            recount_messaging_voters_due::NAME => {
+                recount_messaging_voters_due,
+                schedule = DeltaSchedule::new(Duration::from_secs(RECOUNT_PASS_INTERVAL_SECONDS)),
+                args = (),
+            },
         ],
         task_routes = [
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
@@ -159,6 +178,8 @@ async fn main() -> Result<()> {
             recompute_schedule_instants::NAME => &Queue::Beat.queue_name(&slug),
             reconcile_messages::NAME => &Queue::Beat.queue_name(&slug),
             seal_ballot_boxes::NAME => &Queue::Beat.queue_name(&slug),
+            check_messaging_accounts::NAME => &Queue::Beat.queue_name(&slug),
+            recount_messaging_voters_due::NAME => &Queue::Beat.queue_name(&slug),
         ],
     ).await?;
     // Scheduled outside the macro, which cannot give a message its expiry.

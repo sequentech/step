@@ -4,7 +4,7 @@
 
 //! Email through an SMTP relay.
 
-use super::Account;
+use super::{Account, SMTP_REFUSED};
 use crate::sender::{ChannelSender, FailureKind, OutboundMessage, ProviderFailure, SendOutcome};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -129,8 +129,8 @@ impl ChannelSender for SmtpSender {
             production_access: connected,
             approved_templates: Default::default(),
             checked_at: Some(Utc::now().to_rfc3339()),
-            reason: (!connected)
-                .then(|| "SMTP server unreachable or credentials rejected".to_string()),
+            reason: (!connected).then(|| SMTP_REFUSED.to_string()),
+            details: Default::default(),
         }
     }
 }

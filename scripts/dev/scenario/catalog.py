@@ -15,6 +15,7 @@ class Stage(Enum):
 
     EVENT = "event"
     VOTERS = "voters"
+    MESSAGING = "messaging"
     KEYS = "keys"
     BALLOTS = "ballots"
     ONLINE_OPEN = "online-open"
@@ -28,6 +29,8 @@ class Stage(Enum):
 STAGE_DESCRIPTIONS = {
     Stage.EVENT: "synthetic election event imported",
     Stage.VOTERS: "synthetic voters imported",
+    Stage.MESSAGING: "messaging accounts on the fake provider and the event's "
+    "messaging configured",
     Stage.KEYS: "automatic keys ceremony completed",
     Stage.BALLOTS: "ballot styles published",
     Stage.ONLINE_OPEN: "online voting open",
@@ -69,6 +72,9 @@ class Scenario:
     stages: tuple[Stage, ...]
     links: tuple[Link, ...]
     votes: tuple[Vote, ...] = ()
+    # The slug of the organization whose own tenant the scenario runs in
+    # (tenants.ORGANIZATIONS); None runs it in the stack's super tenant.
+    tenant: str | None = None
 
     @property
     def needs_trustees(self) -> bool:
@@ -99,6 +105,39 @@ SCENARIOS = (
             Stage.ONLINE_OPEN,
         ),
         links=(Link.VOTING, Link.VERIFIER, Link.ADMIN),
+    ),
+    Scenario(
+        name="messaging",
+        summary="the development realm's single-channel sign-in, messaging accounts "
+        "on the fake provider routes, the event's messaging configured and online "
+        "voting open (codes are read in Settings > Messaging > Sent messages); the "
+        "accounts stay after reset",
+        stages=(
+            Stage.EVENT,
+            Stage.VOTERS,
+            Stage.MESSAGING,
+            Stage.KEYS,
+            Stage.BALLOTS,
+            Stage.ONLINE_OPEN,
+        ),
+        links=(Link.VOTING, Link.ADMIN),
+    ),
+    Scenario(
+        name="messaging-second-organization",
+        summary="a second organization in its own tenant (Staff Association): "
+        "accounts on all five channels with other senders, purposes and labels, "
+        "channels restricted per election; online voting open; the tenant and its "
+        "accounts stay after reset",
+        stages=(
+            Stage.EVENT,
+            Stage.VOTERS,
+            Stage.MESSAGING,
+            Stage.KEYS,
+            Stage.BALLOTS,
+            Stage.ONLINE_OPEN,
+        ),
+        links=(Link.VOTING, Link.ADMIN),
+        tenant="staff-association",
     ),
     Scenario(
         name="published-results",

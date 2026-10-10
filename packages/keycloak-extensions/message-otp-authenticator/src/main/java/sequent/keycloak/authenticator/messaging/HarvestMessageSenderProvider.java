@@ -69,9 +69,16 @@ public class HarvestMessageSenderProvider implements MessageSenderProvider {
   @Override
   public SendMessageResponse send(SendMessageRequest request) {
     SendMessageResponse response = dispatch(request);
-    log.infov(
-        "send(): channel={0}, purpose={1}, state={2}",
-        request.channel(), request.purpose(), response.attemptState());
+    if (response.attemptState() == MessageAttemptState.ACCEPTED || response.reason() == null) {
+      log.infov(
+          "send(): channel={0}, purpose={1}, state={2}",
+          request.channel(), request.purpose(), response.attemptState());
+    } else {
+      // Harvest's reason is short and never holds content or the destination.
+      log.warnv(
+          "send(): channel={0}, purpose={1}, state={2}, reason={3}",
+          request.channel(), request.purpose(), response.attemptState(), response.reason());
+    }
     return response;
   }
 

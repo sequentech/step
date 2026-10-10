@@ -22,6 +22,7 @@ use crate::adapters::monitoring_snapshots::WindmillMonitoringSnapshots;
 use crate::ports::database::DatabasePools;
 use crate::ports::monitoring_renderer::MonitoringRenderer;
 use crate::ports::monitoring_snapshots::MonitoringSnapshots;
+use crate::routes::fake_provider::FakeProviderRoutes;
 use crate::routes::messaging::MessagingRelay;
 use crate::services::dependencies::{HarvestServices, MonitoringCache};
 use crate::services::monitoring_config_cache::MonitoringConfigs;
@@ -86,6 +87,8 @@ pub struct Services {
     pub messaging_relay: MessagingRelay,
     /// The webhook component's public address; none unless a test sets it.
     pub messaging_webhooks_url: Option<String>,
+    /// Off unless a test mounts them.
+    pub messaging_fake_provider_routes: FakeProviderRoutes,
     pub signing: SigningServices,
     pub signing_roles: Arc<dyn SigningRoleAdmin>,
 }
@@ -126,6 +129,7 @@ impl Services {
                 messaging::relay::DEFAULT_MAX_BODY_BYTES,
             ),
             messaging_webhooks_url: None,
+            messaging_fake_provider_routes: FakeProviderRoutes::DISABLED,
             signing: SigningServices {
                 verifier: Arc::new(OpensslCertificateVerifier::default()),
                 executors: SigningExecutorRegistry::default(),
@@ -215,6 +219,13 @@ impl Services {
         self
     }
 
+    /// Mounts the fake provider routes, as
+    /// `MESSAGING_FAKE_PROVIDER_ROUTES=ENABLED` does.
+    pub fn with_fake_provider_routes(mut self) -> Self {
+        self.messaging_fake_provider_routes = FakeProviderRoutes::ENABLED;
+        self
+    }
+
     pub fn with_messaging_relay(mut self, relay: MessagingRelay) -> Self {
         self.messaging_relay = relay;
         self
@@ -234,6 +245,21 @@ impl Services {
         &self,
         log_level: rocket::config::LogLevel,
     ) -> Client {
+        Client::tracked(
+            crate::build_application_with(self.harvest_services()).configure(
+                rocket::Config {
+                    log_level,
+                    cli_colors: false,
+                    ..Default::default()
+                },
+            ),
+        )
+        .await
+        .expect("the routes mount with test services")
+    }
+
+    /// The managed state the routes get, for a client or a served instance.
+    pub fn harvest_services(&self) -> HarvestServices {
         let databases: Arc<dyn DatabasePools> = Arc::new(FixedDatabasePools {
             hasura: self.hasura.clone(),
             keycloak: self.keycloak.clone(),
@@ -246,7 +272,7 @@ impl Services {
             } else {
                 self.monitoring_snapshots.clone()
             };
-        let services = HarvestServices {
+        HarvestServices {
             cast_votes: self.cast_votes.clone(),
             databases,
             documents: self.documents.clone(),
@@ -254,6 +280,8 @@ impl Services {
             identity: self.identity.clone(),
             messaging_relay: self.messaging_relay.clone(),
             messaging_webhooks_url: self.messaging_webhooks_url.clone(),
+            messaging_fake_provider_routes: self.messaging_fake_provider_routes,
+            otp_capacity: Default::default(),
             monitoring_audit: self.monitoring_audit.clone(),
             monitoring_cache: self.monitoring_cache.clone(),
             monitoring_configs: self.monitoring_configs.clone(),
@@ -269,16 +297,7 @@ impl Services {
             vault: self.vault.clone(),
             signing: self.signing.clone(),
             signing_roles: self.signing_roles.clone(),
-        };
-        Client::tracked(crate::build_application_with(services).configure(
-            rocket::Config {
-                log_level,
-                cli_colors: false,
-                ..Default::default()
-            },
-        ))
-        .await
-        .expect("the routes mount with test services")
+        }
     }
 }
 

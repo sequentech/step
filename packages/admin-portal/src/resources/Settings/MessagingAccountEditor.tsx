@@ -27,6 +27,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
 import {ChannelLabel} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import {
+    EApprovalSource,
     ECredentialName,
     EMessageChannel,
     EMessagePurpose,
@@ -37,6 +38,7 @@ import {
     MESSAGE_PURPOSES,
 } from "@/types/messaging"
 import {
+    accountApproval,
     hasWebhook,
     isMetaProvider,
     isUnsupportedProvider,
@@ -49,6 +51,11 @@ import {
     IMessagingAccountCallbackUrlResult,
     MESSAGING_ACCOUNT_CALLBACK_URL,
 } from "@/queries/MessagingAccountCallbackUrl"
+import {
+    IMessagingAccountChangeImpactResult,
+    MESSAGING_ACCOUNT_CHANGE_IMPACT,
+} from "@/queries/MessagingAccountChangeImpact"
+import {AccountStatusDetails} from "./MessagingAccountEditorStatus"
 import {
     EAccountFormError,
     IAccountFormValues,
@@ -747,6 +754,20 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
     const numberChanged =
         values.provider === EMessagingProvider.WHATSAPP_CLOUD_API &&
         (changed("phone_number_id") || changed("business_account_id"))
+    // The voters who must connect again after a Page change, counted by the
+    // backend across the events that use the account (BC-F13).
+    const impact = useQuery<IMessagingAccountChangeImpactResult>(MESSAGING_ACCOUNT_CHANGE_IMPACT, {
+        variables: {accountId: account?.id},
+        skip: !account || !canWrite || !pageChanged,
+        context: WRITE_ROLE,
+        fetchPolicy: "network-only",
+    })
+    const affectedVoters = impact.data?.messaging_account_change_impact?.affected_voters
+    // Where the provider's check reports the approval, it is used and shown;
+    // the administrator's entry only where it doesn't.
+    const approvalSource = account
+        ? accountApproval(account.provider_approval, account.status).source
+        : EApprovalSource.ADMIN_ENTERED
 
     const errorText = (path: string) =>
         errors[path] ? t(`messagingAccounts.error.${errors[path]}`) : undefined
@@ -900,11 +921,25 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                 <Alert severity="warning">
                     {t("messagingAccounts.warning.pageChange", {
                         page: original?.page_name || original?.page_id,
-                    })}
+                    })}{" "}
+                    {affectedVoters !== undefined && affectedVoters !== null
+                        ? t("messagingAccounts.warning.pageChangeCount", {
+                              count: affectedVoters,
+                              page: original?.page_name || original?.page_id,
+                          })
+                        : impact.error
+                          ? t("messagingAccounts.warning.pageChangeCountError")
+                          : impact.loading
+                            ? t("messagingAccounts.warning.pageChangeCounting")
+                            : null}{" "}
+                    {t("messagingAccounts.warning.recheck")}
                 </Alert>
             )}
             {numberChanged && (
-                <Alert severity="warning">{t("messagingAccounts.warning.numberChange")}</Alert>
+                <Alert severity="warning">
+                    {t("messagingAccounts.warning.numberChange")}{" "}
+                    {t("messagingAccounts.warning.recheck")}
+                </Alert>
             )}
 
             {values.provider === EMessagingProvider.VIBER_INFOBIP && (
@@ -916,13 +951,15 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                 />
             )}
 
-            {needsApproval && (
+            {needsApproval && approvalSource === EApprovalSource.ADMIN_ENTERED && (
                 <TextField
                     select
                     label={t("messagingAccounts.field.provider_approval")}
                     value={values.providerApproval}
                     disabled={disabled}
-                    helperText={t("messagingAccounts.fieldHelp.provider_approval")}
+                    helperText={`${t("messagingAccounts.fieldHelp.provider_approval")} ${t(
+                        "messagingAccounts.status.approvalEnteredHelp"
+                    )}`}
                     onChange={(event) =>
                         setValues({
                             ...values,
@@ -948,7 +985,10 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                     value={values.limits.messagesPerSecond}
                     disabled={disabled}
                     error={!!errors["limits.messagesPerSecond"]}
-                    helperText={errorText("limits.messagesPerSecond")}
+                    helperText={
+                        errorText("limits.messagesPerSecond") ??
+                        t("messagingAccounts.limits.messagesPerSecondHelp")
+                    }
                     onChange={(event) => setLimit("messagesPerSecond", event.target.value)}
                     slotProps={{htmlInput: {inputMode: "numeric"}}}
                     fullWidth
@@ -963,6 +1003,19 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                         t("messagingAccounts.limits.otpReservedHelp")
                     }
                     onChange={(event) => setLimit("otpReservedPerSecond", event.target.value)}
+                    slotProps={{htmlInput: {inputMode: "numeric"}}}
+                    fullWidth
+                />
+                <TextField
+                    label={t("messagingAccounts.limits.otpConcurrency")}
+                    value={values.limits.otpConcurrency}
+                    disabled={disabled}
+                    error={!!errors["limits.otpConcurrency"]}
+                    helperText={
+                        errorText("limits.otpConcurrency") ??
+                        t("messagingAccounts.limits.otpConcurrencyHelp")
+                    }
+                    onChange={(event) => setLimit("otpConcurrency", event.target.value)}
                     slotProps={{htmlInput: {inputMode: "numeric"}}}
                     fullWidth
                 />
@@ -1020,6 +1073,8 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                     ))}
                 </>
             )}
+
+            {account && !unsupported ? <AccountStatusDetails account={account} /> : null}
 
             {hasWebhook(values.provider) && (
                 <CallbackSection

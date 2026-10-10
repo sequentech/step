@@ -10,8 +10,8 @@
 
 use super::accounts::{callback_blockers_with, webhooks_public_url};
 use crate::postgres::messaging::{
-    get_messaging_event_config, list_messaging_accounts, upsert_messaging_event_config,
-    MessagingAccount,
+    event_configs_using_account, get_messaging_event_config, list_messaging_accounts,
+    upsert_messaging_event_config, MessagingAccount,
 };
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
@@ -63,6 +63,7 @@ pub fn account_summary_with(
         provider_approval: account.provider_approval,
         readiness: account.readiness,
         check: account.status.clone(),
+        identity: Some(account.sender.identity()),
         public_label: account.sender.public_label(),
         messenger_page: account.sender.messenger_page(),
         callback_blockers: vec![],
@@ -408,6 +409,75 @@ async fn election_labels(
         .collect())
 }
 
+/// Share-locks the accounts the configuration names until the save commits
+/// (R5-05): a delete of one of them locks its row before reading the
+/// references, so it waits for the save and then finds the reference, or
+/// the save waits for the delete and then finds no account. Either way
+/// the loser gets its reason, and no configuration names a deleted account.
+async fn lock_referenced_accounts(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    config: &EventMessagingConfig,
+) -> Result<()> {
+    let referenced: Vec<Uuid> = config
+        .channels
+        .iter()
+        .filter_map(|channel| Uuid::parse_str(channel.account_id.trim()).ok())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    if !referenced.is_empty() {
+        tx.query(
+            r#"
+            SELECT id FROM sequent_backend.messaging_account
+            WHERE tenant_id = $1 AND id = ANY($2)
+            ORDER BY id
+            FOR SHARE
+            "#,
+            &[tenant_id, &referenced],
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+/// The public projection of every election event whose configuration
+/// sends through the account, as its realm should publish it now. After a
+/// change of the account's identity, Page or public label commits, each
+/// is published again, so voters aren't sent to a Page that no longer
+/// sends (R5-10). A stored configuration that no longer reads is skipped
+/// and logged.
+pub async fn projections_using_account(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    account_id: &Uuid,
+) -> Result<Vec<(Uuid, PublicMessagingChannels)>> {
+    let events = event_configs_using_account(tx, tenant_id, account_id).await?;
+    if events.is_empty() {
+        return Ok(vec![]);
+    }
+    let component_url = webhooks_public_url();
+    let accounts: Vec<AccountSummary> = list_messaging_accounts(tx, tenant_id)
+        .await?
+        .iter()
+        .map(|account| account_summary_with(component_url.as_deref(), account))
+        .collect();
+    let mut projections = vec![];
+    for event in events {
+        let config = match get_stored_event_messaging_config(tx, tenant_id, &event).await {
+            Ok(Some(config)) => config,
+            Ok(None) => continue,
+            Err(error) => {
+                warn!(event = %event, "messaging projection not refreshed: {error:#}");
+                continue;
+            }
+        };
+        let labels = election_labels(tx, tenant_id, &event).await?;
+        projections.push((event, config.public_projection(&accounts, &labels)));
+    }
+    Ok(projections)
+}
+
 #[derive(Debug, PartialEq)]
 pub enum SaveOutcome {
     /// Saved. The projection is what the event's realm should publish.
@@ -460,6 +530,7 @@ pub async fn save_event_messaging_config_with(
     if !event_exists(tx, tenant_id, election_event_id).await? {
         return Ok(SaveOutcome::UnknownEvent);
     }
+    lock_referenced_accounts(tx, tenant_id, config).await?;
     let accounts: Vec<AccountSummary> = list_messaging_accounts(tx, tenant_id)
         .await?
         .iter()
@@ -502,8 +573,9 @@ mod tests {
             capabilities: provider.capabilities(channel).unwrap(),
             provider_approval: ProviderApproval::PENDING,
             readiness: ReadinessPolicy::PROVIDER_CHECK,
-            // Not connected: readiness isn't re-checked at send time.
+            // Not connected: these tests don't send.
             check: AccountCheck::default(),
+            identity: None,
             public_label: None,
             messenger_page: None,
             callback_blockers: vec![],

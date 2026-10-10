@@ -9,9 +9,10 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use messaging::sender::FailureKind;
 use sequent_core::types::messaging::{
-    AccountCheck, AccountLimits, AccountSender, BillingCategory, CredentialName, CredentialRecord,
-    MessageAttemptState, MessageChannel, MessageDirection, MessagePurpose, MessageReason,
-    MessagingProvider, MessengerLinkState, ProviderApproval, ProviderSupport, ReadinessPolicy,
+    AccountCheck, AccountIdentity, AccountLimits, AccountSender, BillingCategory, CredentialName,
+    CredentialRecord, MessageAttemptState, MessageChannel, MessageDirection, MessagePurpose,
+    MessageReason, MessagingProvider, MessengerLinkState, ProviderApproval, ProviderSupport,
+    ReadinessPolicy,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -57,6 +58,15 @@ pub struct MessagingAccount {
     pub updated_at: DateTime<Utc>,
 }
 
+/// An account's stored status. The column's default (`{}`), or no status
+/// at all, is an account never checked: [`AccountCheck::default`].
+pub fn parse_account_status(status: Value) -> Result<AccountCheck> {
+    if status.is_null() || status.as_object().is_some_and(|o| o.is_empty()) {
+        return Ok(AccountCheck::default());
+    }
+    serde_json::from_value(status).context("unexpected status")
+}
+
 impl TryFrom<Row> for MessagingAccount {
     type Error = anyhow::Error;
 
@@ -73,11 +83,7 @@ impl TryFrom<Row> for MessagingAccount {
             limits: parse_json(&row, "limits")?,
             provider_approval: parse_enum(&row, "provider_approval")?,
             readiness: parse_enum(&row, "readiness")?,
-            status: if status.as_object().is_some_and(|o| o.is_empty()) {
-                AccountCheck::default()
-            } else {
-                serde_json::from_value(status).context("unexpected status")?
-            },
+            status: parse_account_status(status)?,
             webhook_key: row.try_get("webhook_key")?,
             is_default: row.try_get("is_default")?,
             created_at: row.try_get("created_at")?,
@@ -136,6 +142,19 @@ pub fn endpoint_change_refusal(
         .all(|name| reentered.contains(name));
     (changed && !all_reentered).then_some(ENDPOINT_CREDENTIALS_REASON)
 }
+
+/// Whether moving an account from `current` to `next` changes who it
+/// sends as at the provider ([`AccountSender::identity`]): the WhatsApp
+/// number or business account, the Messenger Page, the Viber sender, the
+/// SNS or SES identity. Its last check named the old identity, so the
+/// account isn't ready until it is checked again (AP-B3, R5-09).
+pub fn identity_changed(current: &AccountSender, next: &AccountSender) -> bool {
+    current.identity() != next.identity()
+}
+
+/// The reason logged when an account's identity changes.
+pub const IDENTITY_CHANGED_REASON: &str =
+    "The account's sending identity changed: it is checked again";
 
 impl AccountSettings {
     fn validate(&self) -> Result<()> {
@@ -212,7 +231,9 @@ pub async fn insert_messaging_account(
                 &settings.provider_approval.to_string(),
                 &webhook_key,
                 &settings.is_default,
-                &settings.readiness.effective().to_string(),
+                // The caller's readiness is parse-only: a new account is
+                // checked by its provider.
+                &ReadinessPolicy::PROVIDER_CHECK.to_string(),
             ],
         )
         .await?;
@@ -243,27 +264,41 @@ pub async fn update_messaging_account_reentering(
     settings: &AccountSettings,
     reentered: &BTreeSet<CredentialName>,
 ) -> Result<Option<MessagingAccount>> {
-    settings.validate()?;
     let Some(current) = get_messaging_account(tx, tenant_id, id).await? else {
         return Ok(None);
     };
-    if current.provider != settings.sender.provider() || current.channel != settings.channel {
-        return Err(anyhow!(
-            "the provider and channel of an account cannot change; add another account"
-        ));
-    }
-    if let Some(reason) = endpoint_change_refusal(&current.sender, &settings.sender, reentered) {
-        return Err(anyhow!(reason));
-    }
+    check_account_update(&current, settings, reentered)?;
     if settings.is_default {
         clear_other_defaults(tx, tenant_id, settings.channel, id).await?;
     }
+    // "Needs a check" is the check's identity, not a stored readiness
+    // (R5-09): after an identity change the stored check names the old
+    // identity, so it stops counting. A check stored before checks named
+    // their identity gets the old one now. The readiness column keeps the
+    // values every binary reads.
+    let legacy_identity = if identity_changed(&current.sender, &settings.sender) {
+        warn!(account = %id, "{IDENTITY_CHANGED_REASON}");
+        Some(serde_json::to_value(current.sender.identity())?)
+    } else {
+        None
+    };
     let row = tx
         .query_opt(
             r#"
             UPDATE sequent_backend.messaging_account
             SET name = $3, sender = $4, limits = $5, provider_approval = $6,
-                is_default = $7, readiness = $8, updated_at = now()
+                is_default = $7, readiness = $8,
+                status = CASE
+                    WHEN $9::jsonb IS NOT NULL
+                         AND status->>'checked_at' IS NOT NULL
+                         AND COALESCE(status->'details'->'identity', 'null'::jsonb)
+                             = 'null'::jsonb
+                    THEN jsonb_set(
+                        status || jsonb_build_object(
+                            'details', COALESCE(status->'details', '{}'::jsonb)),
+                        '{details,identity}', $9::jsonb)
+                    ELSE status END,
+                updated_at = now()
             WHERE tenant_id = $1 AND id = $2
             RETURNING *
             "#,
@@ -275,11 +310,34 @@ pub async fn update_messaging_account_reentering(
                 &serde_json::to_value(&settings.limits)?,
                 &settings.provider_approval.to_string(),
                 &settings.is_default,
-                &settings.readiness.effective().to_string(),
+                &ReadinessPolicy::PROVIDER_CHECK.to_string(),
+                &legacy_identity,
             ],
         )
         .await?;
     row.map(TryInto::try_into).transpose()
+}
+
+/// Whether `settings` may replace `current`, with `reentered` credentials
+/// replaced in the same save: valid settings (an `https` API address), the
+/// same provider and channel, and credentials entered again for a new
+/// address. Run before anything else, the candidate check's provider call
+/// included (R5-04), so a refused save never reaches the provider.
+pub fn check_account_update(
+    current: &MessagingAccount,
+    settings: &AccountSettings,
+    reentered: &BTreeSet<CredentialName>,
+) -> Result<()> {
+    settings.validate()?;
+    if current.provider != settings.sender.provider() || current.channel != settings.channel {
+        return Err(anyhow!(
+            "the provider and channel of an account cannot change; add another account"
+        ));
+    }
+    if let Some(reason) = endpoint_change_refusal(&current.sender, &settings.sender, reentered) {
+        return Err(anyhow!(reason));
+    }
+    Ok(())
 }
 
 #[instrument(skip(tx), err)]
@@ -326,6 +384,65 @@ pub async fn list_messaging_accounts(
     .collect()
 }
 
+/// Stores a check's result, but only if the account still has the
+/// identity and credentials the check started with (R5-03): a check that
+/// started before an identity change or a credential replacement
+/// describes what the account no longer is, and is dropped. The row is
+/// locked while it is compared and written, so a concurrent save waits.
+/// `checked_credentials` `None`: the check was of credentials being saved
+/// in the same transaction (a candidate), compared by identity only. The
+/// number-change signals are the row's, as it is now (R5-12): a signal
+/// stored during the check stays. Returns whether the result was stored.
+#[instrument(skip(tx, checked, checked_credentials, status), err)]
+pub async fn store_messaging_account_check(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    id: &Uuid,
+    checked: &AccountIdentity,
+    checked_credentials: Option<&BTreeMap<CredentialName, CredentialRecord>>,
+    status: &AccountCheck,
+) -> Result<bool> {
+    let Some(row) = tx
+        .query_opt(
+            r#"
+            SELECT sender, credentials FROM sequent_backend.messaging_account
+            WHERE tenant_id = $1 AND id = $2
+            FOR UPDATE
+            "#,
+            &[tenant_id, id],
+        )
+        .await?
+    else {
+        return Ok(false);
+    };
+    let sender: AccountSender = serde_json::from_value(row.try_get("sender")?)?;
+    let credentials: BTreeMap<CredentialName, CredentialRecord> =
+        serde_json::from_value(row.try_get("credentials")?)?;
+    if &sender.identity() != checked
+        || checked_credentials.is_some_and(|checked| checked != &credentials)
+    {
+        return Ok(false);
+    }
+    tx.execute(
+        r#"
+        UPDATE sequent_backend.messaging_account
+        SET status = jsonb_set(
+                $3::jsonb, '{details,number_changes}',
+                COALESCE(status->'details'->'number_changes', '[]'::jsonb)),
+            readiness = CASE WHEN readiness = 'UNCHECKED'
+                             THEN 'PROVIDER_CHECK' ELSE readiness END,
+            updated_at = now()
+        WHERE tenant_id = $1 AND id = $2
+        "#,
+        &[tenant_id, id, &serde_json::to_value(status)?],
+    )
+    .await?;
+    Ok(true)
+}
+
+/// Sets an account's status as given, number-change signals included.
+/// Check results go through [`store_messaging_account_check`]; this is for
+/// statuses set by hand (fixtures, tests).
 #[instrument(skip(tx, status), err)]
 pub async fn update_messaging_account_status(
     tx: &Transaction<'_>,
@@ -336,10 +453,43 @@ pub async fn update_messaging_account_status(
     tx.execute(
         r#"
         UPDATE sequent_backend.messaging_account
-        SET status = $3, updated_at = now()
+        SET status = $3::jsonb,
+            readiness = CASE WHEN readiness = 'UNCHECKED'
+                             THEN 'PROVIDER_CHECK' ELSE readiness END,
+            updated_at = now()
         WHERE tenant_id = $1 AND id = $2
         "#,
         &[tenant_id, id, &serde_json::to_value(status)?],
+    )
+    .await?;
+    Ok(())
+}
+
+/// The status of an account never checked, as every binary reads it: a
+/// field written into an empty status (`'{}'`) starts from it, so the row
+/// stays a whole check.
+pub fn empty_status() -> Result<Value> {
+    Ok(serde_json::to_value(AccountCheck::default())?)
+}
+
+/// Records that a check of the account was attempted at `at`, when its
+/// result couldn't be stored or the check couldn't run: the daily pass
+/// backs off from it instead of retrying it first on every pass (R5-14).
+/// The stored result is untouched.
+#[instrument(skip(tx), err)]
+pub async fn record_messaging_account_check_attempt(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    id: &Uuid,
+    at: DateTime<Utc>,
+) -> Result<()> {
+    tx.execute(
+        r#"
+        UPDATE sequent_backend.messaging_account
+        SET status = jsonb_set($4::jsonb || status, '{details,attempted_at}', to_jsonb($3::text))
+        WHERE tenant_id = $1 AND id = $2
+        "#,
+        &[tenant_id, id, &at.to_rfc3339(), &empty_status()?],
     )
     .await?;
     Ok(())
@@ -390,6 +540,35 @@ pub async fn delete_messaging_account(
         )
         .await?
         == 1)
+}
+
+/// The election events whose messaging configuration sends through the
+/// account. An account in use isn't deleted.
+#[instrument(skip(tx), err)]
+pub async fn event_configs_using_account(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    account_id: &Uuid,
+) -> Result<Vec<Uuid>> {
+    Ok(tx
+        .query(
+            r#"
+            SELECT election_event_id
+            FROM sequent_backend.messaging_event_config
+            WHERE tenant_id = $1
+              AND jsonb_path_exists(
+                  config,
+                  '$.channels[*] ? (@.account_id == $id)',
+                  jsonb_build_object('id', $2::text)
+              )
+            ORDER BY election_event_id
+            "#,
+            &[tenant_id, &account_id.to_string()],
+        )
+        .await?
+        .iter()
+        .map(|row| row.try_get("election_event_id"))
+        .collect::<std::result::Result<_, _>>()?)
 }
 
 /// An election event's stored messaging configuration. Only

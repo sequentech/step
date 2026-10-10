@@ -23,10 +23,12 @@ use crate::ports::monitoring_snapshots::MonitoringSnapshots;
 use crate::ports::task_ledger::TaskLedger;
 use crate::ports::task_queue::TaskQueue;
 use crate::ports::vault::SecretVault;
+use crate::routes::fake_provider::FakeProviderRoutes;
 use crate::routes::messaging::MessagingRelay;
 use crate::services::monitoring::{DrawFailure, DrawnChart};
 use crate::services::monitoring_cache::RenderCache;
 use crate::services::monitoring_config_cache::MonitoringConfigs;
+use crate::services::otp_capacity::OtpCapacity;
 use crate::services::service_auth::ServiceKeys;
 use sequent_core::monitoring::cadence::Cadence;
 use std::sync::Arc;
@@ -64,6 +66,13 @@ pub struct HarvestServices {
     /// The webhook component's public address
     /// (`MESSAGING_WEBHOOKS_PUBLIC_URL`): Messenger links need it.
     pub messaging_webhooks_url: Option<String>,
+    /// Whether the fake provider routes are mounted
+    /// (`MESSAGING_FAKE_PROVIDER_ROUTES`). Read once here; it mounts them
+    /// and nothing else reads it.
+    pub messaging_fake_provider_routes: FakeProviderRoutes,
+    /// How many codes each account sends at once, and how long a message
+    /// Keycloak asks for may wait for its account's capacity.
+    pub otp_capacity: Arc<OtpCapacity>,
     pub monitoring_audit: Arc<dyn MonitoringConfigAudit>,
     pub monitoring_cache: Arc<MonitoringCache>,
     pub monitoring_configs: Arc<MonitoringConfigs>,
@@ -113,6 +122,8 @@ impl HarvestServices {
             messaging_relay: MessagingRelay::from_env(),
             messaging_webhooks_url:
                 windmill::services::messaging::accounts::webhooks_public_url(),
+            messaging_fake_provider_routes: FakeProviderRoutes::from_env(),
+            otp_capacity: Arc::new(OtpCapacity::default()),
             monitoring_audit: Arc::new(ElectoralLogConfigAudit),
             monitoring_cache: Arc::new(MonitoringCache::from_env()),
             monitoring_configs: Arc::new(MonitoringConfigs::from_env()),

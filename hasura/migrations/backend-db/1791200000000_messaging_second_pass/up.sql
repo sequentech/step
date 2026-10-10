@@ -148,3 +148,62 @@ DELETE FROM "sequent_backend"."message" WHERE "direction" = 'INBOUND';
 -- The Messenger linking word is gone; the column stays, unused.
 ALTER TABLE "sequent_backend"."messenger_link"
     ALTER COLUMN "link_word_digest" DROP NOT NULL;
+
+-- Voters by channel, per event: counted by windmill's recount task (on
+-- demand, after a configuration save, and from beat) and read by the event
+-- tab and Send Notification, so no request counts the realm. `scope`: the
+-- send audience (ALL, VOTED, NOT_VOTED); `area_id` NULL: voters with no
+-- area; `channel` NULL: voters with no contact channel. A primary key can't
+-- hold NULLs, so the key is a NULLS NOT DISTINCT unique constraint.
+CREATE TABLE "sequent_backend"."messaging_voter_count"
+(
+    "tenant_id"         uuid        NOT NULL,
+    "election_event_id" uuid        NOT NULL,
+    "scope"             text        NOT NULL,
+    "area_id"           text,
+    "channel"           text,
+    "voters"            bigint      NOT NULL,
+    "not_offered"       bigint      NOT NULL,
+    "computed_at"       timestamptz NOT NULL,
+    CONSTRAINT "messaging_voter_count_key"
+        UNIQUE NULLS NOT DISTINCT ("election_event_id", "scope", "area_id", "channel"),
+    CHECK ("scope" IN ('ALL', 'VOTED', 'NOT_VOTED')),
+    FOREIGN KEY ("tenant_id")
+        REFERENCES "sequent_backend"."tenant" ("id")
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    FOREIGN KEY ("tenant_id", "election_event_id")
+        REFERENCES "sequent_backend"."election_event" ("tenant_id", "id")
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+);
+
+-- Each event's recounts: when one was asked for, started and finished, when
+-- the cached counts were counted, and why the last one didn't count (it
+-- timed out or failed; the previous counts stay).
+CREATE TABLE "sequent_backend"."messaging_voter_count_run"
+(
+    "tenant_id"         uuid        NOT NULL,
+    "election_event_id" uuid        NOT NULL,
+    "requested_at"      timestamptz,
+    "started_at"        timestamptz,
+    "finished_at"       timestamptz,
+    "computed_at"       timestamptz,
+    "outcome"           text,
+    "reason"            text,
+    PRIMARY KEY ("election_event_id"),
+    CHECK ("outcome" IN ('COUNTED', 'TIMED_OUT', 'FAILED')),
+    FOREIGN KEY ("tenant_id")
+        REFERENCES "sequent_backend"."tenant" ("id")
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    FOREIGN KEY ("tenant_id", "election_event_id")
+        REFERENCES "sequent_backend"."election_event" ("tenant_id", "id")
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+);
+
+-- Monthly volumes: a tenant's attempts handed to a provider, by month.
+CREATE INDEX "message_tenant_attempt_month"
+    ON "sequent_backend"."message" ("tenant_id", (COALESCE("dispatched_at", "created_at")))
+    WHERE "direction" = 'OUTBOUND' AND "channel" IS NOT NULL;

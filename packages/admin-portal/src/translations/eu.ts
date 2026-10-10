@@ -5331,6 +5331,8 @@ const basqueTranslation: TranslationType = {
                 providerLanguage: "Hornitzailearen hizkuntza",
                 voters: "Erabiltzen duten hautesleak",
                 sent24h: "Bidaliak, azken 24 h",
+                sent24hHelp:
+                    "Azken 24 orduetan azken saiakera izan duen mezu oro, edozein egoeratan, hutsegindakoak barne. Egoera-zutabeek gertaerako mezu guztiak zenbatzen dituzte.",
             },
             outOfWindow: {
                 utility:
@@ -5370,6 +5372,7 @@ const basqueTranslation: TranslationType = {
                     "{{total}} Post-etatik {{shown}} erakusten dira. Bilatu besteak aurkitzeko.",
             },
             delivery: {
+                notConfigured: "Gertaera honek ez du eskaintzen",
                 empty: "Ez da kanalik erabiltzen.",
                 help: "Zenbaketak mezuko dira, azken saiakeraren egoeraren arabera. Onartua esan nahi du hornitzaileak mezua onartu duela, ez hautesleak jaso duela. Ezezaguna esan nahi du entrega ez dagoela oraindik berretsita; 24 ordu igarotakoan Ebatzi gabe gisa erakusten da, inoiz ez huts egindako gisa. Entrega-txostenik gabeko kontu batek entrega ez erabilgarri gisa erakusten du.",
                 loadError: "Ezin izan dira mezuen zenbaketak kargatu.",
@@ -5449,6 +5452,7 @@ const basqueTranslation: TranslationType = {
                     "Ezin izan da entrega 24 orduren barruan berretsi. Horrek ez du esan nahi huts egin duenik.",
             },
             blocker: {
+                UNCHECKED: "Egiaztatu gabe uneko zenbakirako, orrirako edo igorlerako",
                 NOT_CONNECTED: "Konektatu gabe",
                 UNSUPPORTED_PURPOSE: "Hornitzaile honek ez du onartzen",
                 NEEDS_PROVIDER_APPROVAL: "Hornitzailearen onarpena behar du",
@@ -5551,6 +5555,67 @@ const basqueTranslation: TranslationType = {
                 noReadPermission:
                     "Hautesle bakoitzaren kanala erakusteko messaging-config-read baimena behar da. Hautesle bakoitzak bere kanalean jasotzen du jakinarazpena hala ere.",
             },
+            audience: {
+                notOfferedRow:
+                    "Hautesle hauen Post-etako batek ere ez du kanal hau eskaintzen jakinarazpenetarako, beraz haietako inork ez du jasotzen: {{reason}}.",
+                willSend: "Jakinarazpena jasoko dute: {{willSend}}",
+                selectedTimedOut:
+                    "Hautatutako hautesleak zenbatzeak gehiegi iraun du, beraz ez da zenbaketarik erakusten. Hautesle bakoitzak bere kanaletik jasotzen du jakinarazpena hala ere.",
+                notSent: "Ez da bidaltzen",
+                deletedAccount: "Ezabatutako kontua",
+                notOffered: "Haietako {{notOffered}}k ez dute jasotzen: {{reason}}.",
+                noAccountHelp:
+                    "Ez dago kanal honetan bidaltzen duen konturik; beraz, hautesle hauen abisuek huts egiten dute: {{reason}}.",
+                noChannelHelp:
+                    "Hautesle hauek ez dute harremanetarako kanalik erregistratuta. Ez dute ezer jasotzen, eta bakoitza huts egindako gisa agertzen da: {{reason}}.",
+                total: "Audientzia honetako hautesleak: {{total}}",
+                loadError:
+                    "Ezin izan da hautesle kopurua kargatu. Hautesle bakoitzak bere kanalean jasotzen du jakinarazpena hala ere.",
+            },
+            voterCount: {
+                countedAt: "Zenbatua: {{time}}.",
+                never: "Oraindik ez da zenbatu.",
+                pending: "Birzenbaketa bat bidean dago.",
+                timedOut: "Azken birzenbaketak gehiegi iraun du eta gelditu egin da.",
+                failed: "Azken birzenbaketak huts egin du.",
+                previous: "Erakutsitako zenbaketak aurrekoarenak dira.",
+                recount: "Berriro zenbatu",
+                recountAsked:
+                    "Birzenbaketa eskatu da. Zenbaketak amaitzen denean eguneratuko dira.",
+                recountAlreadyAsked: "Birzenbaketa bat bidean dago dagoeneko.",
+                recountError: "Ezin izan da birzenbaketa eskatu.",
+                loadError: "Ezin izan dira hautesleen zenbaketak kargatu.",
+            },
+            volumes: {
+                title: "Hileko bolumenak",
+                intro: "Hilero hornitzaile bati emandako saiakerak kanalaren, bidalketa-kontuaren, helmuga-herrialdearen eta fakturazio-kategoriaren arabera, hornitzaileen fakturak bateratzeko. Saiakera bakoitza egin zen hilabetean zenbatzen da, beraz berriro saiatzeak berriro zenbatzen du. Fakturazio-kategoria bidaltzean espero zena da, edo hornitzaileak jakinarazitakoa; saiakera fakturagarria den hornitzaileak jakinarazitakoa da. Ez da preziorik erakusten.",
+                month: "Hilabetea",
+                monthHelp: "Hilabeteak UTC orduan zenbatzen dira.",
+                loading: "Hileko bolumenak kargatzen",
+                loadError: "Ezin izan dira bolumenak kargatu.",
+                empty: "Ez zaio saiakerarik eman hornitzaileri {{month}} hilabetean.",
+                noPermission:
+                    "Bolumenak ikusteko messaging-account-read edo messaging-config-read baimena behar da.",
+                notReported: "Jakinarazi gabe",
+                deploymentOrDeleted: "Instalazioaren igorlea edo ezabatutako kontu bat",
+                category: {
+                    AUTHENTICATION: "Autentifikazioa",
+                    UTILITY: "Erabilgarritasuna",
+                    SERVICE: "Zerbitzua",
+                    TRANSACTIONAL: "Transakzionala",
+                    EMAIL: "Posta elektronikoa",
+                },
+                billableYes: "Fakturagarria",
+                billableNo: "Ez fakturagarria",
+                total: "Saiakera guztiak",
+                column: {
+                    account: "Nondik bidalia",
+                    country: "Helmuga-herrialdea",
+                    category: "Fakturazio-kategoria",
+                    billable: "Fakturagarria",
+                    messages: "Saiakerak",
+                },
+            },
             voter: {
                 title: "Mezularitza",
                 notSet: "Ezarri gabe",
@@ -5580,6 +5645,19 @@ const basqueTranslation: TranslationType = {
                 },
             },
             reason: {
+                CANDIDATE_REFUSED:
+                    "Kredentzial berriek ez dute konektatu: aurrekoak mantentzen dira",
+                ACCOUNT_IN_USE:
+                    "Hauteskunde-gertaera baten mezularitza-ezarpenek erabiltzen dute: kendu hortik lehenik",
+                NUMBER_CHANGED:
+                    "Hautesle batek WhatsApp zenbakia aldatu du: eskatu kontaktua berriro egiaztatzeko",
+                IDENTITY_CHANGED:
+                    "Kontuaren bidaltze-identitatea aldatu da: berriro egiaztatzen da",
+                TEMPLATES_NOT_READ: "Ezin izan dira hornitzailearen txantiloiak irakurri",
+                PARTNER_LOGIN_REFUSED: "Infobip-ek kontuaren API gakoa baztertu du",
+                NO_PAGES_MESSAGING: "Orriaren tokenak ez du pages_messaging baimena",
+                NOT_SUBSCRIBED: "Aplikazioa ez dago orrira harpidetuta",
+                NUMBER_STATUS_NOT_READ: "Ezin izan da zenbakiaren egoera irakurri",
                 CALLBACK_NOT_CONFIGURED: "Itzulera-helbidea ez dago konfiguratuta",
                 UNSUPPORTED_PROVIDER: "Hornitzaile ez onartua: ordeztu kontu hau",
                 CREDENTIALS_FOLLOW_ENDPOINT: "Idatzi berriro kredentzialak helbide berrirako",
@@ -5596,6 +5674,9 @@ const basqueTranslation: TranslationType = {
                 WORKER_STOPPED_BEFORE_SENDING: "Prozesua bidali aurretik gelditu da",
                 WORKER_STOPPED_AFTER_SENDING: "Prozesua emaitza erregistratu aurretik gelditu da",
                 CODE_EXPIRED_BEFORE_SENDING: "Kodea iraungi egin da bidali ahal izan aurretik",
+                CAPACITY_BUSY: "Ez da bidali: kontuak denbora luzeegia eman du bidalketa-mugan",
+                PROVIDER_ANSWER_LATE:
+                    "Hornitzaileak ez du garaiz erantzun: baliteke mezua bidali izana",
                 UNRESOLVED: "Ezin izan da entrega berretsi",
                 SELECTED_WITHOUT_VOTERS: "Hautatu hautesle bat gutxienez",
                 WRONG_RECIPIENT_KIND: "Helmuga ez da kanal honek bidaltzen duen motakoa",
@@ -5607,6 +5688,27 @@ const basqueTranslation: TranslationType = {
                 MISSING_CODE: "Ez dago bidaltzeko koderik",
                 ENDPOINT_NOT_HTTPS: "Hornitzailearen helbideak https:// hasiera izan behar du",
                 PROVIDER_CODE: "Hornitzailearen errore-kodea: {{code}}",
+                CHECK_DROPPED:
+                    "Kontua aldatu egin da egiaztatzen ari zen bitartean: egiaztatu berriro",
+                ACCOUNT_NOT_READY: "Ez da bidali: kontua ez dago prest ({{blocker}})",
+                PROVIDER_UNREACHABLE: "Ezin izan da hornitzailearekin konektatu",
+                PROVIDER_STATUS: "Hornitzaileak {{status}} egoerarekin erantzun du",
+                MISSING_CREDENTIAL: "Kredentziala falta da: {{credential}}",
+                PROVIDER_CHECK_FAILED: "Hornitzailearen egiaztapenak huts egin du: {{detail}}",
+                NUMBER_STATUS: "Zenbakiaren egoera {{status}} da",
+                NUMBER_NAME_STATUS: "Zenbakiaren izen ikusgaiaren egoera {{status}} da",
+                NUMBER_IN_SANDBOX: "Zenbakia sandbox moduan dago",
+                NUMBER_NOT_VERIFIED: "Zenbakiaren kodea ez dago egiaztatuta",
+                SMS_SANDBOX: "Kontua SMSen sandboxean dago",
+                SES_SANDBOX: "Kontua SESen sandboxean dago",
+                SES_SENDING_DISABLED: "Bidalketa desgaituta dago kontu honetan",
+                SMTP_REFUSED:
+                    "SMTP zerbitzaria ez dago eskuragarri edo kredentzialak baztertu ditu",
+                TOKEN_INVALID: "Sarbide-tokena ez da baliozkoa edo iraungi egin da",
+                TOKEN_CANNOT_SEND: "Sarbide-tokenak ez du bidaltzeko baimenik",
+                TOKEN_NOT_CHECKED: "Ezin izan da sarbide-tokena egiaztatu",
+                APP_SECRET_REFUSED: "Metak aplikazioaren sekretua baztertu du",
+                APP_SECRET_NOT_CHECKED: "Ezin izan da aplikazioaren sekretua egiaztatu",
                 RETRY_NOT_PREPARED: "Ezin da berriro saiatu: ezin izan da mezua berriro prestatu",
                 NOT_THE_VOTERS_CHANNEL: "Ez da hauteslearen kanala",
                 REPORT_CREDENTIALS_MISSING:
@@ -5615,6 +5717,80 @@ const basqueTranslation: TranslationType = {
             },
         },
         messagingAccounts: {
+            status: {
+                title: "Hornitzailearen egoera",
+                daily: "Kontuak egunean behin egiaztatzen dira, eta konexioa egiaztatzen duzun bakoitzean.",
+                unchecked:
+                    "Zenbakia, orria edo igorlea aldatu da azken egiaztapenetik. Kontua berriro egiaztatu arte, haren bidezko kodeek eta jakinarazpenek huts egiten dute prest ez dagoelako; proba-mezua, ordea, bidaltzen da.",
+                notReported: "Jakinarazi gabe",
+                yes: "Bai",
+                no: "Ez",
+                token: "Sarbide-tokena",
+                tokenExpires: "Baliozkoa · {{date}} iraungiko da",
+                tokenNoExpiry: "Baliozkoa · ez da iraungitzen",
+                tokenInvalid: "Ez da baliozkoa",
+                missingScopes: "Baimenak falta dira: {{scopes}}",
+                numberStatus: "Zenbakiaren egoera",
+                nameStatus: "Bistaratzeko izena: {{status}}",
+                qualityRating: "Kalitate-balorazioa",
+                quality: {
+                    GREEN: "Altua",
+                    YELLOW: "Ertaina",
+                    RED: "Baxua",
+                    UNKNOWN: "Ezezaguna",
+                },
+                messagingLimit: "Mezu-muga",
+                pagesMessaging: "Bidaltzeko baimena (pages_messaging)",
+                subscribed: "Aplikazioa orrira harpidetuta",
+                getStarted: "Hasi botoia",
+                getStartedMissing:
+                    "Botoirik gabe, orriari inoiz idatzi ez dioten hautesleek ezin dute haien kodea dakarren elkarrizketa hasi.",
+                partnerLogin: "Bazkidearen saio-hasiera",
+                appSecret: "Aplikazioaren sekretua",
+                notChecked: "Ezin izan da egiaztatu",
+                numberQualityWarning:
+                    "Metaren kalitate-abisu bat: zenbakiak bidaltzen jarraitzen du, baina kalitate baxuak mezu-muga jaitsi dezake.",
+                accepted: "Onartua",
+                refused: "Baztertua",
+                callback: "Itzulera-helbidea",
+                callbackReady: "Konfiguratuta",
+                approvalFromCheck: "Hornitzailearen egiaztapenak jakinarazia",
+                approvalEntered:
+                    "Administratzaile batek sartua: hornitzailearen egiaztapenak ez du jakinarazi",
+                approvalEnteredHelp:
+                    "Hornitzailearen egiaztapenak onarpena jakinarazi arte bakarrik erabiltzen da.",
+                templates: {
+                    title: "Hornitzailearen txantiloiak",
+                    none: "Txantiloirik ez",
+                    name: "Txantiloia",
+                    language: "Hizkuntza",
+                    category: "Kategoria",
+                    status: "Egoera",
+                    entered:
+                        "Viber txantiloiak administratzaile batek sartzen ditu Txantiloi onartuak atalean: bazkideak ez du txantiloiak onartzeko APIrik.",
+                },
+                templateCategory: {
+                    AUTHENTICATION: "Autentifikazioa",
+                    UTILITY: "Erabilgarritasuna",
+                    MARKETING: "Marketina",
+                },
+                templateStatus: {
+                    APPROVED: "Onartua",
+                    PENDING: "Berrikusten",
+                    REJECTED: "Baztertua",
+                    PAUSED: "Pausatuta",
+                    DISABLED: "Desgaituta",
+                },
+                numberChanges: {
+                    title: "WhatsApp zenbakia aldatu duten hautesleak",
+                    description:
+                        "WhatsApp-ek zenbaki-aldaketa hauek jakinarazi ditu. Eskatu hautesle hauei kontaktua berriro egiaztatzeko; ez da ezer automatikoki aldatu.",
+                    item: "{{old}} zenbakia {{new}} bihurtu zen ({{date}}).",
+                    voters: "Hautesleak: {{voters}}",
+                    noVoters:
+                        "Ez dago kontu honen mezurik aurreko zenbakian jaso duen hautesle bakar bat ere.",
+                },
+            },
             tab: "MEZULARITZA",
             description:
                 "Hautesleei beren kodeak eta jakinarazpenak bidaltzen dizkieten kontuak. Hauteskunde-gertaera bakoitzak kanal bakoitzeko kontua aukeratzen du; gertaera berriak kontu lehenetsiarekin hasten dira.",
@@ -5652,6 +5828,7 @@ const basqueTranslation: TranslationType = {
                 error: "Ezin izan da {{name}} egiaztatu.",
             },
             delete: {
+                refused: "Kontua ez da ezabatu: {{reason}}",
                 title: "Ezabatu kontua",
                 body: "{{name}} ezabatu? Erabiltzen duten hauteskunde-gertaerek bere kanaletik bidaltzeari utziko diote.",
                 success: "Kontua ezabatu da",
@@ -5716,6 +5893,7 @@ const basqueTranslation: TranslationType = {
             error: {
                 REQUIRED: "Derrigorrezkoa",
                 NOT_A_COUNT: "Idatzi zenbaki oso bat",
+                AT_LEAST_ONE: "Sartu 1 edo gehiago",
                 OTP_ABOVE_TOTAL: "Ezin du segundoko mezuen kopurua gainditu",
                 INVALID_CALLING_CODE:
                     "Idatzi 1etik 3 digitura bitarteko herrialde-aurrezenbakiak, adibidez 63",
@@ -5726,6 +5904,13 @@ const basqueTranslation: TranslationType = {
                 CREDENTIALS_FOLLOW_ENDPOINT: "Idatzi berriro kredentzialak helbide berrirako",
             },
             warning: {
+                pageChangeCount:
+                    "{{page}} orriarekin konektatuta dauden eta berriro konektatu beharko duten hautesleak: {{count}}.",
+                pageChangeCounting: "Orriarekin konektatutako hautesleak zenbatzen…",
+                pageChangeCountError:
+                    "Ezin izan da orriarekin konektatutako hautesleen kopurua irakurri.",
+                recheck:
+                    "Gordetzean, kontua berriro egiaztatzen da atzeko planoan. Egiaztapen horrek ondo amaitu arte, haren bidezko kodeek eta jakinarazpenek huts egiten dute prest ez dagoelako; proba-mezua, ordea, bidaltzen da.",
                 pageChange:
                     "Messenger elkarrizketak orri batenak dira. Orria aldatu ondoren, {{page}} orriarekin konektatutako hautesleek Messenger berriro konektatu ondoren soilik jasoko dituzte kodeak.",
                 numberChange:
@@ -5744,8 +5929,13 @@ const basqueTranslation: TranslationType = {
             limits: {
                 title: "Bidalketa-mugak",
                 messagesPerSecond: "Mezuak segundoko",
+                messagesPerSecondHelp: "Hutsik: mezuak ez dira mugatzen.",
                 otpReservedPerSecond: "Kodeetarako gordeak segundoko",
-                otpReservedHelp: "Kodeetarako libre gordetzen dira bidalketa masiboetan.",
+                otpReservedHelp:
+                    "Kontuaren bidalketa-aurrekontu partekatu bakarraren barruko gutxienekoa: abisuak hor gelditzen dira eta kodeak lehenik doaz. Koderik bidaltzen ez bada, bidalketa masibo batek erritmo osoa erabil dezake.",
+                otpConcurrency: "Aldi berean bidalitako kodeak",
+                otpConcurrencyHelp:
+                    "Hutsik: 8. Zerbitzari-prozesu bakoitzeko zenbatzen da; gainerako kodeek beren txanda itxaroten dute.",
                 allowedCallingCodes: "Baimendutako helmugak (herrialde-aurrezenbakiak)",
                 allowedCallingCodesHelp:
                     "Komaz bereizita, adibidez 63, 971. Hutsik badago, edozein helmuga baimentzen da.",
@@ -5869,6 +6059,92 @@ const basqueTranslation: TranslationType = {
                 confirmBody:
                     "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, Viber-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
                 confirm: "Ordeztu",
+            },
+        },
+        sentMessages: {
+            tab: "Bidalitako mezuak",
+            accountsTab: "Kontuak",
+            tabsLabel: "Mezularitzaren atalak",
+            description:
+                "Garapen-ingurune honetako hornitzaile simulatuak jasotako mezuak, hautesleen aplikazioek erakutsiko luketen bezala. Horietako bat ere ez zaio benetako hautesle bati iritsi. Fitxa hau hornitzaile simulatuaren bideak gaituta dauden lekuetan bakarrik agertzen da.",
+            modeLabel: "Erakutsi mezu hauek",
+            all: "Guztiak",
+            refresh: "Freskatu",
+            refreshing: "Freskatzen…",
+            refreshError:
+                "Ezin izan dira mezuak freskatu. Erakusten den zerrenda irakurritako azkena da.",
+            empty: "Oraindik ez dago mezurik.",
+            emptyChannel: "Oraindik ez dago {{channel}} mezurik.",
+            column: {
+                time: "Ordua",
+                channel: "Kanala",
+                from: "Nork",
+                to: "Nori",
+                message: "Mezua",
+                report: "Entrega-txostena",
+            },
+            report: {
+                accepted: "Webhook osagaiak txostena onartu du (HTTP 200)",
+                refused: "Txostena baztertuta: HTTP {{status}}",
+                pending: "Txostena oraindik bidali gabe",
+                notSent: "Txostena ez da bidali: {{reason}}",
+                noAnswer: "Txostenak ez du erantzunik jaso: {{reason}}",
+                noReason: "arrazoirik eman gabe",
+                unavailable: "Kanal honek ez du entrega-txostenik",
+            },
+            content: {
+                template: "{{name}} txantiloia ({{language}})",
+                noText: "(testurik gabe)",
+                code: "Kodea",
+                copyCode: "Kopiatu kodea",
+                copied: "Kodea kopiatuta",
+                copyFailed: "Ezin izan da kodea kopiatu",
+                truncated:
+                    "Moztuta: hornitzaile simulatuak eremu bakoitzaren lehen 64 KiB-ak bakarrik gordetzen ditu.",
+            },
+            chat: {
+                phone: "{{channel}} telefono batean",
+                chats: "{{channel}} txatak",
+                open: "Ireki {{sender}} igorlearen txata: {{recipient}}",
+                back: "Itzuli txatetara",
+                from: "Nork: {{sender}}",
+                messages: "{{recipient}} hartzaileari bidalitako mezuak",
+            },
+            getStarted: {
+                title: "Hasi",
+                help: "Itsatsi izen-emate orriak erakusten duen Messenger esteka eta sakatu Hasi, hautesleak Messengerren egingo lukeen bezala. Ondoren, kodea txatera iristen da.",
+                link: "Messenger esteka",
+                submit: "Hasi",
+                accepted: "Webhook osagaiak 200 erantzun du. Kodea txatera iristen da.",
+                answered: "Webhook osagaiak {{status}} erantzun du.",
+                failed: "Ezin izan da hasi: {{reason}}",
+            },
+            email: {
+                inbox: "Sarrera-ontzia",
+                reading: "Hautatutako mezu elektronikoa",
+                noSubject: "(gairik gabe)",
+                from: "Nork",
+                to: "Nori",
+                view: "Erakutsi mezua honela",
+                html: "HTML",
+                text: "Testu laua",
+                htmlFrame: "Mezu elektronikoaren edukia",
+                noContent: "Mezu elektroniko honek ez du edukirik.",
+                loading: "Mezu elektronikoa kargatzen…",
+                loadError:
+                    "Ezin izan da mezuaren HTMLa irakurri: baliteke hornitzaile simulatuak jada ez gordetzea.",
+            },
+            reason: {
+                NO_ACCOUNT: "Ez dago igorle hau erabiltzen duen konturik",
+                SEVERAL_ACCOUNTS: "Hainbat kontuk erabiltzen dute igorle hau",
+                ACCOUNTS_UNREADABLE: "Ezin izan dira kontuak irakurri",
+                UNREACHABLE: "Webhook osagaiak ez du erantzun",
+                LINK_UNREADABLE: "Itsatsi izen-emate orriko m.me esteka",
+                LINK_WITHOUT_REF: "Estekak ez du ref-ik: kopiatu esteka osoa",
+                NO_PAGE_ACCOUNT:
+                    "Erakunde honen Messenger kontu batek ere ez du orri hau erabiltzen",
+                SEVERAL_PAGE_ACCOUNTS:
+                    "Erakunde honen hainbat Messenger kontuk erabiltzen dute orri hau",
             },
         },
     },

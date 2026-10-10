@@ -2,111 +2,123 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Per-account sending rate with capacity kept for codes. Notices may use
-//! the account rate minus the OTP reservation; codes may use all of it, so
-//! a saturating bulk send never delays them.
+//! Per-account sending capacity: the rules of the token bucket every
+//! process shares through Postgres (`windmill::postgres::rate_bucket`).
 //!
-//! The limit applies within one process. Bulk workers each get their share
-//! of the account rate through their configured concurrency.
+//! - The bucket holds up to `messages_per_second` tokens and refills at
+//!   that rate. Each message handed to the provider takes one.
+//! - Codes take from the whole bucket ([`BucketShare::WHOLE`]).
+//! - Notices take only above `otp_reserved_per_second`
+//!   ([`BucketShare::ABOVE_OTP_RESERVE`]): that many tokens always stay
+//!   for codes, and while the bucket is below that line only codes go.
+//!   A saturating bulk send therefore never delays a code by more than
+//!   the reserve allows.
+//! - Without `messages_per_second` the account has no bucket and nothing
+//!   is throttled ([`Throttling::UNTHROTTLED`]). There is no global limit.
 
 use sequent_core::types::messaging::{AccountLimits, MessagePurpose};
-use std::sync::Mutex;
-use tokio::time::{sleep, Duration, Instant};
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use strum_macros::{Display, EnumString};
 
-#[derive(Debug)]
-struct Bucket {
-    capacity: f64,
-    tokens: f64,
-    per_second: f64,
-    updated: Instant,
+/// Which tokens of the bucket a message may take.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, Serialize, Deserialize)]
+pub enum BucketShare {
+    /// Any token: codes.
+    WHOLE,
+    /// Only tokens above the account's OTP reserve: notices, including
+    /// bulk sends.
+    ABOVE_OTP_RESERVE,
 }
 
-impl Bucket {
-    fn new(per_second: u32, now: Instant) -> Bucket {
-        Bucket {
-            capacity: f64::from(per_second.max(1)),
-            tokens: f64::from(per_second.max(1)),
-            per_second: f64::from(per_second.max(1)),
-            updated: now,
+impl BucketShare {
+    pub fn of(purpose: MessagePurpose) -> BucketShare {
+        match purpose {
+            MessagePurpose::OTP => BucketShare::WHOLE,
+            MessagePurpose::NOTICE => BucketShare::ABOVE_OTP_RESERVE,
+        }
+    }
+}
+
+/// Whether an account's sends are throttled, and why. What the account's
+/// limits show and what the dispatcher logs.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, Serialize, Deserialize)]
+pub enum Throttling {
+    /// No `messages_per_second`: every message goes at once.
+    #[strum(serialize = "No sending limit: messages are not throttled")]
+    UNTHROTTLED,
+    /// The account's own `messages_per_second`, with its OTP reserve.
+    #[strum(serialize = "Throttled to the account's messages per second")]
+    THROTTLED,
+}
+
+impl Throttling {
+    pub fn of(limits: &AccountLimits) -> Throttling {
+        match BucketLimits::of(limits) {
+            Some(_) => Throttling::THROTTLED,
+            None => Throttling::UNTHROTTLED,
+        }
+    }
+}
+
+/// The bucket of an account that sets `messages_per_second`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BucketLimits {
+    /// Most tokens the bucket holds: one second of sending.
+    pub capacity: f64,
+    /// Tokens added per second.
+    pub per_second: f64,
+    /// Tokens notices leave for codes. Always below the capacity, so
+    /// notices can still send: an account whose reserve is at least its
+    /// rate keeps one token per second for notices.
+    pub otp_reserve: f64,
+}
+
+impl BucketLimits {
+    /// `None` without `messages_per_second` (or with 0): not throttled.
+    pub fn of(limits: &AccountLimits) -> Option<BucketLimits> {
+        let rate = limits.messages_per_second.filter(|rate| *rate > 0)?;
+        let reserve = limits
+            .otp_reserved_per_second
+            .unwrap_or(0)
+            .min(rate.saturating_sub(1));
+        Some(BucketLimits {
+            capacity: f64::from(rate),
+            per_second: f64::from(rate),
+            otp_reserve: f64::from(reserve),
+        })
+    }
+
+    /// Tokens that must remain after a message of `share` takes one.
+    pub fn floor(&self, share: BucketShare) -> f64 {
+        match share {
+            BucketShare::WHOLE => 0.0,
+            BucketShare::ABOVE_OTP_RESERVE => self.otp_reserve,
         }
     }
 
-    fn refill(&mut self, now: Instant) {
-        let elapsed = now.saturating_duration_since(self.updated).as_secs_f64();
-        self.tokens = (self.tokens + elapsed * self.per_second).min(self.capacity);
-        self.updated = now;
+    /// The bucket's tokens `elapsed_seconds` after it held `tokens`.
+    pub fn refilled(&self, tokens: f64, elapsed_seconds: f64) -> f64 {
+        (tokens + elapsed_seconds.max(0.0) * self.per_second).min(self.capacity)
     }
 
-    /// Time until one token is available.
-    fn wait(&self) -> Duration {
-        if self.tokens >= 1.0 {
+    /// The tokens left after a message of `share` takes one from a bucket
+    /// holding `tokens` (already refilled), or `None` when it must wait.
+    /// The reference for the single `UPDATE` in windmill.
+    pub fn take(&self, tokens: f64, share: BucketShare) -> Option<f64> {
+        (tokens >= self.floor(share) + 1.0).then(|| tokens - 1.0)
+    }
+
+    /// How long until a message of `share` may take a token from a bucket
+    /// holding `tokens` (already refilled), if nobody else takes one.
+    pub fn wait(&self, tokens: f64, share: BucketShare) -> Duration {
+        let missing = self.floor(share) + 1.0 - tokens;
+        if missing <= 0.0 {
             Duration::ZERO
         } else {
-            Duration::from_secs_f64((1.0 - self.tokens) / self.per_second)
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Buckets {
-    all: Bucket,
-    notices: Option<Bucket>,
-}
-
-#[derive(Debug)]
-pub struct RateLimiter {
-    buckets: Option<Mutex<Buckets>>,
-}
-
-impl RateLimiter {
-    pub fn new(limits: &AccountLimits) -> RateLimiter {
-        let now = Instant::now();
-        let buckets = limits.messages_per_second.map(|rate| {
-            let reserved = limits
-                .otp_reserved_per_second
-                .unwrap_or(0)
-                .min(rate.saturating_sub(1));
-            Mutex::new(Buckets {
-                all: Bucket::new(rate, now),
-                notices: (reserved > 0).then(|| Bucket::new(rate - reserved, now)),
-            })
-        });
-        RateLimiter { buckets }
-    }
-
-    /// Waits until a message of `purpose` may be sent.
-    pub async fn acquire(&self, purpose: MessagePurpose) {
-        let Some(buckets) = &self.buckets else {
-            return;
-        };
-        loop {
-            let wait = {
-                let Ok(mut buckets) = buckets.lock() else {
-                    return;
-                };
-                let now = Instant::now();
-                buckets.all.refill(now);
-                let mut wait = buckets.all.wait();
-                if purpose == MessagePurpose::NOTICE {
-                    if let Some(notices) = buckets.notices.as_mut() {
-                        notices.refill(now);
-                        wait = wait.max(notices.wait());
-                    }
-                }
-                if wait.is_zero() {
-                    buckets.all.tokens -= 1.0;
-                    if purpose == MessagePurpose::NOTICE {
-                        if let Some(notices) = buckets.notices.as_mut() {
-                            notices.tokens -= 1.0;
-                        }
-                    }
-                }
-                wait
-            };
-            if wait.is_zero() {
-                return;
-            }
-            sleep(wait).await;
+            Duration::from_secs_f64(missing / self.per_second)
         }
     }
 }
@@ -115,54 +127,84 @@ impl RateLimiter {
 mod tests {
     use super::*;
 
-    async fn sent_within(limiter: &RateLimiter, purpose: MessagePurpose, window: Duration) -> u32 {
-        let start = Instant::now();
-        let mut sent = 0;
-        while Instant::now() - start < window {
-            limiter.acquire(purpose).await;
-            if Instant::now() - start < window {
-                sent += 1;
-            }
-        }
-        sent
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn unlimited_accounts_never_wait() {
-        let limiter = RateLimiter::new(&AccountLimits::default());
-        let start = Instant::now();
-        for _ in 0..1000 {
-            limiter.acquire(MessagePurpose::NOTICE).await;
-        }
-        assert_eq!(Instant::now(), start);
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn notices_leave_the_reserved_rate_to_codes() {
-        let limiter = RateLimiter::new(&AccountLimits {
-            messages_per_second: Some(10),
-            otp_reserved_per_second: Some(4),
+    fn limits(rate: Option<u32>, reserved: Option<u32>) -> AccountLimits {
+        AccountLimits {
+            messages_per_second: rate,
+            otp_reserved_per_second: reserved,
             allowed_calling_codes: vec![],
-        });
-        // Bulk notices saturate their share: about 6 per second.
-        let notices = sent_within(&limiter, MessagePurpose::NOTICE, Duration::from_secs(10)).await;
-        assert!((60..=66).contains(&notices), "{notices}");
-        // Codes still get the reserved capacity right away.
-        let start = Instant::now();
-        for _ in 0..3 {
-            limiter.acquire(MessagePurpose::OTP).await;
+            otp_concurrency: None,
         }
-        assert!(Instant::now() - start < Duration::from_millis(500));
     }
 
-    #[tokio::test(start_paused = true)]
-    async fn codes_alone_may_use_the_whole_rate() {
-        let limiter = RateLimiter::new(&AccountLimits {
-            messages_per_second: Some(10),
-            otp_reserved_per_second: Some(4),
-            allowed_calling_codes: vec![],
-        });
-        let codes = sent_within(&limiter, MessagePurpose::OTP, Duration::from_secs(10)).await;
-        assert!((100..=110).contains(&codes), "{codes}");
+    #[test]
+    fn accounts_without_a_rate_are_not_throttled() {
+        assert_eq!(BucketLimits::of(&limits(None, Some(4))), None);
+        assert_eq!(BucketLimits::of(&limits(Some(0), None)), None);
+        assert_eq!(
+            Throttling::of(&limits(None, None)).to_string(),
+            "No sending limit: messages are not throttled"
+        );
+        assert_eq!(
+            Throttling::of(&limits(Some(5), None)),
+            Throttling::THROTTLED
+        );
+    }
+
+    #[test]
+    fn the_reserve_always_leaves_notices_a_token() {
+        let bucket = BucketLimits::of(&limits(Some(10), Some(4))).unwrap();
+        assert_eq!(bucket.capacity, 10.0);
+        assert_eq!(bucket.otp_reserve, 4.0);
+        let tight = BucketLimits::of(&limits(Some(3), Some(9))).unwrap();
+        assert_eq!(tight.otp_reserve, 2.0);
+        assert_eq!(tight.take(3.0, BucketShare::ABOVE_OTP_RESERVE), Some(2.0));
+    }
+
+    #[test]
+    fn notices_stop_at_the_reserve_and_codes_go_on() {
+        let bucket = BucketLimits::of(&limits(Some(10), Some(4))).unwrap();
+        let mut tokens = bucket.capacity;
+        let mut notices = 0;
+        while let Some(left) = bucket.take(tokens, BucketShare::ABOVE_OTP_RESERVE) {
+            tokens = left;
+            notices += 1;
+        }
+        assert_eq!(notices, 6);
+        assert_eq!(tokens, 4.0);
+        assert!(bucket.wait(tokens, BucketShare::ABOVE_OTP_RESERVE) > Duration::ZERO);
+        // The reserve is there for codes right away.
+        let mut codes = 0;
+        while let Some(left) = bucket.take(tokens, BucketShare::WHOLE) {
+            tokens = left;
+            codes += 1;
+        }
+        assert_eq!(codes, 4);
+        assert_eq!(
+            bucket.wait(tokens, BucketShare::WHOLE),
+            Duration::from_millis(100)
+        );
+        // A notice waits until the reserve is full again plus one token.
+        assert_eq!(
+            bucket.wait(tokens, BucketShare::ABOVE_OTP_RESERVE),
+            Duration::from_millis(500)
+        );
+    }
+
+    #[test]
+    fn refilling_is_by_elapsed_time_up_to_the_capacity() {
+        let bucket = BucketLimits::of(&limits(Some(10), None)).unwrap();
+        assert_eq!(bucket.refilled(0.0, 0.25), 2.5);
+        assert_eq!(bucket.refilled(9.0, 5.0), 10.0);
+        // A clock that went back never removes tokens.
+        assert_eq!(bucket.refilled(3.0, -1.0), 3.0);
+    }
+
+    #[test]
+    fn the_share_follows_the_purpose() {
+        assert_eq!(BucketShare::of(MessagePurpose::OTP), BucketShare::WHOLE);
+        assert_eq!(
+            BucketShare::of(MessagePurpose::NOTICE),
+            BucketShare::ABOVE_OTP_RESERVE
+        );
     }
 }

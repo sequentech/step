@@ -134,3 +134,35 @@ fn empty_verified_channels_is_not_a_first_release_record() {
     assert_eq!(found.channel, MessageChannel::EMAIL);
     assert_eq!(found.source, VoterChannelSource::LEGACY);
 }
+
+#[test]
+fn channel_values_are_read_trimmed_and_in_any_case() {
+    // As the authenticator reads them (`MessageChannel.parse`).
+    let recorded = attrs(&[
+        (MESSAGE_CHANNEL_ATTR_NAME, &["whatsapp"]),
+        (MESSAGE_NUMBER_ATTR_NAME, &["+15550000001"]),
+    ]);
+    let found =
+        voter_channel(Some("voter@example.org"), Some(&recorded)).unwrap();
+    assert_eq!(found.channel, MessageChannel::WHATSAPP);
+    assert_eq!(found.source, VoterChannelSource::RECORDED);
+
+    let padded = attrs(&[
+        (MESSAGE_CHANNEL_ATTR_NAME, &[" SMS "]),
+        (MOBILE_PHONE_ATTR_NAME, &["+15550000003"]),
+    ]);
+    let found =
+        voter_channel(Some("voter@example.org"), Some(&padded)).unwrap();
+    assert_eq!(found.channel, MessageChannel::SMS);
+    assert_eq!(found.source, VoterChannelSource::RECORDED);
+
+    let verified = attrs(&[
+        (MESSAGE_CHANNEL_ATTR_NAME, &["Viber"]),
+        (VERIFIED_CHANNELS_ATTR_NAME, &["whatsapp", " Viber"]),
+        (WHATSAPP_NUMBER_ATTR_NAME, &["+15550000001"]),
+        (VIBER_NUMBER_ATTR_NAME, &["+15550000002"]),
+    ]);
+    let found = voter_channel(None, Some(&verified)).unwrap();
+    assert_eq!(found.channel, MessageChannel::VIBER);
+    assert_eq!(found.source, VoterChannelSource::VERIFIED_CHANNELS);
+}

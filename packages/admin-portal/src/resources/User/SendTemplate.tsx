@@ -12,18 +12,12 @@ import {
     FormControlLabel,
     SelectChangeEvent,
     Switch,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
     Typography,
 } from "@mui/material"
 import {useMutation} from "@apollo/client"
 import {FieldValues, SubmitHandler} from "react-hook-form"
 import MailIcon from "@mui/icons-material/Mail"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
-import {ChannelLabel} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import EmailEditor from "@/components/EmailEditor"
@@ -54,6 +48,7 @@ import {
     sendableTemplates,
     sendingAccountFor,
 } from "./sendTemplatePayload"
+import {SendTemplateAudience} from "./SendTemplateAudience"
 import {
     ZonedDateTimeInput,
     type IStoredZonedDateTime,
@@ -428,28 +423,13 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                             <Alert severity="error">{t("messaging.send.noNoticeChannels")}</Alert>
                         ) : null}
                         {electionEventId && noticeChannels.length > 0 ? (
-                            // The Voters column comes with the audience preview (W2, stream J).
-                            <Table size="small" aria-label={String(t("messaging.send.eachVoter"))}>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>{t("messaging.send.channelColumn")}</TableCell>
-                                        <TableCell>{t("messaging.send.sendsFrom")}</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {noticeChannels.map((channel) => (
-                                        <TableRow key={channel} data-channel={channel}>
-                                            <TableCell>
-                                                <ChannelLabel
-                                                    channel={channel}
-                                                    label={channelName(channel)}
-                                                />
-                                            </TableCell>
-                                            <TableCell>{sendsFrom(channel)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                            <SendTemplateAudience
+                                electionEventId={electionEventId}
+                                audienceSelection={template.audience.selection}
+                                voterIds={template.audience.voter_ids}
+                                channels={noticeChannels}
+                                sendsFrom={sendsFrom}
+                            />
                         ) : null}
                         <Typography variant="caption" color="text.secondary" component="p">
                             {t("messaging.send.eachVoterHelp")}

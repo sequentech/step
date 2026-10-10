@@ -4603,6 +4603,7 @@ dependencies = [
  "keycloak",
  "lru",
  "messaging",
+ "messaging-webhooks",
  "openssl",
  "quick-xml 0.32.0",
  "regex",
