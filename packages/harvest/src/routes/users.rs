@@ -1550,17 +1550,7 @@ pub async fn edit_user(
                 username: input.username.clone(),
                 password: input.password.clone(),
                 temporary: input.temporary,
-                password_change_initiator: input.password.as_ref().map(|_| {
-                    ElectoralLogAdminContext {
-                        user_id: claims.hasura_claims.user_id.clone(),
-                        username: claims.preferred_username.clone(),
-                        authorized_election_ids: claims
-                            .hasura_claims
-                            .authorized_election_ids
-                            .clone(),
-                        area_id: claims.hasura_claims.area_id.clone(),
-                    }
-                }),
+                initiator: Some(ElectoralLogAdminContext::from_claims(&claims)),
             };
 
             let celery_app = get_celery_app().await;
