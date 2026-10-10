@@ -199,7 +199,7 @@ fn validate_file_contents(
 }
 
 /// Every archived ballot must carry the verified public key of its imported
-/// election, a demo key, or no key.
+/// election or a demo key.
 fn has_verified_public_keys(
     item: &ArchivedPublication,
     ids: &HashMap<String, String>,
@@ -214,7 +214,7 @@ fn has_verified_public_keys(
             .context("Invalid archived ballot public key")?;
         let election_public_key = election_public_keys.get(&mapped_id(ids, &style.election_id)?);
         let is_verified = match public_key {
-            None => true,
+            None => false,
             Some(config) => config.is_demo || Some(&config.public_key) == election_public_key,
         };
         if !is_verified {
