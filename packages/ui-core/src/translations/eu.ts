@@ -100,6 +100,9 @@ const basqueTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Errorea idatzitakoa byte-etatik UTF-8 kate-ra bihurtzerakoan: {{errorMessage}}",
                 ballotTooLarge: "Bozketa esperotakoa baino handiagoa",
+                duplicatedSelection: "Aukera bera behin baino gehiagotan hautatu da",
+                blankBallotWithSelections:
+                    "Bozketa zuri gisa markatu da baina galderak hautapenak ditu",
             },
             implicit: {
                 selectedMax:
