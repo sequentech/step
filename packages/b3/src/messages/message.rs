@@ -392,7 +392,7 @@ impl Message {
                 Statement::Mix(_, _, _, _, h, _) => h.0,
                 Statement::DecryptionFactors(_, _, _, h, _, _) => h.0,
                 Statement::Plaintexts(_, _, _, h, _, _, _) => h.0,
-                _ => return Err(anyhow!("Statement-only message has an unexpected artifact")),
+                _ => return Err(anyhow!("Artifact is not allowed for this statement type")),
             };
             if strand::hash::hash_to_array(artifact)? != expected {
                 return Err(anyhow!("Artifact does not match its signed hash"));
