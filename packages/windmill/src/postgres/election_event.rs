@@ -429,45 +429,47 @@ pub async fn get_election_event_by_election_area(
         .ok_or(anyhow!("Election event not found"))
 }
 
+/// Tables cleared before the election event row, ordered so that each row is
+/// deleted before the rows its ON DELETE RESTRICT foreign keys reference.
+const ELECTION_EVENT_RELATED_TABLES: &[&str] = &[
+    "secret",
+    "area_contest",
+    "results_election_area",
+    "results_area_contest_candidate",
+    "results_area_contest",
+    "election_result",
+    "results_contest_candidate",
+    "results_contest",
+    "results_election",
+    "ballot_style",
+    "ballot_publication",
+    "candidate",
+    "tally_session_contest",
+    "tally_sheet",
+    "tally_session_execution",
+    "contest",
+    "cast_vote",
+    "election",
+    "document",
+    "event_execution",
+    "tally_session",
+    "keys_ceremony",
+    "scheduled_event",
+    "support_material",
+    "results_event",
+    "area",
+    "tasks_execution",
+    "report",
+    "applications",
+];
+
 #[instrument(err, skip_all)]
 pub async fn delete_election_event(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let related_tables = vec![
-        "secret",
-        "area_contest",
-        "results_election_area",
-        "results_area_contest_candidate",
-        "results_area_contest",
-        "election_result",
-        "results_contest_candidate",
-        "results_contest",
-        "results_election",
-        "ballot_style",
-        "ballot_publication",
-        "candidate",
-        "tally_session_contest",
-        "tally_sheet",
-        "tally_session_execution",
-        "contest",
-        "cast_vote",
-        "election",
-        "document",
-        "event_execution",
-        "tally_session",
-        "keys_ceremony",
-        "scheduled_event",
-        "support_material",
-        "results_event",
-        "area",
-        "tasks_execution",
-        "report",
-        "applications",
-    ];
-
-    for table in related_tables {
+    for table in ELECTION_EVENT_RELATED_TABLES {
         let query: String = format!(
             r#"
             DELETE FROM sequent_backend.{}
