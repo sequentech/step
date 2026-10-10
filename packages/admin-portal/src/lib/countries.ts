@@ -103,7 +103,7 @@ export const COUNTRIES = [
     {code: "HU", name: "Hungary"},
     {code: "IS", name: "Iceland"},
     {code: "IN", name: "India"},
-    {code: "code", name: "Indonesia"},
+    {code: "ID", name: "Indonesia"},
     {code: "IR", name: "Iran, Islamic Republic of"},
     {code: "IQ", name: "Iraq"},
     {code: "IE", name: "Ireland"},
