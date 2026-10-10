@@ -822,7 +822,7 @@ pub struct CreateUserBody {
 /// and the roles that the request sets.
 fn create_user_permissions(
     input: &CreateUserBody,
-) -> Result<Vec<Permissions>, JsonError> {
+) -> Result<Vec<Permissions>, &'static str> {
     let has_secret_attributes = input
         .secret_attributes
         .as_ref()
@@ -835,11 +835,7 @@ fn create_user_permissions(
         }
     } else {
         if has_secret_attributes {
-            return Err(ErrorResponse::new(
-                Status::BadRequest,
-                "Encrypted attributes are only supported for election-event voters",
-                ErrorCode::UnknownError,
-            ));
+            return Err("Encrypted attributes are only supported for election-event voters");
         }
         required_perms.push(Permissions::USER_CREATE);
         if let Some(attributes) = &input.user.attributes {
@@ -864,17 +860,13 @@ fn create_user_permissions(
 
 /// A new user always gets the id of the tenant it is created in, so the request
 /// must not carry a `tenant-id` attribute of its own.
-fn reject_tenant_id_attribute(user: &User) -> Result<(), JsonError> {
+fn reject_tenant_id_attribute(user: &User) -> Result<(), String> {
     if user
         .attributes
         .as_ref()
         .is_some_and(|attributes| attributes.contains_key(TENANT_ID_ATTR_NAME))
     {
-        return Err(ErrorResponse::new(
-            Status::BadRequest,
-            &format!("Cannot set {TENANT_ID_ATTR_NAME} attribute"),
-            ErrorCode::UnknownError,
-        ));
+        return Err(format!("Cannot set {TENANT_ID_ATTR_NAME} attribute"));
     }
     Ok(())
 }
@@ -890,7 +882,14 @@ pub async fn create_user(
         .secret_attributes
         .as_ref()
         .is_some_and(|attributes| !attributes.is_empty());
-    let required_perms = create_user_permissions(&input)?;
+    let required_perms =
+        create_user_permissions(&input).map_err(|message| {
+            ErrorResponse::new(
+                Status::BadRequest,
+                message,
+                ErrorCode::UnknownError,
+            )
+        })?;
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
         .map_err(|(status, message)| {
             let code = if status == Status::InternalServerError {
@@ -900,7 +899,13 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
-    reject_tenant_id_attribute(&input.user)?;
+    reject_tenant_id_attribute(&input.user).map_err(|message| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &message,
+            ErrorCode::UnknownError,
+        )
+    })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -2364,7 +2369,7 @@ mod tests {
 
     fn required_for(body: serde_json::Value) -> Vec<Permissions> {
         super::create_user_permissions(&create_user_body(body))
-            .unwrap_or_else(|_| panic!("permissions must be computed"))
+            .expect("permissions must be computed")
     }
 
     /// Setting roles on a new user needs the permissions of the set-user-role
@@ -2450,9 +2455,9 @@ mod tests {
                     "attributes": {"tenant-id": [tenant_id]}
                 },
             }));
-            let response = super::reject_tenant_id_attribute(&body.user)
+            let message = super::reject_tenant_id_attribute(&body.user)
                 .expect_err("tenant-id must be rejected");
-            assert_eq!(response.0, Status::BadRequest);
+            assert!(message.contains(super::TENANT_ID_ATTR_NAME), "{message}");
         }
 
         for user in [
