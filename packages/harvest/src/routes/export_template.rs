@@ -28,6 +28,8 @@ pub struct ExportTemplateOutput {
     task_execution: TasksExecution,
 }
 
+/// Checks TEMPLATE_WRITE for the requested tenant and returns the caller's
+/// tenant, where the export runs and its task is recorded.
 fn authorized_export_tenant(
     claims: &jwt::JwtClaims,
     body: &ExportTemplateBody,
@@ -41,6 +43,8 @@ fn authorized_export_tenant(
     Ok(claims.hasura_claims.tenant_id.clone())
 }
 
+/// Queues a template export once the caller is authorized for the requested
+/// tenant.
 #[instrument(skip(claims))]
 #[post("/export-template", format = "json", data = "<input>")]
 pub async fn export_template(
@@ -110,16 +114,20 @@ mod export_template_scope_tests {
         admin, SUPER_ADMIN_TENANT_ID,
     };
 
+    /// Export request for the given tenant.
     fn request(tenant_id: &str) -> ExportTemplateBody {
         ExportTemplateBody {
             tenant_id: tenant_id.into(),
         }
     }
 
+    /// Admin of the given tenant with TEMPLATE_WRITE.
     fn template_writer(tenant_id: &str) -> jwt::JwtClaims {
         admin(tenant_id, &[Permissions::TEMPLATE_WRITE.to_string()])
     }
 
+    /// Another tenant, or a caller without TEMPLATE_WRITE, is refused before
+    /// the task is recorded.
     #[test]
     fn export_template_rejects_another_tenant_before_recording_the_task() {
         assert_eq!(
@@ -138,6 +146,8 @@ mod export_template_scope_tests {
         .is_err());
     }
 
+    /// The task is recorded in the caller's tenant, the one the export reads,
+    /// also when a super admin names another tenant.
     #[test]
     fn export_template_records_the_task_in_the_exported_tenant() {
         assert_eq!(

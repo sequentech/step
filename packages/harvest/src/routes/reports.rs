@@ -278,6 +278,7 @@ pub struct GenerateReportResponse {
 
 const REPORT_NOT_FOUND: &str = "Report not found";
 
+/// Checks REPORT_READ for the tenant the report is loaded from.
 fn authorize_generate_report(
     claims: &JwtClaims,
     input: &GenerateReportBody,
@@ -290,6 +291,8 @@ fn authorize_generate_report(
     )
 }
 
+/// Treats the report as not found when the request names an election event
+/// other than the report's.
 fn ensure_report_event(
     report_election_event_id: &str,
     requested_election_event_id: Option<&str>,
@@ -304,6 +307,8 @@ fn ensure_report_event(
     }
 }
 
+/// Queues a report of the requested tenant, which the caller must be
+/// authorized for.
 #[instrument(skip(claims))]
 #[post("/generate-report", format = "json", data = "<body>")]
 pub async fn generate_report(
@@ -522,6 +527,8 @@ mod generate_report_scope_tests {
         admin, SUPER_ADMIN_TENANT_ID,
     };
 
+    /// Request for report "report" of the given tenant in election event
+    /// "event".
     fn request(tenant_id: &str) -> GenerateReportBody {
         GenerateReportBody {
             report_id: "report".into(),
@@ -531,10 +538,13 @@ mod generate_report_scope_tests {
         }
     }
 
+    /// Admin of the given tenant with REPORT_READ.
     fn report_reader(tenant_id: &str) -> JwtClaims {
         admin(tenant_id, &[Permissions::REPORT_READ.to_string()])
     }
 
+    /// Only the caller's own tenant is accepted, unless the caller is a super
+    /// admin.
     #[test]
     fn generate_report_requires_access_to_the_requested_tenant() {
         assert_eq!(
@@ -558,6 +568,7 @@ mod generate_report_scope_tests {
         .is_ok());
     }
 
+    /// REPORT_READ is required also for the caller's own tenant.
     #[test]
     fn generate_report_requires_report_read() {
         assert!(authorize_generate_report(
@@ -567,6 +578,7 @@ mod generate_report_scope_tests {
         .is_err());
     }
 
+    /// An omitted election event is accepted; another one is not found.
     #[test]
     fn generate_report_rejects_an_election_event_other_than_the_reports() {
         assert_eq!(
