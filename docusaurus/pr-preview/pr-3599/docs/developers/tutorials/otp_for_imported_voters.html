@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Email and SMS OTP for Imported Voters | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3599/docs/developers/tutorials/otp_for_imported_voters"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Email and SMS OTP for Imported Voters | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3599/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3599/docs/developers/tutorials/otp_for_imported_voters"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3599/docs/developers/tutorials/otp_for_imported_voters" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3599/docs/developers/tutorials/otp_for_imported_voters" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Email and SMS OTP for Imported Voters","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3599/docs/developers/tutorials/otp_for_imported_voters"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3599/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3599/assets/js/runtime~main.a7608672.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3599/assets/js/runtime~main.d5395e7c.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3599/assets/js/main.3c0446ef.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -41,8 +41,9 @@ authentication flow.</p>
 <ul>
 <li class="">Voters imported with an <strong>email address</strong>, a <strong>mobile number</strong>, or both.</li>
 <li class="">A working sender for the channel you use: an email sender for email codes, an
-SMS sender for SMS codes. In the development environment the dummy senders write
-the message to the Keycloak log instead of sending it.</li>
+SMS sender for SMS codes. In the development environment the dummy senders
+simulate delivery without sending or logging the message; Step 3 explains how to
+sign in with them.</li>
 <li class="">Access to the Keycloak admin console for the election event realm.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="step-1-add-the-otp-sub-flow-to-the-browser-flow">Step 1: add the OTP sub-flow to the browser flow<a href="#step-1-add-the-otp-sub-flow-to-the-browser-flow" class="hash-link" aria-label="Direct link to Step 1: add the OTP sub-flow to the browser flow" title="Direct link to Step 1: add the OTP sub-flow to the browser flow" translate="no">​</a></h2>
