@@ -30,20 +30,27 @@ pub struct ExportTenantConfigOutput {
     task_execution: TasksExecution,
 }
 
+fn authorize_export_tenant_config(
+    claims: &JwtClaims,
+    input: &ExportTenantConfigInput,
+) -> Result<(), (Status, String)> {
+    authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::TENANT_READ],
+    )
+}
+
 #[instrument(skip(claims))]
 #[post("/export-tenant-config", format = "json", data = "<input>")]
 pub async fn export_tenant_config_route(
     claims: jwt::JwtClaims,
     input: Json<ExportTenantConfigInput>,
 ) -> Result<Json<ExportTenantConfigOutput>, (Status, String)> {
-    authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TENANT_READ],
-    )?;
-
     let body = input.into_inner();
+    authorize_export_tenant_config(&claims, &body)?;
+
     let executer_name = claims
         .name
         .clone()
@@ -90,4 +97,36 @@ pub async fn export_tenant_config_route(
     info!("Sent EXPORT_TENANT_CONFIG task  {:?}", &task_execution);
 
     Ok(Json(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID, OTHER_TENANT_ID,
+    };
+
+    fn input(tenant_id: &str) -> ExportTenantConfigInput {
+        ExportTenantConfigInput {
+            tenant_id: tenant_id.to_string(),
+        }
+    }
+
+    #[test]
+    fn export_tenant_config_rejects_tenant_other_than_callers() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["tenant-read"]);
+        let result =
+            authorize_export_tenant_config(&claims, &input(OTHER_TENANT_ID));
+        assert_eq!(result.unwrap_err().0, Status::Unauthorized);
+    }
+
+    #[test]
+    fn export_tenant_config_accepts_callers_tenant() {
+        let claims = admin_claims(CALLER_TENANT_ID, &["tenant-read"]);
+        assert!(authorize_export_tenant_config(
+            &claims,
+            &input(CALLER_TENANT_ID)
+        )
+        .is_ok());
+    }
 }

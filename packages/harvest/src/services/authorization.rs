@@ -113,3 +113,29 @@ pub fn authorize_voter_election(
         _ => Err((Status::Unauthorized, "Unknown Client".into())),
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test_claims {
+    use sequent_core::services::jwt::JwtClaims;
+
+    pub(crate) const CALLER_TENANT_ID: &str =
+        "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61";
+    pub(crate) const OTHER_TENANT_ID: &str =
+        "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43";
+
+    pub(crate) fn admin_claims(tenant_id: &str, roles: &[&str]) -> JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test",
+            "sub": "admin", "typ": "Bearer", "azp": "admin-portal",
+            "acr": "1", "allowed-origins": [], "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "admin-user",
+                "x-hasura-tenant-id": tenant_id,
+                "x-hasura-user-id": "admin",
+                "x-hasura-allowed-roles": roles
+            }
+        }))
+        .expect("test claims must deserialize")
+    }
+}
