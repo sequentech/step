@@ -152,12 +152,8 @@ fn run_protocol_test<C: Ctx + 'static>(
             assert!(expected == actual);
             info!("Match ok on plaintexts for batch {}", i + 1);
         }
-        // The verifier's mixing hashes hold the ballots plus one hash per mix,
-        // which does not fit when all MAX_TRUSTEES trustees mix.
-        if threshold.len() < MAX_TRUSTEES {
-            let board = data.lock().unwrap().clone();
-            assert_eq!(verified_batches(&test.cfg, &board)?, batches);
-        }
+        let board = data.lock().unwrap().clone();
+        assert_eq!(verified_batches(&test.cfg, &board)?, batches);
     } else {
         error!("No plaintexts found");
         panic!();

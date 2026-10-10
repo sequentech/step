@@ -104,8 +104,10 @@ impl std::fmt::Debug for DecryptionFactorsHashes {
     }
 }
 
+/// The hashes of a batch's mixing chain: the ballots, then the output of each
+/// mix. With MAX_TRUSTEES mixing trustees that is one more than MAX_TRUSTEES.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
-pub struct MixingHashes(pub THashes);
+pub struct MixingHashes(pub [Hash; MAX_TRUSTEES + 1]);
 impl std::fmt::Debug for MixingHashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "MixingHashes({})", dbg_hashes(&self.0))
