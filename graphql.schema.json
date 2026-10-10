@@ -40578,6 +40578,18 @@
             "deprecationReason": null
           },
           {
+            "name": "election_event",
+            "description": "An object relationship",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_election_event",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "args": [],
@@ -40975,6 +40987,16 @@
             "defaultValue": null
           },
           {
+            "name": "election_event",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_event_bool_exp",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -41237,6 +41259,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "sequent_backend_election_obj_rel_insert_input",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "election_event",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_event_obj_rel_insert_input",
               "ofType": null
             },
             "defaultValue": null
@@ -41748,6 +41780,16 @@
             "type": {
               "kind": "INPUT_OBJECT",
               "name": "sequent_backend_election_order_by",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "election_event",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_event_order_by",
               "ofType": null
             },
             "defaultValue": null
@@ -60349,6 +60391,41 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_election_event_obj_rel_insert_input",
+        "description": "input type for inserting object relation for remote table \"sequent_backend.election_event\"",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "data",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "INPUT_OBJECT",
+                "name": "sequent_backend_election_event_insert_input",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "on_conflict",
+            "description": "upsert condition",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_event_on_conflict",
+              "ofType": null
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },

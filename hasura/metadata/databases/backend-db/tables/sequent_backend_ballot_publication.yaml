@@ -13,6 +13,16 @@ object_relationships:
               remote_table:
                   name: election
                   schema: sequent_backend
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
@@ -21,8 +31,18 @@ insert_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - election_id:
-                              _is_null: true
+                        - _and:
+                              - election_id:
+                                    _is_null: true
+                              - election_event:
+                                    _not:
+                                        elections:
+                                            _not:
+                                                _or:
+                                                    - permission_label:
+                                                          _is_null: true
+                                                    - permission_label:
+                                                          _in: X-Hasura-Permission-Labels
                         - election:
                               _or:
                                   - permission_label:
@@ -36,7 +56,6 @@ insert_permissions:
               - deleted_at
               - election_event_id
               - election_id
-              - election_ids
               - id
               - is_generated
               - labels
@@ -50,8 +69,18 @@ insert_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - election_id:
-                              _is_null: true
+                        - _and:
+                              - election_id:
+                                    _is_null: true
+                              - election_event:
+                                    _not:
+                                        elections:
+                                            _not:
+                                                _or:
+                                                    - permission_label:
+                                                          _is_null: true
+                                                    - permission_label:
+                                                          _in: X-Hasura-Permission-Labels
                         - election:
                               _or:
                                   - permission_label:
@@ -59,7 +88,6 @@ insert_permissions:
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
           columns:
-              - election_ids
               - is_generated
               - annotations
               - labels
@@ -206,8 +234,18 @@ update_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - election_id:
-                              _is_null: true
+                        - _and:
+                              - election_id:
+                                    _is_null: true
+                              - election_event:
+                                    _not:
+                                        elections:
+                                            _not:
+                                                _or:
+                                                    - permission_label:
+                                                          _is_null: true
+                                                    - permission_label:
+                                                          _in: X-Hasura-Permission-Labels
                         - election:
                               _or:
                                   - permission_label:
@@ -215,7 +253,6 @@ update_permissions:
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
           columns:
-              - election_ids
               - is_generated
               - annotations
               - labels
@@ -232,8 +269,18 @@ update_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - election_id:
-                              _is_null: true
+                        - _and:
+                              - election_id:
+                                    _is_null: true
+                              - election_event:
+                                    _not:
+                                        elections:
+                                            _not:
+                                                _or:
+                                                    - permission_label:
+                                                          _is_null: true
+                                                    - permission_label:
+                                                          _in: X-Hasura-Permission-Labels
                         - election:
                               _or:
                                   - permission_label:
@@ -248,8 +295,18 @@ update_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - election_id:
-                              _is_null: true
+                        - _and:
+                              - election_id:
+                                    _is_null: true
+                              - election_event:
+                                    _not:
+                                        elections:
+                                            _not:
+                                                _or:
+                                                    - permission_label:
+                                                          _is_null: true
+                                                    - permission_label:
+                                                          _in: X-Hasura-Permission-Labels
                         - election:
                               _or:
                                   - permission_label:
@@ -257,7 +314,6 @@ update_permissions:
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
           columns:
-              - election_ids
               - is_generated
               - annotations
               - labels
@@ -274,8 +330,18 @@ update_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - election_id:
-                              _is_null: true
+                        - _and:
+                              - election_id:
+                                    _is_null: true
+                              - election_event:
+                                    _not:
+                                        elections:
+                                            _not:
+                                                _or:
+                                                    - permission_label:
+                                                          _is_null: true
+                                                    - permission_label:
+                                                          _in: X-Hasura-Permission-Labels
                         - election:
                               _or:
                                   - permission_label:
@@ -309,8 +375,18 @@ delete_permissions:
                   - tenant_id:
                         _eq: X-Hasura-Tenant-Id
                   - _or:
-                        - election_id:
-                              _is_null: true
+                        - _and:
+                              - election_id:
+                                    _is_null: true
+                              - election_event:
+                                    _not:
+                                        elections:
+                                            _not:
+                                                _or:
+                                                    - permission_label:
+                                                          _is_null: true
+                                                    - permission_label:
+                                                          _in: X-Hasura-Permission-Labels
                         - election:
                               _or:
                                   - permission_label:

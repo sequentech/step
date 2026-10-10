@@ -6455,6 +6455,8 @@ export type Sequent_Backend_Ballot_Publication = {
   deleted_at?: Maybe<Scalars['timestamptz']['output']>;
   /** An object relationship */
   election?: Maybe<Sequent_Backend_Election>;
+  /** An object relationship */
+  election_event?: Maybe<Sequent_Backend_Election_Event>;
   election_event_id: Scalars['uuid']['output'];
   election_id?: Maybe<Scalars['uuid']['output']>;
   election_ids?: Maybe<Array<Scalars['uuid']['output']>>;
@@ -6515,6 +6517,7 @@ export type Sequent_Backend_Ballot_Publication_Bool_Exp = {
   created_by_user_id?: InputMaybe<String_Comparison_Exp>;
   deleted_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
+  election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_ids?: InputMaybe<Uuid_Array_Comparison_Exp>;
@@ -6556,6 +6559,7 @@ export type Sequent_Backend_Ballot_Publication_Insert_Input = {
   created_by_user_id?: InputMaybe<Scalars['String']['input']>;
   deleted_at?: InputMaybe<Scalars['timestamptz']['input']>;
   election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
+  election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_ids?: InputMaybe<Array<Scalars['uuid']['input']>>;
@@ -6617,6 +6621,7 @@ export type Sequent_Backend_Ballot_Publication_Order_By = {
   created_by_user_id?: InputMaybe<Order_By>;
   deleted_at?: InputMaybe<Order_By>;
   election?: InputMaybe<Sequent_Backend_Election_Order_By>;
+  election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   election_ids?: InputMaybe<Order_By>;
@@ -9454,6 +9459,13 @@ export type Sequent_Backend_Election_Event_Mutation_Response = {
   affected_rows: Scalars['Int']['output'];
   /** data from the rows affected by the mutation */
   returning: Array<Sequent_Backend_Election_Event>;
+};
+
+/** input type for inserting object relation for remote table "sequent_backend.election_event" */
+export type Sequent_Backend_Election_Event_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Election_Event_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Election_Event_On_Conflict>;
 };
 
 /** on_conflict condition type for table "sequent_backend.election_event" */
