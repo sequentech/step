@@ -6,7 +6,7 @@ use crate::services::authorization::authorize;
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
@@ -14,6 +14,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::tenant;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
+use windmill::services::delete_election_event::{
+    find_election_event_deletion_refusal, ElectionEventDeletionRefusal,
+};
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
@@ -29,6 +33,22 @@ pub struct DeleteElectionEventOutput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteElectionEventInput {
     election_event_id: String,
+}
+
+async fn election_event_deletion_refusal(
+    tenant_id: &str,
+    election_event_id: &str,
+    permission_labels: &[String],
+) -> anyhow::Result<Option<ElectionEventDeletionRefusal>> {
+    let mut client = get_hasura_pool().await.get().await?;
+    let transaction = client.transaction().await?;
+    find_election_event_deletion_refusal(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        permission_labels,
+    )
+    .await
 }
 
 #[instrument(skip(claims))]
@@ -72,6 +92,32 @@ pub async fn delete_election_event_f(
         return Err(error);
     };
 
+    let permission_labels = decode_permission_labels(&claims);
+    let refusal = match election_event_deletion_refusal(
+        &tenant_id,
+        &input.election_event_id,
+        &permission_labels,
+    )
+    .await
+    {
+        Ok(refusal) => refusal,
+        Err(error) => {
+            let message = format!(
+                "Failed to check whether the election event can be deleted: {error:?}"
+            );
+            let _ = update_fail(&task_execution, &message).await;
+            return Err((Status::InternalServerError, message));
+        }
+    };
+    if let Some(refusal) = refusal {
+        let _ = update_fail(&task_execution, &refusal.to_string()).await;
+        return Ok(Json(DeleteElectionEventOutput {
+            id: input.election_event_id,
+            error_msg: Some(refusal.to_string()),
+            task_execution,
+        }));
+    }
+
     let celery_app = get_celery_app().await;
 
     let realm = get_event_realm(&tenant_id, &input.election_event_id);
@@ -82,6 +128,7 @@ pub async fn delete_election_event_f(
             input.election_event_id.clone(),
             realm.clone(),
             task_execution.clone(),
+            permission_labels,
         ))
         .await;
 
