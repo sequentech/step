@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Exercise real Rocket routing, request guards and permission denials without
-//! starting Harvest's service workers. Synthetic JWT payloads represent claims
-//! forwarded by the identity gateway; these tests do not verify JWT signatures.
+//! starting Harvest's service workers. Synthetic JWTs are signed with a public
+//! test key and verified by the real guards against a local key server.
 
 use crate::test_claims::Claims;
 use rocket::http::{ContentType, Header, Status};
@@ -209,7 +209,7 @@ fn bearer(claims: &Claims) -> Header<'static> {
 }
 
 // A successful control verifies that the fixture really passes the shared
-// guard. No real privileged operation is needed merely to test its parsing.
+// guard. No real privileged operation is needed merely to test the guard.
 #[get("/_boundary/claims")]
 fn accepted_claims(claims: JwtClaims) -> Json<Value> {
     Json(
@@ -227,6 +227,7 @@ fn status_failure(code: u16) -> Status {
 async fn client() -> Client {
     Client::tracked(
         crate::build_application()
+            .manage(crate::test_claims::signing::issuers())
             .configure(rocket::Config {
                 log_level: rocket::config::LogLevel::Off,
                 ..Default::default()
