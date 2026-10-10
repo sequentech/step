@@ -3,23 +3,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {render, screen, fireEvent, waitFor} from "@testing-library/react"
+import {act, render, screen, fireEvent, waitFor} from "@testing-library/react"
 import {Provider} from "react-redux"
 import {MemoryRouter} from "react-router-dom"
-import {MockedProvider} from "@apollo/client/testing"
-import {IAuditableBallot, IDecodedVoteContest} from "@sequentech/ui-core"
+import {MockedProvider, MockedResponse} from "@apollo/client/testing"
+import {IAuditableBallot, IBallotStyle, IDecodedVoteContest} from "@sequentech/ui-core"
 import {HomeScreen} from "./HomeScreen"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
 import {store} from "../store/store"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 
-jest.mock("@sequentech/ui-core", () => ({}))
+jest.mock("@sequentech/ui-core", () => ({
+    isString: (value: unknown) => typeof value === "string",
+}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("..", () => {
     const React = require("react")
-    return {TenantEventContext: React.createContext({tenantId: null, eventId: null})}
+    return {TenantEventContext: React.createContext({tenantId: "tenant-1", eventId: "event-1"})}
 })
-jest.mock("../services/BallotStyles", () => ({updateBallotStyleAndSelection: jest.fn()}))
+jest.mock("../services/BallotStyles", () => ({
+    ...jest.requireActual("../services/BallotStyles"),
+    updateBallotStyleAndSelection: jest.fn(),
+}))
 jest.mock("@sequentech/ui-essentials", () => {
     const React = require("react")
     const passthrough = ({children}: {children?: React.ReactNode}) =>
@@ -41,10 +47,22 @@ jest.mock("@sequentech/ui-essentials", () => {
     }
 })
 
+const publishedBallotStyle = {
+    id: "ballot-style-1",
+    election_id: "election-1",
+    public_key: {public_key: "published-key", is_demo: false},
+    contests: [],
+    election_event_presentation: {css: ".published {}"},
+}
+
 const auditableBallot = {
     version: 1,
     issue_date: "2026-09-02",
-    config: {election_id: "election-1", contests: []},
+    config: {
+        ...publishedBallotStyle,
+        public_key: {public_key: "other-key", is_demo: false},
+        election_event_presentation: {css: ".from-file {}"},
+    },
     contests: ["contest-1"],
     ballot_hash: "hash",
 } as unknown as IAuditableBallot
@@ -70,14 +88,41 @@ const ballotService = (ciphertextConsistent: boolean | Error): IBallotService =>
 
 const ballotStylesMock = {
     request: {query: GET_BALLOT_STYLES},
-    result: {data: {sequent_backend_ballot_publication: [], sequent_backend_ballot_style: []}},
+    result: {
+        data: {
+            sequent_backend_ballot_publication: [
+                {id: "publication-1", published_at: "2026-09-01T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: [
+                {
+                    id: publishedBallotStyle.id,
+                    ballot_publication_id: "publication-1",
+                    election_id: publishedBallotStyle.election_id,
+                    election_event_id: "event-1",
+                    status: null,
+                    tenant_id: "tenant-1",
+                    ballot_eml: JSON.stringify(publishedBallotStyle),
+                    ballot_signature: null,
+                    created_at: "2026-09-01T00:00:00Z",
+                    area_id: null,
+                    annotations: null,
+                    labels: null,
+                    last_updated_at: "2026-09-01T00:00:00Z",
+                    deleted_at: null,
+                },
+            ],
+        },
+    },
 }
 
-const uploadBallot = async (service: IBallotService) => {
+const renderHomeScreen = (
+    service: IBallotService,
+    ballotStyles: MockedResponse = ballotStylesMock
+) => {
     const setConfirmationBallot = jest.fn()
     render(
         <Provider store={store}>
-            <MockedProvider mocks={[ballotStylesMock]}>
+            <MockedProvider mocks={[ballotStyles]} addTypename={false}>
                 <MemoryRouter>
                     <HomeScreen
                         confirmationBallot={null}
@@ -92,16 +137,30 @@ const uploadBallot = async (service: IBallotService) => {
             </MockedProvider>
         </Provider>
     )
-    const file = new File([JSON.stringify(auditableBallot)], "ballot.json", {
+    return setConfirmationBallot
+}
+
+const dropBallot = (ballot: IAuditableBallot) => {
+    const file = new File([JSON.stringify(ballot)], "ballot.json", {
         type: "application/json",
     })
-    file.text = () => Promise.resolve(JSON.stringify(auditableBallot))
+    file.text = () => Promise.resolve(JSON.stringify(ballot))
     fireEvent.change(screen.getByTestId("drop-input-file"), {target: {files: [file]}})
-    await waitFor(() => expect(service.verifyAuditableBallotCiphertext).toHaveBeenCalled())
+}
+
+const uploadBallot = async (
+    service: IBallotService,
+    ballot: IAuditableBallot = auditableBallot
+) => {
+    const setConfirmationBallot = renderHomeScreen(service)
+    await waitFor(() => expect(updateBallotStyleAndSelection).toHaveBeenCalled())
+    dropBallot(ballot)
     return setConfirmationBallot
 }
 
 describe("HomeScreen ballot verification", () => {
+    afterEach(() => jest.clearAllMocks())
+
     it("accepts a ballot whose plaintext and randomness reproduce its ciphertext", async () => {
         const service = ballotService(true)
 
@@ -139,5 +198,115 @@ describe("HomeScreen ballot verification", () => {
         expect(screen.getByTestId("ciphertext-error")).not.toBeVisible()
         expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
         expect(service.hashBallot512).not.toHaveBeenCalled()
+    })
+
+    it("decodes, checks and shows the ballot with the published ballot style it names", async () => {
+        const service = ballotService(true)
+
+        const setConfirmationBallot = await uploadBallot(service)
+
+        await waitFor(() =>
+            expect(setConfirmationBallot).toHaveBeenLastCalledWith(
+                expect.objectContaining<Partial<IConfirmationBallot>>({
+                    election_config: publishedBallotStyle as unknown as IBallotStyle,
+                })
+            )
+        )
+        expect(service.decodeAuditableBallot).toHaveBeenCalledWith(
+            expect.objectContaining({config: publishedBallotStyle})
+        )
+        expect(service.verifyAuditableBallotCiphertext).toHaveBeenCalledWith(
+            expect.objectContaining({config: publishedBallotStyle})
+        )
+    })
+
+    it("rejects a ballot whose ballot style is not published", async () => {
+        const service = ballotService(true)
+        const unpublished = {
+            ...auditableBallot,
+            config: {...auditableBallot.config, id: "unpublished-ballot-style"},
+        }
+
+        const setConfirmationBallot = await uploadBallot(service, unpublished)
+
+        await waitFor(() => expect(screen.getByTestId("unpublished-style-error")).toBeVisible())
+        expect(screen.getByTestId("import-error")).not.toBeVisible()
+        expect(screen.getByTestId("ciphertext-error")).not.toBeVisible()
+        expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
+        expect(service.decodeAuditableBallot).not.toHaveBeenCalled()
+        expect(service.verifyAuditableBallotCiphertext).not.toHaveBeenCalled()
+    })
+
+    it("rejects a ballot whose published ballot style belongs to another election event", async () => {
+        const service = ballotService(true)
+        const otherEvent = {
+            ...ballotStylesMock,
+            result: {
+                data: {
+                    ...ballotStylesMock.result.data,
+                    sequent_backend_ballot_style: [
+                        {
+                            ...ballotStylesMock.result.data.sequent_backend_ballot_style[0],
+                            election_event_id: "event-2",
+                        },
+                    ],
+                },
+            },
+        }
+
+        const setConfirmationBallot = renderHomeScreen(service, otherEvent)
+        await waitFor(() => expect(updateBallotStyleAndSelection).toHaveBeenCalled())
+        dropBallot(auditableBallot)
+
+        await waitFor(() => expect(screen.getByTestId("unpublished-style-error")).toBeVisible())
+        expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
+        expect(service.verifyAuditableBallotCiphertext).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ["have not loaded yet", {...ballotStylesMock, delay: 60_000}],
+        ["failed to load", {request: ballotStylesMock.request, error: new Error("offline")}],
+    ])(
+        "does not report a ballot as unpublished when the ballot styles %s",
+        async (_, ballotStyles: MockedResponse) => {
+            const service = ballotService(true)
+
+            const setConfirmationBallot = renderHomeScreen(service, ballotStyles)
+            await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+            dropBallot(auditableBallot)
+
+            await waitFor(() => expect(screen.getByTestId("unavailable-style-error")).toBeVisible())
+            expect(screen.getByTestId("unpublished-style-error")).not.toBeVisible()
+            expect(screen.getByTestId("import-error")).not.toBeVisible()
+            expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
+            expect(service.verifyAuditableBallotCiphertext).not.toHaveBeenCalled()
+        }
+    )
+
+    it("does not report a ballot as unpublished when its published ballot style cannot be read", async () => {
+        const service = ballotService(true)
+        const unreadable = {
+            ...ballotStylesMock,
+            result: {
+                data: {
+                    ...ballotStylesMock.result.data,
+                    sequent_backend_ballot_style: [
+                        {
+                            ...ballotStylesMock.result.data.sequent_backend_ballot_style[0],
+                            ballot_eml: "{",
+                        },
+                    ],
+                },
+            },
+        }
+
+        const setConfirmationBallot = renderHomeScreen(service, unreadable)
+        await waitFor(() => expect(updateBallotStyleAndSelection).toHaveBeenCalled())
+        dropBallot(auditableBallot)
+
+        await waitFor(() => expect(screen.getByTestId("unavailable-style-error")).toBeVisible())
+        expect(screen.getByTestId("unpublished-style-error")).not.toBeVisible()
+        expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
+        expect(service.verifyAuditableBallotCiphertext).not.toHaveBeenCalled()
     })
 })
