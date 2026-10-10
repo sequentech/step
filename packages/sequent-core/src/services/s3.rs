@@ -319,8 +319,9 @@ pub fn get_private_bucket() -> Result<String> {
 /// plugin storage.
 #[instrument(err, skip_all)]
 pub fn get_public_bucket() -> Result<String> {
-    let s3_bucket = env::var(AWS_S3_PUBLIC_BUCKET_ENV)
-        .map_err(|err| anyhow!("AWS_S3_PUBLIC_BUCKET must be set: {err}"))?;
+    let s3_bucket = env::var(AWS_S3_PUBLIC_BUCKET_ENV).map_err(|err| {
+        anyhow!("{AWS_S3_PUBLIC_BUCKET_ENV} must be set: {err}")
+    })?;
     Ok(s3_bucket)
 }
 
