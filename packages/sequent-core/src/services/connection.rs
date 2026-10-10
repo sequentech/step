@@ -172,15 +172,11 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
         headers.get_one(AUTHORIZATION_HEADER).unwrap_or_default(),
     );
 
-    info!(
-        "tenant-id: {:?} event-id: {:?} authorization: {:?}",
-        tenant_id, event_id, authorization
-    );
+    info!("tenant-id: {:?} event-id: {:?}", tenant_id, event_id);
 
     let mut auth_collection = authorization.split(":");
     let client_id = auth_collection.nth(0); // get the first item and consumes it
     let client_secret = auth_collection.nth(0);
-    info!("{:?}:{:?}", client_id, client_secret);
     let (client_id, client_secret) =
         if let (Some(client_id), Some(client_secret)) =
             (client_id, client_secret)
