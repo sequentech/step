@@ -10,12 +10,14 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use windmill::services::limit_access_by_countries::handle_limit_ip_access_by_countries;
+use windmill::services::limit_access_by_countries::{
+    handle_limit_ip_access_by_countries, CountryCode,
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LimitAccessByCountriesInput {
-    voting_countries: Vec<String>,
-    enroll_countries: Vec<String>,
+    voting_countries: Vec<CountryCode>,
+    enroll_countries: Vec<CountryCode>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
