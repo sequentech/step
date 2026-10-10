@@ -281,3 +281,4 @@ Configure advanced system behaviors for this Election Event.
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:
   - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.
+  - A delegation is counted only when the delegating voter is an enabled voter of the same election event, in the same area as the delegate, allowed to vote in the election, and names a single delegate. A delegating voter who has a valid ballot of their own in that election and area is counted through that ballot instead of through the delegate; a discarded ballot does not replace the delegation.

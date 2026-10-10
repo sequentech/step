@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::cast_votes::CastVoteStatus;
 use anyhow::{anyhow, ensure, Result};
 use csv::{ReaderBuilder, StringRecord};
 use sequent_core::types::keycloak::{MAX_VOTE_WEIGHT, MIN_VOTE_WEIGHT};
@@ -273,6 +274,34 @@ pub fn merge_join_csv(
         casted_ballots,
         casted_ballots_by_channel,
     })
+}
+
+/// Voter ids of the valid ballots in a ballots CSV.
+pub fn read_valid_ballot_voter_ids(
+    ballots_file: &File,
+    ballots_voter_id_index: usize,
+    ballots_status_index: usize,
+) -> Result<Vec<String>> {
+    let mut ballots_reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(ballots_file);
+    let mut voter_ids = Vec::new();
+    for ballot in ballots_reader.records() {
+        let ballot = ballot?;
+        let status = ballot
+            .get(ballots_status_index)
+            .ok_or_else(|| anyhow!("Missing ballot status column {ballots_status_index}"))?;
+        if status.parse::<CastVoteStatus>().ok() != Some(CastVoteStatus::Valid) {
+            continue;
+        }
+        let voter_id = ballot
+            .get(ballots_voter_id_index)
+            .ok_or_else(|| anyhow!("Missing ballot voter id column {ballots_voter_id_index}"))?;
+        if !voter_id.is_empty() {
+            voter_ids.push(voter_id.to_string());
+        }
+    }
+    Ok(voter_ids)
 }
 
 #[cfg(test)]
@@ -916,6 +945,25 @@ mod tests {
             result.casted_ballots
         );
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_valid_ballot_voter_ids_skips_discarded_ballots() -> Result<()> {
+        let mut ballots = NamedTempFile::new()?;
+        writeln!(
+            ballots,
+            "alice,content-a,ONLINE,valid,10000000-0000-4000-8000-000000000001\n\
+             bob,content-b,ONLINE,discarded,10000000-0000-4000-8000-000000000002\n\
+             ,content-x,ONLINE,valid,10000000-0000-4000-8000-000000000004\n\
+             carol,content-c,KIOSK,valid,10000000-0000-4000-8000-000000000003"
+        )?;
+        ballots.flush()?;
+
+        assert_eq!(
+            read_valid_ballot_voter_ids(&ballots.reopen()?, 0, 3)?,
+            vec!["alice".to_string(), "carol".to_string()]
+        );
         Ok(())
     }
 }
