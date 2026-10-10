@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Bulletin Board Transport Security | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3600/docs/developers/braid/b3_transport_security"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Bulletin Board Transport Security | Sequent Online Voting"><meta data-rh="true" name="description" content="Braid trustees read and post protocol messages through the b3 bulletin board"><meta data-rh="true" property="og:description" content="Braid trustees read and post protocol messages through the b3 bulletin board"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3600/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3600/docs/developers/braid/b3_transport_security"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3600/docs/developers/braid/b3_transport_security" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3600/docs/developers/braid/b3_transport_security" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Bulletin Board Transport Security","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3600/docs/developers/braid/b3_transport_security"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3600/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3600/assets/js/runtime~main.f360a352.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3600/assets/js/runtime~main.c7281dd6.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3600/assets/js/main.3af92f30.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -35,7 +35,9 @@ the host name the trustees use in <code>B3_URL</code> (for example <code>b3</cod
 certificate per trustee from a CA reserved for b3 clients. Client
 certificates that carry an extended key usage must include <code>clientAuth</code>.</li>
 <li class="">Make the certificate and key files readable inside the b3 and trustee
-containers, for example with read-only volume mounts.</li>
+containers. The Docker Compose files in this repository already pass the
+variables listed above to b3 and the trustees; add read-only volume mounts
+for the files, for example in a <code>docker-compose.override.yml</code>.</li>
 <li class="">On b3 set <code>B3_TRANSPORT_SECURITY=mutual_tls</code>, <code>B3_TLS_CERT_PATH</code>,
 <code>B3_TLS_KEY_PATH</code> and <code>B3_TLS_CA_PATH</code>.</li>
 <li class="">On every trustee set <code>B3_CLIENT_TRANSPORT_SECURITY=mutual_tls</code>,
