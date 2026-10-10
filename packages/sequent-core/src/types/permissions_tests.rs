@@ -6,6 +6,7 @@ use super::*;
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::str::FromStr;
+use strum::IntoEnumIterator;
 
 /// The realms administrators log in to: the template every new tenant
 /// realm is made from, and the one the janitor writes for a deployment.
@@ -599,6 +600,121 @@ fn every_realm_grants_messaging_to_its_administrators_only() {
                 groups_granting(&realm, &permission),
                 groups,
                 "{name}: {permission}"
+            );
+        }
+    }
+}
+
+const RESERVED_NAMES: [&str; 5] = [
+    "admin",
+    "service-account",
+    "datafix-account",
+    "super-admin-user",
+    "cli-account-admin",
+];
+
+/// Every realm role the realm defines or grants to one of its groups.
+fn realm_role_names(realm: &Value) -> Vec<&str> {
+    let mut names: Vec<&str> = realm["roles"]["realm"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|role| role["name"].as_str())
+        .collect();
+    let mut groups: Vec<&Value> =
+        realm["groups"].as_array().into_iter().flatten().collect();
+    while let Some(group) = groups.pop() {
+        names.extend(
+            group["realmRoles"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str),
+        );
+        groups.extend(group["subGroups"].as_array().into_iter().flatten());
+    }
+    names
+}
+
+#[test]
+fn reserved_roles_are_the_platform_managed_names() {
+    let names: Vec<String> = ReservedHasuraRole::iter()
+        .map(|role| role.to_string())
+        .collect();
+
+    assert_eq!(names, RESERVED_NAMES);
+}
+
+#[test]
+fn reserved_names_are_rejected_in_any_case_with_surrounding_whitespace() {
+    for name in RESERVED_NAMES {
+        for spelling in
+            [name.to_string(), name.to_uppercase(), format!(" {name}\n")]
+        {
+            assert!(
+                matches!(
+                    RealmRolePolicy::classify(&spelling),
+                    RealmRolePolicy::Reserved(_)
+                ),
+                "{spelling:?}"
+            );
+            let error =
+                RealmRolePolicy::require_ordinary(&spelling).unwrap_err();
+            assert!(error.to_string().contains(name), "{error}");
+        }
+    }
+}
+
+#[test]
+fn platform_account_permissions_are_reserved() {
+    for permission in
+        [Permissions::SERVICE_ACCOUNT, Permissions::DATAFIX_ACCOUNT]
+    {
+        assert!(
+            RealmRolePolicy::require_ordinary(&permission.to_string()).is_err()
+        );
+    }
+}
+
+#[test]
+fn other_names_are_ordinary() {
+    for name in [
+        "admin-user",
+        "admin-light",
+        "service-account-reader",
+        "super-admin",
+        "cli-account",
+        "election-event-read",
+        "user",
+        "",
+        "  ",
+    ] {
+        assert_eq!(
+            RealmRolePolicy::classify(name),
+            RealmRolePolicy::Ordinary,
+            "{name:?}"
+        );
+        assert!(RealmRolePolicy::require_ordinary(name).is_ok());
+    }
+    assert!(RealmRolePolicy::require_ordinary(
+        &Permissions::ADMIN_USER.to_string()
+    )
+    .is_ok());
+}
+
+#[test]
+fn every_realm_template_only_holds_ordinary_roles() {
+    for (name, text) in REALMS {
+        let realm: Value = serde_json::from_str(text)
+            .unwrap_or_else(|why| panic!("{name}: {why}"));
+        let names = realm_role_names(&realm);
+
+        assert!(names.len() > 100, "{name}");
+        for role in names {
+            assert_eq!(
+                RealmRolePolicy::classify(role),
+                RealmRolePolicy::Ordinary,
+                "{name}: {role}"
             );
         }
     }

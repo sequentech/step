@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumString};
+use std::fmt;
+use strum_macros::{Display, EnumIter, EnumString};
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -494,6 +495,64 @@ pub enum VoterPermissions {
     #[strum(serialize = "ack-support-materials")]
     ACK_SUPPORT_MATERIALS,
 }
+
+/// Hasura roles the platform manages itself: Hasura's built-in `admin` and
+/// the roles held only by platform service accounts and super admins. Realm
+/// roles are never created, assigned or imported under these names.
+#[derive(Display, Debug, PartialEq, Eq, Clone, Copy, EnumString, EnumIter)]
+#[strum(ascii_case_insensitive)]
+pub enum ReservedHasuraRole {
+    #[strum(serialize = "admin")]
+    Admin,
+    #[strum(serialize = "service-account")]
+    ServiceAccount,
+    #[strum(serialize = "datafix-account")]
+    DatafixAccount,
+    #[strum(serialize = "super-admin-user")]
+    SuperAdminUser,
+    #[strum(serialize = "cli-account-admin")]
+    CliAccountAdmin,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum RealmRolePolicy {
+    Ordinary,
+    Reserved(ReservedHasuraRole),
+}
+
+impl RealmRolePolicy {
+    /// Ignores ASCII case and surrounding whitespace in `role_name`.
+    pub fn classify(role_name: &str) -> Self {
+        match role_name.trim().parse::<ReservedHasuraRole>() {
+            Ok(role) => Self::Reserved(role),
+            Err(_) => Self::Ordinary,
+        }
+    }
+
+    pub fn require_ordinary(
+        role_name: &str,
+    ) -> Result<(), ReservedRealmRoleError> {
+        match Self::classify(role_name) {
+            Self::Ordinary => Ok(()),
+            Self::Reserved(role) => Err(ReservedRealmRoleError(role)),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct ReservedRealmRoleError(pub ReservedHasuraRole);
+
+impl fmt::Display for ReservedRealmRoleError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "Permission `{}` is reserved and cannot be created or assigned",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for ReservedRealmRoleError {}
 
 #[cfg(test)]
 #[path = "permissions_tests.rs"]
