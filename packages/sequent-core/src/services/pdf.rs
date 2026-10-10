@@ -117,7 +117,7 @@ impl PdfResourcePolicy {
 struct PdfResourceAllowList {
     resource_policy: PdfResourcePolicy,
     document: PathBuf,
-    document_html: String,
+    document_body: String,
     assets_dir: PathBuf,
     public_bucket_urls: Vec<Url>,
 }
@@ -217,7 +217,7 @@ impl PdfResourceAllowList {
                 },
             ]),
             binary_response_headers: None,
-            body: Some(BASE64.encode(self.document_html.as_bytes())),
+            body: Some(self.document_body.clone()),
             response_phrase: None,
         })
     }
@@ -911,10 +911,16 @@ fn render_html_to_pdf(
     });
 
     let resource_policy = resource_policy.for_document_size(html.len());
+    let document_body = if resource_policy.allows_scripts() {
+        BASE64.encode(html.as_bytes())
+    } else {
+        String::new()
+    };
+    drop(html);
     let allow_list = Arc::new(PdfResourceAllowList {
         resource_policy,
         document: file_path.clone(),
-        document_html: html,
+        document_body,
         assets_dir: assets_dir.to_path_buf(),
         public_bucket_urls,
     });
@@ -1043,10 +1049,10 @@ mod tests {
     use std::{
         fs::{self, OpenOptions},
         io::{BufRead, BufReader},
-        net::TcpListener,
+        net::{TcpListener, TcpStream},
         path::Path,
         sync::{
-            atomic::{AtomicUsize, Ordering},
+            atomic::{AtomicBool, AtomicUsize, Ordering},
             Arc, Mutex,
         },
         thread,
@@ -1055,19 +1061,34 @@ mod tests {
     use super::*;
     use anyhow::Result;
 
-    const PDF_PAGE_MARKER: &[u8] = b"/Type /Page\n";
+    const PDF_PAGE_MARKER: &[u8] = b"/Type /Page";
     const TALL_PAGE_STYLE: &str = "body { height: 5000px; }";
 
+    /// Counts the page objects of a PDF. The page tree root, `/Type /Pages`,
+    /// shares the marker's prefix and is not a page.
     fn pdf_page_count(pdf: &[u8]) -> usize {
-        pdf.windows(PDF_PAGE_MARKER.len())
-            .filter(|window| *window == PDF_PAGE_MARKER)
+        pdf.windows(PDF_PAGE_MARKER.len() + 1)
+            .filter(|window| {
+                window.starts_with(PDF_PAGE_MARKER)
+                    && window[PDF_PAGE_MARKER.len()] != b's'
+            })
             .count()
+    }
+
+    #[test]
+    fn pdf_page_count_ignores_the_page_tree_root() {
+        let pdf = b"<< /Type /Pages /Kids [3 0 R] >>\n\
+                    << /Type /Page\n/Parent 2 0 R >>\r\n\
+                    << /Type /Page/Parent 2 0 R >>\n";
+
+        assert_eq!(pdf_page_count(pdf), 2);
     }
 
     struct RecordingServer {
         port: u16,
         paths: Arc<Mutex<Vec<String>>>,
         connections: Arc<AtomicUsize>,
+        stopped: Arc<AtomicBool>,
     }
 
     impl RecordingServer {
@@ -1076,10 +1097,15 @@ mod tests {
             let port = listener.local_addr()?.port();
             let paths = Arc::new(Mutex::new(Vec::new()));
             let connections = Arc::new(AtomicUsize::new(0));
+            let stopped = Arc::new(AtomicBool::new(false));
             let recorded = Arc::clone(&paths);
             let counted = Arc::clone(&connections);
+            let stop_flag = Arc::clone(&stopped);
             thread::spawn(move || {
                 for stream in listener.incoming() {
+                    if stop_flag.load(Ordering::SeqCst) {
+                        break;
+                    }
                     let Ok(mut stream) = stream else { continue };
                     counted.fetch_add(1, Ordering::SeqCst);
                     let mut reader = BufReader::new(&stream);
@@ -1114,6 +1140,7 @@ mod tests {
                 port,
                 paths,
                 connections,
+                stopped,
             })
         }
 
@@ -1142,6 +1169,15 @@ mod tests {
 
         fn connection_count(&self) -> usize {
             self.connections.load(Ordering::SeqCst)
+        }
+    }
+
+    impl Drop for RecordingServer {
+        /// Ends the server thread: the connection wakes it up so that it sees
+        /// the stop flag.
+        fn drop(&mut self) {
+            self.stopped.store(true, Ordering::SeqCst);
+            let _ = TcpStream::connect(("127.0.0.1", self.port));
         }
     }
 
@@ -1429,7 +1465,7 @@ mod tests {
         PdfResourceAllowList {
             resource_policy: PdfResourcePolicy::Restricted,
             document: PathBuf::from("/tmp/.tmpRender/index.html"),
-            document_html: String::new(),
+            document_body: String::new(),
             assets_dir: PathBuf::from(BUNDLED_ASSETS_DIR),
             public_bucket_urls: public_bucket_urls
                 .iter()
