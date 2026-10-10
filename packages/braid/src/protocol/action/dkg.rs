@@ -469,23 +469,41 @@ mod tests {
             .collect()
     }
 
+    /// The outcome of running the dkg.
+    struct DkgRun {
+        /// The public key posted by trustee 0, if any.
+        public_key: Option<DkgPublicKey<C>>,
+        /// The errors returned by the trustees' steps.
+        errors: Vec<String>,
+    }
+
+    impl DkgRun {
+        fn failed_with(&self, reason: &str) -> bool {
+            self.errors.iter().any(|error| error.contains(reason))
+        }
+    }
+
     /// Runs the dkg. DEALER posts its Shares once the Shares of every other
     /// trustee are on the board, after passing them through `replace` along
-    /// with those other Shares. Returns the public key posted by trustee 0,
-    /// if any.
+    /// with those other Shares.
     fn run_dkg(
         cfg: &Configuration<C>,
         trustees: &mut [Trustee<C>],
         board: &mut VectorBoard,
         replace: impl Fn(Shares<C>, &[Shares<C>]) -> Shares<C>,
-    ) -> Option<DkgPublicKey<C>> {
+    ) -> DkgRun {
+        let mut errors = vec![];
         let mut last_ids = vec![-1i64; trustees.len()];
         for _ in 0..MAX_CYCLES {
             for (position, trustee) in trustees.iter_mut().enumerate() {
                 let messages = board.get(last_ids[position]);
                 last_ids[position] += messages.len() as i64;
-                let Ok(result) = trustee.step(&messages) else {
-                    continue;
+                let result = match trustee.step(&messages) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        errors.push(error.to_string());
+                        continue;
+                    }
                 };
                 for message in result.messages {
                     let message = if position == DEALER
@@ -506,7 +524,10 @@ mod tests {
             }
         }
 
-        trustees[0]._get_dkg_public_key_nohash()
+        DkgRun {
+            public_key: trustees[0]._get_dkg_public_key_nohash(),
+            errors,
+        }
     }
 
     fn unchanged(shares: Shares<C>, _others: &[Shares<C>]) -> Shares<C> {
@@ -524,41 +545,59 @@ mod tests {
     fn public_key_published_from_well_formed_shares() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
 
-        let pk = run_dkg(&cfg, &mut trustees, &mut board, unchanged);
+        let run = run_dkg(&cfg, &mut trustees, &mut board, unchanged);
 
-        assert!(pk.is_some());
+        assert!(run.public_key.is_some());
+        assert!(run.errors.is_empty());
     }
 
     #[test]
     fn legacy_policy_accepts_shares_without_commitment_proof() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::Legacy);
 
-        let pk = run_dkg(&cfg, &mut trustees, &mut board, without_commitment_proof);
+        let run = run_dkg(&cfg, &mut trustees, &mut board, without_commitment_proof);
 
-        assert!(pk.is_some());
+        assert!(run.public_key.is_some());
+        assert!(run.errors.is_empty());
     }
 
     #[test]
     fn public_key_requires_commitment_proof_from_every_trustee() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
 
-        let pk = run_dkg(&cfg, &mut trustees, &mut board, without_commitment_proof);
+        let run = run_dkg(&cfg, &mut trustees, &mut board, without_commitment_proof);
 
-        assert!(pk.is_none());
+        assert!(run.public_key.is_none());
+        assert!(run.failed_with("have no commitment proof"));
     }
 
     #[test]
     fn public_key_requires_valid_commitment_proof() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
 
-        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
+        let run = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
             if let Some(proof) = shares.commitment_proof.as_mut() {
                 proof.response = proof.response.add(&proof.challenge);
             }
             shares
         });
 
-        assert!(pk.is_none());
+        assert!(run.public_key.is_none());
+        assert!(run.failed_with("Failed to verify commitment proof"));
+    }
+
+    /// The proof is bound to the position of the trustee that posts it.
+    #[test]
+    fn public_key_rejects_commitment_proof_posted_by_another_trustee() {
+        let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
+
+        let run = run_dkg(&cfg, &mut trustees, &mut board, |_, others| {
+            let bytes = others[0].strand_serialize().unwrap();
+            Shares::<C>::strand_deserialize(&bytes).unwrap()
+        });
+
+        assert!(run.public_key.is_none());
+        assert!(run.failed_with("Failed to verify commitment proof"));
     }
 
     /// The replaced commitments still verify the share sent to trustee 0.
@@ -568,7 +607,7 @@ mod tests {
         let chosen_pk = ctx.gmod_pow(&ctx.rnd_exp(&mut ctx.get_rng()));
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
 
-        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, others| {
+        let run = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, others| {
             let first_share = shares.commitments[0].mul(&shares.commitments[1]).modp(&ctx);
             let constant = others.iter().fold(chosen_pk.clone(), |acc, other| {
                 acc.divp(&other.commitments[0], &ctx).modp(&ctx)
@@ -576,36 +615,49 @@ mod tests {
             let linear = first_share.divp(&constant, &ctx).modp(&ctx);
             shares.commitments = vec![constant, linear];
             shares
-        })
-        .map(|pk| pk.pk);
+        });
 
-        assert_ne!(pk, Some(chosen_pk));
-        assert!(pk.is_none());
+        assert_ne!(
+            run.public_key.as_ref().map(|pk| pk.pk.clone()),
+            Some(chosen_pk)
+        );
+        assert!(run.public_key.is_none());
+        assert!(run.failed_with("Failed to verify commitment proof"));
     }
 
     #[test]
     fn public_key_requires_threshold_commitments_from_every_trustee() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
 
-        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
+        let run = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
             shares.commitments.push(shares.commitments[0].clone());
             shares
         });
 
-        assert!(pk.is_none());
+        assert!(run.public_key.is_none());
+        assert!(run.failed_with(&format!(
+            "have {} commitments, expected {}",
+            THRESHOLD + 1,
+            THRESHOLD
+        )));
     }
 
     #[test]
     fn public_key_requires_one_encrypted_share_per_trustee() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
 
-        let pk = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
+        let run = run_dkg(&cfg, &mut trustees, &mut board, |mut shares, _| {
             shares
                 .encrypted_shares
                 .push(shares.encrypted_shares[0].clone());
             shares
         });
 
-        assert!(pk.is_none());
+        assert!(run.public_key.is_none());
+        assert!(run.failed_with(&format!(
+            "have {} encrypted shares, expected {}",
+            NUM_TRUSTEES + 1,
+            NUM_TRUSTEES
+        )));
     }
 }
