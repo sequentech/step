@@ -1675,6 +1675,103 @@ async fn adapters_send_and_check_through_the_routes_and_reports_reach_the_ledger
         .filter(|m| m["channel"] == "MESSENGER")
         .count();
     assert_eq!(codes, 1);
+    let (_, first_confirmed) = stack
+        .post_as(
+            "/messages/link/confirm",
+            &keycloak,
+            json!({
+                "tenant_id": stack.event.tenant_id,
+                "reference": created["reference"],
+                "auth_session": "session-digest",
+                "challenge": "challenge-digest",
+            }),
+        )
+        .await;
+    assert_eq!(first_confirmed["state"], "CONFIRMED");
+    // A later sign-in link must use the voter's saved Page-scoped identity,
+    // even though its one-time reference is different from enrollment's.
+    let (status, sign_in) = stack
+        .post_as(
+            "/messages/link",
+            &keycloak,
+            json!({
+                "tenant_id": stack.event.tenant_id,
+                "election_event_id": stack.event.election_event_id,
+                "auth_session": "later-sign-in-session",
+                "challenge": "later-sign-in-challenge",
+                "expected_recipient": psid,
+                "expected_page": page_id,
+                "code": "593720",
+                "language": "en",
+                "content": {"text": "Your code is 593720."},
+                "expires_at": (Utc::now() + chrono::Duration::minutes(5)).to_rfc3339(),
+            }),
+        )
+        .await;
+    assert_eq!(status, 200, "{sign_in}");
+    let later_link = sign_in["link"].as_str().unwrap().to_string();
+    assert_ne!(later_link, link);
+    assert_eq!(
+        get_started(later_link).await,
+        (200, json!({"status": 200, "reason": null}))
+    );
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        if let Some(message) =
+            stack.messages().await.into_iter().find(|message| {
+                message["channel"] == "MESSENGER"
+                    && message["content"]["text"] == "Your code is 593720."
+            })
+        {
+            assert_eq!(message["recipient"], psid.as_str());
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the saved conversation's code was not sent"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let rows = loop {
+        let rows = rows::query(
+            &stack.services.hasura,
+            "SELECT state, page_scoped_id FROM sequent_backend.messenger_link
+             WHERE tenant_id = $1 AND auth_session_digest = $2",
+            &[
+                &Uuid::parse_str(&stack.event.tenant_id).unwrap(),
+                &"later-sign-in-session",
+            ],
+        )
+        .await;
+        if rows[0].get::<_, String>(0) != "PENDING" {
+            break rows;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the sign-in code was not committed"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    };
+    assert_eq!(rows[0].get::<_, String>(0), "CODE_SENT");
+    assert_eq!(
+        rows[0].get::<_, Option<String>>(1).as_deref(),
+        Some(psid.as_str())
+    );
+    let (status, confirmed) = stack
+        .post_as(
+            "/messages/link/confirm",
+            &keycloak,
+            json!({
+                "tenant_id": stack.event.tenant_id,
+                "reference": sign_in["reference"],
+                "auth_session": "later-sign-in-session",
+                "challenge": "later-sign-in-challenge",
+            }),
+        )
+        .await;
+    assert_eq!(status, 200, "{confirmed}");
+    assert_eq!(confirmed["state"], "CONFIRMED");
+    assert_eq!(confirmed["page_scoped_id"], psid.as_str());
     // Refusals, with their reasons.
     for (link, status, reason) in [
         (

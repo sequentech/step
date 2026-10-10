@@ -59,6 +59,8 @@ use windmill::postgres::tenant::get_tenant_ids;
 use windmill::services::messaging::accounts::{
     runtime_account, CALLBACK_NOT_CONFIGURED,
 };
+use windmill::services::messaging::keys::{tenant_key, TenantKey};
+use windmill::services::vault::decrypt_with_master_secret;
 
 /// Mounts the routes when `ENABLED`.
 pub const FAKE_PROVIDER_ROUTES_ENV: &str = "MESSAGING_FAKE_PROVIDER_ROUTES";
@@ -1724,6 +1726,40 @@ pub fn page_scoped_id(page: &str, reference: &str) -> String {
     format!("9{:015}", u64::from_be_bytes(bytes) % 1_000_000_000_000_000)
 }
 
+/// A saved voter's sign-in uses the same conversation as verification.
+/// Read only this account's live link; never expose its held code or recipient.
+async fn saved_messenger_recipient(
+    databases: &Arc<dyn DatabasePools>,
+    account: &MessagingAccount,
+    reference: &str,
+) -> anyhow::Result<Option<String>> {
+    let pool = databases.hasura().await;
+    let mut client = pool.get().await?;
+    let tx = client.transaction().await?;
+    let key =
+        tenant_key(&tx, &account.tenant_id, TenantKey::MessengerLink).await?;
+    let digest = messaging::link::digest(&key, reference)?;
+    let row = tx
+        .query_opt(
+            "SELECT encrypted_payload FROM sequent_backend.messenger_link
+         WHERE tenant_id = $1 AND account_id = $2 AND reference_digest = $3
+           AND state = 'PENDING' AND expires_at > NOW()",
+            &[&account.tenant_id, &account.id, &digest],
+        )
+        .await?;
+    let payload = row.and_then(|row| row.get::<_, Option<Vec<u8>>>(0));
+    tx.commit().await?;
+    let Some(payload) = payload else {
+        return Ok(None);
+    };
+    let held: Value =
+        serde_json::from_slice(&decrypt_with_master_secret(&payload).await?)?;
+    Ok(held
+        .get("expected_recipient")
+        .and_then(Value::as_str)
+        .map(str::to_string))
+}
+
 /// Stands in for a voter's Get Started tap on an `m.me` link: finds this
 /// tenant's Messenger account for the link's Page, and posts Meta's signed
 /// postback with the link's `ref` to the webhook component. Answers with
@@ -1788,12 +1824,15 @@ async fn get_started(
     })?
     .pop()
     .flatten();
-    let body = messenger_get_started(
-        page_id,
-        &page_scoped_id(&page, &reference),
-        &reference,
-        Utc::now(),
-    );
+    let recipient = saved_messenger_recipient(&services.databases, account, &reference)
+        .await
+        .map_err(|error| {
+            error!(account = %account.id, "fake provider: link unreadable: {error:#}");
+            refusal(Status::InternalServerError, ACCOUNTS_UNREADABLE_REASON)
+        })?
+        .unwrap_or_else(|| page_scoped_id(&page, &reference));
+    let body =
+        messenger_get_started(page_id, &recipient, &reference, Utc::now());
     // Without the app secret the postback goes unsigned: the backend's
     // refusal is the answer shown.
     let headers: Vec<(&str, String)> = secret
