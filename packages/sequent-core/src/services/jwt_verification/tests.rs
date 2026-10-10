@@ -152,6 +152,21 @@ fn issuer_is_bound_to_tenant_and_event() {
     );
 }
 
+#[test]
+fn invalid_configured_bases_report_distinct_reasons_without_echoing_them() {
+    let scheme = configured_base("ftp://private-host.example")
+        .unwrap_err()
+        .to_string();
+    let userinfo = configured_base("https://user:private@keycloak.example")
+        .unwrap_err()
+        .to_string();
+    assert_ne!(scheme, userinfo);
+    for message in [scheme, userinfo] {
+        assert!(!message.contains("private"), "{message}");
+    }
+    assert!(configured_base("https://keycloak.example/auth").is_ok());
+}
+
 async fn key_server(
     status: &str,
     body: String,
@@ -227,7 +242,9 @@ async fn failed_key_refresh_preserves_only_unexpired_keys() {
         .lock()
         .await
         .insert(cache_key, (Instant::now(), Arc::clone(&entry)));
-    assert!(realm_keys(&internal, realm, "rotated-key").await.is_err());
+    assert!(realm_keys(&DOWNLOADS, &internal, realm, "rotated-key")
+        .await
+        .is_err());
     served.await.unwrap();
     let valid = token(&claims());
     assert!(verify_bearer_with_config(
@@ -250,10 +267,60 @@ async fn failed_key_refresh_preserves_only_unexpired_keys() {
 }
 
 #[tokio::test]
+async fn key_downloads_need_a_free_slot_and_refusals_do_not_delay_retries() {
+    let (internal, served) =
+        key_server("200 OK", serde_json::to_string(&keys()).unwrap(), "").await;
+    let realm = "tenant-one";
+    assert!(realm_keys(&Semaphore::new(0), &internal, realm, "test-key")
+        .await
+        .is_err());
+    assert!(!served.is_finished());
+    assert!(realm_keys(&Semaphore::new(1), &internal, realm, "test-key")
+        .await
+        .is_ok());
+    served.await.unwrap();
+}
+
+fn cached_realm(
+    verified: bool,
+    age_secs: u64,
+) -> (Instant, Arc<Mutex<CachedKeys>>) {
+    let cached = CachedKeys {
+        keys: verified.then(|| Arc::new(keys())),
+        ..CachedKeys::default()
+    };
+    (
+        Instant::now() - Duration::from_secs(age_secs),
+        Arc::new(Mutex::new(cached)),
+    )
+}
+
+#[test]
+fn unverified_realms_are_evicted_first_and_realms_in_use_are_kept() {
+    let mut entries = RealmCache::new();
+    entries.insert("verified".into(), cached_realm(true, 30));
+    entries.insert("unknown-old".into(), cached_realm(false, 20));
+    entries.insert("unknown-new".into(), cached_realm(false, 10));
+    make_room(&mut entries).unwrap();
+    assert!(!entries.contains_key("unknown-old"));
+    assert!(entries.contains_key("verified"));
+    assert!(entries.contains_key("unknown-new"));
+    let in_use: Vec<_> = entries
+        .values()
+        .map(|(_, realm)| Arc::clone(realm))
+        .collect();
+    assert!(make_room(&mut entries).is_err());
+    assert_eq!(entries.len(), 2);
+    drop(in_use);
+    make_room(&mut entries).unwrap();
+    assert!(entries.contains_key("verified"));
+}
+
+#[tokio::test]
 async fn key_fetch_redirects_and_oversized_bodies_are_rejected() {
     let (internal, served) = key_server(
         "302 Found",
-        String::new(),
+        serde_json::to_string(&keys()).unwrap(),
         "Location: http://127.0.0.1:1/keys\r\n",
     )
     .await;
@@ -271,27 +338,48 @@ fn authenticated(_claims: crate::services::jwt::JwtClaims) -> &'static str {
     "authenticated"
 }
 
+/// Runs `test` again in a child process whose environment it may change, and
+/// tells the caller whether it already is that child.
+fn in_child_process(test: &str) -> bool {
+    const CHILD: &str = "SEQUENT_JWT_TEST_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        return true;
+    }
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            &format!("services::jwt_verification::tests::{test}"),
+        ])
+        .env(CHILD, "1")
+        .env("KIOSK_KEYCLOAK_URL", "not-a-url")
+        .env("HARVEST_JWT_ISSUER_URLS", "not-a-url")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{test} failed: {}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    false
+}
+
+fn clear_optional_issuer_settings() {
+    for variable in ["KIOSK_KEYCLOAK_URL", "HARVEST_JWT_ISSUER_URLS"] {
+        std::env::remove_var(variable);
+    }
+}
+
 #[cfg(feature = "keycloak")]
 #[tokio::test]
 async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
     use rocket::http::{Header, Status};
-    // Run the real guard in its own test process so its environment cannot race
-    // with parallel tests that read Keycloak configuration.
-    const ISOLATED: &str = "SEQUENT_JWT_GUARD_TEST_ISOLATED";
-    if std::env::var_os(ISOLATED).is_none() {
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", "services::jwt_verification::tests::request_guard_rejects_forged_tokens_and_accepts_signed_tokens"])
-            .env(ISOLATED, "1")
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "Isolated guard test failed: {}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
+    if !in_child_process(
+        "request_guard_rejects_forged_tokens_and_accepts_signed_tokens",
+    ) {
         return;
     }
+    clear_optional_issuer_settings();
     let (internal, served) =
         key_server("200 OK", serde_json::to_string(&keys()).unwrap(), "").await;
     std::env::set_var("KEYCLOAK_URL", &internal);
@@ -330,4 +418,75 @@ async fn request_guard_rejects_forged_tokens_and_accepts_signed_tokens() {
     std::env::set_var("KIOSK_KEYCLOAK_URL", "not-a-url");
     let error = verify_bearer(&valid).await.unwrap_err();
     assert!(format!("{error:#}").contains("KIOSK_KEYCLOAK_URL"));
+}
+
+struct Sink<'a>(&'a std::sync::Mutex<String>);
+
+impl tracing::field::Visit for Sink<'_> {
+    fn record_debug(
+        &mut self,
+        field: &tracing::field::Field,
+        value: &dyn std::fmt::Debug,
+    ) {
+        use std::fmt::Write;
+        let _ = write!(self.0.lock().unwrap(), "{}={value:?};", field.name());
+    }
+}
+
+struct Capture(Arc<std::sync::Mutex<String>>);
+
+impl tracing::Subscriber for Capture {
+    fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+        true
+    }
+    fn new_span(
+        &self,
+        attributes: &tracing::span::Attributes<'_>,
+    ) -> tracing::span::Id {
+        attributes.record(&mut Sink(&self.0));
+        tracing::span::Id::from_u64(1)
+    }
+    fn record(
+        &self,
+        _: &tracing::span::Id,
+        values: &tracing::span::Record<'_>,
+    ) {
+        values.record(&mut Sink(&self.0));
+    }
+    fn record_follows_from(
+        &self,
+        _: &tracing::span::Id,
+        _: &tracing::span::Id,
+    ) {
+    }
+    fn event(&self, event: &tracing::Event<'_>) {
+        event.record(&mut Sink(&self.0));
+    }
+    fn enter(&self, _: &tracing::span::Id) {}
+    fn exit(&self, _: &tracing::span::Id) {}
+}
+
+#[tokio::test]
+async fn datafix_client_secrets_are_not_traced() {
+    use tracing::instrument::WithSubscriber;
+    if !in_child_process("datafix_client_secrets_are_not_traced") {
+        return;
+    }
+    let token = json!({"access_token": "token", "expires_in": 300,
+        "scope": "openid", "token_type": "Bearer"});
+    let (internal, served) = key_server("200 OK", token.to_string(), "").await;
+    std::env::set_var("KEYCLOAK_URL", &internal);
+    let traced = Arc::new(std::sync::Mutex::new(String::new()));
+    crate::services::keycloak::get_third_party_client_access_token(
+        "party".into(),
+        "client-secret".into(),
+        "one".into(),
+    )
+    .with_subscriber(Capture(Arc::clone(&traced)))
+    .await
+    .unwrap();
+    served.await.unwrap();
+    let traced = traced.lock().unwrap();
+    assert!(traced.contains("party"), "nothing was traced: {traced}");
+    assert!(!traced.contains("client-secret"), "secret traced: {traced}");
 }

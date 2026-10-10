@@ -10,12 +10,15 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 
 const CACHE_TTL: Duration = Duration::from_secs(300);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(30);
 const MAX_CACHED_REALMS: usize = 256;
 const MAX_JWKS_BYTES: usize = 1024 * 1024;
+const MAX_CONCURRENT_DOWNLOADS: usize = 32;
+
+static DOWNLOADS: Semaphore = Semaphore::const_new(MAX_CONCURRENT_DOWNLOADS);
 
 #[derive(Default)]
 struct CachedKeys {
@@ -35,14 +38,14 @@ fn configured_base(base: &str) -> Result<Url> {
     let url = Url::parse(base)?;
     ensure!(
         matches!(url.scheme(), "http" | "https") && url.host_str().is_some(),
-        "Invalid Keycloak URL"
+        "Keycloak URL must be an http(s) URL with a host"
     );
     ensure!(
         url.username().is_empty()
             && url.password().is_none()
             && url.query().is_none()
             && url.fragment().is_none(),
-        "Invalid Keycloak URL"
+        "Keycloak URL must not contain credentials, a query or a fragment"
     );
     Ok(url)
 }
@@ -134,11 +137,12 @@ async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
         "{}/realms/{realm}/protocol/openid-connect/certs",
         base.as_str().trim_end_matches('/')
     );
-    let mut response = jwks_client()?
-        .get(endpoint)
-        .send()
-        .await?
-        .error_for_status()?;
+    let mut response = jwks_client()?.get(endpoint).send().await?;
+    ensure!(
+        response.status().is_success(),
+        "Key response status {}",
+        response.status()
+    );
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await? {
         ensure!(
@@ -152,21 +156,36 @@ async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
     Ok(keys)
 }
 
-async fn realm_keys(base: &str, realm: &str, kid: &str) -> Result<Arc<JwkSet>> {
+/// Unverified hints can name arbitrary realms. Only idle entries may be
+/// dropped, and those that never produced keys go before any that did.
+fn make_room(entries: &mut RealmCache) -> Result<()> {
+    let key = entries
+        .iter()
+        .filter(|(_, (_, keys))| Arc::strong_count(keys) == 1)
+        .min_by_key(|(_, (used, keys))| {
+            let verified =
+                keys.try_lock().map_or(true, |cached| cached.keys.is_some());
+            (verified, *used)
+        })
+        .map(|(key, _)| key.clone())
+        .context("Too many signing-key realms in use")?;
+    entries.remove(&key);
+    Ok(())
+}
+
+async fn realm_keys(
+    downloads: &Semaphore,
+    base: &str,
+    realm: &str,
+    kid: &str,
+) -> Result<Arc<JwkSet>> {
     let cache_key = format!("{base}/realms/{realm}");
     let entry = {
         let mut entries = cache().lock().await;
         if !entries.contains_key(&cache_key)
             && entries.len() >= MAX_CACHED_REALMS
         {
-            // Bound memory even when unverified hints name arbitrary realms.
-            if let Some(key) = entries
-                .iter()
-                .min_by_key(|(_, (used, _))| *used)
-                .map(|(key, _)| key.clone())
-            {
-                entries.remove(&key);
-            }
+            make_room(&mut entries)?;
         }
         let (used, keys) = entries
             .entry(cache_key)
@@ -195,7 +214,12 @@ async fn realm_keys(base: &str, realm: &str, kid: &str) -> Result<Arc<JwkSet>> {
         None => true,
     };
     ensure!(retry_allowed, "Signing-key refresh is rate limited");
-    let result = download_keys(base, realm).await;
+    let result = {
+        let _permit = downloads.try_acquire().map_err(|_| {
+            anyhow!("Too many concurrent signing-key downloads")
+        })?;
+        download_keys(base, realm).await
+    };
     let completed = Instant::now();
     cached.attempted = Some(completed);
     // Keep still-fresh keys after a transient failure, without extending their
@@ -259,7 +283,7 @@ async fn verify_bearer_with_config(
         &base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload)?,
     )?;
     let realm = trusted_realm(&payload, trusted_bases)?;
-    let keys = realm_keys(internal_base, &realm, &kid).await?;
+    let keys = realm_keys(&DOWNLOADS, internal_base, &realm, &kid).await?;
     let issuer = payload["iss"].as_str().context("Missing issuer")?;
     let verified = verify_with_jwks(token, issuer, &keys)?;
     trusted_realm(&verified, trusted_bases)?;
