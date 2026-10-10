@@ -299,6 +299,7 @@ pub async fn create_tally_ceremony(
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let mut final_configuration = configuration.clone().unwrap_or_default();
     final_configuration.contest_encryption_policy = Some(contest_encryption_policy);
+    final_configuration.batch_anonymity_policy = Some(election_event.get_batch_anonymity_policy());
     let contests: Vec<Contest> = all_contests
         .into_iter()
         .filter(|contest| election_ids.contains(&contest.election_id))
