@@ -26,6 +26,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyYAML
+        run: python3 -m pip install 'PyYAML==6.0.2'
+
       - name: Test the workflow check
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
