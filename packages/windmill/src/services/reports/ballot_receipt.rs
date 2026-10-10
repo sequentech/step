@@ -157,11 +157,16 @@ impl TemplateRenderer for BallotTemplate {
             return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
         }
 
+        let kiosk_base = match std::env::var("KIOSK_VOTING_PORTAL_URL") {
+            Err(std::env::VarError::NotPresent) => None,
+            kiosk_base => Some(kiosk_base.context("Invalid KIOSK_VOTING_PORTAL_URL env var")?),
+        };
+
         Ok(UserData {
             ballot_id: ballot_id.to_string(),
             ballot_tracker_url: build_ballot_tracker_url(
                 &std::env::var("VOTING_PORTAL_URL").context("VOTING_PORTAL_URL env var missing")?,
-                std::env::var("KIOSK_VOTING_PORTAL_URL").ok().as_deref(),
+                kiosk_base.as_deref(),
                 ballot_tracker_url,
                 BallotTrackerPath {
                     tenant_id: &self.ids.tenant_id,
