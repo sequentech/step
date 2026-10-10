@@ -154,6 +154,8 @@ public class Utils {
 
     if (user != null) {
       sessionModel.setAuthNote(USER_ID, user.getId());
+    } else {
+      sessionModel.removeAuthNote(USER_ID);
     }
   }
 

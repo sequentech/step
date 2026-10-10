@@ -127,5 +127,6 @@ class UtilsTest {
 
     verify(authenticationSession).setAuthNote(UserModel.USERNAME, USERNAME_VALUE);
     verify(authenticationSession, never()).setAuthNote(eq(USER_ID_AUTH_NOTE), any());
+    verify(authenticationSession).removeAuthNote(USER_ID_AUTH_NOTE);
   }
 }
