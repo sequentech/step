@@ -20,11 +20,15 @@ if [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" != "allow" ] && [ "$TRUSTEE_SAMPLE_KEYS
     exit 1
 fi
 
-# signing_key_pk of the sample configurations in packages/braid/scripts
-SAMPLE_SIGNING_KEYS_PK=(
-    "MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs="
-    "MCowBQYDK2VwAyEA50mtZzCBnubUwMhRkKyGomrUCBGgvEsbu79D3Cckjbc="
-    "MCowBQYDK2VwAyEAfV2aRBpnR8Bm2MnorCwcR9ywjudNlFCqSZu6SGmuMcY="
+# Secret keys of the sample configurations in packages/braid/scripts: the
+# trustee is built from signing_key_sk and encryption_key only.
+SAMPLE_SECRET_KEYS=(
+    "MC4CAQAwBQYDK2VwBCIEIJAtmrHtGFYiS5tUQepIlrFtCCcKHeSzzuJ2pZqH4bat"
+    "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg"
+    "MC4CAQAwBQYDK2VwBCIEICxvn7aLhsYzpGzVadzlqA4UZe/4wuul0fI1xznrpqCd"
+    "G5dB4N4i5KPgog6HHchw1BUF+2ulppFux2nQ7J2Wfq8"
+    "MC4CAQAwBQYDK2VwBCIEIAiyrmvYxg0u4pSDcMk3Y3CaPdHXdASHbh8hzBgDaBbB"
+    "eITqKrdoHUxj1uiKulqrAU01NyLN4Nkq5W8ibjorpJ4"
 )
 
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
@@ -137,9 +141,9 @@ handle_trustee_config() {
 }
 
 check_sample_keys() {
-    local sample_pk
-    for sample_pk in "${SAMPLE_SIGNING_KEYS_PK[@]}"; do
-        if grep -qF -- "$sample_pk" "$TRUSTEE_CONFIG_PATH"; then
+    local sample_key
+    for sample_key in "${SAMPLE_SECRET_KEYS[@]}"; do
+        if grep -qF -- "$sample_key" "$TRUSTEE_CONFIG_PATH"; then
             if [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" = "allow" ]; then
                 log "Using a sample configuration from packages/braid/scripts (TRUSTEE_SAMPLE_KEYS_POLICY=Allow)"
                 return
