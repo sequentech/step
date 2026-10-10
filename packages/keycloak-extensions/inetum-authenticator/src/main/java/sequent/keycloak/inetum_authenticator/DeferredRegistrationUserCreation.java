@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.jbosslog.JBossLog;
@@ -59,6 +60,14 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
   public static final String SEARCH_ATTRIBUTES = "search-attributes";
   public static final String UNSET_ATTRIBUTES = "unset-attributes";
   public static final String UNIQUE_ATTRIBUTES = "unique-attributes";
+
+  /**
+   * Event details that the event listener reads to classify an event. They are set by
+   * authenticators, so a form field with one of these names is not copied into the event details.
+   */
+  private static final Set<String> RESERVED_EVENT_DETAILS =
+      Set.of(Utils.EVENT_DETAIL_TYPE, Utils.EVENT_DETAIL_MSG_BODY);
+
   public static final String PASSWORD_REQUIRED = "password-required";
   public static final String FORM_MODE = "form-mode";
   public static final String PASSWORD_EXPIRATION_USER_ATTRIBUTE =
@@ -680,12 +689,16 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     return true;
   }
 
+  /**
+   * Adds the submitted form fields, except credentials and {@link #RESERVED_EVENT_DETAILS}, to the
+   * registration event, and links the event to the matched user.
+   */
   private void buildEventDetails(
       MultivaluedMap<String, String> formData, ValidationContext context, UserModel user) {
     formData = normalizeFormParameters(formData);
     formData.forEach(
         (key, value) -> {
-          if (value != null) {
+          if (value != null && !RESERVED_EVENT_DETAILS.contains(key)) {
             context.getEvent().detail(key, value);
           }
         });
