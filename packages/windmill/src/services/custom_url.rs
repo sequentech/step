@@ -377,7 +377,7 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
             })?;
             info!("Error response: {}", error_text);
             return Err(Box::new(CloudflareError::new(&format!(
-                "Failed to get page rules: {}",
+                "Failed to get DNS records: {}",
                 error_text
             ))));
         }
