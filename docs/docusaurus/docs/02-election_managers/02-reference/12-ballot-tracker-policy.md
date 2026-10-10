@@ -24,6 +24,13 @@ Ballots of version 2 have a tracker that covers only the issue date and the
 contests. Ballots cast with version 2 keep their tracker and still verify. The
 **ballot tracker policy** decides whether new version 2 ballots are accepted.
 
+The ballot verifier compares the ballot style inside an auditable ballot with
+the published ballot styles. It reports a failed verification when the public
+key, the election, the area or the order of contests and candidates differ, or
+when no published ballot style has the same id. For an auditable ballot of
+version 2 it shows a warning, because the Ballot ID of such a ballot does not
+cover the ballot style.
+
 ## Values
 
 The policy is stored in the election event presentation, in the
