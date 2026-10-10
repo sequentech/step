@@ -13,6 +13,24 @@ cd /opt/braid
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
 SECRETS_BACKEND=${SECRETS_BACKEND:-"Awssecretsmanager"} # Default to Awssecretsmanager if not set
 SECRETS_BACKEND_LOWER=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
+TRUSTEE_SAMPLE_KEYS_POLICY=${TRUSTEE_SAMPLE_KEYS_POLICY:-"Deny"} # Allow or Deny
+TRUSTEE_SAMPLE_KEYS_POLICY_LOWER=$(echo "$TRUSTEE_SAMPLE_KEYS_POLICY" | tr '[:upper:]' '[:lower:]')
+if [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" != "allow" ] && [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" != "deny" ]; then
+    echo "Error: Unsupported TRUSTEE_SAMPLE_KEYS_POLICY: $TRUSTEE_SAMPLE_KEYS_POLICY"
+    exit 1
+fi
+
+# Secret keys of the sample configurations in packages/braid/scripts: the
+# trustee is built from signing_key_sk and encryption_key only.
+SAMPLE_SECRET_KEYS=(
+    "MC4CAQAwBQYDK2VwBCIEIJAtmrHtGFYiS5tUQepIlrFtCCcKHeSzzuJ2pZqH4bat"
+    "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg"
+    "MC4CAQAwBQYDK2VwBCIEICxvn7aLhsYzpGzVadzlqA4UZe/4wuul0fI1xznrpqCd"
+    "G5dB4N4i5KPgog6HHchw1BUF+2ulppFux2nQ7J2Wfq8"
+    "MC4CAQAwBQYDK2VwBCIEIAiyrmvYxg0u4pSDcMk3Y3CaPdHXdASHbh8hzBgDaBbB"
+    "eITqKrdoHUxj1uiKulqrAU01NyLN4Nkq5W8ibjorpJ4"
+)
+
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
     echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
     exit 1
@@ -122,7 +140,22 @@ handle_trustee_config() {
     grep key_pk "$TRUSTEE_CONFIG_PATH"
 }
 
+check_sample_keys() {
+    local sample_key
+    for sample_key in "${SAMPLE_SECRET_KEYS[@]}"; do
+        if grep -qF -- "$sample_key" "$TRUSTEE_CONFIG_PATH"; then
+            if [ "$TRUSTEE_SAMPLE_KEYS_POLICY_LOWER" = "allow" ]; then
+                log "Using a sample configuration from packages/braid/scripts (TRUSTEE_SAMPLE_KEYS_POLICY=Allow)"
+                return
+            fi
+            echo "Error: $TRUSTEE_CONFIG_PATH is a sample configuration from packages/braid/scripts. Replace it with a newly generated configuration, or set TRUSTEE_SAMPLE_KEYS_POLICY=Allow for local development."
+            exit 1
+        fi
+    done
+}
+
 handle_trustee_config
+check_sample_keys
 
 # Run trustee with the generated or fetched config
 trustee --b4-url "$B4_URL" --trustee-config "$TRUSTEE_CONFIG_PATH"

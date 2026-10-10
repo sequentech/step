@@ -41,6 +41,7 @@ The following environment variables can be used to configure Braid Trustees:
 | `VAULT_TOKEN` | HashiCorp Vault authentication token | Conditional** | - |
 | `TRUSTEE_CONFIG` | Direct configuration content (for EnvVarMasterSecret backend) | Conditional*** | - |
 | `IGNORE_BOARDS` | Boards to ignore during processing | No | - |
+| `TRUSTEE_SAMPLE_KEYS_POLICY` | `Deny` refuses to start when the configuration is one of the sample configurations in `packages/braid/scripts`. `Allow` accepts them, for local development only | No | `Deny` |
 
 *Required when `SECRETS_BACKEND` is set to `AwsSecretManager` and no existing config file is present.
 
@@ -111,6 +112,10 @@ signing_key_pk = "MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs="
 encryption_key = "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg"
 ```
 
+### Sample Configurations
+
+`packages/braid/scripts/trustee1.toml`, `trustee2.toml` and `trustee3.toml` (also used in the examples above) are sample configurations for the local development environment, which mounts them read-only into the trustee containers and sets `TRUSTEE_SAMPLE_KEYS_POLICY=Allow`. The braid images do not include them. With the default policy `Deny`, a trustee whose configuration is one of these samples, whatever its source, stops at startup with an error; a configuration counts as a sample when it uses the secret keys of one of them. The examples above use the credentials of `trustee1.toml`: to run them as written, set `TRUSTEE_SAMPLE_KEYS_POLICY=Allow`, or replace the keys with generated ones. Replace that configuration with one produced by `gen_trustee_config`, or leave it out so that the trustee generates one.
+
 ## Configuration Generation
 
 If no configuration exists (either as a file or in the secrets backend), the trustee will automatically generate a new configuration using the `gen_trustee_config` utility. This ensures that trustees can be deployed without manual configuration preparation.
@@ -143,6 +148,8 @@ The generated configuration will be:
 3. **Configuration Generation Failures**: Check that the `gen_trustee_config` binary is available in the container and has proper permissions.
 
 4. **Secrets Backend Connection Issues**: Verify network connectivity and authentication credentials for your chosen secrets backend.
+
+5. **Sample configuration refused**: If you see "is a sample configuration from packages/braid/scripts", the trustee configuration is one of the development samples. See [Sample Configurations](#sample-configurations).
 
 ### Logging
 
