@@ -184,7 +184,6 @@ mod tests {
             annotations: None,
             labels: None,
             r#type: None,
-            allow_early_voting: None,
         }
     }
 
