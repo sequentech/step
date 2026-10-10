@@ -254,6 +254,7 @@ mod tests {
         step_errors: Vec<String>,
     }
 
+    /// Returns the decryption factors message with its artifact edited and signed again by the trustee.
     fn resign_decryption_factors(
         message: Message,
         cfg: &Configuration<RistrettoCtx>,
@@ -275,6 +276,7 @@ mod tests {
         Message::decryption_factors_msg(cfg, batch, dfactors, mix_h, shares_hs, signer).unwrap()
     }
 
+    /// Gives every trustee one step on the board, applying the edit to the editing trustee's decryption factors.
     fn step_all(
         trustees: &mut [Trustee<RistrettoCtx>],
         last_ids: &mut [i64],
@@ -303,6 +305,7 @@ mod tests {
         }
     }
 
+    /// Runs the key ceremony, mix and decryption, optionally editing the decryption factors one trustee posts.
     fn run_decryption(edit: Option<EditFactors>) -> DecryptionRun {
         let ctx = RistrettoCtx;
         let test = create_protocol_test(N_TRUSTEES, &SELECTED, ctx.clone()).unwrap();
@@ -376,6 +379,7 @@ mod tests {
         }
     }
 
+    /// Unedited decryption factors produce the plaintexts.
     #[test]
     fn decrypts_with_one_factor_and_proof_per_ciphertext() {
         let run = run_decryption(None);
@@ -386,6 +390,7 @@ mod tests {
         assert_eq!(expected, actual);
     }
 
+    /// Decryption factors with fewer proofs than ciphertexts are not accepted.
     #[test]
     fn rejects_decryption_factors_with_fewer_proofs_than_ciphertexts() {
         let run = run_decryption(Some(|dfactors| {
@@ -400,6 +405,7 @@ mod tests {
             .any(|e| e.contains("Decryption factors from trustee 1 have 3 proofs, expected 6")));
     }
 
+    /// Decryption factors without proofs are not accepted.
     #[test]
     fn rejects_decryption_factors_without_proofs() {
         let run = run_decryption(Some(|dfactors| dfactors.proofs.0.clear()));
@@ -411,6 +417,7 @@ mod tests {
             .any(|e| e.contains("Decryption factors from trustee 1 have 0 proofs, expected 6")));
     }
 
+    /// Decryption factors with fewer factors than ciphertexts are not accepted.
     #[test]
     fn rejects_decryption_factors_with_fewer_factors_than_ciphertexts() {
         let run = run_decryption(Some(|dfactors| {
