@@ -5,7 +5,6 @@ import {TranslationType} from "./en"
 
 const frenchTranslation: TranslationType = {
     translations: {
-        "welcome": "Commençons : Importez le bulletin auditable...",
         "404": {
             title: "Page non trouvée",
             subtitle: "La page que vous cherchez n'existe pas",

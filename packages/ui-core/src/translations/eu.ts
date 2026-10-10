@@ -6,7 +6,6 @@ import {TranslationType} from "./en"
 const basqueTranslation: TranslationType = {
     translations: {
         language: "Euskara",
-        welcome: "Kaixo <br/> <strong>Mundua</strong>",
         breadcrumbSteps: {
             select: "Hautatu egiaztatzaile bat",
             import: "Inportatu datuak",

@@ -15,8 +15,10 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt,
     fmt::Write as _,
+    time::SystemTime,
 };
 use tokio_postgres::{GenericClient, IsolationLevel, Transaction};
+use uuid::Uuid;
 
 /// Database schema, installed by the application's provisioning operation.
 pub const SCHEMA: &str = include_str!("../schema.sql");
@@ -27,13 +29,14 @@ pub const INSERT_CHUNK: usize = 5000;
 /// Mismatching positions listed per audit finding.
 const AUDIT_SAMPLE: usize = 100;
 
-/// A named log generation and its Merkle state at some size.
+/// A log and its Merkle state at some size.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Checkpoint {
     /// Application board name.
     pub log_name: String,
-    /// Persisted generation; deleting and recreating a board starts a new log.
-    pub log_id: i64,
+    /// Identity of the log in every database that stores it; deleting and recreating
+    /// a board starts a new log.
+    pub log_uid: Uuid,
     /// Number of committed leaves incorporated in this root.
     pub tree_size: u64,
     /// SHA-256 tree root bytes.
@@ -84,7 +87,9 @@ impl Consistency {
     /// Returns an error when log identity, sizes, roots or proof do not agree.
     pub fn verify(&self, old: &Checkpoint) -> Result<()> {
         ensure!(
-            &self.old == old && old.log_id == self.new.log_id && old.log_name == self.new.log_name,
+            &self.old == old
+                && old.log_uid == self.new.log_uid
+                && old.log_name == self.new.log_name,
             "Checkpoint identity mismatch"
         );
         ensure!(self.new.tree_size >= old.tree_size, "Tree shrank");
@@ -141,8 +146,8 @@ impl Evidence {
 pub enum JournalError {
     /// The named log or record does not exist.
     NotFound(String),
-    /// The supplied checkpoint is not part of this log's history: another generation,
-    /// a root this log never had at that size, or more leaves than were ever committed.
+    /// The supplied checkpoint is not part of this log's history: another log, a root
+    /// this log never had at that size, or more leaves than were ever committed.
     Diverged(String),
     /// Stored Merkle data is internally inconsistent, or the log was created before
     /// subtrees were stored and must be rebuilt.
@@ -237,10 +242,46 @@ impl TreeAudit {
     }
 }
 
+/// Whether a log takes new leaves.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LogState {
+    /// Appends extend the log.
+    Open,
+    /// The log is closed: appends are refused, proofs are still answered.
+    Sealed,
+}
+impl LogState {
+    /// State of a log whose `sealed_at` column is `sealed_at`.
+    const fn from_sealed_at(sealed_at: Option<SystemTime>) -> Self {
+        if sealed_at.is_some() {
+            Self::Sealed
+        } else {
+            Self::Open
+        }
+    }
+}
+
+/// A log of the database, with its stored size and root.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LogSummary {
+    /// Stored size and root, not checked against the stored subtrees.
+    pub checkpoint: Checkpoint,
+    /// Whether the log takes new leaves.
+    pub state: LogState,
+}
+
+/// Columns of `trellis_logs` that `head` and `Journal::logs` read, in this order.
+const LOG_COLUMNS: &str = "id, uid, size, root, sealed_at";
+
 /// Current state of a log, checked against its stored subtrees.
 struct Head {
-    /// Generation ID.
+    /// Key of the log's rows in this database.
     id: i64,
+    /// Identity of the log.
+    uid: Uuid,
+    /// Whether the log takes new leaves.
+    state: LogState,
     /// Committed leaves.
     size: u64,
     /// Root over the committed leaves.
@@ -262,7 +303,7 @@ impl Head {
     fn checkpoint(&self, name: &str) -> Checkpoint {
         Checkpoint {
             log_name: name.to_owned(),
-            log_id: self.id,
+            log_uid: self.uid,
             tree_size: self.size,
             root: self.root.to_vec(),
         }
@@ -283,17 +324,22 @@ async fn head<C: GenericClient + Sync>(
     name: &str,
     lock: RowLock,
 ) -> Result<Head, JournalError> {
-    let query = match lock {
-        RowLock::Read => "SELECT id, size, root FROM trellis_logs WHERE name = $1",
-        RowLock::ForUpdate => "SELECT id, size, root FROM trellis_logs WHERE name = $1 FOR UPDATE",
+    let lock = match lock {
+        RowLock::Read => "",
+        RowLock::ForUpdate => " FOR UPDATE",
     };
     let row = client
-        .query_opt(query, &[&name])
+        .query_opt(
+            &format!("SELECT {LOG_COLUMNS} FROM trellis_logs WHERE name = $1{lock}"),
+            &[&name],
+        )
         .await?
         .ok_or_else(|| JournalError::NotFound(format!("Log '{name}'")))?;
     let id: i64 = row.try_get(0)?;
-    let size = u64::try_from(row.try_get::<_, i64>(1)?)?;
-    let root = hash_of(&row.try_get::<_, Vec<u8>>(2)?)?;
+    let uid: Uuid = row.try_get(1)?;
+    let size = u64::try_from(row.try_get::<_, i64>(2)?)?;
+    let root = hash_of(&row.try_get::<_, Vec<u8>>(3)?)?;
+    let state = LogState::from_sealed_at(row.try_get(4)?);
     let unbuilt = is_unbuilt(size, &root);
     let not_built = || JournalError::Corrupt(format!("log '{name}' must be rebuilt"));
     let edge = rfc6962::decomposition(size);
@@ -318,6 +364,8 @@ async fn head<C: GenericClient + Sync>(
     }
     Ok(Head {
         id,
+        uid,
+        state,
         size,
         root,
         frontier,
@@ -421,9 +469,9 @@ async fn extension<C: GenericClient + Sync>(
     head: &Head,
     old: &Checkpoint,
 ) -> Result<Consistency, JournalError> {
-    if old.log_name != name || old.log_id != head.id {
+    if old.log_name != name || old.log_uid != head.uid {
         return Err(JournalError::Diverged(
-            "checkpoint belongs to another log generation".into(),
+            "checkpoint belongs to another log".into(),
         ));
     }
     if old.tree_size > head.size {
@@ -482,14 +530,16 @@ async fn extension<C: GenericClient + Sync>(
     Ok(consistency)
 }
 
-/// Prove leaf `index` (with stored data `data`) at `checkpoint`, whose root is trusted.
+/// Prove leaf `index` (with stored data `data`) of the log stored under `log_id` at
+/// `checkpoint`, whose root is trusted.
 async fn inclusion_at<C: GenericClient + Sync>(
     client: &C,
+    log_id: i64,
     checkpoint: &Checkpoint,
     index: u64,
     data: &[u8],
 ) -> Result<Inclusion, JournalError> {
-    let path = with_nodes(client, checkpoint.log_id, |nodes| {
+    let path = with_nodes(client, log_id, |nodes| {
         rfc6962::inclusion_path(nodes, index, checkpoint.tree_size)
     })
     .await?;
@@ -590,6 +640,56 @@ pub async fn audit_tree<C: GenericClient + Sync>(
     Ok(audit)
 }
 
+/// Create an empty log named `name`, with identity `uid` or a new one, and return its
+/// identity. Creating a log that exists returns its identity.
+/// # Errors
+/// Returns an error when `uid` is given and the log, or another log, already has a
+/// different identity or name, or when persistence fails.
+pub async fn create_log<C: GenericClient + Sync>(
+    client: &C,
+    name: &str,
+    uid: Option<Uuid>,
+) -> Result<Uuid> {
+    client
+        .execute(
+            "INSERT INTO trellis_logs (name, uid) VALUES ($1, coalesce($2, gen_random_uuid())) \
+             ON CONFLICT DO NOTHING",
+            &[&name, &uid],
+        )
+        .await?;
+    let stored: Uuid = client
+        .query_opt("SELECT uid FROM trellis_logs WHERE name = $1", &[&name])
+        .await?
+        .with_context(|| format!("Log identity {uid:?} belongs to another log than '{name}'"))?
+        .try_get(0)?;
+    if let Some(uid) = uid {
+        ensure!(
+            stored == uid,
+            "Log '{name}' exists with identity {stored}, not {uid}"
+        );
+    }
+    Ok(stored)
+}
+
+/// Close a log to appends and return its final checkpoint. Sealing a sealed log
+/// returns the same checkpoint.
+/// # Errors
+/// Returns `NotFound` for an unknown log, `Corrupt` when its stored subtrees do not
+/// produce its root, or `Failed`.
+pub async fn seal<C: GenericClient + Sync>(
+    client: &C,
+    name: &str,
+) -> Result<Checkpoint, JournalError> {
+    let head = head(client, name, RowLock::ForUpdate).await?;
+    client
+        .execute(
+            "UPDATE trellis_logs SET sealed_at = coalesce(sealed_at, now()) WHERE id = $1",
+            &[&head.id],
+        )
+        .await?;
+    Ok(head.checkpoint(name))
+}
+
 /// Stateless proof service over the application's database pool.
 #[derive(Clone)]
 pub struct Journal {
@@ -637,12 +737,17 @@ impl Journal {
         );
         let Head {
             id: log_id,
+            state,
             size,
             mut frontier,
             ..
         } = head(tx, name, RowLock::ForUpdate)
             .await
             .map_err(|error| anyhow!("Cannot append to Trellis log '{name}': {error}"))?;
+        ensure!(
+            state == LogState::Open,
+            "Cannot append to Trellis log '{name}': it is sealed"
+        );
         let mut nodes = Vec::new();
         for (_, hash) in leaves {
             nodes.extend(frontier.push(hash));
@@ -742,19 +847,19 @@ impl Journal {
         let current = head.checkpoint(name);
         let evidence = match trusted {
             None => Evidence {
-                inclusion: inclusion_at(reader, &current, index, &data).await?,
+                inclusion: inclusion_at(reader, head.id, &current, index, &data).await?,
                 consistency: None,
             },
             Some(trusted) => {
                 let link = extension(reader, name, &head, trusted).await?;
                 if index < trusted.tree_size {
                     Evidence {
-                        inclusion: inclusion_at(reader, trusted, index, &data).await?,
+                        inclusion: inclusion_at(reader, head.id, trusted, index, &data).await?,
                         consistency: None,
                     }
                 } else {
                     Evidence {
-                        inclusion: inclusion_at(reader, &current, index, &data).await?,
+                        inclusion: inclusion_at(reader, head.id, &current, index, &data).await?,
                         consistency: Some(link),
                     }
                 }
@@ -776,6 +881,34 @@ impl Journal {
         let consistency = extension(reader, &old.log_name, &head, old).await?;
         tx.commit().await?;
         Ok(consistency)
+    }
+
+    /// Every log of the database, in creation order, with its stored size and root.
+    /// # Errors
+    /// Returns `Failed` if the database is unavailable.
+    pub async fn logs(&self) -> Result<Vec<LogSummary>, JournalError> {
+        let rows = self
+            .pool
+            .get()
+            .await?
+            .query(
+                &format!("SELECT {LOG_COLUMNS}, name FROM trellis_logs ORDER BY id"),
+                &[],
+            )
+            .await?;
+        let mut logs = Vec::with_capacity(rows.len());
+        for row in rows {
+            logs.push(LogSummary {
+                checkpoint: Checkpoint {
+                    log_name: row.try_get(5)?,
+                    log_uid: row.try_get(1)?,
+                    tree_size: u64::try_from(row.try_get::<_, i64>(2)?)?,
+                    root: row.try_get(3)?,
+                },
+                state: LogState::from_sealed_at(row.try_get(4)?),
+            });
+        }
+        Ok(logs)
     }
 
     /// Names of the logs created before subtrees were stored, which must be rebuilt.
@@ -813,14 +946,15 @@ impl Journal {
         let tx = client.transaction().await?;
         let log = tx
             .query_opt(
-                "SELECT id, size, root FROM trellis_logs WHERE name = $1 FOR UPDATE",
+                &format!("SELECT {LOG_COLUMNS} FROM trellis_logs WHERE name = $1 FOR UPDATE"),
                 &[&name],
             )
             .await?
             .ok_or_else(|| JournalError::NotFound(format!("Log '{name}'")))?;
         let log_id: i64 = log.try_get(0)?;
-        let size = u64::try_from(log.try_get::<_, i64>(1)?)?;
-        let stored_root = hash_of(&log.try_get::<_, Vec<u8>>(2)?)?;
+        let identity: Uuid = log.try_get(1)?;
+        let size = u64::try_from(log.try_get::<_, i64>(2)?)?;
+        let stored_root = hash_of(&log.try_get::<_, Vec<u8>>(3)?)?;
         let unbuilt = is_unbuilt(size, &stored_root);
         tx.execute("DELETE FROM trellis_nodes WHERE log_id = $1", &[&log_id])
             .await?;
@@ -891,7 +1025,7 @@ impl Journal {
         tx.commit().await?;
         Ok(Checkpoint {
             log_name: name.to_owned(),
-            log_id,
+            log_uid: identity,
             tree_size: size,
             root: root.to_vec(),
         })
@@ -965,7 +1099,7 @@ mod tests {
             nodes.extend(frontier.push(leaf));
             checkpoints.push(Checkpoint {
                 log_name: "board".into(),
-                log_id: 7,
+                log_uid: Uuid::from_u128(7),
                 tree_size: frontier.size(),
                 root: frontier.root().to_vec(),
             });

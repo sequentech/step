@@ -483,6 +483,8 @@ async fn prepare_voter_secret_attribute_audit(
 
 /// Prefix of the delivery IDs of checkpoint statements, which are unique per log size.
 const CHECKPOINT_DELIVERY_PREFIX: &str = "electoral-log-checkpoint:";
+/// Prefix of the delivery IDs of continuation statements, unique per continued log.
+const CONTINUATION_DELIVERY_PREFIX: &str = "electoral-log-continuation:";
 
 /// Sign a checkpoint publication with the system key of `sd`.
 pub fn sign_checkpoint(
@@ -494,7 +496,7 @@ pub fn sign_checkpoint(
     Ok(
         crate::postgres::electoral_log_checkpoint::PublishedCheckpoint {
             board_name: checkpoint.log_name.clone(),
-            log_id: checkpoint.log_id,
+            log_uid: checkpoint.log_uid,
             tree_size: i64::try_from(checkpoint.tree_size)?,
             root: hex::encode(&checkpoint.root),
             reason: reason.to_string(),
@@ -1350,12 +1352,11 @@ impl ElectoralLog {
         election_event_id: &str,
         reason: ElectoralLogCheckpointReason,
     ) -> Result<electoral_log::proofs::Checkpoint> {
-        let checkpoint =
-            crate::services::protocol_manager::get_electoral_log_store(&self.elog_database)
-                .await?
-                .journal()
-                .checkpoint(&self.elog_database)
-                .await?;
+        let checkpoint = crate::services::protocol_manager::get_event_store(election_event_id)
+            .await?
+            .journal()
+            .checkpoint(&self.elog_database)
+            .await?;
         let published = sign_checkpoint(&self.sd, &checkpoint, reason)?;
         // Copy first, so that with the `required` policy nothing is published without
         // its write-once copy.
@@ -1390,8 +1391,8 @@ impl ElectoralLog {
         // so publishing the same size again, or retrying, records it once.
         let message = Message::electoral_log_checkpoint_message(
             EventIdString(election_event_id.to_string()),
-            ElectoralLogCheckpoint {
-                log_id: checkpoint.log_id,
+            ElectoralLogCheckpointV2 {
+                log_uid: checkpoint.log_uid.hyphenated().to_string(),
                 tree_size: checkpoint.tree_size,
                 root: published.root.clone(),
                 reason: stored
@@ -1405,12 +1406,38 @@ impl ElectoralLog {
             &message,
             format!(
                 "{CHECKPOINT_DELIVERY_PREFIX}{}:{}",
-                checkpoint.log_id, checkpoint.tree_size
+                checkpoint.log_uid, checkpoint.tree_size
             ),
         )
         .await
         .context("The checkpoint was stored but could not be recorded in the log")?;
         Ok(checkpoint)
+    }
+
+    /// Record that this board continues a log, whose last checkpoint is `previous`,
+    /// as an imported event's board continues the board of the event it was exported
+    /// from. Recorded once per previous log.
+    #[instrument(skip(self), err)]
+    pub async fn post_continuation(
+        &self,
+        election_event_id: &str,
+        previous: &electoral_log::proofs::Checkpoint,
+    ) -> Result<()> {
+        let message = Message::electoral_log_continuation_message(
+            EventIdString(election_event_id.to_string()),
+            ElectoralLogContinuation {
+                previous_log_name: previous.log_name.clone(),
+                previous_log_uid: previous.log_uid.hyphenated().to_string(),
+                tree_size: previous.tree_size,
+                root: hex::encode(&previous.root),
+            },
+            &self.sd,
+        )?;
+        self.post_with_delivery_id(
+            &message,
+            format!("{CONTINUATION_DELIVERY_PREFIX}{}", previous.log_uid),
+        )
+        .await
     }
 
     #[instrument(skip(self), err)]
@@ -2064,6 +2091,8 @@ mod postgres_wiring_tests {
         let event = Uuid::new_v4().to_string();
         let slug = std::env::var("ENV_SLUG")?;
         let board = get_event_board(&tenant, &event, &slug);
+        let databases = crate::services::protocol_manager::get_event_databases().await?;
+        databases.create_event(&tenant, &event).await?;
         let client = get_board_client().await?;
         client.create_board(&board).await?;
         let key = StrandSignatureSk::generate()?;
@@ -2084,8 +2113,8 @@ mod postgres_wiring_tests {
         prepared.post().await?;
         prepared.post().await?;
         let input = GetElectoralLogBody {
-            tenant_id: tenant,
-            election_event_id: event,
+            tenant_id: tenant.clone(),
+            election_event_id: event.clone(),
             ..Default::default()
         };
         assert_eq!(count_electoral_log(input.clone()).await?, 1);
@@ -2099,13 +2128,15 @@ mod postgres_wiring_tests {
         let mut other = input.clone();
         other.tenant_id = Uuid::new_v4().to_string();
         assert_eq!(count_electoral_log(other).await?, 0);
-        let store = crate::services::protocol_manager::get_electoral_log_store(&board).await?;
+        let store = databases.store(&event).await?;
         let checkpoint = store.journal().checkpoint(&board).await?;
         assert_eq!(checkpoint.tree_size, 1);
         let report = store.audit(&board, &[checkpoint]).await?;
         assert!(report.is_clean(), "{:?}", report.findings());
         client.delete_board(&board).await?;
         assert_eq!(count_electoral_log(input).await?, 0);
+        databases.drop_event(&tenant, &event).await?;
+        assert!(!databases.has_event(&event).await?);
         Ok(())
     }
 }

@@ -45,6 +45,6 @@ receive secret-read without permission to change it.
 
 | Permission | Allows |
 |---|---|
-| `electoral-log-console-read` | Open the **Electoral Log** page and browse the records, ballots, voters and sequencer queue of the tenant's election events. Usernames, IP addresses and countries show as `hidden`. |
+| `electoral-log-console-read` | Open the **Electoral Log** page and browse the records, ballots, voters and sequencer queue of the tenant's election events, or, in the super-admin tenant, of any tenant's. Usernames, IP addresses and countries show as `hidden`. |
 | `electoral-log-personal-data-read` | See usernames, IP addresses and countries on the **Electoral Log** page. |
-| `electoral-log-console-query` | Run read-only SQL queries on the **Electoral Log** page. Queries also need `electoral-log-personal-data-read`, because they read personal data as it is stored. |
+| `electoral-log-console-query` | Run read-only SQL queries on the **Electoral Log** page, in the super-admin tenant. A query reads the database of one election event, of any tenant, and also needs `electoral-log-personal-data-read`, because it reads personal data as it is stored. |

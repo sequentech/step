@@ -27,6 +27,7 @@ type Mutation {
 
 type Query {
     electoral_log_console_page(
+        tenant_id: String
         election_event_id: String!
         table: String!
         filters: jsonb
@@ -38,13 +39,22 @@ type Query {
 
 type Query {
     electoral_log_console_record(
+        tenant_id: String
         election_event_id: String!
         position: Int!
     ): jsonb!
 }
 
 type Query {
-    electoral_log_console_query(sql: String!): jsonb!
+    electoral_log_console_query(
+        tenant_id: String!
+        election_event_id: String!
+        sql: String!
+    ): jsonb!
+}
+
+type Query {
+    electoral_log_console_tenants: jsonb!
 }
 
 type Mutation {
@@ -1497,7 +1507,7 @@ type InsertCastVoteOutput {
     labels: jsonb
     annotations: jsonb
     content: String
-    cast_ballot_signature: bytea!
+    cast_ballot_signature: bytea
     voter_id_string: String
     election_event_id: uuid!
     ballot_id: String

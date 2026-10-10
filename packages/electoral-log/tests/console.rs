@@ -286,6 +286,9 @@ async fn the_ballot_box_is_paged_by_its_keys() -> Result<()> {
     Ok(())
 }
 
+/// Byte limit of the queries that are not about it.
+const BYTES: usize = 1 << 20;
+
 #[tokio::test]
 #[ignore = "requires ELECTORAL_LOG_TEST_DATABASE_URL"]
 async fn queries_only_read_within_their_limits() -> Result<()> {
@@ -293,7 +296,8 @@ async fn queries_only_read_within_their_limits() -> Result<()> {
     let mut client = store.client().await?;
     let second = Duration::from_secs(1);
 
-    let result = run_read_only_query(&mut client, "SELECT 1 AS a, 'x' AS b;\n", 10, second).await?;
+    let result =
+        run_read_only_query(&mut client, "SELECT 1 AS a, 'x' AS b;\n", 10, BYTES, second).await?;
     assert_eq!(result.rows.columns, ["a", "b"]);
     assert_eq!(result.rows.rows, [vec![json!(1), json!("x")]]);
     assert!(!result.truncated);
@@ -302,13 +306,37 @@ async fn queries_only_read_within_their_limits() -> Result<()> {
         &mut client,
         "SELECT g FROM generate_series(1, 20) g",
         5,
+        BYTES,
         second,
     )
     .await?;
     assert_eq!(many.rows.rows.len(), 5);
     assert!(many.truncated);
 
-    let empty = run_read_only_query(&mut client, "SELECT 1 AS a WHERE false", 5, second).await?;
+    // Rows stop at the byte limit, also within one large row.
+    let large = run_read_only_query(
+        &mut client,
+        "SELECT repeat('x', 1000) AS s FROM generate_series(1, 20)",
+        20,
+        3_000,
+        second,
+    )
+    .await?;
+    assert_eq!(large.rows.rows.len(), 2);
+    assert!(large.truncated);
+    let huge = run_read_only_query(
+        &mut client,
+        "SELECT repeat('x', 100000) AS s",
+        20,
+        3_000,
+        second,
+    )
+    .await?;
+    assert!(huge.rows.rows.is_empty());
+    assert!(huge.truncated);
+
+    let empty =
+        run_read_only_query(&mut client, "SELECT 1 AS a WHERE false", 5, BYTES, second).await?;
     assert_eq!(empty.rows.columns, ["a"]);
     assert!(empty.rows.rows.is_empty());
 
@@ -322,21 +350,28 @@ async fn queries_only_read_within_their_limits() -> Result<()> {
         "SELECT pg_sleep(5)",
     ] {
         assert!(
-            run_read_only_query(&mut client, refused, 5, Duration::from_millis(300))
+            run_read_only_query(&mut client, refused, 5, BYTES, Duration::from_millis(300))
                 .await
                 .is_err(),
             "{refused:?} was not refused"
         );
     }
-    let delete = run_read_only_query(&mut client, "DELETE FROM ballot_box_pending", 5, second)
-        .await
-        .unwrap_err()
-        .to_string();
+    let delete = run_read_only_query(
+        &mut client,
+        "DELETE FROM ballot_box_pending",
+        5,
+        BYTES,
+        second,
+    )
+    .await
+    .unwrap_err()
+    .to_string();
     assert!(delete.contains("Only queries that return rows"), "{delete}");
     let timeout = run_read_only_query(
         &mut client,
         "SELECT pg_sleep(5)",
         5,
+        BYTES,
         Duration::from_millis(300),
     )
     .await
@@ -350,7 +385,7 @@ async fn queries_only_read_within_their_limits() -> Result<()> {
         .await?;
     assert_eq!(row.get::<_, String>(0), "off");
     assert_eq!(
-        run_read_only_query(&mut client, "SELECT 2 AS n", 1, second)
+        run_read_only_query(&mut client, "SELECT 2 AS n", 1, BYTES, second)
             .await?
             .rows
             .rows,

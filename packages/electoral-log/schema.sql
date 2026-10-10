@@ -2,20 +2,27 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 
 BEGIN;
--- Serializes concurrent initializations of one database, such as two processes
--- provisioning the same tenant.
+-- Serializes concurrent initializations of the database.
 SELECT pg_advisory_xact_lock(7307648119525449473);
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only
+-- `id` keys a log's rows in this database. `uid` identifies the log wherever it is
+-- stored: checkpoints and leaf commitments name it, so a log copied to another
+-- database keeps its checkpoints. A sealed log takes no more leaves.
 CREATE TABLE IF NOT EXISTS trellis_logs (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
+    uid UUID NOT NULL DEFAULT gen_random_uuid(),
     size BIGINT NOT NULL DEFAULT 0 CHECK (size >= 0),
-    root BYTEA NOT NULL DEFAULT '\xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' CHECK (octet_length(root) = 32)
+    root BYTEA NOT NULL DEFAULT '\xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' CHECK (octet_length(root) = 32),
+    sealed_at TIMESTAMPTZ
 );
 -- Logs created before subtrees were stored gain the empty root here, which marks them
 -- for a rebuild from their leaves before they are read or extended.
 ALTER TABLE trellis_logs ADD COLUMN IF NOT EXISTS root BYTEA NOT NULL DEFAULT '\xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' CHECK (octet_length(root) = 32);
+ALTER TABLE trellis_logs ADD COLUMN IF NOT EXISTS uid UUID NOT NULL DEFAULT gen_random_uuid();
+ALTER TABLE trellis_logs ADD COLUMN IF NOT EXISTS sealed_at TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS trellis_logs_uid ON trellis_logs (uid);
 CREATE TABLE IF NOT EXISTS trellis_leaves (
     log_id BIGINT NOT NULL REFERENCES trellis_logs(id) ON DELETE CASCADE,
     leaf_index BIGINT NOT NULL CHECK (leaf_index >= 0),
@@ -59,7 +66,8 @@ CREATE INDEX IF NOT EXISTS electoral_log_cast_vote ON electoral_log_messages (bo
 CREATE INDEX IF NOT EXISTS electoral_log_voter ON electoral_log_messages (board_name, user_id, ballot_id, id);
 CREATE INDEX IF NOT EXISTS electoral_log_created ON electoral_log_messages (board_name, created, id);
 -- Ballot box: cast votes stored in the electoral log. Tables are partitioned by
--- election event; an event's partitions are created with its board. A vote is
+-- election event; an event's partitions are created with its board, in the event's
+-- database. A vote is
 -- accepted when one statement has updated `ballot_box_voter`, stored the ballot
 -- and queued it in `ballot_box_pending`; the sequencer appends its record to the
 -- event's board later and removes it from the queue.

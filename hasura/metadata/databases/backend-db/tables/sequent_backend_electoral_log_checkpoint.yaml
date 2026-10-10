@@ -10,7 +10,7 @@ select_permissions:
               - tenant_id
               - election_event_id
               - board_name
-              - log_id
+              - log_uid
               - tree_size
               - root
               - reason
@@ -29,7 +29,7 @@ select_permissions:
               - tenant_id
               - election_event_id
               - board_name
-              - log_id
+              - log_uid
               - tree_size
               - root
               - reason
@@ -48,7 +48,7 @@ select_permissions:
               - tenant_id
               - election_event_id
               - board_name
-              - log_id
+              - log_uid
               - tree_size
               - root
               - reason

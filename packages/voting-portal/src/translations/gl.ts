@@ -406,8 +406,8 @@ const galegoTranslation: TranslationType = {
                 alert: "Esta selección contarase como un voto inválido",
             },
             page: {
-                oopsWithStatus: "¡Vaia! {{status}}",
-                oopsWithoutStatus: "Oops! Erro inesperado",
+                oopsWithStatus: "Vaia! {{status}}",
+                oopsWithoutStatus: "Vaia! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
                 invalidLoginHintParametersTitle: "Ligazón de votación non válida",
                 invalidLoginHintParametersMessage:
