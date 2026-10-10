@@ -550,6 +550,8 @@ pub async fn get_document(
     Ok((temp_file, document, document_type))
 }
 
+/// Decrypts the imported file with `password` into a new temp file, removed
+/// when it is dropped. Without a password the file is returned as it is.
 #[instrument(err, skip_all)]
 pub async fn decrypt_document(
     password: Option<String>,
@@ -1639,6 +1641,7 @@ mod decrypt_document_tests {
     use std::fs;
     use std::io::Write;
 
+    /// Whether a regular file of the system temp dir holds exactly `content`.
     fn temp_dir_holds_content(content: &[u8]) -> Result<bool> {
         for entry in fs::read_dir(env::temp_dir())? {
             let Ok(entry) = entry else { continue };
@@ -1655,6 +1658,8 @@ mod decrypt_document_tests {
         Ok(false)
     }
 
+    /// The decrypted content lives only in the returned file: once that is
+    /// dropped no copy of it remains in the temp dir.
     #[tokio::test]
     async fn decrypt_document_leaves_no_plaintext_in_temp_dir() -> Result<()> {
         let password = "import-password";
