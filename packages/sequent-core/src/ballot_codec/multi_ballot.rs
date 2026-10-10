@@ -1068,6 +1068,104 @@ mod tests {
         }
     }
 
+    /// The largest value the bases can hold decodes, and the first value
+    /// beyond them is rejected.
+    #[test]
+    fn test_decode_mixed_radix_rejects_value_beyond_bases() {
+        let bases = vec![2, 3];
+
+        assert_eq!(
+            BallotChoices::decode_mixed_radix(&bases, &BigUint::from(5u32)),
+            Ok(vec![1, 2])
+        );
+        assert!(BallotChoices::decode_mixed_radix(
+            &bases,
+            &BigUint::from(6u32)
+        )
+        .is_err());
+    }
+
+    /// Slots of base one carry no information, so they cannot absorb a value
+    /// beyond the layout.
+    #[test]
+    fn test_decode_mixed_radix_rejects_value_beyond_unit_bases() {
+        assert!(BallotChoices::decode_mixed_radix(
+            &vec![2, 1, 1],
+            &BigUint::from(4u32)
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn test_decode_mixed_radix_rejects_zero_base() {
+        assert!(BallotChoices::decode_mixed_radix(
+            &vec![2, 0],
+            &BigUint::from(3u32)
+        )
+        .is_err());
+    }
+
+    /// The last value inside the capacity of a ballot style fills its slots,
+    /// the first value past it is rejected, and a rejected value does not
+    /// take a serial number.
+    #[test]
+    fn test_decode_from_bigint_rejects_value_beyond_bases() {
+        let contests = vec![
+            decoding_test_contest("a", 2, 1),
+            decoding_test_contest("b", 3, 2),
+        ];
+        let bases =
+            BallotChoices::get_bases(&contests).expect("bases should build");
+        let capacity: BigUint =
+            bases.iter().map(|base| BigUint::from(*base)).product();
+        let mut serial_number_counter = 1;
+
+        assert!(
+            BallotChoices::decode_mixed_radix(&bases, &(&capacity - 1u8))
+                .is_ok()
+        );
+        assert!(BallotChoices::decode_from_bigint(
+            &BigUint::from(0u8),
+            &contests,
+            Some(&mut serial_number_counter),
+        )
+        .is_ok());
+        assert_eq!(serial_number_counter, 2);
+        assert!(BallotChoices::decode_from_bigint(
+            &capacity,
+            &contests,
+            Some(&mut serial_number_counter),
+        )
+        .is_err());
+        assert_eq!(serial_number_counter, 2);
+    }
+
+    #[test]
+    fn test_decode_from_30_bytes_rejects_out_of_range_length() {
+        let style = random_ballot_style(vec![decoding_test_contest("a", 2, 1)]);
+
+        for length in [30u8, 255u8] {
+            let mut bytes = [0u8; 30];
+            bytes[0] = length;
+
+            assert!(
+                BallotChoices::decode_from_30_bytes(&bytes, &style).is_err()
+            );
+        }
+    }
+
+    fn decoding_test_contest(
+        id: &str,
+        num_candidates: usize,
+        max_votes: i64,
+    ) -> Contest {
+        let candidates: Vec<Candidate> = (0..num_candidates)
+            .map(|i| random_candidate(i.to_string(), id.to_string()))
+            .collect();
+
+        random_contest(id.to_string(), candidates, 0, max_votes)
+    }
+
     fn random_ballot(contests: usize) -> (BallotChoices, BallotStyle) {
         let mut rng = rand::thread_rng();
         let contests: Vec<Contest> = (0..contests)

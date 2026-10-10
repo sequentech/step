@@ -139,3 +139,63 @@ impl Pipe for DecodeBallots {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fixtures::contests::get_contest_1;
+    use sequent_core::plaintext::DecodedVoteChoice;
+    use std::io::Write;
+    use uuid::Uuid;
+
+    /// A line that does not decode into a ballot is counted as an implicitly
+    /// invalid ballot, and the lines around it still decode.
+    #[test]
+    fn decode_ballots_counts_malformed_line_as_invalid() {
+        let contest = get_contest_1(&Uuid::new_v4(), &Uuid::new_v4(), &Uuid::new_v4());
+        let vote = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .enumerate()
+                .map(|(index, candidate)| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: if index == 0 { 0 } else { -1 },
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let encoded = contest
+            .encode_plaintext_contest_bigint(&vote)
+            .expect("vote should encode");
+        let path = std::env::temp_dir().join(format!("velvet-ballots-{}.csv", Uuid::new_v4()));
+        let mut file = fs::File::create(&path).expect("ballots file");
+        writeln!(file, "{encoded}\nmalformed\nnot-a-number\n{encoded}\n").expect("write ballots");
+
+        let decoded =
+            DecodeBallots::decode_ballots(&path, &contest).expect("ballots should decode");
+        fs::remove_file(&path).expect("remove ballots file");
+
+        assert_eq!(decoded.len(), 4);
+        for index in [0, 3] {
+            assert!(!decoded[index].is_invalid());
+            assert!(decoded[index]
+                .choices
+                .iter()
+                .any(|choice| choice.id == contest.candidates[0].id && choice.is_selected()));
+        }
+        for index in [1, 2] {
+            assert!(decoded[index].is_invalid());
+            assert!(!decoded[index].is_explicit_invalid);
+            assert_eq!(decoded[index].contest_id, contest.id);
+            assert!(decoded[index]
+                .choices
+                .iter()
+                .all(|choice| !choice.is_selected()));
+        }
+    }
+}

@@ -223,4 +223,25 @@ mod tests {
             }
         }
     }
+
+    /// An envelope longer than its 29 byte payload is rejected, while a
+    /// full-length payload still decodes.
+    #[test]
+    fn test_decode_plaintext_contest_rejects_out_of_range_length() {
+        let contest = get_test_contest();
+
+        for length in [30u8, 255u8] {
+            let mut code = [0u8; 30];
+            code[0] = length;
+
+            assert!(contest.decode_plaintext_contest(&code).is_err());
+            assert!(contest
+                .decode_plaintext_contest_to_biguint(&code)
+                .is_err());
+        }
+
+        let mut full = [1u8; 30];
+        full[0] = 29;
+        assert!(contest.decode_plaintext_contest_to_biguint(&full).is_ok());
+    }
 }
