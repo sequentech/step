@@ -8,8 +8,8 @@ use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
     services::{
         delete_election_event::{
-            delete_election_event_immudb, delete_election_event_related_documents, delete_event_b3,
-            delete_keycloak_realm,
+            delete_election_event_immudb, delete_election_event_related_documents,
+            delete_keycloak_realm, find_election_event_deletion_refusal,
         },
         providers::transactions_provider::provide_hasura_transaction,
     },
@@ -42,6 +42,7 @@ async fn delete_election_event(
     tenant_id: String,
     election_event_id: String,
     realm: String,
+    permission_labels: Vec<String>,
 ) -> AnyhowResult<()> {
     let tenant_id_cloned = tenant_id.clone();
     let election_event_id_cloned = election_event_id.clone();
@@ -49,13 +50,16 @@ async fn delete_election_event(
 
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
-            delete_event_b3(
+            if let Some(refusal) = find_election_event_deletion_refusal(
                 hasura_transaction,
                 &tenant_id_cloned,
                 &election_event_id_cloned,
+                &permission_labels,
             )
-            .await
-            .map_err(|err| anyhow!("Error deleting election event from hasura db: {err}"))?;
+            .await?
+            {
+                return Err(refusal.into());
+            }
 
             let election_ids = get_elections_ids(
                 &hasura_transaction,
@@ -95,8 +99,9 @@ pub async fn delete_election_event_t(
     election_event_id: String,
     realm: String,
     task_execution: TasksExecution,
+    permission_labels: Vec<String>,
 ) -> Result<()> {
-    let res = delete_election_event(tenant_id, election_event_id, realm).await;
+    let res = delete_election_event(tenant_id, election_event_id, realm, permission_labels).await;
 
     let _ = match res {
         Ok(_) => {
