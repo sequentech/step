@@ -608,7 +608,7 @@ fn validate_import_scope(
         Ok(row_tenant == tenant && row_event == event)
     };
 
-    if data.tenant_id != tenant
+    if Uuid::parse_str(&data.tenant_id).map_or(true, |id| id != tenant)
         || !in_scope(&data.election_event.tenant_id, &data.election_event.id)
             .context("Invalid imported election event")?
     {
