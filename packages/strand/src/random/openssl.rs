@@ -15,12 +15,16 @@ impl CryptoRng for StrandRng {}
 impl RngCore for StrandRng {
     #[inline(always)]
     fn next_u32(&mut self) -> u32 {
-        rand_core::impls::next_u32_via_fill(self)
+        let mut bytes = [0u8; 4];
+        self.fill_bytes(&mut bytes);
+        u32::from_le_bytes(bytes)
     }
 
     #[inline(always)]
     fn next_u64(&mut self) -> u64 {
-        rand_core::impls::next_u64_via_fill(self)
+        let mut bytes = [0u8; 8];
+        self.fill_bytes(&mut bytes);
+        u64::from_le_bytes(bytes)
     }
 
     #[inline(always)]
