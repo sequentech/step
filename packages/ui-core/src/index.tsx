@@ -20,6 +20,7 @@ export * from "./services/WasmContext"
 export {
     stringToHtml,
     stringToText,
+    escapeHtml,
     escapeTranslationValues,
     translateHtml,
 } from "./services/stringToHtml"
