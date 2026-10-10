@@ -244,7 +244,8 @@ impl DocumentAnnotations {
     }
 
     /// Adds the voter secret read requirement to stored annotations, keeping
-    /// the document password and every other field.
+    /// the document password and every other field, including fields nested
+    /// under `access`.
     pub fn restrict_to_voter_secret_readers(
         annotations: Option<Value>,
     ) -> Result<Value> {
@@ -266,7 +267,17 @@ impl DocumentAnnotations {
             }),
         })?;
         if let Value::Object(restricted_fields) = restricted {
-            fields.extend(restricted_fields);
+            for (key, value) in restricted_fields {
+                match (fields.get_mut(&key), value) {
+                    (
+                        Some(Value::Object(stored)),
+                        Value::Object(restricted_value),
+                    ) => stored.extend(restricted_value),
+                    (_, value) => {
+                        fields.insert(key, value);
+                    }
+                }
+            }
         }
         Ok(Value::Object(fields))
     }
@@ -364,6 +375,25 @@ mod document_annotations_tests {
                     "voter_secret_attributes": true,
                 },
                 "source": "upload",
+            })
+        );
+    }
+
+    #[test]
+    fn restricting_to_voter_secret_readers_keeps_other_access_fields() {
+        let annotations =
+            DocumentAnnotations::restrict_to_voter_secret_readers(Some(
+                json!({"access": {"retention": "keep"}}),
+            ))
+            .unwrap();
+
+        assert_eq!(
+            annotations,
+            json!({
+                "access": {
+                    "retention": "keep",
+                    "voter_secret_attributes": true,
+                },
             })
         );
     }

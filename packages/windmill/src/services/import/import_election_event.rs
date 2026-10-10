@@ -523,8 +523,6 @@ pub async fn get_document(
     object: ImportElectionEventBody,
     election_event_id: Option<String>,
 ) -> Result<(NamedTempFile, Document, String)> {
-    documents::restrict_import_source(&object.tenant_id, &object.document_id).await?;
-
     let document = postgres::document::get_document(
         hasura_transaction,
         &object.tenant_id,
