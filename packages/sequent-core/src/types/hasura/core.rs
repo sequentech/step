@@ -10,7 +10,7 @@ use serde_json::value::Value;
 use std::str::FromStr;
 
 use crate::{
-    ballot::ContestEncryptionPolicy,
+    ballot::{BatchAnonymityPolicy, ContestEncryptionPolicy},
     serialization::deserialize_with_path::deserialize_value,
     types::{
         ceremonies::{KeysCeremonyExecutionStatus, KeysCeremonyStatus},
@@ -341,9 +341,14 @@ impl KeysCeremony {
 pub struct TallySessionConfiguration {
     pub report_content_template_id: Option<String>,
     pub contest_encryption_policy: Option<ContestEncryptionPolicy>,
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
 }
 
 impl TallySessionConfiguration {
+    pub fn get_batch_anonymity_policy(&self) -> BatchAnonymityPolicy {
+        self.batch_anonymity_policy.clone().unwrap_or_default()
+    }
+
     pub fn get_contest_encryption_policy(&self) -> ContestEncryptionPolicy {
         self.contest_encryption_policy.clone().unwrap_or_default()
     }
@@ -449,4 +454,33 @@ pub struct Tenant {
     pub voting_channels: Option<Value>,
     pub settings: Option<Value>,
     pub test: Option<i32>,
+}
+
+#[cfg(test)]
+mod tally_session_configuration_tests {
+    use super::*;
+
+    #[test]
+    fn batch_anonymity_policy_defaults_to_warn_for_sessions_without_it() {
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "contest_encryption_policy": "single-contest"
+            }))
+            .unwrap();
+        assert_eq!(configuration.batch_anonymity_policy, None);
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::WARN
+        );
+
+        let configuration: TallySessionConfiguration =
+            serde_json::from_value(serde_json::json!({
+                "batch_anonymity_policy": "refuse"
+            }))
+            .unwrap();
+        assert_eq!(
+            configuration.get_batch_anonymity_policy(),
+            BatchAnonymityPolicy::REFUSE
+        );
+    }
 }
