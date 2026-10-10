@@ -37,6 +37,8 @@ pub struct CreateBallotReceiptOutput {
     pub task_execution: TasksExecution,
 }
 
+/// Checks CAST_VOTE for the token's own election event and the requested
+/// election, and returns the voter's area.
 fn authorize_receipt(
     claims: &JwtClaims,
     input: &CreateBallotReceiptInput,
@@ -54,6 +56,7 @@ fn authorize_receipt(
     Ok(area_id)
 }
 
+/// Queues a ballot receipt for an election of the voter's own election event.
 #[instrument(skip_all)]
 #[post("/create-ballot-receipt", format = "json", data = "<body>")]
 pub async fn create_ballot_receipt(
@@ -137,6 +140,7 @@ mod create_ballot_receipt_scope_tests {
     use super::*;
     use crate::services::authorization::test_claims::voter;
 
+    /// Receipt request for election "election" of the given election event.
     fn request(election_event_id: &str) -> CreateBallotReceiptInput {
         CreateBallotReceiptInput {
             ballot_id: "ballot".into(),
@@ -148,6 +152,8 @@ mod create_ballot_receipt_scope_tests {
         }
     }
 
+    /// Another election event is refused even when the election is
+    /// authorized.
     #[test]
     fn receipt_requires_the_voters_own_election_event() {
         assert_eq!(
@@ -168,6 +174,7 @@ mod create_ballot_receipt_scope_tests {
         );
     }
 
+    /// The election must be one of the token's authorized elections.
     #[test]
     fn receipt_requires_an_authorized_election() {
         assert_eq!(

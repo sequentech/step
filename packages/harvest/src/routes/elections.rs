@@ -32,6 +32,7 @@ pub struct CreateElectionOutput {
     id: String,
 }
 
+/// Creates an election in an existing election event of the caller's tenant.
 #[instrument(skip(claims))]
 #[post("/create-election", format = "json", data = "<body>")]
 pub async fn create_election(

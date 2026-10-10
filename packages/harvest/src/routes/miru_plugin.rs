@@ -39,6 +39,8 @@ pub struct CreateTransmissionPackageOutput {
     error_msg: Option<String>,
 }
 
+/// Queues a transmission package for an election of the given election event
+/// in the caller's tenant.
 #[instrument(skip(claims))]
 #[post("/miru/create-transmission-package", format = "json", data = "<input>")]
 pub async fn create_transmission_package(
