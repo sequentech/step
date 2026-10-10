@@ -167,6 +167,28 @@ confidential or authentic. Dynamic attributes with dots or dashes in their names
 must be read with the Handlebars `lookup` helper; `attributes` is reserved for the
 complete attribute map.
 
+## Electoral log queue
+
+Keycloak and Windmill publish electoral log events to
+`<ENV_SLUG>_electoral_log_event_queue`. The `electoral_log_batch_dispatcher`
+beat task reads them in batches of `DEFAULT_SQL_BATCH_SIZE`, writes them to the
+election event's board and acknowledges each event only after its board's
+immudb transaction is committed.
+
+An event that can never be written is copied to the durable
+`<ENV_SLUG>_electoral_log_dead_letter_queue` and removed from the event queue.
+This covers messages that cannot be decoded, invalid tenant or election event
+IDs, election events that no longer exist or have no board, and entries that
+cannot be built. Windmill logs the reason as
+`Moving electoral log event to the dead-letter queue`. Nothing consumes the
+dead-letter queue: monitor its depth, and once the cause is fixed, move its
+messages back to the event queue, for example with a RabbitMQ shovel.
+
+When the Hasura or Keycloak database, the vault or immudb cannot be reached,
+the affected events stay in the event queue and the next dispatcher run
+retries them. A batch that was written to immudb but not acknowledged, for
+example because the worker stopped, is written again on the next run.
+
 ## Tally
 
 ### Discarded/Auditable Ballots
