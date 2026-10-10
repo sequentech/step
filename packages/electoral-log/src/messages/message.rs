@@ -23,6 +23,7 @@ use crate::messages::newtypes::{
     CertificateAuthEventAction, CertificateSubjectDnsString, EventIdString,
 };
 use std::fmt;
+use strum_macros::Display;
 
 /// We use this when the statement is not related to any election event
 /// For the moment the only case is admin_public_key_message, which is
@@ -645,11 +646,22 @@ impl Message {
         area_id: Option<String>,
         ballot_id: Option<String>,
     ) -> Result<Message> {
-        let bytes = statement.strand_serialize()?;
+        let sender_pk = StrandSignaturePk::from_sk(sender_sk)?;
+        let sender = Sender::new(sender_name.to_string(), sender_pk);
+        let bytes = SignedPayload {
+            domain: SIGNED_PAYLOAD_DOMAIN,
+            statement: &statement,
+            sender: &sender,
+            artifact: &artifact,
+            user_id: &user_id,
+            username: &username,
+            election_id: &election_id,
+            area_id: &area_id,
+            ballot_id: &ballot_id,
+        }
+        .strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
         let system_signature: StrandSignature = system_sk.sign(&bytes)?;
-        let sender_pk = StrandSignaturePk::from_sk(&sender_sk)?;
-        let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {
             sender,
@@ -665,13 +677,82 @@ impl Message {
         })
     }
 
-    pub fn verify(&self, system_pk: &StrandSignaturePk) -> Result<()> {
-        let bytes = self.statement.strand_serialize()?;
-        self.sender.pk.verify(&self.sender_signature, &bytes)?;
-        system_pk.verify(&self.system_signature, &bytes)?;
+    /// Checks the sender and system signatures and returns what they cover.
+    /// Signatures over the statement alone, as written before the sender,
+    /// artifact and ids were signed, are accepted only when `legacy_policy`
+    /// allows it.
+    pub fn verify(
+        &self,
+        system_pk: &StrandSignaturePk,
+        legacy_policy: LegacySignaturePolicy,
+    ) -> Result<MessageSignatureScope> {
+        let payload = SignedPayload {
+            domain: SIGNED_PAYLOAD_DOMAIN,
+            statement: &self.statement,
+            sender: &self.sender,
+            artifact: &self.artifact,
+            user_id: &self.user_id,
+            username: &self.username,
+            election_id: &self.election_id,
+            area_id: &self.area_id,
+            ballot_id: &self.ballot_id,
+        }
+        .strand_serialize()?;
+
+        match (self.verify_signatures(system_pk, &payload), legacy_policy) {
+            (Ok(()), _) => Ok(MessageSignatureScope::StatementAndMetadata),
+            (Err(err), LegacySignaturePolicy::Reject) => Err(err),
+            (Err(_), LegacySignaturePolicy::AcceptStatementOnly) => {
+                let statement = self.statement.strand_serialize()?;
+                self.verify_signatures(system_pk, &statement)?;
+                Ok(MessageSignatureScope::Statement)
+            }
+        }
+    }
+
+    fn verify_signatures(&self, system_pk: &StrandSignaturePk, bytes: &[u8]) -> Result<()> {
+        self.sender.pk.verify(&self.sender_signature, bytes)?;
+        system_pk.verify(&self.system_signature, bytes)?;
 
         Ok(())
     }
+}
+
+/// Tags the bytes a message signs, so they differ from the statement-only
+/// bytes that messages signed by earlier versions cover.
+const SIGNED_PAYLOAD_DOMAIN: &str = "sequent/electoral-log/message/v2";
+
+/// What the sender and system signatures cover: the statement, the sender, the
+/// artifact and the ids that are copied into the indexed columns of the log.
+#[derive(BorshSerialize)]
+struct SignedPayload<'a> {
+    domain: &'a str,
+    statement: &'a Statement,
+    sender: &'a Sender,
+    artifact: &'a Option<Vec<u8>>,
+    user_id: &'a Option<String>,
+    username: &'a Option<String>,
+    election_id: &'a Option<String>,
+    area_id: &'a Option<String>,
+    ballot_id: &'a Option<String>,
+}
+
+/// What the signatures of a verified message cover.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+pub enum MessageSignatureScope {
+    /// Only the statement. The sender, artifact and ids of the message are
+    /// not authenticated.
+    Statement,
+    /// The statement, the sender, the artifact and the ids.
+    StatementAndMetadata,
+}
+
+/// Whether [`Message::verify`] accepts messages whose signatures cover only
+/// the statement, as all messages signed by earlier versions do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display)]
+pub enum LegacySignaturePolicy {
+    Reject,
+    AcceptStatementOnly,
 }
 
 impl TryFrom<&Message> for ElectoralLogMessage {
@@ -756,7 +837,7 @@ mod tests {
                 &signing_data,
                 Some("Admin".to_string()),
             )?;
-            message.verify(&system_pk)?;
+            message.verify(&system_pk, LegacySignaturePolicy::Reject)?;
             assert_eq!(message.statement.head.log_type.to_string(), "ERROR");
             assert_eq!(
                 message.statement.head.kind.to_string(),
@@ -776,10 +857,10 @@ mod tests {
                 .contains("Publication failure reason"));
             let encoded = borsh::to_vec(&message)?;
             let decoded: Message = borsh::from_slice(&encoded)?;
-            decoded.verify(&system_pk)?;
+            decoded.verify(&system_pk, LegacySignaturePolicy::Reject)?;
             let row: ElectoralLogMessage = (&message).try_into()?;
             let persisted: Message = borsh::from_slice(&row.message)?;
-            persisted.verify(&system_pk)?;
+            persisted.verify(&system_pk, LegacySignaturePolicy::Reject)?;
             assert!(persisted
                 .statement
                 .head
@@ -788,7 +869,9 @@ mod tests {
             if let StatementBody::BallotPublicationFailure(details) = &mut message.statement.body {
                 details.error.0 = "Changed error".to_string();
             }
-            assert!(message.verify(&system_pk).is_err());
+            assert!(message
+                .verify(&system_pk, LegacySignaturePolicy::Reject)
+                .is_err());
         }
         Ok(())
     }
@@ -893,6 +976,121 @@ mod tests {
             .expect("the subject is a JSON object")
             .contains_key("user_id"));
         assert_eq!(subject["username"], "voter-name");
+        Ok(())
+    }
+
+    fn signed_cast_vote(sd: &SigningData) -> Result<Message> {
+        Message::cast_vote_with_channel_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            sd,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            VotingChannelString("ONLINE".to_string()),
+            Some("voter-id".to_string()),
+            Some("voter-name".to_string()),
+            "area-id".to_string(),
+        )
+    }
+
+    #[test]
+    fn verify_rejects_changed_metadata() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let sd = SigningData::new(system_sk.clone(), "voter-id", system_sk);
+        let encoded = borsh::to_vec(&signed_cast_vote(&sd)?)?;
+        type FieldChange = (&'static str, fn(&mut Message));
+        let changes: [FieldChange; 7] = [
+            ("sender.name", |m| m.sender.name = "other".to_string()),
+            ("artifact", |m| m.artifact = Some(vec![1])),
+            ("user_id", |m| m.user_id = Some("other".to_string())),
+            ("username", |m| m.username = Some("other".to_string())),
+            ("election_id", |m| m.election_id = Some("other".to_string())),
+            ("area_id", |m| m.area_id = Some("other".to_string())),
+            ("ballot_id", |m| m.ballot_id = Some("other".to_string())),
+        ];
+
+        let unchanged: Message = borsh::from_slice(&encoded)?;
+        unchanged.verify(&system_pk, LegacySignaturePolicy::Reject)?;
+        for (field, change) in changes {
+            let mut message: Message = borsh::from_slice(&encoded)?;
+            change(&mut message);
+            for policy in [
+                LegacySignaturePolicy::Reject,
+                LegacySignaturePolicy::AcceptStatementOnly,
+            ] {
+                assert!(
+                    message.verify(&system_pk, policy).is_err(),
+                    "a changed {field} must not verify under {policy}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn statement_only_signatures_verify_only_under_the_legacy_policy() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let other_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+        let sd = SigningData::new(system_sk.clone(), "voter-id", system_sk.clone());
+        let mut message = signed_cast_vote(&sd)?;
+        for policy in [
+            LegacySignaturePolicy::Reject,
+            LegacySignaturePolicy::AcceptStatementOnly,
+        ] {
+            assert_eq!(
+                message.verify(&system_pk, policy)?,
+                MessageSignatureScope::StatementAndMetadata
+            );
+        }
+
+        let statement = message.statement.strand_serialize()?;
+        message.sender_signature = system_sk.sign(&statement)?;
+        message.system_signature = system_sk.sign(&statement)?;
+        assert!(message
+            .verify(&system_pk, LegacySignaturePolicy::Reject)
+            .is_err());
+        assert_eq!(
+            message.verify(&system_pk, LegacySignaturePolicy::AcceptStatementOnly)?,
+            MessageSignatureScope::Statement
+        );
+        assert!(message
+            .verify(&other_pk, LegacySignaturePolicy::AcceptStatementOnly)
+            .is_err());
+
+        message.statement.head.description = "Changed description.".to_string();
+        assert!(message
+            .verify(&system_pk, LegacySignaturePolicy::AcceptStatementOnly)
+            .is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn verify_rejects_a_changed_reconciliation_artifact() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let sd = SigningData::new(system_sk.clone(), "", system_sk);
+        let mut message = Message::external_reconciliation_message(
+            EventIdString("event-id".to_string()),
+            ExternalReconciliationKind::ChangesApplied,
+            ExternalReconciliationSequenceString("1".to_string()),
+            ExternalReconciliationGeneratedAtString("0".to_string()),
+            ExternalReconciliationInputHashString("input".to_string()),
+            ExternalReconciliationOutputHashString(Some("output".to_string())),
+            Some(br#"{"old":"a","new":"b"}"#.to_vec()),
+            &sd,
+            Some("admin-id".to_string()),
+            Some("admin".to_string()),
+        )?;
+        message.verify(&system_pk, LegacySignaturePolicy::Reject)?;
+
+        message.artifact = Some(br#"{"old":"a","new":"c"}"#.to_vec());
+        assert!(message
+            .verify(&system_pk, LegacySignaturePolicy::Reject)
+            .is_err());
         Ok(())
     }
 
