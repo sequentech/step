@@ -69,16 +69,16 @@ pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
     Ok(pm)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
     let pmc = ProtocolManagerConfig::from(&pm);
     toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
-    let pmc: ProtocolManagerConfig =
-        toml::from_str(&contents).map_err(|err| anyhow!("{:?}", err))?;
+    let pmc: ProtocolManagerConfig = toml::from_str(&contents)
+        .map_err(|err| anyhow!("Error parsing protocol manager config: {}", err.message()))?;
     let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{:?}", err))?;
     Ok(ProtocolManager::new(pmkey))
 }
@@ -502,4 +502,86 @@ pub async fn get_board_messages<C: Ctx>(
     let board_messages = b3_client.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     Ok(messages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Mutex};
+    use tracing_subscriber::fmt::format::FmtSpan;
+
+    #[derive(Clone, Default)]
+    struct LogBuffer(Arc<Mutex<Vec<u8>>>);
+
+    impl std::io::Write for LogBuffer {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if let Ok(mut buffer) = self.0.lock() {
+                buffer.extend_from_slice(bytes);
+            }
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl LogBuffer {
+        fn contents(&self) -> String {
+            self.0
+                .lock()
+                .map(|buffer| String::from_utf8_lossy(&buffer).into_owned())
+                .unwrap_or_default()
+        }
+    }
+
+    fn with_captured_logs<T>(run: impl FnOnce() -> T) -> (T, String) {
+        let logs = LogBuffer::default();
+        let writer = logs.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_max_level(Level::TRACE)
+            .with_span_events(FmtSpan::NEW)
+            .with_writer(move || writer.clone())
+            .finish();
+        let output = tracing::subscriber::with_default(subscriber, run);
+        (output, logs.contents())
+    }
+
+    fn serialized_protocol_manager() -> (String, String) {
+        let pm = gen_protocol_manager::<RistrettoCtx>().expect("protocol manager");
+        let contents = serialize_protocol_manager::<RistrettoCtx>(&pm).expect("serialized");
+        let signing_key = ProtocolManagerConfig::from(&pm).signing_key;
+        (contents, signing_key)
+    }
+
+    #[test]
+    fn deserialize_protocol_manager_does_not_log_signing_key() {
+        let (contents, signing_key) = serialized_protocol_manager();
+
+        let (result, logs) =
+            with_captured_logs(|| deserialize_protocol_manager::<RistrettoCtx>(contents));
+
+        assert!(result.is_ok());
+        assert!(logs.contains("deserialize_protocol_manager"), "{logs}");
+        assert!(!logs.contains(&signing_key), "signing key in logs: {logs}");
+    }
+
+    #[test]
+    fn deserialize_protocol_manager_error_omits_contents() {
+        let (contents, signing_key) = serialized_protocol_manager();
+        let truncated = contents.trim_end().trim_end_matches('"').to_string();
+
+        let (result, logs) =
+            with_captured_logs(|| deserialize_protocol_manager::<RistrettoCtx>(truncated));
+
+        let error = result.expect_err("invalid protocol manager config");
+        let error = format!("{error:?}");
+        assert!(
+            !error.contains(&signing_key),
+            "signing key in error: {error}"
+        );
+        assert!(logs.contains("deserialize_protocol_manager"), "{logs}");
+        assert!(!logs.contains(&signing_key), "signing key in logs: {logs}");
+    }
 }
