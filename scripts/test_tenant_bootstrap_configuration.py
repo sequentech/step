@@ -6,6 +6,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -14,14 +15,15 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / ".devcontainer/remote-deployment/configure-environment.sh"
 
 
+@unittest.skipUnless(shutil.which("jq"), "jq is required by configure-environment.sh")
 class TenantBootstrapConfigurationTests(unittest.TestCase):
-    def configure(self, invalid_realm=False, script_text=None):
+    def configure(self, invalid_realm=False):
         """Run the complete configuration script inside an isolated deployment tree."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / ".devcontainer"
             script = root / "remote-deployment/configure-environment.sh"
             script.parent.mkdir(parents=True)
-            script.write_text(SCRIPT.read_text() if script_text is None else script_text)
+            script.write_text(SCRIPT.read_text())
             (root / "nginx").mkdir()
             (root / "nginx/default.conf.template").write_text(
                 "server_name admin-fixture.${DOMAIN};\n"
@@ -51,8 +53,8 @@ class TenantBootstrapConfigurationTests(unittest.TestCase):
             }
             realm_path.write_text("{" if invalid_realm else json.dumps(realm))
             result = subprocess.run(
-                ["bash", str(script), "example.invalid", "security-test"],
-                env={**os.environ, "PATH": os.environ.get("PATH") or os.defpath},
+                ["bash", str(script), "example.invalid", "test"],
+                env={"PATH": os.environ.get("PATH") or os.defpath},
                 capture_output=True, text=True, timeout=30,
             )
             prepared = None if invalid_realm else json.loads(realm_path.read_text())
@@ -74,6 +76,7 @@ class TenantBootstrapConfigurationTests(unittest.TestCase):
         """Never continue provisioning if the realm's credential removal failed."""
         result, _ = self.configure(invalid_realm=True)
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn("tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json", result.stderr)
 
 
 if __name__ == "__main__":
