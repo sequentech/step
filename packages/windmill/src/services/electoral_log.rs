@@ -1896,20 +1896,41 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(
+        entry: &ElectoralLogMessage,
+        viewer_user_id: &str,
+    ) -> Result<Option<Self>, anyhow::Error> {
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
         let message: &Message = &Message::strand_deserialize(&entry.message)
             .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
         let message = Some(message.to_string());
 
-        Ok(Some(CastVoteEntry {
-            statement_timestamp: entry.statement_timestamp,
-            statement_kind: StatementType::CastVote.to_string(),
-            ballot_id,
-            username,
-            message,
-        }))
+        Ok(Some(
+            CastVoteEntry {
+                statement_timestamp: entry.statement_timestamp,
+                statement_kind: StatementType::CastVote.to_string(),
+                ballot_id,
+                username,
+                message,
+            }
+            .shown_to(entry.user_id.as_deref(), viewer_user_id),
+        ))
+    }
+
+    /// The username and the signed statement (pseudonym, IP and country) tie a
+    /// Ballot ID to a voter, so a voter gets them only for their own entries.
+    pub fn shown_to(self, entry_user_id: Option<&str>, viewer_user_id: &str) -> Self {
+        match entry_user_id {
+            Some(entry_user_id) if !entry_user_id.is_empty() && entry_user_id == viewer_user_id => {
+                self
+            }
+            _ => CastVoteEntry {
+                username: None,
+                message: None,
+                ..self
+            },
+        }
     }
 }
 
@@ -2012,18 +2033,42 @@ pub fn get_cols_match_count_and_select(
             ElectoralLogVarCharColumn::UserId,
             (SqlCompOperators::Equal, user_id.to_string()),
         );
+        // immudb evaluates LIKE as a regular expression: anchor it to match a prefix.
         cols_match_select.insert(
             ElectoralLogVarCharColumn::BallotId,
-            (SqlCompOperators::Like, ballot_id_filter.to_string()),
+            (SqlCompOperators::Like, format!("^{ballot_id_filter}")),
         );
     }
 
     (cols_match_count, cols_match_select)
 }
 
-/// Returns the entries for statement_kind = "CastVote" which ballot_id matches the input
-/// ballot_id_filter is restricted to be an even number of characters, so that can be converted
-/// to a byte array
+/// Lowercases a Ballot ID prefix and checks that it is an even number of hex
+/// characters, no longer than a Ballot ID.
+fn normalize_ballot_id_filter(ballot_id_filter: &str) -> Result<String> {
+    let ballot_id_filter = ballot_id_filter.trim().to_ascii_lowercase();
+    ensure!(
+        ballot_id_filter.len() % 2 == 0
+            && ballot_id_filter.len() <= BALLOT_ID_LENGTH_CHARS
+            && ballot_id_filter.chars().all(|c| c.is_ascii_hexdigit()),
+        "Incorrect ballot_id, it must be an even number of hexadecimal characters, at most {BALLOT_ID_LENGTH_CHARS}"
+    );
+    Ok(ballot_id_filter)
+}
+
+/// Page size and offset of a voter's request, with the page size capped at
+/// MAX_ROWS_PER_PAGE.
+fn cast_vote_page(limit: Option<i64>, offset: Option<i64>) -> (i64, i64) {
+    let max_rows = MAX_ROWS_PER_PAGE as i64;
+    (
+        limit.unwrap_or(max_rows).clamp(0, max_rows),
+        offset.unwrap_or(0).max(0),
+    )
+}
+
+/// Returns the entries for statement_kind = "CastVote" which ballot_id starts with the input
+/// ballot_id_filter, which is restricted to an even number of hex characters, so that can be
+/// converted to a byte array
 #[instrument(err)]
 pub async fn list_cast_vote_messages(
     input: GetElectoralLogBody,
@@ -2031,13 +2076,11 @@ pub async fn list_cast_vote_messages(
     user_id: &str,
     username: &str,
 ) -> Result<CastVoteMessagesOutput> {
-    ensure!(
-        ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
-        "Incorrect ballot_id, the length must be an even number of characters"
-    );
+    let ballot_id_filter = normalize_ballot_id_filter(ballot_id_filter)?;
+    let ballot_id_filter = ballot_id_filter.as_str();
     // The limits are used to cut the output after filtering the ballot id.
     // Because ballot_id cannot be filtered at SQL level the sql limit is constant
-    let output_limit: i64 = input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64);
+    let (output_limit, mut offset) = cast_vote_page(input.limit, input.offset);
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(
         input.tenant_id.as_str(),
@@ -2050,9 +2093,8 @@ pub async fn list_cast_vote_messages(
 
     let limit: i64 = match ballot_id_filter.is_empty() {
         false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
-        true => input.limit.unwrap_or(MAX_ROWS_PER_PAGE as i64),
+        true => output_limit,
     };
-    let mut offset: i64 = input.offset.unwrap_or(0);
     let mut list: Vec<CastVoteEntry> = Vec::with_capacity(MAX_ROWS_PER_PAGE); // Filtered messages.
     let (cols_match_count, cols_match_select) =
         get_cols_match_count_and_select(&election_id, user_id, ballot_id_filter);
@@ -2076,11 +2118,14 @@ pub async fn list_cast_vote_messages(
             )
             .await
             .map_err(|err| anyhow!("Failed to get filtered messages: {:?}", err))?;
+        if electoral_log_messages.is_empty() {
+            break;
+        }
 
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
+            match CastVoteEntry::from_elog_message(&message, user_id)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;
@@ -2276,5 +2321,116 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod cast_vote_entry_tests {
+    use super::*;
+
+    const ENTRY_USER_ID: &str = "voter-one-id";
+
+    fn cast_vote_row() -> ElectoralLogMessage {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::r#gen().unwrap(),
+            "windmill",
+            StrandSignatureSk::r#gen().unwrap(),
+        );
+        let message = Message::cast_vote_with_channel_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip: 203.0.113.7".to_string()),
+            VoterCountryString("country: ES".to_string()),
+            VotingChannelString("ONLINE".to_string()),
+            Some(ENTRY_USER_ID.to_string()),
+            Some("voter-one".to_string()),
+            "area-id".to_string(),
+        )
+        .unwrap();
+        (&message).try_into().unwrap()
+    }
+
+    #[test]
+    fn a_voter_sees_their_own_entry_in_full() {
+        let entry = CastVoteEntry::from_elog_message(&cast_vote_row(), ENTRY_USER_ID)
+            .unwrap()
+            .unwrap();
+        assert_eq!(entry.username.as_deref(), Some("voter-one"));
+        assert!(entry.message.unwrap().contains("203.0.113.7"));
+    }
+
+    #[test]
+    fn another_voters_entry_keeps_only_ballot_id_and_timestamp() {
+        let row = cast_vote_row();
+        let entry = CastVoteEntry::from_elog_message(&row, "voter-two-id")
+            .unwrap()
+            .unwrap();
+        assert_eq!(entry.username, None);
+        assert_eq!(entry.message, None);
+        assert_eq!(Some(entry.ballot_id), row.ballot_id);
+        assert_eq!(entry.statement_timestamp, row.statement_timestamp);
+    }
+
+    #[test]
+    fn an_entry_without_a_user_id_is_shown_to_no_voter() {
+        for (entry_user_id, viewer_user_id) in [(None, "voter-two-id"), (Some(""), ""), (None, "")]
+        {
+            let mut row = cast_vote_row();
+            row.user_id = entry_user_id.map(str::to_string);
+            let entry = CastVoteEntry::from_elog_message(&row, viewer_user_id)
+                .unwrap()
+                .unwrap();
+            assert_eq!(entry.username, None);
+            assert_eq!(entry.message, None);
+        }
+    }
+
+    #[test]
+    fn ballot_id_filter_accepts_an_even_length_hex_prefix() {
+        assert_eq!(normalize_ballot_id_filter("").unwrap(), "");
+        assert_eq!(normalize_ballot_id_filter("AB12").unwrap(), "ab12");
+        let full_ballot_id = "0a".repeat(BALLOT_ID_LENGTH_BYTES);
+        assert_eq!(
+            normalize_ballot_id_filter(&full_ballot_id).unwrap(),
+            full_ballot_id
+        );
+    }
+
+    #[test]
+    fn ballot_id_filter_rejects_non_hex_odd_or_overlong_input() {
+        let overlong = "0a".repeat(BALLOT_ID_LENGTH_BYTES + 1);
+        for filter in [".*", "%%", "zz", "abc", "ab 1", "^a", overlong.as_str()] {
+            assert!(
+                normalize_ballot_id_filter(filter).is_err(),
+                "accepted {filter:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn filtered_select_matches_the_ballot_id_from_its_start() {
+        let (count, select) = get_cols_match_count_and_select("election-id", ENTRY_USER_ID, "ab12");
+        assert!(!count.contains_key(&ElectoralLogVarCharColumn::BallotId));
+        assert_eq!(
+            select
+                .get(&ElectoralLogVarCharColumn::UserId)
+                .map(|(_, value)| value.as_str()),
+            Some(ENTRY_USER_ID)
+        );
+        let (operator, pattern) = select.get(&ElectoralLogVarCharColumn::BallotId).unwrap();
+        assert!(matches!(operator, SqlCompOperators::Like));
+        assert_eq!(pattern, "^ab12");
+    }
+
+    #[test]
+    fn cast_vote_page_is_capped_at_the_page_size() {
+        let max = MAX_ROWS_PER_PAGE as i64;
+        assert_eq!(cast_vote_page(None, None), (max, 0));
+        assert_eq!(cast_vote_page(Some(10), Some(20)), (10, 20));
+        assert_eq!(cast_vote_page(Some(1_000_000), Some(-5)), (max, 0));
+        assert_eq!(cast_vote_page(Some(-1), None), (0, 0));
     }
 }
