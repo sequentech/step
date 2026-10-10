@@ -699,6 +699,15 @@ const catalanTranslation: TranslationType = {
                         disabled: "Desactivada",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Política d'Anonimat de Lots",
+                    helperText:
+                        "Rebutjar atura el recompte quan el lot de paperetes d'una àrea té menys de cinc votants, o difereix del lot que un altre recompte ja va publicar per a la mateixa àrea i pregunta.",
+                    options: {
+                        warn: "Advertir",
+                        refuse: "Rebutjar",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Política de detecció de llengua",
                     options: {

@@ -544,6 +544,11 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_weighted_voting_policy();
+    let batch_anonymity_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_batch_anonymity_policy();
     // Every Ballots batch on the board. Deliberately not narrowed to the
     // batches this session expects: a contest area's batches are identified by
     // its recorded mask, and rows allocated before this layout existed sit one
@@ -605,6 +610,7 @@ pub async fn upsert_ballots_messages(
         contest_encryption_policy,
         delegated_voting_policy,
         weighted_voting_policy,
+        batch_anonymity_policy,
     )
     .await?)
 }

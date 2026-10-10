@@ -254,6 +254,74 @@ pub async fn get_tally_session_contests(
     Ok(values)
 }
 
+/// The rows every other tally session holds for the same election, area and
+/// contest as `tally_session_contest`, whatever state those sessions are in.
+#[instrument(skip_all, err)]
+pub async fn get_other_sessions_tally_session_contests(
+    hasura_transaction: &Transaction<'_>,
+    tally_session_contest: &TallySessionContest,
+) -> Result<Vec<TallySessionContest>> {
+    let contest_uuid = tally_session_contest
+        .contest_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?;
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT
+                    id,
+                    tenant_id,
+                    election_event_id,
+                    election_id,
+                    area_id,
+                    contest_id,
+                    session_id,
+                    created_at,
+                    last_updated_at,
+                    labels,
+                    annotations,
+                    tally_session_id
+                FROM
+                    sequent_backend.tally_session_contest
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    election_id = $3 AND
+                    area_id = $4 AND
+                    contest_id IS NOT DISTINCT FROM $5 AND
+                    tally_session_id <> $6;
+            "#,
+        )
+        .await?;
+    let rows: Vec<Row> = hasura_transaction
+        .query(
+            &statement,
+            &[
+                &parse_uuid_v4(&tally_session_contest.tenant_id)?,
+                &parse_uuid_v4(&tally_session_contest.election_event_id)?,
+                &parse_uuid_v4(&tally_session_contest.election_id)?,
+                &parse_uuid_v4(&tally_session_contest.area_id)?,
+                &contest_uuid,
+                &parse_uuid_v4(&tally_session_contest.tally_session_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| {
+            anyhow!(
+                "Error getting other sessions' tally session contests: {}",
+                err
+            )
+        })?;
+
+    rows.into_iter()
+        .map(|row| -> Result<TallySessionContest> {
+            row.try_into()
+                .map(|res: TallySessionContestWrapper| -> TallySessionContest { res.0 })
+        })
+        .collect()
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_event_tally_session_contest(
     hasura_transaction: &Transaction<'_>,

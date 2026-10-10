@@ -696,6 +696,15 @@ const dutchTranslation: TranslationType = {
                         disabled: "Uitgeschakeld",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Beleid voor Anonimiteit van Batches",
+                    helperText:
+                        "Weigeren stopt de telling wanneer de stembiljettenbatch van een gebied minder dan vijf kiezers heeft, of verschilt van de batch die een andere telling al voor hetzelfde gebied en dezelfde verkiezing heeft gepubliceerd.",
+                    options: {
+                        warn: "Waarschuwen",
+                        refuse: "Weigeren",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Taaldetectiebeleid",
                     options: {

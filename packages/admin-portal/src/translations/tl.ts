@@ -698,6 +698,15 @@ const tagalogTranslation: TranslationType = {
                         disabled: "Hindi pinagana",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Patakaran sa Pagiging Anonimo ng mga Batch",
+                    helperText:
+                        "Ang Tanggihan ay humihinto sa bilang kapag ang batch ng mga balota ng isang lugar ay may mas kaunti sa limang botante, o iba sa batch na nai-post na ng ibang bilang para sa parehong lugar at paligsahan.",
+                    options: {
+                        warn: "Magbabala",
+                        refuse: "Tanggihan",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Patakaran sa Pag-detect ng Wika",
                     options: {
