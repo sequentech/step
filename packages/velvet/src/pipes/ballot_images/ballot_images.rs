@@ -321,7 +321,7 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 .invalid_errors
                 .iter()
                 .any(|error| error.error_type == InvalidPlaintextErrorType::EncodingError);
-            let is_blank = !has_encoding_error && selected_candidates.len() == 0;
+            let is_blank = !has_encoding_error && selected_candidates.is_empty();
             let undervotes = data.contest.max_votes - (num_selected as i64);
             let mut overvotes = 0;
             if (num_selected as i64) > data.contest.max_votes {
