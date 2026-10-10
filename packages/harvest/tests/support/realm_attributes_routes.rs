@@ -261,9 +261,9 @@ async fn public_realm_writers_refuse_closed_database_pools_before_identity_acces
     let client = services.client().await;
     let tenant_id = uuid::Uuid::new_v4().to_string();
     let event_id = uuid::Uuid::new_v4().to_string();
-    for (path, permission, body, message) in [
+    for (path, permission, body) in [
         ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
-            json!({"election_event_id": event_id, "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
+            json!({"election_event_id": event_id, "attributes": {"operator_note": "new"}})),
         ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
             password_policy_body(&event_id), "Failed to update realm password policy"),
     ] {
@@ -306,15 +306,15 @@ async fn public_realm_writers_refuse_invalid_lock_targets_before_identity_access
         "SELECT to_jsonb(e) FROM sequent_backend.election_event e WHERE id = $1", &[&event_id],
     ).await.unwrap().get(0);
     let client = services.client().await;
-    for (path, permission, body, message) in [
+    for (path, permission, body) in [
         ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
-            json!({"election_event_id": "not-a-uuid", "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
+            json!({"election_event_id": "not-a-uuid", "attributes": {"operator_note": "new"}})),
         ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
-            password_policy_body("not-a-uuid"), "Failed to update realm password policy"),
+            password_policy_body("not-a-uuid")),
     ] {
         let claims = Claims::new(&event.tenant_id, "operator").roles([permission]);
         assert_eq!(json(post(&client, path, &claims, &body).await).await,
-            (Status::InternalServerError, json!({"message": message, "extensions": {"code": "InternalServerError"}})));
+            (Status::BadRequest, json!({"message": "election_event_id must be a UUID", "extensions": {"code": "UuidParseFailed"}})));
     }
     assert!(
         peer.finish().is_empty(),
@@ -376,7 +376,7 @@ async fn public_realm_writers_report_identity_read_and_write_failures() {
     let client = services.client().await;
     for (route, permission, body, message) in [
         ("/update-realm-attributes", sequent_core::types::permissions::Permissions::KEYCLOAK_REALM_ATTRIBUTES_WRITE,
-            json!({"election_event_id": event.election_event_id, "attributes": {"operator_note": "new"}}), "Failed to update realm attributes"),
+            json!({"election_event_id": event.election_event_id, "attributes": {"operator_note": "new"}})),
         ("/update-realm-password-policy", sequent_core::types::permissions::Permissions::ELECTION_EVENT_WRITE,
             password_policy_body(&event.election_event_id), "Failed to update realm password policy"),
     ] {
