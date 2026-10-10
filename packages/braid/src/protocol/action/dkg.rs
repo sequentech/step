@@ -177,10 +177,12 @@ pub(super) fn compute_shares<C: Ctx>(
     Ok(vec![m])
 }
 
+/// Builds the label the commitment proof of a dealer is bound to.
 fn commitment_proof_label<C: Ctx>(cfg: &Configuration<C>, dealer: TrusteePosition) -> Vec<u8> {
     cfg.label(0, format!("shares commitment proof {dealer}"))
 }
 
+/// Checks that a dealer posted one commitment per threshold step and one encrypted share per trustee.
 fn check_shares_shape<C: Ctx>(
     share: &Shares<C>,
     threshold: usize,
@@ -423,6 +425,7 @@ mod tests {
     const DEALER: TrusteePosition = 1;
     const MAX_CYCLES: usize = 10;
 
+    /// Creates a board with a configuration and the trustees needed to run the DKG tests.
     fn create_dkg(
         policy: DkgCommitmentProofPolicy,
     ) -> (Configuration<C>, Vec<Trustee<C>>, VectorBoard) {
@@ -459,6 +462,7 @@ mod tests {
         (cfg, trustees, board)
     }
 
+    /// Returns the `Shares` messages posted on the board.
     fn posted_shares(board: &VectorBoard) -> Vec<Shares<C>> {
         board
             .messages
@@ -478,6 +482,7 @@ mod tests {
     }
 
     impl DkgRun {
+        /// Returns true if the result is an error whose text contains `reason`.
         fn failed_with(&self, reason: &str) -> bool {
             self.errors.iter().any(|error| error.contains(reason))
         }
@@ -530,10 +535,12 @@ mod tests {
         }
     }
 
+    /// Leaves the shares as the trustee produced them.
     fn unchanged(shares: Shares<C>, _others: &[Shares<C>]) -> Shares<C> {
         shares
     }
 
+    /// Removes the commitment proof from the shares.
     fn without_commitment_proof(shares: Shares<C>, _others: &[Shares<C>]) -> Shares<C> {
         let bytes = (shares.commitments, shares.encrypted_shares)
             .strand_serialize()
@@ -541,6 +548,7 @@ mod tests {
         Shares::<C>::strand_deserialize(&bytes).unwrap()
     }
 
+    /// A DKG with well formed shares publishes the public key.
     #[test]
     fn public_key_published_from_well_formed_shares() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
@@ -551,6 +559,7 @@ mod tests {
         assert!(run.errors.is_empty());
     }
 
+    /// Under the `Legacy` policy, shares without a commitment proof are accepted.
     #[test]
     fn legacy_policy_accepts_shares_without_commitment_proof() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::Legacy);
@@ -561,6 +570,7 @@ mod tests {
         assert!(run.errors.is_empty());
     }
 
+    /// Under `SchnorrPok`, a dealer without a commitment proof is rejected.
     #[test]
     fn public_key_requires_commitment_proof_from_every_trustee() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
@@ -571,6 +581,7 @@ mod tests {
         assert!(run.failed_with("have no commitment proof"));
     }
 
+    /// Under `SchnorrPok`, a commitment proof that does not verify is rejected.
     #[test]
     fn public_key_requires_valid_commitment_proof() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
@@ -625,6 +636,7 @@ mod tests {
         assert!(run.failed_with("Failed to verify commitment proof"));
     }
 
+    /// A dealer with a number of commitments other than the threshold is rejected.
     #[test]
     fn public_key_requires_threshold_commitments_from_every_trustee() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
@@ -642,6 +654,7 @@ mod tests {
         )));
     }
 
+    /// A dealer with a number of encrypted shares other than the trustee count is rejected.
     #[test]
     fn public_key_requires_one_encrypted_share_per_trustee() {
         let (cfg, mut trustees, mut board) = create_dkg(DkgCommitmentProofPolicy::SchnorrPok);
