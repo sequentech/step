@@ -15,7 +15,8 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use headless_chrome::browser::tab::RequestPausedDecision;
 use headless_chrome::browser::transport::{SessionId, Transport};
 use headless_chrome::protocol::cdp::Fetch::{
-    events::RequestPausedEvent, FailRequest, RequestPattern, RequestStage,
+    events::RequestPausedEvent, FailRequest, FulfillRequest, HeaderEntry,
+    RequestPattern, RequestStage,
 };
 use headless_chrome::protocol::cdp::Network::{ErrorReason, ResourceType};
 pub use headless_chrome::types::{PrintToPdfOptions, TransferMode};
@@ -51,6 +52,14 @@ const UNRESOLVABLE_HOSTS_RULE: &str = "MAP * ~NOTFOUND";
 const EXCLUDE_HOST_RULE: &str = "EXCLUDE";
 const DISABLE_NON_PROXIED_UDP_ARG: &str =
     "--force-webrtc-ip-handling-policy=disable_non_proxied_udp";
+const HTTP_OK: u32 = 200;
+const CONTENT_TYPE_HEADER: &str = "Content-Type";
+const HTML_CONTENT_TYPE: &str = "text/html; charset=utf-8";
+const CONTENT_SECURITY_POLICY_HEADER: &str = "Content-Security-Policy";
+const CSP_NONE_SOURCE: &str = "'none'";
+/// The rendered document reaches Chromium base64 encoded in one DevTools
+/// message, which Chromium limits to 100 MiB.
+const MAX_SCRIPTED_DOCUMENT_BYTES: usize = 48 * 1024 * 1024;
 
 /// What Chromium may run while it renders HTML to PDF. Both policies load
 /// only the resources that `PdfResourceAllowList` accepts.
@@ -67,6 +76,8 @@ const DISABLE_NON_PROXIED_UDP_ARG: &str =
     EnumString,
 )]
 pub enum PdfResourcePolicy {
+    /// Scripts run, but the document is served with a content security policy
+    /// that confines their connections to the public bucket URLs.
     #[default]
     Restricted,
     /// Same resources as `Restricted`, with JavaScript disabled.
@@ -88,13 +99,25 @@ impl PdfResourcePolicy {
             PdfResourcePolicy::RestrictedNoScripts => false,
         }
     }
+
+    /// Documents too large to be served with a content security policy render
+    /// without scripts.
+    fn for_document_size(self, document_bytes: usize) -> Self {
+        if document_bytes > MAX_SCRIPTED_DOCUMENT_BYTES {
+            PdfResourcePolicy::RestrictedNoScripts
+        } else {
+            self
+        }
+    }
 }
 
 /// Resources Chromium may load while it renders HTML to PDF: the rendered
 /// document, the bundled assets directory, the public bucket and inline
 /// `data:`/`blob:` URLs.
 struct PdfResourceAllowList {
+    resource_policy: PdfResourcePolicy,
     document: PathBuf,
+    document_html: String,
     assets_dir: PathBuf,
     public_bucket_urls: Vec<Url>,
 }
@@ -141,6 +164,11 @@ impl PdfResourceAllowList {
     fn decide(&self, event: RequestPausedEvent) -> RequestPausedDecision {
         let params = event.params;
         if self.allows_request(&params.request.url, &params.resource_Type) {
+            if params.resource_Type == ResourceType::Document
+                && self.resource_policy.allows_scripts()
+            {
+                return self.serve_document(params.request_id);
+            }
             return RequestPausedDecision::Continue(None);
         }
         warn!(
@@ -150,6 +178,47 @@ impl PdfResourceAllowList {
         RequestPausedDecision::Fail(FailRequest {
             request_id: params.request_id,
             error_reason: ErrorReason::BlockedByClient,
+        })
+    }
+
+    /// Content security policy for documents that run scripts. It confines the
+    /// connections that request interception does not see, such as
+    /// WebSockets, workers and other windows, to the public bucket URLs.
+    fn content_security_policy(&self) -> String {
+        let connect_sources = if self.public_bucket_urls.is_empty() {
+            CSP_NONE_SOURCE.to_string()
+        } else {
+            self.public_bucket_urls
+                .iter()
+                .map(Url::as_str)
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        format!(
+            "connect-src {connect_sources}; worker-src {CSP_NONE_SOURCE}; \
+             frame-src {CSP_NONE_SOURCE}; object-src {CSP_NONE_SOURCE}; \
+             form-action {CSP_NONE_SOURCE}; \
+             sandbox allow-scripts allow-same-origin"
+        )
+    }
+
+    fn serve_document(&self, request_id: String) -> RequestPausedDecision {
+        RequestPausedDecision::Fulfill(FulfillRequest {
+            request_id,
+            response_code: HTTP_OK,
+            response_headers: Some(vec![
+                HeaderEntry {
+                    name: CONTENT_TYPE_HEADER.to_string(),
+                    value: HTML_CONTENT_TYPE.to_string(),
+                },
+                HeaderEntry {
+                    name: CONTENT_SECURITY_POLICY_HEADER.to_string(),
+                    value: self.content_security_policy(),
+                },
+            ]),
+            binary_response_headers: None,
+            body: Some(BASE64.encode(self.document_html.as_bytes())),
+            response_phrase: None,
         })
     }
 
@@ -841,19 +910,16 @@ fn render_html_to_pdf(
         transfer_mode: None,
     });
 
+    let resource_policy = resource_policy.for_document_size(html.len());
     let allow_list = Arc::new(PdfResourceAllowList {
+        resource_policy,
         document: file_path.clone(),
+        document_html: html,
         assets_dir: assets_dir.to_path_buf(),
         public_bucket_urls,
     });
 
-    print_to_pdf(
-        url_path.as_str(),
-        pdf_options,
-        None,
-        resource_policy,
-        &allow_list,
-    )
+    print_to_pdf(url_path.as_str(), pdf_options, None, &allow_list)
 }
 
 /// Uses headless_chrome to print the file to PDF, with retry on transient
@@ -863,7 +929,6 @@ fn print_to_pdf(
     file_path: &str,
     pdf_options: PrintToPdfOptions,
     wait: Option<Duration>,
-    resource_policy: PdfResourcePolicy,
     allow_list: &Arc<PdfResourceAllowList>,
 ) -> Result<Vec<u8>> {
     // When multiple Rayon threads generate PDF batches concurrently (workers
@@ -884,13 +949,7 @@ fn print_to_pdf(
             serde_json::from_value(pdf_options_json.clone())
                 .with_context(|| "Error deserializing pdf_options for retry")?;
 
-        match print_to_pdf_once(
-            file_path,
-            opts,
-            wait,
-            resource_policy,
-            Arc::clone(allow_list),
-        ) {
+        match print_to_pdf_once(file_path, opts, wait, Arc::clone(allow_list)) {
             Ok(bytes) => return Ok(bytes),
             Err(e) if attempt < MAX_RETRIES => {
                 warn!(
@@ -912,7 +971,6 @@ fn print_to_pdf_once(
     file_path: &str,
     pdf_options: PrintToPdfOptions,
     wait: Option<Duration>,
-    resource_policy: PdfResourcePolicy,
     allow_list: Arc<PdfResourceAllowList>,
 ) -> Result<Vec<u8>> {
     let network_args = allow_list.chrome_network_args();
@@ -923,7 +981,7 @@ fn print_to_pdf_once(
         std::ffi::OsStr::new("--no-zygote"),
     ];
     args.extend(network_args.iter().map(std::ffi::OsStr::new));
-    if !resource_policy.allows_scripts() {
+    if !allow_list.resource_policy.allows_scripts() {
         args.push(std::ffi::OsStr::new(DISABLE_SCRIPTS_ARG));
     }
     let options = LaunchOptionsBuilder::default()
@@ -1069,6 +1127,10 @@ mod tests {
 
         fn socket_url(&self, path: &str) -> String {
             format!("ws://127.0.0.1:{}{}", self.port, path)
+        }
+
+        fn localhost_socket_url(&self, path: &str) -> String {
+            format!("ws://localhost:{}{}", self.port, path)
         }
 
         fn paths(&self) -> Vec<String> {
@@ -1243,6 +1305,51 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn render_confines_script_connections_to_the_public_bucket_urls(
+    ) -> Result<()> {
+        let bucket = RecordingServer::start("")?;
+        let assets_dir = tempdir()?;
+        let html = format!(
+            r#"<body>
+                <img src="{logo}">
+                <form id="form" method="post" action="{form}"></form>
+                <script>
+                    fetch("{data}");
+                    fetch("{other}");
+                    new WebSocket("{socket}");
+                    new Worker(URL.createObjectURL(
+                        new Blob(['fetch("{worker}");'], {{ type: "text/javascript" }})
+                    ));
+                    window.open("{popup}");
+                    document.getElementById("form").submit();
+                </script>
+            </body>"#,
+            logo = bucket.localhost_url("/public/logo.png"),
+            data = bucket.localhost_url("/public/data.json"),
+            other = bucket.localhost_url("/other/data.json"),
+            socket = bucket.localhost_socket_url("/socket"),
+            worker = bucket.localhost_url("/public/worker"),
+            popup = bucket.localhost_url("/public/popup"),
+            form = bucket.localhost_url("/public/form"),
+        );
+
+        render_html_to_pdf(
+            html,
+            None,
+            PdfResourcePolicy::Restricted,
+            assets_dir.path(),
+            Url::parse(&bucket.localhost_url("/public/"))
+                .into_iter()
+                .collect(),
+        )?;
+
+        let mut paths = bucket.paths();
+        paths.sort();
+        assert_eq!(paths, vec!["/public/data.json", "/public/logo.png"]);
+        Ok(())
+    }
+
     const PRIVATE_BUCKET_URL: &str = "http://minio:9000/public/";
     const PUBLIC_BUCKET_URL: &str = "https://s3.example.com/public/";
 
@@ -1313,7 +1420,9 @@ mod tests {
 
     fn test_allow_list(public_bucket_urls: &[&str]) -> PdfResourceAllowList {
         PdfResourceAllowList {
+            resource_policy: PdfResourcePolicy::Restricted,
             document: PathBuf::from("/tmp/.tmpRender/index.html"),
+            document_html: String::new(),
             assets_dir: PathBuf::from(BUNDLED_ASSETS_DIR),
             public_bucket_urls: public_bucket_urls
                 .iter()
@@ -1409,6 +1518,48 @@ mod tests {
                 "{url} should not load as a document"
             );
         }
+    }
+
+    #[test]
+    fn content_security_policy_confines_connections_to_the_public_bucket_urls()
+    {
+        let policy = test_allow_list(&[PRIVATE_BUCKET_URL, PUBLIC_BUCKET_URL])
+            .content_security_policy();
+
+        assert!(policy.starts_with(
+            "connect-src http://minio:9000/public/ \
+             https://s3.example.com/public/; "
+        ));
+        for directive in [
+            "worker-src 'none'",
+            "frame-src 'none'",
+            "object-src 'none'",
+            "form-action 'none'",
+            "sandbox allow-scripts allow-same-origin",
+        ] {
+            assert!(policy.contains(directive), "{directive} is missing");
+        }
+        assert!(test_allow_list(&[])
+            .content_security_policy()
+            .starts_with("connect-src 'none'; "));
+    }
+
+    #[test]
+    fn large_documents_render_without_scripts() {
+        assert_eq!(
+            PdfResourcePolicy::Restricted
+                .for_document_size(MAX_SCRIPTED_DOCUMENT_BYTES),
+            PdfResourcePolicy::Restricted
+        );
+        assert_eq!(
+            PdfResourcePolicy::Restricted
+                .for_document_size(MAX_SCRIPTED_DOCUMENT_BYTES + 1),
+            PdfResourcePolicy::RestrictedNoScripts
+        );
+        assert_eq!(
+            PdfResourcePolicy::RestrictedNoScripts.for_document_size(0),
+            PdfResourcePolicy::RestrictedNoScripts
+        );
     }
 
     #[test]
