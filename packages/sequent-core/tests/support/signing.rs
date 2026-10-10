@@ -6,6 +6,8 @@
 //! server stands in for the realm's certificate endpoint, so the guards run
 //! their real signature, issuer and expiry checks.
 
+#![allow(dead_code)]
+
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use sequent_core::services::connection::BearerIssuers;
 use serde_json::Value;
@@ -32,7 +34,17 @@ pub fn issuer_of(tenant_id: &str) -> String {
 pub fn token(claims: &Value) -> String {
     let mut header = Header::new(Algorithm::RS256);
     header.kid = Some(KEY_ID.into());
-    encode(&header, claims, &EncodingKey::from_rsa_pem(KEY).unwrap()).unwrap()
+    token_with(&header, claims)
+}
+
+/// Signs `claims` with the test key under any header.
+pub fn token_with(header: &Header, claims: &Value) -> String {
+    encode(header, claims, &EncodingKey::from_rsa_pem(KEY).unwrap()).unwrap()
+}
+
+/// The key set that the local server publishes.
+pub fn key_set() -> Value {
+    serde_json::from_str(KEYS).unwrap()
 }
 
 /// Trusts [`ISSUER`] and downloads its keys from the local server.

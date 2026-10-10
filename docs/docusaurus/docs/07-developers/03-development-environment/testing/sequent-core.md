@@ -57,6 +57,7 @@ dependencies explicitly.
 | `policy_wire_format.rs` | Macro-generated contract tests pin explicit JSON policy names and Borsh discriminants, reject incomplete/unknown inputs and propagate stream failures. |
 | `ballot_wire_streams.rs` | Pin independent byte layouts for small records; reject every truncated prefix and propagate sink failures through nested ballot, presentation and tally-resolution records. |
 | `presentation_contracts.rs` | Check translated-name fallbacks, languages and presentation policies. |
+| `bearer_verification.rs` | Refuse tokens that miss a valid signature, key, expiry, issuer realm or tenant/event binding, and key sets that cannot be used; accept a valid signed token, with managed or environment issuer settings. |
 | `request_guards.rs` | Dispatch local Rocket requests with valid, absent and malformed headers; the claims guard accepts only unexpired claims signed by a trusted issuer. |
 | `scheduled_dates.rs` | Filter by tenant, event, election and task; preserve missing dates and reject malformed payloads. |
 | `utility_contracts.rs` | Check time, authentication URLs, numeric ordering, external configuration and file-integrity errors. |
