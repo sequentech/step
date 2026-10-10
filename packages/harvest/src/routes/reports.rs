@@ -8,7 +8,10 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::{
-    services::jwt::{self, JwtClaims},
+    services::{
+        jwt::{self, JwtClaims},
+        uuid_validation::parse_uuid_v4_field,
+    },
     types::{hasura::core::TasksExecution, permissions::Permissions},
 };
 use serde::{Deserialize, Serialize};
@@ -292,18 +295,24 @@ fn authorize_generate_report(
 }
 
 /// Treats the report as not found when the request names an election event
-/// other than the report's.
+/// other than the report's. The requested id must be a valid UUID and is
+/// compared with the report's in its canonical form.
 fn ensure_report_event(
     report_election_event_id: &str,
     requested_election_event_id: Option<&str>,
 ) -> Result<(), (Status, String)> {
     match requested_election_event_id {
-        Some(election_event_id)
-            if election_event_id != report_election_event_id =>
-        {
-            Err((Status::NotFound, REPORT_NOT_FOUND.to_string()))
+        None => Ok(()),
+        Some(election_event_id) => {
+            let election_event_id =
+                parse_uuid_v4_field(election_event_id, "election_event_id")
+                    .map_err(|error| (Status::BadRequest, error.to_string()))?;
+            if election_event_id.to_string() == report_election_event_id {
+                Ok(())
+            } else {
+                Err((Status::NotFound, REPORT_NOT_FOUND.to_string()))
+            }
         }
-        _ => Ok(()),
     }
 }
 
@@ -581,13 +590,34 @@ mod generate_report_scope_tests {
     /// An omitted election event is accepted; another one is not found.
     #[test]
     fn generate_report_rejects_an_election_event_other_than_the_reports() {
+        let event = Uuid::new_v4().to_string();
+        let other_event = Uuid::new_v4().to_string();
         assert_eq!(
-            ensure_report_event("event", Some("other-event"))
+            ensure_report_event(&event, Some(&other_event))
                 .unwrap_err()
                 .0,
             Status::NotFound
         );
-        assert!(ensure_report_event("event", Some("event")).is_ok());
-        assert!(ensure_report_event("event", None).is_ok());
+        assert!(ensure_report_event(&event, Some(&event)).is_ok());
+        assert!(ensure_report_event(&event, None).is_ok());
+    }
+
+    /// The report's election event matches however its UUID is cased.
+    #[test]
+    fn generate_report_compares_election_event_ids_as_uuids() {
+        let event = Uuid::new_v4().to_string();
+        assert!(
+            ensure_report_event(&event, Some(&event.to_uppercase())).is_ok()
+        );
+    }
+
+    /// A malformed election event id is a client error.
+    #[test]
+    fn generate_report_rejects_a_malformed_election_event_id() {
+        let event = Uuid::new_v4().to_string();
+        assert_eq!(
+            ensure_report_event(&event, Some("event")).unwrap_err().0,
+            Status::BadRequest
+        );
     }
 }
