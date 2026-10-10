@@ -9,11 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static sequent.keycloak.conditional_authenticators.X509CertClassifierAuthenticatorTest.PROXY_SECRET;
-import static sequent.keycloak.conditional_authenticators.X509CertClassifierAuthenticatorTest.PROXY_SECRET_HEADER;
-import static sequent.keycloak.conditional_authenticators.X509CertClassifierAuthenticatorTest.PROXY_SECRET_KEY;
-import static sequent.keycloak.conditional_authenticators.X509CertClassifierAuthenticatorTest.REQUIRE_PROXY_SECRET;
-import static sequent.keycloak.conditional_authenticators.X509CertClassifierAuthenticatorTest.TRUST_POLICY_KEY;
 
 import jakarta.ws.rs.core.HttpHeaders;
 import java.util.HashMap;
@@ -30,6 +25,8 @@ import org.keycloak.services.x509.X509ClientCertificateLookup;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 class X509UserResolutionAuthenticatorTest {
+
+  private static final String PROXY_SECRET = "configured-proxy-secret";
 
   private final X509UserResolutionAuthenticator authenticator =
       new X509UserResolutionAuthenticator();
@@ -70,9 +67,11 @@ class X509UserResolutionAuthenticatorTest {
 
   @Test
   void readsForwardedCertificateWithMatchingProxySecret() throws Exception {
-    config.put(TRUST_POLICY_KEY, REQUIRE_PROXY_SECRET);
-    config.put(PROXY_SECRET_KEY, PROXY_SECRET);
-    when(headers.getHeaderString(PROXY_SECRET_HEADER)).thenReturn(PROXY_SECRET);
+    config.put(
+        X509CertHeaderTrust.CONF_TRUST_POLICY,
+        X509CertHeaderTrust.Policy.REQUIRE_PROXY_SECRET.name());
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
+    when(headers.getHeaderString(X509CertHeaderTrust.PROXY_SECRET_HEADER)).thenReturn(PROXY_SECRET);
 
     authenticator.authenticate(context);
 
@@ -81,8 +80,10 @@ class X509UserResolutionAuthenticatorTest {
 
   @Test
   void doesNotReadForwardedCertificateWithoutProxySecret() throws Exception {
-    config.put(TRUST_POLICY_KEY, REQUIRE_PROXY_SECRET);
-    config.put(PROXY_SECRET_KEY, PROXY_SECRET);
+    config.put(
+        X509CertHeaderTrust.CONF_TRUST_POLICY,
+        X509CertHeaderTrust.Policy.REQUIRE_PROXY_SECRET.name());
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
 
     authenticator.authenticate(context);
 
@@ -93,9 +94,38 @@ class X509UserResolutionAuthenticatorTest {
 
   @Test
   void doesNotReadForwardedCertificateWithWrongProxySecret() throws Exception {
-    config.put(TRUST_POLICY_KEY, REQUIRE_PROXY_SECRET);
-    config.put(PROXY_SECRET_KEY, PROXY_SECRET);
-    when(headers.getHeaderString(PROXY_SECRET_HEADER)).thenReturn("other-secret");
+    config.put(
+        X509CertHeaderTrust.CONF_TRUST_POLICY,
+        X509CertHeaderTrust.Policy.REQUIRE_PROXY_SECRET.name());
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
+    when(headers.getHeaderString(X509CertHeaderTrust.PROXY_SECRET_HEADER))
+        .thenReturn("other-secret");
+
+    authenticator.authenticate(context);
+
+    verify(lookup, never()).getCertificateChain(any());
+    verify(context).attempted();
+    verify(context, never()).success();
+  }
+
+  @Test
+  void doesNotReadForwardedCertificateWhenRequiredProxySecretIsNotConfigured() throws Exception {
+    config.put(
+        X509CertHeaderTrust.CONF_TRUST_POLICY,
+        X509CertHeaderTrust.Policy.REQUIRE_PROXY_SECRET.name());
+    when(headers.getHeaderString(X509CertHeaderTrust.PROXY_SECRET_HEADER)).thenReturn("");
+
+    authenticator.authenticate(context);
+
+    verify(lookup, never()).getCertificateChain(any());
+    verify(context).attempted();
+    verify(context, never()).success();
+  }
+
+  @Test
+  void unknownTrustPolicyRequiresProxySecret() throws Exception {
+    config.put(X509CertHeaderTrust.CONF_TRUST_POLICY, "NOT_A_POLICY");
+    config.put(X509CertHeaderTrust.CONF_PROXY_SECRET, PROXY_SECRET);
 
     authenticator.authenticate(context);
 
