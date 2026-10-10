@@ -317,6 +317,7 @@ fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     Ok(Plaintexts(StrandVector(ps)))
 }
 
+/// Checks that a decryption factors artifact has one factor and one proof per ciphertext.
 fn check_decryption_factors_shape<C: Ctx>(
     dfactors: &DecryptionFactors<C>,
     num_ciphertexts: usize,
@@ -346,6 +347,7 @@ mod tests {
     use super::*;
     use strand::backend::ristretto::RistrettoCtx;
 
+    /// Builds a decryption factors artifact with the given number of factors and proofs.
     fn dfactors(factors: usize, proofs: usize) -> DecryptionFactors<RistrettoCtx> {
         let ctx = RistrettoCtx;
         let proofs = (0..proofs)
@@ -359,17 +361,20 @@ mod tests {
         DecryptionFactors::new(vec![ctx.generator().clone(); factors], StrandVector(proofs))
     }
 
+    /// One factor and one proof per ciphertext is accepted.
     #[test]
     fn check_decryption_factors_shape_accepts_one_factor_and_proof_per_ciphertext() {
         assert!(check_decryption_factors_shape(&dfactors(3, 3), 3, 1).is_ok());
     }
 
+    /// Fewer proofs than ciphertexts is rejected.
     #[test]
     fn check_decryption_factors_shape_rejects_fewer_proofs() {
         let err = check_decryption_factors_shape(&dfactors(3, 2), 3, 1).unwrap_err();
         assert!(matches!(err, ProtocolError::VerificationError(ref m) if m.contains("2 proofs")));
     }
 
+    /// An empty proof list is rejected.
     #[test]
     fn check_decryption_factors_shape_rejects_empty_proofs() {
         assert!(matches!(
@@ -378,6 +383,7 @@ mod tests {
         ));
     }
 
+    /// More proofs than ciphertexts is rejected.
     #[test]
     fn check_decryption_factors_shape_rejects_extra_proofs() {
         assert!(matches!(
@@ -386,12 +392,14 @@ mod tests {
         ));
     }
 
+    /// Fewer factors than ciphertexts is rejected.
     #[test]
     fn check_decryption_factors_shape_rejects_fewer_factors() {
         let err = check_decryption_factors_shape(&dfactors(2, 3), 3, 0).unwrap_err();
         assert!(matches!(err, ProtocolError::VerificationError(ref m) if m.contains("2 factors")));
     }
 
+    /// More factors than ciphertexts is rejected.
     #[test]
     fn check_decryption_factors_shape_rejects_extra_factors() {
         assert!(matches!(
