@@ -22,6 +22,12 @@ voter-001,voter-001@example.com,REF-12345
 Use `|` between values for a multi-valued User Profile attribute. Keep the source CSV private: it
 contains the values in plaintext even when a column is configured as secret.
 
+A `group_name` column other than `voter`, or a `permission_labels` column with values, needs extra
+permissions; see
+[User Creation and Import Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md#user-creation-and-import-permissions).
+Voters always belong to the tenant they are imported into, so a `tenant-id` column is not needed: it
+must be empty or hold that tenant's id, and the import is rejected for any other value.
+
 ## Import the Voters
 
 1. Open the election event and select the **Voters** tab.
