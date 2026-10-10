@@ -38,6 +38,7 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.util.JsonSerialization;
@@ -79,6 +80,15 @@ public class Utils {
 
   public static final String MATCH_POLICY_DEFAULT =
       MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name();
+
+  /**
+   * Selects {@link MultiAttributeCredentialResolver.SharedCandidateFailurePolicy}. Defaults to
+   * {@code CHARGE_VIABLE_CANDIDATES}.
+   */
+  public static final String SHARED_CANDIDATE_FAILURE_POLICY = "sharedCandidateFailurePolicy";
+
+  public static final String SHARED_CANDIDATE_FAILURE_POLICY_DEFAULT =
+      MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES.name();
 
   /**
    * Opt-in: makes each configured {@code matchAttributes} entry's required-ness - both for the
@@ -224,7 +234,37 @@ public class Utils {
         getInt(config, MAX_CANDIDATES, MAX_CANDIDATES_DEFAULT),
         getInt(config, TUPLE_MAX_FAILURES, TUPLE_MAX_FAILURES_DEFAULT),
         getInt(config, TUPLE_FAILURE_WINDOW_SECONDS, TUPLE_FAILURE_WINDOW_SECONDS_DEFAULT),
-        getInt(config, MAX_ATTRIBUTE_LOOKUP_RESULTS, MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT));
+        getInt(config, MAX_ATTRIBUTE_LOOKUP_RESULTS, MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
+        MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.fromString(
+            getString(
+                config, SHARED_CANDIDATE_FAILURE_POLICY, SHARED_CANDIDATE_FAILURE_POLICY_DEFAULT)));
+  }
+
+  /**
+   * Admin-console property for {@link #SHARED_CANDIDATE_FAILURE_POLICY}, shared by {@link
+   * MultiAttributePasswordAuthenticator} and {@link
+   * MultiAttributePasswordDirectGrantAuthenticator}.
+   */
+  public ProviderConfigProperty sharedCandidateFailurePolicyProperty() {
+    ProviderConfigProperty property =
+        new ProviderConfigProperty(
+            SHARED_CANDIDATE_FAILURE_POLICY,
+            "Shared-candidate failure policy",
+            "How a failed attempt is recorded when the submitted values still match more than one"
+                + " enabled, non-locked-out account. CHARGE_VIABLE_CANDIDATES (default): the"
+                + " failure counts toward Brute Force Detection for each of those accounts, so they"
+                + " follow the realm's lockout settings like a username/password login; a mistyped"
+                + " credential can then also delay other voters who share the same values."
+                + " TUPLE_ONLY: only the per-combination failure limit counts the failure, and no"
+                + " account is charged.",
+            ProviderConfigProperty.LIST_TYPE,
+            SHARED_CANDIDATE_FAILURE_POLICY_DEFAULT);
+    property.setOptions(
+        List.of(
+            MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.CHARGE_VIABLE_CANDIDATES
+                .name(),
+            MultiAttributeCredentialResolver.SharedCandidateFailurePolicy.TUPLE_ONLY.name()));
+    return property;
   }
 
   /** Reads {@link #MATCH_POLICY}, defaulting to the safe {@code REJECT_AMBIGUOUS}. */
