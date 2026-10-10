@@ -472,20 +472,27 @@ mod tests {
     use super::*;
     use crate::cli::state::State;
     use crate::cli::CliRun;
+    use crate::config::ballot_images_config::PipeConfigBallotImages;
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
+    use crate::pipes::ballot_images::BALLOT_IMAGES_OUTPUT_FILE_HTML;
     use crate::pipes::decode_ballots::decode_mcballots;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
-    use crate::pipes::do_tally::OUTPUT_CONTEST_RESULT_FILE;
+    use crate::pipes::do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE};
     use crate::pipes::generate_reports::{ReportDataComputed, TemplateData};
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
-    use crate::pipes::pipe_inputs::{PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION};
+    use crate::pipes::pipe_inputs::{
+        MALFORMED_PLAINTEXT_LINE, PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION,
+    };
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
+    use num_bigint::BigUint;
+    use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
     use sequent_core::types::ceremonies::CountingAlgType;
+    use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
     use sequent_core::util::init_log;
     use std::fs;
     use std::io::Read;
@@ -1982,6 +1989,287 @@ mod tests {
         assert_eq!(contest_result.total_blank_votes, 0);
         assert_eq!(contest_result.total_valid_votes, 5);
         assert_eq!(contest_result.total_invalid_votes, 5);
+
+        Ok(())
+    }
+
+    fn read_area_contest_result(
+        output_dir: &std::path::Path,
+        election_id: &str,
+        contest_id: &str,
+        area_id: &str,
+    ) -> Result<ContestResult> {
+        let path = output_dir
+            .join(PipeNameOutputDir::DoTally.as_ref())
+            .join(format!("{PREFIX_ELECTION}{election_id}"))
+            .join(format!("{PREFIX_CONTEST}{contest_id}"))
+            .join(format!("{PREFIX_AREA}{area_id}"))
+            .join(OUTPUT_CONTEST_RESULT_FILE);
+
+        Ok(serde_json::from_reader(fs::File::open(path)?)?)
+    }
+
+    /// Keeps the ballot images pipe from rendering PDFs, which needs a browser
+    /// that the unit test environment does not provide.
+    fn disable_ballot_images_pdfs(fixture: &TestFixture) -> Result<()> {
+        let config_str = fs::read_to_string(&fixture.config_path)?;
+        let mut config: Config = serde_json::from_str(&config_str)?;
+        for stage in config.stages.stages_def.values_mut() {
+            for pipe_config in &mut stage.pipeline {
+                if pipe_config.pipe == PipeName::BallotImages {
+                    let mut images_config = PipeConfigBallotImages::new();
+                    images_config.enable_pdfs = false;
+                    pipe_config.config = Some(serde_json::to_value(images_config)?);
+                }
+            }
+        }
+        fs::write(&fixture.config_path, serde_json::to_string(&config)?)?;
+
+        Ok(())
+    }
+
+    /// Renders the multi-ballot receipts with the template that shows a blank
+    /// vote box and a null vote box for every ballot.
+    fn use_null_and_blank_receipt_template(fixture: &TestFixture) -> Result<()> {
+        let config_str = fs::read_to_string(&fixture.config_path)?;
+        let mut config: Config = serde_json::from_str(&config_str)?;
+        for stage in config.stages.stages_def.values_mut() {
+            for pipe_config in &mut stage.pipeline {
+                if pipe_config.pipe != PipeName::MCBallotReceipts {
+                    continue;
+                }
+                if let Some(value) = pipe_config.config.as_mut() {
+                    let mut images_config: PipeConfigBallotImages =
+                        serde_json::from_value(value.clone())?;
+                    images_config.template =
+                        include_str!("../resources/mcballot_receipts.hbs").to_string();
+                    *value = serde_json::to_value(images_config)?;
+                }
+            }
+        }
+        fs::write(&fixture.config_path, serde_json::to_string(&config)?)?;
+
+        Ok(())
+    }
+
+    /// Counts the receipts whose box next to `label` is checked.
+    fn count_checked_boxes(html: &str, label: &str) -> usize {
+        let marker = format!("{label}</span>");
+        html.split(&marker)
+            .skip(1)
+            .filter(|rest| {
+                rest.find("<input")
+                    .and_then(|start| {
+                        rest[start..]
+                            .find("/>")
+                            .map(|end| &rest[start..start + end])
+                    })
+                    .is_some_and(|input| input.contains("checked"))
+            })
+            .count()
+    }
+
+    /// A plaintext that does not decode is counted as an implicitly invalid
+    /// vote, so the tally finishes and its totals match the channel counts.
+    #[test]
+    fn test_malformed_plaintext_counts_as_implicit_invalid_vote() -> Result<()> {
+        let fixture = TestFixture::new()?;
+        disable_ballot_images_pdfs(&fixture)?;
+
+        let election_event_id = Uuid::new_v4();
+        let election = fixture.create_election_config(&election_event_id, vec![Uuid::new_v4()])?;
+        let contest =
+            fixture.create_contest_config(&election.tenant_id, &election_event_id, &election.id)?;
+        let mut area_config = fixture.create_area_config(
+            &election.tenant_id,
+            &election_event_id,
+            &election.id,
+            &Uuid::from_str(&contest.id)?,
+            100,
+            0,
+            None,
+            election.areas.first().cloned().map(|val| val.id),
+        )?;
+
+        area_config.votes_by_channel = Some(VotesByChannel::from([(
+            ParticipationChannel::CastVote(VotingStatusChannel::ONLINE),
+            6,
+        )]));
+        let area_config_path = fixture
+            .input_dir_configs
+            .join(format!("{PREFIX_ELECTION}{}", election.id))
+            .join(format!("{PREFIX_CONTEST}{}", contest.id))
+            .join(format!("{PREFIX_AREA}{}", area_config.id))
+            .join("area-config.json");
+        fs::write(area_config_path, serde_json::to_string(&area_config)?)?;
+
+        let mut vote = get_blank_decoded_contest_plurality(&contest);
+        vote.choices[0].selected = 0;
+        let encoded = contest
+            .encode_plaintext_contest_bigint(&vote)
+            .map_err(Error::msg)?;
+        let ballots_path = fixture
+            .input_dir_ballots
+            .join(format!("{PREFIX_ELECTION}{}", election.id))
+            .join(format!("{PREFIX_CONTEST}{}", contest.id))
+            .join(format!("{PREFIX_AREA}{}", area_config.id))
+            .join(BALLOTS_FILE);
+        let mut file = fs::File::create(ballots_path)?;
+        for _ in 0..5 {
+            writeln!(file, "{encoded}")?;
+        }
+        writeln!(file, "{MALFORMED_PLAINTEXT_LINE}")?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        state.exec_next()?; // DecodeBallots
+        state.exec_next()?; // BallotImages
+        state.exec_next()?; // DoTally
+
+        let contest_result = read_area_contest_result(
+            &cli.output_dir,
+            &election.id.to_string(),
+            &contest.id,
+            &area_config.id.to_string(),
+        )?;
+
+        assert_eq!(contest_result.total_votes, 6);
+        assert_eq!(contest_result.total_valid_votes, 5);
+        assert_eq!(contest_result.total_invalid_votes, 1);
+        assert_eq!(contest_result.invalid_votes.implicit, 1);
+
+        // Every valid ballot marks a candidate and the one that did not decode
+        // is not shown as a blank vote.
+        let receipts = fs::read_to_string(
+            cli.output_dir
+                .join(PipeNameOutputDir::BallotImages.as_ref())
+                .join(format!("{PREFIX_ELECTION}{}", election.id))
+                .join(format!("{PREFIX_CONTEST}{}", contest.id))
+                .join(format!("{PREFIX_AREA}{}", area_config.id))
+                .join(BALLOT_IMAGES_OUTPUT_FILE_HTML),
+        )?;
+        assert_eq!(receipts.matches("<strong>ABSTENTION</strong>").count(), 0);
+
+        Ok(())
+    }
+
+    /// A value beyond the layout of the ballot style is counted as an
+    /// implicitly invalid vote in every contest of a multi-contest tally.
+    #[test]
+    fn test_undecodable_mcballot_counts_as_implicit_invalid_vote() -> Result<()> {
+        let ballot_num = 20;
+        let fixture = TestFixture::new_mc()?;
+        use_null_and_blank_receipt_template(&fixture)?;
+
+        generate_mcballots(&fixture, 1, 2, 1, ballot_num)?;
+
+        let election_dir = fs::read_dir(&fixture.input_dir_ballots)?
+            .next()
+            .ok_or_else(|| Error::msg("election ballots directory"))??
+            .path();
+        let area_dir = fs::read_dir(&election_dir)?
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .find(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.starts_with(PREFIX_AREA))
+            })
+            .ok_or_else(|| Error::msg("area ballots directory"))?;
+        let mut file = fs::OpenOptions::new()
+            .append(true)
+            .open(area_dir.join(BALLOTS_FILE))?;
+        let beyond_every_layout = (BigUint::from(1u8) << 232u32) - 1u8;
+        writeln!(file, "{beyond_every_layout}")?;
+
+        let cli = CliRun {
+            stage: "main".to_string(),
+            pipe_id: "decode-ballots".to_string(),
+            config: fixture.config_path.clone(),
+            input_dir: fixture.root_dir.join("tests").join("input-dir"),
+            output_dir: fixture.root_dir.join("tests").join("output-dir"),
+        };
+        let config = cli.validate()?;
+        let mut state = State::new(&cli, &config)?;
+
+        state.exec_next()?; // DecodeBallots
+        state.exec_next()?; // DecodeMCBallots
+        state.exec_next()?; // BallotImages
+        state.exec_next()?; // MultiBallotReceipts
+        state.exec_next()?; // DoTally
+
+        let election_id = election_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_prefix(PREFIX_ELECTION))
+            .ok_or_else(|| Error::msg("election id"))?
+            .to_string();
+        let area_id = area_dir
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_prefix(PREFIX_AREA))
+            .ok_or_else(|| Error::msg("area id"))?
+            .to_string();
+        let contest_ids: Vec<String> = fs::read_dir(&election_dir)?
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| {
+                entry
+                    .file_name()
+                    .to_str()
+                    .and_then(|name| name.strip_prefix(PREFIX_CONTEST))
+                    .map(str::to_string)
+            })
+            .collect();
+        assert_eq!(contest_ids.len(), 2);
+
+        for contest_id in contest_ids {
+            let contest_result =
+                read_area_contest_result(&cli.output_dir, &election_id, &contest_id, &area_id)?;
+
+            assert_eq!(contest_result.total_votes, u64::from(ballot_num) + 1);
+            assert_eq!(contest_result.invalid_votes.implicit, 1);
+        }
+
+        // The receipt of the ballot that did not decode is a null vote, not a
+        // blank one.
+        let mut receipts = String::new();
+        for entry in WalkDir::new(
+            cli.output_dir
+                .join(PipeNameOutputDir::MCBallotImages.as_ref()),
+        )
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "html"))
+        {
+            receipts.push_str(&fs::read_to_string(entry.path())?);
+        }
+        let decoded_mcballots_path = cli
+            .output_dir
+            .join(PipeNameOutputDir::DecodeMCBallots.as_ref())
+            .join(format!("{PREFIX_ELECTION}{election_id}"))
+            .join(format!("{PREFIX_AREA}{area_id}"))
+            .join(decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE);
+        let decoded_mcballots: Vec<DecodedBallotChoices> =
+            serde_json::from_reader(fs::File::open(decoded_mcballots_path)?)?;
+        let blank_ballots = decoded_mcballots
+            .iter()
+            .filter(|ballot| {
+                ballot
+                    .choices
+                    .iter()
+                    .all(|contest| contest.choices.is_empty() && contest.invalid_errors.is_empty())
+            })
+            .count();
+        assert_eq!(decoded_mcballots.len(), ballot_num as usize + 1);
+        assert_eq!(count_checked_boxes(&receipts, "Null Vote"), 1);
+        assert_eq!(count_checked_boxes(&receipts, "Blank vote"), blank_ballots);
 
         Ok(())
     }
