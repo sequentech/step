@@ -17,18 +17,17 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::BufReader;
 use tracing::instrument;
-use windmill::postgres::document::get_document;
 use windmill::postgres::election_event::{
     get_election_event_by_id, ElectionEventDatafix,
 };
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::consolidation::eml_generator::ValidateAnnotations;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::documents::get_document_as_temp_file;
 use windmill::services::external::reconciliation::diff::ReconciliationApplyEnvelope;
+use windmill::services::external::reconciliation::round::{
+    get_generated_round, load_round_envelope,
+};
 use windmill::services::external::types::ReconciliationPatchSource;
 use windmill::services::tasks_execution::{
     post as post_task_execution, update_fail,
@@ -131,7 +130,9 @@ pub struct ApplyDatafixReconciliationChangesInput {
     pub election_event_id: String,
     /// The `ReconciliationDiff` envelope document id from the generate round
     /// being applied (the frontend already fetched and parsed this document
-    /// to render the review tables, so it has this id in hand).
+    /// to render the review tables, so it has this id in hand). Only the
+    /// envelope of a successful generate task of this election event is
+    /// accepted.
     pub diff_document_id: String,
 }
 
@@ -139,7 +140,9 @@ pub struct ApplyDatafixReconciliationChangesInput {
 /// referenced round's Datafix-side diff is empty — the same check the
 /// frontend uses to enable the "Apply" button, re-run here (by independently
 /// re-fetching and re-parsing the diff-envelope document) because the client
-/// is never trusted to enforce it.
+/// is never trusted to enforce it. The envelope is read only through the
+/// generate round that produced it, and must match the hash that round
+/// recorded.
 #[instrument(skip(claims))]
 #[post("/apply-reconciliation-changes", format = "json", data = "<body>")]
 pub async fn apply_reconciliation_changes(
@@ -166,10 +169,10 @@ pub async fn apply_reconciliation_changes(
         .await
         .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
 
-    let document = get_document(
+    let round = get_generated_round(
         &hasura_transaction,
         &tenant_id,
-        Some(input.election_event_id.clone()),
+        &input.election_event_id,
         &input.diff_document_id,
     )
     .await
@@ -180,22 +183,19 @@ pub async fn apply_reconciliation_changes(
             "Reconciliation diff not found".to_string(),
         )
     })?;
-    let temp_file = get_document_as_temp_file(&tenant_id, &document)
-        .await
-        .map_err(|err| (Status::InternalServerError, format!("{err:?}")))?;
-    let file = File::open(temp_file.path()).map_err(|err| {
+    let envelope: ReconciliationApplyEnvelope = load_round_envelope(
+        &hasura_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &round,
+    )
+    .await
+    .map_err(|err| {
         (
             Status::InternalServerError,
-            format!("Error opening reconciliation diff: {err}"),
+            format!("Error loading reconciliation diff: {err:?}"),
         )
     })?;
-    let envelope: ReconciliationApplyEnvelope =
-        serde_json::from_reader(BufReader::new(file)).map_err(|err| {
-            (
-                Status::InternalServerError,
-                format!("Error parsing reconciliation diff: {err}"),
-            )
-        })?;
 
     if envelope.external_patch_document_id.is_some() {
         return Err((
