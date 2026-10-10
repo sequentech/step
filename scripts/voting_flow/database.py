@@ -17,6 +17,7 @@ MIGRATIONS = ROOT / "hasura/migrations/backend-db"
 AREA_MIGRATION = MIGRATIONS / "1788765000000_serialize_cast_vote_area_checks"
 STORAGE_MIGRATION = MIGRATIONS / "1788765000001_cast_vote_external_storage"
 SCHEDULE_MIGRATION = MIGRATIONS / "1788765000002_validate_voting_schedules"
+FINGERPRINT_MIGRATION = MIGRATIONS / "1791392200000_cast_vote_ciphertext_fingerprints"
 SCHEDULE_INDEX = "sequent_backend.scheduled_event_active_scope_task_idx"
 INDEX_SCRIPT = ROOT / "scripts/postgres/cast_vote_covering_index.sql"
 CONFIGURATION_QUERY = (
@@ -77,6 +78,7 @@ class LocalDatabase:
         self.connection = psycopg.connect(self.dsn, autocommit=True)
         self.connection.execute((Path(__file__).parent / "schema.sql").read_text())
         self.apply(AREA_MIGRATION)
+        self.apply(FINGERPRINT_MIGRATION)
         self.connection.execute(
             """
             CREATE TRIGGER check_revote_limit_trigger

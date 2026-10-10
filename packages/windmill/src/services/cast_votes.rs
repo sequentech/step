@@ -22,7 +22,12 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
+use strand::backend::ristretto::RistrettoCtx;
+use strand::elgamal::Ciphertext;
+use strand::hash::{hash_to_array, Hash};
+use strand::serialization::StrandSerialize;
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use strand::util::StrandError;
 use strum_macros::{Display, EnumString};
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
@@ -85,6 +90,13 @@ impl TryFrom<Row> for CastVote {
                 .map_err(|err| anyhow!("Invalid cast vote status: {err}"))?,
         })
     }
+}
+
+/// Identifies a contest ciphertext by its `gr` component. Each encryption draws
+/// fresh randomness, so two ballots only share a fingerprint when one carries
+/// the other's ciphertext.
+pub fn ciphertext_fingerprint(ciphertext: &Ciphertext<RistrettoCtx>) -> Result<Hash, StrandError> {
+    hash_to_array(&ciphertext.gr.strand_serialize()?)
 }
 
 /// Minimal identity of an `in-progress` cast vote, used to enqueue Datafix
