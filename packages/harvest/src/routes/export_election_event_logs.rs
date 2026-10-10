@@ -2,8 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_permission_labels,
+};
 use anyhow::Result;
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -14,6 +17,7 @@ use std::str::FromStr;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::database::get_hasura_pool;
 use windmill::services::reports::activity_log::ReportFormat;
 use windmill::services::tasks_execution::*;
 use windmill::types::tasks::ETasksExecution;
@@ -44,6 +48,24 @@ pub async fn export_election_event_logs_route(
     )?;
 
     let body = input.into_inner();
+    {
+        let mut hasura_db_client: DbClient = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let hasura_transaction = hasura_db_client
+            .transaction()
+            .await
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        authorize_election_permission_labels(
+            &hasura_transaction,
+            &claims,
+            &body.election_event_id,
+            None,
+        )
+        .await?;
+    }
 
     info!("Format: {}", &body.format);
     let report_fmt = ReportFormat::from_str(&body.format).map_err(|error| {
