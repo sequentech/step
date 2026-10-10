@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Developers Keycloak | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3551/docs/developers/keycloak/developers_keycloak"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Keycloak | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3551/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3551/docs/developers/keycloak/developers_keycloak"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3551/docs/developers/keycloak/developers_keycloak" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3551/docs/developers/keycloak/developers_keycloak" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Keycloak","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3551/docs/developers/keycloak/developers_keycloak"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3551/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3551/assets/js/runtime~main.e0aa0a7e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3551/assets/js/runtime~main.0546665f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3551/assets/js/main.278fd459.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -17,7 +17,8 @@ Hasura authorization claims. The issuer realm must match the token&#x27;s tenant
 the election-event claim when present. Older event templates may omit that
 optional claim; their keys still come from the exact issuer realm. Signing keys are fetched from <code>KEYCLOAK_URL</code>
 over the configured internal connection and cached for five minutes. Requests
-fail authentication when a needed signing key cannot be retrieved.</p>
+fail authentication when a needed signing key cannot be retrieved, including
+while thirty-two key downloads are already in progress.</p>
 <p><code>KEYCLOAK_URL</code> is a required trusted issuer base. <code>KEYCLOAK_PUBLIC_URL</code> is
 optional and needed when tokens use that public URL as their issuer;
 <code>KIOSK_KEYCLOAK_URL</code> is likewise optional for kiosk issuers. Deployments using additional frontend aliases must supply
