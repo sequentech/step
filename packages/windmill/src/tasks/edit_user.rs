@@ -34,6 +34,7 @@ use sequent_core::types::keycloak::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::future::Future;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
@@ -246,15 +247,16 @@ async fn edit_keycloak_voter(
         .map_err(|err| format!("Error editing Datafix voter in Keycloak: {err:?}"))
 }
 
-/// Discards the voter's active ballots in its own Hasura transaction. Keycloak
-/// and Hasura are updated sequentially; failures are traced by the caller and
-/// left for the existing reconciliation process.
+/// Discards the voter's active ballots in its own Hasura transaction and
+/// returns how many were discarded. Keycloak and Hasura are updated
+/// sequentially; failures are traced by the caller and left for the existing
+/// reconciliation process.
 #[instrument(err)]
-async fn discard_voter_ballots(
+pub(crate) async fn discard_voter_ballots(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<u64> {
     let tenant_id = parse_uuid_v4(tenant_id)?;
     let election_event_id = parse_uuid_v4(election_event_id)?;
     let mut client: DbClient = get_hasura_pool().await.get().await?;
@@ -263,7 +265,7 @@ async fn discard_voter_ballots(
         discard_voter_cast_votes(&transaction, &tenant_id, &election_event_id, voter_id).await?;
     transaction.commit().await?;
     info!(discarded, "Discarded active Datafix cast votes");
-    Ok(())
+    Ok(discarded)
 }
 
 /// Resets `VOTED_CHANNEL` back to `NONE` after a release discards the voter's
@@ -460,25 +462,60 @@ async fn run_datafix_voter_edit(
 
     edit_keycloak_voter(ctx, client).await?;
 
-    if let Some(admin) = password_change_initiator {
-        post_voter_password_change(
-            &body.tenant_id,
-            &body.election_event_id,
-            &body.user_id,
-            current_user.username.clone(),
-            admin,
-            VoterPasswordChangeSource::AdminPortal,
-        )
-        .await
-        .map_err(|err| {
-            format!("Voter password changed, but its electoral-log entry failed: {err:#}")
-        })?;
-    }
+    let password_audit = async {
+        match password_change_initiator {
+            Some(admin) => post_voter_password_change(
+                &body.tenant_id,
+                &body.election_event_id,
+                &body.user_id,
+                current_user.username.clone(),
+                admin,
+                VoterPasswordChangeSource::AdminPortal,
+            )
+            .await
+            .map_err(|err| {
+                format!("Voter password changed, but its electoral-log entry failed: {err:#}")
+            }),
+            None => Ok(()),
+        }
+    };
+    release_then_audit(
+        release_voter(ctx, &plan, &current_user, election_event),
+        password_audit,
+    )
+    .await
+}
 
+/// Runs the ballot release before the password-change audit entry, so a
+/// failed audit post cannot leave a disabled voter's ballots active. Both
+/// always run, and every failure is reported.
+async fn release_then_audit(
+    release: impl Future<Output = std::result::Result<(), String>>,
+    audit: impl Future<Output = std::result::Result<(), String>>,
+) -> std::result::Result<(), String> {
+    let release_result = release.await;
+    let audit_result = audit.await;
+    match (release_result, audit_result) {
+        (Err(release_err), Err(audit_err)) => Err(format!("{release_err}; {audit_err}")),
+        (release_result, audit_result) => release_result.and(audit_result),
+    }
+}
+
+/// Discards the ballots of a voter the edit disabled, resets its voted
+/// channel and sends `SetNotVoted` when the plan owes it. Does nothing when
+/// the plan has no release.
+#[instrument(skip(ctx, current_user, election_event), err)]
+async fn release_voter(
+    ctx: &DatafixEditCtx<'_>,
+    plan: &VoterReleasePlan,
+    current_user: &User,
+    election_event: ElectionEvent,
+) -> std::result::Result<(), String> {
     if !plan.release_attempt {
         return Ok(());
     }
 
+    let body = ctx.body;
     ctx.lock
         .update_expiry_for(DATAFIX_VOTER_LOCK_SECS)
         .await
@@ -553,6 +590,7 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
 
     #[test]
     fn disable_requires_an_enabled_to_disabled_transition() {
@@ -738,5 +776,43 @@ mod tests {
         assert!(
             validate_datafix_immutable_fields(&echoed, &current_user, &internet_voter()).is_ok()
         );
+    }
+
+    #[tokio::test]
+    async fn a_failed_password_audit_does_not_skip_the_release() {
+        let steps = RefCell::new(Vec::new());
+        let result = release_then_audit(
+            async {
+                steps.borrow_mut().push("release");
+                Ok(())
+            },
+            async {
+                steps.borrow_mut().push("audit");
+                Err("audit failed".to_string())
+            },
+        )
+        .await;
+        assert_eq!(steps.into_inner(), vec!["release", "audit"]);
+        assert_eq!(result, Err("audit failed".to_string()));
+    }
+
+    #[tokio::test]
+    async fn a_failed_release_still_posts_the_password_audit() {
+        let steps = RefCell::new(Vec::new());
+        let result = release_then_audit(
+            async {
+                steps.borrow_mut().push("release");
+                Err("release failed".to_string())
+            },
+            async {
+                steps.borrow_mut().push("audit");
+                Err("audit failed".to_string())
+            },
+        )
+        .await;
+        assert_eq!(steps.into_inner(), vec!["release", "audit"]);
+        let message = result.unwrap_err();
+        assert!(message.contains("release failed"));
+        assert!(message.contains("audit failed"));
     }
 }
