@@ -253,7 +253,7 @@ Your Sequent Step environment should now be up and running! You can access the d
 *   **Keycloak:** `https://login-remote-deployment.sequent.vote`
 *   **MinIO:** `https://minio-remote-deployment.sequent.vote`
 
-> **⚠️ Security Warning:** The default credentials for the Admin Portal are set to `admin` / `admin`. **You MUST change this immediately** in a production environment: Login to the Admin Portal, go to Users and Roles → For the User name `admin` click on Actions → Change Password. 
+> **First Admin Portal login:** The realm template contains no passwords, so the `admin` user cannot sign in until you set one. Open the Keycloak console (`KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` in the `.env` file), select the `tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5` realm, go to Users → `admin` → Credentials and set a temporary password. Sign in to the Admin Portal as `admin` with it and choose your own password when asked.
 > - **Keycloak admin console password:** If you need to login to the keycloak console, the password is stored in the `.env` file as `KEYCLOAK_ADMIN_PASSWORD`. This password was randomly generated during the deployment process and is unique to your deployment, the same for MinIO and Hasura Console.
 
 ## Troubleshooting
