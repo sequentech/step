@@ -292,3 +292,52 @@ pub async fn get_publication_ballot_styles(
 
     Ok(styles)
 }
+
+/// The content of the ballot styles of the current, published ballot
+/// publication for `area_id` and `election_id`.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_published_ballot_emls(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+) -> Result<Vec<String>> {
+    let rows = hasura_transaction
+        .query(
+            r#"
+            SELECT
+                s.ballot_eml
+            FROM
+                sequent_backend.ballot_style s
+            JOIN sequent_backend.ballot_publication p ON p.id = s.ballot_publication_id
+                AND p.tenant_id = s.tenant_id
+                AND p.election_event_id = s.election_event_id
+            WHERE
+                s.tenant_id = $1 AND
+                s.election_event_id = $2 AND
+                s.area_id = $3 AND
+                s.election_id = $4 AND
+                s.deleted_at IS NULL AND
+                s.ballot_eml IS NOT NULL AND
+                p.is_generated IS TRUE AND
+                p.published_at IS NOT NULL AND
+                p.deleted_at IS NULL;
+            "#,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(area_id)?,
+                &parse_uuid_v4(election_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error executing query: {}", err))?;
+
+    rows.into_iter()
+        .map(|row| {
+            row.try_get::<_, String>("ballot_eml")
+                .map_err(|err| anyhow!("Error reading ballot style: {}", err))
+        })
+        .collect()
+}
