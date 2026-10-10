@@ -480,7 +480,9 @@ mod tests {
     use crate::pipes::do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE};
     use crate::pipes::generate_reports::{ReportDataComputed, TemplateData};
     use crate::pipes::mark_winners::OUTPUT_WINNERS;
-    use crate::pipes::pipe_inputs::{PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION};
+    use crate::pipes::pipe_inputs::{
+        MALFORMED_PLAINTEXT_LINE, PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION,
+    };
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use num_bigint::BigUint;
@@ -2062,7 +2064,7 @@ mod tests {
         for _ in 0..5 {
             writeln!(file, "{encoded}")?;
         }
-        writeln!(file, "malformed")?;
+        writeln!(file, "{MALFORMED_PLAINTEXT_LINE}")?;
 
         let cli = CliRun {
             stage: "main".to_string(),
