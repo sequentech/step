@@ -33,6 +33,8 @@ pub async fn create_keys_impl(
         },
         &B4KeysBoard {
             transaction: &hasura_transaction,
+            tenant_id: &tenant_id,
+            election_event_id: &election_event_id,
         },
         &tenant_id,
         &election_event_id,

@@ -26,6 +26,8 @@ pub async fn set_public_key_impl(
         },
         &B4KeysBoard {
             transaction: &hasura_transaction,
+            tenant_id: &tenant_id,
+            election_event_id: &election_event_id,
         },
         &SystemClock,
         &tenant_id,

@@ -2,11 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::api_types::Message;
+use crate::api_types::{ContentType, Message};
+use crate::messages::message::Message as BoardMessage;
+use crate::messages::statement::StatementType;
 use anyhow::{anyhow, Context, Result};
 use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use std::env;
+use strand::serialization::StrandSerialize;
 use tokio_postgres::NoTls;
+use uuid::Uuid;
 
 /// PostgreSQL connection pool type alias
 pub type DbPool = Pool<PostgresConnectionManager<NoTls>>;
@@ -537,6 +541,67 @@ pub async fn get_messages_after(
         .collect();
 
     Ok((messages, truncated))
+}
+
+/// Provisions the configuration of a board, which is only done through the
+/// database and never through the HTTP handlers.
+pub async fn insert_configuration(
+    pool: &DbPool,
+    board_name: &str,
+    configuration: &BoardMessage,
+) -> Result<i64> {
+    let statement_kind = configuration.statement.get_kind();
+    if statement_kind != StatementType::Configuration {
+        return Err(anyhow!("Expected message to be a configuration"));
+    }
+
+    let data = configuration.strand_serialize()?;
+    let sender_pk = configuration.sender.pk.to_der_b64_string()?;
+    let statement_kind = statement_kind.to_string();
+    let message = Message {
+        id: Uuid::new_v4().to_string(),
+        timestamp: chrono::Utc::now().timestamp(),
+        size: data.len(),
+        content_type: ContentType::Inline { data: data.clone() },
+        sender_pk: sender_pk.clone(),
+        statement_kind: statement_kind.clone(),
+        batch: 0,
+        mix_number: 0,
+    };
+
+    insert_message(
+        pool,
+        board_name,
+        &message,
+        Some(&data),
+        None,
+        &crate::get_schema_version(),
+        &sender_pk,
+        &statement_kind,
+        0,
+        0,
+    )
+    .await
+}
+
+/// The stored configuration messages of a board, as they were provisioned.
+pub async fn get_configuration_messages(pool: &DbPool, board_name: &str) -> Result<Vec<Vec<u8>>> {
+    validate_board_name(board_name)?;
+
+    let conn = pool.get().await?;
+    let rows = conn
+        .query(
+            "SELECT COALESCE(inline_data, message) FROM messages WHERE board_name = $1 AND statement_kind = $2 ORDER BY id ASC",
+            &[&board_name, &StatementType::Configuration.to_string()],
+        )
+        .await?;
+
+    rows.iter()
+        .map(|row| {
+            row.get::<_, Option<Vec<u8>>>(0)
+                .ok_or_else(|| anyhow!("Configuration message without data"))
+        })
+        .collect()
 }
 
 /// Update board metadata when Configuration is posted (similar to b3's update_index)
