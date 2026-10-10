@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::tenant::get_tenant_by_id;
+use crate::postgres::tenant::{get_tenant_by_id, remove_tenant_setting};
+use crate::services::vault::{read_secret, replace_secret};
 use deadpool_postgres::Transaction;
 use google_calendar3::{
     api::{ConferenceData, ConferenceSolutionKey, CreateConferenceRequest, Event, EventDateTime},
@@ -11,12 +12,19 @@ use google_calendar3::{
     yup_oauth2::ServiceAccountKey,
     CalendarHub,
 };
+use reqwest::Url;
 use rustls;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::date::ISO8601;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use strum_macros::EnumString;
 use tracing::{error, info, instrument};
+
+pub const SERVICE_ACCOUNT_KEY_SETTING: &str = "gapi_key";
+const SERVICE_ACCOUNT_KEY_SECRET: &str = "google_service_account_key";
+const TOKEN_URI_SCHEME: &str = "https";
+const TOKEN_URI_HOSTS: [&str; 2] = ["oauth2.googleapis.com", "accounts.google.com"];
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct GenerateGoogleMeetBody {
@@ -41,6 +49,7 @@ pub enum GoogleMeetError {
     GoogleApi(String),
     Http(String),
     DateTime(String),
+    TokenUri(String),
     CalendarNotFound,
     MeetLinkNotFound,
     Other(String),
@@ -55,6 +64,7 @@ impl std::fmt::Display for GoogleMeetError {
             GoogleMeetError::GoogleApi(msg) => write!(f, "Google API error: {}", msg),
             GoogleMeetError::Http(msg) => write!(f, "Http error: {}", msg),
             GoogleMeetError::DateTime(msg) => write!(f, "Date error: {}", msg),
+            GoogleMeetError::TokenUri(uri) => write!(f, "Token URI not allowed: {}", uri),
             GoogleMeetError::CalendarNotFound => write!(f, "Calendar not found"),
             GoogleMeetError::MeetLinkNotFound => write!(f, "Meet link not found"),
             GoogleMeetError::Other(msg) => write!(f, "Other error: {}", msg),
@@ -79,15 +89,6 @@ pub async fn generate_google_meet_link_impl(
             "Tenant settings is null".to_string(),
         ))?;
 
-    let gapi_key = settings
-        .clone()
-        .get("gapi_key")
-        .ok_or(GoogleMeetError::ClientSecret(
-            "gapi_key is null, no client secret in settings. Object must be named gapi_key"
-                .to_string(),
-        ))?
-        .clone();
-
     let gapi_email = settings
         .clone()
         .get("gapi_email")
@@ -96,16 +97,15 @@ pub async fn generate_google_meet_link_impl(
         ))?
         .clone();
 
-    // Parse service account key
-    let service_account_key: ServiceAccountKey = match deserialize_value(gapi_key) {
-        Ok(key) => key,
-        Err(e) => {
-            error!("Failed to parse service account key: {e:?}");
-            return Err(GoogleMeetError::Json(
-                "Failed to parse service account key".to_string(),
-            ));
-        }
-    };
+    let stored_key = read_secret(
+        hasura_transaction,
+        tenant_id,
+        None,
+        SERVICE_ACCOUNT_KEY_SECRET,
+    )
+    .await
+    .map_err(|e| GoogleMeetError::ClientSecret(e.to_string()))?;
+    let service_account_key = resolve_service_account_key(stored_key, &settings)?;
 
     let gapi_email_string: String = match deserialize_value(gapi_email) {
         Ok(key) => key,
@@ -140,7 +140,7 @@ pub async fn generate_google_meet_link_impl(
         .build(
             hyper_rustls::HttpsConnectorBuilder::new()
                 .with_webpki_roots()
-                .https_or_http()
+                .https_only()
                 .enable_http1()
                 .build(),
         );
@@ -219,6 +219,93 @@ pub async fn generate_google_meet_link_impl(
     }
 }
 
+/// Stores the tenant's Google service account key in the vault, replacing
+/// any previous one, and removes the copy kept in the tenant settings by
+/// earlier versions.
+#[instrument(skip(hasura_transaction, service_account_key), err)]
+pub async fn store_service_account_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    service_account_key: Value,
+) -> Result<ServiceAccountKey, GoogleMeetError> {
+    let stored_key = service_account_key.to_string();
+    let key = parse_service_account_key(service_account_key)?;
+
+    replace_secret(
+        hasura_transaction,
+        tenant_id,
+        SERVICE_ACCOUNT_KEY_SECRET,
+        &stored_key,
+    )
+    .await
+    .map_err(|e| GoogleMeetError::Other(e.to_string()))?;
+    remove_tenant_setting(hasura_transaction, tenant_id, SERVICE_ACCOUNT_KEY_SETTING)
+        .await
+        .map_err(|e| GoogleMeetError::Other(e.to_string()))?;
+
+    Ok(key)
+}
+
+/// Removes the service account key from tenant settings and returns it.
+pub fn take_service_account_key(settings: &mut Value) -> Option<Value> {
+    settings
+        .as_object_mut()?
+        .remove(SERVICE_ACCOUNT_KEY_SETTING)
+        .filter(|value| !value.is_null())
+}
+
+/// The key stored in the vault wins; the one in the tenant settings is only
+/// read for tenants configured by earlier versions.
+fn resolve_service_account_key(
+    stored_key: Option<String>,
+    settings: &Value,
+) -> Result<ServiceAccountKey, GoogleMeetError> {
+    let value = match stored_key {
+        Some(stored_key) => serde_json::from_str(&stored_key).map_err(|_| {
+            GoogleMeetError::Json("Failed to parse stored service account key".to_string())
+        })?,
+        None => settings
+            .get(SERVICE_ACCOUNT_KEY_SETTING)
+            .filter(|value| !value.is_null())
+            .cloned()
+            .ok_or(GoogleMeetError::ClientSecret(
+                "No Google service account key is configured".to_string(),
+            ))?,
+    };
+
+    parse_service_account_key(value)
+}
+
+fn parse_service_account_key(value: Value) -> Result<ServiceAccountKey, GoogleMeetError> {
+    let key: ServiceAccountKey = match deserialize_value(value) {
+        Ok(key) => key,
+        Err(e) => {
+            error!("Failed to parse service account key: {e:?}");
+            return Err(GoogleMeetError::Json(
+                "Failed to parse service account key".to_string(),
+            ));
+        }
+    };
+    check_token_uri(&key.token_uri)?;
+
+    Ok(key)
+}
+
+fn check_token_uri(token_uri: &str) -> Result<(), GoogleMeetError> {
+    let allowed = Url::parse(token_uri).is_ok_and(|url| {
+        url.scheme() == TOKEN_URI_SCHEME
+            && url
+                .host_str()
+                .is_some_and(|host| TOKEN_URI_HOSTS.contains(&host))
+    });
+
+    if allowed {
+        Ok(())
+    } else {
+        Err(GoogleMeetError::TokenUri(token_uri.to_string()))
+    }
+}
+
 /// Parse datetime string with timezone into EventDateTime
 #[instrument(err)]
 fn parse_datetime(datetime_str: &str, timezone: &str) -> Result<EventDateTime, GoogleMeetError> {
@@ -236,6 +323,7 @@ fn parse_datetime(datetime_str: &str, timezone: &str) -> Result<EventDateTime, G
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_parse_datetime() {
@@ -254,5 +342,79 @@ mod tests {
     fn test_parse_datetime_invalid() {
         let result = parse_datetime("invalid-date", "UTC");
         assert!(result.is_err());
+    }
+
+    fn service_account_key_value(token_uri: &str) -> Value {
+        json!({
+            "type": "service_account",
+            "private_key": "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
+            "client_email": "meet@project.iam.gserviceaccount.com",
+            "token_uri": token_uri,
+        })
+    }
+
+    #[test]
+    fn parse_service_account_key_accepts_google_token_uri() {
+        for token_uri in [
+            "https://oauth2.googleapis.com/token",
+            "https://accounts.google.com/o/oauth2/token",
+        ] {
+            let key = parse_service_account_key(service_account_key_value(token_uri));
+            assert!(key.is_ok(), "{token_uri} should be accepted");
+        }
+    }
+
+    #[test]
+    fn parse_service_account_key_rejects_other_token_uri() {
+        for token_uri in [
+            "http://oauth2.googleapis.com/token",
+            "https://oauth2.googleapis.com.example.org/token",
+            "https://example.org/token",
+            "not a url",
+        ] {
+            let key = parse_service_account_key(service_account_key_value(token_uri));
+            assert!(key.is_err(), "{token_uri} should be rejected");
+        }
+    }
+
+    #[test]
+    fn resolve_service_account_key_prefers_vault_over_settings() {
+        let mut stored = service_account_key_value("https://oauth2.googleapis.com/token");
+        stored["client_email"] = json!("vault@project.iam.gserviceaccount.com");
+        let settings = json!({
+            "gapi_key": service_account_key_value("https://oauth2.googleapis.com/token"),
+        });
+
+        let key =
+            resolve_service_account_key(Some(stored.to_string()), &settings).expect("stored key");
+
+        assert_eq!(key.client_email, "vault@project.iam.gserviceaccount.com");
+    }
+
+    #[test]
+    fn resolve_service_account_key_reads_settings_without_vault_key() {
+        let settings = json!({
+            "gapi_key": service_account_key_value("https://oauth2.googleapis.com/token"),
+        });
+
+        let key = resolve_service_account_key(None, &settings).expect("settings key");
+
+        assert_eq!(key.client_email, "meet@project.iam.gserviceaccount.com");
+        assert!(resolve_service_account_key(None, &json!({})).is_err());
+        assert!(resolve_service_account_key(None, &json!({"gapi_key": null})).is_err());
+    }
+
+    #[test]
+    fn take_service_account_key_removes_it_from_settings() {
+        let mut settings = json!({
+            "gapi_key": service_account_key_value("https://oauth2.googleapis.com/token"),
+            "gapi_email": "organizer@example.org",
+        });
+
+        let key = take_service_account_key(&mut settings);
+
+        assert!(key.is_some());
+        assert_eq!(settings, json!({"gapi_email": "organizer@example.org"}));
+        assert!(take_service_account_key(&mut settings).is_none());
     }
 }

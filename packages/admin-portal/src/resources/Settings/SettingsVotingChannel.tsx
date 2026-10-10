@@ -62,7 +62,6 @@ export const SettingsVotingChannels: React.FC<void> = () => {
     }
 
     useEffect(() => {
-        console.log(record)
         if (record?.voting_channels) {
             setVoting({
                 online: record?.voting_channels?.online ?? true,

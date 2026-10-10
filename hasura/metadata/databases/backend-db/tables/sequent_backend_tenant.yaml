@@ -80,7 +80,6 @@ select_permissions:
               - is_active
               - annotations
               - labels
-              - settings
               - voting_channels
               - slug
               - created_at
