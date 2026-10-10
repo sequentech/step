@@ -9804,6 +9804,10 @@ export type Sequent_Backend_Ballot_Publication = {
   created_at: Scalars['timestamptz']['output'];
   created_by_user_id?: Maybe<Scalars['String']['output']>;
   deleted_at?: Maybe<Scalars['timestamptz']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
+  /** An object relationship */
+  election_event?: Maybe<Sequent_Backend_Election_Event>;
   election_event_id: Scalars['uuid']['output'];
   election_id?: Maybe<Scalars['uuid']['output']>;
   election_ids?: Maybe<Array<Scalars['uuid']['output']>>;
@@ -9863,6 +9867,8 @@ export type Sequent_Backend_Ballot_Publication_Bool_Exp = {
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   created_by_user_id?: InputMaybe<String_Comparison_Exp>;
   deleted_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
+  election_event?: InputMaybe<Sequent_Backend_Election_Event_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_ids?: InputMaybe<Uuid_Array_Comparison_Exp>;
@@ -9903,6 +9909,8 @@ export type Sequent_Backend_Ballot_Publication_Insert_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by_user_id?: InputMaybe<Scalars['String']['input']>;
   deleted_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
+  election_event?: InputMaybe<Sequent_Backend_Election_Event_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   election_ids?: InputMaybe<Array<Scalars['uuid']['input']>>;
@@ -9970,6 +9978,8 @@ export type Sequent_Backend_Ballot_Publication_Order_By = {
   created_at?: InputMaybe<Order_By>;
   created_by_user_id?: InputMaybe<Order_By>;
   deleted_at?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
+  election_event?: InputMaybe<Sequent_Backend_Election_Event_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   election_ids?: InputMaybe<Order_By>;
@@ -10446,6 +10456,8 @@ export type Sequent_Backend_Ballot_Style_Updates = {
 export type Sequent_Backend_Candidate = {
   __typename?: 'sequent_backend_candidate';
   annotations?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  contest?: Maybe<Sequent_Backend_Contest>;
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
@@ -10555,6 +10567,7 @@ export type Sequent_Backend_Candidate_Bool_Exp = {
   _not?: InputMaybe<Sequent_Backend_Candidate_Bool_Exp>;
   _or?: InputMaybe<Array<Sequent_Backend_Candidate_Bool_Exp>>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Bool_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   description?: InputMaybe<String_Comparison_Exp>;
@@ -10600,6 +10613,7 @@ export type Sequent_Backend_Candidate_Delete_Key_Input = {
 /** input type for inserting data into table "sequent_backend.candidate" */
 export type Sequent_Backend_Candidate_Insert_Input = {
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Obj_Rel_Insert_Input>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
@@ -10692,6 +10706,7 @@ export type Sequent_Backend_Candidate_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.candidate". */
 export type Sequent_Backend_Candidate_Order_By = {
   annotations?: InputMaybe<Order_By>;
+  contest?: InputMaybe<Sequent_Backend_Contest_Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
@@ -10867,6 +10882,8 @@ export type Sequent_Backend_Cast_Vote = {
   cast_ballot_signature?: Maybe<Scalars['bytea']['output']>;
   content?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id?: Maybe<Scalars['uuid']['output']>;
   id: Scalars['uuid']['output'];
@@ -10928,6 +10945,7 @@ export type Sequent_Backend_Cast_Vote_Bool_Exp = {
   cast_ballot_signature?: InputMaybe<Bytea_Comparison_Exp>;
   content?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -10970,6 +10988,7 @@ export type Sequent_Backend_Cast_Vote_Insert_Input = {
   cast_ballot_signature?: InputMaybe<Scalars['bytea']['input']>;
   content?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -11036,6 +11055,7 @@ export type Sequent_Backend_Cast_Vote_Order_By = {
   cast_ballot_signature?: InputMaybe<Order_By>;
   content?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -11478,6 +11498,8 @@ export type Sequent_Backend_Contest = {
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   external_id?: Maybe<Scalars['String']['output']>;
@@ -11662,6 +11684,7 @@ export type Sequent_Backend_Contest_Bool_Exp = {
   counting_algorithm?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   description?: InputMaybe<String_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   external_id?: InputMaybe<String_Comparison_Exp>;
@@ -11729,6 +11752,7 @@ export type Sequent_Backend_Contest_Insert_Input = {
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   external_id?: InputMaybe<Scalars['String']['input']>;
@@ -11853,6 +11877,7 @@ export type Sequent_Backend_Contest_Order_By = {
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   description?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   external_id?: InputMaybe<Order_By>;
@@ -13065,6 +13090,13 @@ export type Sequent_Backend_Election_Event_Mutation_Response = {
   affected_rows: Scalars['Int']['output'];
   /** data from the rows affected by the mutation */
   returning: Array<Sequent_Backend_Election_Event>;
+};
+
+/** input type for inserting object relation for remote table "sequent_backend.election_event" */
+export type Sequent_Backend_Election_Event_Obj_Rel_Insert_Input = {
+  data: Sequent_Backend_Election_Event_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Sequent_Backend_Election_Event_On_Conflict>;
 };
 
 /** on_conflict condition type for table "sequent_backend.election_event" */
@@ -15202,6 +15234,8 @@ export type Sequent_Backend_Notification = {
   alias?: Maybe<Scalars['String']['output']>;
   annotations?: Maybe<Scalars['jsonb']['output']>;
   created_at: Scalars['timestamptz']['output'];
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id?: Maybe<Scalars['uuid']['output']>;
   id: Scalars['uuid']['output'];
@@ -15261,6 +15295,7 @@ export type Sequent_Backend_Notification_Bool_Exp = {
   alias?: InputMaybe<String_Comparison_Exp>;
   annotations?: InputMaybe<Jsonb_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -15301,6 +15336,7 @@ export type Sequent_Backend_Notification_Insert_Input = {
   alias?: InputMaybe<Scalars['String']['input']>;
   annotations?: InputMaybe<Scalars['jsonb']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -15363,6 +15399,7 @@ export type Sequent_Backend_Notification_Order_By = {
   alias?: InputMaybe<Order_By>;
   annotations?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -16228,6 +16265,8 @@ export type Sequent_Backend_Results_Area_Contest = {
   contest_id: Scalars['uuid']['output'];
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   documents?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   elegible_census?: Maybe<Scalars['Int']['output']>;
@@ -16345,6 +16384,7 @@ export type Sequent_Backend_Results_Area_Contest_Bool_Exp = {
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   documents?: InputMaybe<Jsonb_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   elegible_census?: InputMaybe<Int_Comparison_Exp>;
@@ -16384,6 +16424,8 @@ export type Sequent_Backend_Results_Area_Contest_Candidate = {
   contest_id: Scalars['uuid']['output'];
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   documents?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
@@ -16472,6 +16514,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Bool_Exp = {
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   documents?: InputMaybe<Jsonb_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -16528,6 +16571,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Insert_Input = {
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   documents?: InputMaybe<Scalars['jsonb']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -16603,6 +16647,7 @@ export type Sequent_Backend_Results_Area_Contest_Candidate_Order_By = {
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   documents?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -16894,6 +16939,7 @@ export type Sequent_Backend_Results_Area_Contest_Insert_Input = {
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   documents?: InputMaybe<Scalars['jsonb']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   elegible_census?: InputMaybe<Scalars['Int']['input']>;
@@ -17011,6 +17057,7 @@ export type Sequent_Backend_Results_Area_Contest_Order_By = {
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   documents?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   elegible_census?: InputMaybe<Order_By>;
@@ -17459,6 +17506,8 @@ export type Sequent_Backend_Results_Contest = {
   counting_algorithm?: Maybe<Scalars['String']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   documents?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   elegible_census?: Maybe<Scalars['Int']['output']>;
@@ -17578,6 +17627,7 @@ export type Sequent_Backend_Results_Contest_Bool_Exp = {
   counting_algorithm?: InputMaybe<String_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   documents?: InputMaybe<Jsonb_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   elegible_census?: InputMaybe<Int_Comparison_Exp>;
@@ -17618,6 +17668,8 @@ export type Sequent_Backend_Results_Contest_Candidate = {
   contest_id: Scalars['uuid']['output'];
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   documents?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
@@ -17705,6 +17757,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Bool_Exp = {
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   documents?: InputMaybe<Jsonb_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -17760,6 +17813,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Insert_Input = {
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   documents?: InputMaybe<Scalars['jsonb']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -17832,6 +17886,7 @@ export type Sequent_Backend_Results_Contest_Candidate_Order_By = {
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   documents?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -18117,6 +18172,7 @@ export type Sequent_Backend_Results_Contest_Insert_Input = {
   counting_algorithm?: InputMaybe<Scalars['String']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   documents?: InputMaybe<Scalars['jsonb']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   elegible_census?: InputMaybe<Scalars['Int']['input']>;
@@ -18240,6 +18296,7 @@ export type Sequent_Backend_Results_Contest_Order_By = {
   counting_algorithm?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   documents?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   elegible_census?: InputMaybe<Order_By>;
@@ -18702,6 +18759,8 @@ export type Sequent_Backend_Results_Election = {
   blank_ballots_percent?: Maybe<Scalars['numeric']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
   documents?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   elegible_census?: Maybe<Scalars['Int']['output']>;
@@ -18778,6 +18837,8 @@ export type Sequent_Backend_Results_Election_Area = {
   blank_ballots_percent?: Maybe<Scalars['numeric']['output']>;
   created_at: Scalars['timestamptz']['output'];
   documents?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
@@ -18845,6 +18906,7 @@ export type Sequent_Backend_Results_Election_Area_Bool_Exp = {
   blank_ballots_percent?: InputMaybe<Numeric_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   documents?: InputMaybe<Jsonb_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -18890,6 +18952,7 @@ export type Sequent_Backend_Results_Election_Area_Insert_Input = {
   blank_ballots_percent?: InputMaybe<Scalars['numeric']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   documents?: InputMaybe<Scalars['jsonb']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -18954,6 +19017,7 @@ export type Sequent_Backend_Results_Election_Area_Order_By = {
   blank_ballots_percent?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   documents?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -19160,6 +19224,7 @@ export type Sequent_Backend_Results_Election_Bool_Exp = {
   blank_ballots_percent?: InputMaybe<Numeric_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   documents?: InputMaybe<Jsonb_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   elegible_census?: InputMaybe<Int_Comparison_Exp>;
@@ -19216,6 +19281,7 @@ export type Sequent_Backend_Results_Election_Insert_Input = {
   blank_ballots_percent?: InputMaybe<Scalars['numeric']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   documents?: InputMaybe<Scalars['jsonb']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   elegible_census?: InputMaybe<Scalars['Int']['input']>;
@@ -19288,6 +19354,7 @@ export type Sequent_Backend_Results_Election_Order_By = {
   blank_ballots_percent?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
   documents?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   elegible_census?: InputMaybe<Order_By>;
@@ -23923,6 +23990,8 @@ export type Sequent_Backend_Tally_Session_Contest = {
   area_id: Scalars['uuid']['output'];
   contest_id?: Maybe<Scalars['uuid']['output']>;
   created_at?: Maybe<Scalars['timestamptz']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
@@ -23996,6 +24065,7 @@ export type Sequent_Backend_Tally_Session_Contest_Bool_Exp = {
   area_id?: InputMaybe<Uuid_Comparison_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -24041,6 +24111,7 @@ export type Sequent_Backend_Tally_Session_Contest_Insert_Input = {
   area_id?: InputMaybe<Scalars['uuid']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -24103,6 +24174,7 @@ export type Sequent_Backend_Tally_Session_Contest_Order_By = {
   area_id?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
@@ -24320,6 +24392,8 @@ export type Sequent_Backend_Tally_Session_Execution = {
   run_reason?: Maybe<Scalars['String']['output']>;
   session_ids?: Maybe<Array<Scalars['Int']['output']>>;
   status?: Maybe<Scalars['jsonb']['output']>;
+  /** An object relationship */
+  tally_session?: Maybe<Sequent_Backend_Tally_Session>;
   tally_session_id: Scalars['uuid']['output'];
   tenant_id: Scalars['uuid']['output'];
 };
@@ -24409,6 +24483,7 @@ export type Sequent_Backend_Tally_Session_Execution_Bool_Exp = {
   run_reason?: InputMaybe<String_Comparison_Exp>;
   session_ids?: InputMaybe<Int_Array_Comparison_Exp>;
   status?: InputMaybe<Jsonb_Comparison_Exp>;
+  tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Bool_Exp>;
   tally_session_id?: InputMaybe<Uuid_Comparison_Exp>;
   tenant_id?: InputMaybe<Uuid_Comparison_Exp>;
 };
@@ -24463,6 +24538,7 @@ export type Sequent_Backend_Tally_Session_Execution_Insert_Input = {
   run_reason?: InputMaybe<Scalars['String']['input']>;
   session_ids?: InputMaybe<Array<Scalars['Int']['input']>>;
   status?: InputMaybe<Scalars['jsonb']['input']>;
+  tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Obj_Rel_Insert_Input>;
   tally_session_id?: InputMaybe<Scalars['uuid']['input']>;
   tenant_id?: InputMaybe<Scalars['uuid']['input']>;
 };
@@ -24529,6 +24605,7 @@ export type Sequent_Backend_Tally_Session_Execution_Order_By = {
   run_reason?: InputMaybe<Order_By>;
   session_ids?: InputMaybe<Order_By>;
   status?: InputMaybe<Order_By>;
+  tally_session?: InputMaybe<Sequent_Backend_Tally_Session_Order_By>;
   tally_session_id?: InputMaybe<Order_By>;
   tenant_id?: InputMaybe<Order_By>;
 };
@@ -25429,6 +25506,8 @@ export type Sequent_Backend_Tally_Sheet = {
   created_at: Scalars['timestamptz']['output'];
   created_by_user_id: Scalars['String']['output'];
   deleted_at?: Maybe<Scalars['timestamptz']['output']>;
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
@@ -25518,6 +25597,7 @@ export type Sequent_Backend_Tally_Sheet_Bool_Exp = {
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
   created_by_user_id?: InputMaybe<String_Comparison_Exp>;
   deleted_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
@@ -25755,6 +25835,8 @@ export type Sequent_Backend_Tally_Sheet_Import_Item = {
   channel: Scalars['String']['output'];
   contest_id: Scalars['uuid']['output'];
   created_at: Scalars['timestamptz']['output'];
+  /** An object relationship */
+  election?: Maybe<Sequent_Backend_Election>;
   election_event_id: Scalars['uuid']['output'];
   election_id: Scalars['uuid']['output'];
   /** An object relationship */
@@ -25895,6 +25977,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Item_Bool_Exp = {
   channel?: InputMaybe<String_Comparison_Exp>;
   contest_id?: InputMaybe<Uuid_Comparison_Exp>;
   created_at?: InputMaybe<Timestamptz_Comparison_Exp>;
+  election?: InputMaybe<Sequent_Backend_Election_Bool_Exp>;
   election_event_id?: InputMaybe<Uuid_Comparison_Exp>;
   election_id?: InputMaybe<Uuid_Comparison_Exp>;
   generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Bool_Exp>;
@@ -25961,6 +26044,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Item_Insert_Input = {
   channel?: InputMaybe<Scalars['String']['input']>;
   contest_id?: InputMaybe<Scalars['uuid']['input']>;
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Obj_Rel_Insert_Input>;
@@ -26100,6 +26184,7 @@ export type Sequent_Backend_Tally_Sheet_Import_Item_Order_By = {
   channel?: InputMaybe<Order_By>;
   contest_id?: InputMaybe<Order_By>;
   created_at?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   generated_tally_sheet?: InputMaybe<Sequent_Backend_Tally_Sheet_Order_By>;
@@ -26642,6 +26727,7 @@ export type Sequent_Backend_Tally_Sheet_Insert_Input = {
   created_at?: InputMaybe<Scalars['timestamptz']['input']>;
   created_by_user_id?: InputMaybe<Scalars['String']['input']>;
   deleted_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  election?: InputMaybe<Sequent_Backend_Election_Obj_Rel_Insert_Input>;
   election_event_id?: InputMaybe<Scalars['uuid']['input']>;
   election_id?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
@@ -26731,6 +26817,7 @@ export type Sequent_Backend_Tally_Sheet_Order_By = {
   created_at?: InputMaybe<Order_By>;
   created_by_user_id?: InputMaybe<Order_By>;
   deleted_at?: InputMaybe<Order_By>;
+  election?: InputMaybe<Sequent_Backend_Election_Order_By>;
   election_event_id?: InputMaybe<Order_By>;
   election_id?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
