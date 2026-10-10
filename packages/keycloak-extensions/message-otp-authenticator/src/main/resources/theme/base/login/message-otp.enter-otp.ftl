@@ -22,6 +22,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <#elseif messengerPage??>
                     <p>${msg("messageOtp.messenger.intro", messengerPage)}</p>
                 </#if>
+                <#if (messengerReconnect!false)>
+                    <p class="kc-messenger-reconnect">${msg("messageOtp.messenger.reconnect")}</p>
+                </#if>
                 <ol class="kc-messenger-steps-phone">
                     <li>${msg("messageOtp.messenger.step1")}</li>
                     <li>${msg("messageOtp.messenger.step2")}</li>
@@ -66,7 +69,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     <#elseif channel??>
                         ${msg("messageOtp.auth.sentTo", msg("messageChannel." + channel), contact)}
                     <#else>
-                        ${msg(i18nPrefix + ".auth.sentToContact", contact)?no_esc}
+                        ${msg(i18nPrefix + ".auth.sentToContact", contact?esc?markup_string)?no_esc}
                     </#if>
                 </span>
                 <b class="otp-sent-value">${email!}${mobile!}</b>

@@ -126,6 +126,27 @@ describe("messaging translations", () => {
         }
     )
 
+    // FX3 follow-up (R7-10): the reconnect at sign-in needs the voter's password; without one,
+    // staff change the voter's channel. Every language names the password.
+    it.each(
+        Object.entries({
+            en: [en, "password"],
+            es: [es, "contraseña"],
+            ca: [ca, "contrasenya"],
+            eu: [eu, "pasahitz"],
+            fr: [fr, "mot de passe"],
+            gl: [gl, "contrasinal"],
+            nl: [nl, "wachtwoord"],
+            tl: [tl, "password"],
+        } as const)
+    )("%s: the Page-change warning names both recovery paths", (_language, [translation, word]) => {
+        const warning = new Map(messagingTexts(translation.translations as unknown as Tree)).get(
+            "messagingAccounts.warning.pageChange"
+        )
+        expect(warning?.toLowerCase()).toContain(word)
+        expect(warning).toContain("{{page}}")
+    })
+
     it("names no client", () => {
         for (const translation of [en, es, ca, eu, fr, gl, nl, tl]) {
             const texts = messagingTexts(translation.translations as unknown as Tree)

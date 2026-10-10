@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import {readFileSync} from "fs"
+import {resolve} from "path"
 import {MemoryRouter, useLocation} from "react-router-dom"
 import {fireEvent, render, screen} from "@testing-library/react"
 import "@testing-library/jest-dom"
@@ -11,7 +13,8 @@ import {print} from "graphql"
 import {EMessageChannel} from "@/types/messaging"
 import {EmailInbox} from "./EmailInbox"
 import {MessagingTabs} from "./MessagingTabs"
-import {conversations} from "./messageContent"
+import {emailSrcDoc} from "./emailFrame"
+import {FAKE_PROVIDER_REASONS, conversations} from "./messageContent"
 import {FAKE_PROVIDER_MESSAGE, FAKE_PROVIDER_MESSAGES} from "./queries"
 import {IFakeProviderMessage, parseMode} from "./types"
 import {channelMessages, fullMessage, sentMessages} from "./__stories__/SentMessagesFixture"
@@ -272,5 +275,50 @@ describe("fix round 2 (R6)", () => {
         const chats = conversations([first, other])
         expect(chats).toHaveLength(2)
         expect(chats.map(({sender}) => sender).sort()).toEqual(["109876543210", "209876543210"])
+    })
+})
+
+describe("fix round 3 (R7)", () => {
+    it("R7-21: links in an email are inert text that shows where they lead", () => {
+        const srcdoc = emailSrcDoc(
+            '<p>Open <a href="https://vote.example/login?ref=1" target="_blank">the portal</a>' +
+                ' or <a href="https://vote.example/help">https://vote.example/help</a>.</p>' +
+                '<a name="top">top</a>' +
+                '<img usemap="#m"><map name="m"><area href="https://evil.example/" shape="rect"></map>' +
+                '<svg><a href="https://evil.example/svg" xlink:href="https://evil.example/x"><text>s</text></a></svg>'
+        )
+        const frame = new DOMParser().parseFromString(srcdoc, "text/html")
+        expect(frame.querySelectorAll("[href], [xlink\\:href]")).toHaveLength(0)
+        expect(
+            Array.from(frame.querySelectorAll("*")).some((e) => e.hasAttribute("xlink:href"))
+        ).toBe(false)
+        expect(frame.body.textContent).toContain("the portal (https://vote.example/login?ref=1)")
+        // A link whose text is its address isn't shown twice.
+        expect(frame.body.textContent).toContain("or https://vote.example/help.")
+        expect(frame.body.textContent).not.toContain("help (https://vote.example/help)")
+        expect(frame.body.textContent).toContain("top")
+    })
+
+    it("R7-20: maps every reason the fake provider shows, and none it no longer writes", () => {
+        const fake = readFileSync(
+            resolve(__dirname, "../../../../../harvest/src/routes/fake_provider.rs"),
+            "utf8"
+        )
+        const written = Object.fromEntries(
+            Array.from(
+                fake.matchAll(/pub const (\w+)_REASON: &str =\s*"([^"]+)"/g),
+                (match) => [match[1], match[2]] as const
+            )
+        )
+        // Not shown as a reason: a report with no receipts is shown by its
+        // state, and a message gone from the list as a failed read.
+        const NOT_SHOWN = ["NO_RECEIPTS", "MESSAGE_GONE"]
+        expect(Object.keys(written).length).toBeGreaterThan(4)
+        expect(Object.keys(FAKE_PROVIDER_REASONS).sort()).toEqual(
+            Object.entries(written)
+                .filter(([name]) => !NOT_SHOWN.includes(name))
+                .map(([, text]) => text)
+                .sort()
+        )
     })
 })

@@ -393,6 +393,68 @@ mod tests {
         }
     }
 
+    /// What the fake provider's check (R7-19) takes: the SDK's own
+    /// signature verifies with the account's secret, and only with it.
+    #[tokio::test]
+    async fn the_sdks_signature_verifies_with_the_accounts_secret() {
+        use crate::sigv4::{verify, ReceivedRequest, SigV4Refusal};
+        let server = TestServer::start(vec![
+            Reply::Raw(
+                200,
+                "text/xml",
+                r#"<PublishResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><PublishResult><MessageId>sns-1</MessageId></PublishResult><ResponseMetadata><RequestId>r</RequestId></ResponseMetadata></PublishResponse>"#.to_string(),
+            ),
+            Reply::Json(200, json!({"MessageId": "ses-1"})),
+        ])
+        .await;
+        let sns = SnsSender::new(
+            &account(AccountSender::AWS_SNS {
+                sender_id: Some("Elections".to_string()),
+                origination_number: None,
+                region: Some("eu-west-1".to_string()),
+            }),
+            &endpoints(&server),
+        )
+        .await
+        .unwrap();
+        sns.send(&message(MessageChannel::SMS, "+639171234567"))
+            .await;
+        let ses = SesSender::new(
+            &account(AccountSender::AWS_SES {
+                from_address: "noreply@example.org".to_string(),
+                from_name: None,
+                region: Some("eu-west-1".to_string()),
+                notification_topic_arn: None,
+            }),
+            &endpoints(&server),
+        )
+        .await
+        .unwrap();
+        ses.send(&message(MessageChannel::EMAIL, "voter@example.org"))
+            .await;
+        let requests = server.requests();
+        assert_eq!(requests.len(), 2);
+        for recorded in &requests {
+            let (path, query) = recorded
+                .path
+                .split_once('?')
+                .unwrap_or((recorded.path.as_str(), ""));
+            let request = ReceivedRequest {
+                method: &recorded.method,
+                path,
+                query,
+                headers: &recorded.headers,
+                body: recorded.body.as_bytes(),
+            };
+            assert_eq!(verify(&request, "secret", Utc::now()), Ok(()), "{path}");
+            assert_eq!(
+                verify(&request, "another secret", Utc::now()),
+                Err(SigV4Refusal::MISMATCH),
+                "{path}"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn ses_sends_from_the_account_address() {
         let server = TestServer::start(vec![Reply::Json(200, json!({"MessageId": "ses-1"}))]).await;

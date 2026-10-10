@@ -34,7 +34,6 @@ import sequent.keycloak.authenticator.messaging.MessageAttemptState;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.authenticator.messaging.MessageRecipient;
-import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.MessengerLinkStatus;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
@@ -161,18 +160,26 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     authSession.setAuthNote(MessagingAttributes.NOTE_CONTACT_CHANGE_STARTED, "true");
   }
 
+  /**
+   * Runs only when {@link ContactChange#forVoter} offers the change: the same decision the portal's
+   * entry shows (R7-14). A refusal is logged and goes into the event with its reason, and the
+   * action {@code ignore()}s: for an application-initiated action Keycloak then reports {@code
+   * kc_action_status=error} to the portal, which tells the voter it didn't work (checked against
+   * Keycloak 26.6's {@code AuthenticationManager}); {@code failure()} would answer the portal with
+   * an OAuth error instead.
+   */
   private boolean canRun(RequiredActionContext context) {
     if (context.getUser() == null) {
       context.failure();
       return false;
     }
-    if (offered(context).isEmpty()) {
-      // The portal shows the entry only when the event offers a channel for codes; a stale page or
-      // a Post without channels ends here, logged with its reason.
-      log.infov(
-          "{0}: not run: {1}",
-          getProviderId(), MessageReason.CHANNEL_NOT_OFFERED_FOR_CODES.reason());
-      context.getEvent().detail("reason", MessageReason.CHANNEL_NOT_OFFERED_FOR_CODES.reason());
+    ContactChange.Decision decision =
+        ContactChange.forVoter(context.getSession(), context.getRealm(), context.getUser());
+    if (!decision.offered()) {
+      String reason =
+          decision.refusal().orElse(MessageReason.CHANNEL_NOT_OFFERED_FOR_CODES).reason();
+      log.infov("{0}: not run: {1}", getProviderId(), reason);
+      context.getEvent().detail("reason", reason);
       context.getAuthenticationSession().removeRequiredAction(getProviderId());
       context.ignore();
       return false;
@@ -185,25 +192,10 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
    * Email is the account's own address, so it is offered only when the account has one.
    */
   static List<MessageChannel> offered(RequiredActionContext context) {
-    MessageSenderProvider sender = VoterChannels.sender(context.getSession());
-    UserModel user = context.getUser();
-    Optional<PublicMessagingChannels> projection =
-        PublicMessagingChannels.fromRealm(context.getRealm());
-    if (projection.isEmpty()) {
-      return List.of();
-    }
-    List<MessageChannel> offered = new ArrayList<>();
-    for (MessageChannel channel :
-        VoterChannels.offeredForOtp(projection, VoterChannels.elections(user))) {
-      if (!VoterChannels.deliverable(sender, channel)) {
-        continue;
-      }
-      if (channel == MessageChannel.EMAIL && blank(user.getEmail())) {
-        continue;
-      }
-      offered.add(channel);
-    }
-    return offered;
+    return ContactChange.offered(
+        context.getSession(),
+        PublicMessagingChannels.fromRealm(context.getRealm()),
+        context.getUser());
   }
 
   @Override
@@ -249,6 +241,9 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
 
     clearEntry(authSession, noteKey);
     authSession.setAuthNote(MessagingAttributes.FORM_OTP_CHANNEL, channel.name());
+    authSession.setAuthNote(
+        MessagingAttributes.NOTE_OFFERED_CHANNELS,
+        String.join(",", VoterChannels.names(offered(context))));
     switch (channel) {
       case WHATSAPP -> authSession.setAuthNote(MessagingAttributes.FORM_WHATSAPP_NUMBER, number);
       case VIBER -> authSession.setAuthNote(MessagingAttributes.FORM_VIBER_NUMBER, number);
@@ -311,6 +306,7 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
             MessagingAttributes.FORM_WHATSAPP_NUMBER,
             MessagingAttributes.FORM_VIBER_NUMBER,
             MessagingAttributes.FORM_MESSAGE_CONSENT,
+            MessagingAttributes.NOTE_OFFERED_CHANNELS,
             MessageOTPAuthenticator.MOBILE_NUMBER_FIELD,
             "email",
             MessagingAttributes.NOTE_VERIFIED_CONSENT,
@@ -465,10 +461,13 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
               MessageRecipient.PREVIOUS_CHANNEL);
       if (outcome.keycloak().isPresent()) {
         Utils.KeycloakNotice notice = outcome.keycloak().get();
-        if (notice.courier() == Utils.MessageCourier.SMS) {
-          session
-              .getProvider(SmsSenderProvider.class)
-              .send(notice.mobileNumber(), CONTACT_CHANGED_KEY, parameters, realm, user, session);
+        SmsSenderProvider sms = session.getProvider(SmsSenderProvider.class);
+        if (notice.courier() == Utils.MessageCourier.SMS && sms.sendsOnlyCodes()) {
+          log.warnv(
+              "{0}: the old channel {1} was not told about the change: {2}",
+              getProviderId(), old.channel(), MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+        } else if (notice.courier() == Utils.MessageCourier.SMS) {
+          sms.send(notice.mobileNumber(), CONTACT_CHANGED_KEY, parameters, realm, user, session);
           Utils.keycloakSent(context, MessageChannel.SMS, notice.mobileNumber());
         } else if (notice.courier() == Utils.MessageCourier.EMAIL) {
           Map<String, Object> body = new HashMap<>();
@@ -534,7 +533,7 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     Optional<PublicMessagingChannels> projection =
         PublicMessagingChannels.fromRealm(context.getRealm());
     String masked =
-        VoterChannels.mask(
+        VoterChannels.display(
             channel, authSession.getAuthNote(MessagingAttributes.NOTE_CODE_DESTINATION));
     form.setAttribute("contact", masked);
     form.setAttribute("address", masked);

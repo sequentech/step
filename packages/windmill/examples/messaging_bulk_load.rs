@@ -160,6 +160,7 @@ async fn main() -> Result<()> {
                         channel,
                         destination: destination(channel, n).unwrap_or_default(),
                         election_ids: vec![],
+                        messenger_page: None,
                     },
                     content: Some(MessageContent {
                         subject: Some("Bench".to_string()),

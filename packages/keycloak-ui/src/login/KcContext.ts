@@ -230,6 +230,9 @@ export type KcContextExtensionPerPage = {
         messengerLink?: string
         messengerQr?: string
         messengerState?: MessengerLinkState
+        // The event's Messenger Page changed since the voter connected: this sign-in connects
+        // Messenger again, and the page says why.
+        messengerReconnect?: boolean
         // With the code progress policy, which of the flow's codes this is, from 1.
         codeRequest?: number
         codeRequests?: number

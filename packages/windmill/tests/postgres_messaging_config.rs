@@ -143,7 +143,9 @@ async fn the_event_configuration_is_read_from_and_saved_to_its_table_only() {
             .unwrap(),
         Some(config.clone())
     );
-    // The annotation was left as it was.
+    // R7-25: the save also writes the first release's annotation (never
+    // read by this release), so a binary rolled back without `down.sql`
+    // reads the configuration saved last, not the one before the upgrade.
     let annotation: Option<String> = tx
         .query_one(
             "SELECT annotations ->> 'messaging:config' FROM sequent_backend.election_event
@@ -153,7 +155,9 @@ async fn the_event_configuration_is_read_from_and_saved_to_its_table_only() {
         .await
         .unwrap()
         .get(0);
-    assert!(annotation.unwrap().contains("\"x\""));
+    let annotation: EventMessagingConfig =
+        serde_json::from_str(&annotation.expect("the annotation")).unwrap();
+    assert_eq!(annotation, config);
 
     // An invalid configuration writes nothing; another tenant's event is
     // unknown.

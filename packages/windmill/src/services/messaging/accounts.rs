@@ -876,6 +876,9 @@ pub async fn flag_number_change(
                     ), '[]'::jsonb)),
                 updated_at = now()
             WHERE tenant_id = $1 AND id = $2
+              -- A provider's retry of the same signal (R7-04) adds nothing.
+              AND NOT COALESCE(status->'details'->'number_changes', '[]'::jsonb)
+                  @> jsonb_build_array($3::jsonb)
             "#,
             &[
                 &account.tenant_id,

@@ -19,6 +19,7 @@ pub mod providers;
 pub mod rate_limit;
 pub mod relay;
 pub mod sender;
+pub mod sigv4;
 pub mod webhooks;
 
 #[cfg(any(test, feature = "test-support"))]

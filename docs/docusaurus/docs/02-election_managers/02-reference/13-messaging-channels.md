@@ -232,7 +232,16 @@ sender makes it a different sender:
   Page**, because Page-scoped IDs belong to a Page. The drawer says how many
   voters are connected to the old Page and must connect again, across the
   election events that use the account. Those voters get codes again only
-  after connecting Messenger again.
+  after connecting Messenger again. Until then, codes and notices to them
+  are not sent, with the reason *Not sent: the voter is connected to
+  another Messenger Page*; nothing goes to another channel.
+- **How they connect again.** At their next sign-in, after their
+  password, the sign-in page explains that the Page changed and shows the
+  link and QR code to the new Page. The voter taps Get Started there and
+  enters the code; their new Messenger contact is saved. This happens only
+  at sign-in, never in a password reset. A voter whose sign-in has no
+  password step, or who forgot their password, can't reconnect alone:
+  staff change their channel.
 - Once saved, the events that use the account show voters the new Page or
   name on their pages.
 
@@ -393,7 +402,10 @@ voter pages.
   `code-page-disclosure` is `NEUTRAL` on reset flows): it names no channel
   and shows no masked destination. Because that page shows no Messenger
   link either, a voter whose channel is Messenger can't get a reset code
-  there and asks support.
+  there and asks support. A refused or failed provider call shows the same
+  neutral code page and starts the same resend timer; an unsent code cannot
+  authenticate. An SMS provider that supports codes only cannot send a
+  one-time reset link, and that refusal is recorded without generating a link.
 - **Temporary credentials**: a new temporary password takes effect only
   when its notice was handed to the provider (queued, accepted, delivered
   or unknown). When the send is refused or fails, the password stays
@@ -425,7 +437,10 @@ The platform reads one channel per voter, the same way everywhere
    they have a mobile number.
 
 Voters in the first case are rewritten to a single channel by a realm
-migration; the migration logs every voter it changes and why.
+migration; the migration logs every voter it changes and why. This is
+intended: when the channel such a voter chose can't be used (no number,
+address or Messenger contact), the first verified channel that can is
+taken. A channel the voter never verified is never taken.
 
 ### Changing the channel
 
@@ -438,6 +453,15 @@ channels, sends a code to the new channel, and when the code is verified
 **replaces** the old channel completely. The required action
 `message-channel-ra` must be registered and enabled in the event's realm;
 realms that registered it as `messaging-app-otp-ra` keep working.
+The change is offered only while every enabled message code step of the
+realm's flows and their sub-flows sends to the voter's channel (courier
+`CHOSEN`) or sends no code (`NONE`); otherwise it is refused with *A code
+step doesn't send to the voter's channel*. The realm migration sets every
+enabled message code step to `CHOSEN`, in every flow and sub-flow,
+enrollment steps included; a step without settings gets the default
+settings with that courier. A step set to send no code (`NONE`) is left
+as it is, so it never starts sending; the migration logs it as *left
+NONE: the step sends no code*. It logs each step it changes.
 
 After the change, the **old** channel gets one security notice: *Your
 contact for the organization was changed to the new channel. If this
@@ -596,6 +620,7 @@ What to do with Unknown and Unresolved messages:
 | Reported too late to retry | Message | The provider reported the failure more than 1 hour after the attempt |
 | Can't be retried: the message couldn't be prepared again | Message | The retry couldn't read its template, voter or event in time |
 | Not the voter's channel | Message | A notice was asked for on a channel that isn't the voter's; nothing is sent on either |
+| Not sent: the voter is connected to another Messenger Page | Message | The account's Messenger Page changed after the voter connected; the voter connects again at their next sign-in (see [Changing the number or the Page](#changing-the-number-or-the-page)). Nothing was handed to the provider |
 | Generate the report credentials and create the Infobip subscription | Account | A Viber account without report credentials: its receipts are unavailable |
 | The voter's channel changed: not retried | Message | The voter changed channel before the retry was due |
 | The worker stopped before sending | Message | Never handed to the provider; retried like a temporary failure |

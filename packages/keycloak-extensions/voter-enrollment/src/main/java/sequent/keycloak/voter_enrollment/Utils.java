@@ -129,6 +129,27 @@ public class Utils {
     return FORM_FIELDS.contains(key) || profileAttributes.contains(key);
   }
 
+  /** The form's messaging channel fields: the channel, its numbers and the consent. */
+  static final Set<String> CHANNEL_FIELDS =
+      Set.of(
+          MessagingAttributes.FORM_OTP_CHANNEL,
+          MessagingAttributes.FORM_WHATSAPP_NUMBER,
+          MessagingAttributes.FORM_VIBER_NUMBER,
+          MessagingAttributes.FORM_MESSAGE_CONSENT);
+
+  /**
+   * {@link #isFormNote(String, Set)} for a form whose channel choice is {@code choice}: the channel
+   * fields become notes only when the form asks for a channel (R7-09).
+   */
+  static boolean isFormNote(
+      String key, Set<String> profileAttributes, EnrollmentChannels.ChannelChoicePolicy choice) {
+    if (CHANNEL_FIELDS.contains(key)
+        && choice != EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS) {
+      return false;
+    }
+    return isFormNote(key, profileAttributes);
+  }
+
   static boolean isFormNote(String key) {
     return isFormNote(key, Set.of());
   }
@@ -166,7 +187,9 @@ public class Utils {
    * will later be retrieved to create a user account.
    */
   static void storeUserDataInAuthSessionNotes(
-      FormContext context, List<String> searchAttributesList) {
+      FormContext context,
+      List<String> searchAttributesList,
+      EnrollmentChannels.ChannelChoicePolicy channelChoice) {
     log.info("storeUserDataInAuthSessionNotes: start");
     MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
     AuthenticationSessionModel sessionModel = context.getAuthenticationSession();
@@ -185,9 +208,14 @@ public class Utils {
         getRealmUserProfileAttributes(context.getSession()).stream()
             .map(UPAttribute::getName)
             .collect(Collectors.toSet());
+    if (channelChoice != EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS) {
+      // A form that doesn't ask for a channel can't set one, nor keep one set earlier (R7-09).
+      CHANNEL_FIELDS.forEach(sessionModel::removeAuthNote);
+      sessionModel.removeAuthNote(MessagingAttributes.NOTE_OFFERED_CHANNELS);
+    }
     formData.forEach(
         (key, value) -> {
-          if (!isFormNote(key, profileAttributes)) {
+          if (!isFormNote(key, profileAttributes, channelChoice)) {
             log.warnv("storeUserDataInAuthSessionNotes: ignoring reserved field {0}", key);
             return;
           }

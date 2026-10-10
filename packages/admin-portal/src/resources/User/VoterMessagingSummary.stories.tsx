@@ -158,12 +158,30 @@ export const LegacyVoterByEmail: Story = {
     },
 }
 
+// R7-05: the backend's rule. A recorded channel without its number is no
+// channel: the email on record isn't used instead.
+export const RecordedChannelWithoutItsNumber: Story = {
+    args: {
+        attributes: {"sequent.read-only.message-channel": [" whatsapp "]},
+        failure: null,
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByText("No contact on record")).toBeVisible()
+        expect(canvas.queryByText("Email")).toBeNull()
+        expect(canvas.queryByText(/@staff-association/)).toBeNull()
+    },
+}
+
 export const WithoutTheReadPermission: Story = {
     args: {roles: []},
     play: async ({canvasElement}) => {
-        await expect(
-            within(canvasElement).getByText("Shown with the messaging-config-read permission.")
-        ).toBeVisible()
+        // Both the last failure and the unconfirmed message need it.
+        const rows = within(canvasElement).getAllByText(
+            "Shown with the messaging-config-read permission."
+        )
+        expect(rows).toHaveLength(2)
+        await expect(rows[0]).toBeVisible()
         expect(graphql.calls).toEqual([])
     },
 }
@@ -203,6 +221,9 @@ export const CodeNotConfirmed: Story = {
             attempt: 1,
             logical_key: "otp:session-1",
             error: null,
+            // Recent: Unknown for more than 24 hours shows as Unresolved. The
+            // time shown is `failed_at`, which stays fixed.
+            created_at: new Date().toISOString(),
         },
     },
     play: async ({canvasElement}) => {

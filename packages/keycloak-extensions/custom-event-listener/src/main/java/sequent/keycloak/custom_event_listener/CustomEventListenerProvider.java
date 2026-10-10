@@ -7,7 +7,7 @@ package sequent.keycloak.custom_event_listener;
 import static sequent.keycloak.authenticator.Utils.AUTH_NOTE_DENY_TYPE;
 import static sequent.keycloak.authenticator.Utils.CA_CERT_ISSUER_CN;
 import static sequent.keycloak.authenticator.Utils.VOTER_CERT_SUBJECT_DN;
-import static sequent.keycloak.authenticator.Utils.sendErrorNotificationToUser;
+import static sequent.keycloak.authenticator.Utils.sendRegistrationErrorToSupport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.AMQP;
@@ -66,10 +66,10 @@ public class CustomEventListenerProvider implements EventListenerProvider {
   @Override
   public void onEvent(Event event) {
     log.info("onEvent: start");
-    // For REGISTER_ERROR events with "userNotFound", send error notifications.
+    // For REGISTER_ERROR events with "userNotFound", tell support (never the voter: R7-18).
     if (event.getType() == EventType.REGISTER_ERROR && "userNotFound".equals(event.getError())) {
       try {
-        sendErrorNotificationToUser(session, event.getRealmId(), event);
+        sendRegistrationErrorToSupport(session, event.getRealmId(), event);
       } catch (Exception e) {
         log.error("Failed to send error notification", e);
       }

@@ -309,4 +309,35 @@ class NoticeChannelTest {
     verify(email, never()).send(anyString(), anyList(), anyString(), any());
     verifyNoInteractions(sms);
   }
+
+  /**
+   * R7-01: a saved voter whose recorded channel has no destination gets no notice by the realm's
+   * configured courier: it goes to harvest without a channel, which records "No contact channel".
+   */
+  @Test
+  void aRecordedVoterWithoutADestinationGetsNothingByTheConfiguredCourier() throws Exception {
+    UserModel user = mock(UserModel.class);
+    Map<String, java.util.List<String>> attributes = new HashMap<>();
+    attributes.put(MessagingAttributes.MESSAGE_CHANNEL, java.util.List.of("WHATSAPP"));
+    when(user.getAttributeStream(anyString()))
+        .thenAnswer(i -> attributes.getOrDefault(i.getArgument(0), java.util.List.of()).stream());
+    when(user.getEmail()).thenReturn("voter@example.test");
+    when(user.getId()).thenReturn("voter-1");
+    Utils.sendManualCommunication(
+        session,
+        realm,
+        Utils.MessageCourier.BOTH,
+        null,
+        PHONE,
+        "INSUFFICIENT_INFORMATION",
+        new HashMap<>(),
+        NoticeRecipient.fromUser(user, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD),
+        context);
+
+    verifyNoInteractions(sms);
+    ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sender).send(request.capture());
+    assertNull(request.getValue().channel());
+    assertNull(request.getValue().destination());
+  }
 }

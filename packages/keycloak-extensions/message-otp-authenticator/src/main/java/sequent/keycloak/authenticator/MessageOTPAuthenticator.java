@@ -13,6 +13,7 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.AuthenticationFlowError;
 import org.keycloak.authentication.Authenticator;
+import org.keycloak.authentication.AuthenticatorUtil;
 import org.keycloak.authentication.CredentialValidator;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticationExecutionModel;
@@ -26,10 +27,12 @@ import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
 import sequent.keycloak.authenticator.messaging.CodeChannels;
 import sequent.keycloak.authenticator.messaging.MessageAttemptState;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.MessengerLinkStatus;
 import sequent.keycloak.authenticator.messaging.MessengerQr;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
+import sequent.keycloak.authenticator.messaging.VerifiedContacts;
 import sequent.keycloak.authenticator.messaging.VoterChannel;
 
 @JBossLog
@@ -48,12 +51,22 @@ public class MessageOTPAuthenticator
   public static final String MESSENGER_NOT_CONFIRMED = "Messenger link not confirmed";
   public static final String NO_CHANNEL = "No channel to send the code";
   public static final String INTERNAL_ERROR = "InternalError";
+  private static final String CODE_SEND_FAILED = "Code send failed";
 
   /** Form parameter asking whether the voter interacted with the Messenger Page yet. */
   public static final String MESSENGER_STATUS_PARAM = "messengerStatus";
 
   /** Shown when there is no live code to compare with: the voter must ask for a new one. */
   static final String NO_CODE_KEY = "messageOtp.auth.noCode";
+
+  /** The Messenger link wasn't confirmed for this voter. */
+  static final String NOT_CONFIRMED_KEY = "messageOtp.messenger.notConfirmed";
+
+  /** A Messenger reconnect confirmed an account another voter uses (R7-10). */
+  static final String ACCOUNT_IN_USE_KEY = "resetAppOtp.auth.error.maxReceiverReuse";
+
+  /** A Messenger voter's Page changed, and this step has no password to reconnect after (R7-10). */
+  static final String RECONNECT_NEEDS_PASSWORD_KEY = "messageOtp.messenger.reconnectNeedsPassword";
 
   private enum FormRequest {
     SHOW,
@@ -92,8 +105,12 @@ public class MessageOTPAuthenticator
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = MessageOTPAuthenticatorFactory.getConfigMap(config);
     boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
+    // A voter with a messaging channel is only ever reached there, whatever the step's courier.
     Utils.MessageCourier messageCourier =
-        Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
+        Utils.codeCourier(
+            Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE)),
+            user,
+            deferredUser);
 
     String challenge = challenge(context);
     boolean neutral =
@@ -225,15 +242,18 @@ public class MessageOTPAuthenticator
 
         } else {
           Optional<MessageChannel> verifiedChannel = verifiedChannel(messageCourier, authSession);
-          if (verifiedChannel.equals(Optional.of(MessageChannel.MESSENGER))
-              && !confirmMessenger(context, deferredUser, user)) {
+          Optional<String> notConfirmed =
+              verifiedChannel.equals(Optional.of(MessageChannel.MESSENGER))
+                  ? confirmMessenger(context, deferredUser, user)
+                  : Optional.empty();
+          if (notConfirmed.isPresent()) {
             Utils.clearMessengerLink(authSession);
             context.getEvent().error(MESSENGER_NOT_CONFIRMED);
             LoginFormsProvider form =
                 context
                     .form()
                     .setError(
-                        context.form().getMessage("messageOtp.messenger.notConfirmed")
+                        context.form().getMessage(notConfirmed.get())
                             + "<br><br>code_id: "
                             + sessionId);
             context.failureChallenge(
@@ -363,15 +383,19 @@ public class MessageOTPAuthenticator
   /**
    * Confirms the Messenger link once the code was verified in this session. Harvest only confirms
    * the live, unreplaced reference of this session and code. At sign-in the confirmed account must
-   * be the voter's, on the voter's Page; while enrolling it is kept for when the voter is saved.
+   * be the voter's, on the voter's Page; while enrolling it is kept for when the voter is saved. A
+   * sign-in reconnect after a Page change (R7-10) saves the confirmed account when it is on the
+   * event's Page and no other voter uses it.
+   *
+   * @return empty when confirmed; otherwise the message key the page shows
    */
-  private boolean confirmMessenger(
+  private Optional<String> confirmMessenger(
       AuthenticationFlowContext context, boolean deferredUser, UserModel user) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     Optional<MessengerLinkStatus> confirmed =
         Utils.confirmedMessengerLink(context.getSession(), authSession);
     if (confirmed.isEmpty()) {
-      return false;
+      return Optional.of(NOT_CONFIRMED_KEY);
     }
     MessengerLinkStatus status = confirmed.get();
     String pageScopedId = status.pageScopedId();
@@ -380,14 +404,58 @@ public class MessageOTPAuthenticator
       if (status.pageId() != null) {
         authSession.setAuthNote(MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE, status.pageId());
       }
-      return true;
+      return Optional.empty();
+    }
+    String reconnectPage = authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_RECONNECT);
+    if (reconnectPage != null && user != null) {
+      return reconnectMessenger(context, user, status, reconnectPage);
     }
     Optional<VoterChannel> voter = user == null ? Optional.empty() : VoterChannel.of(user);
-    return voter
-        .filter(channel -> channel.channel() == MessageChannel.MESSENGER)
-        .filter(channel -> pageScopedId.equals(channel.destination()))
-        .filter(channel -> channel.messengerPage().equals(Optional.ofNullable(status.pageId())))
-        .isPresent();
+    boolean voters =
+        voter
+            .filter(channel -> channel.channel() == MessageChannel.MESSENGER)
+            .filter(channel -> pageScopedId.equals(channel.destination()))
+            .filter(channel -> channel.messengerPage().equals(Optional.ofNullable(status.pageId())))
+            .isPresent();
+    return voters ? Optional.empty() : Optional.of(NOT_CONFIRMED_KEY);
+  }
+
+  /**
+   * Saves the account a sign-in reconnect confirmed (R7-10): only on the event's current Page, the
+   * one the link opened, and only an account no other voter uses. Each refusal is logged with its
+   * reason.
+   */
+  private Optional<String> reconnectMessenger(
+      AuthenticationFlowContext context,
+      UserModel user,
+      MessengerLinkStatus status,
+      String reconnectPage) {
+    Optional<String> eventPage =
+        PublicMessagingChannels.fromRealm(context.getRealm())
+            .flatMap(PublicMessagingChannels::messengerPage)
+            .map(PublicMessagingChannels.MessengerPage::pageId);
+    if (!reconnectPage.equals(status.pageId()) || !eventPage.equals(Optional.of(reconnectPage))) {
+      log.warn("confirmMessenger(): the reconnect was confirmed on another Page; nothing saved");
+      context.getEvent().detail("reason", "Messenger reconnect confirmed on another Page");
+      return Optional.of(NOT_CONFIRMED_KEY);
+    }
+    String voterId = user.getId();
+    boolean usedByAnother =
+        context
+            .getSession()
+            .users()
+            .searchForUserByUserAttributeStream(
+                context.getRealm(), MessagingAttributes.MESSENGER_ID, status.pageScopedId())
+            .anyMatch(other -> !other.getId().equals(voterId));
+    if (usedByAnother) {
+      log.warn("confirmMessenger(): another voter uses the reconnected account; nothing saved");
+      context.getEvent().detail("reason", "Messenger account used by another voter");
+      return Optional.of(ACCOUNT_IN_USE_KEY);
+    }
+    VerifiedContacts.reconnectMessenger(user, status.pageScopedId(), reconnectPage);
+    context.getAuthenticationSession().removeAuthNote(MessagingAttributes.NOTE_MESSENGER_RECONNECT);
+    context.getEvent().detail("messenger", "reconnected");
+    return Optional.empty();
   }
 
   /** The challenge a code belongs to: this flow execution. Its attempts are counted apart. */
@@ -431,17 +499,42 @@ public class MessageOTPAuthenticator
     context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, page);
   }
 
+  /**
+   * Shows the code page, sending a code when one is due. A neutral page (one that doesn't tell
+   * whether an account exists) answers no sooner than its floor after the request began, with or
+   * without an account (R7-06, {@link NeutralPace}).
+   */
   private void intiateForm(AuthenticationFlowContext context, FormRequest request) {
+    long start = NeutralPace.start();
+    try {
+      showForm(context, request);
+    } finally {
+      Map<String, String> configMap =
+          MessageOTPAuthenticatorFactory.getConfigMap(context.getAuthenticatorConfig());
+      boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
+      boolean neutral =
+          Utils.CodePageDisclosure.of(configMap, deferredUser) == Utils.CodePageDisclosure.NEUTRAL;
+      if (neutral && !deferredUser && (context.getUser() != null || isRequired(context))) {
+        NeutralPace.hold(start, NeutralPace.floor(configMap));
+      }
+    }
+  }
+
+  private void showForm(AuthenticationFlowContext context, FormRequest request) {
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = MessageOTPAuthenticatorFactory.getConfigMap(config);
     KeycloakSession session = context.getSession();
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     String sessionId = context.getAuthenticationSession().getParentSession().getId();
-    Utils.MessageCourier messageCourier =
-        Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
     boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
     boolean resend = request == FormRequest.RESEND;
     UserModel user = context.getUser();
+    // A voter with a messaging channel is only ever reached there, whatever the step's courier.
+    Utils.MessageCourier messageCourier =
+        Utils.codeCourier(
+            Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE)),
+            user,
+            deferredUser);
     // `requiresUser()` returns false so Keycloak may invoke this authenticator
     // before a user has been identified (e.g. during pre-evaluation of the
     // alternatives in a sub-flow). In that case there is no mobile number or
@@ -457,7 +550,8 @@ public class MessageOTPAuthenticator
       if (neutral && isRequired(context)) {
         // A neutral page looks the same whether or not the account exists; nothing is sent.
         log.info("intiateForm(): no account; the neutral code page is shown and nothing is sent");
-        neutralWithoutAccount(context, request, configMap, messageCourier);
+        neutralNothingSent(
+            context, request, configMap, messageCourier, "No account for the identifier");
         return;
       }
       log.info("intiateForm(): user is null and not in deferred mode -> attempted()");
@@ -501,6 +595,7 @@ public class MessageOTPAuthenticator
       boolean allowResend = Utils.isResendAllowed(ttl, configTtl, resendTimer, currentTime);
       log.infov("intiateForm(): allowResend={0}", allowResend);
 
+      Utils.MessengerLinkPolicy messengerLink = Utils.MessengerLinkPolicy.VOTERS_ACCOUNT;
       if (messageCourier == Utils.MessageCourier.CHOSEN) {
         CodeChannels.Resolution target =
             deferredUser
@@ -510,20 +605,14 @@ public class MessageOTPAuthenticator
         if (target.refusal().isPresent()) {
           CodeChannels.Refusal refusal = target.refusal().get();
           log.infov("intiateForm(): no code sent: {0}", refusal.reason());
-          context.getEvent().detail("reason", refusal.reason()).error(NO_CHANNEL);
           if (neutral && !deferredUser) {
-            // The refusal names the voter's channel: a neutral page doesn't.
-            context.challenge(
-                codeForm(
-                    context,
-                    context.form(),
-                    configMap,
-                    messageCourier,
-                    deferredUser,
-                    send(request),
-                    send(request)));
+            // The refusal names the voter's channel: a neutral page doesn't. It takes the same
+            // steps
+            // as for no account, the resend timer included (R7-07).
+            neutralNothingSent(context, request, configMap, messageCourier, refusal.reason());
             return;
           }
+          context.getEvent().detail("reason", refusal.reason()).error(NO_CHANNEL);
           String channelLabel =
               voterChannelLabel(context, session, user, deferredUser, authSession);
           context.failureChallenge(
@@ -533,6 +622,43 @@ public class MessageOTPAuthenticator
                   .setError(refusal.messageKey(), channelLabel)
                   .createErrorPage(Response.Status.BAD_REQUEST));
           return;
+        }
+        Optional<String> newPage =
+            deferredUser
+                ? Optional.empty()
+                : Utils.messengerPageChange(context.getRealm(), target.channel().get());
+        if (newPage.isPresent()) {
+          // R7-10: the voter's Messenger account is on a Page the event no longer uses.
+          if (neutral) {
+            log.infov(
+                "intiateForm(): no code sent: {0}", MessageReason.MESSENGER_PAGE_CHANGED.reason());
+            neutralNothingSent(
+                context,
+                request,
+                configMap,
+                messageCourier,
+                MessageReason.MESSENGER_PAGE_CHANGED.reason());
+            return;
+          }
+          if (!AuthenticatorUtil.isPasswordValidated(authSession)) {
+            log.infov(
+                "intiateForm(): no code sent: {0}",
+                MessageReason.MESSENGER_RECONNECT_NEEDS_PASSWORD.reason());
+            context
+                .getEvent()
+                .detail("reason", MessageReason.MESSENGER_RECONNECT_NEEDS_PASSWORD.reason())
+                .error(NO_CHANNEL);
+            context.failureChallenge(
+                AuthenticationFlowError.INVALID_USER,
+                context
+                    .form()
+                    .setError(RECONNECT_NEEDS_PASSWORD_KEY)
+                    .createErrorPage(Response.Status.BAD_REQUEST));
+            return;
+          }
+          log.info("intiateForm(): the voter's Messenger Page changed; reconnecting at sign-in");
+          context.getEvent().detail("messenger", "reconnect");
+          messengerLink = Utils.MessengerLinkPolicy.RECONNECT;
         }
         if (request == FormRequest.CHECK_MESSENGER) {
           Utils.refreshMessengerState(session, authSession);
@@ -555,7 +681,8 @@ public class MessageOTPAuthenticator
                 deferredUser,
                 isOtl,
                 otlAuthNoteNames,
-                context);
+                context,
+                messengerLink);
         authSession.setAuthNote(MessagingAttributes.NOTE_DELIVERY_STATE, state.name());
         String via =
             MessageChannel.parse(authSession.getAuthNote(MessagingAttributes.NOTE_CODE_CHANNEL))
@@ -584,6 +711,33 @@ public class MessageOTPAuthenticator
               send));
     } catch (Exception error) {
       log.error("Error resending OTP");
+      if (neutral && !deferredUser) {
+        // A failed provider call must not reveal that the identifier has an account.
+        authSession.removeAuthNote(Utils.CODE);
+        Utils.clearMessengerLink(authSession);
+        authSession.setAuthNote(
+            MessagingAttributes.NOTE_DELIVERY_STATE, MessageAttemptState.FAILED.name());
+        if (authSession.getAuthNote(Utils.CODE_TTL) == null) {
+          long lifetime = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
+          authSession.setAuthNote(
+              Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + lifetime));
+        }
+        String reason =
+            MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason().equals(error.getMessage())
+                ? MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason()
+                : CODE_SEND_FAILED;
+        context.getEvent().detail("reason", reason).error(NO_CHANNEL);
+        context.challenge(
+            codeForm(
+                context,
+                context.form(),
+                configMap,
+                messageCourier,
+                false,
+                send(request),
+                send(request)));
+        return;
+      }
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
           context
@@ -598,14 +752,17 @@ public class MessageOTPAuthenticator
   }
 
   /**
-   * The neutral code page for an identifier with no account: the same page, the same resend timer
-   * and the same attempt limit as for an account, and nothing sent.
+   * The neutral code page when nothing is sent: an identifier with no account, or an account whose
+   * channel is refused. The same page, the same resend timer ({@link Utils#CODE_TTL}) and the same
+   * attempt limit as for an account whose code was sent (R3-04, R7-07); the reason goes to the
+   * event only.
    */
-  private void neutralWithoutAccount(
+  private void neutralNothingSent(
       AuthenticationFlowContext context,
       FormRequest request,
       Map<String, String> configMap,
-      Utils.MessageCourier messageCourier) {
+      Utils.MessageCourier messageCourier,
+      String reason) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     if (Utils.attemptsExhausted(authSession, configMap, challenge(context))) {
       context.getEvent().error(TOO_MANY_ATTEMPTS);
@@ -629,7 +786,7 @@ public class MessageOTPAuthenticator
       long lifetime = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
       authSession.setAuthNote(Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + lifetime));
     }
-    context.getEvent().detail("reason", "No account for the identifier").error(NO_CHANNEL);
+    context.getEvent().detail("reason", reason).error(NO_CHANNEL);
     context.challenge(
         codeForm(context, context.form(), configMap, messageCourier, false, send, send));
   }
@@ -796,6 +953,10 @@ public class MessageOTPAuthenticator
     if (state != null) {
       form.setAttribute("messengerState", state);
     }
+    if (authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_RECONNECT) != null) {
+      // The page tells why the voter connects Messenger again (R7-10).
+      form.setAttribute("messengerReconnect", true);
+    }
   }
 
   @Override
@@ -813,7 +974,10 @@ public class MessageOTPAuthenticator
     boolean deferredUser = "true".equals(configMap.get(Utils.DEFERRED_USER_ATTRIBUTE));
     boolean chosen =
         Utils.MessageCourier.CHOSEN
-            == Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
+            == Utils.codeCourier(
+                Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE)),
+                user,
+                deferredUser);
 
     String mobileNumber = null;
     String emailAddress = null;

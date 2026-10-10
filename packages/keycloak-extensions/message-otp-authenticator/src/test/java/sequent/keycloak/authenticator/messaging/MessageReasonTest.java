@@ -26,7 +26,8 @@ class MessageReasonTest {
   void everySharedReasonIsSequentCoresString() throws Exception {
     String source = Files.readString(SEQUENT_CORE);
     Set<String> rust = new HashSet<>();
-    Matcher matcher = Pattern.compile("#\\[strum\\(serialize = \"([^\"]+)\"\\)\\]").matcher(source);
+    Matcher matcher =
+        Pattern.compile("#\\[strum\\(\\s*serialize = \"([^\"]+)\"\\s*\\)\\]").matcher(source);
     while (matcher.find()) {
       rust.add(matcher.group(1));
     }

@@ -448,6 +448,39 @@ async fn a_number_change_flags_the_voters_at_the_old_number() {
     tx.rollback().await.unwrap();
 }
 
+/// Regression (R7-04): a callback whose storage failed is answered 503 and
+/// the provider sends it again, so the same number change arrives twice.
+/// It is flagged once.
+#[tokio::test]
+async fn a_number_change_sent_again_is_flagged_once() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = world(&tx, 0xc005).await;
+    let account = insert_messaging_account(&tx, &world.tenant, &whatsapp("pn-1"), "c005-key")
+        .await
+        .unwrap();
+    let signal = NumberChangeSignal {
+        old_number: "639171234567".to_string(),
+        new_number: Some("639177654321".to_string()),
+        at: Some(chrono::Utc::now()),
+    };
+    let account = get_messaging_account(&tx, &world.tenant, &account.id)
+        .await
+        .unwrap()
+        .unwrap();
+    let first = flag_number_change(&tx, &account, &signal).await.unwrap();
+    assert!(first.is_some());
+    let again = flag_number_change(&tx, &account, &signal).await.unwrap();
+    assert_eq!(again, None, "the retry adds nothing");
+    let flagged = get_messaging_account(&tx, &world.tenant, &account.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(flagged.status.details.number_changes, vec![first.unwrap()]);
+    tx.rollback().await.unwrap();
+}
+
 fn ready_check() -> AccountCheck {
     AccountCheck {
         connected: true,

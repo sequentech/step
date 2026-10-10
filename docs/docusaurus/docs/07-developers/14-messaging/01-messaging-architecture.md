@@ -80,6 +80,11 @@ Any other path is a 404 and is never forwarded.
 - **Body**: at most `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` (262144 by default);
   a larger body gets 413. Any content type is accepted, because SNS sends
   `text/plain`.
+- **In flight**: at most `MESSAGING_WEBHOOKS_MAX_IN_FLIGHT` callbacks (16
+  by default) are relayed at once by each component process. One more is
+  answered 503 before its body is read, logged as "Too many callbacks in
+  flight", and the provider retries it. A burst can't hold more harvest
+  requests than that.
 - **Headers**: only `relay::FORWARDED_HEADERS` are kept, lowercased:
   `content-type`, `x-hub-signature-256`, `x-amz-sns-message-type`,
   `x-amz-sns-topic-arn`, `x-amz-sns-subscription-arn` and `authorization`
@@ -116,6 +121,13 @@ malformed header, a timestamp more than 300 s from harvest's clock
 processed. Only the component and harvest hold the secret. The route takes
 no JWT and is not a Hasura action.
 
+Each harvest process also takes a fresh signature only once
+(`relay::ReplayGuard`). The guard is **per process**, an accepted
+limit (R7-22): with N harvest replicas, a relayed request captured on the
+internal network could be taken up to N times within the 300 s window.
+Provider events are idempotent (a stored event or a flagged number change
+is never applied twice), and the relay runs on the internal network only.
+
 ### Response passthrough
 
 Harvest answers HTTP 200 with a `relay::RelayResponse`:
@@ -131,7 +143,8 @@ unknown key gets 404.
 
 If harvest is unreachable, times out, or answers anything other than HTTP
 200 (including a refused relay signature or a 5xx), the component answers
-**503** and the provider retries later. Only a 200 from harvest carries a
+**503** and the provider retries later. So does harvest's own answer of a
+500 when a verified callback couldn't be stored (see below). Only a 200 from harvest carries a
 `RelayResponse`.
 
 ### Logging
@@ -161,6 +174,26 @@ acknowledged and dropped: never stored and never answered.
 A Get Started or referral writes `messenger_contact.last_get_started_at`
 for the account and recipient digest **before** the code it unlocks is
 sent. That row opens Messenger's 24-hour window; no other event does.
+
+- **Database share.** Callbacks take a place out of their own share of
+  harvest's database pool before they take a connection:
+  `MESSAGING_CALLBACK_CONNECTIONS` places per harvest process (4 by
+  default). A callback that gets none within 2 s is answered 503, logged
+  as "Callback refused for now: callbacks hold their whole database
+  share", and the provider retries it. Public callbacks can't take the
+  connections codes and notices need. The codes a Get Started releases are
+  sent after the answer, with connections of their own.
+- **Storage failures are retried.** When a verified event can't be stored
+  or applied, harvest logs "A callback event couldn't be stored: the
+  provider will send it again" and answers an error, so the provider
+  receives 503 and sends the callback again. Storing is idempotent: a
+  status already applied doesn't move the message again, a Get Started
+  already written is written once, and a WhatsApp number change already
+  flagged is not flagged twice.
+- **Unreadable reports are dropped.** An authenticated Viber report that
+  can't be parsed is logged ("Viber report ignored: it can't be read") and
+  answered 200, as Meta's are, so Infobip doesn't retry it for ever. An
+  unauthenticated one is still refused.
 
 ## Keycloak to harvest: the verified service boundary
 
@@ -229,7 +262,11 @@ written to the ledger until the attempt can go:
    `ConfiguredAccountMissing`, "No sending account for the channel": never
    the environment transport.
 3. Run `preflight`: recipient kind, purpose, the Post's channels, approved
-   template, conversation window, allowed calling codes, code expiry. A
+   template, conversation window, allowed calling codes, code expiry, and
+   for Messenger the voter's Page: a voter connected to another Page than
+   the account's is refused with "Not sent: the voter is connected to
+   another Messenger Page" (`MESSENGER_PAGE_CHANGED`), for codes, notices,
+   bulk sends, application results and due retries alike. A
    refusal is recorded as one `FAILED` attempt with its reason and never
    reaches the provider. Nothing tries another channel.
 4. The [send-time gate](#send-time-readiness-gate): an account that isn't
@@ -249,6 +286,13 @@ disabled so that only the ledger decides. States only move along
 `MessageAttemptState::can_transition_to`, enforced in SQL, so late or
 repeated reports can't regress a delivered message. `QUEUED` can move
 straight to `DELIVERED`.
+
+A notice Keycloak asks for on the voter's channel (`VOTER_CHANNEL`) goes to
+the destination and Page of the voter's record, never to the destination
+in the request; a different one is logged ("The notice names another
+destination than the voter's record: the record's is used"). Only the
+old-channel notice of a contact change (`PREVIOUS_CHANNEL`) uses the
+request's destination.
 
 A voter with no channel gets one `FAILED` row with no channel
 (`message.channel` is nullable for this) and the reason "No contact
@@ -396,10 +440,37 @@ the voter taps Get Started on `m.me/<username>?ref=<reference>`, the
 callback binds that conversation and writes `messenger_contact`; once
 harvest has answered the callback, it sends the code (with a code's
 [capacity](#sending-capacity)) and deletes it. `/messages/link/confirm`, called by Keycloak after the
-code was accepted in the original session, returns the Page-scoped ID to
-store on the voter. A new link for the session replaces the previous one; a
-reference for another Page, another session, or one already used or
-expired is refused. There is no word typed into the chat.
+code was accepted in the original session, returns the Page-scoped ID and
+the Page ID (`page_id`) to store on the voter. A new link for the session
+replaces the previous one; a reference for another Page, another session,
+or one already used or expired is refused. There is no word typed into the
+chat.
+
+- **A saved voter's link** names the voter's conversation
+  (`expected_recipient`, their Page-scoped ID) and their Page
+  (`expected_page`). Only that conversation can bind it. When the
+  account's Page isn't `expected_page` any more, the link is refused with
+  409 and the reason "Not sent: the voter is connected to another
+  Messenger Page", instead of a link that could never send. A request
+  without `expected_page` (an older Keycloak) isn't checked for the Page.
+- **The sign-in reconnect** (R7-10) is a link with neither field.
+  Keycloak creates it only at sign-in, after the voter's password was
+  validated in the session, never in a reset. Any conversation on the
+  account's current Page binds it and gets the code; the confirmation
+  returns the new Page-scoped ID and `page_id`, which Keycloak saves only
+  when the Page is the event's current one and no other voter has that ID.
+  A voter who can't pass the password step (or forgot it) needs staff to
+  change their channel.
+- The create answer also carries `page_id`, the account's current Page.
+- Changing an account's Messenger Page expires its unfinished links
+  (`PENDING` and `CODE_SENT`) in the same transaction and deletes their
+  encrypted payloads. Confirmation then returns `EXPIRED` without a
+  Page-scoped ID/Page pair; the voter requests a new link. Account and
+  link operations take locks in that order, and a late send completion
+  cannot reactivate an expired link.
+- A code bound by Get Started is checked against the Page it was bound on:
+  if the account moves to another Page before the code goes out, it is
+  refused with the same reason.
 
 ## Accounts
 
@@ -552,8 +623,10 @@ from the deployment's own sender. No prices are computed.
 Only `update_event_messaging_config` writes it, after validation, and
 records the author in `updated_by`; code that sends re-validates the
 references it uses. The migration copied existing `messaging:config`
-annotations once (`updated_by = 'migration'`) and leaves the annotation
-untouched; nothing reads it any more. At beat start, `mark_migrated_configs`
+annotations once (`updated_by = 'migration'`). Nothing reads the
+annotation any more, but every save also writes it (R7-25), so a rollback
+to the previous release finds each event's last saved configuration
+there. At beat start, `mark_migrated_configs`
 validates each copied row once, logs the errors, and marks the invalid ones
 `'migration: needs saving again'`; the event's Messaging tab then says
 *Configuration needs saving again*. Event export and import carry this
@@ -611,6 +684,8 @@ marked as such.
 | `MESSAGING_RELAY_SECRET` | messaging-webhooks, harvest | Relay HMAC secret, at least 32 bytes. Nothing else reads it. Without a usable one the component doesn't start and harvest refuses every relayed callback with 503 |
 | `MESSAGING_RELAY_SECRET_POLICY` | messaging-webhooks, harvest | `STRICT` (default) refuses the development stack's committed secret; `ALLOW_DEV_SECRET` is set only in the development compose file |
 | `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` | messaging-webhooks | Largest callback body, 262144 by default. Harvest accepts envelopes up to twice that |
+| `MESSAGING_WEBHOOKS_MAX_IN_FLIGHT` | messaging-webhooks | Callbacks one component process relays at once, 16 by default; more get 503 and are retried. Not a positive whole number: the component doesn't start |
+| `MESSAGING_CALLBACK_CONNECTIONS` | harvest | Database connections relayed callbacks may hold at once per harvest process, 4 by default; a callback waiting more than 2 s gets 503 and is retried. Not a positive whole number: the default is used and the error logged |
 | `HARVEST_DOMAIN` | messaging-webhooks | Where the envelope goes |
 | `MESSAGING_META_GRAPH_URL` | harvest, windmill, beat | Meta Graph API base, `https://graph.facebook.com` by default |
 | `MESSAGING_INFOBIP_URL` | harvest, windmill, beat | Infobip base; unset, each account's own `base_url` is used |

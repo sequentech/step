@@ -56,10 +56,15 @@ export const messagingChannelsUrl = (authServerUrl: string, realm: string): stri
  * Whether the voter can change how they are contacted: only when the event offers at least one
  * channel for codes. Anything else (no channel, an older Keycloak without the endpoint, an error)
  * hides the entry, and the reason is logged once.
+ *
+ * With the voter's access token Keycloak decides for that voter (their Posts and whether every
+ * sign-in code step sends on the voter's channel), as the contact change itself decides (R7-14);
+ * without one it answers for the event only.
  */
 export async function fetchContactChangeAvailable(
     authServerUrl: string | undefined,
     realm: string | undefined,
+    token: string | undefined,
     fetchImpl: typeof fetch = fetch
 ): Promise<boolean> {
     const hidden = (reason: string) => {
@@ -71,7 +76,11 @@ export async function fetchContactChangeAvailable(
     }
     const url = messagingChannelsUrl(authServerUrl, realm)
     try {
-        const response = await fetchImpl(url, {headers: {Accept: "application/json"}})
+        const headers: Record<string, string> = {Accept: "application/json"}
+        if (token) {
+            headers.Authorization = `Bearer ${token}`
+        }
+        const response = await fetchImpl(url, {headers})
         if (response.status !== 200) {
             return hidden(`${url} answered ${response.status}`)
         }
@@ -498,11 +507,13 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             return
         }
         let current = true
-        fetchContactChangeAvailable(keycloak.authServerUrl, keycloak.realm).then((available) => {
-            if (current) {
-                setContactChangeAvailable(available)
+        fetchContactChangeAvailable(keycloak.authServerUrl, keycloak.realm, keycloak.token).then(
+            (available) => {
+                if (current) {
+                    setContactChangeAvailable(available)
+                }
             }
-        })
+        )
         return () => {
             current = false
         }

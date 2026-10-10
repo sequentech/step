@@ -5694,6 +5694,21 @@ const galegoTranslation: TranslationType = {
                 REPORT_CREDENTIALS_MISSING:
                     "Xere as credenciais de informes e cree a subscrición de Infobip",
                 CALLBACK_NOT_HTTPS: "O enderezo de retorno debe ser https",
+                UNKNOWN_ACCOUNT:
+                    "Esta conta xa non existe: pode que se eliminase noutra lapela. Volva cargar a lista.",
+                INTERNAL_ERROR:
+                    "O servidor non puido completar a solicitude. Ténteo de novo máis tarde.",
+                VERIFY_TOKEN_GENERATED: "O token de verificación xérao o sistema; non se introduce",
+                CREDENTIAL_GENERATED: "{{credential}}: xérao o sistema; non se introduce",
+                CREDENTIAL_NOT_USED: "As contas de {{provider}} non usan {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} non pode estar baleiro",
+                NO_REPORT_CREDENTIALS:
+                    "As contas de {{provider}} non teñen credenciais de informes",
+                UNKNOWN_AUDIENCE: "Selección de destinatarios descoñecida",
+                INVALID_MONTH: "O mes debe escribirse como AAAA-MM",
+                INVALID_SUPPORT_REFERENCE: "Non é unha referencia de soporte",
+                MESSENGER_PAGE_CHANGED:
+                    "Non enviado: o votante está conectado a outra páxina de Messenger",
             },
         },
         messagingAccounts: {
@@ -5887,7 +5902,7 @@ const galegoTranslation: TranslationType = {
                 recheck:
                     "Ao gardar, a conta compróbase de novo en segundo plano. Ata que esa comprobación saia ben, os códigos e avisos que pasen por ela fallan por non estar lista; a mensaxe de proba si se envía.",
                 pageChange:
-                    "As conversas de Messenger pertencen a unha páxina. Tras cambiar a páxina, os votantes conectados a {{page}} só recibirán códigos despois de volver conectar Messenger.",
+                    "As conversas de Messenger pertencen a unha páxina. Tras cambiar a páxina, non se envían códigos nin avisos aos votantes conectados a {{page}} ata que volvan conectarse. O votante volve conectarse no seu seguinte inicio de sesión, despois de introducir o seu contrasinal: o inicio de sesión mostra o paso de conexión da páxina nova, o votante preme Comezar en Messenger e recibe alí o código. Un votante que non pode iniciar sesión cun contrasinal, por exemplo porque o esqueceu, necesita que o persoal lle cambie a canle.",
                 numberChange:
                     "As mensaxes chegarán desde outro número. Os seus modelos deben estar aprobados nesa conta de empresa antes de poder enviar códigos, e os votantes verán un chat novo.",
             },
@@ -5910,7 +5925,7 @@ const galegoTranslation: TranslationType = {
                     "Un mínimo dentro do único orzamento de envío compartido da conta: os avisos detéñense nel e os códigos van primeiro. Se non se envían códigos, un envío masivo pode usar todo o ritmo.",
                 otpConcurrency: "Códigos enviados á vez",
                 otpConcurrencyHelp:
-                    "Baleiro: 8. Cóntase por proceso do servidor; os demais códigos agardan a súa quenda.",
+                    "Baleiro: 8. Os códigos e os avisos de Keycloak (ligazóns de restablecemento, contrasinais temporais) ocupan cada un unha praza mentres se envían. Cóntase por proceso do servidor; os demais envíos agardan a súa quenda.",
                 allowedCallingCodes: "Destinos permitidos (prefixos telefónicos de país)",
                 allowedCallingCodesHelp:
                     "Separados por comas, por exemplo 63, 971. Baleiro permite calquera destino.",
@@ -6108,7 +6123,6 @@ const galegoTranslation: TranslationType = {
                     "Non se puido ler o HTML do correo: pode que o provedor simulado xa non o conserve.",
             },
             reason: {
-                NO_ACCOUNT: "Ningunha conta usa este remitente",
                 SEVERAL_ACCOUNTS: "Varias contas usan este remitente",
                 ACCOUNTS_UNREADABLE: "Non se puideron ler as contas",
                 UNREACHABLE: "O compoñente de webhooks non respondeu",

@@ -175,7 +175,7 @@ describe("whether the event offers a channel for codes", () => {
     test("is yes when the event offers at least one channel", async () => {
         const fetchMock = answer(200, {code_channels: ["WHATSAPP", "SMS"]})
         await expect(
-            fetchContactChangeAvailable("https://auth.example", "realm", fetchMock)
+            fetchContactChangeAvailable("https://auth.example", "realm", undefined, fetchMock)
         ).resolves.toBe(true)
         expect(fetchMock).toHaveBeenCalledWith(
             "https://auth.example/realms/realm/messaging-channels",
@@ -196,16 +196,38 @@ describe("whether the event offers a channel for codes", () => {
         ],
     ])("is no with %s, and says why once", async (_case, fetchMock) => {
         await expect(
-            fetchContactChangeAvailable("https://auth.example", "realm", fetchMock)
+            fetchContactChangeAvailable("https://auth.example", "realm", undefined, fetchMock)
         ).resolves.toBe(false)
         expect(log).toHaveBeenCalledTimes(1)
     })
 
+    // R7-14: with the voter's token Keycloak answers for that voter (their Posts and the
+    // code-step gate); without one, only for the event.
+    test("sends the voter's token, so Keycloak decides for that voter", async () => {
+        const fetchMock = answer(200, {code_channels: ["SMS"]})
+        await expect(
+            fetchContactChangeAvailable("https://auth.example", "realm", "voter-token", fetchMock)
+        ).resolves.toBe(true)
+        expect(fetchMock).toHaveBeenCalledWith(
+            "https://auth.example/realms/realm/messaging-channels",
+            {headers: {Accept: "application/json", Authorization: "Bearer voter-token"}}
+        )
+    })
+
+    test("sends no Authorization header without a token", async () => {
+        const fetchMock = answer(200, {code_channels: ["SMS"]})
+        await fetchContactChangeAvailable("https://auth.example", "realm", undefined, fetchMock)
+        expect(fetchMock).toHaveBeenCalledWith(
+            "https://auth.example/realms/realm/messaging-channels",
+            {headers: {Accept: "application/json"}}
+        )
+    })
+
     test("is no without a Keycloak to ask", async () => {
         const fetchMock = answer(200, {code_channels: ["SMS"]})
-        await expect(fetchContactChangeAvailable(undefined, "realm", fetchMock)).resolves.toBe(
-            false
-        )
+        await expect(
+            fetchContactChangeAvailable(undefined, "realm", undefined, fetchMock)
+        ).resolves.toBe(false)
         expect(fetchMock).not.toHaveBeenCalled()
         expect(log).toHaveBeenCalledTimes(1)
     })

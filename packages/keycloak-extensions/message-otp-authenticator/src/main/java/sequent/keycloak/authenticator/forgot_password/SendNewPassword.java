@@ -10,7 +10,6 @@ import java.util.*;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.*;
-import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
 import org.keycloak.email.EmailException;
 import org.keycloak.events.Details;
@@ -22,6 +21,8 @@ import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.authenticator.NeutralPace;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 
 @JBossLog
 @AutoService(AuthenticatorFactory.class)
@@ -31,20 +32,39 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
 
   public static final String PROVIDER_ID = "forgot-password-send-new-password";
 
+  /**
+   * The page never tells whether an account exists: the same message, and no sooner than the step's
+   * {@link NeutralPace} floor after the request began, with or without one (R7-06).
+   */
   @Override
   public void authenticate(AuthenticationFlowContext context) {
+    long start = NeutralPace.start();
+    boolean neutral = true;
+    try {
+      neutral = sendTemporaryPassword(context);
+    } finally {
+      AuthenticatorConfigModel config = context.getAuthenticatorConfig();
+      if (neutral) {
+        NeutralPace.hold(start, NeutralPace.floor(config == null ? null : config.getConfig()));
+      }
+    }
+  }
+
+  /**
+   * @return whether the answer is the neutral page (not the action-token shortcut, which only a
+   *     known account reaches and which isn't held)
+   */
+  private boolean sendTemporaryPassword(AuthenticationFlowContext context) {
     UserModel user = context.getUser();
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
-    String attemptedUsername =
-        authenticationSession.getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
 
     // we don't want people guessing usernames, so if there was a problem
     // obtaining the user, the user will be null. just reset login for with
     // a success message
     if (user == null) {
       context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
-      return;
+      return true;
     }
 
     String actionTokenUserId =
@@ -54,7 +74,7 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
           "Forget-password triggered when reauthenticating user after authentication via action token. Skipping {0} screen and using user '{1}' ",
           PROVIDER_ID, user.getUsername());
       context.success();
-      return;
+      return false;
     }
 
     EventBuilder event = context.getEvent();
@@ -76,16 +96,30 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
           .clone()
           .event(EventType.SEND_RESET_PASSWORD)
           .user(user)
-          .detail(Details.USERNAME, attemptedUsername)
           .detail("reason", notSent.get())
           .error(Errors.EMAIL_SEND_FAILED);
       context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
-      return;
+      return true;
     }
 
-    // Set password
+    // Set password. The message is already out: a failure here is recorded, and the voter asks
+    // again (R7-16).
     event.event(EventType.UPDATE_PASSWORD);
-    user.credentialManager().updateCredential(UserCredentialModel.password(temporaryPassword));
+    try {
+      user.credentialManager().updateCredential(UserCredentialModel.password(temporaryPassword));
+    } catch (RuntimeException error) {
+      log.errorv(
+          "{0}: {1} ({2})",
+          PROVIDER_ID, MessageReason.PASSWORD_NOT_SET.reason(), error.getClass().getSimpleName());
+      event
+          .clone()
+          .event(EventType.SEND_RESET_PASSWORD)
+          .user(user)
+          .detail("reason", MessageReason.PASSWORD_NOT_SET.reason())
+          .error(Errors.PASSWORD_REJECTED);
+      context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
+      return true;
+    }
     int expirationSeconds = Utils.getPasswordExpirationSeconds(config);
 
     // Mark password to expire
@@ -97,10 +131,10 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
         .clone()
         .event(EventType.SEND_RESET_PASSWORD)
         .user(user)
-        .detail(Details.USERNAME, attemptedUsername)
         .detail(Details.CODE_ID, authenticationSession.getParentSession().getId())
         .success();
     context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
+    return true;
   }
 
   private String createTemporaryPassword(AuthenticationFlowContext context) {
@@ -212,7 +246,8 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
             "User attribute for Password Expiration Date",
             "User attribute to use storing the Password Expiration Date. Should be read-only.",
             ProviderConfigProperty.STRING_TYPE,
-            Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT));
+            Utils.PASSWORD_EXPIRATION_USER_ATTRIBUTE_DEFAULT),
+        NeutralPace.configProperty());
   }
 
   @Override

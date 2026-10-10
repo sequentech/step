@@ -30,7 +30,7 @@ use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, CreateMessengerLinkRequest,
     CreateMessengerLinkResponse, CredentialName, EventMessagingConfig,
     MessageAttemptState, MessageChannel, MessageContent, MessagePurpose,
-    MessengerLinkRequest, MessengerLinkStatus, ProviderApproval,
+    MessageReason, MessengerLinkRequest, MessengerLinkStatus, ProviderApproval,
     ReadinessPolicy, SendMessageRequest, SendMessageResponse,
     REALM_ATTR_MESSAGING,
 };
@@ -62,8 +62,8 @@ use windmill::services::messaging::config::{
 };
 use windmill::services::messaging::dispatch::{
     account_for_delivery, deliver_within, notice_recipient, record_refusal,
-    Delivery, Dispatcher, Place, ProviderTemplate, ReadinessGate, Recipient,
-    Refusal, SendPolicy,
+    Delivery, Dispatcher, NoticeTarget, Place, ProviderTemplate, ReadinessGate,
+    Recipient, Refusal, SendPolicy,
 };
 use windmill::services::messaging::links::{
     confirm_link, create_link, link_status, send_bound_code, BoundCode,
@@ -76,10 +76,27 @@ use windmill::tasks::send_template::find_voter;
 
 type RouteError = (Status, String);
 
+/// The refusal of a request that failed inside harvest. The cause is only
+/// logged.
+pub const INTERNAL_ERROR: &str = "internal error";
+
+/// The refusal of an account action on an account the tenant doesn't have
+/// (deleted meanwhile, or another tenant's).
+pub const UNKNOWN_ACCOUNT: &str = "unknown account";
+
 fn internal(error: anyhow::Error) -> RouteError {
     error!("messaging route failed: {error:#}");
-    (Status::InternalServerError, "internal error".to_string())
+    (Status::InternalServerError, INTERNAL_ERROR.to_string())
 }
+
+fn unknown_account() -> RouteError {
+    (Status::NotFound, UNKNOWN_ACCOUNT.to_string())
+}
+
+/// Logged when a relayed callback found no connection of its share in
+/// time: answered 503, so the provider retries it (R7-03).
+pub const CALLBACKS_BUSY: &str =
+    "Callback refused for now: callbacks hold their whole database share";
 
 fn bad_request(error: impl std::fmt::Display) -> RouteError {
     (Status::BadRequest, error.to_string())
@@ -150,7 +167,13 @@ pub async fn send_message(
     // one channel, which harvest reads from the voter's record.
     let recipient = match request.purpose {
         MessagePurpose::OTP => match (request.channel, destination) {
-            (Some(channel), Some(destination)) => Ok((channel, destination)),
+            (Some(channel), Some(destination)) => Ok(NoticeTarget {
+                channel,
+                destination,
+                // Messenger codes go through a link, bound to the
+                // conversation of the account's own Page.
+                messenger_page: None,
+            }),
             _ => return Err(bad_request("codes need channel and destination")),
         },
         MessagePurpose::NOTICE => {
@@ -175,19 +198,22 @@ pub async fn send_message(
         }
     };
     let result = match recipient {
-        Ok((channel, destination)) => {
+        Ok(target) => {
             let delivery = Delivery {
                 tenant_id,
                 election_event_id,
                 purpose: request.purpose,
                 recipient: Recipient {
                     voter_id: request.voter_id.clone(),
-                    channel,
-                    destination,
+                    channel: target.channel,
+                    destination: target.destination,
                     // The voter's Posts: windmill refuses a channel they
                     // don't offer ("Channel not offered for notices"/"…for
                     // codes").
                     election_ids: request.election_ids.clone(),
+                    // The voter's Page: a send through another Page's
+                    // account is refused (R7-02).
+                    messenger_page: target.messenger_page,
                 },
                 content: Some(request.content.clone()),
                 language: request.language.clone(),
@@ -332,6 +358,11 @@ fn link_error(error: LinkError) -> RouteError {
             "Messenger is not enabled for codes".to_string(),
         ),
         LinkError::NotFound => (Status::NotFound, "unknown link".to_string()),
+        // Keycloak may then start the sign-in reconnect (R7-10).
+        LinkError::MessengerPageChanged => (
+            Status::Conflict,
+            MessageReason::MESSENGER_PAGE_CHANGED.to_string(),
+        ),
         LinkError::CallbackNotConfigured => (
             Status::UnprocessableEntity,
             windmill::services::messaging::accounts::CALLBACK_NOT_CONFIGURED
@@ -409,6 +440,11 @@ pub struct MessagingRelay {
     /// Relay signatures already taken while fresh: a captured relayed
     /// request isn't taken twice.
     replays: std::sync::Arc<ReplayGuard>,
+    /// Callbacks' own share of the database pool that codes use too
+    /// (R7-03, [`relay::CALLBACK_CONNECTIONS_ENV`]).
+    callbacks: std::sync::Arc<tokio::sync::Semaphore>,
+    /// How long a callback waits for its share before it is answered 503.
+    callback_wait: std::time::Duration,
 }
 
 /// Whether harvest can check relay signatures.
@@ -432,7 +468,26 @@ impl MessagingRelay {
             },
             envelope_limit: relay::envelope_limit(max_body_bytes),
             replays: Default::default(),
+            callbacks: std::sync::Arc::new(tokio::sync::Semaphore::new(
+                relay::DEFAULT_CALLBACK_CONNECTIONS,
+            )),
+            callback_wait: std::time::Duration::from_millis(
+                relay::CALLBACK_CONNECTION_WAIT_MS,
+            ),
         }
+    }
+
+    /// Callbacks hold at most `connections` database connections at once,
+    /// each waiting at most `wait` for one.
+    pub fn with_callback_share(
+        mut self,
+        connections: usize,
+        wait: std::time::Duration,
+    ) -> Self {
+        self.callbacks =
+            std::sync::Arc::new(tokio::sync::Semaphore::new(connections));
+        self.callback_wait = wait;
+        self
     }
 
     /// From the variables `var` returns: `MESSAGING_RELAY_SECRET`, checked
@@ -449,7 +504,21 @@ impl MessagingRelay {
                     );
                     relay::DEFAULT_MAX_BODY_BYTES
                 });
-        let mut relay = Self::new(None, max_body_bytes);
+        let connections = relay::positive_count(
+            relay::CALLBACK_CONNECTIONS_ENV,
+            var(relay::CALLBACK_CONNECTIONS_ENV).as_deref(),
+            relay::DEFAULT_CALLBACK_CONNECTIONS,
+        )
+        .unwrap_or_else(|error| {
+            error!("{error:#}; using {}", relay::DEFAULT_CALLBACK_CONNECTIONS);
+            relay::DEFAULT_CALLBACK_CONNECTIONS
+        });
+        let mut relay = Self::new(None, max_body_bytes).with_callback_share(
+            connections,
+            std::time::Duration::from_millis(
+                relay::CALLBACK_CONNECTION_WAIT_MS,
+            ),
+        );
         match relay::relay_secret(
             var(RELAY_SECRET_ENV).as_deref(),
             var(RELAY_SECRET_POLICY_ENV).as_deref(),
@@ -593,6 +662,23 @@ async fn provider_callback(
         return Ok(provider_answer(Status::NotFound));
     }
     let body = envelope.body().map_err(|_| Status::BadRequest)?;
+    // Callbacks' own share of the pool, taken before a connection (R7-03):
+    // public requests can't take the connections codes need. Held until
+    // the answer; the codes a Get Started releases are sent afterwards
+    // with places of their own.
+    let relay_config = &services.messaging_relay;
+    let _share = match tokio::time::timeout(
+        relay_config.callback_wait,
+        relay_config.callbacks.clone().acquire_owned(),
+    )
+    .await
+    {
+        Ok(Ok(permit)) => permit,
+        _ => {
+            warn!(provider = ?envelope.provider, "{CALLBACKS_BUSY}");
+            return Err(Status::ServiceUnavailable);
+        }
+    };
     let mut client = db_client(services)
         .await
         .map_err(|_| Status::ServiceUnavailable)?;
@@ -866,7 +952,7 @@ pub async fn upsert_messaging_account(
         let current = get_messaging_account(&tx, &tenant_id, &id)
             .await
             .map_err(internal)?
-            .ok_or((Status::NotFound, "unknown account".to_string()))?;
+            .ok_or_else(unknown_account)?;
         identity_change = identity_changed(&current.sender, &settings.sender);
         public_change = current.sender != settings.sender;
         // Settings and values the account can't take are refused for what
@@ -908,7 +994,7 @@ pub async fn upsert_messaging_account(
         )
         .await
         .map_err(bad_request)?
-        .ok_or((Status::NotFound, "unknown account".to_string()))?,
+        .ok_or_else(unknown_account)?,
         None => insert_messaging_account(
             &tx,
             &tenant_id,
@@ -1099,9 +1185,7 @@ pub async fn delete_messaging_account(
         .map_err(internal)?
     {
         DeleteOutcome::Deleted => {}
-        DeleteOutcome::NotFound => {
-            return Err((Status::NotFound, "unknown account".to_string()).into())
-        }
+        DeleteOutcome::NotFound => return Err(unknown_account().into()),
         // Refused while an election event's settings send through it.
         DeleteOutcome::InUse(_) => {
             return Err(
@@ -1141,7 +1225,7 @@ pub async fn messaging_account_callback_url(
     let account = get_messaging_account(&tx, &tenant_id, &id)
         .await
         .map_err(internal)?
-        .ok_or((Status::NotFound, "unknown account".to_string()))?;
+        .ok_or_else(unknown_account)?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
     let readiness = callback_readiness_with(
         services.messaging_webhooks_url.as_deref(),
@@ -1206,7 +1290,7 @@ pub async fn messaging_account_change_impact(
     )
     .await
     .map_err(internal)?
-    .ok_or((Status::NotFound, "unknown account".to_string()))?;
+    .ok_or_else(unknown_account)?;
     keycloak_tx.commit().await.map_err(|e| internal(e.into()))?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
     Ok(Json(ChangeImpactOutput {
@@ -1326,7 +1410,7 @@ pub async fn replace_messaging_account_credentials(
     )
     .await
     .map_err(bad_request)?
-    .ok_or((Status::NotFound, "unknown account".to_string()))?
+    .ok_or_else(unknown_account)?
     {
         CredentialsOutcome::Replaced(replaced, _) => replaced,
         CredentialsOutcome::Refused(reason) => {
@@ -1340,7 +1424,7 @@ pub async fn replace_messaging_account_credentials(
             let generated = generate_report_credentials(&tx, &tenant_id, &id)
                 .await
                 .map_err(bad_request)?
-                .ok_or((Status::NotFound, "unknown account".to_string()))?;
+                .ok_or_else(unknown_account)?;
             names.extend([
                 CredentialName::REPORT_USERNAME.to_string(),
                 CredentialName::REPORT_PASSWORD.to_string(),
@@ -1388,7 +1472,7 @@ pub async fn check_messaging_account(
         check_account(&tx, &tenant_id, &id, &dispatcher().await?.endpoints)
             .await
             .map_err(internal)?
-            .ok_or((Status::NotFound, "unknown account".to_string()))?;
+            .ok_or_else(unknown_account)?;
     // Saved meanwhile with another identity or credentials: the result
     // describes what the account no longer is, and wasn't stored.
     if !checked.stored {
@@ -1453,7 +1537,7 @@ pub async fn test_messaging_account(
     let account = get_messaging_account(&tx, &tenant_id, &id)
         .await
         .map_err(internal)?
-        .ok_or((Status::NotFound, "unknown account".to_string()))?;
+        .ok_or_else(unknown_account)?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
     let template =
         input
@@ -1485,6 +1569,9 @@ pub async fn test_messaging_account(
                 channel: account.channel,
                 destination: input.destination,
                 election_ids: vec![],
+                // An administrator's test names a Page-scoped ID of the
+                // account's own Page.
+                messenger_page: None,
             },
             content: Some(MessageContent {
                 subject: Some("Step test message".to_string()),

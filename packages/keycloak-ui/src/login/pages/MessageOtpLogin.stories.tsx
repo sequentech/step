@@ -641,6 +641,31 @@ export const MessengerQrIgnoresOtherSources: Story = {
     },
 }
 
+/** R7-10: after a Page change, the signed-in voter is told why they connect Messenger again. */
+export const MessengerReconnect: Story = {
+    args: {kcContext: {...MESSENGER, messengerReconnect: true}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText(
+                "Codes now come from a different Facebook Page. Tap Get Started in its chat to connect Messenger again. The new connection is saved when you enter the code."
+            )
+        ).toBeVisible()
+        await expect(canvas.getByRole("link", {name: "Open Messenger"})).toBeVisible()
+    },
+}
+
+/** Without a Page change the reconnect explanation isn't shown. */
+export const MessengerWithoutReconnect: Story = {
+    args: {kcContext: MESSENGER},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.queryByText(/different Facebook Page/)).not.toBeInTheDocument()
+    },
+}
+
 export const MessengerCodeSent: Story = {
     args: {kcContext: {...MESSENGER, messengerState: MessengerLinkState.CodeSent}},
     play: async ({canvasElement}) => {

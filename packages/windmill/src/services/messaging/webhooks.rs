@@ -147,6 +147,10 @@ pub async fn meta_callback(
     Ok((WebhookOutcome::Accepted, codes))
 }
 
+/// Logged when an authenticated Viber report can't be read: it is answered
+/// as taken and dropped, never retried for ever (R7-24).
+pub const REPORT_UNREADABLE: &str = "Viber report ignored: it can't be read";
+
 /// Infobip Viber delivery reports. They come only through the account's
 /// Infobip subscription, whose Basic auth (`authorization`, forwarded by the
 /// webhook component) must be the account's report credentials, compared in
@@ -180,7 +184,19 @@ pub async fn viber_events(
         );
         return Ok(WebhookOutcome::Unauthorized);
     }
-    let events = infobip::parse_events(body)?;
+    // An authenticated report that can't be read can't become readable by
+    // retrying it: taken and dropped, with its reason (R7-24, as for Meta).
+    let events = match infobip::parse_events(body) {
+        Ok(events) => events,
+        Err(error) => {
+            warn!(
+                account = %account.id,
+                key = webhook_key.get(..6).unwrap_or_default(),
+                "{REPORT_UNREADABLE}: {error}"
+            );
+            return Ok(WebhookOutcome::Accepted);
+        }
+    };
     apply_events(client, dispatcher, &account, events).await?;
     Ok(WebhookOutcome::Accepted)
 }
@@ -381,6 +397,14 @@ async fn send_codes(client: &mut DbClient, dispatcher: &Dispatcher, codes: Vec<B
 
 /// Applies the events: statuses, Get Started, number changes; a referral
 /// binds its link. Returns the codes the bound links release, unsent.
+///
+/// A failure to store an event is an error (R7-04): the callback isn't
+/// answered as taken, so the provider sends it again. Every event is
+/// idempotent (`transition_message` moves only forward, a contact keeps
+/// its latest time, a bound link binds again only for its own
+/// conversation), so the events stored before the failure are harmless
+/// when the retry applies them again; the codes bound before it are
+/// released by the retry.
 pub async fn store_events(
     client: &mut DbClient,
     account: &MessagingAccount,
@@ -426,11 +450,17 @@ pub async fn store_events(
             WebhookEvent::NumberChanged(_) => Ok(()),
         };
         if let Err(error) = result {
-            warn!(account = %account.id, "could not apply a webhook event: {error:#}");
+            warn!(account = %account.id, "{EVENT_NOT_STORED}: {error:#}");
+            return Err(error.context(EVENT_NOT_STORED));
         }
     }
     Ok(codes)
 }
+
+/// Logged when a callback's event couldn't be stored: the callback is
+/// answered with an error so the provider sends it again.
+pub const EVENT_NOT_STORED: &str =
+    "A callback event couldn't be stored: the provider will send it again";
 
 async fn apply_delivered_up_to(
     client: &mut DbClient,

@@ -6,7 +6,13 @@ import {resolve} from "path"
 import type {TFunction} from "i18next"
 import en from "@/translations/en"
 import {EReadinessBlocker} from "@/types/messaging"
-import {KNOWN_REASONS, REASON_SHAPES, actionRefusalReason, reasonText} from "./messagingReasons"
+import {
+    KNOWN_REASONS,
+    REASON_PATTERNS,
+    REASON_SHAPES,
+    actionRefusalReason,
+    reasonText,
+} from "./messagingReasons"
 
 const PACKAGES = resolve(__dirname, "../../..")
 const source = (path: string) => readFileSync(resolve(PACKAGES, path), "utf8")
@@ -190,5 +196,88 @@ describe("actionRefusalReason", () => {
             "Callback address not configured"
         )
         expect(actionRefusalReason(wrapped("unknown account"))).toBe("unknown account")
+    })
+})
+
+// R7-20: every reason the admin portal shows is translated, the account and
+// insights refusals of harvest and windmill included.
+describe("reasons the portal shows (R7-20)", () => {
+    /** The verbatim text of every `anyhow!("…")` in a Rust function's body. */
+    const rustFormats = (path: string, fn: string): string[] => {
+        const text = source(path)
+        const start =
+            text.indexOf(`pub fn ${fn}(`) >= 0
+                ? text.indexOf(`pub fn ${fn}(`)
+                : text.indexOf(`pub async fn ${fn}(`)
+        expect(start).toBeGreaterThanOrEqual(0)
+        const body = text.slice(start, text.indexOf("\n}\n", start))
+        return Array.from(body.matchAll(/anyhow!\(\s*"([^"]+)"/g), (match) => match[1])
+    }
+
+    it("knows harvest's and windmill's constant refusals", () => {
+        const harvest = source("harvest/src/routes/messaging.rs")
+        expect(harvest).toContain('"unknown account"')
+        expect(harvest).toContain('"internal error"')
+        const reasons = [
+            "unknown account",
+            "internal error",
+            constant("harvest/src/routes/messaging_insights.rs", "UNKNOWN_AUDIENCE"),
+            constant("windmill/src/services/messaging/insights.rs", "INVALID_MONTH"),
+            constant("windmill/src/services/messaging/insights.rs", "INVALID_SUPPORT_REFERENCE"),
+            ...rustFormats(
+                "windmill/src/services/messaging/accounts.rs",
+                "entered_credentials"
+            ).filter((format) => !format.includes("{")),
+        ]
+        expect(reasons.filter((reason) => !KNOWN_REASONS[reason])).toEqual([])
+        expect(
+            reasons
+                .map((reason) => KNOWN_REASONS[reason])
+                .filter((code) => code && !reasonKeys.includes(code))
+        ).toEqual([])
+    })
+
+    it("knows the credential refusals with values in them", () => {
+        const formats = [
+            ...rustFormats("windmill/src/services/messaging/accounts.rs", "entered_credentials"),
+            ...rustFormats(
+                "windmill/src/services/messaging/accounts.rs",
+                "generate_report_credentials"
+            ),
+        ].filter((format) => format.includes("{"))
+        expect(formats.length).toBeGreaterThanOrEqual(4)
+        expect(REASON_PATTERNS.map((pattern) => pattern.rust).sort()).toEqual(formats.sort())
+        expect(
+            REASON_PATTERNS.map((pattern) => pattern.code).filter(
+                (code) => !reasonKeys.includes(code)
+            )
+        ).toEqual([])
+    })
+
+    it("translates them, and the credential and provider in them", () => {
+        // The values a text takes; a label's own default is not one.
+        const withValues = ((key: string, options?: Record<string, string>) => {
+            const given = Object.entries(options ?? {}).filter(([name]) => name !== "defaultValue")
+            return given.length ? `${key}(${given.map(([, value]) => value).join()})` : key
+        }) as unknown as TFunction
+        expect(reasonText(withValues, "unknown account")).toBe("messaging.reason.UNKNOWN_ACCOUNT")
+        expect(reasonText(withValues, "API_KEY cannot be empty")).toBe(
+            "messaging.reason.CREDENTIAL_EMPTY(messaging.credential.API_KEY)"
+        )
+        expect(reasonText(withValues, "REPORT_PASSWORD is generated, not entered")).toBe(
+            "messaging.reason.CREDENTIAL_GENERATED(messaging.credential.REPORT_PASSWORD)"
+        )
+        expect(reasonText(withValues, "AWS_SES accounts do not use API_KEY")).toBe(
+            "messaging.reason.CREDENTIAL_NOT_USED(messaging.provider.AWS_SES,messaging.credential.API_KEY)"
+        )
+        expect(reasonText(withValues, "SMTP accounts have no report credentials")).toBe(
+            "messaging.reason.NO_REPORT_CREDENTIALS(messaging.provider.SMTP)"
+        )
+    })
+
+    it("knows the Messenger Page refusal (R7-02)", () => {
+        expect(
+            reasonText(keyOnly, "Not sent: the voter is connected to another Messenger Page")
+        ).toBe("messaging.reason.MESSENGER_PAGE_CHANGED")
     })
 })

@@ -11,6 +11,7 @@ import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.models.ClientModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.login_bridge.LoginBridge;
 import sequent.keycloak.login_bridge.LoginBridgeActionToken;
 
@@ -81,15 +82,21 @@ public class SmartLinkResource extends AbstractAdminResource {
             request.getMarkEmailVerified());
     String link = LoginBridge.linkFromActionToken(session, realm, token);
     boolean sent = false;
+    String reason = null;
     if (sendNotification) {
       sent = SmartLink.sendSmartLinkNotification(session, user, link);
-      log.infof("sent notification to %s? %b", request.getEmailOrUsername(), sent);
+      if (!sent) {
+        reason =
+            SmartLink.refusal(user).map(MessageReason::reason).orElse("Email could not be sent");
+      }
+      log.infof("sent notification to user %s? %b", user.getId(), sent);
     }
 
     SmartLinkResponse response = new SmartLinkResponse();
     response.setUserId(user.getId());
     response.setLink(link);
     response.setSent(sent);
+    response.setReason(reason);
 
     return response;
   }

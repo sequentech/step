@@ -6,7 +6,8 @@
 //! `messaging_event_config`. Only [`save_event_messaging_config`] writes it,
 //! after validating it, so it can't be changed around its validation. The
 //! first release's `messaging:config` annotation was copied there by the
-//! migration and is no longer read.
+//! migration and is no longer read; each save writes it again (R7-25) only
+//! so a rolled-back binary reads the configuration saved last.
 
 use super::accounts::{callback_blockers_with, webhooks_public_url};
 use crate::postgres::messaging::{
@@ -18,7 +19,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::messaging::{
     AccountSummary, DeliveryFeedback, EventMessagingConfig, MessageChannel, MessagingConfigError,
     ProviderCapabilities, PublicMessagingChannels, ReadinessBlocker,
-    EVENT_MESSAGING_CONFIG_VERSION,
+    EVENT_MESSAGING_CONFIG_VERSION, MESSAGING_CONFIG_ANNOTATION,
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -478,6 +479,36 @@ pub async fn projections_using_account(
     Ok(projections)
 }
 
+/// Writes the saved configuration to the first release's
+/// `messaging:config` annotation too (R7-25). This release never reads it:
+/// it is there so a binary rolled back before `down.sql` runs (or after,
+/// since `down.sql` drops the table) sends with the configuration saved
+/// last, not the one from before the upgrade. The event's other
+/// annotations are kept. To be removed with the release after this one.
+async fn write_rollback_annotation(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    config: &Value,
+) -> Result<()> {
+    tx.execute(
+        r#"
+        UPDATE sequent_backend.election_event
+        SET annotations = COALESCE(annotations, '{}'::jsonb)
+            || jsonb_build_object($3::text, $4::jsonb::text)
+        WHERE tenant_id = $1 AND id = $2
+        "#,
+        &[
+            tenant_id,
+            election_event_id,
+            &MESSAGING_CONFIG_ANNOTATION,
+            config,
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
 #[derive(Debug, PartialEq)]
 pub enum SaveOutcome {
     /// Saved. The projection is what the event's realm should publish.
@@ -541,14 +572,9 @@ pub async fn save_event_messaging_config_with(
     if let Err(errors) = config.validate(&tenant_id.to_string(), &accounts, &elections) {
         return Ok(SaveOutcome::Invalid(errors));
     }
-    upsert_messaging_event_config(
-        tx,
-        tenant_id,
-        election_event_id,
-        &serde_json::to_value(config)?,
-        updated_by,
-    )
-    .await?;
+    let stored = serde_json::to_value(config)?;
+    upsert_messaging_event_config(tx, tenant_id, election_event_id, &stored, updated_by).await?;
+    write_rollback_annotation(tx, tenant_id, election_event_id, &stored).await?;
     Ok(SaveOutcome::Saved(
         config.public_projection(&accounts, &labels),
     ))

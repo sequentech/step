@@ -46,6 +46,7 @@ import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.policy.PolicyError;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 import org.keycloak.userprofile.AttributeMetadata;
@@ -261,9 +262,8 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     Attributes attributes = profile.getAttributes();
     String email = attributes.getFirst(UserModel.EMAIL);
 
-    if (context.getRealm().isRegistrationEmailAsUsername()) {
-      context.getEvent().detail(Details.USERNAME, email);
-    }
+    // The typed email (the username on email-as-username realms) never goes to the event: events
+    // carry no contact (R3-06, R7-13).
 
     try {
       profile.validate();
@@ -333,12 +333,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     if (!searchAttributesList.isEmpty()) {
       if (user == null) {
         String sessionId = context.getAuthenticationSession().getParentSession().getId();
-        log.errorv("validate(): User could not be found. Error code: {0}", sessionId);
-        // Display what the user set in formData for the search attributes
-        for (String attribute : searchAttributesList) {
-          log.errorv(
-              "validate(): Register form data {0}: {1}", attribute, formData.getFirst(attribute));
-        }
+        // The fields searched are logged, never what was typed in them (R7-13).
+        log.warnv(
+            "validate(): no voter matches the form's {0}. Error code: {1}",
+            searchAttributesList, sessionId);
         if (loginMode && passwordRequired) {
           performDummyHash(context);
         }
@@ -509,7 +507,7 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
         formMode, FormMode.LOGIN.getValue());
     if (FormMode.LOGIN.getValue().equals(formMode)) {
       if (user != null) {
-        log.info("validate: setting authenticated user " + user.getUsername());
+        log.infov("validate: setting authenticated user {0}", user.getId());
         context.getAuthenticationSession().setAuthenticatedUser(user);
         context.setUser(user);
       }
@@ -807,9 +805,10 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     // information in the authentication session notes. This stored
     // information is then retrieved at a later time to create the user
     // account.
-    Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList);
+    EnrollmentChannels.ChannelChoicePolicy channelChoice = formChannelChoice(configMap);
+    Utils.storeUserDataInAuthSessionNotes(context, searchAttributesList, channelChoice);
 
-    if (asksForChannel(configMap) && !formMode.equals(FormMode.LOGIN.getValue())) {
+    if (channelChoice == EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS) {
       EnrollmentChannels.recordConsent(
           context.getAuthenticationSession(),
           context.getHttpRequest().getDecodedFormParameters(),
@@ -826,6 +825,17 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
                           configMap,
                           context.getHttpRequest().getDecodedFormParameters()))));
     }
+  }
+
+  /**
+   * Whether the submitted form asks for a channel: OTP_CHANNELS only when configured so and not in
+   * LOGIN mode (which never shows the choice). Otherwise the form's channel fields are ignored
+   * (R7-09).
+   */
+  static EnrollmentChannels.ChannelChoicePolicy formChannelChoice(Map<String, String> configMap) {
+    return asksForChannel(configMap) && !FormMode.LOGIN.getValue().equals(configMap.get(FORM_MODE))
+        ? EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS
+        : EnrollmentChannels.ChannelChoicePolicy.NONE;
   }
 
   static boolean asksForChannel(Map<String, String> configMap) {
@@ -1149,8 +1159,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
 
     // Validate password using Keycloak's credential manager
     // This uses constant-time comparison internally for security
+    // Only this attempt's password counts (R7-10).
+    context.getAuthenticationSession().removeAuthNote(AuthenticationManager.PASSWORD_VALIDATED);
     if (user.credentialManager().isValid(UserCredentialModel.password(password))) {
       log.info("validatePasswordForLogin: password valid");
+      // As Keycloak's own password form does: later steps (a Messenger reconnect after a Page
+      // change, R7-10) know the password was checked in this session.
+      context
+          .getAuthenticationSession()
+          .setAuthNote(AuthenticationManager.PASSWORD_VALIDATED, "true");
       return true;
     } else {
       log.info("validatePasswordForLogin: password invalid");

@@ -4,6 +4,7 @@
 
 package sequent.keycloak.authenticator.messaging;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -120,6 +121,48 @@ class MessageOtpTemplateTest {
     String contactCode = parsed(BASE_LOGIN.resolve("message-otp.enter-otp.ftl"));
     assertTrue(contactCode.contains("<#include \"messenger-status-poll.ftl\">"));
     assertTrue(contactCode.contains("name=\"messengerStatus\" value=\"true\""));
+  }
+
+  /**
+   * R7-17: the contact is escaped inside the "sent to" message, whose own markup (the bold contact)
+   * stays. The page's own expression is rendered, with a contact that carries markup.
+   */
+  @Test
+  void theContactIsEscapedInTheSentToMessage() throws Exception {
+    String page = parsed(BASE_LOGIN.resolve("message-otp.enter-otp.ftl"));
+    java.util.regex.Matcher line =
+        java.util.regex.Pattern.compile("\\$\\{[^\\n]*\\.auth\\.sentToContact\"[^\\n]*\\}")
+            .matcher(page);
+    assertTrue(line.find());
+    Configuration configuration = new Configuration(Configuration.VERSION_2_3_32);
+    configuration.setOutputFormat(HTMLOutputFormat.INSTANCE);
+    Template template =
+        new Template("sentToContact", new java.io.StringReader(line.group()), configuration);
+    freemarker.template.TemplateMethodModelEx msg =
+        arguments ->
+            new java.text.MessageFormat("Verification code sent to <strong>{0}</strong>")
+                .format(
+                    new Object[] {
+                      ((freemarker.template.TemplateScalarModel) arguments.get(1)).getAsString()
+                    });
+    java.io.StringWriter out = new java.io.StringWriter();
+    template.process(
+        java.util.Map.of(
+            "msg", msg, "i18nPrefix", "resetAppOtp", "contact", "<img src=x onerror=alert(1)>"),
+        out);
+    assertEquals(
+        "Verification code sent to <strong>&lt;img src=x onerror=alert(1)&gt;</strong>",
+        out.toString());
+  }
+
+  /** R7-10: the Messenger box says why a voter connects Messenger again after a Page change. */
+  @Test
+  void theMessengerPagesExplainAReconnect() throws IOException {
+    for (Path page : new Path[] {TEMPLATE, BASE_LOGIN.resolve("message-otp.enter-otp.ftl")}) {
+      String template = parsed(page);
+      assertTrue(template.contains("<#if (messengerReconnect!false)>"), page.toString());
+      assertTrue(template.contains("msg(\"messageOtp.messenger.reconnect\")"), page.toString());
+    }
   }
 
   /** KC-R4: every send starts the countdown on the code pages, a failed one too. */

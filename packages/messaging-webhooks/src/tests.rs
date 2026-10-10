@@ -23,6 +23,7 @@ fn config(base_url: &str) -> Config {
         relay_secret: SECRET.to_vec(),
         max_body_bytes: 1024,
         timeout: Duration::from_secs(5),
+        max_in_flight: 16,
     }
 }
 
@@ -406,6 +407,43 @@ async fn a_harvest_slower_than_the_timeout_gives_503() {
     held.abort();
 }
 
+/// Regression (R7-03): a burst of public callbacks was forwarded all at
+/// once, each holding a harvest request and a database connection.
+#[rocket::async_test]
+async fn callbacks_beyond_the_in_flight_limit_get_503_and_are_not_forwarded() {
+    let harvest = TestServer::start_with(
+        vec![],
+        messaging::test_server::ServerOptions {
+            latency: Duration::from_millis(400),
+            then: Some(harvest_answers(200, "text/plain", "")),
+            concurrent: true,
+            count_only: true,
+        },
+    )
+    .await;
+    let client = component(Config {
+        max_in_flight: 1,
+        ..config(&harvest.base_url)
+    })
+    .await;
+    let first = client.post(format!("/webhooks/aws/{KEY}")).body("{}");
+    let second = client.post(format!("/webhooks/aws/{KEY}")).body("{}");
+    let (first, second) = tokio::join!(first.dispatch(), second.dispatch());
+    let mut statuses = vec![first.status().code, second.status().code];
+    statuses.sort_unstable();
+    assert_eq!(statuses, vec![200, 503]);
+    assert_eq!(harvest.served(), 1);
+    assert!(harvest.peak_in_flight() <= 1);
+
+    // The place is free again once the first answer is back.
+    let response = client
+        .post(format!("/webhooks/aws/{KEY}"))
+        .body("{}")
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Ok);
+}
+
 /// Regression (R1-13): Rocket answers HEAD with the matching GET route, so
 /// `HEAD /webhooks/meta/<key>` was relayed as Meta's handshake.
 #[rocket::async_test]
@@ -542,12 +580,14 @@ fn configuration_comes_from_the_environment() {
     assert_eq!(config.relay_secret, STRONG.as_bytes());
     assert_eq!(config.max_body_bytes, relay::DEFAULT_MAX_BODY_BYTES);
     assert_eq!(config.timeout, HARVEST_TIMEOUT);
+    assert_eq!(config.max_in_flight, relay::DEFAULT_MAX_IN_FLIGHT);
     assert!(!format!("{config:?}").contains(STRONG));
 
     let config = Config::from_vars(vars(&[
         (HARVEST_DOMAIN_ENV, "https://harvest.internal/"),
         (RELAY_SECRET_ENV, STRONG),
         (relay::MAX_BODY_BYTES_ENV, "4096"),
+        (relay::MAX_IN_FLIGHT_ENV, "3"),
     ]))
     .unwrap();
     assert_eq!(
@@ -555,6 +595,7 @@ fn configuration_comes_from_the_environment() {
         "https://harvest.internal/messaging/callbacks"
     );
     assert_eq!(config.max_body_bytes, 4096);
+    assert_eq!(config.max_in_flight, 3);
 
     // The development stack names its policy to use the committed value.
     let config = Config::from_vars(vars(&[
@@ -605,6 +646,14 @@ fn configuration_comes_from_the_environment() {
             ][..],
             "MESSAGING_WEBHOOKS_MAX_BODY_BYTES must be a positive number of bytes",
         ),
+        (
+            &[
+                (HARVEST_DOMAIN_ENV, "harvest:8400"),
+                (RELAY_SECRET_ENV, STRONG),
+                (relay::MAX_IN_FLIGHT_ENV, "0"),
+            ][..],
+            "MESSAGING_WEBHOOKS_MAX_IN_FLIGHT must be a positive whole number",
+        ),
     ] {
         let error = Config::from_vars(vars(values)).unwrap_err();
         assert_eq!(error.to_string(), reason);
@@ -622,5 +671,9 @@ fn reasons_for_503_name_what_went_wrong() {
     assert_eq!(
         Unavailable::BadAnswer.to_string(),
         "Harvest's answer is not a relay response"
+    );
+    assert_eq!(
+        Unavailable::Busy.to_string(),
+        "Too many callbacks in flight"
     );
 }

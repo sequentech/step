@@ -99,8 +99,10 @@ public class MessageOTPAuthenticatorFactory
         new ProviderConfigProperty(
             Utils.MESSAGE_COURIER_ATTRIBUTE,
             "Message Courier",
-            "Choose if the message is going to be sent via email, sms or both, or on the one"
-                + " channel the voter chooses among the event's channels for codes (CHOSEN).",
+            "CHOSEN: the code goes to the voter's one channel. EMAIL, SMS or BOTH apply only to"
+                + " voters without a messaging channel; a voter with one always gets the code on"
+                + " that channel, or none (logged with the reason). The contact change is offered"
+                + " only while every code step that can run is CHOSEN or NONE (NONE sends nothing).",
             ProviderConfigProperty.LIST_TYPE,
             Utils.MessageCourier.BOTH.name());
     messageCourier.setOptions(
@@ -136,6 +138,7 @@ public class MessageOTPAuthenticatorFactory
         java.util.Arrays.stream(Utils.CodePageDisclosure.values()).map(Enum::name).toList());
     return List.of(
         codeProgress,
+        NeutralPace.configProperty(),
         new ProviderConfigProperty(
             Utils.ONE_TIME_LINK,
             "Use OTL instead of OTP",

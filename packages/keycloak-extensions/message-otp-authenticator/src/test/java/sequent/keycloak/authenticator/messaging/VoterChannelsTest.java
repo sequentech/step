@@ -71,24 +71,85 @@ class VoterChannelsTest {
     assertEquals(false, VoterChannels.isE164(null));
   }
 
+  private static final String B = "\u2022";
+  private static final String HIDDEN = B.repeat(3);
+
+  /**
+   * R7-11: the same vectors as Rust's {@code messaging::destination} tests. Fixed groups ({@code
+   * ••• •••}) and eight email bullets, so the mask never reveals the length; the calling code comes
+   * from sequent-core's table.
+   */
   @Test
-  void destinationsAreMaskedLikeTheTicket() {
+  void destinationsAreMaskedExactlyLikeRust() {
     assertEquals(
-        "+966 \u2022\u2022\u2022 \u2022\u2022\u2022 567",
-        VoterChannels.mask(MessageChannel.WHATSAPP, "+966501234567"));
+        "+63 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.mask(MessageChannel.WHATSAPP, "+63 (917) 123-4567"));
     assertEquals(
-        "+34 \u2022\u2022\u2022 \u2022\u2022\u2022 214",
-        VoterChannels.mask(MessageChannel.VIBER, "+34612345214"));
-    assertEquals(
-        "+1 \u2022 \u2022\u2022\u2022 \u2022\u2022\u2022 456",
+        "+1 " + HIDDEN + " " + HIDDEN + " 456",
         VoterChannels.mask(MessageChannel.SMS, "+15550123456"));
     assertEquals(
-        "+63 \u2022 \u2022\u2022\u2022 \u2022\u2022\u2022 567",
-        VoterChannels.mask(MessageChannel.SMS, "+639171234567"));
+        "+44 " + HIDDEN + " " + HIDDEN + " 123",
+        VoterChannels.mask(MessageChannel.SMS, "+447700900123"));
     assertEquals(
-        "ma\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022@example.com",
+        "+971 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.mask(MessageChannel.VIBER, "+971501234567"));
+    assertEquals(
+        "+966 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.mask(MessageChannel.WHATSAPP, "+966501234567"));
+    assertEquals(
+        "vo" + B.repeat(8) + "@example.org",
+        VoterChannels.mask(MessageChannel.EMAIL, " Voter@Example.ORG "));
+    assertEquals(
+        "a" + B.repeat(8) + "@example.org",
+        VoterChannels.mask(MessageChannel.EMAIL, "ab@example.org"));
+    assertEquals(
+        B.repeat(8) + "@example.org", VoterChannels.mask(MessageChannel.EMAIL, "a@example.org"));
+    assertEquals(
+        "ma" + B.repeat(8) + "@example.com",
         VoterChannels.mask(MessageChannel.EMAIL, "maria.cruz@example.com"));
-    assertEquals("", VoterChannels.mask(MessageChannel.MESSENGER, "psid-1"));
+    assertEquals(HIDDEN + " 321", VoterChannels.mask(MessageChannel.MESSENGER, "6543210987654321"));
     assertEquals("", VoterChannels.mask(MessageChannel.SMS, null));
+    assertEquals("", VoterChannels.mask(MessageChannel.EMAIL, " "));
+  }
+
+  /** What Rust refuses to parse is never shown: only bullets. */
+  @Test
+  void anAddressRustWouldRefuseShowsNothing() {
+    for (String number : List.of("09171234567", "+63abc", "+1234", "+0123456789")) {
+      assertEquals(HIDDEN, VoterChannels.mask(MessageChannel.SMS, number), number);
+    }
+    for (String email : List.of("voter", "a b@example.org", "@example.org", "voter@example")) {
+      assertEquals(HIDDEN, VoterChannels.mask(MessageChannel.EMAIL, email), email);
+    }
+    assertEquals(HIDDEN, VoterChannels.mask(MessageChannel.MESSENGER, "+639171234567"));
+  }
+
+  /** Voter pages name the Messenger Page instead: a Page-scoped ID means nothing to the voter. */
+  @Test
+  void votersSeeNoMessengerId() {
+    assertEquals("", VoterChannels.display(MessageChannel.MESSENGER, "6543210987654321"));
+    assertEquals(
+        "+63 " + HIDDEN + " " + HIDDEN + " 567",
+        VoterChannels.display(MessageChannel.SMS, "+639171234567"));
+  }
+
+  /** The calling codes are sequent-core's table, read from the Rust source. */
+  @Test
+  void callingCodesAreSequentCoresTable() throws Exception {
+    String rust =
+        java.nio.file.Files.readString(
+            java.nio.file.Path.of("../../sequent-core/src/types/dial_codes.rs"));
+    java.util.Set<String> codes = new java.util.TreeSet<>();
+    for (String table : List.of("pub const CALLING_CODES", "pub const NON_GEOGRAPHIC_CODES")) {
+      int from = rust.indexOf(table);
+      String block = rust.substring(from, rust.indexOf("];", from));
+      java.util.regex.Matcher code =
+          java.util.regex.Pattern.compile("\"([0-9]{1,3})\"").matcher(block);
+      while (code.find()) {
+        codes.add(code.group(1));
+      }
+    }
+    assertEquals(216, codes.size());
+    assertEquals(codes, new java.util.TreeSet<>(VoterChannels.CALLING_CODES));
   }
 }

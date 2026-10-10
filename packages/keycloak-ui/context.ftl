@@ -87,6 +87,7 @@ window.kcContext.enrollmentOutcome = {
     "messageOtp.messenger.scanStep3", "messageOtp.messenger.getStarted",
     "messageOtp.messenger.scan", "messageOtp.messenger.check",
     "messageOtp.messenger.pending", "messageOtp.messenger.codeSent", "messageOtp.messenger.expired",
+    "messageOtp.messenger.reconnect",
     "messageOtp.pending.channel", "messageOtp.pending.channelAddress",
     "messageOtp.pending.reference", "messageOtp.pending.copyReference",
     "messageOtp.pending.referenceCopied",

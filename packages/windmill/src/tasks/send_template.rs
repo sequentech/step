@@ -271,12 +271,11 @@ fn voter_recipient(
     elections_by_area: &HashMap<String, Vec<String>>,
 ) -> Option<Recipient> {
     let found = voter_channel(user.email.as_deref(), user.attributes.as_ref())?;
-    Some(Recipient {
-        voter_id: user.id.clone(),
-        channel: found.channel,
-        destination: found.destination,
-        election_ids: voter_elections(user, elections_by_area),
-    })
+    Some(Recipient::of_voter(
+        user.id.clone(),
+        found,
+        voter_elections(user, elections_by_area),
+    ))
 }
 
 /// The approved template the send itself names for `channel`.
@@ -1209,6 +1208,22 @@ mod tests {
         assert_eq!(recipient.channel, MessageChannel::WHATSAPP);
         assert_eq!(recipient.destination, "+639181234567");
         assert_eq!(recipient.election_ids, vec!["election-1".to_string()]);
+    }
+
+    /// R7-02: a Messenger voter's notice (and its retry, rendered again
+    /// from their record) carries their Page, so a send through an
+    /// account of another Page is refused.
+    #[test]
+    fn a_messenger_voter_carries_their_page() {
+        let user = voter(&[
+            ("sequent.read-only.message-channel", &["MESSENGER"]),
+            ("sequent.read-only.messenger-id", &["6543210"]),
+            ("sequent.read-only.messenger-page", &["page-old"]),
+        ]);
+        let recipient = voter_recipient(&user, &HashMap::new()).expect("a channel");
+        assert_eq!(recipient.channel, MessageChannel::MESSENGER);
+        assert_eq!(recipient.destination, "6543210");
+        assert_eq!(recipient.messenger_page.as_deref(), Some("page-old"));
     }
 
     #[test]

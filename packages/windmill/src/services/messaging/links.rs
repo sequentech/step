@@ -17,8 +17,8 @@ use super::dispatch::{
 use super::keys::{tenant_key, TenantKey};
 use crate::postgres::messaging::{
     get_messaging_account, get_messenger_link_by_reference, get_pending_messenger_link,
-    insert_messenger_link, list_messaging_accounts, update_messenger_link, MessagingAccount,
-    NewMessengerLink,
+    insert_messenger_link, list_messaging_accounts, lock_messaging_account, update_messenger_link,
+    MessagingAccount, NewMessengerLink,
 };
 use crate::services::vault::{decrypt_with_master_secret, encrypt_with_master_secret};
 use anyhow::{anyhow, Context, Result};
@@ -28,8 +28,8 @@ use messaging::link::{check_link, digest, messenger_link, new_reference, LinkChe
 use messaging::webhooks::MessengerReferral;
 use sequent_core::types::messaging::{
     CreateMessengerLinkRequest, CreateMessengerLinkResponse, MessageAttemptState, MessageChannel,
-    MessageContent, MessagePurpose, MessengerLinkRequest, MessengerLinkState, MessengerLinkStatus,
-    OTP_TEMPLATE_KEY,
+    MessageContent, MessagePurpose, MessageReason, MessengerLinkRequest, MessengerLinkState,
+    MessengerLinkStatus, OTP_TEMPLATE_KEY,
 };
 use serde::{Deserialize, Serialize};
 use tracing::{info, instrument};
@@ -58,6 +58,10 @@ pub enum LinkError {
     /// "Callback address not configured"
     /// ([`super::accounts::CALLBACK_NOT_CONFIGURED`]).
     CallbackNotConfigured,
+    /// The saved voter's Page (`expected_page`) isn't the Page of the
+    /// event's Messenger account: their conversation can't be reached
+    /// ([`MessageReason::MESSENGER_PAGE_CHANGED`]).
+    MessengerPageChanged,
 }
 
 async fn messenger_account(
@@ -125,6 +129,10 @@ pub async fn create_link(
         tx.commit().await?;
         return Ok(Err(LinkError::MessengerNotEnabled));
     };
+    let Some(account) = lock_messaging_account(&tx, &tenant_id, &account.id).await? else {
+        tx.commit().await?;
+        return Ok(Err(LinkError::MessengerNotEnabled));
+    };
     if matches!(
         callback_readiness_with(webhooks_public_url, account.provider, &account.webhook_key),
         CallbackReadiness::NotConfigured
@@ -135,6 +143,19 @@ pub async fn create_link(
     let Some(page) = account.sender.messenger_page() else {
         return Err(anyhow!("the Messenger account has no Page"));
     };
+    // The saved conversation belongs to another Page: it can't be reached
+    // through this one, so the link would expire on any Get Started.
+    if request
+        .expected_page
+        .as_deref()
+        .map(str::trim)
+        .filter(|expected| !expected.is_empty())
+        .is_some_and(|expected| expected != page.page_id.trim())
+    {
+        tx.commit().await?;
+        info!(account = %account.id, "{}", MessageReason::MESSENGER_PAGE_CHANGED);
+        return Ok(Err(LinkError::MessengerPageChanged));
+    }
     let key = tenant_key(&tx, &tenant_id, TenantKey::MessengerLink).await?;
     let reference = new_reference();
     let mut content = request.content.clone();
@@ -170,6 +191,7 @@ pub async fn create_link(
         link: messenger_link(&page, &reference),
         reference,
         expires_at: expires_at.to_rfc3339(),
+        page_id: Some(page.page_id.clone()),
     }))
 }
 
@@ -180,8 +202,18 @@ async fn checked_link(
 {
     let tenant_id = Uuid::parse_str(&request.tenant_id)?;
     let key = tenant_key(tx, &tenant_id, TenantKey::MessengerLink).await?;
-    let Some(link) =
-        get_messenger_link_by_reference(tx, &tenant_id, &digest(&key, &request.reference)?).await?
+    // Read the immutable account ID without locking the link, then lock
+    // account before link: the same order as an account Page change.
+    let reference_digest = digest(&key, &request.reference)?;
+    let Some(row) = tx.query_opt(
+        "SELECT account_id FROM sequent_backend.messenger_link WHERE tenant_id = $1 AND reference_digest = $2",
+        &[&tenant_id, &reference_digest],
+    ).await? else {
+        return Ok(Err(LinkError::NotFound));
+    };
+    let account_id: Uuid = row.try_get("account_id")?;
+    lock_messaging_account(tx, &tenant_id, &account_id).await?;
+    let Some(link) = get_messenger_link_by_reference(tx, &tenant_id, &reference_digest).await?
     else {
         return Ok(Err(LinkError::NotFound));
     };
@@ -284,6 +316,16 @@ pub async fn bind_referral(
         return Ok(None);
     }
     let tx = client.transaction().await?;
+    let Some(current) = lock_messaging_account(&tx, &account.tenant_id, &account.id).await? else {
+        tx.commit().await?;
+        return Ok(None);
+    };
+    // The callback was verified/parsed before this transaction: do not
+    // bind a conversation from an account identity that changed since.
+    if current.sender.identity() != account.sender.identity() {
+        tx.commit().await?;
+        return Ok(None);
+    }
     let key = tenant_key(&tx, &account.tenant_id, TenantKey::MessengerLink).await?;
     let reference_digest = digest(&key, &referral.reference)?;
     let Some(link) = get_pending_messenger_link(&tx, &account.id, &reference_digest).await? else {
@@ -344,6 +386,8 @@ pub async fn bind_referral(
                 channel: MessageChannel::MESSENGER,
                 destination: referral.page_scoped_id.clone(),
                 election_ids: vec![],
+                // The conversation came through this account's Page.
+                messenger_page: account.sender.messenger_page().map(|page| page.page_id),
             },
             content: Some(held.content),
             language: link.language.clone(),
@@ -378,6 +422,7 @@ pub async fn send_bound_code(
             | MessageAttemptState::UNKNOWN
     );
     let tx = client.transaction().await?;
+    lock_messaging_account(&tx, &code.account.tenant_id, &code.account.id).await?;
     if sent {
         update_messenger_link(
             &tx,

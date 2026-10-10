@@ -148,7 +148,9 @@ export const VoterMessagingSummary: React.FC<VoterMessagingSummaryProps> = ({
                     <Typography variant="body2">
                         {isMessenger
                             ? (pageName ?? channel.messengerPage)
-                            : maskDestination(channel.destination)}
+                            : (maskDestination(channel.channel, channel.destination) ??
+                              // The backend refuses it: shown as the reason a send would give.
+                              t("messaging.reason.INVALID_DESTINATION"))}
                     </Typography>
                 </Row>
             ) : null}

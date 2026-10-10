@@ -16,7 +16,25 @@ import org.keycloak.sessions.AuthenticationSessionModel;
  * @param channel the voter's channel and destination; empty when the record has none
  */
 public record NoticeRecipient(
-    Optional<VoterChannel> channel, Set<String> electionIds, String voterId) {
+    Optional<VoterChannel> channel,
+    Set<String> electionIds,
+    String voterId,
+    VoterChannel.Source shape) {
+
+  /**
+   * A recipient whose record shape is its channel's, or LEGACY without one.
+   *
+   * @param shape which of the three cases the voter's record is ({@link VoterChannel#shape}),
+   *     whether or not its channel can be used: only a LEGACY voter may get a realm's configured
+   *     courier (R7-01)
+   */
+  public NoticeRecipient(Optional<VoterChannel> channel, Set<String> electionIds, String voterId) {
+    this(
+        channel,
+        electionIds,
+        voterId,
+        channel.map(VoterChannel::source).orElse(VoterChannel.Source.LEGACY));
+  }
 
   /** How a notice is delivered, or why it is not. */
   public enum Route {
@@ -44,7 +62,11 @@ public record NoticeRecipient(
     if (user == null) {
       return none();
     }
-    return new NoticeRecipient(VoterChannel.of(user), VoterChannels.elections(user), user.getId());
+    return new NoticeRecipient(
+        VoterChannel.of(user),
+        VoterChannels.elections(user),
+        user.getId(),
+        VoterChannel.shape(user));
   }
 
   /**

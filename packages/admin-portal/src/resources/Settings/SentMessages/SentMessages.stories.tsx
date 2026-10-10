@@ -66,7 +66,9 @@ export const All: Story = {
         await expect(
             canvas.getByText("The report got no answer: The webhook component didn't answer")
         ).toBeVisible()
-        await expect(canvas.getByText("Report not sent: No account uses this sender")).toBeVisible()
+        await expect(
+            canvas.getByText("Report not sent: Several accounts use this sender")
+        ).toBeVisible()
         await userEvent.click(canvas.getByRole("button", {name: "Viber"}))
         await expect(args.onModeChange).toHaveBeenCalledWith(EMessageChannel.VIBER)
         await userEvent.click(canvas.getByRole("button", {name: "Refresh"}))

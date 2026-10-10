@@ -23,7 +23,7 @@ use messaging::relay::{
 use messaging::test_server::{Reply, TestServer};
 use rocket::http::{ContentType, Header, Status};
 use rocket::local::asynchronous::{Client, LocalResponse};
-use sequent_core::types::messaging::REALM_ATTR_MESSAGING;
+use sequent_core::types::messaging::{MessageReason, REALM_ATTR_MESSAGING};
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
@@ -1143,6 +1143,77 @@ async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sen
     assert_eq!(status["state"], "CONFIRMED");
 }
 
+/// R7-10, the contract Keycloak's sign-in uses: a saved voter's link names
+/// their Page (`expected_page`) and is refused with the reason when the
+/// account is on another one; the reconnect's link names neither the saved
+/// conversation nor the Page and is accepted; each created link says the
+/// account's Page.
+#[rocket::async_test]
+async fn a_saved_voters_link_on_another_page_is_refused_with_the_reason() {
+    let services = services()
+        .await
+        .with_messaging_webhooks_url("https://callbacks.example.org");
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let (id, _) = meta_account(&client, &event).await;
+    configure(
+        &services,
+        &event,
+        json!({"version": 1, "channels": [{
+            "channel": "MESSENGER", "account_id": id, "purposes": ["OTP"],
+        }]}),
+    )
+    .await;
+    let service = service_token(&services, &event.tenant_id);
+    let saved = |page: Option<&str>| {
+        let mut body = link(&event, chrono::Duration::minutes(5));
+        body["expected_recipient"] = json!("psid-saved");
+        if let Some(page) = page {
+            body["expected_page"] = json!(page);
+        }
+        body
+    };
+
+    assert_eq!(
+        text(
+            post_as(
+                &client,
+                "/messages/link",
+                &service,
+                &saved(Some("page-old"))
+            )
+            .await
+        )
+        .await,
+        (
+            Status::Conflict,
+            MessageReason::MESSENGER_PAGE_CHANGED.as_str().to_string()
+        )
+    );
+    // On the account's own Page, and from a Keycloak that doesn't send the
+    // Page yet, the saved conversation is used as before.
+    for body in [saved(Some("page-1")), saved(None)] {
+        let (status, created) =
+            json(post_as(&client, "/messages/link", &service, &body).await)
+                .await;
+        assert_eq!(status, Status::Ok, "{created}");
+        assert_eq!(created["page_id"], "page-1", "{created}");
+    }
+    // The reconnect: neither field.
+    let (status, created) = json(
+        post_as(
+            &client,
+            "/messages/link",
+            &service,
+            &link(&event, chrono::Duration::minutes(5)),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{created}");
+    assert_eq!(created["page_id"], "page-1", "{created}");
+}
+
 #[rocket::async_test]
 async fn messenger_links_need_an_event_that_offers_messenger_for_codes() {
     let services = services().await;
@@ -1621,9 +1692,12 @@ async fn viber_reports_are_accepted_with_the_subscriptions_basic_auth() {
             Ok(404)
         );
     }
+    // Regression (R7-24): an authenticated report that can't be read was
+    // answered 500 (503 to Infobip), so Infobip retried it for ever. It is
+    // logged and taken, as Meta's are.
     assert_eq!(
         viber(key.clone(), authorization.clone(), "not json").await,
-        Err(Status::InternalServerError)
+        Ok(200)
     );
     // Generated, never entered.
     assert_eq!(
@@ -2577,4 +2651,37 @@ async fn a_get_started_is_answered_before_the_code_it_releases_is_sent() {
         vec![("FAILED".to_string(), Some(CAPACITY_BUSY.to_string()))]
     );
     assert!(graph.requests().is_empty());
+}
+
+/// Regression (R7-03): every relayed callback took a connection from the
+/// pool Keycloak's codes use, so a flood of well-formed keys could starve
+/// the codes. Callbacks hold at most their own share; one that gets none
+/// in time is answered 503 (the component answers the provider 503, and it
+/// retries) without reaching the database.
+#[rocket::async_test]
+async fn callbacks_hold_only_their_own_share_of_the_database() {
+    let relay =
+        MessagingRelay::new(Some(RELAY_SECRET), relay::DEFAULT_MAX_BODY_BYTES)
+            .with_callback_share(1, Duration::from_millis(200));
+    let services = services().await.with_messaging_relay(relay.clone());
+    let client = services.client().await;
+    let key = messaging::link::new_reference();
+    // The share is free: the unknown key is looked up, 404 for Meta.
+    assert_eq!(
+        meta_post(&client, &key, Some("sha256=00"), b"{}").await,
+        Ok(404)
+    );
+    // Callbacks in flight hold the whole share.
+    let held = relay.callbacks.clone().acquire_owned().await.unwrap();
+    let started = Instant::now();
+    assert_eq!(
+        meta_post(&client, &key, Some("sha256=00"), b"{}").await,
+        Err(Status::ServiceUnavailable)
+    );
+    assert!(started.elapsed() < Duration::from_secs(2));
+    drop(held);
+    assert_eq!(
+        meta_post(&client, &key, Some("sha256=00"), b"{}").await,
+        Ok(404)
+    );
 }

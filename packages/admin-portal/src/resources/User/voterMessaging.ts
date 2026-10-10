@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {ATTR_RESET_VALUE} from "@/types/keycloak"
+import {rustTrim, toAsciiUppercase} from "@/services/rustText"
 import {
     EMessageAttemptState,
     EMessageChannel,
@@ -62,86 +62,108 @@ const MESSAGING_ATTRIBUTES = [
 export const isVoterMessagingAttribute = (name: string): boolean =>
     MESSAGING_ATTRIBUTES.includes(name)
 
-const values = (attributes: Attributes, name: string): string[] => {
+/** An attribute's values, as Keycloak holds them: a list. */
+const values = (attributes: Attributes, name: string): unknown[] | undefined => {
     const value = attributes?.[name]
-    const list = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]
-    return list
-        .filter((item): item is string => typeof item === "string")
-        .filter((item) => item !== "" && item !== ATTR_RESET_VALUE)
+    if (value === undefined || value === null) return undefined
+    return Array.isArray(value) ? value : [value]
 }
 
-const first = (attributes: Attributes, name: string) => values(attributes, name)[0]
+/** The attribute's first value, unless it is empty: an empty first value is none. */
+const first = (attributes: Attributes, name: string): string | undefined => {
+    const value = values(attributes, name)?.[0]
+    return typeof value === "string" && value !== "" ? value : undefined
+}
 
-const asChannel = (value: string | undefined): EMessageChannel | undefined =>
-    MESSAGE_CHANNELS.find((channel) => channel === value)
+/**
+ * A channel as a record holds it: trimmed and in any (ASCII) case, as
+ * `parse_channel_value` reads it. Anything else is no channel.
+ */
+export const parseChannelValue = (value: unknown): EMessageChannel | undefined => {
+    if (typeof value !== "string") return undefined
+    const text = toAsciiUppercase(rustTrim(value))
+    return MESSAGE_CHANNELS.find((channel) => channel === text)
+}
 
-const messenger = (attributes: Attributes) => {
+type Found = {destination: string; messengerPage?: string}
+
+const messenger = (attributes: Attributes): Found | undefined => {
     const id = first(attributes, VOTER_ATTR_MESSENGER_ID)
     const page = first(attributes, VOTER_ATTR_MESSENGER_PAGE)
     return id && page ? {destination: id, messengerPage: page} : undefined
 }
 
+const number = (value: string | undefined): Found | undefined =>
+    value ? {destination: value} : undefined
+
+/** The destination of `channel` in a recorded (ticket-shaped) record. */
 const recordedDestination = (
     channel: EMessageChannel,
     email: string | undefined,
     attributes: Attributes
-) => {
+): Found | undefined => {
     switch (channel) {
         case EMessageChannel.WHATSAPP:
         case EMessageChannel.VIBER:
-        case EMessageChannel.SMS: {
-            const number = first(attributes, VOTER_ATTR_MESSAGE_NUMBER)
-            return number ? {destination: number} : undefined
-        }
+            return number(first(attributes, VOTER_ATTR_MESSAGE_NUMBER))
+        case EMessageChannel.SMS:
+            // The same channel: the mobile number when there's no message number.
+            return number(
+                first(attributes, VOTER_ATTR_MESSAGE_NUMBER) ??
+                    first(attributes, VOTER_ATTR_MOBILE_NUMBER)
+            )
         case EMessageChannel.MESSENGER:
             return messenger(attributes)
         case EMessageChannel.EMAIL:
-            return email ? {destination: email} : undefined
+            return number(email)
     }
 }
 
+/** The destination of `channel` in a first-release record. */
 const verifiedDestination = (
     channel: EMessageChannel,
     email: string | undefined,
     attributes: Attributes
-) => {
-    const number = (name: string) => {
-        const value = first(attributes, name)
-        return value ? {destination: value} : undefined
-    }
+): Found | undefined => {
     switch (channel) {
         case EMessageChannel.WHATSAPP:
-            return number(VOTER_ATTR_WHATSAPP_NUMBER)
+            return number(first(attributes, VOTER_ATTR_WHATSAPP_NUMBER))
         case EMessageChannel.VIBER:
-            return number(VOTER_ATTR_VIBER_NUMBER)
+            return number(first(attributes, VOTER_ATTR_VIBER_NUMBER))
         case EMessageChannel.SMS:
-            return number(VOTER_ATTR_MOBILE_NUMBER)
+            return number(first(attributes, VOTER_ATTR_MOBILE_NUMBER))
         case EMessageChannel.MESSENGER:
             return messenger(attributes)
         case EMessageChannel.EMAIL:
-            return email ? {destination: email} : undefined
+            return number(email)
     }
 }
 
 /**
- * The voter's one channel, read like `voter_channel` in sequent-core and
- * `VoterChannel` in Keycloak:
- * 1. a first-release record (`verified-channels`): its `message-channel` if
- *    verified, else the first verified channel in channel order;
- * 2. `message-channel` with its recorded destination;
- * 3. legacy: the email, else the mobile number. That defines the voter's one
- *    channel; it is not a fallback.
+ * The voter's one channel, or undefined when the record has none that can be
+ * used. The same rule as `voter_channel` in sequent-core
+ * (`src/types/voter_channel.rs`), case for case: its tests are this one's
+ * table (R7-05). sequent-core's WASM package doesn't export it, so it is
+ * mirrored here. Never another channel than the record's:
+ * 1. a first-release record (`verified-channels` with at least one value):
+ *    its `message-channel` if verified, else the first verified channel in
+ *    channel order that has that release's destination; none, otherwise;
+ * 2. `message-channel` with its recorded destination (SMS also reads the
+ *    mobile number); none when the destination is missing, never the email;
+ * 3. legacy, with neither: the email, else the mobile number. That defines
+ *    the voter's one channel; it is not a fallback.
  */
 export const voterChannel = (
     email: string | null | undefined,
     attributes: Attributes
 ): IVoterChannel | undefined => {
-    const address = email?.trim() || undefined
-    const recorded = asChannel(first(attributes, VOTER_ATTR_MESSAGE_CHANNEL))
-    const declared = attributes?.[VOTER_ATTR_VERIFIED_CHANNELS]
-    if (declared !== undefined && declared !== null) {
-        const verified = values(attributes, VOTER_ATTR_VERIFIED_CHANNELS)
-            .map(asChannel)
+    const address = email ? email : undefined
+    const recorded = parseChannelValue(first(attributes, VOTER_ATTR_MESSAGE_CHANNEL))
+
+    const declared = values(attributes, VOTER_ATTR_VERIFIED_CHANNELS)
+    if (declared && declared.length > 0) {
+        const verified = declared
+            .map(parseChannelValue)
             .filter((channel): channel is EMessageChannel => !!channel)
         const candidates = [
             ...(recorded && verified.includes(recorded) ? [recorded] : []),
@@ -153,11 +175,13 @@ export const voterChannel = (
                 return {channel, ...found, source: EVoterChannelSource.VERIFIED_CHANNELS}
             }
         }
-    } else if (recorded) {
+        return undefined
+    }
+    if (recorded) {
         const found = recordedDestination(recorded, address, attributes)
-        if (found) {
-            return {channel: recorded, ...found, source: EVoterChannelSource.RECORDED}
-        }
+        return found
+            ? {channel: recorded, ...found, source: EVoterChannelSource.RECORDED}
+            : undefined
     }
     if (address) {
         return {

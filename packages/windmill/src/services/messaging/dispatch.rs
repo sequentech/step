@@ -53,6 +53,31 @@ pub struct Recipient {
     pub destination: String,
     /// The voter's elections, for per-election (Post) channel restrictions.
     pub election_ids: Vec<String>,
+    /// Messenger: the Page the Page-scoped ID belongs to, from the voter's
+    /// record (or the Page whose conversation bound a code's link). A send
+    /// through an account of another Page is refused
+    /// ([`MessageReason::MESSENGER_PAGE_CHANGED`]). `None` when the sender
+    /// doesn't know it (a request naming a destination with no voter
+    /// record): not checked.
+    pub messenger_page: Option<String>,
+}
+
+impl Recipient {
+    /// The voter's one channel ([`VoterChannel`]), with their Messenger
+    /// Page: what every send to a voter's record uses.
+    pub fn of_voter(
+        voter_id: Option<String>,
+        voter: VoterChannel,
+        election_ids: Vec<String>,
+    ) -> Recipient {
+        Recipient {
+            voter_id,
+            channel: voter.channel,
+            destination: voter.destination,
+            election_ids,
+            messenger_page: voter.messenger_page,
+        }
+    }
 }
 
 /// One logical message.
@@ -585,12 +610,23 @@ pub async fn record_without_channel(
     .await
 }
 
+/// Where a notice from Keycloak goes: the channel, the destination and,
+/// for Messenger, the Page the destination belongs to when known.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoticeTarget {
+    pub channel: MessageChannel,
+    pub destination: String,
+    pub messenger_page: Option<String>,
+}
+
 /// The channel and destination a notice from Keycloak goes to, or why it
 /// can't go anywhere, with the channel its FAILED row is recorded on.
 ///
 /// - A notice about the previous channel goes where the request says.
-/// - Otherwise, with the voter's record: the voter's channel. A request
-///   naming another *recorded* channel is refused
+/// - Otherwise, with the voter's record: the voter's channel and the
+///   record's destination (and Messenger Page), whatever destination the
+///   request names (R7-23: a different one is logged and not used). A
+///   request naming another *recorded* channel is refused
 ///   ([`MessageReason::NOT_THE_VOTERS_CHANNEL`]); a legacy voter (email,
 ///   else SMS, never recorded) may still be sent on the channel the realm's
 ///   courier names.
@@ -602,31 +638,53 @@ pub fn notice_recipient(
     requested_channel: Option<MessageChannel>,
     requested_destination: Option<&str>,
     voter: Option<&VoterChannel>,
-) -> std::result::Result<(MessageChannel, String), (Option<MessageChannel>, MessageReason)> {
+) -> std::result::Result<NoticeTarget, (Option<MessageChannel>, MessageReason)> {
     let requested_destination = requested_destination
         .map(str::trim)
         .filter(|destination| !destination.is_empty())
         .map(str::to_string);
     let as_requested = || match (requested_channel, requested_destination.clone()) {
-        (Some(channel), Some(destination)) => Ok((channel, destination)),
+        (Some(channel), Some(destination)) => Ok(NoticeTarget {
+            channel,
+            destination,
+            messenger_page: None,
+        }),
         (channel, _) => Err((channel, MessageReason::NO_CONTACT_CHANNEL)),
     };
     let voter = match (policy, voter) {
         (NoticeRecipient::PREVIOUS_CHANNEL, _) | (_, None) => return as_requested(),
         (NoticeRecipient::VOTER_CHANNEL, Some(voter)) => voter,
     };
+    let recorded = || {
+        if requested_destination
+            .as_deref()
+            .is_some_and(|requested| requested != voter.destination.trim())
+        {
+            warn!(
+                channel = %voter.channel,
+                source = %voter.source,
+                "{RECORDED_DESTINATION_USED}"
+            );
+        }
+        Ok(NoticeTarget {
+            channel: voter.channel,
+            destination: voter.destination.clone(),
+            messenger_page: voter.messenger_page.clone(),
+        })
+    };
     match requested_channel {
-        None => Ok((voter.channel, voter.destination.clone())),
-        Some(channel) if channel == voter.channel => Ok((
-            channel,
-            requested_destination
-                .clone()
-                .unwrap_or_else(|| voter.destination.clone()),
-        )),
+        None => recorded(),
+        Some(channel) if channel == voter.channel => recorded(),
         Some(_) if voter.source == VoterChannelSource::LEGACY => as_requested(),
         Some(channel) => Err((Some(channel), MessageReason::NOT_THE_VOTERS_CHANNEL)),
     }
 }
+
+/// Logged when a notice on the voter's channel names another destination
+/// than the voter's record: the record's is used (R7-23). Neither
+/// destination is logged.
+pub const RECORDED_DESTINATION_USED: &str =
+    "The notice names another destination than the voter's record: the record's is used";
 
 /// The send ID of a bulk notice's logical key (`send-template:<id>:<voter>`).
 pub fn bulk_send_id(logical_key: &str) -> Option<Uuid> {
@@ -822,6 +880,24 @@ async fn failure_change(
     })
 }
 
+/// R7-02: a Messenger send through an account whose Page isn't the one
+/// the voter's Page-scoped ID belongs to. The ID can't reach the voter
+/// through another Page, so nothing is handed to the provider:
+/// [`MessageReason::MESSENGER_PAGE_CHANGED`]. A recipient whose Page isn't
+/// known (`None`) isn't checked.
+fn page_refusal(
+    channel: MessageChannel,
+    recipient: &Recipient,
+    account: Option<&MessagingAccount>,
+) -> Option<MessageReason> {
+    if channel != MessageChannel::MESSENGER {
+        return None;
+    }
+    let voter_page = recipient.messenger_page.as_deref()?;
+    let account_page = account?.sender.messenger_page()?.page_id;
+    (account_page.trim() != voter_page.trim()).then_some(MessageReason::MESSENGER_PAGE_CHANGED)
+}
+
 fn not_sent_yet(reason: impl ToString) -> ProviderFailure {
     ProviderFailure {
         kind: FailureKind::TRANSIENT,
@@ -952,6 +1028,9 @@ pub async fn deliver_within(
                     return Err(MessageReason::channel_not_offered(delivery.purpose).to_string());
                 }
                 if let Some(reason) = account_missing {
+                    return Err(reason.to_string());
+                }
+                if let Some(reason) = page_refusal(channel, &delivery.recipient, account.as_ref()) {
                     return Err(reason.to_string());
                 }
                 let destination =
@@ -1206,6 +1285,14 @@ pub async fn deliver_within(
 mod tests {
     use super::*;
 
+    fn target(channel: MessageChannel, destination: &str) -> NoticeTarget {
+        NoticeTarget {
+            channel,
+            destination: destination.to_string(),
+            messenger_page: None,
+        }
+    }
+
     fn voter(
         channel: MessageChannel,
         destination: &str,
@@ -1228,7 +1315,7 @@ mod tests {
         );
         assert_eq!(
             notice_recipient(NoticeRecipient::VOTER_CHANNEL, None, None, Some(&whatsapp)),
-            Ok((MessageChannel::WHATSAPP, "+639181234567".to_string()))
+            Ok(target(MessageChannel::WHATSAPP, "+639181234567"))
         );
         // No record, and nothing named: no contact channel, no channel.
         assert_eq!(
@@ -1264,7 +1351,7 @@ mod tests {
                 Some("+639181234567"),
                 Some(&whatsapp)
             ),
-            Ok((MessageChannel::WHATSAPP, "+639181234567".to_string()))
+            Ok(target(MessageChannel::WHATSAPP, "+639181234567"))
         );
         // The notice that the channel changed goes to the previous one.
         assert_eq!(
@@ -1274,7 +1361,48 @@ mod tests {
                 Some("+639171234567"),
                 Some(&whatsapp)
             ),
-            Ok((MessageChannel::SMS, "+639171234567".to_string()))
+            Ok(target(MessageChannel::SMS, "+639171234567"))
+        );
+    }
+
+    /// Regression (R7-23): on the voter's channel, the destination Keycloak
+    /// named won over the voter's record, so a stale or wrong one went out
+    /// unchecked. The record's destination is always used.
+    #[test]
+    fn a_notice_on_the_voters_channel_goes_to_the_recorded_destination() {
+        let whatsapp = voter(
+            MessageChannel::WHATSAPP,
+            "+639181234567",
+            VoterChannelSource::RECORDED,
+        );
+        assert_eq!(
+            notice_recipient(
+                NoticeRecipient::VOTER_CHANNEL,
+                Some(MessageChannel::WHATSAPP),
+                Some("+639990000000"),
+                Some(&whatsapp)
+            ),
+            Ok(target(MessageChannel::WHATSAPP, "+639181234567"))
+        );
+    }
+
+    /// R7-02: a notice to a Messenger voter carries their Page, so a send
+    /// through an account of another Page is refused.
+    #[test]
+    fn a_messenger_notice_carries_the_voters_page() {
+        let messenger = VoterChannel {
+            channel: MessageChannel::MESSENGER,
+            destination: "6543210".to_string(),
+            messenger_page: Some("page-old".to_string()),
+            source: VoterChannelSource::RECORDED,
+        };
+        assert_eq!(
+            notice_recipient(NoticeRecipient::VOTER_CHANNEL, None, None, Some(&messenger)),
+            Ok(NoticeTarget {
+                channel: MessageChannel::MESSENGER,
+                destination: "6543210".to_string(),
+                messenger_page: Some("page-old".to_string()),
+            })
         );
     }
 
@@ -1292,7 +1420,7 @@ mod tests {
                 Some("+639171234567"),
                 Some(&legacy)
             ),
-            Ok((MessageChannel::SMS, "+639171234567".to_string()))
+            Ok(target(MessageChannel::SMS, "+639171234567"))
         );
     }
 

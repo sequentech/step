@@ -40,8 +40,7 @@ export const contentPreview = (message: IFakeProviderMessage, t: TFunction): str
  * their translations; the messaging reasons it shares through `reasonText`,
  * and any other as harvest wrote it.
  */
-const FAKE_PROVIDER_REASONS: Record<string, string> = {
-    "No account uses this sender": "NO_ACCOUNT",
+export const FAKE_PROVIDER_REASONS: Record<string, string> = {
     "Several accounts use this sender": "SEVERAL_ACCOUNTS",
     "The accounts couldn't be read": "ACCOUNTS_UNREADABLE",
     "The webhook component didn't answer": "UNREACHABLE",

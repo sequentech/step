@@ -154,4 +154,66 @@ class VoterChannelTest {
     assertEquals(MessageChannel.EMAIL, found.channel());
     assertEquals(VoterChannel.Source.LEGACY, found.source());
   }
+
+  /**
+   * R7-12: Rust's rule ({@code voter_channel::parse_channel_value}): Unicode whitespace trimmed
+   * ({@code str::trim}), ASCII case only ({@code to_ascii_uppercase}). Shared vectors with Rust's
+   * {@code channel_values_are_read_trimmed_and_in_any_case} and the Admin Portal.
+   */
+  @Test
+  void channelValuesAreReadLikeRust() {
+    Map<String, Optional<MessageChannel>> vectors = new java.util.LinkedHashMap<>();
+    vectors.put("whatsapp", Optional.of(MessageChannel.WHATSAPP));
+    vectors.put(" SMS ", Optional.of(MessageChannel.SMS));
+    vectors.put(" Viber", Optional.of(MessageChannel.VIBER));
+    vectors.put("Messenger\t", Optional.of(MessageChannel.MESSENGER));
+    // Unicode whitespace is trimmed, as Rust's str::trim does.
+    vectors.put("\u00A0SMS", Optional.of(MessageChannel.SMS));
+    vectors.put("\u3000sms\u2029", Optional.of(MessageChannel.SMS));
+    vectors.put("email\u0085", Optional.of(MessageChannel.EMAIL));
+    // Control characters that aren't whitespace, and zero-width spaces, are not trimmed.
+    vectors.put("\u001Csms", Optional.empty());
+    vectors.put("sms\u200B", Optional.empty());
+    // Only ASCII letters change case.
+    vectors.put("\u017Fms", Optional.empty());
+    vectors.put("v\u0131ber", Optional.empty());
+    vectors.put("\uFF33\uFF2D\uFF33", Optional.empty());
+    vectors.put("", Optional.empty());
+    vectors.put("   ", Optional.empty());
+    vectors.put("FAX", Optional.empty());
+    for (Map.Entry<String, Optional<MessageChannel>> vector : vectors.entrySet()) {
+      assertEquals(
+          vector.getValue(),
+          MessageChannel.parse(vector.getKey()),
+          () -> "parse(" + vector.getKey().codePoints().boxed().toList() + ")");
+    }
+    assertEquals(Optional.empty(), MessageChannel.parse(null));
+  }
+
+  /** The record's shape, whether or not its channel can be used (R7-01). */
+  @Test
+  void theRecordsShapeIsReadWithoutItsDestination() {
+    assertEquals(
+        VoterChannel.Source.RECORDED,
+        VoterChannel.shape(
+            name ->
+                name.equals(MessagingAttributes.MESSAGE_CHANNEL)
+                    ? java.util.stream.Stream.of(" whatsapp ")
+                    : java.util.stream.Stream.empty()));
+    assertEquals(
+        VoterChannel.Source.VERIFIED_CHANNELS,
+        VoterChannel.shape(
+            name ->
+                name.equals(MessagingAttributes.VERIFIED_CHANNELS)
+                    ? java.util.stream.Stream.of("VIBER")
+                    : java.util.stream.Stream.empty()));
+    assertEquals(
+        VoterChannel.Source.LEGACY,
+        VoterChannel.shape(
+            name ->
+                name.equals(MessagingAttributes.MESSAGE_CHANNEL)
+                    ? java.util.stream.Stream.of("FAX")
+                    : java.util.stream.Stream.empty()));
+    assertEquals(VoterChannel.Source.LEGACY, VoterChannel.shape(name -> null));
+  }
 }

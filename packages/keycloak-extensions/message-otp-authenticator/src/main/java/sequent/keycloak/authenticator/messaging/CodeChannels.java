@@ -112,8 +112,10 @@ public class CodeChannels {
     if (!VoterChannels.deliverable(VoterChannels.sender(session), channel)) {
       return Resolution.refused(Refusal.NOT_DELIVERED);
     }
+    // The form that asked for the channel records what it offered (enrollment, the contact
+    // change). A channel without that list didn't come from such a form: refused (R7-09).
     String offered = authSession.getAuthNote(MessagingAttributes.NOTE_OFFERED_CHANNELS);
-    if (offered != null && !VoterChannels.parseList(offered).contains(channel)) {
+    if (offered == null || !VoterChannels.parseList(offered).contains(channel)) {
       return Resolution.refused(Refusal.NOT_OFFERED);
     }
     String destination =

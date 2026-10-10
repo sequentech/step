@@ -5758,6 +5758,20 @@ const frenchTranslation: TranslationType = {
                 REPORT_CREDENTIALS_MISSING:
                     "Générez les identifiants des rapports et créez l'abonnement Infobip",
                 CALLBACK_NOT_HTTPS: "L'adresse de rappel doit être en https",
+                UNKNOWN_ACCOUNT:
+                    "Ce compte n'existe plus : il a peut-être été supprimé dans un autre onglet. Rechargez la liste.",
+                INTERNAL_ERROR: "Le serveur n'a pas pu traiter la demande. Réessayez plus tard.",
+                VERIFY_TOKEN_GENERATED: "Le jeton de vérification est généré, pas saisi",
+                CREDENTIAL_GENERATED: "{{credential}} : généré, pas saisi",
+                CREDENTIAL_NOT_USED: "Les comptes {{provider}} n'utilisent pas {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} ne peut pas être vide",
+                NO_REPORT_CREDENTIALS:
+                    "Les comptes {{provider}} n'ont pas d'identifiants de rapports",
+                UNKNOWN_AUDIENCE: "Sélection de destinataires inconnue",
+                INVALID_MONTH: "Le mois doit s'écrire sous la forme AAAA-MM",
+                INVALID_SUPPORT_REFERENCE: "Ce n'est pas une référence d'assistance",
+                MESSENGER_PAGE_CHANGED:
+                    "Non envoyé : l'électeur est connecté à une autre page Messenger",
             },
         },
         messagingAccounts: {
@@ -5955,7 +5969,7 @@ const frenchTranslation: TranslationType = {
                 recheck:
                     "L'enregistrement vérifie à nouveau le compte en arrière-plan. Tant que cette vérification n'a pas réussi, les codes et les avis qui passent par lui échouent car il n'est pas prêt ; le message de test est quand même envoyé.",
                 pageChange:
-                    "Les conversations Messenger appartiennent à une page. Après le changement de page, les électeurs connectés à {{page}} ne recevront des codes qu'après avoir reconnecté Messenger.",
+                    "Les conversations Messenger appartiennent à une page. Après le changement de page, aucun code ni avis n'est envoyé aux électeurs connectés à {{page}} tant qu'ils ne se sont pas reconnectés. L'électeur se reconnecte lors de sa prochaine connexion, après avoir saisi son mot de passe : celle-ci affiche l'étape de connexion de la nouvelle page, l'électeur appuie sur Commencer dans Messenger, puis y reçoit le code. Un électeur qui ne peut pas se connecter avec un mot de passe, par exemple parce qu'il l'a oublié, a besoin que le personnel change son canal.",
                 numberChange:
                     "Les messages viendront d'un autre numéro. Ses modèles doivent être approuvés dans ce compte professionnel avant de pouvoir envoyer des codes, et les électeurs verront une nouvelle discussion.",
             },
@@ -5978,7 +5992,7 @@ const frenchTranslation: TranslationType = {
                     "Un plancher dans l'unique budget d'envoi partagé du compte : les avis s'y arrêtent et les codes passent en premier. Sans codes en cours d'envoi, un envoi en masse peut utiliser tout le débit.",
                 otpConcurrency: "Codes envoyés simultanément",
                 otpConcurrencyHelp:
-                    "Vide : 8. Compté par processus serveur ; les autres codes attendent leur tour.",
+                    "Vide : 8. Les codes et les avis de Keycloak (liens de réinitialisation, mots de passe temporaires) occupent chacun une place pendant leur envoi. Compté par processus serveur ; les autres envois attendent leur tour.",
                 allowedCallingCodes: "Destinations autorisées (indicatifs téléphoniques de pays)",
                 allowedCallingCodesHelp:
                     "Séparés par des virgules, par exemple 63, 971. Vide autorise toute destination.",
@@ -6178,7 +6192,6 @@ const frenchTranslation: TranslationType = {
                     "Le HTML de l'e-mail n'a pas pu être lu : le fournisseur simulé ne le conserve peut-être plus.",
             },
             reason: {
-                NO_ACCOUNT: "Aucun compte n'utilise cet expéditeur",
                 SEVERAL_ACCOUNTS: "Plusieurs comptes utilisent cet expéditeur",
                 ACCOUNTS_UNREADABLE: "Les comptes n'ont pas pu être lus",
                 UNREACHABLE: "Le composant webhook n'a pas répondu",

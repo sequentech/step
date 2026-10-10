@@ -66,70 +66,124 @@ public class VoterChannels {
   }
 
   /**
-   * The destination as shown to the voter: a number keeps its country code and last three digits
-   * ({@code +966 ••• ••• 567}), an email address its first two characters and its domain ({@code
-   * ma••••••••@example.com}). Messenger IDs mean nothing to voters and are not shown.
+   * The destination as records, logs and screens show it, exactly like Rust's {@code
+   * Destination::masked} ({@code messaging/src/destination.rs}): a number keeps its country calling
+   * code and the last three digits ({@code +966 ••• ••• 567}), an email address at most its first
+   * two characters, never all of its local part, and its domain ({@code ma••••••••@example.com}), a
+   * Page-scoped ID its last three digits ({@code ••• 321}). The hidden parts have a fixed length,
+   * so they don't reveal the address's length. An address Rust would refuse shows only {@code •••};
+   * none shows nothing.
    */
   public String mask(MessageChannel channel, String destination) {
     if (destination == null || destination.isBlank()) {
       return "";
     }
     return switch (channel) {
-      case EMAIL -> maskEmail(destination.trim());
-      case SMS, WHATSAPP, VIBER -> maskNumber(destination.trim());
-      case MESSENGER -> "";
+      case EMAIL -> maskEmail(destination);
+      case SMS, WHATSAPP, VIBER -> maskNumber(destination);
+      case MESSENGER -> maskPageScopedId(destination);
     };
   }
 
-  private final String HIDDEN = "\u2022";
+  /**
+   * The destination as a voter page shows it: {@link #mask}, except that a Messenger voter sees the
+   * Page's name instead of an ID that means nothing to them.
+   */
+  public String display(MessageChannel channel, String destination) {
+    return channel == MessageChannel.MESSENGER ? "" : mask(channel, destination);
+  }
 
-  /** Country calling codes of two digits (ITU-T E.164 zones); 1 and 7 have one, others three. */
-  private final Set<String> TWO_DIGIT_CODES =
+  private final String BULLETS = "\u2022\u2022\u2022";
+
+  /**
+   * Country calling codes (ITU-T E.164) and the global services' codes: sequent-core's {@code
+   * dial_codes::CALLING_CODES} and {@code NON_GEOGRAPHIC_CODES} (a test keeps them equal). They are
+   * prefix-free, so the first match by length is the code.
+   */
+  public final Set<String> CALLING_CODES =
       Set.of(
-          "20", "27", "30", "31", "32", "33", "34", "36", "39", "40", "41", "43", "44", "45", "46",
-          "47", "48", "49", "51", "52", "53", "54", "55", "56", "57", "58", "60", "61", "62", "63",
-          "64", "65", "66", "81", "82", "84", "86", "90", "91", "92", "93", "94", "95", "98");
+          ("1 7 20 27 30 31 32 33 34 36 39 40 41 43 44 45 46 47 48 49 51 52 53 54 55 56 57 58 60"
+                  + " 61 62 63 64 65 66 81 82 84 86 90 91 92 93 94 95 98 211 212 213 216 218 220"
+                  + " 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239"
+                  + " 240 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255 256 257 258"
+                  + " 260 261 262 263 264 265 266 267 268 269 290 291 297 298 299 350 351 352 353"
+                  + " 354 355 356 357 358 359 370 371 372 373 374 375 376 377 378 379 380 381 382"
+                  + " 383 385 386 387 389 420 421 423 500 501 502 503 504 505 506 507 508 509 590"
+                  + " 591 592 593 594 595 596 597 598 599 670 672 673 674 675 676 677 678 679 680"
+                  + " 681 682 683 685 686 687 688 689 690 691 692 850 852 853 855 856 880 886 960"
+                  + " 961 962 963 964 965 966 967 968 970 971 972 973 974 975 976 977 992 993 994"
+                  + " 995 996 998 800 808 870 878 881 882 883 888 979")
+              .split(" "));
 
-  /** The length of the country calling code a number in E.164 starts with. */
-  int callingCodeLength(String digits) {
-    if (digits.startsWith("1") || digits.startsWith("7")) {
-      return 1;
+  /** The calling code of an E.164 number's digits, as Rust's {@code dial_codes::calling_code}. */
+  Optional<String> callingCode(String digits) {
+    for (int length = 1; length <= 3 && length <= digits.length(); length++) {
+      String prefix = digits.substring(0, length);
+      if (CALLING_CODES.contains(prefix)) {
+        return Optional.of(prefix);
+      }
     }
-    if (digits.length() >= 2 && TWO_DIGIT_CODES.contains(digits.substring(0, 2))) {
-      return 2;
-    }
-    return 3;
+    return Optional.empty();
   }
 
+  /** Rust's {@code normalize_phone}, then the mask; {@code •••} for what it refuses. */
   String maskNumber(String number) {
-    String digits = number.startsWith("+") ? number.substring(1) : number;
-    if (!digits.matches("[0-9]{4,}")) {
-      return HIDDEN.repeat(3);
+    StringBuilder compact = new StringBuilder();
+    for (char c : number.toCharArray()) {
+      if (c != ' ' && c != '-' && c != '(' && c != ')' && c != '.') {
+        compact.append(c);
+      }
     }
-    int codeLength = Math.min(callingCodeLength(digits), digits.length() - 1);
-    String code = digits.substring(0, codeLength);
-    String national = digits.substring(codeLength);
-    if (national.length() <= 3) {
-      return "+" + code + " " + HIDDEN.repeat(national.length());
+    if (compact.length() == 0 || compact.charAt(0) != '+') {
+      return BULLETS;
     }
-    int hidden = national.length() - 3;
-    StringBuilder groups = new StringBuilder();
-    int first = hidden % 3 == 0 ? 3 : hidden % 3;
-    groups.append(HIDDEN.repeat(first));
-    for (int left = hidden - first; left > 0; left -= 3) {
-      groups.append(' ').append(HIDDEN.repeat(3));
+    String digits = compact.substring(1);
+    if (digits.length() < 8
+        || digits.length() > 15
+        || !digits.chars().allMatch(VoterChannels::ascii)) {
+      return BULLETS;
     }
-    return "+" + code + " " + groups + " " + national.substring(national.length() - 3);
+    Optional<String> code = callingCode(digits);
+    if (code.isEmpty()) {
+      return BULLETS;
+    }
+    String national = digits.substring(code.get().length());
+    return "+" + code.get() + " " + BULLETS + " " + BULLETS + " " + lastThree(national);
   }
 
-  String maskEmail(String email) {
+  /** Rust's {@code normalize_email}, then the mask; {@code •••} for what it refuses. */
+  String maskEmail(String raw) {
+    String email = MessageChannel.trim(raw).toLowerCase(java.util.Locale.ROOT);
     int at = email.indexOf('@');
-    if (at <= 0) {
-      return HIDDEN.repeat(3);
+    if (at <= 0 || email.chars().anyMatch(c -> MessageChannel.isWhitespace((char) c))) {
+      return BULLETS;
     }
     String local = email.substring(0, at);
-    int shown = Math.min(2, Math.max(1, local.length() - 1));
-    return local.substring(0, shown) + HIDDEN.repeat(local.length() - shown) + email.substring(at);
+    String domain = email.substring(at + 1);
+    if (!domain.contains(".") || domain.startsWith(".")) {
+      return BULLETS;
+    }
+    int characters = local.codePointCount(0, local.length());
+    int shown = Math.min(2, characters - 1);
+    String first = local.substring(0, local.offsetByCodePoints(0, shown));
+    return first + BULLETS + BULLETS + "\u2022\u2022@" + domain;
+  }
+
+  /** Rust's {@code normalize_page_scoped_id} (digits only), then {@code ••• 321}. */
+  String maskPageScopedId(String raw) {
+    String id = MessageChannel.trim(raw);
+    if (id.isEmpty() || !id.chars().allMatch(VoterChannels::ascii)) {
+      return BULLETS;
+    }
+    return BULLETS + " " + lastThree(id);
+  }
+
+  private String lastThree(String value) {
+    return value.substring(Math.max(0, value.length() - 3));
+  }
+
+  private boolean ascii(int c) {
+    return c >= '0' && c <= '9';
   }
 
   public List<String> names(Collection<MessageChannel> channels) {

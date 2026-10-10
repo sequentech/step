@@ -22,7 +22,7 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 /// Why a message was not handed to its provider: its sender gave up
-/// waiting for the account's capacity (harvest: 10 s for a code). Shared by
+/// waiting for the account's capacity (harvest: 5 s for a code). Shared by
 /// the ledger, the log and the Admin Portal.
 pub const CAPACITY_BUSY: &str = "Not sent: the account stayed at its sending limit for too long";
 

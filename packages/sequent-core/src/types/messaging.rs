@@ -462,6 +462,14 @@ pub enum MessageReason {
     /// one. Nothing is sent on either channel.
     #[strum(serialize = "Not the voter's channel")]
     NOT_THE_VOTERS_CHANNEL,
+    /// A Messenger message whose voter is connected to another Page than
+    /// the sending account's: their Page-scoped ID belongs to that Page,
+    /// so nothing is handed to the provider and it isn't retried. The
+    /// voter connects Messenger again at their next sign-in.
+    #[strum(
+        serialize = "Not sent: the voter is connected to another Messenger Page"
+    )]
+    MESSENGER_PAGE_CHANGED,
 }
 
 impl MessageReason {
@@ -509,6 +517,9 @@ impl MessageReason {
                 "Can't be retried: the message couldn't be prepared again"
             }
             NOT_THE_VOTERS_CHANNEL => "Not the voter's channel",
+            MESSENGER_PAGE_CHANGED => {
+                "Not sent: the voter is connected to another Messenger Page"
+            }
         }
     }
 
@@ -2237,6 +2248,15 @@ pub struct CreateMessengerLinkRequest {
     /// logged.
     #[serde(default)]
     pub expected_recipient: Option<String>,
+    /// The Page `expected_recipient` belongs to (the voter's
+    /// `messenger-page`). When it isn't the Page of the event's Messenger
+    /// account any more, the saved conversation can't be reached and the
+    /// link is refused with [`MessageReason::MESSENGER_PAGE_CHANGED`]: the
+    /// caller may then start a reconnect, a link without
+    /// `expected_recipient` whose confirmation names the new Page-scoped ID
+    /// and Page. Absent: not checked (callers before this field).
+    #[serde(default)]
+    pub expected_page: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -2246,6 +2266,9 @@ pub struct CreateMessengerLinkResponse {
     /// there is no word to type in the chat.
     pub link: String,
     pub expires_at: String,
+    /// The Page the link opens: the event's Messenger account's Page now.
+    #[serde(default)]
+    pub page_id: Option<String>,
 }
 
 #[allow(non_camel_case_types)]

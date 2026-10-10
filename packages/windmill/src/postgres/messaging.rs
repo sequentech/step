@@ -264,7 +264,7 @@ pub async fn update_messaging_account_reentering(
     settings: &AccountSettings,
     reentered: &BTreeSet<CredentialName>,
 ) -> Result<Option<MessagingAccount>> {
-    let Some(current) = get_messaging_account(tx, tenant_id, id).await? else {
+    let Some(current) = lock_messaging_account(tx, tenant_id, id).await? else {
         return Ok(None);
     };
     check_account_update(&current, settings, reentered)?;
@@ -315,6 +315,26 @@ pub async fn update_messaging_account_reentering(
             ],
         )
         .await?;
+    // Page-scoped IDs verified on an unfinished link must never be paired
+    // with the replacement Page. The account lock is always taken before
+    // link locks (also by creation, binding and confirmation).
+    if current
+        .sender
+        .messenger_page()
+        .map(|page| page.page_id.trim().to_owned())
+        != settings
+            .sender
+            .messenger_page()
+            .map(|page| page.page_id.trim().to_owned())
+    {
+        tx.execute(
+            "UPDATE sequent_backend.messenger_link
+             SET state = 'EXPIRED', encrypted_payload = NULL, updated_at = now()
+             WHERE tenant_id = $1 AND account_id = $2 AND state IN ('PENDING', 'CODE_SENT')",
+            &[tenant_id, id],
+        )
+        .await?;
+    }
     row.map(TryInto::try_into).transpose()
 }
 
@@ -353,6 +373,20 @@ pub async fn get_messaging_account(
     .await?
     .map(TryInto::try_into)
     .transpose()
+}
+
+/// Locks an account before any of its Messenger links, so Page changes
+/// serialize with link creation, binding and confirmation (R9-02).
+#[instrument(skip(tx), err)]
+pub async fn lock_messaging_account(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    id: &Uuid,
+) -> Result<Option<MessagingAccount>> {
+    tx.query_opt(
+        "SELECT * FROM sequent_backend.messaging_account WHERE tenant_id = $1 AND id = $2 FOR UPDATE",
+        &[tenant_id, id],
+    ).await?.map(TryInto::try_into).transpose()
 }
 
 #[instrument(skip_all, err)]
@@ -1562,7 +1596,7 @@ pub async fn update_messenger_link(
             encrypted_payload = CASE WHEN $2 = 'PENDING'
                                      THEN encrypted_payload ELSE NULL END,
             updated_at = now()
-        WHERE id = $1
+        WHERE id = $1 AND ($2 <> 'CODE_SENT' OR state = 'PENDING')
         "#,
         &[id, &state.to_string(), &page_scoped_id, &message_id],
     )

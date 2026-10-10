@@ -60,6 +60,24 @@ class AirgapBundleTest(unittest.TestCase):
                     needed.add(name)
         self.assertEqual(sorted(needed - names), [])
 
+    def test_callback_limits_are_configurable_in_every_deployment(self):
+        for relative in (
+            ".devcontainer/docker-compose-base.yml",
+            ".devcontainer/docker-compose-remote.yml",
+            ".devcontainer/docker-compose-airgap-preparation.yml",
+            "scripts/airgap-files/docker-compose.yml",
+        ):
+            compose = (ROOT / relative).read_text()
+            for service, variable, default in (
+                ("harvest", "MESSAGING_CALLBACK_CONNECTIONS", 4),
+                ("messaging-webhooks", "MESSAGING_WEBHOOKS_MAX_IN_FLIGHT", 16),
+            ):
+                with self.subTest(deployment=relative, service=service):
+                    self.assertIn(
+                        f"{variable}: ${{{variable}:-{default}}}",
+                        service_block(compose, service),
+                    )
+
     def test_harvest_is_not_published_on_the_host(self):
         harvest = service_block(self.compose, "harvest")
         self.assertNotIn("ports:", harvest)

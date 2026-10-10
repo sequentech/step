@@ -15,7 +15,8 @@ import {parseActionResponseBody} from "@/services/graphqlActionError"
  * Sources: `sequent_core::types::messaging::MessageReason`, the preflight
  * refusals (`messaging::sender::PreflightError`), the account refusals in
  * `windmill::postgres::messaging` and `windmill::services::messaging::accounts`,
- * the provider checks (`messaging::providers`) and `callback_readiness`.
+ * the provider checks (`messaging::providers`) and `callback_readiness`,
+ * and harvest's and windmill's refusals of an account or insights request.
  */
 export const KNOWN_REASONS: Record<string, string> = {
     // MessageReason
@@ -34,6 +35,7 @@ export const KNOWN_REASONS: Record<string, string> = {
     "The worker stopped before sending": "WORKER_STOPPED_BEFORE_SENDING",
     "The worker stopped before recording the outcome": "WORKER_STOPPED_AFTER_SENDING",
     "The code expired before it could be sent": "CODE_EXPIRED_BEFORE_SENDING",
+    "Not sent: the voter is connected to another Messenger Page": "MESSENGER_PAGE_CHANGED",
     // The account's shared sending capacity (windmill::postgres::rate_bucket)
     "Not sent: the account stayed at its sending limit for too long": "CAPACITY_BUSY",
     // windmill::services::messaging::dispatch: the provider's answer came
@@ -83,6 +85,16 @@ export const KNOWN_REASONS: Record<string, string> = {
     "The access token couldn't be checked": "TOKEN_NOT_CHECKED",
     "Meta refused the app secret": "APP_SECRET_REFUSED",
     "The app secret couldn't be checked": "APP_SECRET_NOT_CHECKED",
+    // harvest::routes::messaging (R7-20): an account deleted in another tab,
+    // and a failure inside harvest
+    "unknown account": "UNKNOWN_ACCOUNT",
+    "internal error": "INTERNAL_ERROR",
+    // windmill::services::messaging::accounts::entered_credentials
+    "the verify token is generated, not entered": "VERIFY_TOKEN_GENERATED",
+    // Insights (harvest::routes::messaging_insights, windmill's insights)
+    "Unknown audience": "UNKNOWN_AUDIENCE",
+    "The month must be written as YYYY-MM": "INVALID_MONTH",
+    "Not a support reference": "INVALID_SUPPORT_REFERENCE",
 }
 
 /**
@@ -126,6 +138,51 @@ export const REASON_SHAPES: IReasonShape[] = [
     {prefix: "The number's display name is ", code: "NUMBER_NAME_STATUS", param: "status"},
 ]
 
+/**
+ * Reasons with several values in them: the backend's format string, verbatim
+ * (`{}` or `{name}` for each value), the translation key, and the name the
+ * translation gives each value, in order. The values are the backend's enum
+ * names (a credential, a provider), each translated.
+ */
+export interface IReasonPattern {
+    rust: string
+    code: string
+    params: Array<{name: string; translate: (t: TFunction, value: string) => string}>
+}
+
+const CREDENTIAL = {name: "credential", translate: translatedKey("messaging.credential")}
+const PROVIDER = {name: "provider", translate: translatedKey("messaging.provider")}
+
+// windmill::services::messaging::accounts: `entered_credentials` and
+// `generate_report_credentials` (R7-20).
+export const REASON_PATTERNS: IReasonPattern[] = [
+    {rust: "{name} is generated, not entered", code: "CREDENTIAL_GENERATED", params: [CREDENTIAL]},
+    {
+        rust: "{} accounts do not use {name}",
+        code: "CREDENTIAL_NOT_USED",
+        params: [PROVIDER, CREDENTIAL],
+    },
+    {rust: "{name} cannot be empty", code: "CREDENTIAL_EMPTY", params: [CREDENTIAL]},
+    {
+        rust: "{} accounts have no report credentials",
+        code: "NO_REPORT_CREDENTIALS",
+        params: [PROVIDER],
+    },
+]
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+/** The pattern's format as a regular expression: each value an enum name. */
+const patternRegExp = (pattern: IReasonPattern) =>
+    new RegExp(
+        `^${pattern.rust
+            .split(/\{\w*\}/)
+            .map(escapeRegExp)
+            .join("([A-Z_]+)")}$`
+    )
+
+const PATTERNS = REASON_PATTERNS.map((pattern) => ({pattern, regExp: patternRegExp(pattern)}))
+
 /** A failure the provider reported by its code only (`provider code <code>`). */
 const PROVIDER_CODE = /^provider code (.+)$/
 
@@ -149,6 +206,21 @@ const oneReason = (t: TFunction, text: string): string => {
             t(`messaging.reason.${shape.code}`, {
                 [shape.param]: shape.translate ? shape.translate(t, value) : value,
             })
+        )
+    }
+    for (const {pattern, regExp} of PATTERNS) {
+        const match = regExp.exec(text)
+        if (!match) continue
+        return String(
+            t(
+                `messaging.reason.${pattern.code}`,
+                Object.fromEntries(
+                    pattern.params.map(({name, translate}, index) => [
+                        name,
+                        translate(t, match[index + 1]),
+                    ])
+                )
+            )
         )
     }
     return text

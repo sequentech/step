@@ -29,8 +29,8 @@ backend becomes reachable.
 
 | Service | Variables |
 |---|---|
-| `messaging-webhooks` | `MESSAGING_RELAY_SECRET`, `HARVEST_DOMAIN`, `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` (optional), `ROCKET_ADDRESS`, `ROCKET_PORT` |
-| harvest | `MESSAGING_RELAY_SECRET`, `MESSAGING_WEBHOOKS_PUBLIC_URL`, and the endpoint variables if used |
+| `messaging-webhooks` | `MESSAGING_RELAY_SECRET`, `HARVEST_DOMAIN`, `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` (optional), `MESSAGING_WEBHOOKS_MAX_IN_FLIGHT` (optional), `ROCKET_ADDRESS`, `ROCKET_PORT` |
+| harvest | `MESSAGING_RELAY_SECRET`, `MESSAGING_WEBHOOKS_PUBLIC_URL`, `MESSAGING_CALLBACK_CONNECTIONS` (optional), and the endpoint variables if used |
 | windmill | `MESSAGING_WEBHOOKS_PUBLIC_URL`, and the endpoint variables if used |
 | beat | `MESSAGING_WEBHOOKS_PUBLIC_URL`, and the endpoint variables if used |
 
@@ -63,6 +63,13 @@ backend becomes reachable.
   providers (see
   [Fake provider routes](03-messaging-development.md#fake-provider-routes));
   unset, those routes don't exist.
+
+- `MESSAGING_WEBHOOKS_MAX_IN_FLIGHT` (16 by default) and
+  `MESSAGING_CALLBACK_CONNECTIONS` (4 by default) bound what a burst of
+  callbacks can hold: requests to harvest per component process, and
+  database connections per harvest process. Callbacks beyond them get 503
+  and the providers send them again, so codes and notices keep the rest of
+  harvest's pool. Raise them only together with harvest's pool size.
 
 The component is built like harvest (`Dockerfile.cargo-packages` and the
 product images) and runs with its own command. It is stateless: run as many
@@ -107,6 +114,25 @@ A send Keycloak asks for waits at most 5 s for its account's capacity, and
 harvest answers it within 8 s. Keep the Keycloak sender's
 `--spi-message-sender-harvest-timeout-seconds` at its default (10) or
 above.
+
+## Rolling back
+
+A rollback to the previous release runs the migration's `down.sql`
+**before** the previous binaries are deployed. The previous binaries can't
+read message rows without a channel (the "No contact channel" rows), so
+code rolled back on the new schema fails on them.
+
+`down.sql` reports each rewrite with `RAISE NOTICE`; keep its output with
+the rollback record:
+
+- the message rows without a channel it relabels `EMAIL` (the previous
+  release then counts them as email failures);
+- the Messenger links without a link word it gives their reference digest;
+- the event configurations it drops. Every configuration save since this
+  release also writes the election event annotation the previous release
+  reads, so each event goes back to its last saved configuration.
+
+The inbound messages this release deleted aren't restored.
 
 ## Deployment prerequisites
 

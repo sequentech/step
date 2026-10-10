@@ -5729,6 +5729,22 @@ const catalanTranslation: TranslationType = {
                 REPORT_CREDENTIALS_MISSING:
                     "Genereu les credencials d'informes i creeu la subscripció d'Infobip",
                 CALLBACK_NOT_HTTPS: "L'adreça de retorn ha de ser https",
+                UNKNOWN_ACCOUNT:
+                    "Aquest compte ja no existeix: pot ser que s'hagi suprimit en una altra pestanya. Torneu a carregar la llista.",
+                INTERNAL_ERROR:
+                    "El servidor no ha pogut completar la sol·licitud. Torneu-ho a provar més tard.",
+                VERIFY_TOKEN_GENERATED:
+                    "El testimoni de verificació el genera el sistema; no s'introdueix",
+                CREDENTIAL_GENERATED: "{{credential}}: el genera el sistema; no s'introdueix",
+                CREDENTIAL_NOT_USED: "Els comptes de {{provider}} no fan servir {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} no pot estar buit",
+                NO_REPORT_CREDENTIALS:
+                    "Els comptes de {{provider}} no tenen credencials d'informes",
+                UNKNOWN_AUDIENCE: "Selecció de destinataris desconeguda",
+                INVALID_MONTH: "El mes s'ha d'escriure com a AAAA-MM",
+                INVALID_SUPPORT_REFERENCE: "No és una referència de suport",
+                MESSENGER_PAGE_CHANGED:
+                    "No enviat: el votant està connectat a una altra pàgina de Messenger",
             },
         },
         messagingAccounts: {
@@ -5927,7 +5943,7 @@ const catalanTranslation: TranslationType = {
                 recheck:
                     "En desar, el compte es torna a comprovar en segon pla. Fins que aquesta comprovació no surti bé, els codis i els avisos que hi passin fallen per no estar llest; el missatge de prova sí que s'envia.",
                 pageChange:
-                    "Les converses de Messenger pertanyen a una pàgina. Després de canviar la pàgina, els votants connectats a {{page}} només rebran codis quan tornin a connectar Messenger.",
+                    "Les converses de Messenger pertanyen a una pàgina. Després de canviar la pàgina, no s'envien codis ni avisos als votants connectats a {{page}} fins que no es tornin a connectar. El votant es torna a connectar en el següent inici de sessió, després d'introduir la contrasenya: l'inici de sessió mostra el pas de connexió de la pàgina nova, el votant toca Comença a Messenger i hi rep el codi. Un votant que no pot iniciar la sessió amb contrasenya, per exemple perquè l'ha oblidada, necessita que el personal li canviï el canal.",
                 numberChange:
                     "Els missatges arribaran des d'un altre número. Les seves plantilles han d'estar aprovades en aquest compte d'empresa abans de poder enviar codis, i els votants veuran un xat nou.",
             },
@@ -5950,7 +5966,7 @@ const catalanTranslation: TranslationType = {
                     "Un mínim dins de l'únic pressupost d'enviament compartit del compte: els avisos s'hi aturen i els codis van primer. Si no s'envien codis, un enviament massiu pot fer servir tot el ritme.",
                 otpConcurrency: "Codis enviats alhora",
                 otpConcurrencyHelp:
-                    "Buit: 8. Es compta per procés del servidor; els altres codis esperen el seu torn.",
+                    "Buit: 8. Els codis i els avisos de Keycloak (enllaços de restabliment, contrasenyes temporals) ocupen cadascun una plaça mentre s'envien. Es compta per procés del servidor; els altres enviaments esperen el seu torn.",
                 allowedCallingCodes: "Destinacions permeses (prefixos telefònics de país)",
                 allowedCallingCodesHelp:
                     "Separats per comes, per exemple 63, 971. Buit permet qualsevol destinació.",
@@ -6150,7 +6166,6 @@ const catalanTranslation: TranslationType = {
                     "No s'ha pogut llegir l'HTML del correu: potser el proveïdor simulat ja no el conserva.",
             },
             reason: {
-                NO_ACCOUNT: "Cap compte no fa servir aquest remitent",
                 SEVERAL_ACCOUNTS: "Diversos comptes fan servir aquest remitent",
                 ACCOUNTS_UNREADABLE: "No s'han pogut llegir els comptes",
                 UNREACHABLE: "El component de webhooks no ha respost",

@@ -72,9 +72,12 @@ and tl; bind those names on the event.
 **Credentials are required, as at the provider.** A send is accepted only
 from an account that uses that sender **and** presents its own credential:
 the Meta bearer token (`ACCESS_TOKEN`), the Infobip `App` key (`API_KEY`),
-or the AWS access key ID in the request's signature
-(`AWS_ACCESS_KEY_ID`; the signature itself isn't checked). Anything else
-gets the provider's own 401 or 403 and is not kept. The check routes need a
+or an AWS Signature Version 4 made with the account's own
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (the signature is checked
+as AWS does: the signed headers, the body digest and a time within 15
+minutes). Anything else gets the provider's own 401 or 403 and is not
+kept; an AWS request signed with another secret gets
+`SignatureDoesNotMatch`. The check routes need a
 credential present but accept any value, because candidate credentials are
 checked before they are stored. So:
 
@@ -101,7 +104,8 @@ by SNS, and verification trusts only AWS certificates. Each kept message
 records its report's result: answered (with the component's HTTP status),
 pending, not sent (with the reason, such as "Several accounts use this
 sender" or "Callback address not configured"), unreachable, or no receipts
-on this channel. An account without its app secret or report credentials
+on this channel. A kept message always has at least one account: a send no
+account authenticates is refused before anything is kept. An account without its app secret or report credentials
 shows its reports refused, and its messages stay *Accepted*.
 
 There are no failure or behaviour controls: every authenticated message is

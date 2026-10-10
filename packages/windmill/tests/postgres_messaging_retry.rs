@@ -164,6 +164,7 @@ fn notice(world: &World, key: &str, _channel: MessageChannel) -> Delivery {
             channel: MessageChannel::VIBER,
             destination: "+639171234567".to_string(),
             election_ids: vec![],
+            messenger_page: None,
         },
         content: Some(MessageContent {
             subject: None,

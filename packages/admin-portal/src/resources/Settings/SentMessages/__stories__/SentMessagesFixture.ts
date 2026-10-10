@@ -183,8 +183,11 @@ export const fullMessages = (): IFakeProviderMessage[] => [
         sender: "5550001112",
         recipient: "1234567890123456",
         content: content({text: "Your enrollment was received."}),
-        // No account uses that Page: the fake had no one to report for.
-        report: report({state: EFakeReportState.NOT_SENT, reason: "No account uses this sender"}),
+        // Two accounts use that Page: the fake can't tell whose report it is.
+        report: report({
+            state: EFakeReportState.NOT_SENT,
+            reason: "Several accounts use this sender",
+        }),
     },
 ]
 

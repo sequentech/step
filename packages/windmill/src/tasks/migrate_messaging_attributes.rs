@@ -12,12 +12,13 @@
 //!   and it and the old `messaging-app-otp-ra` require a sign-in in the last
 //!   300 s (`max_auth_age`); the old one stays, since voters may have it
 //!   pending;
-//! - the reset code (`reset.send.otp.tlf`) goes to the voter's one channel,
-//!   and its page reveals nothing about the account (`code-page-disclosure`
-//!   `NEUTRAL`, unless the realm chose its own); every other message OTP
-//!   step states its code page policy too: `NEUTRAL` in the reset-credentials
-//!   flow, `NAMED` at sign-in (the default became `NEUTRAL`), enrollment steps
-//!   left alone;
+//! - every message OTP step sends its code to the voter's one channel
+//!   (`messageCourierAttribute` `CHOSEN`, whatever courier it named: R7-01);
+//! - the reset code (`reset.send.otp.tlf`) page reveals nothing about the
+//!   account (`code-page-disclosure` `NEUTRAL`, unless the realm chose its
+//!   own); every other message OTP step states its code page policy too:
+//!   `NEUTRAL` in the reset-credentials flow, `NAMED` at sign-in (the
+//!   default became `NEUTRAL`), enrollment steps left alone;
 //! - every voter with a first-release record (`verified-channels`) is
 //!   rewritten to the ticket's attributes, and the first-release attributes
 //!   are removed.
@@ -38,7 +39,10 @@ use anyhow::{anyhow, Context, Result};
 use celery::error::TaskError;
 use celery::task::{Task, TaskResult};
 use deadpool_postgres::Client as DbClient;
-use keycloak::types::{AuthenticatorConfigRepresentation, RequiredActionProviderRepresentation};
+use keycloak::types::{
+    AuthenticationExecutionInfoRepresentation, AuthenticatorConfigInfoRepresentation,
+    AuthenticatorConfigRepresentation, RequiredActionProviderRepresentation,
+};
 use keycloak::{KeycloakError, KeycloakTokenSupplier};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::{
@@ -366,6 +370,118 @@ pub fn code_page_patch(
         .get_or_insert_with(HashMap::new)
         .insert(CODE_PAGE_DISCLOSURE_KEY.to_string(), policy.to_string());
     Some(patched)
+}
+
+/// The courier of a step configured to send no code.
+const NONE_COURIER: &str = "NONE";
+
+/// Logged for each message OTP step the migration leaves on `NONE`.
+pub const NONE_STEP_LEFT: &str = "left NONE: the step sends no code";
+
+/// Whether `config` names the `NONE` courier, read as Keycloak reads it
+/// (any case).
+pub fn sends_no_code(config: &AuthenticatorConfigRepresentation) -> bool {
+    config
+        .config
+        .as_ref()
+        .and_then(|values| values.get(COURIER_KEY))
+        .is_some_and(|courier| courier.eq_ignore_ascii_case(NONE_COURIER))
+}
+
+/// The config of a message OTP step of a messaging realm as the migration
+/// leaves it: its code page policy stated ([`code_page_patch`]), and its
+/// code sent to the voter's one channel (`messageCourierAttribute`
+/// `CHOSEN`, R7-01), whatever courier it named. `None` when it needs
+/// neither, so a migrated realm is left unchanged, and for a step on
+/// `NONE` ([`sends_no_code`]): a step configured to send nothing never
+/// starts sending.
+pub fn code_step_patch(
+    config: &AuthenticatorConfigRepresentation,
+    role: CodeStepRole,
+) -> Option<AuthenticatorConfigRepresentation> {
+    if sends_no_code(config) {
+        return None;
+    }
+    let mut patched = code_page_patch(config, role).unwrap_or_else(|| config.clone());
+    let values = patched.config.get_or_insert_with(HashMap::new);
+    if values.get(COURIER_KEY).map(String::as_str) != Some(CHOSEN_COURIER) {
+        values.insert(COURIER_KEY.to_string(), CHOSEN_COURIER.to_string());
+    }
+    (patched != *config).then_some(patched)
+}
+
+/// The enabled message OTP steps of a realm, from the executions of each
+/// top-level flow (nested flows included) with the flow's role.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CodeSteps {
+    /// Each config a step uses, with its role; a config the reset flow uses
+    /// is a reset one.
+    pub configs: BTreeMap<String, CodeStepRole>,
+    /// Each step without a config, by execution id: Keycloak gives it the
+    /// factory defaults (courier `BOTH`), so it gets a config of its own.
+    pub unconfigured: BTreeMap<String, CodeStepRole>,
+}
+
+/// The execution requirement Keycloak never runs.
+const DISABLED_REQUIREMENT: &str = "DISABLED";
+
+/// The message OTP steps the migration points at the voter's one channel:
+/// every enabled one, in any flow or nested flow, configured or not, as
+/// the contact change's gate counts them (R7-01).
+pub fn code_steps(
+    flows: &[(CodeStepRole, Vec<AuthenticationExecutionInfoRepresentation>)],
+) -> CodeSteps {
+    let mut steps = CodeSteps::default();
+    for (role, executions) in flows {
+        for execution in executions {
+            if execution.provider_id.as_deref() != Some(MESSAGE_OTP_PROVIDER)
+                || execution.requirement.as_deref() == Some(DISABLED_REQUIREMENT)
+            {
+                continue;
+            }
+            let entry = match (&execution.authentication_config, &execution.id) {
+                (Some(config), _) => steps.configs.entry(config.clone()).or_insert(*role),
+                (None, Some(execution)) => {
+                    steps.unconfigured.entry(execution.clone()).or_insert(*role)
+                }
+                (None, None) => continue,
+            };
+            if *role == CodeStepRole::Reset {
+                *entry = CodeStepRole::Reset;
+            }
+        }
+    }
+    steps
+}
+
+/// The config created for a message OTP step that has none: Keycloak's
+/// factory defaults from the step's config description (what the step
+/// used until now), then [`code_step_patch`]. Named after the execution.
+pub fn new_code_step_config(
+    execution_id: &str,
+    description: &AuthenticatorConfigInfoRepresentation,
+    role: CodeStepRole,
+) -> AuthenticatorConfigRepresentation {
+    let defaults: HashMap<String, String> = description
+        .properties
+        .iter()
+        .flatten()
+        .filter_map(|property| {
+            let name = property.name.clone()?;
+            let value = match &property.default_value {
+                None | Some(Value::Null) => String::new(),
+                Some(Value::String(value)) => value.clone(),
+                Some(other) => other.to_string(),
+            };
+            Some((name, value))
+        })
+        .collect();
+    let config = AuthenticatorConfigRepresentation {
+        alias: Some(format!("{MESSAGE_OTP_PROVIDER}-{execution_id}")),
+        config: Some(defaults),
+        id: None,
+    };
+    code_step_patch(&config, role).unwrap_or(config)
 }
 
 /// The keys `patched` sets differently from `current`, as `key value`.
@@ -719,7 +835,10 @@ async fn migrate_required_actions(
 
 /// States the code page policy of every message OTP step: `NEUTRAL` in the
 /// realm's reset-credentials flow, `NAMED` at sign-in ([`code_page_patch`]),
-/// and points every `reset.send.otp.tlf` config at the voter's one channel.
+/// and points every enabled message OTP step ([`code_steps`]) at the
+/// voter's one channel ([`code_step_patch`], R7-01); a step without a
+/// config gets one ([`new_code_step_config`]). Each change is logged by the
+/// caller.
 async fn migrate_reset_configs(
     admin: &KeycloakAdminClient,
     pub_admin: &PubKeycloakAdmin,
@@ -737,8 +856,7 @@ async fn migrate_reset_configs(
         .realm_authentication_flows_get(realm)
         .await
         .map_err(|err| keycloak_failure(format!("Error reading flows of {realm}"), &err))?;
-    // Each config with its role; a config the reset flow uses is a reset one.
-    let mut config_ids: BTreeMap<String, CodeStepRole> = BTreeMap::new();
+    let mut found = vec![];
     for flow in flows.iter().filter(|flow| flow.top_level == Some(true)) {
         let Some(alias) = flow.alias.as_deref() else {
             continue;
@@ -755,20 +873,55 @@ async fn migrate_reset_configs(
             .map_err(|err| {
                 keycloak_failure(format!("Error reading flow {alias} of {realm}"), &err)
             })?;
-        for execution in executions {
-            let Some(id) = execution.authentication_config else {
-                continue;
-            };
-            if execution.provider_id.as_deref() != Some(MESSAGE_OTP_PROVIDER) {
-                continue;
-            }
-            let entry = config_ids.entry(id).or_insert(role);
-            if role == CodeStepRole::Reset {
-                *entry = CodeStepRole::Reset;
-            }
+        found.push((role, executions));
+    }
+    let steps = code_steps(&found);
+    if !steps.unconfigured.is_empty() {
+        let description = admin
+            .client
+            .realm_authentication_config_description_with_provider_id_get(
+                realm,
+                MESSAGE_OTP_PROVIDER,
+            )
+            .await
+            .map_err(|err| {
+                keycloak_failure(
+                    format!(
+                        "Error reading the {MESSAGE_OTP_PROVIDER} config description of {realm}"
+                    ),
+                    &err,
+                )
+            })?;
+        for (execution_id, role) in &steps.unconfigured {
+            let config = new_code_step_config(execution_id, &description, *role);
+            let alias = config.alias.clone().unwrap_or_default();
+            let set = config_changes(&AuthenticatorConfigRepresentation::default(), &config)
+                .into_iter()
+                .filter(|change| {
+                    change.starts_with(COURIER_KEY) || change.starts_with(CODE_PAGE_DISCLOSURE_KEY)
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            admin
+                .client
+                .realm_authentication_executions_with_execution_id_config_post(
+                    realm,
+                    execution_id,
+                    config,
+                )
+                .await
+                .map_err(|err| {
+                    keycloak_failure(
+                        format!("Error creating the config of execution {execution_id} of {realm}"),
+                        &err,
+                    )
+                })?;
+            changes.push(format!(
+                "created authenticator config {alias} with the factory defaults and {set} for execution {execution_id} ({role:?}), which had none"
+            ));
         }
     }
-    for (id, role) in config_ids {
+    for (id, role) in steps.configs {
         let config = admin
             .client
             .realm_authentication_config_with_id_get(realm, &id)
@@ -794,7 +947,14 @@ async fn migrate_reset_configs(
                 );
             }
         }
-        if let Some(patched) = code_page_patch(&config, role) {
+        if sends_no_code(&config) {
+            let alias = config.alias.as_deref().unwrap_or("");
+            // Not a change: logged on its own, so a migrated realm still
+            // reports nothing to change.
+            info!(realm, config_id = id, alias, role = ?role, "{NONE_STEP_LEFT}");
+            continue;
+        }
+        if let Some(patched) = code_step_patch(&config, role) {
             let set = config_changes(&config, &patched).join(", ");
             admin
                 .client
@@ -1687,6 +1847,212 @@ mod tests {
             ),
             reset_config_patch(&reset_config("reset.send.otp.tlf", "BOTH", "true"))
         );
+    }
+
+    /// Regression (R7-01): only the reset code step was switched to the
+    /// voter's one channel; a sign-in step on `BOTH` (the default preset),
+    /// `EMAIL` or `SMS` kept sending to the email and mobile number of a
+    /// voter whose channel is WhatsApp. Every message OTP step of a
+    /// messaging realm is set to `CHOSEN`, once.
+    #[test]
+    fn every_code_step_of_a_messaging_realm_sends_to_the_voters_one_channel() {
+        for (alias, courier, deferred, role) in [
+            ("email-sms", "BOTH", "false", CodeStepRole::SignIn),
+            ("email-only", "EMAIL", "false", CodeStepRole::SignIn),
+            ("enrollment", "SMS", "true", CodeStepRole::SignIn),
+            ("enrollment-both", "BOTH", "true", CodeStepRole::SignIn),
+            ("reset.other", "BOTH", "false", CodeStepRole::Reset),
+        ] {
+            let patched = code_step_patch(&reset_config(alias, courier, deferred), role)
+                .unwrap_or_else(|| panic!("{alias} is patched"));
+            assert_eq!(
+                patched.config.unwrap()[COURIER_KEY],
+                CHOSEN_COURIER,
+                "{alias}"
+            );
+        }
+        // Lead decision: a step configured to send nothing (`NONE`, in any
+        // case, as Keycloak reads it) never starts sending; it is left as
+        // it is, in either role.
+        for courier in ["NONE", "none"] {
+            for role in [CodeStepRole::SignIn, CodeStepRole::Reset] {
+                assert_eq!(
+                    code_step_patch(&reset_config("silent", courier, "false"), role),
+                    None,
+                    "{courier} {role:?}"
+                );
+            }
+        }
+        // A realm's own code page policy is kept while the courier changes.
+        let mut own = reset_config("email-sms", "BOTH", "false");
+        own.config
+            .as_mut()
+            .unwrap()
+            .insert(CODE_PAGE_DISCLOSURE_KEY.into(), NEUTRAL_DISCLOSURE.into());
+        let patched = code_step_patch(&own, CodeStepRole::SignIn)
+            .unwrap()
+            .config
+            .unwrap();
+        assert_eq!(patched[COURIER_KEY], CHOSEN_COURIER);
+        assert_eq!(patched[CODE_PAGE_DISCLOSURE_KEY], NEUTRAL_DISCLOSURE);
+        // Idempotent: a migrated step needs nothing.
+        let mut migrated = reset_config("email-sms", "CHOSEN", "false");
+        migrated
+            .config
+            .as_mut()
+            .unwrap()
+            .insert(CODE_PAGE_DISCLOSURE_KEY.into(), NAMED_DISCLOSURE.into());
+        assert_eq!(code_step_patch(&migrated, CodeStepRole::SignIn), None);
+        let reset =
+            reset_config_patch(&reset_config("reset.send.otp.tlf", "BOTH", "true")).unwrap();
+        assert_eq!(code_step_patch(&reset, CodeStepRole::Reset), None);
+    }
+
+    fn execution(
+        id: &str,
+        provider: &str,
+        config: Option<&str>,
+        requirement: &str,
+        level: i32,
+    ) -> AuthenticationExecutionInfoRepresentation {
+        AuthenticationExecutionInfoRepresentation {
+            id: Some(id.into()),
+            provider_id: Some(provider.into()),
+            authentication_config: config.map(Into::into),
+            requirement: Some(requirement.into()),
+            level: Some(level),
+            ..Default::default()
+        }
+    }
+
+    /// Regression (R7-01, FX3-KC): the contact change's gate counts every
+    /// enabled message OTP step, a step without a config as `BOTH`, but the
+    /// migration skipped steps without a config, so the change stayed
+    /// refused on those realms. Every enabled step is found: configured or
+    /// not, in a nested flow, enrolling, on `NONE`; a disabled one is left.
+    #[test]
+    fn every_enabled_code_step_is_found_with_or_without_a_config() {
+        let sign_in = vec![
+            execution(
+                "e-1",
+                MESSAGE_OTP_PROVIDER,
+                Some("c-sign-in"),
+                "REQUIRED",
+                0,
+            ),
+            // In a nested flow (Keycloak lists those with a level).
+            execution("e-2", MESSAGE_OTP_PROVIDER, None, "REQUIRED", 2),
+            execution(
+                "e-3",
+                MESSAGE_OTP_PROVIDER,
+                Some("c-none"),
+                "ALTERNATIVE",
+                1,
+            ),
+            execution("e-4", MESSAGE_OTP_PROVIDER, None, "DISABLED", 1),
+            execution(
+                "e-5",
+                MESSAGE_OTP_PROVIDER,
+                Some("c-disabled"),
+                "DISABLED",
+                0,
+            ),
+            execution("e-6", "auth-username-password-form", None, "REQUIRED", 0),
+        ];
+        let enrollment = vec![
+            execution(
+                "e-7",
+                MESSAGE_OTP_PROVIDER,
+                Some("c-enrollment"),
+                "REQUIRED",
+                0,
+            ),
+            execution("e-8", MESSAGE_OTP_PROVIDER, None, "CONDITIONAL", 1),
+        ];
+        let reset = vec![
+            execution(
+                "e-9",
+                MESSAGE_OTP_PROVIDER,
+                Some("c-sign-in"),
+                "REQUIRED",
+                0,
+            ),
+            execution("e-10", MESSAGE_OTP_PROVIDER, None, "REQUIRED", 0),
+        ];
+        let steps = code_steps(&[
+            (CodeStepRole::SignIn, sign_in),
+            (CodeStepRole::SignIn, enrollment),
+            (CodeStepRole::Reset, reset),
+        ]);
+        let configs: Vec<(&str, CodeStepRole)> = steps
+            .configs
+            .iter()
+            .map(|(id, role)| (id.as_str(), *role))
+            .collect();
+        assert_eq!(
+            configs,
+            vec![
+                ("c-enrollment", CodeStepRole::SignIn),
+                ("c-none", CodeStepRole::SignIn),
+                // Used by the reset flow too.
+                ("c-sign-in", CodeStepRole::Reset),
+            ]
+        );
+        let unconfigured: Vec<(&str, CodeStepRole)> = steps
+            .unconfigured
+            .iter()
+            .map(|(id, role)| (id.as_str(), *role))
+            .collect();
+        assert_eq!(
+            unconfigured,
+            vec![
+                ("e-10", CodeStepRole::Reset),
+                ("e-2", CodeStepRole::SignIn),
+                ("e-8", CodeStepRole::SignIn),
+            ]
+        );
+    }
+
+    /// Regression (R7-01, FX3-KC): a step without a config sent with the
+    /// factory defaults (courier `BOTH`). Its new config keeps every default
+    /// and sends to the voter's one channel, with the code page policy of
+    /// its role.
+    #[test]
+    fn a_code_step_without_a_config_gets_the_defaults_on_the_voters_channel() {
+        use keycloak::types::ConfigPropertyRepresentation;
+        let property = |name: &str, default: Option<Value>| ConfigPropertyRepresentation {
+            name: Some(name.into()),
+            default_value: default,
+            ..Default::default()
+        };
+        let description = AuthenticatorConfigInfoRepresentation {
+            properties: Some(vec![
+                property(COURIER_KEY, Some(json!("BOTH"))),
+                property(DEFERRED_KEY, Some(json!(false))),
+                property("length", Some(json!(6))),
+                property("ttl", Some(json!("300"))),
+                property("sender", None),
+            ]),
+            ..Default::default()
+        };
+        let config = new_code_step_config("e-2", &description, CodeStepRole::SignIn);
+        assert_eq!(
+            config.alias.as_deref(),
+            Some("message-otp-authenticator-e-2")
+        );
+        assert_eq!(config.id, None);
+        let values = config.config.unwrap();
+        assert_eq!(values[COURIER_KEY], CHOSEN_COURIER);
+        assert_eq!(values[DEFERRED_KEY], "false");
+        assert_eq!(values["length"], "6");
+        assert_eq!(values["ttl"], "300");
+        assert_eq!(values["sender"], "");
+        assert_eq!(values[CODE_PAGE_DISCLOSURE_KEY], NAMED_DISCLOSURE);
+        let reset = new_code_step_config("e-10", &description, CodeStepRole::Reset)
+            .config
+            .unwrap();
+        assert_eq!(reset[COURIER_KEY], CHOSEN_COURIER);
+        assert_eq!(reset[CODE_PAGE_DISCLOSURE_KEY], NEUTRAL_DISCLOSURE);
     }
 
     #[test]

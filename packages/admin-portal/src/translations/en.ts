@@ -5643,6 +5643,19 @@ const englishTranslation = {
                 REPORT_CREDENTIALS_MISSING:
                     "Generate the report credentials and create the Infobip subscription",
                 CALLBACK_NOT_HTTPS: "Callback address must be https",
+                UNKNOWN_ACCOUNT:
+                    "This account no longer exists: it may have been deleted in another tab. Reload the list.",
+                INTERNAL_ERROR: "The server couldn't complete the request. Try again later.",
+                VERIFY_TOKEN_GENERATED: "The verify token is generated, not entered",
+                CREDENTIAL_GENERATED: "{{credential}} is generated, not entered",
+                CREDENTIAL_NOT_USED: "{{provider}} accounts don't use {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} can't be empty",
+                NO_REPORT_CREDENTIALS: "{{provider}} accounts have no report credentials",
+                UNKNOWN_AUDIENCE: "Unknown audience",
+                INVALID_MONTH: "The month must be written as YYYY-MM",
+                INVALID_SUPPORT_REFERENCE: "Not a support reference",
+                MESSENGER_PAGE_CHANGED:
+                    "Not sent: the voter is connected to another Messenger Page",
             },
         },
         messagingAccounts: {
@@ -5835,7 +5848,7 @@ const englishTranslation = {
                 recheck:
                     "Saving checks the account again in the background. Until that check succeeds, codes and notices through it fail as not ready; the test message is still sent.",
                 pageChange:
-                    "Messenger conversations belong to a Page. After changing the Page, the voters connected to {{page}} get codes only after connecting Messenger again.",
+                    "Messenger conversations belong to a Page. After changing the Page, codes and notices to the voters connected to {{page}} aren't sent until they connect again. A voter reconnects at their next sign-in, after entering their password: the sign-in shows the connect step for the new Page, the voter taps Get Started in Messenger, then receives the code there. A voter who can't sign in with a password, for example because they forgot it, needs staff to change their channel.",
                 numberChange:
                     "Messages will come from another number. Its templates must be approved in that business account before it can send codes, and voters will see a new chat.",
             },
@@ -5858,7 +5871,7 @@ const englishTranslation = {
                     "A floor in the account's one shared sending budget: notices stop at it and codes go first. With no codes being sent, a bulk send can use the full rate.",
                 otpConcurrency: "Codes sent at once",
                 otpConcurrencyHelp:
-                    "Empty: 8. Counted per server process; further codes wait their turn.",
+                    "Empty: 8. Codes and Keycloak's notices (reset links, temporary passwords) each hold a place while they are sent. Counted per server process; further sends wait their turn.",
                 allowedCallingCodes: "Allowed destinations (country calling codes)",
                 allowedCallingCodesHelp:
                     "Separated by commas, for example 63, 971. Empty allows any destination.",
@@ -6053,7 +6066,6 @@ const englishTranslation = {
                     "The email's HTML could not be read: the fake provider may no longer keep it.",
             },
             reason: {
-                NO_ACCOUNT: "No account uses this sender",
                 SEVERAL_ACCOUNTS: "Several accounts use this sender",
                 ACCOUNTS_UNREADABLE: "The accounts couldn't be read",
                 UNREACHABLE: "The webhook component didn't answer",

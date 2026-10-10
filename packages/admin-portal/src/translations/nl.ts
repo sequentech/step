@@ -5747,6 +5747,21 @@ const dutchTranslation: TranslationType = {
                 REPORT_CREDENTIALS_MISSING:
                     "Genereer de inloggegevens voor rapporten en maak het Infobip-abonnement aan",
                 CALLBACK_NOT_HTTPS: "Het callbackadres moet https zijn",
+                UNKNOWN_ACCOUNT:
+                    "Dit account bestaat niet meer: het is mogelijk in een ander tabblad verwijderd. Laad de lijst opnieuw.",
+                INTERNAL_ERROR:
+                    "De server kon het verzoek niet voltooien. Probeer het later opnieuw.",
+                VERIFY_TOKEN_GENERATED: "Het verificatietoken wordt gegenereerd, niet ingevoerd",
+                CREDENTIAL_GENERATED: "{{credential}} wordt gegenereerd, niet ingevoerd",
+                CREDENTIAL_NOT_USED: "{{provider}}-accounts gebruiken geen {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} mag niet leeg zijn",
+                NO_REPORT_CREDENTIALS:
+                    "{{provider}}-accounts hebben geen referenties voor rapporten",
+                UNKNOWN_AUDIENCE: "Onbekende selectie van ontvangers",
+                INVALID_MONTH: "De maand moet worden geschreven als JJJJ-MM",
+                INVALID_SUPPORT_REFERENCE: "Geen ondersteuningsreferentie",
+                MESSENGER_PAGE_CHANGED:
+                    "Niet verzonden: de kiezer is verbonden met een andere Messenger-pagina",
             },
         },
         messagingAccounts: {
@@ -5943,7 +5958,7 @@ const dutchTranslation: TranslationType = {
                 recheck:
                     "Bij opslaan wordt het account op de achtergrond opnieuw gecontroleerd. Tot die controle slaagt, mislukken codes en meldingen via dit account omdat het niet klaar is; het testbericht wordt wel verzonden.",
                 pageChange:
-                    "Messenger-gesprekken horen bij een pagina. Na het wijzigen van de pagina krijgen de kiezers die met {{page}} verbonden zijn pas weer codes nadat ze Messenger opnieuw hebben verbonden.",
+                    "Messenger-gesprekken horen bij een pagina. Na het wijzigen van de pagina worden er geen codes of berichten verzonden aan de kiezers die met {{page}} verbonden zijn, totdat ze opnieuw verbinden. Een kiezer verbindt opnieuw bij de volgende keer aanmelden, na het invoeren van het wachtwoord: het aanmelden toont de verbindingsstap voor de nieuwe pagina, de kiezer tikt in Messenger op Aan de slag en ontvangt daar de code. Een kiezer die zich niet met een wachtwoord kan aanmelden, bijvoorbeeld omdat hij het vergeten is, heeft medewerkers nodig om zijn kanaal te wijzigen.",
                 numberChange:
                     "Berichten komen van een ander nummer. De sjablonen moeten in dat bedrijfsaccount zijn goedgekeurd voordat het codes kan versturen, en kiezers zien een nieuwe chat.",
             },
@@ -5966,7 +5981,7 @@ const dutchTranslation: TranslationType = {
                     "Een ondergrens in het ene gedeelde verzendbudget van het account: meldingen stoppen daar en codes gaan voor. Als er geen codes worden verzonden, kan een bulkverzending het volledige tempo gebruiken.",
                 otpConcurrency: "Codes tegelijk verzonden",
                 otpConcurrencyHelp:
-                    "Leeg: 8. Geteld per serverproces; verdere codes wachten op hun beurt.",
+                    "Leeg: 8. Codes en de berichten van Keycloak (resetlinks, tijdelijke wachtwoorden) bezetten elk een plaats terwijl ze worden verzonden. Geteld per serverproces; verdere verzendingen wachten op hun beurt.",
                 allowedCallingCodes: "Toegestane bestemmingen (landnummers)",
                 allowedCallingCodesHelp:
                     "Gescheiden door komma's, bijvoorbeeld 63, 971. Leeg staat elke bestemming toe.",
@@ -6166,7 +6181,6 @@ const dutchTranslation: TranslationType = {
                     "De HTML van de e-mail kon niet worden gelezen: de gesimuleerde provider bewaart hem misschien niet meer.",
             },
             reason: {
-                NO_ACCOUNT: "Geen account gebruikt deze afzender",
                 SEVERAL_ACCOUNTS: "Meerdere accounts gebruiken deze afzender",
                 ACCOUNTS_UNREADABLE: "De accounts konden niet worden gelezen",
                 UNREACHABLE: "Het webhookonderdeel antwoordde niet",

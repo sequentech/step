@@ -4,6 +4,7 @@
 package sequent.keycloak.voter_enrollment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -343,6 +344,44 @@ class EnrollmentChannelsTest {
         stored);
     assertTrue(Utils.isFormNote("email"));
     assertTrue(Utils.isFormNote("password"));
+  }
+
+  /**
+   * R7-09: a form that doesn't ask for a channel (or a LOGIN form) can't set one: the channel, its
+   * numbers and the consent never become notes, and stale ones are removed.
+   */
+  @Test
+  void aFormThatDoesNotAskForAChannelCannotSetOne() {
+    Set<String> profile = Set.of("firstName", MOBILE);
+    for (String key : Utils.CHANNEL_FIELDS) {
+      assertFalse(Utils.isFormNote(key, profile, EnrollmentChannels.ChannelChoicePolicy.NONE), key);
+      assertTrue(
+          Utils.isFormNote(key, profile, EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS), key);
+    }
+    assertEquals(
+        Set.of(
+            MessagingAttributes.FORM_OTP_CHANNEL,
+            MessagingAttributes.FORM_WHATSAPP_NUMBER,
+            MessagingAttributes.FORM_VIBER_NUMBER,
+            MessagingAttributes.FORM_MESSAGE_CONSENT),
+        Utils.CHANNEL_FIELDS);
+    assertTrue(Utils.isFormNote("firstName", profile, EnrollmentChannels.ChannelChoicePolicy.NONE));
+    assertTrue(Utils.isFormNote(MOBILE, profile, EnrollmentChannels.ChannelChoicePolicy.NONE));
+
+    Map<String, String> configMap = new java.util.HashMap<>();
+    assertEquals(
+        EnrollmentChannels.ChannelChoicePolicy.NONE,
+        DeferredRegistrationUserCreation.formChannelChoice(configMap));
+    configMap.put(
+        DeferredRegistrationUserCreation.CHANNEL_CHOICE_POLICY,
+        EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS.name());
+    assertEquals(
+        EnrollmentChannels.ChannelChoicePolicy.OTP_CHANNELS,
+        DeferredRegistrationUserCreation.formChannelChoice(configMap));
+    configMap.put(DeferredRegistrationUserCreation.FORM_MODE, "LOGIN");
+    assertEquals(
+        EnrollmentChannels.ChannelChoicePolicy.NONE,
+        DeferredRegistrationUserCreation.formChannelChoice(configMap));
   }
 
   /** KC-F9/KC-R8: each Post's channels, keyed by the Post field's options, in ticket order. */

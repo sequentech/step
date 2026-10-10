@@ -52,6 +52,9 @@ pub struct Config {
     pub max_body_bytes: u64,
     /// [`HARVEST_TIMEOUT`], shorter in tests.
     pub timeout: Duration,
+    /// Callbacks relayed at the same time ([`relay::MAX_IN_FLIGHT_ENV`]);
+    /// one more is answered 503 unread and the provider sends it again.
+    pub max_in_flight: usize,
 }
 
 impl std::fmt::Debug for Config {
@@ -61,6 +64,7 @@ impl std::fmt::Debug for Config {
             .field("relay_secret", &"<redacted>")
             .field("max_body_bytes", &self.max_body_bytes)
             .field("timeout", &self.timeout)
+            .field("max_in_flight", &self.max_in_flight)
             .finish()
     }
 }
@@ -76,12 +80,14 @@ impl Config {
 
     /// From the variables `var` returns: [`HARVEST_DOMAIN_ENV`],
     /// [`RELAY_SECRET_ENV`] (checked by [`relay::relay_secret`] under
-    /// [`RELAY_SECRET_POLICY_ENV`]) and [`relay::MAX_BODY_BYTES_ENV`].
+    /// [`RELAY_SECRET_POLICY_ENV`]), [`relay::MAX_BODY_BYTES_ENV`] and
+    /// [`relay::MAX_IN_FLIGHT_ENV`].
     ///
     /// # Errors
     /// When the harvest address is missing, the relay secret is refused
     /// (unset, shorter than 32 bytes, or the development value without its
-    /// policy), or the body limit isn't a positive number of bytes.
+    /// policy), the body limit isn't a positive number of bytes, or the
+    /// in-flight limit isn't a positive whole number.
     pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self> {
         let domain = var(HARVEST_DOMAIN_ENV)
             .map(|value| value.trim().trim_end_matches('/').to_string())
@@ -97,19 +103,27 @@ impl Config {
             var(RELAY_SECRET_POLICY_ENV).as_deref(),
         )?;
         let max_body_bytes = relay::max_body_bytes(var(relay::MAX_BODY_BYTES_ENV).as_deref())?;
+        let max_in_flight = relay::positive_count(
+            relay::MAX_IN_FLIGHT_ENV,
+            var(relay::MAX_IN_FLIGHT_ENV).as_deref(),
+            relay::DEFAULT_MAX_IN_FLIGHT,
+        )?;
         Ok(Self {
             callbacks_url: format!("{base}{CALLBACKS_PATH}"),
             relay_secret,
             max_body_bytes,
             timeout: HARVEST_TIMEOUT,
+            max_in_flight,
         })
     }
 }
 
-/// Managed state: the configuration and one HTTP client to harvest.
+/// Managed state: the configuration, one HTTP client to harvest and the
+/// places for callbacks in flight.
 struct Relay {
     config: Config,
     http: reqwest::Client,
+    in_flight: std::sync::Arc<tokio::sync::Semaphore>,
 }
 
 /// Why a callback was answered 503: the provider retries it.
@@ -124,6 +138,9 @@ enum Unavailable {
     Refused(u16),
     /// Harvest's HTTP 200 wasn't a usable [`RelayResponse`].
     BadAnswer,
+    /// [`Config::max_in_flight`] callbacks are already being relayed; this
+    /// one isn't read or forwarded.
+    Busy,
 }
 
 impl std::fmt::Display for Unavailable {
@@ -133,6 +150,7 @@ impl std::fmt::Display for Unavailable {
             Self::TimedOut => write!(f, "Harvest timed out"),
             Self::Refused(status) => write!(f, "Harvest refused the callback (HTTP {status})"),
             Self::BadAnswer => write!(f, "Harvest's answer is not a relay response"),
+            Self::Busy => write!(f, "Too many callbacks in flight"),
         }
     }
 }
@@ -273,6 +291,13 @@ async fn relay_callback(
         return Reply::empty(Status::NotFound);
     }
     let key_prefix = key.get(..LOGGED_KEY_CHARS).unwrap_or_default();
+    // A place before the body is read (R7-03): a burst can't hold more
+    // than `max_in_flight` harvest requests at once.
+    let Ok(_place) = relay.in_flight.clone().try_acquire_owned() else {
+        warn!(%provider, %method, key = key_prefix, status = 503,
+            reason = %Unavailable::Busy, "callback not relayed; the provider will retry");
+        return Reply::empty(Status::ServiceUnavailable);
+    };
     let body = match data {
         Some(data) => match read_body(data, relay.config.max_body_bytes).await {
             Ok(body) => body,
@@ -428,7 +453,11 @@ pub fn build(config: Config) -> Result<Rocket<Build>> {
             ],
         )
         .register("/", catchers![bare_status])
-        .manage(Relay { config, http }))
+        .manage(Relay {
+            in_flight: std::sync::Arc::new(tokio::sync::Semaphore::new(config.max_in_flight)),
+            config,
+            http,
+        }))
 }
 
 pub mod logging;

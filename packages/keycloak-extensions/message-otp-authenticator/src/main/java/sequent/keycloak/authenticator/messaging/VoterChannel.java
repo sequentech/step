@@ -122,6 +122,34 @@ public record VoterChannel(
     return phone(MessageChannel.SMS, first.apply(Utils.PHONE_NUMBER_ATTRIBUTE), Source.LEGACY);
   }
 
+  /**
+   * Which of the three cases the record is, whether or not its channel can be used: the same test
+   * {@link #resolve} makes. A RECORDED or VERIFIED_CHANNELS voter is only ever reached on that
+   * channel; when it can't be used, nothing is sent (R7-01). Only a LEGACY voter may get a realm's
+   * configured courier.
+   */
+  public static Source shape(Function<String, java.util.stream.Stream<String>> attributes) {
+    boolean firstRelease =
+        Optional.ofNullable(attributes.apply(MessagingAttributes.VERIFIED_CHANNELS))
+            .map(values -> values.findAny().isPresent())
+            .orElse(false);
+    if (firstRelease) {
+      return Source.VERIFIED_CHANNELS;
+    }
+    boolean recorded =
+        Optional.ofNullable(attributes.apply(MessagingAttributes.MESSAGE_CHANNEL))
+            .flatMap(values -> values.findFirst())
+            .filter(value -> !value.isEmpty())
+            .flatMap(MessageChannel::parse)
+            .isPresent();
+    return recorded ? Source.RECORDED : Source.LEGACY;
+  }
+
+  /** {@link #shape} of a user's record. */
+  public static Source shape(UserModel user) {
+    return user == null ? Source.LEGACY : shape(user::getAttributeStream);
+  }
+
   private static Optional<VoterChannel> phone(
       MessageChannel channel, Optional<String> destination, Source source) {
     return destination.map(value -> new VoterChannel(channel, value, Optional.empty(), source));

@@ -384,14 +384,15 @@ fn credentials_are_read_from_the_authorization_header() {
     assert_eq!(header("App key-1").bearer(), None);
     assert_eq!(header("App key-1").infobip_key(), Some("key-1"));
     assert_eq!(
-        header(
+        messaging::sigv4::access_key_id(
             "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20261010/eu-west-1/sns/\
              aws4_request, SignedHeaders=host;x-amz-date, Signature=00"
-        )
-        .aws_access_key_id(),
+        ),
         Some("AKIDEXAMPLE")
     );
-    assert_eq!(header("Bearer AKIDEXAMPLE").aws_access_key_id(), None);
+    assert_eq!(messaging::sigv4::access_key_id("Bearer AKIDEXAMPLE"), None);
+    // Zero accounts never reach a kept message: no account is a refusal.
+    assert!(Senders::new(vec![]).is_none());
     assert_eq!(ProviderAuthorization(None).bearer(), None);
     assert!(same_secret("token-1", "token-1"));
     assert!(!same_secret("token-1", "token-2"));
@@ -518,6 +519,7 @@ impl Stack {
                 relay_secret: RELAY_SECRET.to_vec(),
                 max_body_bytes: messaging::relay::DEFAULT_MAX_BODY_BYTES,
                 timeout: Duration::from_secs(10),
+                max_in_flight: messaging::relay::DEFAULT_MAX_IN_FLIGHT,
             })
             .expect("the component builds"),
             component_port,
@@ -637,6 +639,51 @@ impl Stack {
             .body(body);
         if let Some(value) = authorization {
             request = request.header("Authorization", value);
+        }
+        let response = request.send().await.expect("harvest answers");
+        let status = response.status().as_u16();
+        (status, response.text().await.unwrap_or_default())
+    }
+
+    /// An AWS request to the fake routes signed with `secret` (Signature
+    /// Version 4), as the SDK signs it.
+    async fn aws_signed(
+        &self,
+        path: &str,
+        access_key_id: &str,
+        secret: &str,
+        service: &str,
+        content_type: &str,
+        body: String,
+    ) -> (u16, String) {
+        let host = self.harvest.trim_start_matches("http://").to_string();
+        let mut headers = vec![
+            ("host".to_string(), host),
+            ("content-type".to_string(), content_type.to_string()),
+            (
+                "x-amz-date".to_string(),
+                messaging::sigv4::amz_date(chrono::Utc::now()),
+            ),
+        ];
+        let authorization = messaging::sigv4::authorization(
+            &messaging::sigv4::ReceivedRequest {
+                method: "POST",
+                path,
+                query: "",
+                headers: &headers,
+                body: body.as_bytes(),
+            },
+            access_key_id,
+            secret,
+            "eu-west-1",
+            service,
+        )
+        .expect("signed");
+        headers.push(("authorization".to_string(), authorization));
+        let mut request =
+            self.http.post(format!("{}{path}", self.harvest)).body(body);
+        for (name, value) in headers.iter().filter(|(name, _)| name != "host") {
+            request = request.header(name.as_str(), value.as_str());
         }
         let response = request.send().await.expect("harvest answers");
         let status = response.status().as_u16();
@@ -1125,18 +1172,57 @@ async fn sends_need_the_account_credential_and_belong_to_its_tenant() {
         )
         .await;
     let html = format!("<p>{}</p>", "x".repeat(300 * 1024));
-    let (status, answer) = stack
-        .raw(
-            post.clone(),
-            &format!("{BASE}/aws/v2/email/outbound-emails"),
-            Some(&sigv4("AKIDTENANTA00000002", "ses")),
-            "application/json",
-            json!({"FromEmailAddress": from,
+    let email = json!({"FromEmailAddress": from,
                     "Destination": {"ToAddresses": ["voter@example.org"]},
                     "Content": {"Simple": {"Subject": {"Data": "Big"},
                         "Body": {"Text": {"Data": "text"},
                                  "Html": {"Data": html}}}}})
-            .to_string(),
+    .to_string();
+    // R7-19: the access key ID isn't a secret. A send naming the account's
+    // key ID but not signed with its secret is refused, as AWS refuses it.
+    let ses_path = format!("{BASE}/aws/v2/email/outbound-emails");
+    for (what, answered) in [
+        (
+            "an unsigned send",
+            stack
+                .raw(
+                    post.clone(),
+                    &ses_path,
+                    Some(&sigv4("AKIDTENANTA00000002", "ses")),
+                    "application/json",
+                    email.clone(),
+                )
+                .await,
+        ),
+        (
+            "a send signed with another secret",
+            stack
+                .aws_signed(
+                    &ses_path,
+                    "AKIDTENANTA00000002",
+                    "not-the-secret",
+                    "ses",
+                    "application/json",
+                    email.clone(),
+                )
+                .await,
+        ),
+    ] {
+        expect!(
+            failures,
+            answered.0 == 403,
+            "R7-19: {what} with the account's key ID answered {}",
+            answered.0
+        );
+    }
+    let (status, answer) = stack
+        .aws_signed(
+            &ses_path,
+            "AKIDTENANTA00000002",
+            "synthetic-secret",
+            "ses",
+            "application/json",
+            email,
         )
         .await;
     expect!(

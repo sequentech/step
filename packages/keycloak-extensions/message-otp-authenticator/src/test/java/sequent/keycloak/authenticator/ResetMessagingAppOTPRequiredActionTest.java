@@ -57,7 +57,7 @@ class ResetMessagingAppOTPRequiredActionTest {
   private static final String TENANT = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
   private static final String EVENT = "11111111-2222-3333-4444-555555555555";
   private static final String NEW_NUMBER = "+15550177777";
-  private static final String MASKED_NEW_NUMBER = "+1 • ••• ••• 777";
+  private static final String MASKED_NEW_NUMBER = "+1 ••• ••• 777";
   private static final String PROJECTION =
       """
       {"version": 1, "channels": [
@@ -154,8 +154,11 @@ class ResetMessagingAppOTPRequiredActionTest {
     signInStepConfig.putAll(MessageOTPAuthenticatorFactory.getConfigMap(null));
     signInStepConfig.put(Utils.CODE_TTL, "900");
     signInStepConfig.put(Utils.MAX_CODE_ATTEMPTS, "50");
+    // A messaging realm: its code steps send to the voter's channel (R7-01).
+    signInStepConfig.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.CHOSEN.name());
     AuthenticationFlowModel flow = new AuthenticationFlowModel();
     flow.setId("flow");
+    flow.setTopLevel(true);
     AuthenticationExecutionModel execution = new AuthenticationExecutionModel();
     execution.setAuthenticator(MessageOTPAuthenticatorFactory.PROVIDER_ID);
     execution.setAuthenticatorConfig("config");
@@ -663,6 +666,21 @@ class ResetMessagingAppOTPRequiredActionTest {
         .send(eq("+15550100002"), eq("contactChanged.notice.text"), anyList(), any(), any(), any());
   }
 
+  /**
+   * R7-08: an SMS provider that sends only codes can't tell the old SMS channel; the notice isn't
+   * sent and isn't recorded as sent. The change itself goes ahead.
+   */
+  @Test
+  void anSmsProviderThatSendsOnlyCodesDoesNotTellTheOldChannel() throws Exception {
+    when(sms.sendsOnlyCodes()).thenReturn(true);
+    currentChannel(MessageChannel.SMS, "+15550100002");
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    submitCode(notes.get(Utils.CODE));
+    verify(context).success();
+    verify(sms, never())
+        .send(anyString(), eq("contactChanged.notice.text"), anyList(), any(), any(), any());
+  }
+
   /** Verifying the same contact again changes nothing, so no notice is sent. */
   @Test
   void noNoticeWhenTheContactDidNotChange() {
@@ -701,5 +719,60 @@ class ResetMessagingAppOTPRequiredActionTest {
 
     configMap.put("max_auth_age", "60");
     assertTrue(protocol.requireReauthentication(userSession, authSession));
+  }
+
+  /**
+   * R7-01: while a code step of the realm doesn't send to the voter's channel (a configured
+   * courier: BOTH, EMAIL, SMS, or no configuration), the contact change is refused with its reason,
+   * logged and in the event: a new channel would not get the sign-in codes.
+   */
+  @Test
+  void theContactChangeIsRefusedWhileACodeStepUsesAConfiguredCourier() {
+    EventBuilder event = mock(EventBuilder.class, RETURNS_SELF);
+    when(context.getEvent()).thenReturn(event);
+    signInStepConfig.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.BOTH.name());
+    action.requiredActionChallenge(context);
+
+    verify(context).ignore();
+    verify(context, never()).challenge(any());
+    verify(event).detail("reason", "A code step doesn't send to the voter's channel");
+    verify(authSession).removeRequiredAction(ResetMessagingAppOTPRequiredAction.PROVIDER_ID);
+
+    parameters.putSingle("channel", "WHATSAPP");
+    parameters.putSingle("contact", NEW_NUMBER);
+    parameters.putSingle(MessagingAttributes.FORM_MESSAGE_CONSENT, "1:WHATSAPP");
+    action.processAction(context);
+    verify(sender, never()).send(any());
+    verify(user, never()).setSingleAttribute(eq(MessagingAttributes.MESSAGE_CHANNEL), any());
+  }
+
+  /** R7-01: a code step without its own configuration uses the default courier, BOTH. */
+  @Test
+  void aCodeStepWithoutConfigurationAlsoRefusesTheContactChange() {
+    when(realm.getAuthenticatorConfigById("config")).thenReturn(null);
+    action.requiredActionChallenge(context);
+    verify(context).ignore();
+    verify(context, never()).challenge(any());
+  }
+
+  /** A disabled code step sends nothing, so it doesn't block the contact change. */
+  @Test
+  void aDisabledCodeStepDoesNotRefuseTheContactChange() {
+    AuthenticationFlowModel flow = new AuthenticationFlowModel();
+    flow.setId("flow");
+    flow.setTopLevel(true);
+    AuthenticationExecutionModel chosen = new AuthenticationExecutionModel();
+    chosen.setAuthenticator(MessageOTPAuthenticatorFactory.PROVIDER_ID);
+    chosen.setAuthenticatorConfig("config");
+    chosen.setRequirement(AuthenticationExecutionModel.Requirement.REQUIRED);
+    AuthenticationExecutionModel disabled = new AuthenticationExecutionModel();
+    disabled.setAuthenticator(MessageOTPAuthenticatorFactory.PROVIDER_ID);
+    disabled.setAuthenticatorConfig("other");
+    disabled.setRequirement(AuthenticationExecutionModel.Requirement.DISABLED);
+    when(realm.getAuthenticationExecutionsStream("flow"))
+        .thenAnswer(i -> Stream.of(chosen, disabled));
+    when(realm.getAuthenticatorConfigById("other")).thenReturn(null);
+    action.requiredActionChallenge(context);
+    verify(context).challenge(response);
   }
 }

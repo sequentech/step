@@ -399,6 +399,7 @@ fn viber_notice(tenant: Uuid, account: Uuid, logical_key: &str) -> Delivery {
             channel: MessageChannel::VIBER,
             destination: "+639171234567".to_string(),
             election_ids: vec![],
+            messenger_page: None,
         },
         content: Some(MessageContent {
             subject: None,
@@ -850,6 +851,7 @@ async fn messenger_link_with(
             },
             expires_at: (chrono::Utc::now() + chrono::Duration::minutes(30)).to_rfc3339(),
             expected_recipient: None,
+            expected_page: None,
         },
         Some(WEBHOOKS_URL),
     )
@@ -1084,6 +1086,7 @@ async fn a_deleted_configured_account_never_falls_back_to_the_deployment_sender(
             channel: MessageChannel::EMAIL,
             destination: "voter@example.org".to_string(),
             election_ids: vec![],
+            messenger_page: None,
         },
         content: Some(MessageContent {
             subject: Some("Voting".to_string()),

@@ -5753,6 +5753,22 @@ const tagalogTranslation: TranslationType = {
                 REPORT_CREDENTIALS_MISSING:
                     "Bumuo ng mga kredensyal para sa ulat at gumawa ng subscription sa Infobip",
                 CALLBACK_NOT_HTTPS: "Dapat https ang callback address",
+                UNKNOWN_ACCOUNT:
+                    "Wala na ang account na ito: maaaring nabura ito sa ibang tab. I-reload ang listahan.",
+                INTERNAL_ERROR: "Hindi natapos ng server ang kahilingan. Subukang muli mamaya.",
+                VERIFY_TOKEN_GENERATED:
+                    "Ginagawa ng system ang token sa pag-verify; hindi ito inilalagay",
+                CREDENTIAL_GENERATED: "{{credential}}: ginagawa ng system; hindi ito inilalagay",
+                CREDENTIAL_NOT_USED:
+                    "Hindi gumagamit ng {{credential}} ang mga account ng {{provider}}",
+                CREDENTIAL_EMPTY: "Hindi maaaring walang laman ang {{credential}}",
+                NO_REPORT_CREDENTIALS:
+                    "Walang credential para sa mga ulat ang mga account ng {{provider}}",
+                UNKNOWN_AUDIENCE: "Hindi kilalang pagpili ng mga tatanggap",
+                INVALID_MONTH: "Dapat isulat ang buwan bilang YYYY-MM",
+                INVALID_SUPPORT_REFERENCE: "Hindi ito reference para sa suporta",
+                MESSENGER_PAGE_CHANGED:
+                    "Hindi naipadala: nakakonekta ang botante sa ibang Messenger Page",
             },
         },
         messagingAccounts: {
@@ -5951,7 +5967,7 @@ const tagalogTranslation: TranslationType = {
                 recheck:
                     "Sa pag-save, muling sinusuri ang account sa background. Hangga't hindi nagtatagumpay ang pagsusuring iyon, pumapalya ang mga code at abiso na dumadaan dito dahil hindi pa ito handa; ipinapadala pa rin ang test message.",
                 pageChange:
-                    "Ang mga usapan sa Messenger ay pag-aari ng isang Page. Pagkatapos palitan ang Page, makakatanggap lamang ng code ang mga botanteng nakakonekta sa {{page}} kapag muli nilang ikinonekta ang Messenger.",
+                    "Ang mga usapan sa Messenger ay pag-aari ng isang Page. Pagkatapos palitan ang Page, hindi ipinapadala ang mga code at abiso sa mga botanteng nakakonekta sa {{page}} hanggang muli silang kumonekta. Muling kumokonekta ang botante sa susunod niyang pag-sign in, pagkatapos ilagay ang kanyang password: ipinapakita ng pag-sign in ang hakbang sa pagkonekta para sa bagong Page, pinipindot ng botante ang Magsimula sa Messenger, at doon niya natatanggap ang code. Ang botanteng hindi makapag-sign in gamit ang password, halimbawa dahil nakalimutan niya ito, ay kailangang palitan ng staff ang kanyang channel.",
                 numberChange:
                     "Manggagaling sa ibang numero ang mga mensahe. Dapat aprubado ang mga template nito sa business account na iyon bago ito makapagpadala ng mga code, at makakakita ang mga botante ng bagong chat.",
             },
@@ -5974,7 +5990,7 @@ const tagalogTranslation: TranslationType = {
                     "Isang pinakamababang bahagi sa iisang pinaghahatiang badyet sa pagpapadala ng account: humihinto rito ang mga abiso at nauuna ang mga code. Kung walang ipinapadalang code, magagamit ng maramihang pagpapadala ang buong bilis.",
                 otpConcurrency: "Mga code na sabay-sabay na ipinapadala",
                 otpConcurrencyHelp:
-                    "Walang laman: 8. Binibilang bawat proseso ng server; naghihintay ng kanilang turno ang iba pang code.",
+                    "Walang laman: 8. Bawat code at abiso ng Keycloak (mga link sa pag-reset, pansamantalang password) ay may hawak na isang puwesto habang ipinapadala. Binibilang bawat proseso ng server; naghihintay ng kanilang turno ang iba pang padala.",
                 allowedCallingCodes: "Mga pinapayagang destinasyon (country calling codes)",
                 allowedCallingCodesHelp:
                     "Pinaghihiwalay ng kuwit, halimbawa 63, 971. Kapag walang laman, pinapayagan ang anumang destinasyon.",
@@ -6174,7 +6190,6 @@ const tagalogTranslation: TranslationType = {
                     "Hindi mabasa ang HTML ng email: maaaring hindi na ito itinatago ng pekeng provider.",
             },
             reason: {
-                NO_ACCOUNT: "Walang account na gumagamit ng nagpadalang ito",
                 SEVERAL_ACCOUNTS: "Maraming account ang gumagamit ng nagpadalang ito",
                 ACCOUNTS_UNREADABLE: "Hindi mabasa ang mga account",
                 UNREACHABLE: "Hindi sumagot ang webhook component",

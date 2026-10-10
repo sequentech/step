@@ -17,6 +17,8 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
+import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.models.KeycloakContext;
@@ -28,8 +30,11 @@ import org.keycloak.models.utils.FormMessage;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 import org.mockito.ArgumentCaptor;
+import sequent.keycloak.authenticator.FakePace;
+import sequent.keycloak.authenticator.NeutralPace;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.SendMessageResponse;
@@ -154,5 +159,63 @@ class ResetCredentialNotificationTest {
       verify(resetEvent).success();
       verify(resetEvent, never()).error(anyString());
     }
+  }
+
+  /**
+   * R7-06: the page answers no sooner than the floor, for an account (whose send takes time) and
+   * for no account alike.
+   */
+  @Test
+  void anUnknownAccountWaitsAsLongAsAnAccount() {
+    try (FakePace pace = new FakePace()) {
+      when(sender.send(any()))
+          .thenAnswer(
+              i -> {
+                pace.advance(900);
+                return new SendMessageResponse("m-1", "ACCEPTED", null);
+              });
+      long start = pace.now();
+      authenticator.authenticate(context);
+      long withAccount = pace.now() - start;
+
+      when(context.getUser()).thenReturn(null);
+      start = pace.now();
+      authenticator.authenticate(context);
+      long withoutAccount = pace.now() - start;
+
+      assertEquals(NeutralPace.DEFAULT_MILLIS, withAccount);
+      assertEquals(withAccount, withoutAccount);
+      assertEquals(
+          List.of(NeutralPace.DEFAULT_MILLIS - 900, NeutralPace.DEFAULT_MILLIS), pace.held());
+    }
+  }
+
+  /**
+   * R7-08: an SMS provider that sends only codes can't carry a reset link: recorded as not sent.
+   */
+  @Test
+  void anSmsProviderThatSendsOnlyCodesDoesNotCountTheLinkAsSent() throws Exception {
+    attributes.put(MessagingAttributes.MESSAGE_CHANNEL, List.of("SMS"));
+    attributes.put(MessagingAttributes.MESSAGE_NUMBER, List.of("+15550100777"));
+    when(sms.sendsOnlyCodes()).thenReturn(true);
+
+    authenticator.authenticate(context);
+
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    verify(resetEvent).detail("reason", MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+    verify(resetEvent).error(Errors.EMAIL_SEND_FAILED);
+    verify(resetEvent, never()).success();
+    assertNeutralPage();
+  }
+
+  /** R7-13: the identifier the visitor typed never reaches the event. */
+  @Test
+  void theTypedIdentifierNeverReachesTheEvent() {
+    when(authSession.getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME))
+        .thenReturn("+15550199999");
+    when(sender.send(any())).thenReturn(new SendMessageResponse("m-4", "ACCEPTED", null));
+    authenticator.authenticate(context);
+    verify(resetEvent, never()).detail(eq(Details.USERNAME), anyString());
+    verify(resetEvent, never()).detail(anyString(), eq("+15550199999"));
   }
 }

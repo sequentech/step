@@ -53,6 +53,12 @@ public class MessagingAttributes {
 
   public final String NOTE_MESSENGER_STATE = "sequent.messenger-state";
 
+  /**
+   * Set while a sign-in reconnects Messenger after a Page change: the event's Page the live link
+   * opens. Its confirmation saves the new account and Page (R7-10).
+   */
+  public final String NOTE_MESSENGER_RECONNECT = "sequent.messenger-reconnect";
+
   /** The channel an authenticated voter is changing their contact to, while its code is pending. */
   public final String NOTE_RESET_CHANNEL = "sequent.reset-channel";
 
@@ -82,6 +88,7 @@ public class MessagingAttributes {
           NOTE_MESSENGER_LINK,
           NOTE_MESSENGER_WORD,
           NOTE_MESSENGER_STATE,
+          NOTE_MESSENGER_RECONNECT,
           NOTE_RESET_CHANNEL,
           NOTE_CONTACT_CHANGE_STARTED,
           NOTE_RESET_NUMBER_NOTE);

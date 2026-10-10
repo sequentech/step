@@ -157,6 +157,23 @@ public class VerifiedContacts {
     return Optional.of(channel.channel());
   }
 
+  /**
+   * Replaces a Messenger voter's account and Page after a Page change, once a sign-in reconnect
+   * verified the new account (R7-10). The same writes as saving a verified Messenger contact,
+   * except that the voter's consent to Messenger stays: they consented to the channel, which is
+   * unchanged.
+   */
+  public void reconnectMessenger(UserModel user, String pageScopedId, String page) {
+    user.setSingleAttribute(MessagingAttributes.MESSAGE_CHANNEL, MessageChannel.MESSENGER.name());
+    user.removeAttribute(MessagingAttributes.MESSAGE_NUMBER);
+    user.setSingleAttribute(MessagingAttributes.MESSENGER_ID, pageScopedId);
+    user.setSingleAttribute(MessagingAttributes.MESSENGER_PAGE, page);
+    user.removeAttribute(MessagingAttributes.VERIFIED_CHANNELS);
+    user.removeAttribute(MessagingAttributes.WHATSAPP_NUMBER);
+    user.removeAttribute(MessagingAttributes.VIBER_NUMBER);
+    log.info("reconnectMessenger(): saved the voter's Messenger account on the event's new Page");
+  }
+
   private String present(String value) {
     return value == null || value.isBlank() ? null : value.trim();
   }

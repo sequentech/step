@@ -5714,6 +5714,19 @@ const basqueTranslation: TranslationType = {
                 REPORT_CREDENTIALS_MISSING:
                     "Sortu txostenen kredentzialak eta sortu Infobip-eko harpidetza",
                 CALLBACK_NOT_HTTPS: "Itzulera-helbideak https izan behar du",
+                UNKNOWN_ACCOUNT:
+                    "Kontu hau jada ez dago: baliteke beste fitxa batean ezabatu izana. Kargatu berriro zerrenda.",
+                INTERNAL_ERROR: "Zerbitzariak ezin izan du eskaera osatu. Saiatu berriro geroago.",
+                VERIFY_TOKEN_GENERATED: "Egiaztatze-tokena sistemak sortzen du; ez da sartzen",
+                CREDENTIAL_GENERATED: "{{credential}}: sistemak sortzen du; ez da sartzen",
+                CREDENTIAL_NOT_USED: "{{provider}} kontuek ez dute {{credential}} erabiltzen",
+                CREDENTIAL_EMPTY: "{{credential}} ezin da hutsik egon",
+                NO_REPORT_CREDENTIALS: "{{provider}} kontuek ez dute txostenen kredentzialik",
+                UNKNOWN_AUDIENCE: "Hartzaile-hautapen ezezaguna",
+                INVALID_MONTH: "Hilabetea UUUU-HH gisa idatzi behar da",
+                INVALID_SUPPORT_REFERENCE: "Ez da laguntza-erreferentzia bat",
+                MESSENGER_PAGE_CHANGED:
+                    "Ez da bidali: hauteslea Messengerreko beste orri batekin dago konektatuta",
             },
         },
         messagingAccounts: {
@@ -5912,7 +5925,7 @@ const basqueTranslation: TranslationType = {
                 recheck:
                     "Gordetzean, kontua berriro egiaztatzen da atzeko planoan. Egiaztapen horrek ondo amaitu arte, haren bidezko kodeek eta jakinarazpenek huts egiten dute prest ez dagoelako; proba-mezua, ordea, bidaltzen da.",
                 pageChange:
-                    "Messenger elkarrizketak orri batenak dira. Orria aldatu ondoren, {{page}} orriarekin konektatutako hautesleek Messenger berriro konektatu ondoren soilik jasoko dituzte kodeak.",
+                    "Messenger elkarrizketak orri batenak dira. Orria aldatu ondoren, ez zaie koderik ez jakinarazpenik bidaltzen {{page}} orriarekin konektatutako hautesleei, berriro konektatu arte. Hautesleak hurrengo saio-hasieran konektatzen du berriro, pasahitza sartu ondoren: saio-hasierak orri berriaren konexio-urratsa erakusten du, hautesleak Hasi sakatzen du Messengerren, eta han jasotzen du kodea. Pasahitzarekin saioa hasi ezin duen hautesleak, adibidez ahaztu duelako, langileek bere kanala aldatzea behar du.",
                 numberChange:
                     "Mezuak beste zenbaki batetik iritsiko dira. Bere txantiloiek enpresa-kontu horretan onartuta egon behar dute kodeak bidali ahal izateko, eta hautesleek txat berri bat ikusiko dute.",
             },
@@ -5935,7 +5948,7 @@ const basqueTranslation: TranslationType = {
                     "Kontuaren bidalketa-aurrekontu partekatu bakarraren barruko gutxienekoa: abisuak hor gelditzen dira eta kodeak lehenik doaz. Koderik bidaltzen ez bada, bidalketa masibo batek erritmo osoa erabil dezake.",
                 otpConcurrency: "Aldi berean bidalitako kodeak",
                 otpConcurrencyHelp:
-                    "Hutsik: 8. Zerbitzari-prozesu bakoitzeko zenbatzen da; gainerako kodeek beren txanda itxaroten dute.",
+                    "Hutsik: 8. Kodeek eta Keycloak-en jakinarazpenek (berrezartze-estekak, aldi baterako pasahitzak) toki bana hartzen dute bidaltzen diren bitartean. Zerbitzari-prozesu bakoitzeko zenbatzen da; gainerako bidalketek beren txanda itxaroten dute.",
                 allowedCallingCodes: "Baimendutako helmugak (herrialde-aurrezenbakiak)",
                 allowedCallingCodesHelp:
                     "Komaz bereizita, adibidez 63, 971. Hutsik badago, edozein helmuga baimentzen da.",
@@ -6135,7 +6148,6 @@ const basqueTranslation: TranslationType = {
                     "Ezin izan da mezuaren HTMLa irakurri: baliteke hornitzaile simulatuak jada ez gordetzea.",
             },
             reason: {
-                NO_ACCOUNT: "Ez dago igorle hau erabiltzen duen konturik",
                 SEVERAL_ACCOUNTS: "Hainbat kontuk erabiltzen dute igorle hau",
                 ACCOUNTS_UNREADABLE: "Ezin izan dira kontuak irakurri",
                 UNREACHABLE: "Webhook osagaiak ez du erantzun",

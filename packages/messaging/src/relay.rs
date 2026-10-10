@@ -153,6 +153,41 @@ pub fn max_body_bytes(value: Option<&str>) -> Result<u64> {
     }
 }
 
+/// How many callbacks the webhook component relays at once (R7-03). More
+/// are answered 503, so the provider retries them later, and harvest never
+/// holds more of them.
+pub const MAX_IN_FLIGHT_ENV: &str = "MESSAGING_WEBHOOKS_MAX_IN_FLIGHT";
+
+/// [`MAX_IN_FLIGHT_ENV`] when it is unset.
+pub const DEFAULT_MAX_IN_FLIGHT: usize = 16;
+
+/// How many database connections harvest gives callbacks at once (R7-03),
+/// out of the pool that codes and notices use too. A callback that gets
+/// none within [`CALLBACK_CONNECTION_WAIT_MS`] is answered 503, so the
+/// provider retries it, and codes keep the rest of the pool.
+pub const CALLBACK_CONNECTIONS_ENV: &str = "MESSAGING_CALLBACK_CONNECTIONS";
+
+/// [`CALLBACK_CONNECTIONS_ENV`] when it is unset.
+pub const DEFAULT_CALLBACK_CONNECTIONS: usize = 4;
+
+/// How long a callback waits for one of its connections.
+pub const CALLBACK_CONNECTION_WAIT_MS: u64 = 2_000;
+
+/// A positive count read from the raw value of `name`: `default` when unset
+/// or blank.
+///
+/// # Errors
+/// When the value is not a positive whole number.
+pub fn positive_count(name: &str, value: Option<&str>, default: usize) -> Result<usize> {
+    match value.map(str::trim).filter(|value| !value.is_empty()) {
+        None => Ok(default),
+        Some(value) => match value.parse::<usize>() {
+            Ok(count) if count > 0 => Ok(count),
+            _ => anyhow::bail!("{name} must be a positive whole number"),
+        },
+    }
+}
+
 /// The largest envelope harvest reads for provider bodies of up to
 /// `max_body_bytes`: base64 grows the body by 4/3, so twice the body plus
 /// room for the other fields.
@@ -705,6 +740,17 @@ mod tests {
         assert!(max_body_bytes(Some("0")).is_err());
         assert!(max_body_bytes(Some("-1")).is_err());
         assert!(max_body_bytes(Some("1k")).is_err());
+        assert_eq!(positive_count(MAX_IN_FLIGHT_ENV, None, 16).unwrap(), 16);
+        assert_eq!(
+            positive_count(MAX_IN_FLIGHT_ENV, Some(" 3 "), 16).unwrap(),
+            3
+        );
+        assert_eq!(
+            positive_count(MAX_IN_FLIGHT_ENV, Some("0"), 16)
+                .unwrap_err()
+                .to_string(),
+            "MESSAGING_WEBHOOKS_MAX_IN_FLIGHT must be a positive whole number"
+        );
         // The envelope of a body at the limit fits harvest's limit.
         let body = vec![0xffu8; usize::try_from(DEFAULT_MAX_BODY_BYTES).unwrap()];
         let envelope = CallbackEnvelope::new(

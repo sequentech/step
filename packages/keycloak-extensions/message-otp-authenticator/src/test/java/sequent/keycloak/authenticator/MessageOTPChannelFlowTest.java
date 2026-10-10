@@ -190,6 +190,8 @@ class MessageOTPChannelFlowTest {
     notes.put("email", EMAIL);
     notes.put(MessagingAttributes.FORM_OTP_CHANNEL, channel.name());
     notes.put(MessagingAttributes.FORM_WHATSAPP_NUMBER, WHATSAPP);
+    // A form that asks for the channel records what it offered.
+    notes.put(MessagingAttributes.NOTE_OFFERED_CHANNELS, channel.name());
   }
 
   /** A live code on the channel, sent a second ago. */
@@ -252,7 +254,7 @@ class MessageOTPChannelFlowTest {
     verify(form).setAttribute("channel", "WHATSAPP");
     verify(form).setAttribute("deliveryState", "ACCEPTED");
     verify(form).setAttribute("senderLabel", "Synthetic Commission");
-    verify(form).setAttribute("address", "+1 • ••• ••• 999");
+    verify(form).setAttribute("address", "+1 ••• ••• 999");
     verify(form, never()).setAttribute(eq("otpView"), any());
     verify(form, never()).setAttribute(eq("otherWayChannels"), any());
     verify(form, never()).setAttribute(eq("channelAddresses"), any());
@@ -747,6 +749,19 @@ class MessageOTPChannelFlowTest {
     assertNull(request.getValue().expectedRecipient());
   }
 
+  /**
+   * R7-09: a channel in the notes without the list the form offered didn't come from a form that
+   * asks for one: it is refused, and no code goes to the number it names.
+   */
+  @Test
+  void aFormChannelWithoutTheOfferedListIsRefused() throws Exception {
+    enrolling(MessageChannel.WHATSAPP);
+    notes.remove(MessagingAttributes.NOTE_OFFERED_CHANNELS);
+    authenticator.authenticate(context);
+    verify(sender, never()).send(any());
+    verify(event).detail("reason", "Channel not offered for codes");
+  }
+
   /** The default policy reveals nothing; enrollment always names the channel just entered. */
   @Test
   void theDefaultPolicyIsNeutralAndEnrollmentAlwaysNamesTheChannel() throws Exception {
@@ -847,5 +862,413 @@ class MessageOTPChannelFlowTest {
     authenticator.action(context);
     verify(context).success();
     assertNull(notes.get(MessagingAttributes.NOTE_VERIFIED_CHANNEL));
+  }
+
+  /**
+   * R7-01 (lead's regression): a sign-in step configured with BOTH sends a WhatsApp-recorded
+   * voter's code only to WhatsApp: no SMS, no email.
+   */
+  @Test
+  void aBothSignInStepSendsAWhatsAppVotersCodeOnlyToWhatsApp() throws Exception {
+    configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.BOTH.name());
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    authenticator.authenticate(context);
+
+    SendMessageRequest request = sentRequest();
+    assertEquals(MessageChannel.WHATSAPP, request.channel());
+    assertEquals(WHATSAPP, request.destination());
+    verifyNoInteractions(sms);
+    verify(session, never()).getProvider(org.keycloak.email.EmailTemplateProvider.class);
+    verify(session, never()).getProvider(org.keycloak.email.EmailSenderProvider.class);
+    verify(form).setAttribute("channel", "WHATSAPP");
+
+    parameters.putSingle(Utils.CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+    verify(context).success();
+    verifyNoInteractions(sms);
+  }
+
+  /** R7-01: every configured courier yields to a recorded or first-release channel. */
+  @Test
+  void everyConfiguredCourierYieldsToTheVotersRecordedChannel() throws Exception {
+    for (String courier : List.of("EMAIL", "SMS", "BOTH")) {
+      clearInvocations(sender, sms, form);
+      notes.clear();
+      attributes.clear();
+      attributes.put(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD, List.of(PHONE));
+      configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, courier);
+      attributes.put(MessagingAttributes.VERIFIED_CHANNELS, List.of("VIBER"));
+      attributes.put(MessagingAttributes.VIBER_NUMBER, List.of(WHATSAPP));
+      authenticator.authenticate(context);
+      assertEquals(MessageChannel.VIBER, sentRequest().channel(), courier);
+      verifyNoInteractions(sms);
+    }
+  }
+
+  /**
+   * R7-01: a recorded channel that can't be used is refused with its reason on a configured courier
+   * step too; the step's courier never sends to the email or the mobile number instead.
+   */
+  @Test
+  void aRecordedChannelWithoutItsNumberIsRefusedOnAConfiguredCourierStep() throws Exception {
+    configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.BOTH.name());
+    recorded(MessageChannel.WHATSAPP, null);
+    authenticator.authenticate(context);
+
+    verify(sender, never()).send(any());
+    verifyNoInteractions(sms);
+    verify(session, never()).getProvider(org.keycloak.email.EmailTemplateProvider.class);
+    verify(event).detail("reason", "No contact channel");
+    verify(form).setError(eq("messageOtp.auth.noChannel"), any());
+    assertNull(notes.get(Utils.CODE));
+  }
+
+  /** R3-11 kept: a voter without a messaging channel keeps the step's configured courier. */
+  @Test
+  void aLegacyVoterKeepsTheStepsConfiguredCourier() throws Exception {
+    configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.SMS.name());
+    authenticator.authenticate(context);
+    verify(sms).send(eq(PHONE), eq(Utils.SEND_CODE_SMS_I18N_KEY), anyList(), any(), any(), any());
+    verify(sender, never()).send(any());
+  }
+
+  /** What a neutral page told: whether a code was sent now and whether the timer started. */
+  private List<Object> neutralAnswer() {
+    ArgumentCaptor<Object> sent = ArgumentCaptor.forClass(Object.class);
+    ArgumentCaptor<Object> timer = ArgumentCaptor.forClass(Object.class);
+    verify(form, atLeastOnce()).setAttribute(eq("codeJustSent"), sent.capture());
+    verify(form, atLeastOnce()).setAttribute(eq("resendTimerStarted"), timer.capture());
+    return List.of(sent.getValue(), timer.getValue());
+  }
+
+  /**
+   * R7-07: on a neutral page, an account whose channel is refused starts the same resend timer as
+   * an unknown account: a resend within 60 s says "wait" for both.
+   */
+  @Test
+  void aRefusedChannelOnANeutralPageStartsTheResendTimerLikeNoAccount() throws Exception {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    recorded(MessageChannel.WHATSAPP, null);
+    authenticator.authenticate(context);
+    assertNotNull(notes.get(Utils.CODE_TTL));
+    assertEquals(List.of(true, true), neutralAnswer());
+    clearInvocations(form);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    List<Object> refused = neutralAnswer();
+
+    clearInvocations(form);
+    notes.clear();
+    parameters.clear();
+    when(context.getUser()).thenReturn(null);
+    authenticator.authenticate(context);
+    clearInvocations(form);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    assertEquals(neutralAnswer(), refused);
+    assertEquals(List.of(false, false), refused);
+    verify(sender, never()).send(any());
+  }
+
+  /** A provider exception must not reveal that a neutral reset identifier has an account. */
+  @Test
+  void aNeutralSendExceptionAnswersLikeNoAccountAndKeepsTheResendTimer() throws Exception {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    recorded(MessageChannel.SMS, PHONE);
+    when(sms.send(anyString(), anyString(), anyList(), any(), any(), any()))
+        .thenThrow(new java.io.IOException("synthetic provider refusal"));
+    authenticator.authenticate(context);
+    verify(context).challenge(response);
+    verify(context, never()).failureChallenge(any(), any());
+    assertEquals(List.of(true, true), neutralAnswer());
+    assertNotNull(notes.get(Utils.CODE_TTL));
+    assertNull(notes.get(Utils.CODE));
+    clearInvocations(form);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    List<Object> refused = neutralAnswer();
+    verify(sms, times(1)).send(anyString(), anyString(), anyList(), any(), any(), any());
+
+    clearInvocations(form);
+    notes.clear();
+    parameters.clear();
+    when(context.getUser()).thenReturn(null);
+    authenticator.authenticate(context);
+    assertEquals(List.of(true, true), neutralAnswer());
+    clearInvocations(form);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+    assertEquals(neutralAnswer(), refused);
+    assertEquals(List.of(false, false), refused);
+  }
+
+  /** A code-only SMS provider refuses links before generating a usable token. */
+  @Test
+  void aNeutralOneTimeLinkWithACodeOnlyProviderAnswersLikeNoAccount() throws Exception {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    configMap.put(Utils.ONE_TIME_LINK, "true");
+    recorded(MessageChannel.SMS, PHONE);
+    when(sms.sendsOnlyCodes()).thenReturn(true);
+    authenticator.authenticate(context);
+    verify(sms).sendsOnlyCodes();
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    assertNull(notes.get(MessagingAttributes.NOTE_CODE_ID));
+    assertNull(notes.get(Utils.CODE));
+    assertEquals(List.of(true, true), neutralAnswer());
+    verify(context, never()).failureChallenge(any(), any());
+    assertNotNull(notes.get(Utils.CODE_TTL));
+  }
+
+  /** A fake clock: a send that takes {@code sendMillis} moves it on. */
+  private final long[] now = {0L};
+
+  private final List<Long> held = new java.util.ArrayList<>();
+
+  private void pacedClock() {
+    NeutralPace.clock = () -> now[0] * 1_000_000L;
+    NeutralPace.sleeper =
+        millis -> {
+          held.add(millis);
+          now[0] += millis;
+        };
+  }
+
+  @org.junit.jupiter.api.AfterEach
+  void realClock() {
+    NeutralPace.clock = System::nanoTime;
+    NeutralPace.sleeper = millis -> {};
+  }
+
+  /**
+   * R7-06: a neutral code page answers no sooner than its floor after the request began, for an
+   * account (whose send takes time) and for no account alike, so timing tells them apart only when
+   * a send outlasts the floor.
+   */
+  @Test
+  void aNeutralPageTakesTheSameTimeWithAndWithoutAnAccount() throws Exception {
+    pacedClock();
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    when(sender.send(any()))
+        .thenAnswer(
+            i -> {
+              now[0] += 400;
+              return new SendMessageResponse("m-1", "ACCEPTED", null);
+            });
+    long start = now[0];
+    authenticator.authenticate(context);
+    long withAccount = now[0] - start;
+    verify(sender).send(any());
+
+    notes.clear();
+    when(context.getUser()).thenReturn(null);
+    start = now[0];
+    authenticator.authenticate(context);
+    long withoutAccount = now[0] - start;
+
+    assertEquals(NeutralPace.DEFAULT_MILLIS, withAccount);
+    assertEquals(withAccount, withoutAccount);
+    assertEquals(List.of(NeutralPace.DEFAULT_MILLIS - 400, NeutralPace.DEFAULT_MILLIS), held);
+  }
+
+  /** R7-06: the floor is the step's {@code neutral-response-ms}; a named page isn't held. */
+  @Test
+  void onlyANeutralPageIsHeldAndItsFloorIsConfigurable() throws Exception {
+    pacedClock();
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    authenticator.authenticate(context);
+    assertEquals(List.of(), held);
+
+    notes.clear();
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    configMap.put(NeutralPace.CONFIG, "1200");
+    authenticator.authenticate(context);
+    assertEquals(List.of(1200L), held);
+  }
+
+  // R7-10: a Messenger voter whose saved Page isn't the event's Page any more.
+
+  private void linkCreated() throws Exception {
+    when(sender.createMessengerLink(any()))
+        .thenReturn(
+            new CreateMessengerLinkResponse(
+                "ref-1", "https://m.me/synthetic?ref=ref-1", null, "2026-10-02T10:05:00Z"));
+  }
+
+  private CreateMessengerLinkRequest linkRequest() throws Exception {
+    ArgumentCaptor<CreateMessengerLinkRequest> request =
+        ArgumentCaptor.forClass(CreateMessengerLinkRequest.class);
+    verify(sender).createMessengerLink(request.capture());
+    return request.getValue();
+  }
+
+  /** Other voters who use a Page-scoped ID. */
+  private final List<UserModel> othersWithTheAccount = new java.util.ArrayList<>();
+
+  private void signedInWithAPasswordAfterAPageChange() {
+    recordedMessenger("psid-old", "page-0");
+    attributes.put(MessagingAttributes.MESSAGE_CONSENT, List.of("{\"version\":\"1\"}"));
+    notes.put("PASSWORD_VALIDATED", "true");
+    org.keycloak.models.UserProvider users = mock(org.keycloak.models.UserProvider.class);
+    when(session.users()).thenReturn(users);
+    when(users.searchForUserByUserAttributeStream(any(), anyString(), anyString()))
+        .thenAnswer(i -> othersWithTheAccount.stream());
+  }
+
+  /** A saved voter's link names their Page as well as their account; harvest checks both. */
+  @Test
+  void aSavedVotersLinkNamesTheirPage() throws Exception {
+    recordedMessenger("psid-7", "page-1");
+    linkCreated();
+    authenticator.authenticate(context);
+    CreateMessengerLinkRequest request = linkRequest();
+    assertEquals("psid-7", request.expectedRecipient());
+    assertEquals("page-1", request.expectedPage());
+    verify(form, never()).setAttribute(eq("messengerReconnect"), any());
+  }
+
+  /**
+   * After a Page change, a voter who signed in with their password connects Messenger again in the
+   * same session: the link binds to no account, the page says why, and once the code is verified
+   * the new account and Page replace the old ones (the contact change's writes; the consent stays).
+   */
+  @Test
+  void afterAPageChangeAVoterReconnectsMessengerAtSignIn() throws Exception {
+    signedInWithAPasswordAfterAPageChange();
+    linkCreated();
+    authenticator.authenticate(context);
+    CreateMessengerLinkRequest request = linkRequest();
+    assertNull(request.expectedRecipient());
+    assertNull(request.expectedPage());
+    verify(form).setAttribute("messengerReconnect", true);
+    verify(form).setAttribute("messengerLink", "https://m.me/synthetic?ref=ref-1");
+    verify(event).detail("messenger", "reconnect");
+
+    when(sender.confirmMessengerLink(any()))
+        .thenReturn(new MessengerLinkStatus("CONFIRMED", "psid-new", "page-1"));
+    parameters.putSingle(Utils.CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+
+    verify(context).success();
+    verify(user).setSingleAttribute(MessagingAttributes.MESSAGE_CHANNEL, "MESSENGER");
+    verify(user).setSingleAttribute(MessagingAttributes.MESSENGER_ID, "psid-new");
+    verify(user).setSingleAttribute(MessagingAttributes.MESSENGER_PAGE, "page-1");
+    verify(user).removeAttribute(MessagingAttributes.MESSAGE_NUMBER);
+    verify(user).removeAttribute(MessagingAttributes.VERIFIED_CHANNELS);
+    verify(user, never()).removeAttribute(MessagingAttributes.MESSAGE_CONSENT);
+    verify(event).detail("messenger", "reconnected");
+  }
+
+  /** A reconnect confirmed on another Page than the event's, or not confirmed, saves nothing. */
+  @Test
+  void aReconnectConfirmedOnAnotherPageSavesNothing() throws Exception {
+    signedInWithAPasswordAfterAPageChange();
+    linkCreated();
+    authenticator.authenticate(context);
+    String code = notes.get(Utils.CODE);
+    for (MessengerLinkStatus wrong :
+        List.of(
+            new MessengerLinkStatus("CONFIRMED", "psid-new", "page-0"),
+            new MessengerLinkStatus("CONFIRMED", "psid-new", null),
+            new MessengerLinkStatus("PENDING", null, null))) {
+      liveCode(MessageChannel.MESSENGER, code);
+      notes.put(MessagingAttributes.NOTE_MESSENGER_REFERENCE, "ref-1");
+      notes.put(MessagingAttributes.NOTE_MESSENGER_RECONNECT, "page-1");
+      when(sender.confirmMessengerLink(any())).thenReturn(wrong);
+      parameters.putSingle(Utils.CODE, code);
+      authenticator.action(context);
+    }
+    verify(context, never()).success();
+    verify(user, never()).setSingleAttribute(anyString(), anyString());
+  }
+
+  /** The new account already belongs to another voter: refused with the reason, nothing saved. */
+  @Test
+  void aReconnectToAnAccountAnotherVoterUsesIsRefused() throws Exception {
+    signedInWithAPasswordAfterAPageChange();
+    UserModel other = mock(UserModel.class);
+    when(other.getId()).thenReturn("voter-2");
+    othersWithTheAccount.add(other);
+    when(form.getMessage(anyString())).thenAnswer(i -> i.getArgument(0));
+    linkCreated();
+    authenticator.authenticate(context);
+    when(sender.confirmMessengerLink(any()))
+        .thenReturn(new MessengerLinkStatus("CONFIRMED", "psid-new", "page-1"));
+    parameters.putSingle(Utils.CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+
+    verify(context, never()).success();
+    verify(user, never()).setSingleAttribute(anyString(), anyString());
+    verify(form).setError(startsWith("resetAppOtp.auth.error.maxReceiverReuse"));
+  }
+
+  /**
+   * Without a password in this session (a code-only step, a reset) there is no reconnect: the code
+   * is refused with the reason and the page says how to reconnect.
+   */
+  @Test
+  void withoutAPasswordThereIsNoReconnect() throws Exception {
+    signedInWithAPasswordAfterAPageChange();
+    notes.remove("PASSWORD_VALIDATED");
+    linkCreated();
+    authenticator.authenticate(context);
+    verify(sender, never()).createMessengerLink(any());
+    verify(event)
+        .detail(
+            "reason",
+            sequent.keycloak.authenticator.messaging.MessageReason
+                .MESSENGER_RECONNECT_NEEDS_PASSWORD
+                .reason());
+    verify(form).setError("messageOtp.messenger.reconnectNeedsPassword");
+  }
+
+  /** A neutral page never reconnects nor tells: nothing is sent, like any refused channel. */
+  @Test
+  void aNeutralPageDoesNotReconnect() throws Exception {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    signedInWithAPasswordAfterAPageChange();
+    linkCreated();
+    authenticator.authenticate(context);
+    verify(sender, never()).createMessengerLink(any());
+    verify(form, never()).setAttribute(eq("messengerReconnect"), any());
+    verify(event)
+        .detail(
+            "reason",
+            sequent.keycloak.authenticator.messaging.MessageReason.MESSENGER_PAGE_CHANGED.reason());
+    assertNotNull(notes.get(Utils.CODE_TTL));
+  }
+
+  /**
+   * Lead decision: a NONE step stays NONE. It sends nothing on any path: no sender call, no
+   * Messenger link, no SMS, no email; for a legacy voter, a voter with a recorded channel, while
+   * enrolling, and on a resend. So it can't reach any other channel than the voter's.
+   */
+  @Test
+  void aNoneStepSendsNoCodeAnywhere() throws Exception {
+    configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.NONE.name());
+    configMap.put(Utils.RESEND_ACTIVATION_TIMER, "0");
+    Runnable[] voters = {
+      () -> {},
+      () -> recorded(MessageChannel.WHATSAPP, WHATSAPP),
+      () -> recordedMessenger("psid-7", "page-1"),
+      () -> enrolling(MessageChannel.WHATSAPP),
+    };
+    for (Runnable voter : voters) {
+      notes.clear();
+      voter.run();
+      authenticator.authenticate(context);
+      // A code was issued (and its timer started): the send path ran and sent nothing.
+      assertNotNull(notes.get(Utils.CODE));
+      notes.remove(Utils.CODE_TTL);
+      parameters.putSingle("resend", "true");
+      authenticator.action(context);
+      parameters.clear();
+    }
+    verify(sender, never()).send(any());
+    verify(sender, never()).createMessengerLink(any());
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    verify(sms, never()).send(anyString(), anyString());
+    verify(session, never()).getProvider(org.keycloak.email.EmailTemplateProvider.class);
+    verify(session, never()).getProvider(org.keycloak.email.EmailSenderProvider.class);
   }
 }

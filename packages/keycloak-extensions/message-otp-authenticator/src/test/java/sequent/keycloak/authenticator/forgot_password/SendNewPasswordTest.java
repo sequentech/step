@@ -17,7 +17,9 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.email.EmailTemplateProvider;
+import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.models.AuthenticatorConfigModel;
@@ -33,8 +35,11 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.keycloak.theme.Theme;
 import org.mockito.ArgumentCaptor;
+import sequent.keycloak.authenticator.FakePace;
+import sequent.keycloak.authenticator.NeutralPace;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
@@ -58,6 +63,7 @@ class SendNewPasswordTest {
   private final SmsSenderProvider sms = mock(SmsSenderProvider.class);
   private final EmailTemplateProvider email = mock(EmailTemplateProvider.class, RETURNS_SELF);
   private final Map<String, List<String>> attributes = new HashMap<>();
+  private final Map<String, String> configMap = new HashMap<>();
 
   @BeforeEach
   void setup() throws Exception {
@@ -67,7 +73,7 @@ class SendNewPasswordTest {
     when(context.getEvent()).thenReturn(event);
     when(context.getAuthenticationSession()).thenReturn(authSession);
     AuthenticatorConfigModel config = new AuthenticatorConfigModel();
-    config.setConfig(new HashMap<>());
+    config.setConfig(configMap);
     when(context.getAuthenticatorConfig()).thenReturn(config);
     RootAuthenticationSessionModel root = mock(RootAuthenticationSessionModel.class);
     when(root.getId()).thenReturn("synthetic-session");
@@ -174,5 +180,105 @@ class SendNewPasswordTest {
     verify(sender).send(any());
     verify(credentials).updateCredential(any());
     verify(event, never()).error(Errors.INVALID_EMAIL);
+  }
+
+  /**
+   * R7-06: the page answers no sooner than its floor, for an account (whose send takes time) and
+   * for no account alike.
+   */
+  @Test
+  void anUnknownAccountWaitsAsLongAsAnAccount() {
+    try (FakePace pace = new FakePace()) {
+      when(sender.send(any()))
+          .thenAnswer(
+              i -> {
+                pace.advance(700);
+                return new SendMessageResponse("m-1", "ACCEPTED", null);
+              });
+      long start = pace.now();
+      authenticator.authenticate(context);
+      long withAccount = pace.now() - start;
+
+      when(context.getUser()).thenReturn(null);
+      start = pace.now();
+      authenticator.authenticate(context);
+      long withoutAccount = pace.now() - start;
+
+      assertEquals(NeutralPace.DEFAULT_MILLIS, withAccount);
+      assertEquals(withAccount, withoutAccount);
+      configMap.put(NeutralPace.CONFIG, "500");
+      authenticator.authenticate(context);
+      assertEquals(
+          List.of(NeutralPace.DEFAULT_MILLIS - 700, NeutralPace.DEFAULT_MILLIS, 500L), pace.held());
+    }
+    assertTrue(
+        authenticator.getConfigProperties().stream()
+            .anyMatch(p -> NeutralPace.CONFIG.equals(p.getName())));
+  }
+
+  /**
+   * R7-08: an SMS provider that sends only codes (Twilio Verify) can't carry a temporary password:
+   * it isn't sent, the password is unchanged, and the reason is recorded.
+   */
+  @Test
+  void anSmsProviderThatSendsOnlyCodesNeitherSendsNorSetsTheTemporaryPassword() throws Exception {
+    attributes.put(MessagingAttributes.MESSAGE_CHANNEL, List.of("SMS"));
+    attributes.put(MessagingAttributes.MESSAGE_NUMBER, List.of("+15550100777"));
+    when(sms.sendsOnlyCodes()).thenReturn(true);
+
+    authenticator.authenticate(context);
+
+    verify(sms, never()).send(anyString(), anyString(), anyList(), any(), any(), any());
+    verify(sms, never()).send(anyString(), anyString());
+    verify(credentials, never()).updateCredential(any());
+    verify(event).detail("reason", MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+    verify(event).error(Errors.EMAIL_SEND_FAILED);
+  }
+
+  /** The SMS provider still sends the temporary password when it sends messages. */
+  @Test
+  void anSmsVoterGetsTheTemporaryPasswordByTheSmsProvider() throws Exception {
+    attributes.put(MessagingAttributes.MESSAGE_CHANNEL, List.of("SMS"));
+    attributes.put(MessagingAttributes.MESSAGE_NUMBER, List.of("+15550100777"));
+
+    authenticator.authenticate(context);
+
+    verify(sms).send(eq("+15550100777"), anyString(), anyList(), any(), any(), any());
+    verify(credentials).updateCredential(any());
+  }
+
+  /** R7-13: the identifier the visitor typed (an email or a number) never reaches the event. */
+  @Test
+  void theTypedIdentifierNeverReachesTheEvent() {
+    when(authSession.getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME))
+        .thenReturn("voter@example.test");
+    harvestAnswers("ACCEPTED", null);
+    authenticator.authenticate(context);
+    harvestAnswers("FAILED", "unreachable");
+    authenticator.authenticate(context);
+    verify(event, never()).detail(eq(Details.USERNAME), anyString());
+    verify(event, never()).detail(anyString(), eq("voter@example.test"));
+  }
+
+  /**
+   * R7-16: a temporary password handed over but not set is recorded with its reason, and the page
+   * is the same.
+   */
+  @Test
+  void aPasswordThatCouldNotBeSetIsRecordedWithItsReason() {
+    harvestAnswers("ACCEPTED", null);
+    doThrow(new org.keycloak.models.ModelException("synthetic storage failure"))
+        .when(credentials)
+        .updateCredential(any());
+
+    authenticator.authenticate(context);
+
+    verify(user, never()).setSingleAttribute(anyString(), anyString());
+    verify(event).detail("reason", MessageReason.PASSWORD_NOT_SET.reason());
+    verify(event).error(Errors.PASSWORD_REJECTED);
+    verify(event, never()).success();
+    ArgumentCaptor<FormMessage> page = ArgumentCaptor.forClass(FormMessage.class);
+    verify(context).forkWithSuccessMessage(page.capture());
+    assertEquals(SendNewPassword.NEUTRAL_SENT_MESSAGE_KEY, page.getValue().getMessage());
   }
 }

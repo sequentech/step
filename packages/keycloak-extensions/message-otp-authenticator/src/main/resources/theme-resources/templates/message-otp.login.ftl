@@ -55,6 +55,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<#elseif messengerPage??>
 					<p>${msg("messageOtp.messenger.intro", messengerPage)}</p>
 				</#if>
+				<#if (messengerReconnect!false)>
+					<p class="kc-messenger-reconnect">${msg("messageOtp.messenger.reconnect")}</p>
+				</#if>
 				<#-- On a phone: open the chat here. On a computer: scan the QR code with the phone. -->
 				<ol class="kc-messenger-steps-phone">
 					<li>${msg("messageOtp.messenger.step1")}</li>

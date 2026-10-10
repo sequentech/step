@@ -50,10 +50,10 @@ export const Pending: Story = {
 }
 
 export const NotSent: Story = {
-    args: {report: {state: EFakeReportState.NOT_SENT, reason: "No account uses this sender"}},
+    args: {report: {state: EFakeReportState.NOT_SENT, reason: "Several accounts use this sender"}},
     play: async ({canvasElement}) => {
         await expect(
-            within(canvasElement).getByText("Report not sent: No account uses this sender")
+            within(canvasElement).getByText("Report not sent: Several accounts use this sender")
         ).toBeVisible()
     },
 }

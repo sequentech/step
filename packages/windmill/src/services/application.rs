@@ -41,7 +41,7 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::types::messaging::MessageReason;
 use sequent_core::types::messaging::{MessageChannel, MessageContent, MessagePurpose};
-use sequent_core::types::voter_channel::voter_channel;
+use sequent_core::types::voter_channel::{voter_channel, VoterChannel};
 
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::keycloak::KeycloakAdminClient;
@@ -1228,6 +1228,17 @@ fn user_elections(user: &User, elections_by_area: &HashMap<String, Vec<String>>)
         .unwrap_or_default()
 }
 
+/// Who an application result goes to: the user's one channel, with their
+/// Messenger Page, and their elections.
+fn application_recipient(
+    user: &User,
+    found: VoterChannel,
+    voter_id: Option<String>,
+    elections_by_area: &HashMap<String, Vec<String>>,
+) -> Recipient {
+    Recipient::of_voter(voter_id, found, user_elections(user, elections_by_area))
+}
+
 /// The result of a reviewed application for `user`, rendered on their one
 /// channel with its template reference, so a transient failure is retried.
 /// `None` when the user has no channel.
@@ -1244,6 +1255,7 @@ pub async fn application_result_delivery(
     let Some(found) = voter_channel(user.email.as_deref(), user.attributes.as_ref()) else {
         return Ok(None);
     };
+    let channel = found.channel;
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -1271,19 +1283,13 @@ pub async fn application_result_delivery(
         time_context.variables_for(first_attribute(user, AREA_ID_ATTR_NAME).map(String::as_str)),
     );
     let content =
-        application_result_content(found.channel, verdict.clone(), presentation, &variables)
-            .await?;
+        application_result_content(channel, verdict.clone(), presentation, &variables).await?;
     let alias = application_template_alias(&verdict);
     Ok(Some(Delivery {
         tenant_id: Uuid::parse_str(tenant_id)?,
         election_event_id: Some(Uuid::parse_str(election_event_id)?),
         purpose: MessagePurpose::NOTICE,
-        recipient: Recipient {
-            voter_id,
-            channel: found.channel,
-            destination: found.destination,
-            election_ids: user_elections(user, &elections_by_area),
-        },
+        recipient: application_recipient(user, found, voter_id, &elections_by_area),
         content,
         language: first_attribute(user, LOCALE_ATTR_NAME).cloned(),
         template_alias: Some(alias.clone()),
@@ -1516,6 +1522,36 @@ fn is_fuzzy_match(applicant_value: Option<String>, user_value: Option<String>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// R7-02: an application result (and its retry, rendered again from the
+    /// record) to a Messenger voter carries their Page, so a send through
+    /// an account of another Page is refused.
+    #[test]
+    fn an_application_result_to_a_messenger_voter_carries_their_page() {
+        let user = User {
+            id: Some("voter-1".to_string()),
+            attributes: Some(HashMap::from([
+                (
+                    "sequent.read-only.message-channel".to_string(),
+                    vec!["MESSENGER".to_string()],
+                ),
+                (
+                    "sequent.read-only.messenger-id".to_string(),
+                    vec!["6543210".to_string()],
+                ),
+                (
+                    "sequent.read-only.messenger-page".to_string(),
+                    vec!["page-old".to_string()],
+                ),
+            ])),
+            ..User::default()
+        };
+        let found = voter_channel(user.email.as_deref(), user.attributes.as_ref()).unwrap();
+        let recipient = application_recipient(&user, found, user.id.clone(), &HashMap::new());
+        assert_eq!(recipient.channel, MessageChannel::MESSENGER);
+        assert_eq!(recipient.destination, "6543210");
+        assert_eq!(recipient.messenger_page.as_deref(), Some("page-old"));
+    }
 
     fn census_annotations(policy: Option<NoMatchingVoterPolicy>) -> ApplicationAnnotations {
         ApplicationAnnotations {

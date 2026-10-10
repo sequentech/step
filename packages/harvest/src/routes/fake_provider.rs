@@ -16,8 +16,8 @@
 //! - They keep the last [`CAPACITY`] messages in memory (lost on restart),
 //!   each with its delivery report's result. The code a message carries is
 //!   visible in that list by design, and never logged.
-//! - About a second after accepting a WhatsApp, Messenger or Viber message,
-//!   they post a DELIVERED report to the webhook component, in the
+//! - [`REPORT_DELAY`] (3 s) after accepting a WhatsApp, Messenger or Viber
+//!   message, they post a DELIVERED report to the webhook component, in the
 //!   provider's own format and signature, so it takes the production path
 //!   (component → `/messaging/callbacks` → verification → ledger). SMS
 //!   (SNS) and email (SES) get no report, as in production without
@@ -579,8 +579,8 @@ async fn matching_accounts(
 }
 
 /// The `Authorization` header of a provider request, as the provider reads
-/// it: Meta's `Bearer` access token, Infobip's `App` API key, or the access
-/// key ID of an AWS Signature Version 4. Never logged nor kept.
+/// it: Meta's `Bearer` access token or Infobip's `App` API key (AWS
+/// requests: [`AwsRequest`]). Never logged nor kept.
 pub struct ProviderAuthorization(Option<String>);
 
 #[rocket::async_trait]
@@ -616,17 +616,108 @@ impl ProviderAuthorization {
     fn infobip_key(&self) -> Option<&str> {
         self.scheme("App")
     }
+}
 
-    /// The access key ID a SigV4 request was signed with. The signature
-    /// isn't checked: SNS and SES send no reports.
-    fn aws_access_key_id(&self) -> Option<&str> {
-        self.scheme("AWS4-HMAC-SHA256")?
-            .split(',')
-            .find_map(|part| part.trim().strip_prefix("Credential="))?
-            .split('/')
-            .next()
-            .filter(|id| !id.is_empty())
+/// An AWS request as received: what its Signature Version 4 covers. A
+/// send is taken only when it is signed with the secret of an account
+/// whose access key ID it names (R7-19), as AWS takes it; the key ID alone
+/// isn't a secret. Never logged nor kept.
+pub struct AwsRequest {
+    method: String,
+    path: String,
+    query: String,
+    headers: Vec<(String, String)>,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for AwsRequest {
+    type Error = std::convert::Infallible;
+
+    async fn from_request(
+        request: &'r Request<'_>,
+    ) -> request::Outcome<Self, Self::Error> {
+        request::Outcome::Success(Self {
+            method: request.method().as_str().to_string(),
+            path: request.uri().path().as_str().to_string(),
+            query: request
+                .uri()
+                .query()
+                .map(|query| query.as_str().to_string())
+                .unwrap_or_default(),
+            headers: request
+                .headers()
+                .iter()
+                .map(|header| {
+                    (
+                        header.name().as_str().to_string(),
+                        header.value().to_string(),
+                    )
+                })
+                .collect(),
+        })
     }
+}
+
+impl AwsRequest {
+    /// The access key ID the request names, unchecked.
+    fn access_key_id(&self) -> Option<&str> {
+        let authorization = self
+            .headers
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("authorization"))?;
+        messaging::sigv4::access_key_id(&authorization.1)
+    }
+
+    /// Whether `body` with this request was signed with `secret`.
+    fn signed_with(&self, body: &[u8], secret: &str) -> bool {
+        messaging::sigv4::verify(
+            &messaging::sigv4::ReceivedRequest {
+                method: &self.method,
+                path: &self.path,
+                query: &self.query,
+                headers: &self.headers,
+                body,
+            },
+            secret,
+            Utc::now(),
+        )
+        .is_ok()
+    }
+}
+
+/// Of `senders`, those `request` was signed for with their stored secret
+/// access key; none is [`Refused::SIGNATURE`].
+async fn signed_by(
+    databases: &Arc<dyn DatabasePools>,
+    senders: Senders,
+    request: &AwsRequest,
+    body: &[u8],
+) -> Result<Senders, Refused> {
+    let mut signed = vec![];
+    for account in senders.0 {
+        match account_credential(
+            databases,
+            &account,
+            &[CredentialName::AWS_SECRET_ACCESS_KEY],
+        )
+        .await
+        {
+            Ok(secrets) => {
+                if secrets
+                    .first()
+                    .and_then(Option::as_deref)
+                    .is_some_and(|secret| request.signed_with(body, secret))
+                {
+                    signed.push(account);
+                }
+            }
+            Err(error) => {
+                error!("fake provider: credentials unreadable: {error:#}");
+                return Err(Refused::ACCOUNTS_UNREADABLE);
+            }
+        }
+    }
+    Senders::new(signed).ok_or(Refused::SIGNATURE)
 }
 
 /// Why a provider request wasn't taken. Each route answers with the
@@ -639,6 +730,9 @@ enum Refused {
     CREDENTIAL,
     /// The accounts couldn't be read: the provider's 503.
     ACCOUNTS_UNREADABLE,
+    /// AWS: the request names an account's access key ID but isn't signed
+    /// with its secret (R7-19): AWS's 403 `SignatureDoesNotMatch`.
+    SIGNATURE,
 }
 
 /// Compares two secrets in constant time (over their digests).
@@ -690,6 +784,20 @@ async fn credentialed(
     Ok(found)
 }
 
+/// The accounts a provider request authenticated as. Never empty: only
+/// [`authenticated`] makes one, and no account is a refusal there, so a
+/// kept message always has at least one account, and more than one is
+/// [`SEVERAL_ACCOUNTS_REASON`].
+#[derive(Clone)]
+pub(crate) struct Senders(Vec<MessagingAccount>);
+
+impl Senders {
+    /// `None` for no account.
+    pub(crate) fn new(accounts: Vec<MessagingAccount>) -> Option<Senders> {
+        (!accounts.is_empty()).then_some(Senders(accounts))
+    }
+}
+
 /// The accounts a send is from: those whose sender `matches` and whose
 /// `credential` is the one `presented`. None is a refusal, as the provider
 /// refuses a credential it doesn't know.
@@ -698,13 +806,12 @@ async fn authenticated(
     credential: CredentialName,
     presented: Option<&str>,
     matches: impl Fn(&AccountSender) -> bool,
-) -> Result<Vec<MessagingAccount>, Refused> {
+) -> Result<Senders, Refused> {
     let Some(presented) = presented else {
         return Err(Refused::CREDENTIAL);
     };
     match credentialed(databases, credential, presented, matches).await {
-        Ok(accounts) if accounts.is_empty() => Err(Refused::CREDENTIAL),
-        Ok(accounts) => Ok(accounts),
+        Ok(accounts) => Senders::new(accounts).ok_or(Refused::CREDENTIAL),
         Err(error) => {
             error!("fake provider: accounts unreadable: {error:#}");
             Err(Refused::ACCOUNTS_UNREADABLE)
@@ -1004,8 +1111,9 @@ fn accept(
     sender: String,
     subject: Subject,
     content: FakeContent,
-    accounts: Vec<MessagingAccount>,
+    senders: Senders,
 ) {
+    let Senders(accounts) = senders;
     let mut tenant_ids: Vec<Uuid> =
         accounts.iter().map(|a| a.tenant_id).collect();
     tenant_ids.sort();
@@ -1024,7 +1132,8 @@ fn accept(
             FakeReport::of(ReportState::NO_RECEIPTS, Some(NO_RECEIPTS_REASON)),
             None,
         ),
-        (true, _) if accounts.len() != 1 => (
+        // Never none: see [`Senders`].
+        (true, _) if accounts.len() > 1 => (
             FakeReport::of(
                 ReportState::NOT_SENT,
                 Some(SEVERAL_ACCOUNTS_REASON),
@@ -1178,7 +1287,8 @@ fn meta_error(status: Status, message: &str) -> (Status, Json<Value>) {
 /// Meta's answer to a refused request.
 fn meta_refused(refused: Refused) -> (Status, Json<Value>) {
     match refused {
-        Refused::CREDENTIAL => (
+        // Meta's credential is the token: there is no signature.
+        Refused::CREDENTIAL | Refused::SIGNATURE => (
             Status::Unauthorized,
             Json(json!({"error": {
                 "message": "Invalid OAuth access token.",
@@ -1724,7 +1834,8 @@ fn authorize_tenant(claims: &JwtClaims) -> Result<Uuid, JsonRefusal> {
 /// Infobip's answer to a refused request.
 fn infobip_refused(refused: Refused) -> (Status, Json<Value>) {
     let (status, id, text) = match refused {
-        Refused::CREDENTIAL => (
+        // Infobip's credential is the key: there is no signature.
+        Refused::CREDENTIAL | Refused::SIGNATURE => (
             Status::Unauthorized,
             "UNAUTHORIZED",
             "Invalid login details",
@@ -1972,6 +2083,8 @@ fn email_address(value: &str) -> String {
 
 const AWS_INVALID_TOKEN: &str =
     "The security token included in the request is invalid.";
+/// AWS's own answer to a request not signed with the key's secret.
+const AWS_SIGNATURE_MISMATCH: &str = "The request signature we calculated does not match the signature you provided.";
 
 /// SNS's answer to a refused request.
 fn sns_refused(refused: Refused) -> (Status, (ContentType, String)) {
@@ -1986,6 +2099,11 @@ fn sns_refused(refused: Refused) -> (Status, (ContentType, String)) {
             "ServiceUnavailable",
             ACCOUNTS_UNREADABLE_REASON,
         ),
+        Refused::SIGNATURE => sns_error(
+            Status::Forbidden,
+            "SignatureDoesNotMatch",
+            AWS_SIGNATURE_MISMATCH,
+        ),
     }
 }
 
@@ -1993,6 +2111,7 @@ fn sns_refused(refused: Refused) -> (Status, (ContentType, String)) {
 fn ses_refused(refused: Refused) -> (Status, (ContentType, String)) {
     let (status, message) = match refused {
         Refused::CREDENTIAL => (Status::Forbidden, AWS_INVALID_TOKEN),
+        Refused::SIGNATURE => (Status::Forbidden, AWS_SIGNATURE_MISMATCH),
         Refused::ACCOUNTS_UNREADABLE => {
             (Status::ServiceUnavailable, ACCOUNTS_UNREADABLE_REASON)
         }
@@ -2006,17 +2125,18 @@ fn ses_refused(refused: Refused) -> (Status, (ContentType, String)) {
 /// SNS (`Action=Publish`, `Action=GetSMSSandboxAccountStatus`) at the
 /// endpoint's root, and SES v2 `SendEmail`. Every request needs a SigV4
 /// `Authorization`; a send is taken only when it names the access key ID
-/// of an account that uses the sender.
+/// of an account that uses the sender and is signed with that account's
+/// secret access key ([`AwsRequest`]).
 #[post("/aws/<path..>", data = "<data>")]
 async fn aws_post(
     path: PathBuf,
     data: Data<'_>,
-    authorization: ProviderAuthorization,
+    aws: AwsRequest,
     services: &State<HarvestServices>,
     provider: &State<FakeProvider>,
 ) -> (Status, (ContentType, String)) {
     let segments: Vec<&str> = path.iter().filter_map(|s| s.to_str()).collect();
-    let Some(key_id) = authorization.aws_access_key_id() else {
+    let Some(key_id) = aws.access_key_id() else {
         return match segments.as_slice() {
             [] => sns_refused(Refused::CREDENTIAL),
             _ => ses_refused(Refused::CREDENTIAL),
@@ -2027,12 +2147,9 @@ async fn aws_post(
         Err(status) => return (status, (ContentType::Plain, String::new())),
     };
     match segments.as_slice() {
-        [] => {
-            sns(&String::from_utf8_lossy(&body), key_id, services, provider)
-                .await
-        }
+        [] => sns(&body, key_id, &aws, services, provider).await,
         ["v2", "email", "outbound-emails"] => {
-            ses_send(&body, key_id, services, provider).await
+            ses_send(&body, key_id, &aws, services, provider).await
         }
         _ => (
             Status::NotFound,
@@ -2045,12 +2162,13 @@ async fn aws_post(
 }
 
 async fn sns(
-    form: &str,
+    body: &[u8],
     key_id: &str,
+    aws: &AwsRequest,
     services: &HarvestServices,
     provider: &FakeProvider,
 ) -> (Status, (ContentType, String)) {
-    let pairs = form_pairs(form);
+    let pairs = form_pairs(&String::from_utf8_lossy(body));
     let request_id = Uuid::new_v4();
     match form_value(&pairs, "Action") {
         Some("GetSMSSandboxAccountStatus") => sns_xml(
@@ -2090,9 +2208,15 @@ async fn sns(
             )
             .await
             {
-                Ok(accounts) => accounts,
+                Ok(senders) => senders,
                 Err(refused) => return sns_refused(refused),
             };
+            let accounts =
+                match signed_by(&services.databases, accounts, aws, body).await
+                {
+                    Ok(senders) => senders,
+                    Err(refused) => return sns_refused(refused),
+                };
             let id = Uuid::new_v4().to_string();
             accept(
                 provider,
@@ -2122,12 +2246,13 @@ async fn sns(
 }
 
 async fn ses_send(
-    body: &[u8],
+    raw: &[u8],
     key_id: &str,
+    aws: &AwsRequest,
     services: &HarvestServices,
     provider: &FakeProvider,
 ) -> (Status, (ContentType, String)) {
-    let Ok(body) = serde_json::from_slice::<Value>(body) else {
+    let Ok(body) = serde_json::from_slice::<Value>(raw) else {
         return (
             Status::BadRequest,
             (
@@ -2150,9 +2275,14 @@ async fn ses_send(
     )
     .await
     {
-        Ok(accounts) => accounts,
+        Ok(senders) => senders,
         Err(refused) => return ses_refused(refused),
     };
+    let accounts =
+        match signed_by(&services.databases, accounts, aws, raw).await {
+            Ok(senders) => senders,
+            Err(refused) => return ses_refused(refused),
+        };
     let id = new_id("fake-ses-");
     let recipients: Vec<String> = body["Destination"]["ToAddresses"]
         .as_array()
@@ -2188,11 +2318,8 @@ async fn ses_send(
 /// needs a SigV4 `Authorization`; any key is valid (the check also runs on
 /// keys not stored yet).
 #[get("/aws/<path..>")]
-fn aws_get(
-    path: PathBuf,
-    authorization: ProviderAuthorization,
-) -> (Status, (ContentType, String)) {
-    if authorization.aws_access_key_id().is_none() {
+fn aws_get(path: PathBuf, aws: AwsRequest) -> (Status, (ContentType, String)) {
+    if aws.access_key_id().is_none() {
         return ses_refused(Refused::CREDENTIAL);
     }
     let segments: Vec<&str> = path.iter().filter_map(|s| s.to_str()).collect();

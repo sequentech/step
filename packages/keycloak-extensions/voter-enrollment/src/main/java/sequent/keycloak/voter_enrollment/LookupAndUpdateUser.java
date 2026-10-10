@@ -706,7 +706,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                     .setAttribute("noticeChannel", channel.channel().name())
                     .setAttribute(
                         "noticeAddress",
-                        VoterChannels.mask(channel.channel(), channel.destination())));
+                        VoterChannels.display(channel.channel(), channel.destination())));
   }
 
   private HashMap<String, String> getMismatchedFields(

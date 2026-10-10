@@ -56,7 +56,10 @@ type RouteError = (Status, String);
 
 fn internal(error: anyhow::Error) -> RouteError {
     error!("messaging insights route failed: {error:#}");
-    (Status::InternalServerError, "internal error".to_string())
+    (
+        Status::InternalServerError,
+        crate::routes::messaging::INTERNAL_ERROR.to_string(),
+    )
 }
 
 fn bad_request(reason: impl ToString) -> RouteError {

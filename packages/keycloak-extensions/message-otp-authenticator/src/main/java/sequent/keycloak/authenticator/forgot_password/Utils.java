@@ -405,15 +405,20 @@ public class Utils {
         return Optional.empty();
       }
       case SMS -> {
-        session
-            .getProvider(SmsSenderProvider.class)
-            .send(
-                notice.mobileNumber(),
-                NEW_PASSWORD_MESSAGE_KEY,
-                List.of(realmName, temporaryPassword),
-                realm,
-                user,
-                session);
+        SmsSenderProvider sms = session.getProvider(SmsSenderProvider.class);
+        if (sms.sendsOnlyCodes()) {
+          log.warnv(
+              "sendNewPasswordNotification(): not sent: {0}",
+              MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+          return Optional.of(MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+        }
+        sms.send(
+            notice.mobileNumber(),
+            NEW_PASSWORD_MESSAGE_KEY,
+            List.of(realmName, temporaryPassword),
+            realm,
+            user,
+            session);
         return Optional.empty();
       }
       default -> {

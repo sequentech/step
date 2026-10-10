@@ -5719,6 +5719,22 @@ const spanishTranslation: TranslationType = {
                 REPORT_CREDENTIALS_MISSING:
                     "Genere las credenciales de informes y cree la suscripción de Infobip",
                 CALLBACK_NOT_HTTPS: "La dirección de retorno debe ser https",
+                UNKNOWN_ACCOUNT:
+                    "Esta cuenta ya no existe: puede que se haya eliminado en otra pestaña. Vuelva a cargar la lista.",
+                INTERNAL_ERROR:
+                    "El servidor no pudo completar la solicitud. Vuelva a intentarlo más tarde.",
+                VERIFY_TOKEN_GENERATED:
+                    "El token de verificación lo genera el sistema; no se introduce",
+                CREDENTIAL_GENERATED: "{{credential}}: lo genera el sistema; no se introduce",
+                CREDENTIAL_NOT_USED: "Las cuentas de {{provider}} no usan {{credential}}",
+                CREDENTIAL_EMPTY: "{{credential}} no puede estar vacío",
+                NO_REPORT_CREDENTIALS:
+                    "Las cuentas de {{provider}} no tienen credenciales de informes",
+                UNKNOWN_AUDIENCE: "Selección de destinatarios desconocida",
+                INVALID_MONTH: "El mes debe escribirse como AAAA-MM",
+                INVALID_SUPPORT_REFERENCE: "No es una referencia de soporte",
+                MESSENGER_PAGE_CHANGED:
+                    "No enviado: el votante está conectado a otra página de Messenger",
             },
         },
         messagingAccounts: {
@@ -5916,7 +5932,7 @@ const spanishTranslation: TranslationType = {
                 recheck:
                     "Al guardar, la cuenta se comprueba de nuevo en segundo plano. Hasta que esa comprobación salga bien, los códigos y avisos que pasen por ella fallan por no estar lista; el mensaje de prueba sí se envía.",
                 pageChange:
-                    "Las conversaciones de Messenger pertenecen a una página. Tras cambiar la página, los votantes conectados a {{page}} solo recibirán códigos después de volver a conectar Messenger.",
+                    "Las conversaciones de Messenger pertenecen a una página. Tras cambiar la página, no se envían códigos ni avisos a los votantes conectados a {{page}} hasta que vuelvan a conectarse. El votante se vuelve a conectar en su siguiente inicio de sesión, después de introducir su contraseña: el inicio de sesión muestra el paso de conexión de la página nueva, el votante pulsa Empezar en Messenger y recibe allí el código. Un votante que no puede iniciar sesión con contraseña, por ejemplo porque la ha olvidado, necesita que el personal le cambie el canal.",
                 numberChange:
                     "Los mensajes llegarán desde otro número. Sus plantillas deben estar aprobadas en esa cuenta de empresa antes de poder enviar códigos, y los votantes verán un chat nuevo.",
             },
@@ -5939,7 +5955,7 @@ const spanishTranslation: TranslationType = {
                     "Un mínimo dentro del único presupuesto de envío compartido de la cuenta: los avisos se detienen en él y los códigos van primero. Si no se envían códigos, un envío masivo puede usar todo el ritmo.",
                 otpConcurrency: "Códigos enviados a la vez",
                 otpConcurrencyHelp:
-                    "Vacío: 8. Se cuenta por proceso del servidor; los demás códigos esperan su turno.",
+                    "Vacío: 8. Los códigos y los avisos de Keycloak (enlaces de restablecimiento, contraseñas temporales) ocupan cada uno una plaza mientras se envían. Se cuenta por proceso del servidor; los demás envíos esperan su turno.",
                 allowedCallingCodes: "Destinos permitidos (prefijos telefónicos de país)",
                 allowedCallingCodesHelp:
                     "Separados por comas, por ejemplo 63, 971. Vacío permite cualquier destino.",
@@ -6139,7 +6155,6 @@ const spanishTranslation: TranslationType = {
                     "No se pudo leer el HTML del correo: puede que el proveedor simulado ya no lo conserve.",
             },
             reason: {
-                NO_ACCOUNT: "Ninguna cuenta usa este remitente",
                 SEVERAL_ACCOUNTS: "Varias cuentas usan este remitente",
                 ACCOUNTS_UNREADABLE: "No se pudieron leer las cuentas",
                 UNREACHABLE: "El componente de webhooks no respondió",

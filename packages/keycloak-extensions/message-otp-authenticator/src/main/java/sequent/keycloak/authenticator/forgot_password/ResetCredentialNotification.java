@@ -17,10 +17,8 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.authentication.Authenticator;
 import org.keycloak.authentication.AuthenticatorFactory;
 import org.keycloak.authentication.actiontoken.resetcred.ResetCredentialsActionToken;
-import org.keycloak.authentication.authenticators.browser.AbstractUsernameFormAuthenticator;
 import org.keycloak.common.util.Time;
 import org.keycloak.email.EmailTemplateProvider;
-import org.keycloak.events.Details;
 import org.keycloak.events.Errors;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
@@ -34,6 +32,7 @@ import org.keycloak.models.utils.FormMessage;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
+import sequent.keycloak.authenticator.NeutralPace;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessageReason;
@@ -52,18 +51,36 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
 
   public static final String TEL_USER_ATTRIBUTE = "sequent.read-only.mobile-number";
 
+  /**
+   * The page never tells whether an account exists: the same message, and no sooner than the
+   * default {@link NeutralPace} floor after the request began, with or without one (R7-06).
+   */
   @Override
   public void authenticate(AuthenticationFlowContext context) {
+    long start = NeutralPace.start();
+    boolean neutral = true;
+    try {
+      neutral = sendResetLink(context);
+    } finally {
+      if (neutral) {
+        NeutralPace.hold(start, NeutralPace.floor(null));
+      }
+    }
+  }
+
+  /**
+   * @return whether the answer is the neutral page (not the action-token shortcut, which only a
+   *     known account reaches and which isn't held)
+   */
+  private boolean sendResetLink(AuthenticationFlowContext context) {
     UserModel user = context.getUser();
     AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
-    String username =
-        authenticationSession.getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
 
     // Unknown users get the same page as known ones: the page never tells whether an account
     // exists, nor how it is reached.
     if (user == null) {
       context.forkWithSuccessMessage(successMessage());
-      return;
+      return true;
     }
 
     String actionTokenUserId =
@@ -71,7 +88,7 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
     if (actionTokenUserId != null && Objects.equals(user.getId(), actionTokenUserId)) {
       logger.debugf("Skipping notification screen for user '%s'", user.getId());
       context.success();
-      return;
+      return false;
     }
 
     EventBuilder event = context.getEvent();
@@ -86,18 +103,14 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
     // The link goes to the voter's one channel; a refusal or a failure is recorded with its reason
     // and never sent elsewhere. The page is the same whatever happened.
     Optional<String> notSent = sendNotification(context, user, link, expirationInMinutes);
-    EventBuilder resetEvent =
-        event
-            .clone()
-            .event(EventType.SEND_RESET_PASSWORD)
-            .user(user)
-            .detail(Details.USERNAME, username);
+    EventBuilder resetEvent = event.clone().event(EventType.SEND_RESET_PASSWORD).user(user);
     if (notSent.isEmpty()) {
       resetEvent.success();
     } else {
       resetEvent.detail("reason", notSent.get()).error(Errors.EMAIL_SEND_FAILED);
     }
     context.forkWithSuccessMessage(successMessage());
+    return true;
   }
 
   /** The reset link: an action token for this user and authentication session. */
@@ -171,6 +184,12 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
       }
       if (courier == MessageCourier.SMS) {
         SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
+        if (smsSenderProvider.sendsOnlyCodes()) {
+          logger.warnf(
+              "The reset link was not sent: %s",
+              MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+          return Optional.of(MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason());
+        }
         List<String> attributes = List.of(String.valueOf(expirationInMinutes), link);
         smsSenderProvider.send(
             outcome.keycloak().get().mobileNumber(),

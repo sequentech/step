@@ -230,6 +230,15 @@ function MessengerConnect(props: {kcContext: OtpContext; i18n: I18n; generic?: b
                     {msg(intro.key, ...intro.args)}
                 </Typography>
             )}
+            {!generic && kcContext.messengerReconnect === true && (
+                <Typography
+                    id="messenger-reconnect"
+                    className="auth-instructions"
+                    lang={messageLanguage(kcContext, i18n, "messageOtp.messenger.reconnect")}
+                >
+                    {msg("messageOtp.messenger.reconnect")}
+                </Typography>
+            )}
             {link !== undefined && (
                 <Box
                     id="messenger-scan"

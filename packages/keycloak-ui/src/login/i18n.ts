@@ -80,6 +80,8 @@ const englishMessages = {
     "messageOtp.messenger.codeSent": "We sent your code in the chat.",
     "messageOtp.messenger.expired":
         "This request has expired. Resend the code, then tap Get Started again.",
+    "messageOtp.messenger.reconnect":
+        "Codes now come from a different Facebook Page. Tap Get Started in its chat to connect Messenger again. The new connection is saved when you enter the code.",
     "messageOtp.pending.channel": "We will send the result to your {0}.",
     "messageOtp.pending.channelAddress": "We will send the result to your {0}, {1}.",
     "messageOtp.pending.reference":
@@ -201,6 +203,8 @@ const {useI18n, ofTypeI18n} = i18nBuilder
             "messageOtp.messenger.codeSent": "Le enviamos el código en el chat.",
             "messageOtp.messenger.expired":
                 "Esta solicitud ha caducado. Reenvíe el código y vuelva a pulsar Empezar.",
+            "messageOtp.messenger.reconnect":
+                "Los códigos ahora llegan desde otra página de Facebook. Pulse Empezar en su chat para volver a conectar Messenger. La nueva conexión se guarda cuando introduzca el código.",
             "messageOtp.pending.channel": "Le enviaremos el resultado a su {0}.",
             "messageOtp.pending.channelAddress": "Le enviaremos el resultado a su {0}, {1}.",
             "messageOtp.pending.reference":
