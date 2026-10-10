@@ -243,7 +243,7 @@ const PROTOCOL_MAPPER_CLAIM_NAME_KEY: &str = "claim.name";
 /// Prefix of the per-realm composite role Keycloak generates for every realm.
 const DEFAULT_REALM_ROLE_PREFIX: &str = "default-roles-";
 /// Identity-provider mapper types that grant a role or set an attribute
-/// outright, bypassing the user's own roles and attributes.
+/// outright, regardless of the user's own roles and attributes.
 const HARDCODED_ROLE_IDP_MAPPER: &str = "hardcoded-role-idp-mapper";
 const HARDCODED_ATTRIBUTE_IDP_MAPPER: &str = "hardcoded-attribute-idp-mapper";
 
@@ -2061,7 +2061,7 @@ mod imported_realm_sanitization_tests {
             .users
             .get_or_insert_with(Vec::new)
             .push(UserRepresentation {
-                username: Some("attacker".to_string()),
+                username: Some("imported-user".to_string()),
                 enabled: Some(true),
                 realm_roles: Some(vec![
                     "service-account".to_string(),
@@ -2122,16 +2122,16 @@ mod imported_realm_sanitization_tests {
         assert!(!roles.contains("service-account"));
         assert!(!roles.contains("admin-user"));
 
-        let attacker = sanitized
+        let imported_user = sanitized
             .users
             .as_ref()
             .unwrap()
             .iter()
-            .find(|user| user.username.as_deref() == Some("attacker"))
-            .expect("attacker user kept");
-        let attacker_roles = attacker.realm_roles.clone().unwrap_or_default();
-        assert!(!attacker_roles.contains(&"service-account".to_string()));
-        assert!(!attacker_roles.contains(&"admin-user".to_string()));
+            .find(|user| user.username.as_deref() == Some("imported-user"))
+            .expect("imported user kept");
+        let imported_roles = imported_user.realm_roles.clone().unwrap_or_default();
+        assert!(!imported_roles.contains(&"service-account".to_string()));
+        assert!(!imported_roles.contains(&"admin-user".to_string()));
 
         assert_eq!(client_claim_mapper_count(&sanitized, "rogue-client"), 0);
     }
