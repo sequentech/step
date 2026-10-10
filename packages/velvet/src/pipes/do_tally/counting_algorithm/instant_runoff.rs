@@ -750,13 +750,13 @@ impl CountingAlgorithm for InstantRunoff {
             }
         };
 
-        Ok(self
-            .tally
+        self.tally
             .tally_sheet_results
             .iter()
-            .fold(contest_result, |result, tally_sheet_result| {
+            .try_fold(contest_result, |result, tally_sheet_result| {
                 result.aggregate(tally_sheet_result, false)
-            }))
+            })
+            .map_err(|error| Error::UnexpectedError(error.to_string()))
     }
 }
 
