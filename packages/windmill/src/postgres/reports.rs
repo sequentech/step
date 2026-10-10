@@ -155,6 +155,47 @@ pub async fn update_report_last_document_time(
     Ok(())
 }
 
+/// Turns off the schedule of a report, keeping the rest of its cron
+/// configuration so it can be enabled again. The schedule is only turned off
+/// while it is still active and still runs as `executer_username`, so a stale
+/// check never overrides a schedule that was saved again in the meantime.
+/// Returns whether the schedule was turned off.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn deactivate_report_schedule(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    id: &str,
+    executer_username: &str,
+) -> Result<bool> {
+    let tenant_uuid: Uuid =
+        parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
+    let id_uuid: Uuid = parse_uuid_v4(id).with_context(|| "Error parsing id as UUID")?;
+
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+            UPDATE
+                "sequent_backend".report
+            SET
+                cron_config = jsonb_set(cron_config, '{is_active}', 'false'::jsonb)
+            WHERE
+                tenant_id = $1
+                AND id = $2
+                AND cron_config->>'executer_username' = $3
+                AND cron_config->>'is_active' = 'true'
+            "#,
+        )
+        .await
+        .map_err(|err| anyhow!("Error preparing query: {err}"))?;
+
+    let affected_rows = hasura_transaction
+        .execute(&statement, &[&tenant_uuid, &id_uuid, &executer_username])
+        .await
+        .map_err(|err| anyhow!("Error deactivating report schedule: {err}"))?;
+
+    Ok(affected_rows > 0)
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_report_by_id(
     hasura_transaction: &Transaction<'_>,
