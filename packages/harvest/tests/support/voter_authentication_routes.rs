@@ -12,11 +12,13 @@ use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
 use rocket::http::Status;
 use rocket::local::asynchronous::{Client, LocalResponse};
+use sequent_core::types::permissions::Permissions;
 use serde_json::json;
 
-/// The route checks an empty permission list: any admin of the tenant.
+/// An admin of the event's tenant who may write election events.
 fn admin(event: &Event) -> Claims {
     Claims::new(&event.tenant_id, "any-admin")
+        .roles([Permissions::ELECTION_EVENT_WRITE])
 }
 
 async fn set<'c>(
@@ -158,4 +160,20 @@ async fn the_settings_of_an_unknown_election_event_are_a_server_error() {
         text(set(&client, &unknown, "disabled", "disabled").await).await;
     assert_eq!(status, Status::InternalServerError);
     assert!(message.contains("Connection refused"), "{message}");
+}
+
+#[rocket::async_test]
+async fn an_unknown_setting_is_refused_before_anything_is_changed() {
+    let services = Services::on_test_database().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+
+    for (enrollment, otp) in
+        [("FOO", ""), ("", "required"), ("disabled", "ENABLED")]
+    {
+        let (status, message) =
+            text(set(&client, &event, enrollment, otp).await).await;
+        assert_eq!(status, Status::BadRequest, "{message}");
+    }
+    assert!(services.identity.updates().is_empty());
 }
