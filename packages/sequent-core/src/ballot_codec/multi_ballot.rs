@@ -3466,8 +3466,9 @@ mod tests {
         .is_err());
     }
 
-    /// The first value past the capacity of a ballot style is rejected, and
-    /// the serial number is not consumed.
+    /// The last value inside the capacity of a ballot style fills its slots,
+    /// the first value past it is rejected, and a rejected value does not
+    /// take a serial number.
     #[test]
     fn test_decode_from_bigint_with_context_rejects_value_beyond_bases() {
         let contests = vec![test_contest("a", 2, 1), test_contest("b", 3, 2)];
@@ -3485,9 +3486,14 @@ mod tests {
             .product();
         let mut serial_number_counter = 1;
 
+        assert!(BallotChoices::decode_mixed_radix(
+            &context.bases,
+            &(&capacity - 1u8)
+        )
+        .is_ok());
         assert!(BallotChoices::decode_from_bigint_with_context(
             &context,
-            &(&capacity - 1u8),
+            &BigUint::from(0u8),
             Some(&mut serial_number_counter),
         )
         .is_ok());
