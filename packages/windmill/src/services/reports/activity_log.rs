@@ -5,14 +5,16 @@
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::documents::upload_and_return_document;
-use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
+use crate::services::electoral_log::{
+    get_electoral_log_system_pk, ElectoralLogRow, IMMUDB_ROWS_LIMIT,
+};
 use crate::services::protocol_manager::{get_board_client, get_event_board};
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
-use electoral_log::messages::message::Message;
+use electoral_log::messages::message::{ElectoralLogVerificationStatus, Message};
 use electoral_log::ElectoralLogMessage;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3::get_minio_url;
@@ -22,6 +24,7 @@ use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::mem;
 use strand::serialization::StrandDeserialize;
+use strand::signature::StrandSignaturePk;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
 use tracing::{debug, info, instrument, warn};
@@ -43,6 +46,7 @@ pub struct ActivityLogRow {
     description: String,
     message: String,
     user_id: String,
+    verification_status: Option<ElectoralLogVerificationStatus>,
 }
 
 /// Struct for User Data
@@ -72,17 +76,38 @@ impl ActivityLogsTemplate {
         ActivityLogsTemplate { ids, report_format }
     }
 
-    // Export data using the electoral-log board client, streaming in batches
-    #[instrument(err, skip(self))]
-    pub async fn generate_export_csv_data(&self, name: &str) -> Result<NamedTempFile> {
-        let limit = IMMUDB_ROWS_LIMIT as i64;
-        let mut last_id: i64 = 0;
+    fn board_name(&self) -> Result<String> {
         let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-        let board_name = get_event_board(
+        Ok(get_event_board(
             self.ids.tenant_id.as_str(),
             self.ids.election_event_id.as_str(),
             &slug,
-        );
+        ))
+    }
+
+    pub async fn electoral_log_system_pk(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+    ) -> Result<StrandSignaturePk> {
+        get_electoral_log_system_pk(
+            hasura_transaction,
+            self.ids.tenant_id.as_str(),
+            self.ids.election_event_id.as_str(),
+            &self.board_name()?,
+        )
+        .await
+    }
+
+    // Export data using the electoral-log board client, streaming in batches
+    #[instrument(err, skip(self, system_pk))]
+    pub async fn generate_export_csv_data(
+        &self,
+        name: &str,
+        system_pk: &StrandSignaturePk,
+    ) -> Result<NamedTempFile> {
+        let limit = IMMUDB_ROWS_LIMIT as i64;
+        let mut last_id: i64 = 0;
+        let board_name = self.board_name()?;
 
         let mut board_client = get_board_client().await?;
 
@@ -107,8 +132,7 @@ impl ActivityLogsTemplate {
 
             for entry in msgs {
                 last_id = entry.id;
-                let mut row: ElectoralLogRow = entry
-                    .try_into()
+                let mut row = ElectoralLogRow::verified(entry, system_pk)
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
                 row.message = row.message.replace('\n', " ").replace('\r', " ");
                 csv_writer
@@ -127,6 +151,15 @@ impl ActivityLogsTemplate {
         drop(csv_writer);
 
         Ok(temp_file)
+    }
+}
+
+impl ActivityLogRow {
+    fn verified(electoral_log: ElectoralLogMessage, system_pk: &StrandSignaturePk) -> Result<Self> {
+        let verification_status = electoral_log.verification_status(system_pk);
+        let mut row = ActivityLogRow::try_from(electoral_log)?;
+        row.verification_status = Some(verification_status);
+        Ok(row)
     }
 }
 
@@ -172,6 +205,7 @@ impl TryFrom<ElectoralLogRow> for ActivityLogRow {
             log_type,
             description,
             message: electoral_log.message().to_string(),
+            verification_status: electoral_log.verification_status,
         })
     }
 }
@@ -219,6 +253,7 @@ impl TryFrom<ElectoralLogMessage> for ActivityLogRow {
             log_type,
             description,
             message: deserialized_message.to_string(),
+            verification_status: None,
         })
     }
 }
@@ -257,12 +292,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     }
     async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
         let mut client = get_board_client().await?;
-        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-        let board_name = get_event_board(
-            self.ids.tenant_id.as_str(),
-            self.ids.election_event_id.as_str(),
-            &slug,
-        );
+        let board_name = self.board_name()?;
         let total = client
             .count_electoral_log_messages(&board_name, None)
             .await
@@ -273,7 +303,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
     #[instrument(err, skip_all)]
     async fn prepare_user_data_batch(
         &self,
-        _hasura_transaction: &Transaction<'_>,
+        hasura_transaction: &Transaction<'_>,
         _keycloak_transaction: &Transaction<'_>,
         offset: &mut i64,
         limit: i64,
@@ -281,12 +311,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
         let mut act_log: Vec<ActivityLogRow> = vec![];
         let mut electoral_log: Vec<ElectoralLogRow> = vec![];
         let mut client = get_board_client().await?;
-        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-        let board_name = get_event_board(
-            self.ids.tenant_id.as_str(),
-            self.ids.election_event_id.as_str(),
-            &slug,
-        );
+        let board_name = self.board_name()?;
+        let system_pk = self.electoral_log_system_pk(hasura_transaction).await?;
         // Uses offset-based pagination because the caller framework pre-computes
         // `offset = batch_index * limit` and processes batches in parallel (rayon),
         // which is incompatible with cursor-based pagination.
@@ -298,10 +324,10 @@ impl TemplateRenderer for ActivityLogsTemplate {
         for entry in msgs {
             match self.report_format {
                 ReportFormat::PDF => {
-                    act_log.push(entry.try_into()?);
+                    act_log.push(ActivityLogRow::verified(entry, &system_pk)?);
                 }
                 ReportFormat::CSV => {
-                    electoral_log.push(entry.try_into()?);
+                    electoral_log.push(ElectoralLogRow::verified(entry, &system_pk)?);
                 }
             }
         }
@@ -372,8 +398,9 @@ impl TemplateRenderer for ActivityLogsTemplate {
             // Generate CSV file using generate_export_csv_data
             let name = format!("export-election-event-logs-{}", election_event_id);
             let full_name = format!("{}.csv", name);
+            let system_pk = self.electoral_log_system_pk(hasura_transaction).await?;
             let temp_file = self
-                .generate_export_csv_data(&name)
+                .generate_export_csv_data(&name, &system_pk)
                 .await
                 .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
@@ -577,11 +604,13 @@ mod tests {
         };
         let template = ActivityLogsTemplate::new(ids, ReportFormat::CSV);
         let name = format!("test-export-{election_event_id}");
+        let system_pk =
+            StrandSignaturePk::from_sk(&strand::signature::StrandSignatureSk::r#gen()?)?;
 
         // Start the profiler here so stats reflect only generate_export_csv_data
         let _profiler = dhat::Profiler::new_heap();
         let temp_file = template
-            .generate_export_csv_data(&name)
+            .generate_export_csv_data(&name, &system_pk)
             .await
             .map_err(|e| anyhow!("generate_export_csv_data failed: {e:?}"))?;
         let stats = dhat::HeapStats::get();

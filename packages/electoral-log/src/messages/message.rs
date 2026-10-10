@@ -8,7 +8,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use strand::hash::STRAND_HASH_LENGTH_BYTES;
-use strand::serialization::StrandSerialize;
+use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
 use strand::signature::StrandSignatureSk;
@@ -23,6 +23,7 @@ use crate::messages::newtypes::{
     CertificateAuthEventAction, CertificateSubjectDnsString, EventIdString,
 };
 use std::fmt;
+use strum_macros::{Display, EnumString};
 
 /// We use this when the statement is not related to any election event
 /// For the moment the only case is admin_public_key_message, which is
@@ -213,14 +214,6 @@ impl Message {
         voter_username: Option<String>,
         area_id: String,
     ) -> Result<Self> {
-        let ballot_id: String = vote_h
-            .0
-            .into_inner()
-            .iter()
-            .take(STRAND_HASH_LENGTH_BYTES / 2)
-            .map(|b| format!("{:02x}", b))
-            .collect();
-
         Self::from_body(
             event,
             body,
@@ -229,7 +222,7 @@ impl Message {
             voter_username.clone(), /* username */
             election.0,
             Some(area_id),
-            Some(ballot_id),
+            Some(ballot_id(&vote_h)),
         )
     }
 
@@ -672,6 +665,71 @@ impl Message {
 
         Ok(())
     }
+
+    /// The election and ballot of a cast vote are copied out of the signed
+    /// statement, so they must still match it.
+    fn matches_signed_cast_vote(&self) -> bool {
+        match &self.statement.body {
+            StatementBody::CastVote(election, _, vote_h, _, _)
+            | StatementBody::CastVoteWithChannel(election, _, vote_h, _, _, _) => {
+                self.election_id == election.0
+                    && self.ballot_id.as_deref() == Some(ballot_id(vote_h).as_str())
+            }
+            _ => true,
+        }
+    }
+}
+
+fn ballot_id(vote_h: &CastVoteHash) -> String {
+    vote_h
+        .0
+        .clone()
+        .into_inner()
+        .iter()
+        .take(STRAND_HASH_LENGTH_BYTES / 2)
+        .map(|b| format!("{:02x}", b))
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+pub enum ElectoralLogVerificationStatus {
+    Verified,
+    Unreadable,
+    InvalidSignature,
+    ColumnMismatch,
+}
+
+impl ElectoralLogMessage {
+    /// Checks the signatures of the stored message against the sender key it
+    /// carries and the system key of the event, and that the row columns are
+    /// the ones derived from that message.
+    pub fn verification_status(
+        &self,
+        system_pk: &StrandSignaturePk,
+    ) -> ElectoralLogVerificationStatus {
+        let Ok(message) = Message::strand_deserialize(&self.message) else {
+            return ElectoralLogVerificationStatus::Unreadable;
+        };
+        if message.verify(system_pk).is_err() {
+            return ElectoralLogVerificationStatus::InvalidSignature;
+        }
+        let Ok(expected) = ElectoralLogMessage::try_from(&message) else {
+            return ElectoralLogVerificationStatus::Unreadable;
+        };
+        let columns_match = self.sender_pk == expected.sender_pk
+            && self.statement_timestamp == expected.statement_timestamp
+            && self.statement_kind == expected.statement_kind
+            && self.user_id == expected.user_id
+            && self.username == expected.username
+            && self.election_id == expected.election_id
+            && self.area_id == expected.area_id
+            && self.ballot_id == expected.ballot_id;
+        if columns_match && message.matches_signed_cast_vote() {
+            ElectoralLogVerificationStatus::Verified
+        } else {
+            ElectoralLogVerificationStatus::ColumnMismatch
+        }
+    }
 }
 
 impl TryFrom<&Message> for ElectoralLogMessage {
@@ -729,6 +787,10 @@ impl SigningData {
             sender_name: sender_name.to_string(),
             system_sk,
         }
+    }
+
+    pub fn system_pk(&self) -> Result<StrandSignaturePk> {
+        Ok(StrandSignaturePk::from_sk(&self.system_sk)?)
     }
 }
 
@@ -936,6 +998,128 @@ mod tests {
         assert_eq!(
             with_channel.statement.head.description,
             "Inserted cast vote. Voting channel: TELEPHONE."
+        );
+        Ok(())
+    }
+
+    fn signed_cast_vote(system_sk: &StrandSignatureSk) -> Result<Message> {
+        let signing_data =
+            SigningData::new(StrandSignatureSk::r#gen()?, "voter-id", system_sk.clone());
+        Message::cast_vote_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            Some("voter-id".to_string()),
+            Some("voter".to_string()),
+            "area-id".to_string(),
+        )
+    }
+
+    #[test]
+    fn stored_rows_verify_against_the_key_that_signed_them() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let row: ElectoralLogMessage = (&signed_cast_vote(&system_sk)?).try_into()?;
+
+        assert_eq!(
+            row.verification_status(&system_pk),
+            ElectoralLogVerificationStatus::Verified
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn stored_rows_signed_with_another_system_key_do_not_verify() -> Result<()> {
+        let system_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+        let row: ElectoralLogMessage =
+            (&signed_cast_vote(&StrandSignatureSk::r#gen()?)?).try_into()?;
+
+        assert_eq!(
+            row.verification_status(&system_pk),
+            ElectoralLogVerificationStatus::InvalidSignature
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn stored_rows_whose_statement_changed_after_signing_do_not_verify() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let mut message = signed_cast_vote(&system_sk)?;
+        if let StatementBody::CastVote(_, _, _, ip, _) = &mut message.statement.body {
+            ip.0 = "another-ip".to_string();
+        }
+        let row: ElectoralLogMessage = (&message).try_into()?;
+
+        assert_eq!(
+            row.verification_status(&system_pk),
+            ElectoralLogVerificationStatus::InvalidSignature
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn stored_rows_whose_columns_differ_from_the_signed_message_do_not_verify() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let row: ElectoralLogMessage = (&signed_cast_vote(&system_sk)?).try_into()?;
+        let changes: Vec<fn(&mut ElectoralLogMessage)> = vec![
+            |row| row.sender_pk = "another-sender".to_string(),
+            |row| row.statement_timestamp += 1,
+            |row| row.statement_kind = "ElectionPublish".to_string(),
+            |row| row.user_id = Some("another-voter-id".to_string()),
+            |row| row.username = None,
+            |row| row.election_id = Some("another-election-id".to_string()),
+            |row| row.area_id = Some("another-area-id".to_string()),
+            |row| row.ballot_id = Some("another-ballot-id".to_string()),
+        ];
+
+        for change in changes {
+            let mut changed = row.clone();
+            change(&mut changed);
+            assert_eq!(
+                changed.verification_status(&system_pk),
+                ElectoralLogVerificationStatus::ColumnMismatch
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn cast_vote_rows_must_name_the_signed_election_and_ballot() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let changes: Vec<fn(&mut Message)> = vec![
+            |message| message.election_id = Some("another-election-id".to_string()),
+            |message| message.ballot_id = Some("another-ballot-id".to_string()),
+        ];
+
+        for change in changes {
+            let mut message = signed_cast_vote(&system_sk)?;
+            change(&mut message);
+            let row: ElectoralLogMessage = (&message).try_into()?;
+            assert_eq!(
+                row.verification_status(&system_pk),
+                ElectoralLogVerificationStatus::ColumnMismatch
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn stored_rows_that_do_not_decode_are_unreadable() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let mut row: ElectoralLogMessage = (&signed_cast_vote(&system_sk)?).try_into()?;
+        row.message = vec![1, 2, 3];
+
+        assert_eq!(
+            row.verification_status(&system_pk),
+            ElectoralLogVerificationStatus::Unreadable
         );
         Ok(())
     }
