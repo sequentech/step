@@ -180,7 +180,6 @@ ring = "0.17"
 # Capture application logs in credential-confidentiality regressions.
 tracing-subscriber = "0.3"
 ptree = "0.5"
-tracing-subscriber = "0.3"
 wasm-bindgen-test = "0.3.42"
 
 [features]
