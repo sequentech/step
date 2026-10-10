@@ -145,7 +145,9 @@ pub async fn fetch_realm_voter_snapshots_page(
 /// pagination, so reconciliation never needs the whole file's rows resident
 /// in memory to look voters up. A username with no matching row simply
 /// isn't present in the result; the caller treats that as "this file row's
-/// voter doesn't exist in Sequent" (D, forward direction).
+/// voter doesn't exist in Sequent" (D, forward direction). `usernames` are
+/// compared as stored, so they must already be in Keycloak's form
+/// (`normalize_username`).
 #[instrument(skip(keycloak_transaction, areas_by_id, usernames), err)]
 pub async fn fetch_realm_voter_snapshots_by_usernames(
     keycloak_transaction: &Transaction<'_>,
@@ -1619,12 +1621,14 @@ pub async fn check_is_user_verified(
 
 /// Returns a vector with user ids.
 /// It is up to the caller to handle when there are mutiple users with the same username or the vector is empty - not found.
+/// `username` is matched in the form Keycloak stores it (`normalize_username`).
 #[instrument(err, skip(keycloak_transaction))]
 pub async fn get_users_by_username(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     username: &str,
 ) -> Result<Vec<String>> {
+    let username = normalize_username(username);
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &username];
 
     let statement = keycloak_transaction
