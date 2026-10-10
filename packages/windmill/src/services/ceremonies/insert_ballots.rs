@@ -6,6 +6,7 @@ use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
+use crate::services::authorized_elections::census_values_by_election;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
 use crate::services::ceremonies::auditable_ballots::{
@@ -64,6 +65,9 @@ use deadpool_postgres::Client as DbClient;
 
 use std::sync::Arc; // Add this import
 
+/// Posts to the board, for the trustees to mix, the ballots of each tally
+/// session contest cast by voters in its census: the enabled voters of its area
+/// who may vote in its election.
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -129,12 +133,9 @@ pub async fn insert_ballots_messages(
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
-    let election_ids_alias: HashMap<String, String> =
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
-            .await?
-            .into_iter()
-            .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
-            .collect();
+    let census_values = census_values_by_election(
+        &get_election_event_elections(hasura_transaction, tenant_id, election_event_id).await?,
+    );
 
     // Collect all futures for parallel execution
     let mut tally_session_contests_updated = Vec::with_capacity(tally_session_contests.len());
@@ -152,7 +153,7 @@ pub async fn insert_ballots_messages(
             let configuration_clone = configuration.clone(); // Assuming Configuration can be cloned
             let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
             let selected_trustees_clone = selected_trustees.clone();
-            let election_ids_alias_clone = election_ids_alias.clone();
+            let census_values_clone = census_values.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
             let board_messages_clone = Arc::clone(&board_messages); // board_messages also needs to be cloned if it's not Sync + Send
@@ -251,18 +252,14 @@ pub async fn insert_ballots_messages(
                         users_temp_file.path()
                     );
 
-                    let election_alias =
-                        match election_ids_alias_clone.get(&tally_session_contest.election_id) {
-                            Some(alias) => alias,
-                            None => "",
-                        }
-                        .to_string();
-
                     list_keycloak_enabled_users_by_area_id_and_authorized_elections(
                         &keycloak_transaction_clone,
                         &realm_clone,
                         &tally_session_contest.area_id,
-                        &election_alias,
+                        census_values_clone
+                            .get(&tally_session_contest.election_id)
+                            .map(Vec::as_slice)
+                            .unwrap_or(std::slice::from_ref(&tally_session_contest.election_id)),
                         &users_temp_file.path().to_path_buf(),
                         multiplicity_column,
                     )

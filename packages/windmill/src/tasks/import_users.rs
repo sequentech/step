@@ -81,6 +81,8 @@ impl ImportUsersBody {
     }
 }
 
+/// Imports the voters CSV that `body` names into its election event, or into
+/// its tenant if it names none, recording the outcome in `task_execution`.
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 2)]
@@ -152,6 +154,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         body.is_admin,
         body.may_write_secret_attributes,
         body.secret_write_initiator.as_ref(),
+        None,
     )
     .await
     {

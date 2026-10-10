@@ -797,7 +797,10 @@ pub async fn process_election_event_file(
     Ok((data, replacement_map))
 }
 
-#[instrument(err, skip(hasura_transaction, temp_file))]
+/// Imports the voters file of an election event export. `replacement_map` maps
+/// the exported event's IDs to the imported ones, so that voters keep the
+/// elections their `authorized-election-ids` name.
+#[instrument(err, skip(hasura_transaction, temp_file, replacement_map))]
 async fn process_voters_file(
     hasura_transaction: &Transaction<'_>,
     temp_file: &NamedTempFile,
@@ -807,6 +810,7 @@ async fn process_voters_file(
     is_admin: bool,
     may_write_secret_attributes: bool,
     secret_write_initiator: Option<&ElectoralLogAdminContext>,
+    replacement_map: &HashMap<String, String>,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -823,6 +827,7 @@ async fn process_voters_file(
         is_admin,
         may_write_secret_attributes,
         secret_write_initiator,
+        Some(replacement_map),
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1128,6 +1133,9 @@ pub async fn get_zip_entries(
     Ok((zip_entries, election_event_schema))
 }
 
+/// Imports the election event export that `object` names as
+/// `election_event_id`, and then the voters, activity logs, reports and files
+/// it carries.
 #[instrument(err, skip_all)]
 pub async fn process_document(
     hasura_transaction: &Transaction<'_>,
@@ -1247,6 +1255,7 @@ pub async fn process_document(
                     false,
                     may_write_secret_attributes,
                     secret_write_initiator.as_ref(),
+                    &replacement_map,
                 )
                 .await
                 .context("Failed to import voters")?;
@@ -1635,5 +1644,68 @@ mod publication_import_mapping_tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod voters_import_mapping_tests {
+    use super::*;
+    use crate::services::authorized_elections::AuthorizedElectionIds;
+    use crate::services::election::ElectionHead;
+
+    /// Import replaces the exported tenant and event IDs wherever they appear,
+    /// so an election whose external ID was one of them gets the new one, and
+    /// voters exported with the old one must still name that election.
+    #[test]
+    fn voters_name_an_election_whose_external_id_was_a_replaced_id() {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let new_tenant = Uuid::new_v4().to_string();
+        let new_event = Uuid::new_v4().to_string();
+        let election = |external_id: &str| {
+            serde_json::json!({
+                "id": Uuid::new_v4().to_string(), "tenant_id": tenant,
+                "election_event_id": event, "external_id": external_id
+            })
+        };
+        let input = serde_json::json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA"
+            },
+            "elections": [election(&event), election(&tenant)],
+            "contests": [], "candidates": [], "areas": [],
+            "area_contests": [], "reports": []
+        });
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        let (imported, replaced_ids) = replace_ids(
+            &input.to_string(),
+            &original,
+            Some(new_event.clone()),
+            new_tenant.clone(),
+        )
+        .unwrap();
+
+        let elections: Vec<ElectionHead> = imported
+            .elections
+            .into_iter()
+            .map(|election| ElectionHead {
+                id: election.id,
+                name: "-".to_string(),
+                alias: None,
+                external_id: election.external_id,
+            })
+            .collect();
+        let authorized_elections =
+            AuthorizedElectionIds::new(&elections).with_replaced_ids(&replaced_ids);
+        assert_eq!(
+            authorized_elections.resolve_imported(&event),
+            Ok(new_event.as_str())
+        );
+        assert_eq!(
+            authorized_elections.resolve_imported(&tenant),
+            Ok(new_tenant.as_str())
+        );
     }
 }

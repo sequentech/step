@@ -3,30 +3,33 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas_by_id;
+use crate::services::authorized_elections::{quoted, AuthorizedElectionIds};
+use crate::services::csv_cell::escape_formula;
 use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
+use crate::services::import::import_users::{
+    is_election_column, is_misspelled_vote_weight, is_reserved_column, temp_table_column,
+    ELECTION_COL_PREFIX, HEADER_RE, INTERNAL_USER_ID_COL_NAME,
+};
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
 use crate::services::voter_secret_attributes::{
-    get_secret_attribute_config, VoterSecretAttributeDecryptor,
+    get_secret_attribute_config, VoterSecretAttributeDecryptor, FORBIDDEN_SECRET_ATTRIBUTES,
 };
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Transaction;
-use regex::Regex;
 use sequent_core::services::keycloak::KeycloakAdminClient;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
-use sequent_core::types::keycloak::{User, UserProfileAttribute};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
+};
+use sequent_core::types::keycloak::{User, UserProfileAttribute, AUTHORIZED_ELECTION_IDS_NAME};
 use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::LazyLock;
 use tempfile::{NamedTempFile, TempPath};
 use tracing::{event, info, instrument, Level};
-
-static SAFE_CHARS_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9._-]").expect("Failed to build safe chars regex"));
 
 pub const USER_FIELDS: [&str; 9] = [
     "id",
@@ -70,12 +73,47 @@ pub enum ExportBody {
     },
 }
 
-#[instrument(level = "trace")]
-fn sanitize_name(name: &str) -> String {
-    // Replace all characters not matching the regex with an underscore '_'
-    SAFE_CHARS_RE.replace_all(name, "_").to_string()
+/// The profile attributes export writes in columns of their own, in the
+/// profile's order: those import reads back as the same attribute. Import reads
+/// some columns as something else, such as the voter's password, and ignores
+/// those it fills itself, such as `tenant-id`, or that start with `election__`.
+/// It rejects a file with a column whose name it does not allow, or that it
+/// stores in the same column of its table as an account field or another
+/// attribute. Of two attributes that share a column, one that other components
+/// read, and so cannot be secret, is exported, and otherwise the first.
+fn exported_attributes(user_attributes: Vec<UserProfileAttribute>) -> Vec<UserProfileAttribute> {
+    let mut columns: HashSet<String> = USER_FIELDS
+        .into_iter()
+        .chain([INTERNAL_USER_ID_COL_NAME])
+        .map(temp_table_column)
+        .collect();
+    let mut attributes = user_attributes.into_iter().enumerate().collect::<Vec<_>>();
+    attributes.sort_by_key(|(_, attr)| {
+        !attr
+            .name
+            .as_deref()
+            .is_some_and(|name| FORBIDDEN_SECRET_ATTRIBUTES.contains(&name))
+    });
+    let mut exported = attributes
+        .into_iter()
+        .filter(|(_, attr)| {
+            attr.name.as_deref().is_some_and(|name| {
+                !is_reserved_column(name)
+                    && !is_election_column(name)
+                    && HEADER_RE.is_match(name)
+                    && !is_misspelled_vote_weight(name)
+                    && columns.insert(temp_table_column(name))
+            })
+        })
+        .collect::<Vec<_>>();
+    exported.sort_by_key(|(index, _)| *index);
+    exported.into_iter().map(|(_, attr)| attr).collect()
 }
 
+/// The columns of a voters CSV: the account's, one per exported attribute, and,
+/// when exporting an election event's voters, one per election. A name that a
+/// spreadsheet would run as a formula, as an attribute's can be, is written as
+/// text.
 #[instrument(skip(elections))]
 fn get_headers(
     elections: &Option<Vec<ElectionHead>>,
@@ -91,37 +129,71 @@ fn get_headers(
         "username".to_string(),
         "area_name".to_string(),
     ];
-    for attr in user_attributes {
-        match (&attr.name) {
-            (Some(name)) => {
-                if (!USER_FIELDS.contains(&name.as_str())) {
-                    user_headers.push(name.clone())
-                }
-            }
-            _ => (),
-        }
-    }
+    user_headers.extend(user_attributes.iter().filter_map(|attr| attr.name.clone()));
     vec![
         user_headers,
         match elections {
-            Some(ref some_elections) => some_elections
-                .iter()
-                .map(|election| match election.alias {
-                    Some(ref election_alias) => {
-                        format!("election__{}", sanitize_name(&election_alias))
-                    }
-                    None => format!("election__{}", sanitize_name(&election.name)),
-                })
-                .collect::<Vec<String>>(),
+            // Display names are not unique, and import ignores these columns.
+            Some(ref some_elections) => {
+                let authorized_elections = AuthorizedElectionIds::new(some_elections);
+                some_elections
+                    .iter()
+                    .map(|election| {
+                        let name = match authorized_elections.stored_value(&election.id) {
+                            Some(stored_value) => stored_value.to_string(),
+                            // Its ID is another election's external ID, and
+                            // names that election.
+                            None => quoted(&election.id),
+                        };
+                        format!("{ELECTION_COL_PREFIX}{name}")
+                    })
+                    .collect::<Vec<String>>()
+            }
             None => vec![],
         },
     ]
     .concat()
+    .iter()
+    .map(|header| escape_formula(header).into_owned())
+    .collect()
 }
 
-#[instrument(skip(elections, areas_by_id, user, user_attributes), level = "trace")]
+/// Writes the voter's authorized elections the way import reads them. Values
+/// that do not name a single election are kept in double quotes, so that
+/// importing them into any election event fails, rather than leaving the voter
+/// unrestricted or giving them other elections. A tenant's users, which have no
+/// `authorized_elections` to resolve against, are written as they are, as
+/// import stores them.
+fn get_authorized_election_ids(
+    user: &User,
+    authorized_elections: Option<&AuthorizedElectionIds>,
+) -> String {
+    let user_values = user.get_authorized_election_ids().unwrap_or_default();
+    let Some(authorized_elections) = authorized_elections else {
+        return user_values.join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR);
+    };
+    let mut values: Vec<String> = Vec::new();
+    for value in user_values {
+        let value = match authorized_elections.resolve(&value) {
+            Ok(stored_value) => stored_value.to_string(),
+            Err(_) => quoted(&value),
+        };
+        if !values.contains(&value) {
+            values.push(value);
+        }
+    }
+    values.join(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR)
+}
+
+/// The cells of `user`'s row, under the columns of [`get_headers`]. A cell that
+/// a spreadsheet would run as a formula is written as text.
+#[instrument(
+    skip(elections, authorized_elections, areas_by_id, user, user_attributes),
+    level = "trace"
+)]
 fn get_user_record(
     elections: &Option<Vec<ElectionHead>>,
+    authorized_elections: Option<&AuthorizedElectionIds>,
     areas_by_id: &Option<HashMap<String, String>>,
     user: &User,
     user_attributes: &Vec<UserProfileAttribute>,
@@ -147,17 +219,15 @@ fn get_user_record(
         },
     ];
     for attr in user_attributes {
-        match &attr.name {
-            Some(name) => {
-                if !USER_FIELDS.contains(&name.as_str()) {
-                    if let Some(true) = &attr.multivalued {
-                        user_info.push(user.get_attribute_multival(name).unwrap_or_default())
-                    } else {
-                        user_info.push(user.get_attribute_val(name).unwrap_or_default())
-                    }
-                }
-            }
-            _ => (),
+        let Some(name) = &attr.name else {
+            continue;
+        };
+        if name == AUTHORIZED_ELECTION_IDS_NAME {
+            user_info.push(get_authorized_election_ids(user, authorized_elections))
+        } else if let Some(true) = &attr.multivalued {
+            user_info.push(user.get_attribute_multival(name).unwrap_or_default())
+        } else {
+            user_info.push(user.get_attribute_val(name).unwrap_or_default())
         }
     }
     return vec![
@@ -176,9 +246,15 @@ fn get_user_record(
             None => vec![],
         },
     ]
-    .concat();
+    .concat()
+    .iter()
+    // Voters write their own names and attributes.
+    .map(|value| escape_formula(value).into_owned())
+    .collect();
 }
 
+/// Writes the voters of `body`'s election event, or the users of its tenant, to
+/// a CSV file in the format import reads.
 #[instrument(err, skip(hasura_transaction))]
 pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
@@ -288,7 +364,9 @@ pub async fn export_users_file(
                     .is_none_or(|name| !configured_secret_names.contains(name))
         })
         .collect::<Vec<_>>();
+    let attributes = exported_attributes(attributes);
     let headers = get_headers(&elections, &attributes);
+    let authorized_elections = elections.as_deref().map(AuthorizedElectionIds::new);
 
     // Pagination loop to export users in batches
     let batch_size = PgConfig::from_env()?.default_sql_batch_size;
@@ -376,7 +454,13 @@ pub async fn export_users_file(
                         )
                     })?;
             }
-            let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
+            let record = get_user_record(
+                &elections,
+                authorized_elections.as_ref(),
+                &areas_by_id,
+                &user,
+                &attributes,
+            );
             writer
                 .write_record(&record)
                 .with_context(|| "Error writing record")?;
@@ -407,7 +491,17 @@ pub async fn export_users_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::import::import_users::{
+        column_names, get_copy_from_query, imported_fields, imported_value,
+        resolve_authorized_election_ids,
+    };
+    use crate::services::users::DELEGATE_TO_ATTR_NAME;
+    use sequent_core::types::keycloak::{
+        SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
+        VOTED_CHANNEL_INTERNET_VALUE,
+    };
 
+    /// A single-valued profile attribute named `name`.
     fn attribute(name: &str) -> UserProfileAttribute {
         UserProfileAttribute {
             annotations: None,
@@ -422,9 +516,627 @@ mod tests {
         }
     }
 
+    const ELECTION_A: &str = "6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
+    const ELECTION_B: &str = "7a2b3c4d-5e6f-4a7b-9c8d-1e2f3a4b5c6d";
+    const ELECTION_C: &str = "8b3c4d5e-6f7a-4b8c-ad9e-2f3a4b5c6d7e";
+    const ELECTION_D: &str = "9c4d5e6f-7a8b-4c9d-be0f-3a4b5c6d7e8f";
+    const EXTERNAL_ID: &str = "GIAMBI30-3-31";
+    const OTHER_EXTERNAL_ID: &str = "GTELEC31+GCIBER30-1-01";
+
+    /// An election with what resolving values reads from it: its ID and
+    /// external ID.
+    fn election(id: &str, external_id: Option<&str>) -> ElectionHead {
+        ElectionHead {
+            id: id.to_string(),
+            // Elections named only in other languages all fall back to the
+            // same placeholder in the event's default language.
+            name: "-".to_string(),
+            alias: None,
+            external_id: external_id.map(str::to_string),
+        }
+    }
+
+    /// Two elections with external IDs, one without, and one with an empty
+    /// external ID, which counts as none.
+    fn elections() -> Vec<ElectionHead> {
+        vec![
+            election(ELECTION_A, Some(OTHER_EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
+            election(ELECTION_C, None),
+            election(ELECTION_D, Some("")),
+        ]
+    }
+
+    /// Display names can repeat, so columns named after them could not tell
+    /// the elections apart.
+    #[test]
+    fn election_columns_are_named_after_external_ids_or_ids() {
+        let headers = get_headers(&Some(elections()), &vec![]);
+        let election_headers = headers
+            .iter()
+            .filter(|header| header.starts_with("election__"))
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            election_headers,
+            vec![
+                format!("election__{OTHER_EXTERNAL_ID}"),
+                format!("election__{EXTERNAL_ID}"),
+                format!("election__{ELECTION_C}"),
+                format!("election__{ELECTION_D}"),
+            ]
+        );
+    }
+
+    /// Its ID is the other election's external ID, and names that election.
+    #[test]
+    fn the_column_of_an_election_with_no_stored_value_is_named_by_its_quoted_id() {
+        let headers = get_headers(
+            &Some(vec![
+                election(ELECTION_A, Some(ELECTION_B)),
+                election(ELECTION_B, None),
+            ]),
+            &vec![],
+        );
+        let election_headers = headers
+            .iter()
+            .filter(|header| is_election_column(header))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            election_headers,
+            vec![
+                format!("election__{ELECTION_B}"),
+                format!("election__\"{ELECTION_B}\""),
+            ]
+        );
+    }
+
+    /// A voter in an area, restricted to `authorized_election_ids` unless it
+    /// is empty.
+    fn voter(username: &str, authorized_election_ids: &[&str]) -> User {
+        let mut attributes = HashMap::from([("area-id".to_string(), vec!["area-1".to_string()])]);
+        if !authorized_election_ids.is_empty() {
+            attributes.insert(
+                AUTHORIZED_ELECTION_IDS_NAME.to_string(),
+                authorized_election_ids
+                    .iter()
+                    .map(|value| value.to_string())
+                    .collect(),
+            );
+        }
+        User {
+            id: Some(format!("{username}-id")),
+            username: Some(username.to_string()),
+            enabled: Some(true),
+            attributes: Some(attributes),
+            ..Default::default()
+        }
+    }
+
+    /// The cells export writes for `user`, by column.
+    fn exported_cells(
+        elections: &[ElectionHead],
+        attributes: &[UserProfileAttribute],
+        user: &User,
+    ) -> HashMap<String, String> {
+        let attributes = exported_attributes(attributes.to_vec());
+        let headers = get_headers(&Some(elections.to_vec()), &attributes);
+        let record = get_user_record(
+            &Some(elections.to_vec()),
+            Some(&AuthorizedElectionIds::new(elections)),
+            &None,
+            user,
+            &attributes,
+        );
+        headers.into_iter().zip(record).collect()
+    }
+
+    /// The `authorized-election-ids` cell export writes for `user`.
+    fn exported_authorized_election_ids(elections: &[ElectionHead], user: &User) -> String {
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        exported_cells(elections, &attributes, user)[AUTHORIZED_ELECTION_IDS_NAME].clone()
+    }
+
+    /// Voters imported before the fix kept the election IDs they were given.
+    /// The profile attribute is not flagged multivalued here, as in older
+    /// realms, and every value must still be written.
+    #[test]
+    fn authorized_elections_are_exported_by_external_id_or_id_without_one() {
+        assert_eq!(
+            exported_authorized_election_ids(
+                &elections(),
+                &voter("legacy", &[ELECTION_A, ELECTION_C, ELECTION_D])
+            ),
+            format!("{OTHER_EXTERNAL_ID}|{ELECTION_C}|{ELECTION_D}")
+        );
+        assert_eq!(
+            exported_authorized_election_ids(&elections(), &voter("current", &[EXTERNAL_ID])),
+            EXTERNAL_ID
+        );
+        assert_eq!(
+            exported_authorized_election_ids(
+                &elections(),
+                &voter("both", &[ELECTION_B, EXTERNAL_ID])
+            ),
+            EXTERNAL_ID
+        );
+        assert_eq!(
+            exported_authorized_election_ids(&elections(), &voter("unrestricted", &[])),
+            ""
+        );
+    }
+
+    /// A tenant's users are imported without an election event, which stores
+    /// their values as they are, so quoting them would change them on every
+    /// export and import.
+    #[test]
+    fn tenant_users_export_authorized_elections_as_they_are() {
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        let user = voter("admin", &[EXTERNAL_ID, ELECTION_A]);
+
+        let cells: HashMap<String, String> = get_headers(&None, &attributes)
+            .into_iter()
+            .zip(get_user_record(&None, None, &None, &user, &attributes))
+            .collect();
+
+        assert_eq!(
+            cells[AUTHORIZED_ELECTION_IDS_NAME],
+            format!("{EXTERNAL_ID}|{ELECTION_A}")
+        );
+    }
+
+    /// Import reads `password` and `group_name` as the voter's password and
+    /// group, fills `email_constraint`, `not_before` and `tenant-id` itself, and
+    /// ignores columns starting with `election__`, so these attributes would not
+    /// come back.
+    #[test]
+    fn attributes_named_like_columns_import_reserves_are_not_exported() {
+        let attributes = vec![
+            attribute("password"),
+            attribute("group_name"),
+            attribute("election__notes"),
+            attribute("email_constraint"),
+            attribute("not_before"),
+            attribute(TENANT_ID_ATTR_NAME),
+            attribute("mobile-number"),
+        ];
+        let user = User {
+            username: Some("voter".to_string()),
+            attributes: Some(HashMap::from([
+                ("password".to_string(), vec!["=1+1".to_string()]),
+                ("group_name".to_string(), vec!["admins".to_string()]),
+                ("election__notes".to_string(), vec!["notes".to_string()]),
+                (
+                    "email_constraint".to_string(),
+                    vec!["constraint".to_string()],
+                ),
+                ("not_before".to_string(), vec!["1".to_string()]),
+                (
+                    TENANT_ID_ATTR_NAME.to_string(),
+                    vec!["source-tenant".to_string()],
+                ),
+                ("mobile-number".to_string(), vec!["600000000".to_string()]),
+            ])),
+            ..Default::default()
+        };
+
+        let cells = exported_cells(&elections(), &attributes, &user);
+        assert!(!cells.contains_key("password"));
+        assert!(!cells.contains_key("group_name"));
+        assert!(!cells.contains_key("election__notes"));
+        assert!(!cells.contains_key("email_constraint"));
+        assert!(!cells.contains_key("not_before"));
+        assert!(!cells.contains_key(TENANT_ID_ATTR_NAME));
+        assert_eq!(cells["mobile-number"], "600000000");
+    }
+
+    /// Import rejects a file with a column whose name it does not allow, or two
+    /// that it stores in one column of its table, as it folds case and reads
+    /// `.` and `-` as `_`. Of two such attributes, the first is exported. It
+    /// reads `area_name` as `area-id`, so `area-name` has a column of its own.
+    #[test]
+    fn exported_attribute_columns_pass_the_import_checks() {
+        let names = [
+            "mobile-number",
+            "mobile_number",
+            "Email",
+            "first-name",
+            "area.id",
+            "area-name",
+            "sequent-internal-user-id",
+            "teléfono",
+            "vote_weight",
+        ];
+        let attributes = names.into_iter().map(attribute).collect::<Vec<_>>();
+        let user = User {
+            username: Some("voter".to_string()),
+            attributes: Some(
+                names
+                    .iter()
+                    .map(|name| (name.to_string(), vec![format!("{name} value")]))
+                    .collect(),
+            ),
+            ..Default::default()
+        };
+
+        let rows = import(
+            &export(&elections(), &attributes, &[user]),
+            &AuthorizedElectionIds::new(&elections()),
+        );
+
+        let imported = rows[0]
+            .iter()
+            .filter(|(column, _)| names.contains(&column.as_str()))
+            .map(|(column, value)| (column.as_str(), value.as_str()))
+            .collect::<HashMap<_, _>>();
+        assert_eq!(
+            imported,
+            HashMap::from([
+                ("mobile-number", "mobile-number value"),
+                ("area-name", "area-name value"),
+            ])
+        );
+    }
+
+    /// Other components read operational attributes, such as
+    /// `authorized-election-ids`, `delegate-vote-to` or `trustee`, so one keeps
+    /// its column over an earlier attribute that import stores in the same one.
+    /// Exporting the earlier one instead would import the voter unrestricted,
+    /// drop their delegation, or the trustee an administrator acts as.
+    #[test]
+    fn operational_attributes_keep_their_columns() {
+        let attributes = vec![
+            attribute("authorized_election_ids"),
+            attribute(AUTHORIZED_ELECTION_IDS_NAME),
+            attribute("Voted_Channel"),
+            attribute(VOTED_CHANNEL),
+            attribute("delegate_vote_to"),
+            attribute(DELEGATE_TO_ATTR_NAME),
+            attribute("support_materials_acknowledged"),
+            attribute(SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME),
+            attribute("Trustee"),
+            attribute("trustee"),
+            attribute("Embassy"),
+            attribute("embassy"),
+        ];
+        let mut user = voter("current", &[EXTERNAL_ID]);
+        user.attributes.get_or_insert_default().extend([
+            (
+                "authorized_election_ids".to_string(),
+                vec!["custom".to_string()],
+            ),
+            ("Voted_Channel".to_string(), vec!["custom".to_string()]),
+            (
+                VOTED_CHANNEL.to_string(),
+                vec![VOTED_CHANNEL_INTERNET_VALUE.to_string()],
+            ),
+            ("delegate_vote_to".to_string(), vec!["custom".to_string()]),
+            (
+                DELEGATE_TO_ATTR_NAME.to_string(),
+                vec!["delegate".to_string()],
+            ),
+            (
+                "support_materials_acknowledged".to_string(),
+                vec!["custom".to_string()],
+            ),
+            (
+                SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME.to_string(),
+                vec!["document".to_string()],
+            ),
+            ("Trustee".to_string(), vec!["custom".to_string()]),
+            ("trustee".to_string(), vec!["trustee-1".to_string()]),
+            ("Embassy".to_string(), vec!["custom".to_string()]),
+            ("embassy".to_string(), vec!["embassy-1".to_string()]),
+        ]);
+
+        let rows = import(
+            &export(&elections(), &attributes, &[user]),
+            &AuthorizedElectionIds::new(&elections()),
+        );
+
+        assert_eq!(rows[0][AUTHORIZED_ELECTION_IDS_NAME], EXTERNAL_ID);
+        assert_eq!(rows[0][VOTED_CHANNEL], VOTED_CHANNEL_INTERNET_VALUE);
+        assert_eq!(rows[0][DELEGATE_TO_ATTR_NAME], "delegate");
+        assert_eq!(
+            rows[0][SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME],
+            "document"
+        );
+        assert_eq!(rows[0]["trustee"], "trustee-1");
+        assert_eq!(rows[0]["embassy"], "embassy-1");
+        assert!(!rows[0].contains_key("authorized_election_ids"));
+        assert!(!rows[0].contains_key("Voted_Channel"));
+        assert!(!rows[0].contains_key("delegate_vote_to"));
+        assert!(!rows[0].contains_key("support_materials_acknowledged"));
+        assert!(!rows[0].contains_key("Trustee"));
+        assert!(!rows[0].contains_key("Embassy"));
+    }
+
+    /// Kept as they are, they could name an election in the election event they
+    /// are imported into, or read back from the cell as other values, or as a
+    /// blank one that leaves the voter unrestricted. Quoted, they must not
+    /// import into any election event, even one with external IDs that start
+    /// or end with a double quote.
+    #[test]
+    fn authorized_elections_naming_no_single_election_are_quoted() {
+        let exporting_elections = [
+            election(ELECTION_A, Some(EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
+        ];
+        let importing_elections = [
+            AuthorizedElectionIds::new(&exporting_elections),
+            AuthorizedElectionIds::new(&elections()),
+            AuthorizedElectionIds::new(&[
+                election(ELECTION_A, Some("\"\"")),
+                election(ELECTION_B, Some(&format!("\" {EXTERNAL_ID} \""))),
+                election(ELECTION_C, Some(&format!("\"{EXTERNAL_ID}"))),
+                election(ELECTION_D, Some(&format!("{OTHER_EXTERNAL_ID}\""))),
+            ]),
+        ];
+        for stored in [
+            EXTERNAL_ID.to_string(),
+            OTHER_EXTERNAL_ID.to_string(),
+            String::new(),
+            format!(" {EXTERNAL_ID} "),
+            "=1+1".to_string(),
+            format!("{EXTERNAL_ID}|{OTHER_EXTERNAL_ID}"),
+        ] {
+            let cell = exported_authorized_election_ids(
+                &exporting_elections,
+                &voter("stale", &[stored.as_str()]),
+            );
+
+            assert_eq!(cell, format!("\"{stored}\""));
+            for elections in &importing_elections {
+                assert!(
+                    resolve_authorized_election_ids(&cell, 2, elections).is_err(),
+                    "{cell:?} must not import"
+                );
+            }
+        }
+    }
+
+    /// Reads an exported file the way the voters import does, returning each
+    /// row's imported fields by column, with `authorized-election-ids` as it
+    /// would be stored.
+    fn import(csv: &[u8], elections: &AuthorizedElectionIds) -> Vec<HashMap<String, String>> {
+        let mut reader = csv::Reader::from_reader(csv);
+        let all_headers = column_names(reader.headers().expect("headers"));
+        let imported_columns = all_headers
+            .iter()
+            .map(|header| !is_election_column(header))
+            .collect::<Vec<bool>>();
+        let headers = imported_fields(&all_headers, &imported_columns);
+        assert!(
+            headers.iter().all(|header| HEADER_RE.is_match(header)),
+            "{headers:?} must pass the header check"
+        );
+        if let Err(err) = get_copy_from_query(&headers) {
+            panic!("{headers:?} must pass the column checks: {err}");
+        }
+        reader
+            .records()
+            .enumerate()
+            .map(|(index, record)| {
+                let record = imported_fields(&record.expect("record"), &imported_columns);
+                headers
+                    .iter()
+                    .zip(record.iter())
+                    .map(|(header, field)| {
+                        let field = imported_value(header, field);
+                        let field = if header == AUTHORIZED_ELECTION_IDS_NAME {
+                            resolve_authorized_election_ids(field, index + 2, elections)
+                                .expect("every value names an election")
+                        } else {
+                            field.to_string()
+                        };
+                        (header.to_string(), field)
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// The voters CSV export writes for `voters`.
+    fn export(
+        elections: &[ElectionHead],
+        attributes: &[UserProfileAttribute],
+        voters: &[User],
+    ) -> Vec<u8> {
+        let authorized_elections = AuthorizedElectionIds::new(elections);
+        let elections = Some(elections.to_vec());
+        let attributes = exported_attributes(attributes.to_vec());
+        let mut writer = csv::Writer::from_writer(vec![]);
+        writer
+            .write_record(get_headers(&elections, &attributes))
+            .expect("headers");
+        for user in voters {
+            writer
+                .write_record(get_user_record(
+                    &elections,
+                    Some(&authorized_elections),
+                    &None,
+                    user,
+                    &attributes,
+                ))
+                .expect("record");
+        }
+        writer.into_inner().expect("csv")
+    }
+
+    /// Each voter keeps the elections they were restricted to, and an
+    /// unrestricted one stays unrestricted.
+    #[test]
+    fn exported_voters_import_with_their_elections() {
+        let elections = elections();
+        let attributes = vec![
+            attribute("custom_attribute"),
+            attribute(AUTHORIZED_ELECTION_IDS_NAME),
+        ];
+        let voters = vec![
+            voter("legacy", &[ELECTION_A, ELECTION_C]),
+            voter("current", &[EXTERNAL_ID, OTHER_EXTERNAL_ID]),
+            voter("unrestricted", &[]),
+        ];
+
+        let csv = export(&elections, &attributes, &voters);
+
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections));
+        let stored = imported
+            .iter()
+            .map(|row| {
+                (
+                    row["username"].as_str(),
+                    row[AUTHORIZED_ELECTION_IDS_NAME].clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            stored,
+            vec![
+                ("legacy", format!("{OTHER_EXTERNAL_ID}|{ELECTION_C}")),
+                ("current", format!("{EXTERNAL_ID}|{OTHER_EXTERNAL_ID}")),
+                ("unrestricted", String::new()),
+            ]
+        );
+    }
+
+    /// Written as they are, these external IDs would read back as another
+    /// election, as two values, or as a blank cell that leaves the voter
+    /// unrestricted.
+    #[test]
+    fn elections_without_a_usable_external_id_round_trip_by_id() {
+        let two_values = format!("{OTHER_EXTERNAL_ID}|{EXTERNAL_ID}");
+        let elections = vec![
+            election(ELECTION_A, Some(EXTERNAL_ID)),
+            election(ELECTION_B, Some(EXTERNAL_ID)),
+            election(ELECTION_C, Some(" ")),
+            election(ELECTION_D, Some(&two_values)),
+        ];
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        let voters = [voter("voter", &[ELECTION_A, " ", &two_values])];
+
+        let csv = export(&elections, &attributes, &voters);
+
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections));
+        assert_eq!(
+            imported[0][AUTHORIZED_ELECTION_IDS_NAME],
+            format!("{ELECTION_A}|{ELECTION_C}|{ELECTION_D}")
+        );
+    }
+
+    /// Voters can write their own names and attributes, which a spreadsheet
+    /// would otherwise run when the file is opened.
+    #[test]
+    fn values_a_spreadsheet_would_run_as_formulas_round_trip_as_text() {
+        let formula = "=HYPERLINK(\"https://example.com\",\"x\")";
+        let attributes = vec![attribute("mobile-number")];
+        let user = User {
+            username: Some("voter".to_string()),
+            first_name: Some(formula.to_string()),
+            last_name: Some("-2+3".to_string()),
+            attributes: Some(HashMap::from([(
+                "mobile-number".to_string(),
+                vec!["+34600000000".to_string()],
+            )])),
+            ..Default::default()
+        };
+
+        let cells = exported_cells(&elections(), &attributes, &user);
+        assert_eq!(cells["first_name"], format!("'{formula}"));
+        assert_eq!(cells["last_name"], "'-2+3");
+        assert_eq!(cells["mobile-number"], "'+34600000000");
+        assert_eq!(cells["area_name"], "-");
+
+        let csv = export(&elections(), &attributes, &[user]);
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections()));
+        assert_eq!(imported[0]["first_name"], formula);
+        assert_eq!(imported[0]["last_name"], "-2+3");
+        assert_eq!(imported[0]["mobile-number"], "+34600000000");
+    }
+
+    /// Export writes them as text, so they are stored like any other.
+    #[test]
+    fn external_ids_starting_like_a_formula_round_trip() {
+        let elections = vec![
+            election(ELECTION_A, Some("=1+1")),
+            election(ELECTION_B, Some("-1")),
+        ];
+        let attributes = vec![attribute(AUTHORIZED_ELECTION_IDS_NAME)];
+        let voters = [voter("voter", &[ELECTION_A, ELECTION_B])];
+
+        assert_eq!(
+            exported_authorized_election_ids(&elections, &voters[0]),
+            "'=1+1|-1"
+        );
+        let csv = export(&elections, &attributes, &voters);
+        let imported = import(&csv, &AuthorizedElectionIds::new(&elections));
+        assert_eq!(imported[0][AUTHORIZED_ELECTION_IDS_NAME], "=1+1|-1");
+    }
+
+    /// An attribute can be named like a formula too, which a spreadsheet would
+    /// run in the first row. Saved by a spreadsheet, which drops the `'`, the
+    /// name still imports.
+    #[test]
+    fn attribute_names_starting_like_a_formula_round_trip() {
+        let attributes = vec![attribute("-2-3")];
+        let mut user = voter("voter", &[EXTERNAL_ID]);
+        user.attributes
+            .get_or_insert_default()
+            .insert("-2-3".to_string(), vec!["value".to_string()]);
+
+        let csv = String::from_utf8(export(&elections(), &attributes, &[user])).expect("utf-8");
+        let header = csv.lines().next().expect("header row");
+        assert!(header.split(',').any(|name| name == "'-2-3"), "{header}");
+
+        let saved = csv.replacen("'-2-3", "-2-3", 1);
+        for file in [&csv, &saved] {
+            let imported = import(file.as_bytes(), &AuthorizedElectionIds::new(&elections()));
+            assert_eq!(imported[0]["-2-3"], "value");
+        }
+    }
+
+    /// A voters file in an election event exported before the fix: repeated
+    /// election columns, and elections named by the exporting event's IDs,
+    /// which the event import replaces.
+    #[test]
+    fn voters_exported_before_the_fix_import_into_a_new_event() {
+        let exported_a = "1d2e3f4a-5b6c-4d7e-8f9a-0b1c2d3e4f5a";
+        let exported_c = "2e3f4a5b-6c7d-4e8f-9a0b-1c2d3e4f5a6b";
+        let csv = format!(
+            "id,email,email_verified,enabled,first_name,last_name,username,area_name,\
+             {AUTHORIZED_ELECTION_IDS_NAME},election__-,election__-\n\
+             1,,true,true,,,legacy,EHU,{exported_a}|{exported_c},,\n\
+             2,,true,true,,,current,EHU,{EXTERNAL_ID},2025-05-01T10:00:00Z,\n\
+             3,,true,true,,,unrestricted,EHU,,,\n"
+        );
+        let replaced_ids = HashMap::from([
+            (exported_a.to_string(), ELECTION_A.to_string()),
+            (exported_c.to_string(), ELECTION_C.to_string()),
+        ]);
+        let authorized_elections =
+            AuthorizedElectionIds::new(&elections()).with_replaced_ids(&replaced_ids);
+
+        let stored = import(csv.as_bytes(), &authorized_elections)
+            .into_iter()
+            .map(|row| row[AUTHORIZED_ELECTION_IDS_NAME].clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            stored,
+            vec![
+                format!("{OTHER_EXTERNAL_ID}|{ELECTION_C}"),
+                EXTERNAL_ID.to_string(),
+                String::new(),
+            ]
+        );
+    }
+
     #[test]
     fn area_name_profile_attribute_does_not_duplicate_or_shift_export_columns() {
-        let attributes = vec![attribute("area_name"), attribute("custom_attribute")];
+        let attributes =
+            exported_attributes(vec![attribute("area_name"), attribute("custom_attribute")]);
         let headers = get_headers(&None, &attributes);
         let user = User {
             id: Some("id".to_string()),
@@ -447,7 +1159,7 @@ mod tests {
             "area-1".to_string(),
             "Area One".to_string(),
         )]));
-        let record = get_user_record(&None, &areas_by_id, &user, &attributes);
+        let record = get_user_record(&None, None, &areas_by_id, &user, &attributes);
 
         assert_eq!(
             1,
@@ -515,7 +1227,7 @@ mod tests {
             ])),
             ..Default::default()
         };
-        let record = get_user_record(&None, &None, &user, &attributes);
+        let record = get_user_record(&None, None, &None, &user, &attributes);
 
         assert!(!headers.contains(&"private-reference".to_string()));
         assert!(headers.contains(&"public-reference".to_string()));
@@ -537,7 +1249,7 @@ mod tests {
             ..Default::default()
         };
         let headers = get_headers(&None, &attributes);
-        let record = get_user_record(&None, &None, &user, &attributes);
+        let record = get_user_record(&None, None, &None, &user, &attributes);
         let index = headers
             .iter()
             .position(|name| name == "login-code")

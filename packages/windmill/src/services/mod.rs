@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod application;
+pub mod authorized_elections;
 pub mod ballot_styles;
 pub mod cast_votes;
 pub mod celery_app;
@@ -11,6 +12,7 @@ pub mod certificate_authority;
 pub mod cloudflare;
 pub mod compress;
 pub mod consolidation;
+pub mod csv_cell;
 pub mod custom_url;
 pub mod database;
 pub mod datafix;
