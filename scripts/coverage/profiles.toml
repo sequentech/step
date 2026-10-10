@@ -543,6 +543,8 @@ limitations = [
 [profiles.b4.test_environment]
 RUST_TEST_THREADS = "2"
 RAYON_NUM_THREADS = "2"
+[profiles.b4.excluded_files]
+"src/messages/trusted_board/tests.rs" = "Standalone unit-test module under cfg(test); the trusted board checks remain measured."
 [profiles.b4.scope_exceptions]
 "src/messages/mod.rs" = "Module declarations only."
 "src/client/mod.rs" = "Module declarations for the separately tested client feature."
