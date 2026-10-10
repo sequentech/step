@@ -64,8 +64,13 @@ def check_workflow(name, workflow):
                 f"{where} reads release credentials in a workflow triggered by "
                 + ", ".join(contribution_triggers)
             )
-        # A local reusable workflow is checked in its own file.
-        if uses and uses.startswith(LOCAL_WORKFLOW_PREFIX):
+        if uses:
+            # A local reusable workflow is checked in its own file.
+            if not uses.startswith(LOCAL_WORKFLOW_PREFIX):
+                errors.append(
+                    f"{where} passes release credentials to the external "
+                    f"reusable workflow '{uses}'"
+                )
             continue
         if environment_name(job) != RELEASE_ENVIRONMENT:
             errors.append(
