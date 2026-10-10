@@ -21,7 +21,7 @@ import {
 import CellTowerIcon from "@mui/icons-material/CellTower"
 import {ListActions} from "../../components/ListActions"
 import {Button} from "react-admin"
-import {Alert, Box, Tooltip, Typography} from "@mui/material"
+import {Alert, Box, Chip, Tooltip, Typography} from "@mui/material"
 import {
     ListKeysCeremonyQuery,
     ListTallyKeyRestoreStateQuery,
@@ -50,6 +50,7 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
     ETallyKeyRestoreEligibility,
+    ETallyProvenance,
     ETallyType,
     IExecutionStatus,
     ITallyCeremonyStatus,
@@ -71,6 +72,7 @@ import {StyledChip} from "@/components/StyledChip"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
 import {getTallyKeyRestoreEligibility} from "./utils"
+import {getTallyProvenance} from "@/services/tallyProvenance"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -651,7 +653,17 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                             <FunctionField
                                 label={String(t("electionEventScreen.tally.status"))}
                                 render={(record: RaRecord<Identifier>) => (
-                                    <StatusChip status={record.execution_status} />
+                                    <Box sx={{display: "flex", alignItems: "center"}}>
+                                        <StatusChip status={record.execution_status} />
+                                        {getTallyProvenance(record.annotations) ===
+                                            ETallyProvenance.IMPORTED && (
+                                            <Chip
+                                                size="small"
+                                                variant="outlined"
+                                                label={t("electionEventScreen.tally.imported")}
+                                            />
+                                        )}
+                                    </Box>
                                 )}
                             />
 

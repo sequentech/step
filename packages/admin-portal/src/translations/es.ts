@@ -851,6 +851,7 @@ const spanishTranslation: TranslationType = {
                 trustees: "Trustees",
                 status: "Estado",
                 permissionLabels: "Etiquetas de Permisos",
+                imported: "Importado",
                 tallyType: {
                     label: "Tipo de Conteo",
                     ELECTORAL_RESULTS: "Resultados Electorales",
@@ -2098,6 +2099,8 @@ const spanishTranslation: TranslationType = {
             },
         },
         tally: {
+            importedProvenance:
+                "Este recuento se importó desde un archivo de evento electoral. Sus resultados no se calcularon en esta plataforma.",
             errorUploadingSignature: "Hubo un error al subir la firma",
             downloadTransmissionPackage: "Descargar paquete",
             resultsPublication: {
