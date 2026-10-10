@@ -1278,10 +1278,10 @@ pub fn test_multi_contest_reencoding(
             .map_err(|err| format!("Error normalizing output {:?}", err))?;
 
     if input_compare != output_compare {
-        return Err(format!(
-            "Consistency check failed. Input != Output, {:?} != {:?}",
-            input_compare, output_compare
-        ));
+        return Err(
+            "Consistency check failed: re-encoded ballot differs from input"
+                .to_string(),
+        );
     }
 
     Ok(output_decoded_contests)
@@ -1395,6 +1395,39 @@ mod tests {
         let output_contests = result.unwrap();
         assert_eq!(output_contests.len(), 1);
         assert_eq!(output_contests[0].is_explicit_invalid, true);
+    }
+
+    #[test]
+    fn test_multi_contest_reencoding_mismatch_error_omits_selections() {
+        let contest_id = "contest".to_string();
+        let marked_id = "candidate-marked".to_string();
+        let write_in_text = "text that is not encoded";
+        let contest = random_contest(
+            contest_id.clone(),
+            vec![
+                random_candidate(marked_id.clone(), contest_id.clone()),
+                random_candidate(
+                    "candidate-unmarked".to_string(),
+                    contest_id.clone(),
+                ),
+            ],
+            0,
+            1,
+        );
+        let style = test_ballot_style(vec![contest.clone()]);
+        let mut decoded = decoded_vote_contest(
+            &contest,
+            false,
+            std::slice::from_ref(&marked_id),
+        );
+        decoded.choices[0].write_in_text = Some(write_in_text.to_string());
+
+        let error = test_multi_contest_reencoding(&vec![decoded], &style)
+            .expect_err("a selection that does not round trip must fail");
+
+        assert!(error.starts_with("Consistency check failed"), "{error}");
+        assert!(!error.contains(write_in_text), "{error}");
+        assert!(!error.contains(&marked_id), "{error}");
     }
 
     #[test]
