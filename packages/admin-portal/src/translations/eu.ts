@@ -592,7 +592,8 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 decodedBallots: {
-                    policyLabel: "Deskodetutako boto-paperak emaitzen datu-basean sartu",
+                    policyLabel:
+                        "Deskodetutako boto-paperak emaitzen datu-basean eta zenbaketaren artxiboan sartu",
                     options: {"included": "Sartu", "not-included": "Ez sartu"},
                 },
                 contestEncryptionPolicy: {
