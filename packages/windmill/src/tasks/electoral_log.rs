@@ -523,8 +523,13 @@ impl BatchLimits {
     }
 
     fn from_values(max_events: Option<&str>, max_bytes: Option<&str>) -> anyhow::Result<Self> {
+        let max_events = parse_limit(BATCH_SIZE_ENV, max_events, DEFAULT_BATCH_SIZE)?;
+        anyhow::ensure!(
+            i32::try_from(max_events).is_ok(),
+            "{BATCH_SIZE_ENV} is too large for a PGMQ read, got {max_events}"
+        );
         Ok(Self {
-            max_events: parse_limit(BATCH_SIZE_ENV, max_events, DEFAULT_BATCH_SIZE)?,
+            max_events,
             max_bytes: parse_limit(BATCH_MAX_BYTES_ENV, max_bytes, DEFAULT_BATCH_MAX_BYTES)?,
         })
     }
@@ -606,7 +611,7 @@ async fn dispatch_electoral_log_batches(
         // pgmq.read retains row locks until commit, including while building the batch.
         let mut rows = tx
             .query(
-                "SELECT msg_id, message, octet_length(message::text) AS bytes \
+                "SELECT msg_id, message, COALESCE(octet_length(message::text), 0) AS bytes \
                  FROM pgmq.read($1, 60, $2)",
                 &[&source, &max_events],
             )
@@ -767,6 +772,8 @@ mod batch_limit_tests {
                 "{bad}: {error}"
             );
         }
+        let error = BatchLimits::from_values(Some("3000000000"), None).unwrap_err();
+        assert!(error.to_string().contains(BATCH_SIZE_ENV), "{error}");
     }
 
     /// Mirrors the dispatcher loop: messages are taken until a limit is reached.

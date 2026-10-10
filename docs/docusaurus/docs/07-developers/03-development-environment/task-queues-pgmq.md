@@ -53,7 +53,8 @@ Each component connects with a role of its own:
 
 The connection is configured with `QUEUE_DB__HOST`, `QUEUE_DB__PORT`,
 `QUEUE_DB__DBNAME`, `QUEUE_DB__USER`, `QUEUE_DB__PASSWORD` and, optionally,
-`QUEUE_DB__SSL_MODE` (`Disable`, `Prefer` or `Require`) and `QUEUE_DB_CA_PATH`. The
+`QUEUE_DB__SSL_MODE` (`Disable`, `Prefer` or `Require`) and `QUEUE_DB_CA_PATH`;
+with `Require` and a CA, Keycloak verifies the server's certificate and host name. The
 user is the component's role. Keycloak also reads `QUEUE_DB__POOL__MAX_SIZE` (10 by
 default) for its connection pool. Every service needs `ENV_SLUG`: a service refuses a
 task-queue database that is not set up, or that belongs to another environment, and
@@ -64,7 +65,13 @@ does not create queues.
 1. **Provision** the database and the four roles, with the owner role owning the
    database. In a deployment the infrastructure code does this, per environment; in
    development `.devcontainer/postgresql/init-task-queues.sh` does it when the
-   `postgres` volume is created.
+   `postgres` volume is created. A volume created before the task queues, also on a
+   remote or airgap host, needs the script run once by hand; it is idempotent:
+
+   ```sh
+   docker compose up -d postgres
+   docker exec postgres sh /docker-entrypoint-initdb.d/30-task-queues.sh
+   ```
 2. **Set up** the database as its owner:
 
    ```sh
@@ -99,10 +106,12 @@ payloads and need the same protection as the source data.
   local waits and execution. Long tally and report tasks keep their time limits.
 * Workers acknowledge **after execution**. Acknowledgement, renewal and retry are
   fenced by the message ID, read count and unexpired lease, so an old worker cannot
-  acknowledge a newer claim. Database terminal operations have a five-second timeout.
-  A worker exits if it loses a lease or cannot renew it for 40 seconds; its
-  supervisor must restart it. Unfinished messages become visible when their leases
-  expire.
+  acknowledge a newer claim. Enqueueing and database terminal operations have a
+  five-second timeout. A worker exits if it loses a lease or cannot renew it for 40
+  seconds; its supervisor must restart it. Unfinished messages become visible when their leases
+  expire. A message whose deliveries ended five times without an outcome, because
+  its worker crashed or lost the lease, is archived as `failed` instead of being
+  delivered again.
 * A Celery retry updates the same queue row and keeps the task ID. Retry delays and
   ETAs are stored in PostgreSQL; delayed tasks do not hold worker capacity.
 * Acknowledged messages move to the queue's archive with their outcome in the
@@ -123,14 +132,18 @@ payloads and need the same protection as the source data.
     lacks its event. If Keycloak's own commit fails after the event was enqueued, the
     log holds the event of a request that did not complete.
   * `log-and-continue` enqueues the event after Keycloak commits. If that fails, the
-    request still succeeds and the event is only in Keycloak's log.
+    request still succeeds and the event is only in Keycloak's log, with the message
+    to send to `electoral_log_event_queue`.
 
   A request that Keycloak rolls back enqueues nothing. Keycloak 26.6.1 normally emits
   error events in a separate transaction, so ordinary `LOGIN_ERROR` events survive
   the rollback of the original request.
 * Beat keeps its schedules. A PostgreSQL advisory lock in the task-queue database
   admits one Beat per environment, and Beat publishes on that same connection, so
-  losing it stops the scheduler. Enqueued tasks and their ETAs survive scheduler
+  losing it stops the scheduler. Another Beat, such as a rolling update's, waits as a
+  ready standby until the lock is free. The server ends the leader's session 30
+  seconds after it stops answering (`idle_session_timeout`), so a Beat whose node
+  died does not keep the lock. Enqueued tasks and their ETAs survive scheduler
   restarts.
 
 Delivery is **at least once**. A crash after an external effect but before the

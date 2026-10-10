@@ -57,7 +57,7 @@ pub fn secret_export_task_annotations(
 
 /// Validates the durable authorization grant created by the authenticated HTTP
 /// request. Broker payloads are not an authorization boundary: publishers that
-/// can reach RabbitMQ must not be able to grant themselves secret-voter access.
+/// can write to the task queue must not be able to grant themselves secret-voter access.
 pub fn validate_secret_export_task(
     task: &TasksExecution,
     tenant_id: &str,

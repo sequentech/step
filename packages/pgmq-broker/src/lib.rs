@@ -30,6 +30,9 @@ const LEASE_SECONDS: i32 = 60;
 const RENEW_SECONDS: u64 = 10;
 const QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
+/// After this many deliveries ended without an outcome (a worker that crashed or lost its
+/// lease), the message is archived as failed instead of being delivered again.
+const MAX_ABANDONED_DELIVERIES: i64 = 5;
 /// PGMQ's limit, which keeps its table and index names within PostgreSQL's.
 pub const MAX_QUEUE_NAME_LEN: usize = 47;
 /// Message header recording how the processing of an archived message ended.
@@ -152,6 +155,13 @@ pub async fn purge_archive<C: GenericClient + Sync>(
 }
 
 /// Decode the same Celery JSON envelope used by Rust and the Keycloak publisher.
+/// Deliveries of a message that ended neither in a retry nor an outcome: each read counts
+/// one delivery, and each retry keeps the row and counts one in the message's headers.
+fn abandoned_deliveries(read_count: i32, payload: &Value) -> i64 {
+    let retries = payload["headers"]["retries"].as_i64().unwrap_or(0);
+    i64::from(read_count) - 1 - retries
+}
+
 pub fn decode(value: Value) -> Result<Message, ProtocolError> {
     serde_json::from_value::<celery::protocol::Delivery>(value)?.try_deserialize_message()
 }
@@ -244,20 +254,26 @@ impl BrokerBuilder for PgmqBrokerBuilder {
         for queue in &self.queues {
             validate_queue_name(queue).map_err(BrokerError::UnknownQueue)?;
         }
-        let client = pool.get().await.map_err(db_error)?;
-        verify_environment(&**client, environment).await?;
-        // Queues are created when the environment is provisioned, never by its services.
-        let declared: Vec<&str> = self.queues.iter().map(String::as_str).collect();
-        let existing: HashSet<String> = client
-            .query(
-                "SELECT queue_name FROM pgmq.meta WHERE queue_name = ANY($1)",
-                &[&declared],
+        let existing: HashSet<String> = tokio::time::timeout(QUERY_TIMEOUT, async {
+            let client = pool.get().await.map_err(db_error)?;
+            verify_environment(&**client, environment).await?;
+            // Queues are created when the environment is provisioned, never by its services.
+            let declared: Vec<&str> = self.queues.iter().map(String::as_str).collect();
+            Ok::<_, BrokerError>(
+                client
+                    .query(
+                        "SELECT queue_name FROM pgmq.meta WHERE queue_name = ANY($1)",
+                        &[&declared],
+                    )
+                    .await
+                    .map_err(db_error)?
+                    .iter()
+                    .map(|row| row.get(0))
+                    .collect(),
             )
-            .await
-            .map_err(db_error)?
-            .iter()
-            .map(|row| row.get(0))
-            .collect();
+        })
+        .await
+        .map_err(db_error)??;
         if let Some(missing) = self.queues.iter().find(|queue| !existing.contains(*queue)) {
             tracing::error!(
                 queue = missing.as_str(),
@@ -369,6 +385,22 @@ impl Broker for PgmqBroker {
                                 .unwrap_or(Value::Null),
                             permit,
                         );
+                        if abandoned_deliveries(delivery.read_count, &delivery.payload)
+                            >= MAX_ABANDONED_DELIVERIES
+                        {
+                            tracing::error!(
+                                queue = queue_name.as_str(),
+                                message_id = delivery.id,
+                                "PGMQ message was abandoned by {MAX_ABANDONED_DELIVERIES} \
+                                 deliveries; archiving it as failed"
+                            );
+                            if let Err(error) =
+                                delivery.ack_with_outcome(DeliveryOutcome::Failed).await
+                            {
+                                tracing::warn!(%error, "Could not archive an abandoned PGMQ message");
+                            }
+                            continue;
+                        }
                         if sender
                             .send(Ok(Box::new(delivery) as Box<dyn Delivery>))
                             .await
@@ -425,11 +457,17 @@ impl Broker for PgmqBroker {
         if !self.queues.contains(queue) {
             return Err(BrokerError::UnknownQueue(queue.into()));
         }
-        if let Some(client) = &self.publisher {
-            return send(&****client, queue, message).await;
-        }
-        let client = self.pool.get().await.map_err(db_error)?;
-        send(&**client, queue, message).await
+        // Producers enqueue inside requests, such as a voter's, so a stalled database must not
+        // hold them.
+        tokio::time::timeout(QUERY_TIMEOUT, async {
+            if let Some(client) = &self.publisher {
+                return send(&****client, queue, message).await;
+            }
+            let client = self.pool.get().await.map_err(db_error)?;
+            send(&**client, queue, message).await
+        })
+        .await
+        .map_err(db_error)?
     }
     // ETAs are stored in PostgreSQL and do not occupy a worker permit until due.
     async fn increase_prefetch_count(&self) -> Result<(), BrokerError> {
@@ -462,15 +500,25 @@ impl Broker for PgmqBroker {
         &self,
         queues: &Vec<String>,
     ) -> Result<Vec<ConsumerHealth>, BrokerError> {
-        let client = self.pool.get().await.map_err(db_error)?;
+        let counts: Vec<i64> = tokio::time::timeout(QUERY_TIMEOUT, async {
+            let client = self.pool.get().await.map_err(db_error)?;
+            let mut counts = Vec::new();
+            for queue in queues {
+                counts.push(
+                    client
+                        .query_one("SELECT queue_length FROM pgmq.metrics($1)", &[queue])
+                        .await
+                        .map_err(db_error)?
+                        .get(0),
+                );
+            }
+            Ok::<_, BrokerError>(counts)
+        })
+        .await
+        .map_err(db_error)??;
         let consumers = self.consumers.lock().await;
         let mut result = Vec::new();
-        for queue in queues {
-            let count: i64 = client
-                .query_one("SELECT queue_length FROM pgmq.metrics($1)", &[queue])
-                .await
-                .map_err(db_error)?
-                .get(0);
+        for (queue, count) in queues.iter().zip(counts) {
             let active = consumers
                 .values()
                 .filter(|(name, stop)| name == queue && !stop.is_cancelled())

@@ -85,7 +85,7 @@ async fn export_election_event_impl(
     .await
     .context("Failed to lock election-event export task")?;
 
-    // Reload the task from PostgreSQL. Only its opaque id comes from RabbitMQ;
+    // Reload the task from PostgreSQL. Only its opaque id comes from the task queue;
     // task scope and secret authorization come from the durable HTTP-side row.
     let persisted_task = crate::postgres::tasks_execution::get_task_by_id_with_transaction(
         &hasura_transaction,

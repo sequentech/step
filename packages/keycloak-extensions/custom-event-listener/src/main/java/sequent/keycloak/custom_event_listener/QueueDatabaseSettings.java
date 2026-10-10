@@ -29,6 +29,9 @@ record QueueDatabaseSettings(
   static final int DEFAULT_POOL_SIZE = 10;
   private static final String APPLICATION_NAME = "keycloak-electoral-log";
   private static final String STATEMENT_TIMEOUT = "5s";
+  // Longer than the statement timeout, so the server normally cancels first; it bounds a send
+  // to a database that stopped answering, which would otherwise hold the login.
+  private static final String SOCKET_TIMEOUT_SECONDS = "10";
 
   static QueueDatabaseSettings fromEnvironment(Map<String, String> environment) {
     return new QueueDatabaseSettings(
@@ -47,7 +50,13 @@ record QueueDatabaseSettings(
     Map<String, String> parameters = new LinkedHashMap<>();
     parameters.put("ApplicationName", APPLICATION_NAME);
     parameters.put("options", "-c statement_timeout=" + STATEMENT_TIMEOUT);
-    sslMode.ifPresent(mode -> parameters.put("sslmode", mode));
+    parameters.put("socketTimeout", SOCKET_TIMEOUT_SECONDS);
+    // pgjdbc verifies the server only in verify-* modes; with a CA, Require verifies the
+    // certificate and host name, as Windmill does.
+    sslMode.ifPresent(
+        mode ->
+            parameters.put(
+                "sslmode", mode.equals("require") && caPath.isPresent() ? "verify-full" : mode));
     caPath.ifPresent(path -> parameters.put("sslrootcert", path));
     return "jdbc:postgresql://"
         + host

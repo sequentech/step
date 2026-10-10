@@ -378,7 +378,6 @@ windmill,strum,0.27,MIT,Helpful macros for working with enums and strings
 windmill,strum_macros,0.27,MIT,Helpful macros for working with enums and strings
 windmill,base64,0.22,MIT OR Apache-2.0,encodes and decodes base64 as bytes or utf8
 windmill,celery,N/A,Apache-2.0,Rust implementation of Celery
-windmill,lapin,2.5,MIT,AMQP client library
 windmill,rayon,1.5,MIT OR Apache-2.0,Simple work-stealing parallelism for Rust
 windmill,tokio,1.32,MIT,"An event-driven, non-blocking I/O platform for writing asynchronous I/O backed applications."
 windmill,async-trait,0.1,MIT OR Apache-2.0,Type erasure for async trait methods

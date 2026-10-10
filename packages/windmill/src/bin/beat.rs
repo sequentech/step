@@ -66,17 +66,31 @@ async fn main() -> Result<()> {
             .await
             .context("Error obtaining Beat leadership connection")?,
     );
+    // The server ends the session soon after this process stops pinging it, so the lock of a
+    // Beat whose node died does not outlive it.
+    leader
+        .simple_query("SET idle_session_timeout = '30s'")
+        .await
+        .context("Error configuring Beat leadership connection")?;
     let lock_name = format!("step:beat:{slug}");
-    let acquired: bool = leader
-        .query_one(
-            "SELECT pg_try_advisory_lock(hashtextextended($1, 0))",
-            &[&lock_name],
-        )
-        .await?
-        .get(0);
-    if !acquired {
-        anyhow::bail!("Another Beat scheduler already owns this environment");
+    // A second Beat, such as a rolling update's, waits as a ready standby until the leader
+    // stops.
+    set_is_app_active(true);
+    loop {
+        let acquired: bool = leader
+            .query_one(
+                "SELECT pg_try_advisory_lock(hashtextextended($1, 0))",
+                &[&lock_name],
+            )
+            .await?
+            .get(0);
+        if acquired {
+            break;
+        }
+        tracing::info!("Another Beat scheduler owns this environment; waiting");
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
+    set_is_app_active(false);
 
     let mut beat = celery::beat!(
         broker_builder = Box::new(

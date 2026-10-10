@@ -853,11 +853,9 @@ services:
       "rust-local-target/",
       "--ignore",
       "windmill/core",
-      "--",
-      "sh",
-      "../../.devcontainer/restart-worker.sh",
-      "cargo",
-      "run", "--bin", "main", "consume", "-q", "beat", "short_queue", "tally_queue", "reports_queue", "communication_queue", "import_export_queue", "electoral_log_batch_queue", "electoral_log_beat_queue", "--prefetch-count", "1"
+      # Build first, so a compile error waits for the next change instead of the restart loop.
+      "-x", "build --bin main",
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -1011,11 +1009,8 @@ services:
       # otherwise triggers a rebuild all the time (probably rust analyzer)
       "--ignore",
       "rust-local-target/",
-      "--",
-      "sh",
-      "../../.devcontainer/restart-worker.sh",
-      "cargo",
-      "run", "--bin", "beat"
+      "-x", "build --bin beat",
+      "-s", "sh ../../.devcontainer/restart-worker.sh ../target/debug/beat"
     ]
     environment:
       QUEUE_DB__HOST: ${QUEUE_DB__HOST}
