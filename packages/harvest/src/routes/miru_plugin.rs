@@ -210,3 +210,50 @@ pub async fn upload_signature(
 
     Ok(Json(UploadSignatureOutput {}))
 }
+
+#[cfg(test)]
+mod create_transmission_package_tests {
+    use super::*;
+    use crate::services::authorization::test_claims::admin;
+    use uuid::Uuid;
+
+    /// Request for the given election event and election.
+    fn request(
+        election_event_id: &str,
+        election_id: &str,
+    ) -> Json<CreateTransmissionPackageInput> {
+        Json(CreateTransmissionPackageInput {
+            election_event_id: election_event_id.into(),
+            election_id: election_id.into(),
+            area_id: "area".into(),
+            tally_session_id: "tally-session".into(),
+            force: false,
+        })
+    }
+
+    /// The permission is checked before any task record is written.
+    #[tokio::test]
+    async fn create_transmission_package_requires_miru_create() {
+        let id = Uuid::new_v4().to_string();
+        let result =
+            create_transmission_package(admin(&id, &[]), request(&id, &id))
+                .await;
+        assert_eq!(
+            result.err().map(|error| error.0),
+            Some(Status::Unauthorized)
+        );
+    }
+
+    /// Malformed ids are a client error, answered before any task record is
+    /// written.
+    #[tokio::test]
+    async fn create_transmission_package_rejects_malformed_ids() {
+        let tenant_id = Uuid::new_v4().to_string();
+        let result = create_transmission_package(
+            admin(&tenant_id, &[Permissions::MIRU_CREATE.to_string()]),
+            request("event", "election"),
+        )
+        .await;
+        assert_eq!(result.err().map(|error| error.0), Some(Status::BadRequest));
+    }
+}
