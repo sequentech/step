@@ -3,14 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // cargo run --bin verify -- --b3-url http://[::1]:50051 --board testboard
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use clap::Parser;
 use tracing::info;
 use tracing::instrument;
 
+use b3::messages::newtypes::ConfigurationHash;
 use braid::protocol::board::grpc_m::GrpcB3;
 use braid::protocol::trustee2::Trustee;
-use braid::verify::verifier::Verifier;
+use braid::verify::verifier::{VerificationOutcome, Verifier};
 
 use strand::backend::ristretto::RistrettoCtx;
 use strand::signature::StrandSignatureSk;
@@ -26,11 +27,14 @@ struct Cli {
     #[arg(long)]
     board: String,
 
-    /// Checks inclusion of the given ballot
-    ///
-    /// NOT YET IMPLEMENTED
-    #[arg(long)]
-    ballot_hash: Option<String>,
+    /// Hex encoded hash of the configuration the board must use
+    #[arg(long, value_parser = parse_cfg_hash)]
+    expected_cfg_hash: Option<ConfigurationHash>,
+}
+
+fn parse_cfg_hash(value: &str) -> Result<ConfigurationHash> {
+    let bytes = hex::decode(value)?;
+    Ok(ConfigurationHash(braid::util::hash_from_vec(&bytes)?))
 }
 
 /// Entry point for the braid verifier.
@@ -60,8 +64,12 @@ async fn main() -> Result<()> {
         None,
     );
     let board = GrpcB3::new(&args.server_url);
-    let mut session = Verifier::new(trustee, board, &args.board);
-    session.run().await?;
+    let mut session = Verifier::new(trustee, board, &args.board, args.expected_cfg_hash);
 
-    Ok(())
+    match session.run().await? {
+        VerificationOutcome::Passed => Ok(()),
+        VerificationOutcome::Failed => {
+            Err(anyhow!("Verification of board '{}' failed", args.board))
+        }
+    }
 }
