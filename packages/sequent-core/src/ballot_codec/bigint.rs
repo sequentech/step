@@ -7,6 +7,7 @@ use crate::ballot_codec::*;
 use crate::mixed_radix::{decode, encode};
 use crate::plaintext::*;
 use crate::services::error_checker::check_contest;
+use crate::util::normalize_vote::normalize_vote_contest;
 use num_bigint::BigUint;
 
 pub fn encode_bigint_to_bytes(b: &BigUint) -> Result<Vec<u8>, String> {
@@ -144,6 +145,40 @@ impl BigUIntCodec for Contest {
     }
 }
 
+/// Encodes and decodes a single contest selection and checks that the round
+/// trip preserves it.
+pub fn test_contest_reencoding(
+    decoded_contest: &DecodedVoteContest,
+    contest: &Contest,
+) -> Result<DecodedVoteContest, String> {
+    let bigint = contest.encode_plaintext_contest_bigint(decoded_contest)?;
+    let modified_decoded_contest =
+        contest.decode_plaintext_contest_bigint(&bigint)?;
+
+    let invalid_candidate_ids = contest.get_invalid_candidate_ids();
+
+    let input_compare = normalize_vote_contest(
+        decoded_contest,
+        contest.get_counting_algorithm(),
+        true,
+        &invalid_candidate_ids,
+    );
+    let output_compare = normalize_vote_contest(
+        &modified_decoded_contest,
+        contest.get_counting_algorithm(),
+        true,
+        &invalid_candidate_ids,
+    );
+    if input_compare != output_compare {
+        return Err(format!(
+            "Consistency check failed: re-encoded contest {} differs from input",
+            contest.id
+        ));
+    }
+
+    Ok(modified_decoded_contest)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ballot_codec::*;
@@ -207,6 +242,36 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_contest_reencoding_returns_decoded_selection() {
+        let contest = get_test_contest();
+        let plaintext = get_test_decoded_vote_contest();
+
+        let decoded = test_contest_reencoding(&plaintext, &contest)
+            .expect("a valid selection must round trip");
+
+        let mut expected_choices = plaintext.choices.clone();
+        expected_choices.sort_by_key(|choice| choice.id.clone());
+        assert_eq!(decoded.choices, expected_choices);
+    }
+
+    #[test]
+    fn test_contest_reencoding_mismatch_error_omits_selections() {
+        let contest = get_test_contest();
+        let mut plaintext = get_test_decoded_vote_contest();
+        let marked_id = plaintext.choices[0].id.clone();
+        let write_in_text = "text that is not encoded";
+        plaintext.choices[0].write_in_text = Some(write_in_text.to_string());
+
+        let error = test_contest_reencoding(&plaintext, &contest)
+            .expect_err("a selection that does not round trip must fail");
+
+        assert!(error.starts_with("Consistency check failed"), "{error}");
+        assert!(error.contains(&contest.id), "{error}");
+        assert!(!error.contains(write_in_text), "{error}");
+        assert!(!error.contains(&marked_id), "{error}");
     }
 
     #[test]
