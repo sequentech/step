@@ -81,7 +81,9 @@ impl<'r> FromRequest<'r> for JwtClaims {
                         }
                     }
                     None => {
-                        warn!("JwtClaims guard: missing bearer token");
+                        warn!(
+                            "JwtClaims guard: unsupported authorization scheme"
+                        );
                         Outcome::Error((Status::Unauthorized, ()))
                     }
                 }
