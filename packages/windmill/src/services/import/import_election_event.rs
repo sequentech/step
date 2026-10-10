@@ -17,8 +17,8 @@ use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{
-    ComponentExportRepresentation, GroupRepresentation, ProtocolMapperRepresentation,
-    RealmRepresentation,
+    ComponentExportRepresentation, GroupRepresentation, IdentityProviderMapperRepresentation,
+    ProtocolMapperRepresentation, RealmRepresentation,
 };
 use anyhow::{anyhow, Context, Result};
 use chrono::format;
@@ -90,7 +90,6 @@ use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, Election, ElectionEvent};
-use sequent_core::types::keycloak::TENANT_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -218,11 +217,6 @@ const HASURA_CLAIM_NAMESPACE: &str = "https://hasura.io/jwt/claims";
 const PROTOCOL_MAPPER_CLAIM_NAME_KEY: &str = "claim.name";
 /// Prefix of the per-realm composite role Keycloak generates for every realm.
 const DEFAULT_REALM_ROLE_PREFIX: &str = "default-roles-";
-/// Identity-provider mapper types that grant a role or set an attribute
-/// outright, regardless of the user's own roles and attributes.
-const HARDCODED_ROLE_IDP_MAPPER: &str = "hardcoded-role-idp-mapper";
-const HARDCODED_ATTRIBUTE_IDP_MAPPER: &str = "hardcoded-attribute-idp-mapper";
-
 /// How an uploaded election-event realm's token-claim authority (realm roles,
 /// Hasura claim mappers and identity-provider mappers) is reconciled against
 /// the platform template before the realm is applied to Keycloak. Modeled as
@@ -279,16 +273,60 @@ fn claim_mapper_key(
 }
 
 /// A realm role is allowed on an imported realm when the platform template
-/// defines it, or it is the realm's own generated default composite.
+/// defines it, or it is the realm's own default composite.
 fn realm_role_allowed(name: &str, allowed: &HashSet<String>) -> bool {
-    allowed.contains(name) || name.starts_with(DEFAULT_REALM_ROLE_PREFIX)
+    allowed.contains(name)
 }
 
-/// Drop every realm-role reference a group (and its subgroups) makes to a role
-/// the template does not define.
-fn strip_group_realm_roles(
+/// Client-role assignments of a user or group, keyed by client id.
+type ClientRoleAssignments = HashMap<String, Vec<String>>;
+
+/// Keep only the client-role assignments the template gives the same subject.
+fn retain_template_client_roles(
+    assigned: &mut Option<ClientRoleAssignments>,
+    allowed: Option<&ClientRoleAssignments>,
+    subject: &str,
+    discarded: &mut Vec<String>,
+) {
+    let Some(assigned_roles) = assigned.as_mut() else {
+        return;
+    };
+    for (client_id, roles) in assigned_roles.iter_mut() {
+        let allowed_roles = allowed.and_then(|allowed| allowed.get(client_id));
+        roles.retain(|role| {
+            let keep = allowed_roles.is_some_and(|allowed| allowed.contains(role));
+            if !keep {
+                discarded.push(format!(
+                    "client role '{role}' of client '{client_id}' assigned to {subject}"
+                ));
+            }
+            keep
+        });
+    }
+    assigned_roles.retain(|_, roles| !roles.is_empty());
+}
+
+/// Client-role assignments of the template's groups, keyed by group name.
+fn collect_group_client_roles(
+    groups: &[GroupRepresentation],
+    collected: &mut HashMap<String, ClientRoleAssignments>,
+) {
+    for group in groups {
+        if let (Some(name), Some(client_roles)) = (group.name.clone(), group.client_roles.clone()) {
+            collected.insert(name, client_roles);
+        }
+        if let Some(sub_groups) = group.sub_groups.as_ref() {
+            collect_group_client_roles(sub_groups, collected);
+        }
+    }
+}
+
+/// Drop every realm-role and client-role reference a group (and its
+/// subgroups) makes that the template does not define.
+fn strip_group_roles(
     group: &mut GroupRepresentation,
     allowed: &HashSet<String>,
+    template_client_roles: &HashMap<String, ClientRoleAssignments>,
     discarded: &mut Vec<String>,
 ) {
     let group_name = group
@@ -306,11 +344,70 @@ fn strip_group_realm_roles(
             keep
         });
     }
+    retain_template_client_roles(
+        &mut group.client_roles,
+        template_client_roles.get(&group_name),
+        &format!("group '{group_name}'"),
+        discarded,
+    );
     if let Some(sub_groups) = group.sub_groups.as_mut() {
         for sub_group in sub_groups.iter_mut() {
-            strip_group_realm_roles(sub_group, allowed, discarded);
+            strip_group_roles(sub_group, allowed, template_client_roles, discarded);
         }
     }
+}
+
+/// Reconcile the claim-authority protocol mappers of one client or client
+/// scope: keep those the template defines for it, restore the ones missing and
+/// drop every other.
+fn reconcile_claim_mappers(
+    existing: Vec<ProtocolMapperRepresentation>,
+    template_mappers: Option<&Vec<ProtocolMapperRepresentation>>,
+    owner: &str,
+    discarded: &mut Vec<String>,
+) -> Vec<ProtocolMapperRepresentation> {
+    let (claim_mappers, mut kept): (Vec<_>, Vec<_>) = existing
+        .into_iter()
+        .partition(|mapper| is_claim_authority_mapper(mapper));
+    let template_mappers = template_mappers.map(Vec::as_slice).unwrap_or_default();
+    let template_keys: HashSet<_> = template_mappers.iter().map(claim_mapper_key).collect();
+    let mut present_keys: HashSet<_> = HashSet::new();
+    for mapper in claim_mappers {
+        let key = claim_mapper_key(&mapper);
+        if template_keys.contains(&key) {
+            present_keys.insert(key);
+            kept.push(mapper);
+        } else {
+            discarded.push(format!(
+                "claim mapper '{}' on {owner}",
+                mapper.name.as_deref().unwrap_or("<unnamed>")
+            ));
+        }
+    }
+    for template_mapper in template_mappers {
+        if !present_keys.contains(&claim_mapper_key(template_mapper)) {
+            let mut restored = template_mapper.clone();
+            restored.id = None;
+            kept.push(restored);
+        }
+    }
+    kept
+}
+
+/// Key of an identity-provider mapper compared by its effect, not its id.
+fn idp_mapper_key(
+    mapper: &IdentityProviderMapperRepresentation,
+) -> (String, String, String, BTreeMap<String, String>) {
+    (
+        mapper.identity_provider_alias.clone().unwrap_or_default(),
+        mapper.identity_provider_mapper.clone().unwrap_or_default(),
+        mapper.name.clone().unwrap_or_default(),
+        mapper
+            .config
+            .clone()
+            .map(|config| config.into_iter().collect())
+            .unwrap_or_default(),
+    )
 }
 
 /// Reconcile an uploaded election-event realm against the platform template so
@@ -327,7 +424,17 @@ fn sanitize_imported_event_realm(
     let mut realm = imported.clone();
     let mut discarded: Vec<String> = Vec::new();
 
-    let allowed_realm_roles: HashSet<String> = template
+    let default_role_name = |realm: &RealmRepresentation| -> Option<String> {
+        realm
+            .default_role
+            .as_ref()
+            .and_then(|role| role.name.clone())
+            .filter(|name| name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+    };
+    let template_default_role = template.default_role.clone();
+    let imported_default_role_name = default_role_name(imported);
+
+    let mut allowed_realm_roles: HashSet<String> = template
         .roles
         .as_ref()
         .and_then(|roles| roles.realm.as_ref())
@@ -338,6 +445,25 @@ fn sanitize_imported_event_realm(
                 .collect()
         })
         .unwrap_or_default();
+    allowed_realm_roles.extend(imported_default_role_name.clone());
+    allowed_realm_roles.extend(default_role_name(template));
+
+    // Role definitions come from the template, so an allowed role cannot carry
+    // composites the template does not give it.
+    let mut template_composites: HashMap<String, Option<_>> = template
+        .roles
+        .as_ref()
+        .and_then(|roles| roles.realm.as_ref())
+        .map(|realm_roles| {
+            realm_roles
+                .iter()
+                .filter_map(|role| Some((role.name.clone()?, role.composites.clone())))
+                .collect()
+        })
+        .unwrap_or_default();
+    if let Some(name) = imported_default_role_name {
+        template_composites.insert(name, template_default_role.and_then(|role| role.composites));
+    }
 
     // 1. Realm roles: keep only the template's roles and the default composite.
     if let Some(roles) = realm.roles.as_mut() {
@@ -351,24 +477,29 @@ fn sanitize_imported_event_realm(
                 keep
             });
             for role in realm_roles.iter_mut() {
-                if let Some(composites) = role.composites.as_mut() {
-                    if let Some(realm_composites) = composites.realm.as_mut() {
-                        realm_composites
-                            .retain(|name| realm_role_allowed(name, &allowed_realm_roles));
-                    }
-                }
+                let name = role.name.clone().unwrap_or_default();
+                role.composites = template_composites.get(&name).cloned().flatten();
             }
         }
     }
 
-    // 2. Default role composite references.
+    // 2. Default role composites.
     if let Some(default_role) = realm.default_role.as_mut() {
-        if let Some(composites) = default_role.composites.as_mut() {
-            if let Some(realm_composites) = composites.realm.as_mut() {
-                realm_composites.retain(|name| realm_role_allowed(name, &allowed_realm_roles));
-            }
-        }
+        let name = default_role.name.clone().unwrap_or_default();
+        default_role.composites = template_composites.get(&name).cloned().flatten();
     }
+
+    let template_user_client_roles: HashMap<String, ClientRoleAssignments> = template
+        .users
+        .iter()
+        .flatten()
+        .filter_map(|user| Some((user.username.clone()?, user.client_roles.clone()?)))
+        .collect();
+    let mut template_group_client_roles = HashMap::new();
+    collect_group_client_roles(
+        template.groups.as_deref().unwrap_or_default(),
+        &mut template_group_client_roles,
+    );
 
     // 3. Role assignments on users.
     if let Some(users) = realm.users.as_mut() {
@@ -377,6 +508,12 @@ fn sanitize_imported_event_realm(
                 .username
                 .clone()
                 .unwrap_or_else(|| "<unknown>".to_string());
+            retain_template_client_roles(
+                &mut user.client_roles,
+                template_user_client_roles.get(&username),
+                &format!("user '{username}'"),
+                &mut discarded,
+            );
             if let Some(user_roles) = user.realm_roles.as_mut() {
                 user_roles.retain(|name| {
                     let keep = realm_role_allowed(name, &allowed_realm_roles);
@@ -393,7 +530,12 @@ fn sanitize_imported_event_realm(
     // 4. Role assignments on groups.
     if let Some(groups) = realm.groups.as_mut() {
         for group in groups.iter_mut() {
-            strip_group_realm_roles(group, &allowed_realm_roles, &mut discarded);
+            strip_group_roles(
+                group,
+                &allowed_realm_roles,
+                &template_group_client_roles,
+                &mut discarded,
+            );
         }
     }
 
@@ -406,137 +548,67 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 6. Claim mappers on clients: a client the template defines keeps only the
-    //    template's Hasura mappers; any other client carries none.
+    // 6. Claim mappers on clients and client scopes: each keeps only the
+    //    template's Hasura mappers for the client or scope of that name.
     let template_client_claim_mappers: HashMap<String, Vec<ProtocolMapperRepresentation>> =
         template
             .clients
-            .as_ref()
-            .map(|clients| {
-                clients
-                    .iter()
-                    .filter_map(|client| {
-                        let client_id = client.client_id.clone()?;
-                        let mappers = client
-                            .protocol_mappers
-                            .as_ref()
-                            .map(|mappers| {
-                                mappers
-                                    .iter()
-                                    .filter(|mapper| is_claim_authority_mapper(mapper))
-                                    .cloned()
-                                    .collect()
-                            })
-                            .unwrap_or_default();
-                        Some((client_id, mappers))
-                    })
-                    .collect()
+            .iter()
+            .flatten()
+            .filter_map(|client| {
+                Some((client.client_id.clone()?, client.protocol_mappers.clone()?))
             })
-            .unwrap_or_default();
+            .collect();
+    let template_scope_claim_mappers: HashMap<String, Vec<ProtocolMapperRepresentation>> = template
+        .client_scopes
+        .iter()
+        .flatten()
+        .filter_map(|scope| Some((scope.name.clone()?, scope.protocol_mappers.clone()?)))
+        .collect();
 
     if let Some(clients) = realm.clients.as_mut() {
         for client in clients.iter_mut() {
             let client_id = client.client_id.clone().unwrap_or_default();
             let existing = client.protocol_mappers.take().unwrap_or_default();
-            let (claim_mappers, mut kept): (Vec<_>, Vec<_>) = existing
-                .into_iter()
-                .partition(|mapper| is_claim_authority_mapper(mapper));
-
-            match template_client_claim_mappers.get(&client_id) {
-                Some(template_mappers) => {
-                    let template_keys: HashSet<_> =
-                        template_mappers.iter().map(claim_mapper_key).collect();
-                    let mut present_keys: HashSet<_> = HashSet::new();
-                    for mapper in claim_mappers {
-                        let key = claim_mapper_key(&mapper);
-                        if template_keys.contains(&key) {
-                            present_keys.insert(key);
-                            kept.push(mapper);
-                        } else {
-                            discarded.push(format!(
-                                "claim mapper '{}' on client '{client_id}'",
-                                mapper.name.as_deref().unwrap_or("<unnamed>")
-                            ));
-                        }
-                    }
-                    for template_mapper in template_mappers {
-                        if !present_keys.contains(&claim_mapper_key(template_mapper)) {
-                            let mut restored = template_mapper.clone();
-                            restored.id = None;
-                            kept.push(restored);
-                        }
-                    }
-                }
-                None => {
-                    for mapper in claim_mappers {
-                        discarded.push(format!(
-                            "claim mapper '{}' on client '{client_id}'",
-                            mapper.name.as_deref().unwrap_or("<unnamed>")
-                        ));
-                    }
-                }
-            }
-            client.protocol_mappers = Some(kept);
+            client.protocol_mappers = Some(reconcile_claim_mappers(
+                existing,
+                template_client_claim_mappers.get(&client_id),
+                &format!("client '{client_id}'"),
+                &mut discarded,
+            ));
         }
     }
-
-    // 7. Claim mappers on client scopes: the template defines none, so drop any.
     if let Some(client_scopes) = realm.client_scopes.as_mut() {
         for scope in client_scopes.iter_mut() {
             let scope_name = scope.name.clone().unwrap_or_default();
-            if let Some(mappers) = scope.protocol_mappers.as_mut() {
-                mappers.retain(|mapper| {
-                    let drop = is_claim_authority_mapper(mapper);
-                    if drop {
-                        discarded.push(format!(
-                            "claim mapper '{}' on client scope '{scope_name}'",
-                            mapper.name.as_deref().unwrap_or("<unnamed>")
-                        ));
-                    }
-                    !drop
-                });
-            }
+            let existing = scope.protocol_mappers.take().unwrap_or_default();
+            scope.protocol_mappers = Some(reconcile_claim_mappers(
+                existing,
+                template_scope_claim_mappers.get(&scope_name),
+                &format!("client scope '{scope_name}'"),
+                &mut discarded,
+            ));
         }
     }
 
-    // 8. Identity-provider mappers that hardcode a dropped role or the tenant.
+    // 7. Identity-provider mappers: only the ones the template defines survive,
+    //    as any of them can grant roles or set attributes the claims carry.
+    let template_idp_mapper_keys: HashSet<_> = template
+        .identity_provider_mappers
+        .iter()
+        .flatten()
+        .map(idp_mapper_key)
+        .collect();
     if let Some(idp_mappers) = realm.identity_provider_mappers.as_mut() {
         idp_mappers.retain(|mapper| {
-            let mapper_type = mapper
-                .identity_provider_mapper
-                .as_deref()
-                .unwrap_or_default();
-            let drop = match mapper_type {
-                HARDCODED_ROLE_IDP_MAPPER => mapper
-                    .config
-                    .as_ref()
-                    .and_then(|config| config.get("role"))
-                    .map(|role| !realm_role_allowed(role, &allowed_realm_roles))
-                    .unwrap_or(true),
-                HARDCODED_ATTRIBUTE_IDP_MAPPER => mapper
-                    .config
-                    .as_ref()
-                    .and_then(|config| {
-                        config
-                            .get("attribute")
-                            .or_else(|| config.get("attribute.name"))
-                    })
-                    .map(|attribute| {
-                        attribute == TENANT_ID_ATTR_NAME
-                            || attribute
-                                .replace('\\', "")
-                                .starts_with(HASURA_CLAIM_NAMESPACE)
-                    })
-                    .unwrap_or(false),
-                _ => false,
-            };
-            if drop {
+            let keep = template_idp_mapper_keys.contains(&idp_mapper_key(mapper));
+            if !keep {
                 discarded.push(format!(
                     "identity-provider mapper '{}'",
                     mapper.name.as_deref().unwrap_or("<unnamed>")
                 ));
             }
-            !drop
+            keep
         });
     }
 
@@ -1735,7 +1807,10 @@ pub async fn maybe_create_scheduled_event(
 #[cfg(test)]
 mod imported_realm_sanitization_tests {
     use super::*;
-    use ::keycloak::types::{ClientRepresentation, RoleRepresentation, UserRepresentation};
+    use ::keycloak::types::{
+        ClientRepresentation, ClientScopeRepresentation, Composites, RoleRepresentation,
+        UserRepresentation,
+    };
 
     const EVENT_REALM_TEMPLATE: &str = include_str!(
         "../../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
@@ -1908,5 +1983,200 @@ mod imported_realm_sanitization_tests {
             ImportedRealmReconciliation::RejectForeignClaims,
         )
         .is_err());
+    }
+
+    const REALM_ADMIN_CLIENT: &str = "realm-management";
+    const REALM_ADMIN_ROLE: &str = "realm-admin";
+
+    fn sanitize(imported: &RealmRepresentation) -> RealmRepresentation {
+        sanitize_imported_event_realm(
+            imported,
+            &template_realm(),
+            ImportedRealmReconciliation::AlignWithTemplate,
+        )
+        .expect("sanitization succeeds")
+    }
+
+    fn realm_admin_assignment() -> ClientRoleAssignments {
+        HashMap::from([(
+            REALM_ADMIN_CLIENT.to_string(),
+            vec![REALM_ADMIN_ROLE.to_string()],
+        )])
+    }
+
+    #[test]
+    fn aligning_drops_client_roles_assigned_to_users_and_groups() {
+        let mut realm = template_realm();
+        realm
+            .users
+            .get_or_insert_with(Vec::new)
+            .push(UserRepresentation {
+                username: Some("imported-user".to_string()),
+                client_roles: Some(realm_admin_assignment()),
+                ..Default::default()
+            });
+        realm
+            .groups
+            .get_or_insert_with(Vec::new)
+            .push(GroupRepresentation {
+                name: Some("imported-group".to_string()),
+                client_roles: Some(realm_admin_assignment()),
+                sub_groups: Some(vec![GroupRepresentation {
+                    name: Some("imported-subgroup".to_string()),
+                    client_roles: Some(realm_admin_assignment()),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        let user = sanitized
+            .users
+            .iter()
+            .flatten()
+            .find(|user| user.username.as_deref() == Some("imported-user"))
+            .expect("imported user kept");
+        assert!(user.client_roles.clone().unwrap_or_default().is_empty());
+        let group = sanitized
+            .groups
+            .iter()
+            .flatten()
+            .find(|group| group.name.as_deref() == Some("imported-group"))
+            .expect("imported group kept");
+        assert!(group.client_roles.clone().unwrap_or_default().is_empty());
+        let subgroup = &group.sub_groups.as_ref().expect("subgroup kept")[0];
+        assert!(subgroup.client_roles.clone().unwrap_or_default().is_empty());
+    }
+
+    #[test]
+    fn aligning_resets_the_composites_of_allowed_roles() {
+        let mut realm = template_realm();
+        let allowed_role = realm_role_names(&realm)
+            .into_iter()
+            .find(|name| !name.starts_with(DEFAULT_REALM_ROLE_PREFIX))
+            .expect("template has a realm role");
+        for role in realm
+            .roles
+            .as_mut()
+            .and_then(|roles| roles.realm.as_mut())
+            .expect("template has realm roles")
+        {
+            if role.name.as_deref() == Some(allowed_role.as_str()) {
+                role.composites = Some(Composites {
+                    client: Some(HashMap::from([(
+                        REALM_ADMIN_CLIENT.to_string(),
+                        vec![REALM_ADMIN_ROLE.to_string()],
+                    )])),
+                    ..Default::default()
+                });
+            }
+        }
+
+        let sanitized = sanitize(&realm);
+
+        let template = template_realm();
+        let composites_of = |realm: &RealmRepresentation| {
+            realm
+                .roles
+                .iter()
+                .flat_map(|roles| roles.realm.iter().flatten())
+                .find(|role| role.name.as_deref() == Some(allowed_role.as_str()))
+                .and_then(|role| role.composites.clone())
+        };
+        assert_eq!(composites_of(&sanitized), composites_of(&template));
+    }
+
+    #[test]
+    fn aligning_only_allows_the_realms_own_default_role() {
+        let mut realm = template_realm();
+        let fake_default_role = format!("{DEFAULT_REALM_ROLE_PREFIX}attacker");
+        realm
+            .roles
+            .get_or_insert_with(Default::default)
+            .realm
+            .get_or_insert_with(Vec::new)
+            .push(RoleRepresentation {
+                name: Some(fake_default_role.clone()),
+                ..Default::default()
+            });
+        realm
+            .users
+            .get_or_insert_with(Vec::new)
+            .push(UserRepresentation {
+                username: Some("imported-user".to_string()),
+                realm_roles: Some(vec![fake_default_role.clone()]),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        assert!(!realm_role_names(&sanitized).contains(&fake_default_role));
+        let user = sanitized
+            .users
+            .iter()
+            .flatten()
+            .find(|user| user.username.as_deref() == Some("imported-user"))
+            .expect("imported user kept");
+        assert!(!user
+            .realm_roles
+            .clone()
+            .unwrap_or_default()
+            .contains(&fake_default_role));
+    }
+
+    #[test]
+    fn aligning_drops_identity_provider_mappers_the_template_lacks() {
+        let mut realm = template_realm();
+        realm
+            .identity_provider_mappers
+            .get_or_insert_with(Vec::new)
+            .push(IdentityProviderMapperRepresentation {
+                name: Some("grant-role".to_string()),
+                identity_provider_alias: Some("any-idp".to_string()),
+                identity_provider_mapper: Some("oidc-role-idp-mapper".to_string()),
+                config: Some(HashMap::from([(
+                    "role".to_string(),
+                    "admin-user".to_string(),
+                )])),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        assert_eq!(
+            sanitized.identity_provider_mappers,
+            template_realm().identity_provider_mappers
+        );
+    }
+
+    #[test]
+    fn aligning_drops_claim_mappers_on_unknown_client_scopes() {
+        let mut realm = template_realm();
+        realm
+            .client_scopes
+            .get_or_insert_with(Vec::new)
+            .push(ClientScopeRepresentation {
+                name: Some("rogue-scope".to_string()),
+                protocol_mappers: Some(vec![hardcoded_hasura_role_mapper(
+                    "x-hasura-default-role",
+                    "service-account",
+                )]),
+                ..Default::default()
+            });
+
+        let sanitized = sanitize(&realm);
+
+        let scope = sanitized
+            .client_scopes
+            .iter()
+            .flatten()
+            .find(|scope| scope.name.as_deref() == Some("rogue-scope"))
+            .expect("scope kept");
+        assert!(scope
+            .protocol_mappers
+            .as_deref()
+            .unwrap_or_default()
+            .is_empty());
     }
 }
