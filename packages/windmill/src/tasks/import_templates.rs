@@ -14,7 +14,6 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 
-use sequent_core::services::uuid_validation::parse_uuid_v4;
 use std::io::{Read, Seek};
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -22,7 +21,7 @@ use uuid::Uuid;
 fn parse_templates_csv<R: Read>(reader: R, tenant_id: &str) -> AnyhowResult<Vec<Template>> {
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
-        .has_headers(false)
+        .has_headers(true)
         .from_reader(reader);
 
     let mut templates: Vec<Template> = vec![];
@@ -31,7 +30,6 @@ fn parse_templates_csv<R: Read>(reader: R, tenant_id: &str) -> AnyhowResult<Vec<
         let record = result.map_err(|e| anyhow!("Error reading CSV record: {:?}", e))?;
 
         let template_alias = record.get(0).unwrap_or("");
-        let row_tenant_id = record.get(1).unwrap_or("");
         let template_content = record.get(2).unwrap_or("");
         let created_by = record.get(3).unwrap_or("");
         let labels = record.get(4).unwrap_or("");
@@ -41,10 +39,6 @@ fn parse_templates_csv<R: Read>(reader: R, tenant_id: &str) -> AnyhowResult<Vec<
         let communication_method = record.get(8).unwrap_or("");
         let template_type = record.get(9).unwrap_or("");
 
-        if parse_uuid_v4(row_tenant_id).is_err() {
-            tracing::warn!("Invalid UUID for tenant_id: {}", row_tenant_id);
-            continue;
-        }
         templates.push(Template {
             alias: template_alias.to_string(),
             tenant_id: tenant_id.to_string(),
@@ -160,5 +154,15 @@ mod tests {
         let csv = csv_with_row_tenant(TASK_TENANT_ID);
         let templates = parse_templates_csv(csv.as_bytes(), TASK_TENANT_ID).unwrap();
         assert_eq!(templates.len(), 1);
+    }
+
+    #[test]
+    fn rows_with_a_blank_or_malformed_tenant_are_stored_under_the_task_tenant() {
+        for row_tenant_id in ["", "not-a-uuid"] {
+            let csv = csv_with_row_tenant(row_tenant_id);
+            let templates = parse_templates_csv(csv.as_bytes(), TASK_TENANT_ID).unwrap();
+            assert_eq!(templates.len(), 1, "{row_tenant_id:?}");
+            assert_eq!(templates[0].tenant_id, TASK_TENANT_ID);
+        }
     }
 }

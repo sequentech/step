@@ -15,7 +15,6 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
-use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Application;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
@@ -70,7 +69,7 @@ fn parse_applications_csv<R: Read>(
 ) -> AnyhowResult<Vec<Application>> {
     let mut rdr = csv::ReaderBuilder::new()
         .delimiter(b',')
-        .has_headers(false)
+        .has_headers(true)
         .from_reader(reader);
 
     let mut applications: Vec<Application> = vec![];
@@ -80,7 +79,6 @@ fn parse_applications_csv<R: Read>(
 
         let created_at = record.get(1).unwrap_or("");
         let updated_at = record.get(2).unwrap_or("");
-        let row_tenant_id = record.get(3).unwrap_or("");
         let area_id = record.get(5).unwrap_or("");
         let applicant_id = record.get(6).unwrap_or("");
         let applicant_data = record.get(7).unwrap_or("");
@@ -88,11 +86,6 @@ fn parse_applications_csv<R: Read>(
         let annotations = record.get(9).unwrap_or("");
         let verification_type = record.get(10).unwrap_or("");
         let status = record.get(11).unwrap_or("");
-
-        if parse_uuid_v4(row_tenant_id).is_err() {
-            tracing::warn!("Invalid UUID for tenant_id: {}", row_tenant_id);
-            continue;
-        }
 
         let area_uuid = Uuid::parse_str(area_id)
             .ok()
@@ -206,6 +199,22 @@ mod tests {
         assert_eq!(applications[0].tenant_id, TASK_TENANT_ID);
         assert_eq!(applications[0].election_event_id, TASK_EVENT_ID);
         assert_eq!(applications[0].area_id.as_deref(), Some(EVENT_AREA_ID));
+    }
+
+    #[test]
+    fn rows_with_a_blank_or_malformed_tenant_are_stored_under_the_task_tenant() {
+        for row_tenant_id in ["", "not-a-uuid"] {
+            let csv = csv_row(row_tenant_id, ROW_EVENT_ID, EVENT_AREA_ID);
+            let applications = parse_applications_csv(
+                csv.as_bytes(),
+                TASK_TENANT_ID,
+                TASK_EVENT_ID,
+                &event_area_ids(),
+            )
+            .unwrap();
+            assert_eq!(applications.len(), 1, "{row_tenant_id:?}");
+            assert_eq!(applications[0].tenant_id, TASK_TENANT_ID);
+        }
     }
 
     #[test]
