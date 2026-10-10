@@ -293,8 +293,10 @@ pub async fn get_publication_ballot_styles(
     Ok(styles)
 }
 
+/// A ballot style published for an area and election.
 pub struct PublishedBallotStyle {
     pub id: Uuid,
+    /// The style as EML. It is only filled in when the lookup asks for it.
     pub ballot_eml: Option<String>,
 }
 
