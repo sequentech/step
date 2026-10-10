@@ -939,3 +939,23 @@ pub async fn run_velvet_tally(
     .await?;
     call_velvet(base_tally_path.clone(), "decode-ballots").await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot_codec::vec::encode_vec_to_array;
+
+    /// A plaintext that does not decode still takes its place in the ballots
+    /// file, so the file keeps one line per decrypted plaintext.
+    #[test]
+    fn decode_plaintexts_to_biguints_keeps_one_line_per_plaintext() {
+        let valid = encode_vec_to_array(&vec![5]).expect("plaintext should encode");
+        let oversized_length = [0xFF; 30];
+
+        let lines =
+            decode_plaintexts_to_biguints(&vec![valid, oversized_length], &Contest::default());
+
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "5");
+    }
+}
