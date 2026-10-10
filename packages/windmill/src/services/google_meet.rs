@@ -234,7 +234,6 @@ pub async fn store_service_account_key(
     replace_secret(
         hasura_transaction,
         tenant_id,
-        None,
         SERVICE_ACCOUNT_KEY_SECRET,
         &stored_key,
     )
