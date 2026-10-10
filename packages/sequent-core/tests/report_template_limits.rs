@@ -328,7 +328,7 @@ fn renders_comments_escapes_raw_blocks_and_literals() {
         "{{{{raw}}}}{{#b}}{{{{/raw}}}}",
         "{{{ value }}}",
         "{{#each [1, 2]}}{{this}}{{/each}}",
-        r#"{{concat "(" "}}" ")"}}"#,
+        r#"{{#if "}}"}}a{{/if}}{{#if "("}}b{{/if}}{{#if ")"}}c{{/if}}"#,
     );
     let mut variables = Map::new();
     variables.insert("value".to_string(), Value::from("<v>"));
@@ -336,7 +336,7 @@ fn renders_comments_escapes_raw_blocks_and_literals() {
     let rendered = render_template_text(template, variables)
         .expect("template should render");
 
-    assert_eq!(rendered, "{{a}}{{#b}}<v>12( }} )");
+    assert_eq!(rendered, "{{a}}{{#b}}<v>12abc");
 }
 
 /// Path segments in brackets, which may hold spaces, and string arrays still
