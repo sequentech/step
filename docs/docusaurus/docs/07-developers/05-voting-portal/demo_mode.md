@@ -11,7 +11,9 @@ Overview
 When demo mode is active
 - From Admin Portal preview: entering the Voting Portal via the Publish > Preview flow sets a session flag and enables demo mode automatically.
   - Technical detail: sessionStorage key isDemo is set to true when loading a preview publication event.
-- From election configuration: if the ballot style’s public key indicates a demo election (ballot_eml.public_key.is_demo) (which happens when the election has no generated keys), demo mode is active when voters log in.
+- From election configuration: if the ballot style’s public key indicates a demo election (ballot_eml.public_key.is_demo) (which happens when the election has no generated keys), demo mode is active when voters log in. Ballots cast in demo mode are not recorded.
+  - Voting only opens for such an election when the election event presentation sets `unkeyed_voting_policy` to `allow-demo`.
+  - With the default, `refuse`, starting voting (manually or on schedule) requires each election to have a keys ceremony with a public key, and its latest publication must have been generated with that key. A publication that uses the demo public key is also refused for an election whose voting has already started.
 
 What users see
 - Background watermark: a tiled DEMO image appears across the app background.
@@ -28,4 +30,4 @@ Styling and customization
 
 Tips
 - To test from Admin Portal, use Publish > Preview, then proceed to the Voting Portal; you should see the DEMO background and dialog.
-- To test as a voter, ensure the election has no generated keys.
+- To test as a voter, ensure the election has no generated keys and set `"unkeyed_voting_policy": "allow-demo"` in the election event presentation.
