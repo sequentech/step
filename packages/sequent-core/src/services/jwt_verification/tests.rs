@@ -98,7 +98,7 @@ fn symmetric_tokens_are_rejected() {
     let forged = encode(
         &header,
         &claims(),
-        &EncodingKey::from_secret(b"attacker-secret"),
+        &EncodingKey::from_secret(b"untrusted-secret"),
     )
     .unwrap();
     assert!(verify_with_jwks(&forged, ISSUER, &keys()).is_err());
@@ -125,8 +125,8 @@ fn issuer_is_bound_to_tenant_and_event() {
         "tenant-one-event-election"
     );
     for issuer in [
-        "https://attacker.example/realms/tenant-one-event-election",
-        "https://keycloak.example.attacker.example/realms/tenant-one-event-election",
+        "https://untrusted.example/realms/tenant-one-event-election",
+        "https://keycloak.example.untrusted.example/realms/tenant-one-event-election",
         "https://keycloak.example/realms/tenant-other-event-election",
         "https://keycloak.example/realms/tenant-one-event-other",
         "https://keycloak.example/realms/tenant-one-event-election?query=x",
