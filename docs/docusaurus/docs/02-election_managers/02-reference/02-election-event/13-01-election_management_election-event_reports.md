@@ -36,7 +36,7 @@ Enabling the **Repeatable** option allows generating and sending reports repeate
 3. Set the **Email Recipients** for this report.
 4. Select **Save**.
 
-A repeatable report runs on behalf of the user who last saved it. Before each run, the system checks that this user still exists in the tenant, is enabled and has permission to read reports (`report-read`). If any of these checks fails, the report is not generated or sent, **Repeatable** is turned off and a failed task is recorded. Save the report again as an authorized user to resume it.
+A repeatable report runs on behalf of the user who last saved it. Before each run, the system checks that this user still exists in the tenant, is enabled and has permission to read reports (`report-read`). If any of these checks fails, the report is not generated or sent, **Repeatable** is turned off and a failed task is recorded. To resume it, an authorized user enables **Repeatable** again and saves the report.
 
 #### Setting up a Cron Expression
 
