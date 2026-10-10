@@ -14,6 +14,8 @@ use std::str::FromStr;
 use tracing::{info, instrument};
 
 const COUNTRY_CODE_LENGTH: usize = 2;
+/// Part of the enrollment rule expression that the voting rule does not have.
+const ENROLLMENT_RULE_CLIENT_FILTER: &str = "client_id=voting-portal";
 
 /// Two-character country code, as used by Cloudflare's `ip.geoip.country`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,8 +93,8 @@ fn create_limit_ip_by_countries_rule_format(
     );
 
     let rule_expression_enroll = format!(
-        "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"client_id=voting-portal\"",
-        tenant_id
+        "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"{}\"",
+        tenant_id, ENROLLMENT_RULE_CLIENT_FILTER
     );
 
     let rule_expression_voting = format!(
@@ -124,8 +126,8 @@ fn rule_description_prefix(tenant_id: &str) -> String {
     format!("Block access in tenant {tenant_id} from countries:")
 }
 
-/// Id of the tenant's existing rule, found through the description written
-/// when the rule was created.
+/// Id of the tenant's existing voting or enrollment rule, found through the
+/// description written when the rule was created.
 fn find_tenant_rule_id(rules: &[Rule], tenant_id: &str, is_enrollment: bool) -> Option<String> {
     let description_prefix = rule_description_prefix(tenant_id);
     rules
@@ -134,11 +136,7 @@ fn find_tenant_rule_id(rules: &[Rule], tenant_id: &str, is_enrollment: bool) -> 
             rule.description
                 .as_deref()
                 .is_some_and(|description| description.starts_with(&description_prefix))
-                && rule.expression.contains(if is_enrollment {
-                    "enroll"
-                } else {
-                    "voting-portal"
-                })
+                && rule.expression.contains(ENROLLMENT_RULE_CLIENT_FILTER) == is_enrollment
         })
         .and_then(|rule| rule.id.clone())
 }
@@ -266,6 +264,9 @@ pub async fn handle_limit_ip_access_by_countries(
 mod tests {
     use super::*;
 
+    const TENANT_ID: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const OTHER_TENANT_ID: &str = "5e6a0c0f-2a4b-4a6e-9d7e-3f0f2c1b8a90";
+
     /// A country value with a quote is not a country code, so it never reaches an expression.
     #[test]
     fn country_rule_rejects_country_with_quote() {
@@ -293,46 +294,82 @@ mod tests {
         }
     }
 
-    /// A tenant only finds the rules described for itself, even if another rule mentions its id.
-    #[test]
-    fn rule_lookup_ignores_rules_described_for_other_tenants() {
-        let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
-        let other_tenant_id = "5e6a0c0f-2a4b-4a6e-9d7e-3f0f2c1b8a90";
-        let rule = |id: &str, owner: &str, expression: String| Rule {
+    /// A country rule described as written for `owner`.
+    fn described_rule(id: &str, owner: &str, expression: String) -> Rule {
+        Rule {
             id: Some(id.to_string()),
             expression,
             description: Some(format!("Block access in tenant {owner} from countries: FR")),
             enabled: Some(true),
             action: "block".to_string(),
             action_parameters: None,
-        };
-        let other_rule = rule(
+        }
+    }
+
+    /// A tenant only finds the rules described for itself, even if another rule mentions its id.
+    #[test]
+    fn rule_lookup_ignores_rules_described_for_other_tenants() {
+        let other_rule = described_rule(
             "other",
-            other_tenant_id,
+            OTHER_TENANT_ID,
             format!(
-                "(http.request.uri.query contains \"voting-portal\") and (http.request.uri.path contains \"{other_tenant_id}\" or http.request.uri.path contains \"{tenant_id}\")"
+                "(http.request.uri.query contains \"voting-portal\") and (http.request.uri.path contains \"{OTHER_TENANT_ID}\" or http.request.uri.path contains \"{TENANT_ID}\")"
             ),
         );
-        let own_rule = rule(
+        let own_rule = described_rule(
             "own",
-            tenant_id,
+            TENANT_ID,
             format!(
-                "(http.request.uri.query contains \"voting-portal\") and (http.request.uri.path contains \"{tenant_id}\")"
+                "(http.request.uri.query contains \"voting-portal\") and (http.request.uri.path contains \"{TENANT_ID}\")"
             ),
         );
 
         assert_eq!(
-            find_tenant_rule_id(&[other_rule.clone()], tenant_id, false),
+            find_tenant_rule_id(&[other_rule.clone()], TENANT_ID, false),
             None
         );
         assert_eq!(
-            find_tenant_rule_id(&[other_rule.clone(), own_rule], tenant_id, false),
+            find_tenant_rule_id(&[other_rule.clone(), own_rule], TENANT_ID, false),
             Some("own".to_string())
         );
         assert_eq!(
-            find_tenant_rule_id(&[other_rule], other_tenant_id, false),
+            find_tenant_rule_id(&[other_rule], OTHER_TENANT_ID, false),
             Some("other".to_string())
         );
+    }
+
+    /// The voting and the enrollment rule of a tenant are never mistaken for each other.
+    #[test]
+    fn rule_lookup_tells_voting_and_enrollment_rules_apart() {
+        let enrollment_rule = described_rule(
+            "enrollment",
+            TENANT_ID,
+            format!(
+                "starts_with(http.request.uri.path, \"/realms/tenant-{TENANT_ID}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"client_id=voting-portal\""
+            ),
+        );
+        let voting_rule = described_rule(
+            "voting",
+            TENANT_ID,
+            format!(
+                "(http.request.full_uri contains \"https://voting.example.com\" or (http.request.full_uri contains \"https://login.example.com\" and http.request.uri.query contains \"voting-portal\")) and (http.request.uri.path contains \"{TENANT_ID}\") and (ip.geoip.country eq \"FR\") and (ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") or ends_with(http.request.uri.path, \"/login-actions/registration\"))"
+            ),
+        );
+
+        let rules = [enrollment_rule.clone(), voting_rule.clone()];
+        assert_eq!(
+            find_tenant_rule_id(&rules, TENANT_ID, false),
+            Some("voting".to_string())
+        );
+        assert_eq!(
+            find_tenant_rule_id(&rules, TENANT_ID, true),
+            Some("enrollment".to_string())
+        );
+        assert_eq!(
+            find_tenant_rule_id(&[enrollment_rule], TENANT_ID, false),
+            None
+        );
+        assert_eq!(find_tenant_rule_id(&[voting_rule], TENANT_ID, true), None);
     }
 
     /// The expression uses the `in` set syntax with one entry per country.
