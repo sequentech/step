@@ -316,6 +316,13 @@ jobs:
         if: always() && steps.castvote-fixture.outputs.created == 'true'
         run: docker rm --force --volumes step-castvote-fixture
 
+      - name: Run PostgreSQL-backed new election event id regression
+        run: >-
+          cargo test
+          services::import::import_election_event::new_election_event_tests
+          -- --ignored
+        working-directory: packages/windmill
+
   run-frontend-tests:
     name: ${{ matrix.package }} focused tests
     needs: plan
