@@ -659,6 +659,43 @@ pub async fn set_election_keys_ceremony(
 }
 
 #[instrument(err, skip(hasura_transaction))]
+pub async fn clear_election_keys_ceremony(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                UPDATE
+                    sequent_backend.election
+                SET
+                    keys_ceremony_id = NULL
+                WHERE
+                    tenant_id = $1 AND
+                    election_event_id = $2 AND
+                    keys_ceremony_id = $3;
+            "#,
+        )
+        .await?;
+
+    hasura_transaction
+        .execute(
+            &statement,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(keys_ceremony_id)?,
+            ],
+        )
+        .await
+        .map_err(|err| anyhow!("Error running the clear_election_keys_ceremony query: {err}"))?;
+
+    Ok(())
+}
+
+#[instrument(err, skip(hasura_transaction))]
 pub async fn set_election_initialization_report_generated(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
