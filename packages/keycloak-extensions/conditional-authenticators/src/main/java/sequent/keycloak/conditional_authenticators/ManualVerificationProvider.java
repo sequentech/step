@@ -7,6 +7,7 @@ package sequent.keycloak.conditional_authenticators;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
@@ -70,7 +71,7 @@ public class ManualVerificationProvider extends AbstractAdminResource
     log.info("generateTokenLink(): start");
     ClientModel client = session.clients().getClientByClientId(realm, CLIENT_ID);
     if (client == null || !client.isEnabled()) {
-      throw new BadRequestException("Voting portal client is unavailable");
+      throw new InternalServerErrorException("Voting portal client is unavailable");
     }
     if (redirectUri != null) {
       redirectUri = RedirectUtils.verifyRedirectUri(session, redirectUri, client);
@@ -105,7 +106,7 @@ public class ManualVerificationProvider extends AbstractAdminResource
   }
 
   /*
-   * Throws some exception if the user does not have the admin role.
+   * Throws unless the caller is authenticated and may manage users in this realm.
    */
   private void checkPermissions() {
     // Authenticate the issuer realm, then evaluate permissions on this target realm.
