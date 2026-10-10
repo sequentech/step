@@ -126,6 +126,11 @@ an agreed external-system freeze window:
 6. Compare the source and patch hashes with the electoral logs before ending
    the freeze.
 
+Apply only accepts a review that the server generated for the same election
+event, and checks its documents against the hashes recorded when it was
+generated. A review generated before an upgrade that introduced these hashes
+cannot be applied: upload the same file again to generate a new review.
+
 An Internet ballot that is still `in-progress` is deliberately reported as a
 row failure. During a hard-down external-system freeze it cannot resolve
 because the review beat must reach the external system. If all remaining
