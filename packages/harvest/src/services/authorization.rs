@@ -6,7 +6,9 @@ use rocket::http::Status;
 use rocket::response::status::Unauthorized;
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::{Permissions, VoterPermissions};
+use sequent_core::types::permissions::{
+    Permissions, RealmRolePolicy, VoterPermissions,
+};
 use std::collections::HashSet;
 use std::env;
 use tracing::{error, info, instrument};
@@ -68,6 +70,12 @@ pub fn authorize(
     }
 }
 
+/// Rejects a permission name that is reserved for the platform.
+pub fn require_ordinary_permission(name: &str) -> Result<(), (Status, String)> {
+    RealmRolePolicy::require_ordinary(name)
+        .map_err(|error| (Status::BadRequest, error.to_string()))
+}
+
 // returns area_id
 #[instrument(skip(claims))]
 pub fn authorize_voter_election(
@@ -111,5 +119,24 @@ pub fn authorize_voter_election(
         "voting-portal" => Ok((area_id, VotingStatusChannel::ONLINE)),
         "voting-portal-kiosk" => Ok((area_id, VotingStatusChannel::KIOSK)),
         _ => Err((Status::Unauthorized, "Unknown Client".into())),
+    }
+}
+
+#[cfg(test)]
+mod permission_name_tests {
+    use super::*;
+
+    #[test]
+    fn a_reserved_permission_name_is_a_bad_request() {
+        let (status, message) =
+            require_ordinary_permission("service-account").unwrap_err();
+
+        assert_eq!(status, Status::BadRequest);
+        assert!(message.contains("service-account"), "{message}");
+    }
+
+    #[test]
+    fn an_ordinary_permission_name_is_accepted() {
+        assert_eq!(require_ordinary_permission("election-event-read"), Ok(()));
     }
 }
