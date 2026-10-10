@@ -48,10 +48,11 @@ use sequent_core::types::hasura::core::Document;
 use sequent_core::types::results::{ResultDocumentType, ResultDocuments};
 use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
 use sequent_core::util::temp_path::*;
+use std::path::Path;
 use tempfile::{tempdir, NamedTempFile};
 use tracing::{info, instrument};
 use uuid::Uuid;
-use velvet::pipes::generate_reports::ReportData;
+use velvet::pipes::generate_reports::{ElectionReportDataComputed, ReportData};
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn download_tally_tar_gz_to_file(
@@ -101,6 +102,18 @@ pub async fn download_tally_tar_gz_to_file(
     .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
 
     get_document_as_temp_file(tenant_id, &document).await
+}
+
+fn read_tally_results(tar_file: &Path) -> Result<Vec<ElectionReportDataComputed>> {
+    let tally_dir = extract_archive_to_temp_dir(tar_file, false)?;
+
+    let tally_path = tally_dir.path().to_path_buf();
+
+    list_files(&tally_path)?;
+
+    let state = generate_initial_state(&tally_path, "decode-ballots")?;
+
+    Ok(state.get_results(true)?)
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -313,15 +326,7 @@ pub async fn create_transmission_package_service(
     )
     .await?;
 
-    let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
-
-    let tally_path_path = tally_path.into_path();
-
-    list_files(&tally_path_path)?;
-
-    let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
-
-    let results = state.get_results(true)?;
+    let results = read_tally_results(tar_gz_file.path())?;
 
     let tally_id = tally_session_id;
     let transaction_id = generate_transaction_id().to_string();
@@ -464,4 +469,22 @@ pub async fn create_transmission_package_service(
         .await
         .with_context(|| "error comitting transaction")?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::compress::test_support::{tally_archive_fixture, temp_dirs_containing};
+    use std::path::PathBuf;
+
+    #[test]
+    fn read_tally_results_removes_extracted_tally() -> Result<()> {
+        let (archive, marker) = tally_archive_fixture()?;
+
+        let results = read_tally_results(&archive)?;
+
+        assert!(results.is_empty());
+        assert_eq!(temp_dirs_containing(&marker), Vec::<PathBuf>::new());
+        Ok(())
+    }
 }

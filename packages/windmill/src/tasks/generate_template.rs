@@ -161,9 +161,9 @@ async fn generate_template_document(
     )
     .await?;
 
-    let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
+    let tally_dir = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
-    let tally_path_path = tally_path.into_path();
+    let tally_path_path = tally_dir.path().to_path_buf();
 
     let pipe_name = if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
         PipeNameOutputDir::MCBallotImages
