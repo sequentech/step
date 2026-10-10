@@ -45,6 +45,7 @@ pub struct Configuration<C: Ctx> {
 /// The policy is appended only when it is not `Legacy`, so legacy
 /// configurations keep their exact encoding and hash.
 impl<C: Ctx> BorshSerialize for Configuration<C> {
+    /// Writes a `Configuration`, with the optional trailing field only when it is present.
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         self.id.serialize(writer)?;
         self.protocol_manager.serialize(writer)?;
@@ -60,6 +61,7 @@ impl<C: Ctx> BorshSerialize for Configuration<C> {
 /// Any byte left after the threshold is read as the policy, so a
 /// Configuration must always be encoded on its own.
 impl<C: Ctx> BorshDeserialize for Configuration<C> {
+    /// Reads a `Configuration`, with the optional trailing field only when it is present.
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
         let id = u128::deserialize_reader(reader)?;
         let protocol_manager = StrandSignaturePk::deserialize_reader(reader)?;
@@ -194,6 +196,7 @@ pub struct Shares<C: Ctx> {
 const SHARES_WITH_COMMITMENT_PROOF: u32 = u32::MAX;
 
 impl<C: Ctx> BorshSerialize for Shares<C> {
+    /// Writes a `Shares`, with the optional trailing field only when it is present.
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         match &self.commitment_proof {
             Some(proof) => {
@@ -211,6 +214,7 @@ impl<C: Ctx> BorshSerialize for Shares<C> {
 }
 
 impl<C: Ctx> BorshDeserialize for Shares<C> {
+    /// Reads a `Shares`, with the optional trailing field only when it is present.
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
         let prefix = u32::deserialize_reader(reader)?;
         if prefix == SHARES_WITH_COMMITMENT_PROOF {
@@ -412,10 +416,12 @@ mod tests {
         threshold: usize,
     }
 
+    /// Returns a fixed signature public key for the encoding tests.
     fn signature_pk() -> StrandSignaturePk {
         StrandSignaturePk::from_sk(&StrandSignatureSk::gen().unwrap()).unwrap()
     }
 
+    /// Encodes a configuration the way it was encoded before the commitment proof policy existed.
     fn legacy_configuration_bytes() -> Vec<u8> {
         LegacyConfiguration {
             id: 7,
@@ -427,6 +433,7 @@ mod tests {
         .unwrap()
     }
 
+    /// Builds a `Shares` message, with or without a commitment proof.
     fn shares(commitment_proof: bool) -> Shares<C> {
         let ctx = C::default();
         let (coefficients, commitments) = strand::threshold::gen_coefficients(2, &ctx);
@@ -443,12 +450,14 @@ mod tests {
         }
     }
 
+    /// Asserts that two `Shares` messages carry identical fields.
     fn assert_same_shares(left: &Shares<C>, right: &Shares<C>) {
         assert_eq!(left.commitments, right.commitments);
         assert_eq!(left.encrypted_shares, right.encrypted_shares);
         assert_eq!(left.commitment_proof, right.commitment_proof);
     }
 
+    /// A configuration encoded without the policy byte decodes as `Legacy` and re-encodes to the same bytes.
     #[test]
     fn configuration_without_policy_decodes_as_legacy_with_same_encoding() {
         let bytes = legacy_configuration_bytes();
@@ -463,6 +472,7 @@ mod tests {
         assert_eq!(cfg.strand_serialize().unwrap(), bytes);
     }
 
+    /// A configuration created with `Configuration::new` keeps the `SchnorrPok` policy through encoding and decoding.
     #[test]
     fn new_configuration_round_trips_schnorr_pok_policy() {
         let cfg = Configuration::<C>::new(
@@ -487,6 +497,7 @@ mod tests {
         assert_eq!(decoded.strand_serialize().unwrap(), bytes);
     }
 
+    /// An explicitly encoded `Legacy` policy byte is rejected, so each configuration has one encoding.
     #[test]
     fn configuration_rejects_encoded_legacy_policy() {
         let mut bytes = legacy_configuration_bytes();
@@ -495,6 +506,7 @@ mod tests {
         assert!(Configuration::<C>::strand_deserialize(&bytes).is_err());
     }
 
+    /// An unknown policy byte is rejected.
     #[test]
     fn configuration_rejects_unknown_policy() {
         let mut bytes = legacy_configuration_bytes();
@@ -503,6 +515,7 @@ mod tests {
         assert!(Configuration::<C>::strand_deserialize(&bytes).is_err());
     }
 
+    /// `Shares` without a proof keep the encoding they had before the proof was added.
     #[test]
     fn shares_without_proof_keep_legacy_encoding() {
         let shares = shares(false);
@@ -516,6 +529,7 @@ mod tests {
         assert_eq!(shares.strand_serialize().unwrap(), legacy_bytes);
     }
 
+    /// `Shares` with and without a proof decode correctly when stored back to back.
     #[test]
     fn shares_with_and_without_proof_round_trip_in_sequence() {
         let sequence = vec![shares(true), shares(false), shares(true)];
