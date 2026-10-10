@@ -251,3 +251,12 @@ Configure advanced system behaviors for this Election Event.
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:
   - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.
+- **Kiosk Channel Authentication Policy**: Decides how a vote is recognised
+  as a kiosk vote.
+  - **Client identity** (default): the Keycloak client used to log in
+    (`voting-portal-kiosk` or `onsite-voting-portal`) is enough.
+  - **Attested**: the voter's login must also carry the kiosk channel
+    attestation claim. A kiosk vote without it is rejected. Online and
+    telephone votes are not affected. Configure the realm first, as described
+    in [Kiosk channel attestation](../../../07-developers/05-voting-portal/developers_voting-portal.md#kiosk-channel-attestation),
+    or every kiosk vote of the event is rejected.

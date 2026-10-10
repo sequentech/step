@@ -693,6 +693,15 @@ const galegoTranslation: TranslationType = {
                         disabled: "Desactivado",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Política de Autenticación da Canle de Quiosco",
+                    helperText:
+                        "Con Atestación, só se acepta un voto de quiosco cando o inicio de sesión inclúe a atestación da canle de quiosco configurada en Keycloak.",
+                    options: {
+                        "client-identity": "Identidade do cliente",
+                        "attested": "Atestación",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Política de detección de idioma",
                     options: {

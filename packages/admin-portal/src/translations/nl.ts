@@ -694,6 +694,15 @@ const dutchTranslation: TranslationType = {
                         disabled: "Uitgeschakeld",
                     },
                 },
+                kioskChannelAuthenticationPolicy: {
+                    policyLabel: "Authenticatiebeleid kioskkanaal",
+                    helperText:
+                        "Met Attestatie wordt een kioskstem alleen geaccepteerd als de aanmelding de in Keycloak geconfigureerde attestatie van het kioskkanaal bevat.",
+                    options: {
+                        "client-identity": "Clientidentiteit",
+                        "attested": "Attestatie",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Taaldetectiebeleid",
                     options: {
