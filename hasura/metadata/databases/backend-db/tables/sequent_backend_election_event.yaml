@@ -458,7 +458,6 @@ update_permissions:
               - alias
               - annotations
               - audit_election_event_id
-              - bulletin_board_reference
               - created_at
               - description
               - encryption_protocol
@@ -499,7 +498,6 @@ update_permissions:
               - alias
               - annotations
               - audit_election_event_id
-              - bulletin_board_reference
               - created_at
               - description
               - encryption_protocol
@@ -532,7 +530,6 @@ update_permissions:
               - name
               - user_boards
               - annotations
-              - bulletin_board_reference
               - labels
               - presentation
               - statistics
