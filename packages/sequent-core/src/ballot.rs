@@ -1308,6 +1308,8 @@ pub struct ElectionEventPresentation {
     #[serde(default, deserialize_with = "deserialize_optional_json_string")]
     pub results_website: Option<String>,
     pub voting_portal_datetime_format: Option<VotingPortalDateTimeFormat>,
+    #[borsh(skip)]
+    pub batch_anonymity_policy: Option<BatchAnonymityPolicy>,
     /// Skipped by Borsh for the reason `Contest::is_acclaimed` is: one more
     /// positional field would change `ballot_style_hash` for every election.
     #[borsh(skip)]
@@ -3407,6 +3409,38 @@ pub enum DelegatedVotingPolicy {
     ENABLED,
 }
 
+/// What extracting the ballots for a tally does with a contest area batch
+/// whose decrypted votes would not stay hidden among others: one holding the
+/// ballots of fewer than `MIN_WEIGHT_BATCH_ANONYMITY` voters, or one that
+/// differs from the ballots another tally session already posted for the same
+/// election, area and contest.
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum BatchAnonymityPolicy {
+    /// Log a warning and post the batch.
+    #[default]
+    #[strum(serialize = "warn")]
+    #[serde(rename = "warn")]
+    WARN,
+    /// Refuse the tally without posting the contest area's ballots to the
+    /// bulletin board.
+    #[strum(serialize = "refuse")]
+    #[serde(rename = "refuse")]
+    REFUSE,
+}
+
 #[derive(
     BorshSerialize,
     BorshDeserialize,
@@ -3758,9 +3792,17 @@ mod presentation_borsh_compat_tests {
         let event_bytes = borsh::to_vec(&event_presentation).unwrap();
         let event_with_results = ElectionEventPresentation {
             results_website: Some("enabled".to_string()),
-            ..event_presentation
+            ..event_presentation.clone()
         };
         assert_eq!(borsh::to_vec(&event_with_results).unwrap(), event_bytes);
+        let event_with_batch_policy = ElectionEventPresentation {
+            batch_anonymity_policy: Some(BatchAnonymityPolicy::REFUSE),
+            ..event_presentation
+        };
+        assert_eq!(
+            borsh::to_vec(&event_with_batch_policy).unwrap(),
+            event_bytes
+        );
 
         let event_with_accessibility = ElectionEventPresentation {
             voter_accessibility_settings_policy: Some(

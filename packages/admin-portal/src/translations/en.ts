@@ -936,6 +936,15 @@ const englishTranslation = {
                         disabled: "Disabled",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Batch Anonymity Policy",
+                    helperText:
+                        "Refuse stops the tally when an area's ballot batch has fewer than five voters, or differs from the batch another tally already posted for the same area and contest.",
+                    options: {
+                        warn: "Warn",
+                        refuse: "Refuse",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Language Detection Policy",
                     options: {
