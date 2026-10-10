@@ -294,31 +294,36 @@ pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyH
     Ok(PublicKeyHash(strand::util::to_u8_array(&pk_h)?))
 }
 
-#[instrument(skip_all)]
+#[instrument(skip_all, err)]
 pub fn generate_trustee_set<C: Ctx>(
     configuration: &Configuration<C>,
     trustee_pks: Vec<StrandSignaturePk>,
-) -> TrusteeSet {
+) -> Result<TrusteeSet> {
     let mut selected_trustees: TrusteeSet = [NULL_TRUSTEE; MAX_TRUSTEES];
     let trustee_ids: Vec<usize> = trustee_pks
         .into_iter()
         .map(|trustee_pk| {
-            let position = configuration
+            configuration
                 .trustees
-                .clone()
-                .into_iter()
-                .position(|trustee| trustee == trustee_pk);
-            match position {
-                Some(value) => value + 1,
-                None => NULL_TRUSTEE,
-            }
+                .iter()
+                .position(|trustee| *trustee == trustee_pk)
+                .map(|value| value + 1)
+                .ok_or(anyhow!(
+                    "Selected trustee public key is not in the board configuration"
+                ))
         })
-        .collect();
-    for i in 0..trustee_ids.len() {
-        selected_trustees[i] = trustee_ids[i];
-    }
-    event!(Level::INFO, "TrusteeSet: {:?}", selected_trustees);
+        .collect::<Result<_>>()?;
     selected_trustees
+        .get_mut(..trustee_ids.len())
+        .ok_or(anyhow!(
+            "Selected {} trustees but a trustee set holds at most {}",
+            trustee_ids.len(),
+            MAX_TRUSTEES
+        ))?
+        .copy_from_slice(&trustee_ids);
+    configuration.validate_trustee_set(&selected_trustees)?;
+    event!(Level::INFO, "TrusteeSet: {:?}", selected_trustees);
+    Ok(selected_trustees)
 }
 
 #[instrument(skip_all, err)]
@@ -501,4 +506,63 @@ pub async fn get_board_messages<C: Ctx>(
     let board_messages = b3_client.get_messages(board_name, -1).await?;
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     Ok(messages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TRUSTEES: usize = 3;
+    const THRESHOLD: usize = 2;
+
+    fn signature_pk() -> StrandSignaturePk {
+        StrandSignaturePk::from_sk(&StrandSignatureSk::gen().unwrap()).unwrap()
+    }
+
+    fn test_configuration() -> Configuration<RistrettoCtx> {
+        Configuration::<RistrettoCtx>::new(
+            0,
+            signature_pk(),
+            (0..TRUSTEES).map(|_| signature_pk()).collect(),
+            THRESHOLD,
+            PhantomData,
+        )
+    }
+
+    #[test]
+    fn generate_trustee_set_maps_keys_to_positions() {
+        let cfg = test_configuration();
+        let selected = vec![cfg.trustees[2].clone(), cfg.trustees[0].clone()];
+
+        let trustee_set = generate_trustee_set(&cfg, selected).unwrap();
+
+        let mut expected = [NULL_TRUSTEE; MAX_TRUSTEES];
+        expected[0] = 3;
+        expected[1] = 1;
+        assert_eq!(trustee_set, expected);
+    }
+
+    #[test]
+    fn generate_trustee_set_errors_on_unknown_key() {
+        let cfg = test_configuration();
+        let selected = vec![cfg.trustees[0].clone(), signature_pk()];
+
+        assert!(generate_trustee_set(&cfg, selected).is_err());
+    }
+
+    #[test]
+    fn generate_trustee_set_errors_when_count_differs_from_threshold() {
+        let cfg = test_configuration();
+
+        assert!(generate_trustee_set(&cfg, vec![cfg.trustees[0].clone()]).is_err());
+        assert!(generate_trustee_set(&cfg, cfg.trustees.clone()).is_err());
+    }
+
+    #[test]
+    fn generate_trustee_set_errors_on_repeated_key() {
+        let cfg = test_configuration();
+        let selected = vec![cfg.trustees[1].clone(), cfg.trustees[1].clone()];
+
+        assert!(generate_trustee_set(&cfg, selected).is_err());
+    }
 }
