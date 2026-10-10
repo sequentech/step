@@ -184,6 +184,43 @@ pub async fn get_election_event_by_id_if_exist(
     Ok((election_event))
 }
 
+const ELECTION_EVENT_ID_LOCK_PREFIX: &str = "election-event-id";
+
+/// Locks an election event id until the transaction ends, so concurrent
+/// attempts to set up an election event with the same id run one at a time.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_election_event_id(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<()> {
+    let lock_key = format!(
+        "{ELECTION_EVENT_ID_LOCK_PREFIX}:{}",
+        parse_uuid_v4(election_event_id)?
+    );
+    hasura_transaction
+        .query_one(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&lock_key],
+        )
+        .await?;
+    Ok(())
+}
+
+/// Whether an election event with this id exists in any tenant.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn election_event_id_exists(
+    hasura_transaction: &Transaction<'_>,
+    election_event_id: &str,
+) -> Result<bool> {
+    let row = hasura_transaction
+        .query_one(
+            "SELECT EXISTS (SELECT 1 FROM sequent_backend.election_event WHERE id = $1)",
+            &[&parse_uuid_v4(election_event_id)?],
+        )
+        .await?;
+    Ok(row.try_get(0)?)
+}
+
 /// Returns all the Election events as ElectionEventDatafix
 #[instrument(err, skip_all)]
 pub async fn get_all_tenant_election_events(
