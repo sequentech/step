@@ -29,7 +29,7 @@ use uuid::Uuid;
 use wbraid::board::persistence::NoOpPersistence;
 use wbraid::board::transport::{MemoryBoard, MemoryTransport};
 use wbraid::board::BoardClient;
-use wbraid::messages::artifact::Plaintexts;
+use wbraid::messages::artifact::{Ballots, Plaintexts};
 use wbraid::messages::newtypes::{
     hash_bytes, CiphertextsHash, ConfigurationHash, PublicKeyHash,
 };
@@ -465,8 +465,78 @@ async fn what_the_quorum_did_not_post_under_this_configuration_is_no_progress()
             tally.ciphertexts(),
             &body,
         ));
+    tally.child.push(ProtocolMessage::<Ctx>::plaintexts(
+        &member,
+        DATE,
+        elsewhere,
+        tally.public_key(),
+        tally.ciphertexts(),
+        &readable_plaintexts(),
+    ));
 
     assert_eq!(tally.view().await, TallyView::BallotsPosted);
+}
+
+#[tokio::test]
+async fn a_quorum_members_partial_decryptions_make_the_board_decrypting() {
+    let ceremony = Ceremony::new(3, 2);
+    let tally = Tally::fabricated(&ceremony, &["trustee1", "trustee2"]);
+    let member = ceremony.trustee(0);
+    let body = vec![1u8, 2, 3];
+
+    tally.child.push(ProtocolMessage::<Ctx>::mix(
+        &member,
+        DATE,
+        ceremony.configuration_hash(),
+        tally.public_key(),
+        tally.ciphertexts(),
+        &body,
+    ));
+    assert_eq!(tally.view().await, TallyView::Mixing);
+
+    tally
+        .child
+        .push(ProtocolMessage::<Ctx>::partial_decryptions(
+            &member,
+            DATE,
+            ceremony.configuration_hash(),
+            tally.public_key(),
+            tally.ciphertexts(),
+            &body,
+        ));
+    assert_eq!(tally.view().await, TallyView::Decrypting);
+}
+
+#[tokio::test]
+async fn the_payloads_are_those_of_the_plaintexts_the_quorum_agreed_on() {
+    let ceremony = Ceremony::new(3, 2);
+    let tally = Tally::fabricated(&ceremony, &["trustee1", "trustee2"]);
+    let plaintexts_of = |payload: &[u8]| {
+        let element =
+            Ristretto255Group::encode_30_bytes(&padded(payload)).unwrap();
+        Plaintexts(vec![[element]])
+    };
+
+    // The trustee outside the quorum publishes first.
+    tally.child.push(tally.plaintexts(
+        2,
+        tally.ciphertexts(),
+        &plaintexts_of(b"outsider"),
+    ));
+    for position in 0..2 {
+        tally.child.push(tally.plaintexts(
+            position,
+            tally.ciphertexts(),
+            &plaintexts_of(b"agreed"),
+        ));
+    }
+
+    assert_eq!(
+        tally.view().await,
+        TallyView::Decrypted {
+            payloads: vec![padded(b"agreed")]
+        }
+    );
 }
 
 #[tokio::test]
@@ -562,8 +632,20 @@ async fn a_ballots_message_other_than_the_boards_own_makes_it_unusable() {
     // Only the other one: the board will never carry its own.
     let instead = MemoryBoard::<Ctx>::new();
     instead.push(other.input.message().clone());
+    // The manager's Ballots for another Configuration takes the same slot.
+    let elsewhere = MemoryBoard::<Ctx>::new();
+    elsewhere.push(own.input.message().clone());
+    elsewhere.push(ProtocolMessage::<Ctx>::ballots(
+        &ceremony.manager,
+        DATE,
+        ConfigurationHash(hash_bytes(b"another ceremony")),
+        PublicKeyHash(public_key_hash.to_hash()),
+        vec![1, 2],
+        1,
+        &Ballots::<Ctx, CIPHERTEXT_WIDTH>::new(Vec::new()),
+    ));
 
-    for child in [alongside, instead] {
+    for child in [alongside, instead, elsewhere] {
         let view = read_tally(
             Arc::clone(&ceremony.board),
             child,
