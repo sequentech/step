@@ -330,9 +330,13 @@ const dutchTranslation: TranslationType = {
             common: {
                 gapiKey: "Google Calendar Service Account Sleutel",
                 gapiEmail: "Google Calendar Authenticatie E-mail",
+                gapiKeyHelper:
+                    "De opgeslagen sleutel wordt niet getoond. Plak een nieuwe sleutel om deze te vervangen.",
+                gapiKeySaved: "Google Calendar Service Account Sleutel opgeslagen",
             },
             errors: {
                 invalidGapiKey: "Ongeldig formaat voor Google Calendar Service Account Sleutel",
+                saveGapiKey: "Kon de Google Calendar Service Account Sleutel niet opslaan",
             },
         },
         lookAndFeelScreen: {

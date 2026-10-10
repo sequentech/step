@@ -4,10 +4,13 @@
 import React, {useContext, useEffect, useState} from "react"
 
 import {useTranslation} from "react-i18next"
+import {useMutation} from "@apollo/client"
 import {SimpleForm, useEditController, Toolbar, SaveButton, useNotify, TextInput} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
+import {SetGoogleServiceAccountKeyMutation} from "@/gql/graphql"
+import {SET_GOOGLE_SERVICE_ACCOUNT_KEY} from "@/queries/SetGoogleServiceAccountKey"
 
 export const SettingsIntegrations: React.FC<void> = () => {
     const [tenantId] = useTenantStore()
@@ -15,7 +18,7 @@ export const SettingsIntegrations: React.FC<void> = () => {
     const notify = useNotify()
     const authContext = useContext(AuthContext)
 
-    const {record, save, isLoading} = useEditController({
+    const {record, save, isLoading, refetch} = useEditController({
         resource: "sequent_backend_tenant",
         id: tenantId,
         redirect: false,
@@ -30,6 +33,10 @@ export const SettingsIntegrations: React.FC<void> = () => {
     const [gapiKeyChanged, setGapiKeyChanged] = useState<boolean>(false)
     const [gapiEmailChanged, setGapiEmailChanged] = useState<boolean>(false)
     const [saveDisabled, setSaveDisabled] = useState<boolean>(true)
+    const [formVersion, setFormVersion] = useState<number>(0)
+    const [setGoogleServiceAccountKey] = useMutation<SetGoogleServiceAccountKeyMutation>(
+        SET_GOOGLE_SERVICE_ACCOUNT_KEY
+    )
 
     useEffect(() => {
         if (gapiKeyChanged || gapiEmailChanged) {
@@ -70,19 +77,30 @@ export const SettingsIntegrations: React.FC<void> = () => {
     }
 
     const onSave = async () => {
-        const updatedSettings = {...(record?.settings ?? {})}
-
-        // Only update fields that have been changed
-        if (gapiKeyChanged) {
-            updatedSettings.gapi_key = gapiKey
+        const storeGapiKey = gapiKeyChanged && gapiKey !== null
+        if (storeGapiKey) {
+            try {
+                await setGoogleServiceAccountKey({variables: {serviceAccountKey: gapiKey}})
+            } catch (error) {
+                notify(t("integrationsScreen.errors.saveGapiKey"), {type: "error"})
+                return
+            }
+            notify(t("integrationsScreen.common.gapiKeySaved"), {type: "success"})
+            setFormVersion((version) => version + 1)
         }
+
         if (gapiEmailChanged) {
+            const updatedSettings = {...(record?.settings ?? {})}
+            if (storeGapiKey) {
+                delete updatedSettings.gapi_key
+            }
             updatedSettings.gapi_email = gapiEmail.trim() !== "" ? gapiEmail : undefined
+            save!({
+                settings: updatedSettings,
+            })
+        } else if (storeGapiKey) {
+            await refetch()
         }
-
-        save!({
-            settings: updatedSettings,
-        })
         // Clear the inputs and reset change flags after saving
         setGapiKey(null)
         setGapiEmail("")
@@ -93,6 +111,7 @@ export const SettingsIntegrations: React.FC<void> = () => {
     if (isLoading) return null
     return (
         <SimpleForm
+            key={formVersion}
             toolbar={
                 <Toolbar>
                     {canEdit ? (
@@ -110,8 +129,9 @@ export const SettingsIntegrations: React.FC<void> = () => {
             <TextInput
                 multiline={true}
                 maxRows={6}
-                source={"settings.gapi_key"}
+                source={"gapi_key_input"}
                 label={String(t("integrationsScreen.common.gapiKey"))}
+                helperText={String(t("integrationsScreen.common.gapiKeyHelper"))}
                 onChange={handleGapiKeyChange}
             />
             <TextInput
