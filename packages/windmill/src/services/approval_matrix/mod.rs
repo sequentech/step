@@ -214,67 +214,81 @@ impl ApprovalMatrix {
                 .map(|(name, result)| (name.to_string(), *result))
                 .collect()
         };
+        let mut rules = vec![
+            rule(
+                RuleConditions {
+                    already_enrolled: Some(true),
+                    differing: Some(DifferingFields::AtMost1),
+                    ..Default::default()
+                },
+                RuleOutcome::rejected(ApplicationRejectReason::ALREADY_APPROVED),
+            ),
+            rule(
+                RuleConditions {
+                    identity: Some(IdentityMethod::MANUAL_ENTRY),
+                    ..Default::default()
+                },
+                RuleOutcome::pending(ApplicationRejectReason::IDENTITY_NOT_VERIFIED),
+            ),
+            rule(
+                RuleConditions {
+                    differing: Some(DifferingFields::None),
+                    ..Default::default()
+                },
+                RuleOutcome::accepted(),
+            ),
+            rule(
+                RuleConditions {
+                    differing: Some(DifferingFields::Exactly1),
+                    fields: fields(&[(FIELD_EMBASSY, FieldMatch::DIFFERS)]),
+                    ..Default::default()
+                },
+                RuleOutcome::accepted(),
+            ),
+            rule(
+                RuleConditions {
+                    differing: Some(DifferingFields::Exactly1),
+                    fields: fields(&[(FIELD_EMBASSY, FieldMatch::MATCHES)]),
+                    ..Default::default()
+                },
+                RuleOutcome::pending(ApplicationRejectReason::NO_VOTER),
+            ),
+            rule(
+                RuleConditions {
+                    differing: Some(DifferingFields::Exactly2),
+                    fields: fields(&[(FIELD_EMBASSY, FieldMatch::DIFFERS)]),
+                    ..Default::default()
+                },
+                RuleOutcome::pending(ApplicationRejectReason::NO_VOTER),
+            ),
+            rule(
+                RuleConditions {
+                    differing: Some(DifferingFields::Exactly2),
+                    fields: fields(&[
+                        (FIELD_MIDDLE_NAME, FieldMatch::DIFFERS),
+                        (FIELD_LAST_NAME, FieldMatch::DIFFERS),
+                    ]),
+                    ..Default::default()
+                },
+                RuleOutcome::pending(ApplicationRejectReason::NO_VOTER),
+            ),
+        ];
+        if !compared_fields.iter().any(|field| field == FIELD_EMBASSY) {
+            // Without the post in the comparison, a single difference can't
+            // be told apart from a post difference: it goes to manual review.
+            rules.retain(|rule| {
+                rule.then.decision != ApplicationStatus::ACCEPTED
+                    || !rule.when.fields.contains_key(FIELD_EMBASSY)
+            });
+            for rule in rules.iter_mut() {
+                if rule.when.differing == Some(DifferingFields::Exactly1) {
+                    rule.when.fields.remove(FIELD_EMBASSY);
+                }
+            }
+        }
         ApprovalMatrix {
             compared_fields,
-            rules: vec![
-                rule(
-                    RuleConditions {
-                        already_enrolled: Some(true),
-                        differing: Some(DifferingFields::AtMost1),
-                        ..Default::default()
-                    },
-                    RuleOutcome::rejected(ApplicationRejectReason::ALREADY_APPROVED),
-                ),
-                rule(
-                    RuleConditions {
-                        identity: Some(IdentityMethod::MANUAL_ENTRY),
-                        ..Default::default()
-                    },
-                    RuleOutcome::pending(ApplicationRejectReason::IDENTITY_NOT_VERIFIED),
-                ),
-                rule(
-                    RuleConditions {
-                        differing: Some(DifferingFields::None),
-                        ..Default::default()
-                    },
-                    RuleOutcome::accepted(),
-                ),
-                rule(
-                    RuleConditions {
-                        differing: Some(DifferingFields::Exactly1),
-                        fields: fields(&[(FIELD_EMBASSY, FieldMatch::DIFFERS)]),
-                        ..Default::default()
-                    },
-                    RuleOutcome::accepted(),
-                ),
-                rule(
-                    RuleConditions {
-                        differing: Some(DifferingFields::Exactly1),
-                        fields: fields(&[(FIELD_EMBASSY, FieldMatch::MATCHES)]),
-                        ..Default::default()
-                    },
-                    RuleOutcome::pending(ApplicationRejectReason::NO_VOTER),
-                ),
-                rule(
-                    RuleConditions {
-                        differing: Some(DifferingFields::Exactly2),
-                        fields: fields(&[(FIELD_EMBASSY, FieldMatch::DIFFERS)]),
-                        ..Default::default()
-                    },
-                    RuleOutcome::pending(ApplicationRejectReason::NO_VOTER),
-                ),
-                rule(
-                    RuleConditions {
-                        differing: Some(DifferingFields::Exactly2),
-                        fields: fields(&[
-                            (FIELD_MIDDLE_NAME, FieldMatch::DIFFERS),
-                            (FIELD_LAST_NAME, FieldMatch::DIFFERS),
-                        ]),
-                        ..Default::default()
-                    },
-                    RuleOutcome::pending(ApplicationRejectReason::NO_VOTER),
-                ),
-            ],
+            rules,
             otherwise: RuleOutcome::rejected(ApplicationRejectReason::NO_VOTER),
         }
     }

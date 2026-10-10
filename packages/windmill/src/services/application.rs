@@ -1282,6 +1282,59 @@ mod tests {
         )
     }
 
+    fn census_voter() -> User {
+        User {
+            id: Some("voter-id".to_string()),
+            username: Some("voter".to_string()),
+            first_name: Some("Maria".to_string()),
+            last_name: Some("Santos".to_string()),
+            attributes: Some(HashMap::from([(
+                "dateOfBirth".to_string(),
+                vec!["1980-01-01".to_string()],
+            )])),
+            ..Default::default()
+        }
+    }
+
+    fn census_applicant(date_of_birth: &str) -> HashMap<String, String> {
+        HashMap::from([
+            ("firstName".to_string(), "Maria".to_string()),
+            ("lastName".to_string(), "Santos".to_string()),
+            ("dateOfBirth".to_string(), date_of_birth.to_string()),
+            ("country".to_string(), "Spain/Madrid".to_string()),
+            ("embassy".to_string(), "Madrid PE".to_string()),
+        ])
+    }
+
+    #[test]
+    fn single_mismatch_without_embassy_comparison_requires_manual_review() {
+        let (result, _) = automatic_verification(
+            vec![census_voter()],
+            &census_matrix(),
+            &census_annotations(None),
+            &census_applicant("1990-02-02"),
+        )
+        .unwrap();
+
+        assert_eq!(result.application_status, ApplicationStatus::PENDING);
+        assert_eq!(result.application_type, ApplicationType::MANUAL);
+        assert_eq!(result.user_id, None);
+    }
+
+    #[test]
+    fn exact_match_without_embassy_comparison_is_accepted() {
+        let (result, _) = automatic_verification(
+            vec![census_voter()],
+            &census_matrix(),
+            &census_annotations(None),
+            &census_applicant("1980-01-01"),
+        )
+        .unwrap();
+
+        assert_eq!(result.application_status, ApplicationStatus::ACCEPTED);
+        assert_eq!(result.user_id, Some("voter-id".to_string()));
+    }
+
     #[test]
     fn test_no_matching_voter_is_rejected_by_default() {
         let (result, decision) = automatic_verification(
