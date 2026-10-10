@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use std::fs::{self, File};
+use std::future::Future;
 use std::io::{Read, Write};
 use std::str::FromStr;
 use std::time::Instant;
@@ -390,7 +391,7 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
     ) -> Result<Response<PutMessagesMultiReply>, Status> {
         let r = request.get_ref();
 
-        for request in &r.requests {
+        put_each_board(&r.requests, |request| async move {
             let bytes: usize = request.messages.iter().map(|m| m.message.len()).sum();
             info!(
                 "post_messages_multi: received post for '{}' with {} messages",
@@ -405,10 +406,48 @@ impl super::proto::b3_server::B3 for PgsqlB3Server {
                 now.elapsed().as_millis(),
                 f64::from(bytes as u32) / (1024.0 * 1024.0)
             );
-        }
+            Ok(())
+        })
+        .await?;
 
         let reply = PutMessagesMultiReply {};
         Ok(Response::new(reply))
+    }
+}
+
+/// Posts each board's messages with `put`, continuing with the remaining
+/// boards when one fails.
+///
+/// Returns an error naming the boards that failed, with the status code of
+/// the first failure.
+async fn put_each_board<'a, F, Fut>(
+    requests: &'a [PutMessagesRequest],
+    mut put: F,
+) -> Result<(), Status>
+where
+    F: FnMut(&'a PutMessagesRequest) -> Fut,
+    Fut: Future<Output = Result<(), Status>>,
+{
+    let mut failed: Vec<&str> = vec![];
+    let mut code = None;
+    for request in requests {
+        if let Err(status) = put(request).await {
+            error!(
+                "put_messages_multi: failed to post messages for board '{}': {}",
+                request.board,
+                status.message()
+            );
+            code.get_or_insert(status.code());
+            failed.push(&request.board);
+        }
+    }
+
+    match code {
+        None => Ok(()),
+        Some(code) => Err(Status::new(
+            code,
+            format!("Failed to post messages for boards: {}", failed.join(", ")),
+        )),
     }
 }
 
@@ -541,6 +580,62 @@ pub(crate) mod tests {
 
         assert_eq!(boards.boards.len(), 1);
         assert_eq!(boards.boards[0], TEST_BOARD);
+    }
+
+    fn put_request(board: &str) -> PutMessagesRequest {
+        PutMessagesRequest {
+            board: board.to_string(),
+            messages: vec![],
+        }
+    }
+
+    /// A board whose messages cannot be stored does not stop the boards after
+    /// it from being stored, and the error names the failed board.
+    #[tokio::test]
+    async fn put_each_board_continues_after_failed_board() {
+        let requests = vec![
+            put_request("board_a"),
+            put_request("board_b"),
+            put_request("board_c"),
+        ];
+        let stored = std::sync::Mutex::new(vec![]);
+
+        let result = put_each_board(&requests, |request| {
+            let stored = &stored;
+            async move {
+                if request.board == "board_a" {
+                    return Err(Status::internal("Failed to insert messages in database"));
+                }
+                stored.lock().unwrap().push(request.board.clone());
+                Ok(())
+            }
+        })
+        .await;
+
+        assert_eq!(*stored.lock().unwrap(), vec!["board_b", "board_c"]);
+        let status = result.expect_err("the failed board is reported");
+        assert_eq!(status.code(), tonic::Code::Internal);
+        assert!(status.message().contains("board_a"));
+        assert!(!status.message().contains("board_b"));
+    }
+
+    /// Every board is stored when no board fails.
+    #[tokio::test]
+    async fn put_each_board_stores_every_board() {
+        let requests = vec![put_request("board_a"), put_request("board_b")];
+        let stored = std::sync::Mutex::new(vec![]);
+
+        let result = put_each_board(&requests, |request| {
+            let stored = &stored;
+            async move {
+                stored.lock().unwrap().push(request.board.clone());
+                Ok(())
+            }
+        })
+        .await;
+
+        assert!(result.is_ok());
+        assert_eq!(*stored.lock().unwrap(), vec!["board_a", "board_b"]);
     }
 
     fn get_test_configuration<C: Ctx>(n_trustees: usize, threshold: usize) -> Message {
