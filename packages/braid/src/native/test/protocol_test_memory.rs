@@ -249,8 +249,8 @@ pub fn create_protocol_test<C: Ctx>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use b3::messages::artifact::DecryptionFactors;
-    use b3::messages::statement::Statement;
+    use b4::messages::artifact::DecryptionFactors;
+    use b4::messages::statement::Statement;
     use strand::backend::ristretto::RistrettoCtx;
     use strand::serialization::StrandDeserialize;
 
@@ -259,7 +259,7 @@ mod tests {
     const N_TRUSTEES: usize = 3;
     const SELECTED: [usize; 2] = [1, 2];
     const EDITING_TRUSTEE: usize = 1;
-    const BATCH: usize = 1;
+    const BATCH: u64 = 1;
     const CIPHERTEXTS: usize = 6;
     const MAX_CYCLES: usize = 30;
 
@@ -273,7 +273,7 @@ mod tests {
     fn resign_decryption_factors(
         message: Message,
         cfg: &Configuration<RistrettoCtx>,
-        signer: &Trustee<RistrettoCtx>,
+        signer: &Trustee<RistrettoCtx, crate::native::board::NoOpStorage>,
         edit: EditFactors,
     ) -> Message {
         let Statement::DecryptionFactors(_, _, batch, _, mix_h, shares_hs) =
@@ -293,7 +293,7 @@ mod tests {
 
     /// Gives every trustee one step on the board, applying the edit to the editing trustee's decryption factors.
     fn step_all(
-        trustees: &mut [Trustee<RistrettoCtx>],
+        trustees: &mut [Trustee<RistrettoCtx, crate::native::board::NoOpStorage>],
         last_ids: &mut [i64],
         board: &mut VectorBoard,
         cfg: &Configuration<RistrettoCtx>,
