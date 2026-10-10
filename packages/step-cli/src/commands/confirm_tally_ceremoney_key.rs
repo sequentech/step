@@ -4,7 +4,10 @@
 
 use crate::{
     types::hasura_types::*,
-    utils::{read_config::read_config, trustees::store_private_key::get_private_key_content},
+    utils::{
+        read_config::read_config,
+        trustees::{store_private_key::get_private_key_content, trustee_graphql_request},
+    },
 };
 use clap::Args;
 use colored::Colorize;
@@ -64,9 +67,7 @@ pub fn confirm_key(
 
     let request_body = RestorePrivateKey::build_query(variables);
 
-    let response = client
-        .post(&config.endpoint_url)
-        .bearer_auth(config.auth_token)
+    let response = trustee_graphql_request(&client, &config.endpoint_url, &config.auth_token)
         .json(&request_body)
         .send()?;
 
