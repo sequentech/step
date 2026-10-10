@@ -859,8 +859,8 @@ async fn map_plaintext_data(
     let has_next_plaintext = messages.iter().any(|message| {
         message.statement.get_timestamp() >= next_timestamp
             && message.statement.get_kind() == StatementType::Plaintexts
-            && b3::messages::trusted_board::plaintexts_agreed(message, &messages, &trusted_config)
             && batch_ids.contains(&(message.statement.get_batch_number() as i64))
+            && b3::messages::trusted_board::plaintexts_agreed(message, &messages, &trusted_config)
     });
 
     if !has_next_plaintext {
@@ -896,12 +896,12 @@ async fn map_plaintext_data(
         .iter()
         .filter(|message| {
             message.statement.get_kind() == StatementType::Plaintexts
+                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
                 && b3::messages::trusted_board::plaintexts_agreed(
                     message,
                     &messages,
                     &trusted_config,
                 )
-                && batch_ids.contains(&(message.statement.get_batch_number() as i64))
         })
         .collect();
     event!(

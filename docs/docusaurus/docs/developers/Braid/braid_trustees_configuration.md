@@ -26,7 +26,7 @@ Existing boards retain their wire format and trustee credentials. Before resumin
 a board that fails verification, operators must inspect and quarantine invalid
 rows against the original Vault key; replacing that trust anchor is not a repair.
 Keep database access limited to trusted services and the configured network rules
-around the board endpoint. This change performs no live board or Vault mutations.
+around the board endpoint.
 
 ## Configuration Options
 

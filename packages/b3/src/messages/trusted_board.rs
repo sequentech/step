@@ -13,7 +13,7 @@ mod tests;
 /// A board configuration is usable only under an independently trusted manager key.
 pub enum BoardConfigurationState<C: Ctx> {
     Missing,
-    Trusted(Configuration<C>),
+    Trusted(Box<Configuration<C>>),
     Foreign,
 }
 
@@ -42,10 +42,25 @@ pub fn configuration_state<C: Ctx>(
                 && &config.protocol_manager == manager
                 && message.verify(&config).is_ok() =>
         {
-            BoardConfigurationState::Trusted(config)
+            BoardConfigurationState::Trusted(Box::new(config))
         }
         _ => BoardConfigurationState::Foreign,
     }
+}
+
+/// Verify a message against an already trusted configuration.
+pub fn verify_message<C: Ctx>(message: &Message, config: &Configuration<C>) -> Result<()> {
+    let verified = message.verify(config)?;
+    if !matches!(
+        message.statement,
+        Statement::Configuration(..) | Statement::Ballots(..)
+    ) && verified.signer_position == PROTOCOL_MANAGER_INDEX
+    {
+        return Err(anyhow!(
+            "Trustee statement must be signed by a configured trustee"
+        ));
+    }
+    Ok(())
 }
 
 /// Verify every row before any row can contribute to ceremony state or results.
@@ -54,7 +69,7 @@ pub fn verify_board<C: Ctx>(
     manager: &StrandSignaturePk,
 ) -> Result<Configuration<C>> {
     let config = match configuration_state(messages, manager) {
-        BoardConfigurationState::Trusted(config) => config,
+        BoardConfigurationState::Trusted(config) => *config,
         BoardConfigurationState::Missing => return Err(anyhow!("Board configuration is missing")),
         BoardConfigurationState::Foreign => {
             return Err(anyhow!(
@@ -63,16 +78,7 @@ pub fn verify_board<C: Ctx>(
         }
     };
     for message in messages {
-        let verified = message.verify(&config)?;
-        if !matches!(
-            message.statement,
-            Statement::Configuration(..) | Statement::Ballots(..)
-        ) && verified.signer_position == PROTOCOL_MANAGER_INDEX
-        {
-            return Err(anyhow!(
-                "Trustee statement must be signed by a configured trustee"
-            ));
-        }
+        verify_message(message, &config)?;
     }
     Ok(config)
 }
