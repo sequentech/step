@@ -56,7 +56,11 @@ impl MarkWinners {
 
         let mut winners = contest_result.candidate_result.clone();
 
-        winners.retain(|w| !w.candidate.is_explicit_blank() && !w.candidate.is_explicit_invalid());
+        winners.retain(|w| {
+            !w.candidate.is_explicit_blank()
+                && !w.candidate.is_explicit_invalid()
+                && !w.candidate.is_disabled()
+        });
 
         winners.sort_by(|a, b| {
             match b.total_count.cmp(&a.total_count) {
@@ -310,5 +314,38 @@ mod tests {
             vec![1, 2]
         );
         assert!(winners.iter().all(|winner| winner.total_count == 0));
+    }
+
+    #[test]
+    fn winners_exclude_disabled_candidates() {
+        let with_votes = |mut result: CandidateResult, total_count: u64| {
+            result.total_count = total_count;
+            result
+        };
+        let contest_result = ContestResult {
+            contest: Contest {
+                winning_candidates_num: 2,
+                ..Contest::default()
+            },
+            candidate_result: vec![
+                with_votes(
+                    candidate_result("disabled", "Disabled", |p| p.is_disabled = Some(true)),
+                    30,
+                ),
+                with_votes(candidate_result("first", "First", |_| {}), 20),
+                with_votes(candidate_result("second", "Second", |_| {}), 10),
+            ],
+            ..ContestResult::default()
+        };
+
+        let winners = MarkWinners::get_winners(&contest_result);
+
+        assert_eq!(
+            winners
+                .iter()
+                .map(|winner| (winner.candidate.id.as_str(), winner.winning_position))
+                .collect::<Vec<_>>(),
+            vec![("first", 1), ("second", 2)]
+        );
     }
 }

@@ -119,6 +119,8 @@ const spanishTranslation: TranslationType = {
                     "¡Voto inválido! El orden de preferencia tiene uno o más huecos.",
                 duplicatedPosition:
                     "¡Voto inválido! La misma posición fue seleccionada para dos o más candidatos.",
+                selectedDisabledCandidate:
+                    "¡Voto inválido! Se ha seleccionado un candidato deshabilitado.",
             },
             explicit: {
                 notAllowed:

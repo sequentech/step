@@ -117,6 +117,8 @@ const basqueTranslation: TranslationType = {
                     "Boto baliogabea! Lehentasunaren ordenak hutsune bat edo gehiago ditu.",
                 duplicatedPosition:
                     "Boto baliogabea! Posizio bera hautatu da bi kandidatu edo gehiagorentzat.",
+                selectedDisabledCandidate:
+                    "Boto baliogabea! Desgaitutako kandidatu bat hautatu da.",
             },
             explicit: {
                 notAllowed:

@@ -119,6 +119,8 @@ const dutchTranslation: TranslationType = {
                     "Ongeldige stem! De voorkeursvolgorde heeft een of meer hiaten.",
                 duplicatedPosition:
                     "Ongeldige stem! Dezelfde positie is geselecteerd voor twee of meer kandidaten.",
+                selectedDisabledCandidate:
+                    "Ongeldige stem! Er is een uitgeschakelde kandidaat geselecteerd.",
             },
             explicit: {
                 notAllowed:
