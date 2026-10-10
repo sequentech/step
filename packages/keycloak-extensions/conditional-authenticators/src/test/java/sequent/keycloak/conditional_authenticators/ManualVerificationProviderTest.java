@@ -81,7 +81,7 @@ class ManualVerificationProviderTest {
   void authorizedAdminRejectsExternalRedirectBeforeLookingUpVoter() {
     assertThrows(
         BadRequestException.class,
-        () -> authorized(true).generateLink("voter", "https://attacker.example/login"));
+        () -> authorized(true).generateLink("voter", "https://untrusted.example/login"));
     verifyNoInteractions(users);
   }
 

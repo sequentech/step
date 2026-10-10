@@ -55,7 +55,7 @@ class ManualVerificationTokenHandlerTest {
   void externalRedirectFailsRedirectVerifier() {
     assertThrows(
         org.keycloak.common.VerificationException.class,
-        () -> handler.getVerifiers(tokenContext)[0].test(token("https://attacker.example/login")));
+        () -> handler.getVerifiers(tokenContext)[0].test(token("https://untrusted.example/login")));
   }
 
   @Test
