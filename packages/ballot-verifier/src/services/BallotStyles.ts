@@ -27,13 +27,15 @@ export type PublishedBallotStyleLookup =
 
 /**
  * Looks up the ballot style with the given id among those of published
- * publications. NOT_PUBLISHED is only returned once the ballot styles have
- * loaded and none of the published ones has that id; NOT_LOADED and
- * UNREADABLE mean the lookup could not be completed.
+ * publications of the given election event. NOT_PUBLISHED is only returned
+ * once the ballot styles have loaded and none of the published ones of that
+ * election event has that id; NOT_LOADED and UNREADABLE mean the lookup could
+ * not be completed.
  */
 export const findPublishedBallotStyle = (
     data: GetPublishedBallotStylesQuery | undefined,
-    ballotStyleId: string | undefined
+    ballotStyleId: string | undefined,
+    electionEventId: string | null
 ): PublishedBallotStyleLookup => {
     if (!data) {
         return {status: EPublishedBallotStyleLookup.NOT_LOADED}
@@ -43,7 +45,9 @@ export const findPublishedBallotStyle = (
     )
     const ballotStyle = data.sequent_backend_ballot_style.find(
         (style) =>
-            style.id === ballotStyleId && publishedPublicationIds.has(style.ballot_publication_id)
+            style.id === ballotStyleId &&
+            style.election_event_id === electionEventId &&
+            publishedPublicationIds.has(style.ballot_publication_id)
     )
     if (!ballotStyle) {
         return {status: EPublishedBallotStyleLookup.NOT_PUBLISHED}

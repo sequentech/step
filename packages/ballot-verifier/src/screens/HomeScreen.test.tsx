@@ -20,7 +20,7 @@ jest.mock("@sequentech/ui-core", () => ({
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("..", () => {
     const React = require("react")
-    return {TenantEventContext: React.createContext({tenantId: null, eventId: null})}
+    return {TenantEventContext: React.createContext({tenantId: "tenant-1", eventId: "event-1"})}
 })
 jest.mock("../services/BallotStyles", () => ({
     ...jest.requireActual("../services/BallotStyles"),
@@ -234,6 +234,32 @@ describe("HomeScreen ballot verification", () => {
         expect(screen.getByTestId("ciphertext-error")).not.toBeVisible()
         expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
         expect(service.decodeAuditableBallot).not.toHaveBeenCalled()
+        expect(service.verifyAuditableBallotCiphertext).not.toHaveBeenCalled()
+    })
+
+    it("rejects a ballot whose published ballot style belongs to another election event", async () => {
+        const service = ballotService(true)
+        const otherEvent = {
+            ...ballotStylesMock,
+            result: {
+                data: {
+                    ...ballotStylesMock.result.data,
+                    sequent_backend_ballot_style: [
+                        {
+                            ...ballotStylesMock.result.data.sequent_backend_ballot_style[0],
+                            election_event_id: "event-2",
+                        },
+                    ],
+                },
+            },
+        }
+
+        const setConfirmationBallot = renderHomeScreen(service, otherEvent)
+        await waitFor(() => expect(updateBallotStyleAndSelection).toHaveBeenCalled())
+        dropBallot(auditableBallot)
+
+        await waitFor(() => expect(screen.getByTestId("unpublished-style-error")).toBeVisible())
+        expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
         expect(service.verifyAuditableBallotCiphertext).not.toHaveBeenCalled()
     })
 
