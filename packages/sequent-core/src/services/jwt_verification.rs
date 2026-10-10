@@ -266,7 +266,7 @@ fn validate_configured_base(variable: &str, base: &str) -> Result<()> {
     })
 }
 
-async fn verify_bearer_with_config(
+pub(super) async fn verify_bearer_with_config(
     token: &str,
     trusted_bases: &[&str],
     internal_base: &str,

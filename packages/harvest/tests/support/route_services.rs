@@ -229,13 +229,15 @@ impl Services {
             signing: self.signing.clone(),
             signing_roles: self.signing_roles.clone(),
         };
-        Client::tracked(crate::build_application_with(services).configure(
-            rocket::Config {
-                log_level,
-                cli_colors: false,
-                ..Default::default()
-            },
-        ))
+        Client::tracked(
+            crate::build_application_with(services)
+                .manage(crate::test_claims::signing::issuers())
+                .configure(rocket::Config {
+                    log_level,
+                    cli_colors: false,
+                    ..Default::default()
+                }),
+        )
         .await
         .expect("the routes mount with test services")
     }

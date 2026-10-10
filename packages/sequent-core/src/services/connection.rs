@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
-use crate::services::jwt_verification::verify_bearer;
+use crate::services::jwt_verification::{
+    verify_bearer, verify_bearer_with_config,
+};
 use crate::services::keycloak::{
     get_third_party_client_access_token, KeycloakAdminClient,
     PubKeycloakAdminToken,
@@ -58,6 +60,29 @@ impl<'r> FromRequest<'r> for AuthHeaders {
     }
 }
 
+/// Issuers the bearer guards trust, and the server their signing keys come
+/// from. Applications that manage none use the Keycloak environment settings.
+pub struct BearerIssuers {
+    pub internal_base: String,
+    pub trusted_bases: Vec<String>,
+}
+
+async fn verified_claims(
+    request: &Request<'_>,
+    token: &str,
+) -> AnyhowResult<JwtClaims> {
+    let verified = match request.rocket().state::<BearerIssuers>() {
+        Some(issuers) => {
+            let trusted: Vec<&str> =
+                issuers.trusted_bases.iter().map(String::as_str).collect();
+            verify_bearer_with_config(token, &trusted, &issuers.internal_base)
+                .await?
+        }
+        None => verify_bearer(token).await?,
+    };
+    Ok(serde_json::from_value(verified)?)
+}
+
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for JwtClaims {
     type Error = ();
@@ -70,9 +95,7 @@ impl<'r> FromRequest<'r> for JwtClaims {
             Some(authorization) => {
                 match authorization.strip_prefix("Bearer ") {
                     Some(token) => {
-                        match verify_bearer(token).await.and_then(|claims| {
-                            serde_json::from_value(claims).map_err(Into::into)
-                        }) {
+                        match verified_claims(request, token).await {
                             Ok(jwt) => Outcome::Success(jwt),
                             Err(_) => {
                                 warn!("JwtClaims guard: invalid bearer token");
@@ -338,11 +361,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             }
         };
 
-        match verify_bearer(&token_resp.access_token)
-            .await
-            .and_then(|claims| {
-                serde_json::from_value(claims).map_err(Into::into)
-            }) {
+        match verified_claims(request, &token_resp.access_token).await {
             Ok(jwt_claims) => Outcome::Success(DatafixClaims {
                 jwt_claims,
                 tenant_id,
