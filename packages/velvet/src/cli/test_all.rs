@@ -475,6 +475,7 @@ mod tests {
     use crate::config::ballot_images_config::PipeConfigBallotImages;
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::TestFixture;
+    use crate::pipes::ballot_images::BALLOT_IMAGES_OUTPUT_FILE_HTML;
     use crate::pipes::decode_ballots::decode_mcballots;
     use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
     use crate::pipes::do_tally::{ContestResult, OUTPUT_CONTEST_RESULT_FILE};
@@ -2133,6 +2134,18 @@ mod tests {
         assert_eq!(contest_result.total_valid_votes, 5);
         assert_eq!(contest_result.total_invalid_votes, 1);
         assert_eq!(contest_result.invalid_votes.implicit, 1);
+
+        // Every valid ballot marks a candidate and the one that did not decode
+        // is not shown as a blank vote.
+        let receipts = fs::read_to_string(
+            cli.output_dir
+                .join(PipeNameOutputDir::BallotImages.as_ref())
+                .join(format!("{PREFIX_ELECTION}{}", election.id))
+                .join(format!("{PREFIX_CONTEST}{}", contest.id))
+                .join(format!("{PREFIX_AREA}{}", area_config.id))
+                .join(BALLOT_IMAGES_OUTPUT_FILE_HTML),
+        )?;
+        assert_eq!(receipts.matches("<strong>ABSTENTION</strong>").count(), 0);
 
         Ok(())
     }
