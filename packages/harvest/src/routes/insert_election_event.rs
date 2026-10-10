@@ -64,7 +64,7 @@ pub async fn insert_election_event_f(
     let object = body.into_inner();
     authorize_insert_election_event(&claims, &object)?;
 
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let tenant_id = object.tenant_id.clone();
     let executer_name = claims
         .name
         .clone()
