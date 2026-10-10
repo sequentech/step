@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id_if_exist;
-use crate::services::celery_app::get_celery_connection;
 use crate::services::celery_app::Queue;
 use crate::services::database::get_hasura_pool;
 use crate::services::database::get_keycloak_pool;
+use crate::services::database::get_queue_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::electoral_log_dead_letter::{DeadLetterPublisher, DeadLetterStage};
+use crate::services::electoral_log_dead_letter::{
+    dead_letter_events, dead_letter_message, DeadLetterStage,
+};
 use crate::services::protocol_manager::{
     deserialize_protocol_manager, get_board_client, get_protocol_manager_secret_path,
 };
@@ -28,11 +30,6 @@ use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use tracing::{event, info, instrument};
 use uuid::Uuid;
-
-use lapin::{
-    options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
-    types::FieldTable,
-};
 
 /// Classifies the type of an incoming log event.
 ///
@@ -116,7 +113,7 @@ impl<'de> Deserialize<'de> for LogEventBody {
 }
 
 /// Represents an incoming log event.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct LogEventInput {
     #[serde(default)]
     pub delivery_id: Option<String>,
@@ -166,12 +163,11 @@ pub async fn process_electoral_log_events_batch(
                 events.len()
             );
             let reason = format!("retries exhausted: {error:#}");
-            let publisher = DeadLetterPublisher::open().await?;
+            let mut set_aside = Vec::with_capacity(events.len());
             for event in &events {
-                publisher
-                    .publish_event(event, DeadLetterStage::Batch, &reason)
-                    .await?;
+                set_aside.push((event, reason.as_str()));
             }
+            dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
             Ok(())
         }
         Err(error) => Err(error.into()),
@@ -219,17 +215,16 @@ async fn store_batch(events: &[LogEventInput]) -> anyhow::Result<()> {
         .context("Error committing Hasura transaction")?;
 
     if !built.dead_letters.is_empty() {
-        let publisher = DeadLetterPublisher::open().await?;
+        let mut set_aside = Vec::with_capacity(built.dead_letters.len());
         for (event, reason) in &built.dead_letters {
             tracing::error!(
                 delivery_id = event.delivery_id.as_deref().unwrap_or_default(),
                 election_event_id = event.election_event_id.as_str(),
                 "Dead-lettering an electoral-log event: {reason}"
             );
-            publisher
-                .publish_event(event, DeadLetterStage::Batch, reason)
-                .await?;
+            set_aside.push((event, reason.as_str()));
         }
+        dead_letter_events(&set_aside, DeadLetterStage::Batch).await?;
     }
 
     // Append every board before failing, so one failing board does not hold back the
@@ -505,8 +500,8 @@ pub const BATCH_SIZE_ENV: &str = "ELECTORAL_LOG_BATCH_SIZE";
 pub const BATCH_MAX_BYTES_ENV: &str = "ELECTORAL_LOG_BATCH_MAX_BYTES";
 /// Events per batch when `ELECTORAL_LOG_BATCH_SIZE` is not set.
 pub const DEFAULT_BATCH_SIZE: usize = 1_000;
-/// Payload bytes per batch when `ELECTORAL_LOG_BATCH_MAX_BYTES` is not set (16 MiB),
-/// well below the default maximum message size of RabbitMQ.
+/// Payload bytes per batch when `ELECTORAL_LOG_BATCH_MAX_BYTES` is not set (16 MiB). A
+/// batch task is one PGMQ message, so this also bounds the size of that message.
 pub const DEFAULT_BATCH_MAX_BYTES: usize = 16 * 1024 * 1024;
 
 /// How much the dispatcher puts in one batch task. A batch closes when it reaches
@@ -528,8 +523,13 @@ impl BatchLimits {
     }
 
     fn from_values(max_events: Option<&str>, max_bytes: Option<&str>) -> anyhow::Result<Self> {
+        let max_events = parse_limit(BATCH_SIZE_ENV, max_events, DEFAULT_BATCH_SIZE)?;
+        anyhow::ensure!(
+            i32::try_from(max_events).is_ok(),
+            "{BATCH_SIZE_ENV} is too large for a PGMQ read, got {max_events}"
+        );
         Ok(Self {
-            max_events: parse_limit(BATCH_SIZE_ENV, max_events, DEFAULT_BATCH_SIZE)?,
+            max_events,
             max_bytes: parse_limit(BATCH_MAX_BYTES_ENV, max_bytes, DEFAULT_BATCH_MAX_BYTES)?,
         })
     }
@@ -556,119 +556,154 @@ fn parse_limit(name: &str, value: Option<&str>, default: usize) -> anyhow::Resul
     }
 }
 
-/// Dispatcher: repeatedly reads batches of messages from the electoral_log_event_queue and hands
-/// each batch to the processing task. Each batch is processed sequentially so that only a single
-/// batch is held in memory.
+/// Dispatcher: repeatedly promotes batches of raw events from the electoral_log_event_queue to
+/// processing tasks. Each handoff is one PostgreSQL transaction: the batch task is enqueued,
+/// messages that cannot be parsed are dead-lettered and the batch's raw events are deleted
+/// together, or not at all. Normal Celery consumers do not read the raw-event queue.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
-    info!("starting electoral_log_batch_dispatcher");
-
-    // Reuse the global AMQP connection.
-    let connection_arc = get_celery_connection().await?;
-    let channel = connection_arc
-        .create_channel()
-        .await
-        .with_context(|| "Error creating RabbitMQ channel")?;
-
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let queue_name = Queue::ElectoralLogEvent.queue_name(&slug);
-    let _queue = channel
-        .queue_declare(
-            &queue_name,
-            QueueDeclareOptions {
-                durable: true,
-                ..Default::default()
-            },
-            FieldTable::default(),
-        )
-        .await
-        .with_context(|| "Error declaring electoral_log_batch_queue")?;
-
     let limits = BatchLimits::from_env()?;
-    let mut dead_letters: Option<DeadLetterPublisher> = None;
+    dispatch_electoral_log_batches(
+        get_queue_pool().await.as_ref(),
+        &DispatchQueues::default(),
+        limits,
+    )
+    .await
+}
 
-    loop {
-        let mut batch_deliveries = Vec::new();
-        let mut batch_bytes = 0usize;
-        while !limits.is_full(batch_deliveries.len(), batch_bytes) {
-            let Some(delivery) = channel
-                .basic_get(&queue_name, BasicGetOptions { no_ack: false })
-                .await?
-            else {
-                break;
-            };
-            batch_bytes = batch_bytes.saturating_add(delivery.data.len());
-            batch_deliveries.push(delivery);
+/// The queues a dispatcher run reads from and writes to.
+struct DispatchQueues {
+    events: String,
+    batches: String,
+    dead_letters: String,
+}
+
+impl Default for DispatchQueues {
+    fn default() -> Self {
+        DispatchQueues {
+            events: Queue::ElectoralLogEvent.queue_name().into(),
+            batches: Queue::ElectoralLogBatch.queue_name().into(),
+            dead_letters: Queue::ElectoralLogDeadLetter.queue_name().into(),
         }
+    }
+}
 
-        if batch_deliveries.is_empty() {
-            info!("no more elements to process in queue");
+async fn dispatch_electoral_log_batches(
+    pool: &deadpool_postgres::Pool,
+    queues: &DispatchQueues,
+    limits: BatchLimits,
+) -> Result<()> {
+    let source = queues.events.as_str();
+    let target = queues.batches.as_str();
+    let dead_letters = queues.dead_letters.as_str();
+    let max_events = i32::try_from(limits.max_events)
+        .with_context(|| format!("{BATCH_SIZE_ENV} is too large for a PGMQ read"))?;
+    loop {
+        let mut client = pool
+            .get()
+            .await
+            .context("Error obtaining PGMQ batch connection")?;
+        let tx = client.transaction().await?;
+        tx.batch_execute("SET LOCAL statement_timeout = '10s'")
+            .await?;
+        // pgmq.read retains row locks until commit, including while building the batch.
+        let mut rows = tx
+            .query(
+                "SELECT msg_id, message, COALESCE(octet_length(message::text), 0) AS bytes \
+                 FROM pgmq.read($1, 60, $2)",
+                &[&source, &max_events],
+            )
+            .await?;
+        if rows.is_empty() {
             break;
+        }
+        rows.sort_by_key(|row| row.get::<_, i64>("msg_id"));
+
+        let mut events = Vec::with_capacity(rows.len());
+        let mut taken: Vec<i64> = Vec::with_capacity(rows.len());
+        let mut returned: Vec<i64> = Vec::new();
+        let mut batch_bytes = 0usize;
+        for row in rows {
+            let id: i64 = row.get("msg_id");
+            if limits.is_full(taken.len(), batch_bytes) {
+                returned.push(id);
+                continue;
+            }
+            let bytes: i32 = row.get("bytes");
+            batch_bytes = batch_bytes.saturating_add(usize::try_from(bytes).unwrap_or_default());
+            taken.push(id);
+            let message = row
+                .get::<_, Option<serde_json::Value>>("message")
+                .unwrap_or(serde_json::Value::Null);
+            // A message that cannot be parsed is dead-lettered, so it cannot block the queue.
+            match parse_queued_event(message.clone()) {
+                Ok(event) => events.push(event),
+                Err(error) => {
+                    tracing::error!(
+                        message_id = id,
+                        "Dead-lettering an electoral-log message that cannot be parsed: {error:#}"
+                    );
+                    dead_letter_message(
+                        &*tx,
+                        dead_letters,
+                        &message,
+                        DeadLetterStage::Dispatcher,
+                        &format!("{error:#}"),
+                    )
+                    .await?;
+                }
+            }
         }
         info!(
             "dispatching a batch of {len} events, {batch_bytes} bytes (limits: {max_events} events, {max_bytes} bytes)",
-            len = batch_deliveries.len(),
+            len = taken.len(),
             max_events = limits.max_events,
             max_bytes = limits.max_bytes,
         );
 
-        // A message that cannot be parsed is dead-lettered, so it cannot block the queue.
-        let mut events = Vec::with_capacity(batch_deliveries.len());
-        for delivery in &batch_deliveries {
-            match parse_delivery(&delivery.data, &delivery.properties) {
-                Ok(event) => events.push(event),
-                Err(error) => {
-                    tracing::error!(
-                        "Dead-lettering an electoral-log message that cannot be parsed: {error:#}"
-                    );
-                    if dead_letters.is_none() {
-                        dead_letters = Some(DeadLetterPublisher::open().await?);
-                    }
-                    if let Some(publisher) = &dead_letters {
-                        publisher
-                            .publish_raw(
-                                &delivery.data,
-                                &delivery.properties,
-                                DeadLetterStage::Dispatcher,
-                                &format!("{error:#}"),
-                            )
-                            .await?;
-                    }
-                }
-            }
-        }
-
         if !events.is_empty() {
-            let celery_app = crate::services::celery_app::get_celery_app().await;
-            let celery_task = process_electoral_log_events_batch::new(events);
-            celery_app
-                .send_task(celery_task)
+            let message = celery::protocol::Message::try_from(
+                process_electoral_log_events_batch::new(events),
+            )
+            .context("Error encoding electoral-log batch")?;
+            pgmq_broker::send(&*tx, target, &message)
                 .await
-                .with_context(|| "Error sending process_electoral_log_events_batch task")?;
+                .context("Error enqueueing electoral-log batch")?;
         }
-
-        // Acknowledge all messages in the current batch.
-        for delivery in batch_deliveries {
-            channel
-                .basic_ack(delivery.delivery_tag, BasicAckOptions::default())
-                .await
-                .with_context(|| "Error acknowledging message")?;
+        tx.query("SELECT pgmq.delete($1, $2::bigint[])", &[&source, &taken])
+            .await?;
+        if !returned.is_empty() {
+            // Messages beyond the batch limits are visible again for the next batch.
+            tx.query(
+                "SELECT pgmq.set_vt($1, $2::bigint[], 0)",
+                &[&source, &returned],
+            )
+            .await?;
         }
+        tx.commit().await?;
     }
-    info!("finishing electoral_log_batch_dispatcher");
     Ok(())
 }
 
-/// Parse an event-queue message: a Celery message whose second element carries the
-/// event as `input`.
-fn parse_delivery(
-    data: &[u8],
-    properties: &lapin::BasicProperties,
-) -> anyhow::Result<LogEventInput> {
+/// Parse an event-queue message: the Celery envelope of an `enqueue_electoral_log_event`
+/// task.
+fn parse_queued_event(message: serde_json::Value) -> anyhow::Result<LogEventInput> {
+    let message = pgmq_broker::decode(message).context("Error decoding the Celery envelope")?;
+    anyhow::ensure!(
+        message.headers.task == enqueue_electoral_log_event::NAME,
+        "Unexpected raw-event task {:?}",
+        message.headers.task
+    );
+    parse_event_body(&message.raw_body, Some(message.headers.id.as_str()))
+}
+
+/// Parse the body of an event-queue message, whose second element carries the event as
+/// `input`.
+fn parse_event_body(body: &[u8], celery_id: Option<&str>) -> anyhow::Result<LogEventInput> {
     let message: serde_json::Value =
-        serde_json::from_slice(data).context("Error parsing Celery message as JSON")?;
+        serde_json::from_slice(body).context("Error parsing Celery message as JSON")?;
     let input = message
         .as_array()
         .context("Invalid message format: expected a JSON array")?
@@ -678,28 +713,17 @@ fn parse_delivery(
         .context("Missing 'input' field in message payload")?;
     let mut event: LogEventInput = serde_json::from_value(input.clone())
         .context("Error deserializing LogEventInput from input field")?;
-    retain_delivery_id(&mut event, properties)?;
+    retain_delivery_id(&mut event, celery_id)?;
     Ok(event)
 }
 
-/// Keycloak supplies the Celery header; internal producers persist an explicit ID.
-fn retain_delivery_id(
-    input: &mut LogEventInput,
-    properties: &lapin::BasicProperties,
-) -> anyhow::Result<()> {
+/// Keycloak supplies the Celery task ID; internal producers persist an explicit ID.
+fn retain_delivery_id(input: &mut LogEventInput, celery_id: Option<&str>) -> anyhow::Result<()> {
     if input.delivery_id.is_none() {
-        let headers = properties
-            .headers()
-            .as_ref()
-            .context("Missing electoral-log message headers")?;
-        let id = headers
-            .inner()
-            .get("id")
-            .and_then(|value| value.as_long_string())
-            .context("Missing original Celery delivery ID")?;
         input.delivery_id = Some(
-            String::from_utf8(id.as_bytes().to_vec())
-                .context("Invalid Celery delivery ID encoding")?,
+            celery_id
+                .context("Missing original Celery delivery ID")?
+                .to_owned(),
         );
     }
     anyhow::ensure!(
@@ -748,6 +772,8 @@ mod batch_limit_tests {
                 "{bad}: {error}"
             );
         }
+        let error = BatchLimits::from_values(Some("3000000000"), None).unwrap_err();
+        assert!(error.to_string().contains(BATCH_SIZE_ENV), "{error}");
     }
 
     /// Mirrors the dispatcher loop: messages are taken until a limit is reached.
@@ -803,7 +829,6 @@ mod batch_limit_tests {
 #[cfg(test)]
 mod delivery_tests {
     use super::*;
-    use lapin::types::{AMQPValue, LongString};
 
     #[test]
     fn original_delivery_identity_survives_dispatch_and_task_retry() {
@@ -816,23 +841,14 @@ mod delivery_tests {
             username: None,
             body: LogEventBody::Plain("null".into()),
         };
-        assert!(retain_delivery_id(&mut input, &lapin::BasicProperties::default()).is_err());
-        let mut headers = FieldTable::default();
-        headers.insert(
-            "id".into(),
-            AMQPValue::LongString(LongString::from("original-id")),
-        );
-        retain_delivery_id(
-            &mut input,
-            &lapin::BasicProperties::default().with_headers(headers),
-        )
-        .unwrap();
+        assert!(retain_delivery_id(&mut input, None).is_err());
+        retain_delivery_id(&mut input, Some("original-id")).unwrap();
         let encoded = serde_json::to_vec(&input).unwrap();
         let mut retry: LogEventInput = serde_json::from_slice(&encoded).unwrap();
-        retain_delivery_id(&mut retry, &lapin::BasicProperties::default()).unwrap();
+        retain_delivery_id(&mut retry, Some("retry-id")).unwrap();
         assert_eq!(retry.delivery_id.as_deref(), Some("original-id"));
         retry.delivery_id = Some(String::new());
-        assert!(retain_delivery_id(&mut retry, &lapin::BasicProperties::default()).is_err());
+        assert!(retain_delivery_id(&mut retry, None).is_err());
         assert_eq!(
             process_electoral_log_events_batch::DEFAULTS.acks_late,
             Some(true)
@@ -855,7 +871,7 @@ mod delivery_tests {
 #[cfg(test)]
 mod batch_build_tests {
     use super::*;
-    use crate::services::electoral_log_dead_letter::event_message_body;
+    use crate::services::electoral_log_dead_letter::event_message;
     use strand::signature::StrandSignatureSk;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
@@ -1081,9 +1097,9 @@ mod batch_build_tests {
     fn dead_lettered_events_parse_back_unchanged() {
         let mut event = keycloak_event(Some("d1"), EVENT);
         event.body = LogEventBody::Communications("hello".into());
-        let body = event_message_body(&event).unwrap();
+        let message = event_message(&event).unwrap();
 
-        let parsed = parse_delivery(&body, &lapin::BasicProperties::default()).unwrap();
+        let parsed = parse_queued_event(message).unwrap();
 
         assert_eq!(
             serde_json::to_value(&parsed).unwrap(),
@@ -1091,22 +1107,280 @@ mod batch_build_tests {
         );
     }
 
+    /// Keycloak's publisher produces this envelope; its tests check the same fixture.
+    #[test]
+    fn keycloak_envelopes_parse_into_events() {
+        let envelope: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../keycloak-extensions/custom-event-listener/src/test/resources/electoral-log-event-envelope.json"
+        ))
+        .unwrap();
+        let event = parse_queued_event(envelope).unwrap();
+        assert_eq!(
+            event,
+            LogEventInput {
+                delivery_id: Some("9d5e2c1b-contract-delivery".into()),
+                election_event_id: "6f1c3a6e-2a61-4d6b-9a52-3f0f8a3c2b10".into(),
+                message_type: LogMessageType::KeycloakEvent("LOGIN".into()),
+                user_id: Some("0b9f6c5e-7d3a-4a1e-8c2f-5e4d3c2b1a09".into()),
+                username: Some("voter@example.com".into()),
+                tenant_id: TENANT.into(),
+                body: LogEventBody::Plain("null".into()),
+            }
+        );
+    }
+
     #[test]
     fn malformed_messages_are_rejected() {
-        let without_delivery_id = keycloak_event(None, EVENT);
         for body in [
             b"not json".to_vec(),
             b"{}".to_vec(),
             b"[[]]".to_vec(),
             b"[[], {}]".to_vec(),
             serde_json::to_vec(&serde_json::json!([[], {"input": {"tenant_id": TENANT}}])).unwrap(),
-            event_message_body(&without_delivery_id).unwrap(),
+            serde_json::to_vec(&serde_json::json!([[], {"input": keycloak_event(None, EVENT)}]))
+                .unwrap(),
         ] {
             assert!(
-                parse_delivery(&body, &lapin::BasicProperties::default()).is_err(),
+                parse_event_body(&body, None).is_err(),
                 "{}",
                 String::from_utf8_lossy(&body)
             );
         }
+
+        let mut other_task = event_message(&keycloak_event(Some("d1"), EVENT)).unwrap();
+        other_task["headers"]["task"] = "process_electoral_log_events_batch".into();
+        for message in [
+            serde_json::json!({"invalid": true}),
+            serde_json::Value::Null,
+            other_task,
+        ] {
+            assert!(parse_queued_event(message.clone()).is_err(), "{message}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod pgmq_tests {
+    use super::*;
+    use crate::services::electoral_log_dead_letter::{ERROR_HEADER, STAGE_HEADER};
+    use celery::broker::{Broker, BrokerBuilder};
+    use pgmq_broker::setup::{setup, Installation};
+    use pgmq_broker::PgmqBrokerBuilder;
+    use std::sync::Arc;
+
+    /// The environment of the disposable test database, shared with pgmq-broker's tests.
+    const TEST_ENVIRONMENT: &str = "pgmq-test";
+
+    fn test_pool() -> Arc<deadpool_postgres::Pool> {
+        let config = deadpool_postgres::Config {
+            url: Some(std::env::var("PGMQ_TEST_DATABASE_URL").expect("PGMQ_TEST_DATABASE_URL")),
+            ..Default::default()
+        };
+        Arc::new(
+            config
+                .create_pool(
+                    Some(deadpool_postgres::Runtime::Tokio1),
+                    tokio_postgres::NoTls,
+                )
+                .unwrap(),
+        )
+    }
+
+    /// Queues of their own for one test, created as the database setup creates them.
+    async fn test_queues(pool: &deadpool_postgres::Pool, prefix: &str) -> DispatchQueues {
+        let id = &uuid::Uuid::new_v4().simple().to_string()[..12];
+        let queues = DispatchQueues {
+            events: format!("{prefix}_events_{id}"),
+            batches: format!("{prefix}_batches_{id}"),
+            dead_letters: format!("{prefix}_dead_letters_{id}"),
+        };
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        setup(
+            &tx,
+            &Installation {
+                environment: TEST_ENVIRONMENT,
+                queues: &[&queues.events, &queues.batches, &queues.dead_letters],
+                roles: None,
+            },
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        queues
+    }
+
+    fn event(election_event_id: &str) -> LogEventInput {
+        LogEventInput {
+            delivery_id: None,
+            election_event_id: election_event_id.into(),
+            message_type: LogMessageType::KeycloakEvent("LOGIN_ERROR".into()),
+            user_id: None,
+            username: None,
+            tenant_id: "test-tenant".into(),
+            body: LogEventBody::Plain("test".into()),
+        }
+    }
+
+    fn limits(max_events: usize, max_bytes: usize) -> BatchLimits {
+        BatchLimits {
+            max_events,
+            max_bytes,
+        }
+    }
+
+    /// Enqueue one raw event per ID, as producers do.
+    async fn enqueue_events(
+        pool: &Arc<deadpool_postgres::Pool>,
+        queues: &DispatchQueues,
+        ids: &[&str],
+    ) {
+        let broker =
+            Box::new(PgmqBrokerBuilder::from_pool(pool.clone()).environment(TEST_ENVIRONMENT))
+                .declare_queue(&queues.events)
+                .build(5)
+                .await
+                .unwrap();
+        for id in ids {
+            broker
+                .send(
+                    &celery::protocol::Message::try_from(enqueue_electoral_log_event::new(event(
+                        id,
+                    )))
+                    .unwrap(),
+                    &queues.events,
+                )
+                .await
+                .unwrap();
+        }
+    }
+
+    async fn queue_length(client: &tokio_postgres::Client, queue: &str) -> i64 {
+        client
+            .query_one("SELECT queue_length FROM pgmq.metrics($1)", &[&queue])
+            .await
+            .unwrap()
+            .get(0)
+    }
+
+    /// The number of events of each batch task waiting in the batch queue, in order.
+    async fn batch_sizes(client: &tokio_postgres::Client, target: &str) -> Vec<usize> {
+        client
+            .query(
+                &format!("SELECT message FROM pgmq.q_{target} ORDER BY msg_id"),
+                &[],
+            )
+            .await
+            .unwrap()
+            .iter()
+            .map(|row| {
+                let message = pgmq_broker::decode(row.get(0)).unwrap();
+                assert_eq!(
+                    message.headers.task,
+                    process_electoral_log_events_batch::NAME
+                );
+                let body: serde_json::Value = serde_json::from_slice(&message.raw_body).unwrap();
+                body[1]["events"].as_array().unwrap().len()
+            })
+            .collect()
+    }
+
+    async fn drop_queues(client: &tokio_postgres::Client, queues: &DispatchQueues) {
+        for queue in [&queues.events, &queues.batches, &queues.dead_letters] {
+            client
+                .query_one("SELECT pgmq.drop_queue($1)", &[queue])
+                .await
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn batch_handoff_is_atomic_and_quarantines_invalid_events() {
+        let pool = test_pool();
+        let queues = test_queues(&pool, "handoff").await;
+        enqueue_events(&pool, &queues, &["event-a", "event-b"]).await;
+        let client = pool.get().await.unwrap();
+        let invalid = serde_json::json!({"invalid": true});
+        client
+            .query_one("SELECT pgmq.send($1, $2)", &[&queues.events, &invalid])
+            .await
+            .unwrap();
+
+        client
+            .query_one("SELECT pgmq.drop_queue($1)", &[&queues.batches])
+            .await
+            .unwrap();
+        assert!(dispatch_electoral_log_batches(
+            &pool,
+            &queues,
+            limits(10, DEFAULT_BATCH_MAX_BYTES)
+        )
+        .await
+        .is_err());
+        assert_eq!(
+            queue_length(&client, &queues.events).await,
+            3,
+            "failed promotion must retain every source event"
+        );
+        assert_eq!(
+            queue_length(&client, &queues.dead_letters).await,
+            0,
+            "failed promotion must not dead-letter"
+        );
+
+        client
+            .query_one("SELECT pgmq.create($1)", &[&queues.batches])
+            .await
+            .unwrap();
+        dispatch_electoral_log_batches(&pool, &queues, limits(10, DEFAULT_BATCH_MAX_BYTES))
+            .await
+            .unwrap();
+        assert_eq!(queue_length(&client, &queues.events).await, 0);
+        assert_eq!(batch_sizes(&client, &queues.batches).await, vec![2]);
+        let dead_letter = client
+            .query_one(
+                &format!(
+                    "SELECT message, headers FROM pgmq.q_{}",
+                    queues.dead_letters
+                ),
+                &[],
+            )
+            .await
+            .unwrap();
+        assert_eq!(dead_letter.get::<_, serde_json::Value>(0), invalid);
+        let headers: serde_json::Value = dead_letter.get(1);
+        assert_eq!(headers[STAGE_HEADER], "dispatcher");
+        assert!(headers[ERROR_HEADER]
+            .as_str()
+            .unwrap()
+            .contains("Celery envelope"));
+        drop_queues(&client, &queues).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PGMQ_TEST_DATABASE_URL pointing to a disposable database"]
+    async fn batches_close_at_their_limits_and_leave_the_rest_queued() {
+        let pool = test_pool();
+        let queues = test_queues(&pool, "limits").await;
+        enqueue_events(&pool, &queues, &["e1", "e2", "e3", "e4", "e5"]).await;
+        let client = pool.get().await.unwrap();
+
+        dispatch_electoral_log_batches(&pool, &queues, limits(2, DEFAULT_BATCH_MAX_BYTES))
+            .await
+            .unwrap();
+        assert_eq!(batch_sizes(&client, &queues.batches).await, vec![2, 2, 1]);
+
+        // A message larger than the byte limit still forms a batch on its own, and the
+        // messages read beyond the limit wait for the next batch.
+        enqueue_events(&pool, &queues, &["e6", "e7"]).await;
+        dispatch_electoral_log_batches(&pool, &queues, limits(10, 1))
+            .await
+            .unwrap();
+        assert_eq!(
+            batch_sizes(&client, &queues.batches).await,
+            vec![2, 2, 1, 1, 1]
+        );
+        drop_queues(&client, &queues).await;
     }
 }

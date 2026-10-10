@@ -1644,7 +1644,7 @@ pub async fn transactions_wrapper(
 }
 
 // DEPLOY NOTE: `force_new_results_id` is a required positional argument, so
-// any `execute_tally_session` payload already queued in RabbitMQ (produced by
+// any `execute_tally_session` payload already queued (produced by
 // an older windmill version, e.g. during a rolling deploy) will fail to
 // deserialize once this version's consumer picks it up. Drain the
 // `execute_tally_session` queue (or ensure no in-flight tasks reference the

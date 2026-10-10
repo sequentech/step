@@ -139,6 +139,10 @@ fn refusals_by_the_ballot_box_are_final_and_other_errors_are_retried() {
         Ok(InsertCastVoteResult::SkipRetryFailure(_))
     ));
     assert!(matches!(
+        skip_or_propagate(CastVoteError::CheckStatusFailed("closed".into())),
+        Ok(InsertCastVoteResult::SkipRetryFailure(_))
+    ));
+    assert!(matches!(
         skip_or_propagate(CastVoteError::InsertFailed("database".into())),
         Err(CastVoteError::InsertFailed(_))
     ));

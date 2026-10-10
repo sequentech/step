@@ -48,6 +48,15 @@ services:
       ELECTORAL_LOG_PG_DATABASE: ${ELECTORAL_LOG_PG_DATABASE}
       ELECTORAL_LOG_PG_READER_USER: ${ELECTORAL_LOG_PG_READER_USER}
       ELECTORAL_LOG_PG_READER_PASSWORD: ${ELECTORAL_LOG_PG_READER_PASSWORD}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB_OWNER_USER: ${QUEUE_DB_OWNER_USER}
+      QUEUE_DB_OWNER_PASSWORD: ${QUEUE_DB_OWNER_PASSWORD}
+      QUEUE_DB_WORKER_USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB_WORKER_PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB_PRODUCER_USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB_PRODUCER_PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      QUEUE_DB_READER_USER: ${QUEUE_DB_READER_USER}
+      QUEUE_DB_READER_PASSWORD: ${QUEUE_DB_READER_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -238,6 +247,13 @@ services:
     ports:
       - 8090:8090
     environment:
+      ENV_SLUG: ${ENV_SLUG}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      ELECTORAL_LOG_PUBLISH_FAILURE_POLICY: ${ELECTORAL_LOG_PUBLISH_FAILURE_POLICY:-fail-request}
       KC_HOSTNAME: ${KC_HOSTNAME}
       MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
@@ -283,6 +299,8 @@ services:
       --spi-sms-sender-aws-enabled=false
       --import-realm
     depends_on:
+      postgres:
+        condition: service_healthy
       postgres-keycloak:
         condition: service_healthy
     healthcheck:
@@ -328,7 +346,11 @@ services:
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/harvest:STEP_VERSION
     pull_policy: never
+    depends_on:
+      task-queues-setup:
+        condition: service_completed_successfully
     environment:
+      ENV_SLUG: ${ENV_SLUG}
       SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
       LOG_LEVEL: ${LOG_LEVEL}
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
@@ -356,7 +378,12 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
-      AMQP_ADDR: ${AMQP_ADDR}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_PRODUCER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID}
@@ -491,22 +518,30 @@ services:
         VAULT_TOKEN: ${VAULT_TOKEN}
         B4_URL: ${B4_URL}
 
-  rabbitmq:
+
+  # Installs PGMQ and the queues in the task-queue database, as the database owner,
+  # like the setup job of a deployment. It is idempotent.
+  task-queues-setup:
     profiles: ["full", "base"]
-    image: rabbitmq:3.12.11-management
+    image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
     pull_policy: never
-    container_name: rabbitmq
+    container_name: task-queues-setup
+    entrypoint: ["./main"]
+    command: ["setup-queue-database"]
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 30s
-      timeout: 30s
-      retries: 3
+      ENV_SLUG: ${ENV_SLUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_OWNER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_OWNER_PASSWORD}
+      QUEUE_DB_WORKER_ROLE: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB_PRODUCER_ROLE: ${QUEUE_DB_PRODUCER_USER}
+      QUEUE_DB_READER_ROLE: ${QUEUE_DB_READER_USER}
 
   windmill:
     profiles: ["full", "base"]
@@ -515,15 +550,17 @@ services:
     pull_policy: never
     restart: always
     depends_on:
+      task-queues-setup:
+        condition: service_completed_successfully
       configure-minio:
         condition: service_completed_successfully
     environment:
+      ENV_SLUG: ${ENV_SLUG}
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS: ${KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS:-30}
       ELECTORAL_LOG_PG_HOST: ${ELECTORAL_LOG_PG_HOST}
@@ -584,6 +621,12 @@ services:
       KEYCLOAK_DB__PORT: ${KEYCLOAK_DB__PORT}
       KEYCLOAK_DB__DBNAME: ${KEYCLOAK_DB__DBNAME}
       KEYCLOAK_DB__MANAGER__RECYCLING_METHOD: ${KEYCLOAK_DB__MANAGER__RECYCLING_METHOD}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       HASURA_DB__USER: ${HASURA_DB__USER}
       HASURA_DB__PASSWORD: ${HASURA_DB__PASSWORD}
       HASURA_DB__HOST: ${HASURA_DB__HOST}
@@ -594,6 +637,7 @@ services:
       DEFAULT_SQL_LIMIT: ${DEFAULT_SQL_LIMIT}
       DEFAULT_SQL_BATCH_SIZE: ${DEFAULT_SQL_BATCH_SIZE}
       ELECTORAL_LOG_BATCH_SIZE: ${ELECTORAL_LOG_BATCH_SIZE:-1000}
+      QUEUE_ARCHIVE_RETENTION_HOURS: ${QUEUE_ARCHIVE_RETENTION_HOURS:-168}
       ELECTORAL_LOG_BATCH_MAX_BYTES: ${ELECTORAL_LOG_BATCH_MAX_BYTES:-16777216}
       ELECTORAL_LOG_CHECKPOINT_COPY: ${ELECTORAL_LOG_CHECKPOINT_COPY:-off}
       ELECTORAL_LOG_CHECKPOINT_BUCKET: ${ELECTORAL_LOG_CHECKPOINT_BUCKET:-electoral-log-checkpoints}
@@ -622,6 +666,7 @@ services:
       DOC_RENDERER_BACKEND: ${DOC_RENDERER_BACKEND}
 
   beat:
+    restart: unless-stopped
     profiles: ["full"]
     stdin_open: true
     image: 581718213778.dkr.ecr.us-east-1.amazonaws.com/windmill:STEP_VERSION
@@ -629,18 +674,25 @@ services:
     container_name: beat
     entrypoint: ["./beat"]
     depends_on:
-      rabbitmq:
-        condition: service_healthy
+      task-queues-setup:
+        condition: service_completed_successfully
     environment:
+      ENV_SLUG: ${ENV_SLUG}
+      QUEUE_DB__HOST: ${QUEUE_DB__HOST}
+      QUEUE_DB__PORT: ${QUEUE_DB__PORT}
+      QUEUE_DB__DBNAME: ${QUEUE_DB__DBNAME}
+      QUEUE_DB__USER: ${QUEUE_DB_WORKER_USER}
+      QUEUE_DB__PASSWORD: ${QUEUE_DB_WORKER_PASSWORD}
+      QUEUE_DB__MANAGER__RECYCLING_METHOD: ${QUEUE_DB__MANAGER__RECYCLING_METHOD}
       RUSTFLAGS: ${RUSTFLAGS}
       LOG_LEVEL: ${LOG_LEVEL}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       HASURA_ENDPOINT: ${HASURA_ENDPOINT}
-      AMQP_ADDR: ${AMQP_ADDR}
       BEAT_PROBE_ADDR: ${BEAT_PROBE_ADDR}
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS: ${ELECTORAL_LOG_CHECKPOINT_INTERVAL_SECS:-300}
+      QUEUE_ARCHIVE_PURGE_INTERVAL_SECS: ${QUEUE_ARCHIVE_PURGE_INTERVAL_SECS:-3600}
 
 volumes:
   db_data:

@@ -153,7 +153,7 @@ These need product or sizing decisions. Each fix was measured at 20 million reco
 - **Sizing:** plan about 2 KB per record (100 GB at 50 million) and memory for the message indexes (about 40 GB at 50 million) to keep appends fast.
   - Replacing the board name with the log's numeric ID in `electoral_log_messages` would save about 300 bytes per record (15 GB at 50 million) and shrink every index.
   - Making `electoral_log_cast_vote` partial to cast votes would save about 130 bytes per record, but the admin kind filter uses it for other kinds too.
-- **Dispatcher batch size:** a batch holds the board lock for its whole transaction, so large batches make other appends to the board wait. `ELECTORAL_LOG_BATCH_SIZE` (default 1,000) bounds that wait, and `ELECTORAL_LOG_BATCH_MAX_BYTES` (default 16 MiB) keeps a batch inside one RabbitMQ message, at about 3 KB per queued cast vote; the [design](01-electoral-log-design.md) explains why a batch over the broker's limit is lost.
+- **Dispatcher batch size:** a batch holds the board lock for its whole transaction, so large batches make other appends to the board wait. `ELECTORAL_LOG_BATCH_SIZE` (default 1,000) bounds that wait, and `ELECTORAL_LOG_BATCH_MAX_BYTES` (default 16 MiB) keeps each batch, one PGMQ message, at about 3 KB per queued cast vote; the [design](01-electoral-log-design.md) explains the handoff transaction and its timeouts.
 - **Not measured:**
   - the batch task's per-event work before the append, which bounds end-to-end throughput for Keycloak events;
   - ballot-locator pages sorted by username, ballot ID or statement timestamp, which sort all of the election's cast votes;

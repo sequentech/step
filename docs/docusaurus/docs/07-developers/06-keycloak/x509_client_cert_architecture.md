@@ -299,6 +299,6 @@ sequenceDiagram
     UI-->>CF: Operator must also upload the CA to<br/>Cloudflare mTLS truststore
 ```
 
-No Windmill/RabbitMQ task, no Keycloak restart, and no gitops PR are needed for
+No Windmill/PGMQ task, no Keycloak restart, and no gitops PR are needed for
 the Keycloak layer. **A manual Cloudflare mTLS truststore update is required
 whenever CAs are added or removed.**

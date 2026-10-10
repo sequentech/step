@@ -9,6 +9,7 @@ COPY ./strand ./strand
 COPY ./board-messages ./board-messages
 COPY ./sequent-core ./sequent-core
 COPY ./windmill ./windmill
+COPY ./pgmq-broker ./pgmq-broker
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./velvet ./velvet
 

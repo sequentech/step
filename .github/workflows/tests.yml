@@ -134,6 +134,16 @@ jobs:
           cargo-build-path: packages/windmill/target
           cargo-lock-path: packages/windmill/Cargo.lock
 
+      - name: Run PGMQ transport contracts
+        env:
+          PGMQ_TEST_DATABASE_URL: postgres://test:test@127.0.0.1:3322/pgmq_test
+        run: |
+          python3 .devcontainer/test-restart-worker.py
+          # The tests install PGMQ and their queues themselves, as the setup job does.
+          docker exec ${{ job.services.postgres.id }} createdb -U test pgmq_test
+          cargo test -p pgmq-broker --manifest-path packages/Cargo.toml -- --include-ignored --test-threads=1
+          cargo test -p windmill --manifest-path packages/Cargo.toml --lib tasks::electoral_log::pgmq_tests -- --ignored --test-threads=1
+
       - name: Run Windmill tests
         run: cargo test
         working-directory: packages/windmill

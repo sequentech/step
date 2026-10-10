@@ -27,7 +27,7 @@ hasura --> harvest
 ## 2. Harvest to Windmill - immediate asynchronous task
 
 Hasura executes an action that calls to an API callback in Harvest, which in 
-turns writes send to RabbitMQ a task to be executed by a Windmill worker. This
+turn enqueues a task in the task queue (PGMQ) for a Windmill worker. This
 allows the execution of longer, more resource-intensive tasks in an asychronous
 fashion.
 
@@ -66,7 +66,7 @@ mechanism when used in conjunction with a suitable prefetch_count.
 ## 3. Harvest to Windmill Beat - asynchronous scheduled task 
 
 Hasura executes an action that calls to an API callback in Harvest, which in
-turns writes send to RabbitMQ a task to be executed by a Windmill Beat to 
+turn enqueues a task in the task queue (PGMQ) for Windmill Beat to 
 schedule a task to be executed at a specific date and time or recurrently.
 
 Example: scheduled reports. These reports should be generated at a specific date
