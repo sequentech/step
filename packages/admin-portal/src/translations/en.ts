@@ -224,6 +224,13 @@ const englishTranslation = {
                 event_type: "Event Type",
                 description: "Description",
                 version: "Version",
+                verification_status: "Verification",
+            },
+            verificationStatus: {
+                Verified: "Verified",
+                Unreadable: "Unreadable",
+                InvalidSignature: "Invalid signature",
+                ColumnMismatch: "Does not match its signed content",
             },
             main: {
                 title: "Main Database Logs",

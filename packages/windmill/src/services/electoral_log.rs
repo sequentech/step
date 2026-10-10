@@ -21,7 +21,7 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
-use electoral_log::messages::message::{Message, SigningData};
+use electoral_log::messages::message::{ElectoralLogVerificationStatus, Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
 use electoral_log::messages::statement::{StatementBody, StatementType};
 use electoral_log::{
@@ -519,6 +519,62 @@ async fn prepare_voter_secret_attribute_audit(
 pub struct ElectoralLog {
     pub(crate) sd: SigningData,
     pub(crate) elog_database: String,
+}
+
+/// The key every entry of the event's electoral log is countersigned with.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_electoral_log_system_pk(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<StrandSignaturePk> {
+    let protocol_manager = get_protocol_manager::<RistrettoCtx>(
+        hasura_transaction,
+        tenant_id,
+        Some(election_event_id),
+        board_name,
+    )
+    .await?;
+    Ok(StrandSignaturePk::from_sk(
+        protocol_manager.get_signing_key(),
+    )?)
+}
+
+async fn load_electoral_log_system_pk(
+    tenant_id: &str,
+    election_event_id: &str,
+    board_name: &str,
+) -> Result<StrandSignaturePk> {
+    let mut db_client = get_hasura_pool().await.get().await?;
+    let hasura_transaction = db_client.transaction().await?;
+    let system_pk = get_electoral_log_system_pk(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        board_name,
+    )
+    .await?;
+    hasura_transaction.commit().await?;
+    Ok(system_pk)
+}
+
+/// Imported entries are stored as they were exported, so they must carry the
+/// signatures of the event they are imported into.
+fn imported_electoral_log_message(
+    row: &ElectoralLogRow,
+    system_pk: &StrandSignaturePk,
+) -> Result<ElectoralLogMessage> {
+    let message = Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
+        .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
+    let electoral_log_message: ElectoralLogMessage = (&message).try_into()?;
+    let verification_status = electoral_log_message.verification_status(system_pk);
+    ensure!(
+        verification_status == ElectoralLogVerificationStatus::Verified,
+        "Electoral log entry {} does not verify against the event key: {verification_status}",
+        row.id
+    );
+    Ok(electoral_log_message)
 }
 
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
@@ -1480,6 +1536,8 @@ impl ElectoralLog {
         let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
         let mut rdr = csv::Reader::from_reader(logs_file);
 
+        let system_pk = self.sd.system_pk()?;
+
         let mut client = get_board_client().await?;
         client.open_session(self.elog_database.as_str()).await?;
         let tx = client.new_tx(TxMode::ReadWrite).await?;
@@ -1490,11 +1548,7 @@ impl ElectoralLog {
         for result in rdr.deserialize() {
             let row: ElectoralLogRow =
                 result.map_err(|err| anyhow::Error::new(err).context("Failed to read CSV row"))?;
-            let message: &Message =
-                &Message::strand_deserialize(&general_purpose::STANDARD_NO_PAD.decode(&row.data)?)
-                    .map_err(|err| anyhow!("Failed to deserialize message: {:?}", err))?;
-            let electoral_log_message: ElectoralLogMessage = message.try_into()?;
-            messages.push(electoral_log_message);
+            messages.push(imported_electoral_log_message(&row, &system_pk)?);
 
             // Once we reach the batch size, flush the batch.
             if messages.len() >= batch_size {
@@ -1723,6 +1777,8 @@ pub struct ElectoralLogRow {
     pub data: String,
     pub user_id: Option<String>,
     pub username: Option<String>,
+    #[serde(default)]
+    pub verification_status: Option<ElectoralLogVerificationStatus>,
 }
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct StatementHeadDataString {
@@ -1735,6 +1791,13 @@ pub struct StatementHeadDataString {
 }
 
 impl ElectoralLogRow {
+    pub fn verified(elog_msg: ElectoralLogMessage, system_pk: &StrandSignaturePk) -> Result<Self> {
+        let verification_status = elog_msg.verification_status(system_pk);
+        let mut row = ElectoralLogRow::try_from(elog_msg)?;
+        row.verification_status = Some(verification_status);
+        Ok(row)
+    }
+
     pub fn id(&self) -> i64 {
         self.id
     }
@@ -1810,6 +1873,7 @@ impl TryFrom<ElectoralLogMessage> for ElectoralLogRow {
             data: serialized,
             user_id: elog_msg.user_id.clone(),
             username: elog_msg.username.clone(),
+            verification_status: None,
         })
     }
 }
@@ -1876,6 +1940,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
             data: serialized,
             user_id,
             username,
+            verification_status: None,
         })
     }
 }
@@ -1896,7 +1961,18 @@ pub struct CastVoteMessagesOutput {
 }
 
 impl CastVoteEntry {
-    pub fn from_elog_message(entry: &ElectoralLogMessage) -> Result<Option<Self>, anyhow::Error> {
+    pub fn from_elog_message(
+        entry: &ElectoralLogMessage,
+        system_pk: &StrandSignaturePk,
+    ) -> Result<Option<Self>, anyhow::Error> {
+        let verification_status = entry.verification_status(system_pk);
+        if verification_status != ElectoralLogVerificationStatus::Verified {
+            warn!(
+                "Electoral log entry {} is not listed: {verification_status}",
+                entry.id
+            );
+            return Ok(None);
+        }
         let ballot_id = entry.ballot_id.clone().unwrap_or_default();
         let username = entry.username.clone();
         let message: &Message = &Message::strand_deserialize(&entry.message)
@@ -1924,6 +2000,12 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     );
 
     event!(Level::INFO, "database name = {board_name}");
+    let system_pk = load_electoral_log_system_pk(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &board_name,
+    )
+    .await?;
     client.open_session(&board_name).await?;
     let (clauses, params) = input.as_sql(false)?;
     let (clauses_to_count, count_params) = input.as_sql(true)?;
@@ -1937,8 +2019,12 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
             statement_timestamp,
             statement_kind,
             message,
+            version,
             user_id,
-            username
+            username,
+            election_id,
+            area_id,
+            ballot_id
         FROM electoral_log_messages
         {clauses}
         "#,
@@ -1954,7 +2040,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
         let items = streaming_batch?
             .rows
             .iter()
-            .map(ElectoralLogRow::try_from)
+            .map(|row| ElectoralLogRow::verified(ElectoralLogMessage::try_from(row)?, &system_pk))
             .collect::<Result<Vec<ElectoralLogRow>>>()?;
         rows.extend(items);
     }
@@ -2047,6 +2133,12 @@ pub async fn list_cast_vote_messages(
     info!("database name = {board_name}");
     let order_by = input.order_by.clone();
     let election_id = input.election_id.clone().unwrap_or_default();
+    let system_pk = load_electoral_log_system_pk(
+        input.tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        &board_name,
+    )
+    .await?;
 
     let limit: i64 = match ballot_id_filter.is_empty() {
         false => IMMUDB_ROWS_LIMIT as i64, // When there is a filter, need to fetch all entries by batches.
@@ -2080,7 +2172,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
+            match CastVoteEntry::from_elog_message(&message, &system_pk)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;
@@ -2276,5 +2368,75 @@ mod voter_secret_attribute_audit_tests {
         assert_eq!(body["voter"]["user_id"], "voter-id");
         assert_eq!(body["initiated_by"]["username"], "admin");
         assert!(body.get("document_id").is_none());
+    }
+}
+
+#[cfg(test)]
+mod electoral_log_verification_tests {
+    use super::*;
+
+    fn cast_vote_row(system_sk: &StrandSignatureSk) -> Result<ElectoralLogMessage> {
+        let signing_data = SigningData::new(system_sk.clone(), "voter-id", system_sk.clone());
+        let message = Message::cast_vote_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(Some("election-id".to_string())),
+            PseudonymHash::new([1; 64]),
+            CastVoteHash::new([2; 64]),
+            &signing_data,
+            VoterIpString("ip".to_string()),
+            VoterCountryString("country".to_string()),
+            Some("voter-id".to_string()),
+            Some("voter".to_string()),
+            "area-id".to_string(),
+        )?;
+        (&message).try_into()
+    }
+
+    #[test]
+    fn cast_vote_entries_signed_with_the_event_key_are_listed() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let row = cast_vote_row(&system_sk)?;
+        let event_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        assert!(CastVoteEntry::from_elog_message(&row, &event_pk)?.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn cast_vote_entries_signed_with_another_system_key_are_not_listed() -> Result<()> {
+        let event_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+        let row = cast_vote_row(&StrandSignatureSk::r#gen()?)?;
+        assert!(CastVoteEntry::from_elog_message(&row, &event_pk)?.is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn listed_rows_carry_their_verification_status() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let event_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let other_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+
+        let row = ElectoralLogRow::verified(cast_vote_row(&system_sk)?, &event_pk)?;
+        assert_eq!(
+            row.verification_status,
+            Some(ElectoralLogVerificationStatus::Verified)
+        );
+        let row = ElectoralLogRow::verified(cast_vote_row(&system_sk)?, &other_pk)?;
+        assert_eq!(
+            row.verification_status,
+            Some(ElectoralLogVerificationStatus::InvalidSignature)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn imported_entries_must_be_signed_with_the_event_key() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let row = ElectoralLogRow::try_from(cast_vote_row(&system_sk)?)?;
+
+        let event_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        assert!(imported_electoral_log_message(&row, &event_pk).is_ok());
+        let other_pk = StrandSignaturePk::from_sk(&StrandSignatureSk::r#gen()?)?;
+        assert!(imported_electoral_log_message(&row, &other_pk).is_err());
+        Ok(())
     }
 }
