@@ -33,9 +33,18 @@ use crate::test::vector_session::VectorSession;
 pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::thread_rng().gen_range(2..13);
     let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
-    // To test all trustees participating
-    // let n_trustees = 12;
-    // let n_threshold = n_trustees;
+    run_with_trustees(ciphertexts, batches, ctx, n_trustees, n_threshold);
+}
+
+/// Like `run`, with the given number of trustees of which `n_threshold`
+/// are selected, chosen at random, to mix and decrypt.
+pub fn run_with_trustees<C: Ctx + 'static>(
+    ciphertexts: u32,
+    batches: usize,
+    ctx: C,
+    n_trustees: usize,
+    n_threshold: usize,
+) {
     let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     let all = &max[0..n_trustees];
     let mut rng = &mut rand::rng();
@@ -160,12 +169,8 @@ fn run_protocol_test<C: Ctx + 'static>(
             assert!(expected == actual);
             info!("Match ok on plaintexts for batch {}", i + 1);
         }
-        // The verifier's mixing hashes hold the ballots plus one hash per mix,
-        // which does not fit when all MAX_TRUSTEES trustees mix.
-        if threshold.len() < MAX_TRUSTEES {
-            let board = data.lock().unwrap().clone();
-            assert_eq!(verified_batches(&test.cfg, &board)?, batches);
-        }
+        let board = data.lock().unwrap().clone();
+        assert_eq!(verified_batches(&test.cfg, &board)?, batches);
     } else {
         error!("No plaintexts found");
         panic!();

@@ -19,9 +19,10 @@ pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
 ///
 /// A THashes array is an array of hashes with fixed size equal
 /// to the maximum possible number of trustees. The array is marked
-/// as empty with all values equal to the constant NULL_HASH.
-pub(crate) fn hashes_init(value: Hash) -> THashes {
-    let mut ret = [NULL_HASH; MAX_TRUSTEES];
+/// as empty with all values equal to the constant NULL_HASH. The
+/// size N is only different for the mixing chain, see MixingHashes.
+pub(crate) fn hashes_init<const N: usize>(value: Hash) -> [Hash; N] {
+    let mut ret = [NULL_HASH; N];
     ret[0] = value;
 
     ret
@@ -39,7 +40,7 @@ pub(crate) fn hashes_set(mut input: THashes, index: usize, value: Hash) -> THash
 /// array.
 ///
 /// The end of the array is marked by the first NULL_HASH value.
-pub(crate) fn hashes_add(mut input: THashes, value: Hash) -> THashes {
+pub(crate) fn hashes_add<const N: usize>(mut input: [Hash; N], value: Hash) -> [Hash; N] {
     let index = input
         .iter()
         .position(|t| t == &NULL_HASH)
@@ -94,7 +95,7 @@ pub(crate) fn trustees_count(input: TrusteeSet) -> usize {
 ///
 /// The size is defined as the number of values that are not
 /// NULL_HASH.
-pub(crate) fn hashes_count(input: &THashes) -> usize {
+pub(crate) fn hashes_count<const N: usize>(input: &[Hash; N]) -> usize {
     input.iter().filter(|t| *t != &NULL_HASH).count()
 }
 
