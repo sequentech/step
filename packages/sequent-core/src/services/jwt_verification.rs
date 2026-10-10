@@ -118,17 +118,17 @@ fn verify_with_jwks(token: &str, issuer: &str, keys: &JwkSet) -> Result<Value> {
 fn jwks_client() -> Result<&'static Client> {
     static CLIENT: OnceLock<std::result::Result<Client, reqwest::Error>> =
         OnceLock::new();
-    CLIENT
-        .get_or_init(|| {
-            Client::builder()
-                .redirect(Policy::none())
-                .timeout(Duration::from_secs(5))
-                .build()
-        })
-        .as_ref()
-        .map_err(|error| {
-            anyhow!("Cannot initialize signing-key client: {error}")
-        })
+    match CLIENT.get_or_init(|| {
+        Client::builder()
+            .redirect(Policy::none())
+            .timeout(Duration::from_secs(5))
+            .build()
+    }) {
+        Ok(client) => Ok(client),
+        Err(error) => {
+            Err(anyhow!("Cannot initialize signing-key client: {error}"))
+        }
+    }
 }
 
 async fn download_keys(base: &str, realm: &str) -> Result<JwkSet> {
@@ -195,19 +195,13 @@ async fn realm_keys(
     };
     // Coalesce concurrent downloads for a realm, including invalid-token floods.
     let mut cached = entry.lock().await;
-    let known_key = cached
-        .keys
-        .as_ref()
-        .is_some_and(|keys| keys.find(kid).is_some());
-    if known_key
-        && cached
+    if let Some(keys) = &cached.keys {
+        let fresh = cached
             .fetched
-            .is_some_and(|time| time.elapsed() < CACHE_TTL)
-    {
-        return cached
-            .keys
-            .clone()
-            .ok_or_else(|| anyhow!("No trusted signing keys"));
+            .is_some_and(|time| time.elapsed() < CACHE_TTL);
+        if fresh && keys.find(kid).is_some() {
+            return Ok(Arc::clone(keys));
+        }
     }
     let retry_allowed = match cached.attempted {
         Some(time) => time.elapsed() >= REFRESH_INTERVAL,
@@ -278,13 +272,13 @@ pub(super) async fn verify_bearer_with_config(
         "Unsupported signing algorithm"
     );
     let kid = header.kid.context("Missing signing key ID")?;
-    let payload = token.split('.').nth(1).context("Missing token payload")?;
+    let payload = token.split('.').nth(1).unwrap_or_default();
     let payload: Value = serde_json::from_slice(
         &base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload)?,
     )?;
     let realm = trusted_realm(&payload, trusted_bases)?;
     let keys = realm_keys(&DOWNLOADS, internal_base, &realm, &kid).await?;
-    let issuer = payload["iss"].as_str().context("Missing issuer")?;
+    let issuer = payload["iss"].as_str().unwrap_or_default();
     let verified = verify_with_jwks(token, issuer, &keys)?;
     trusted_realm(&verified, trusted_bases)?;
     Ok(verified)
