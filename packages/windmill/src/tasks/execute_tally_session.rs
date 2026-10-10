@@ -544,6 +544,13 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_weighted_voting_policy();
+    let tally_type = tally_session_hasura
+        .tally_type
+        .as_deref()
+        .map(TallyType::try_from)
+        .transpose()
+        .map_err(|_| Error::String("Invalid tally type".to_string()))?
+        .unwrap_or_default();
     // Every Ballots batch on the board. Deliberately not narrowed to the
     // batches this session expects: a contest area's batches are identified by
     // its recorded mask, and rows allocated before this layout existed sit one
@@ -605,6 +612,7 @@ pub async fn upsert_ballots_messages(
         contest_encryption_policy,
         delegated_voting_policy,
         weighted_voting_policy,
+        tally_type,
     )
     .await?)
 }
