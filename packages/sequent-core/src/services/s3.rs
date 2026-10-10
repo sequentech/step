@@ -458,7 +458,7 @@ pub async fn get_document_url(
 
 /// Creates a presigned upload URL and selects the endpoint that the caller can
 /// actually reach.
-#[instrument(err, ret)]
+#[instrument(err)]
 pub async fn get_upload_url(
     key: String,
     is_public: bool,
@@ -1445,5 +1445,31 @@ mod tests {
                 prefix_root: Some("election-event-documents".to_string()),
             }
         );
+    }
+
+    #[tokio::test]
+    async fn get_upload_url_logs_no_presigned_url() {
+        use crate::util::log_capture::LogCapture;
+
+        env::set_var("AWS_REGION", "us-east-1");
+        env::set_var(AWS_S3_PRIVATE_URI_ENV, "http://127.0.0.1:9000");
+        env::set_var("AWS_S3_BUCKET", "documents");
+        env::set_var("AWS_S3_UPLOAD_EXPIRATION_SECS", "60");
+        env::set_var("AWS_S3_ACCESS_KEY", "access-key");
+        env::set_var("AWS_S3_ACCESS_SECRET", "access-secret");
+        let (capture, _guard) = LogCapture::install();
+
+        let url = super::get_upload_url(
+            "tenant-t/document-d/upload.zip".to_string(),
+            false,
+            true,
+        )
+        .await
+        .expect("upload url");
+
+        assert!(url.contains("X-Amz-Signature"), "{url}");
+        let logs = capture.contents();
+        assert!(logs.contains("get_upload_url"), "{logs}");
+        assert!(!logs.contains(&url), "upload URL in logs: {logs}");
     }
 }
