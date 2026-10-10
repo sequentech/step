@@ -6,12 +6,14 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 
+use anyhow::{anyhow, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use strand::shuffler_product::StrandRectangle;
 use strand::zkp::{ChaumPedersen, Schnorr};
 
 use crate::messages::newtypes::PROTOCOL_MANAGER_INDEX;
 use crate::messages::newtypes::{BatchNumber, MixNumber};
+use crate::messages::newtypes::{TrusteeSet, NULL_TRUSTEE};
 
 use strand::serialization::StrandSerialize;
 use strand::shuffler::ShuffleProof;
@@ -63,6 +65,46 @@ impl<C: Ctx> Configuration<C> {
         } else {
             self.trustees.iter().position(|t| t == trustee_pk)
         }
+    }
+
+    /// Checks that a trustee selection lists exactly `threshold` distinct
+    /// trustee positions, starting at 1, followed by `NULL_TRUSTEE` padding.
+    pub fn validate_trustee_set(&self, trustees: &TrusteeSet) -> Result<()> {
+        if self.threshold > trustees.len() {
+            return Err(anyhow!(
+                "Threshold {} exceeds the trustee set size {}",
+                self.threshold,
+                trustees.len()
+            ));
+        }
+        let (selected, padding) = trustees.split_at(self.threshold);
+
+        let mut unique = HashSet::new();
+        for position in selected {
+            if *position == 0 || *position > self.trustees.len() {
+                return Err(anyhow!(
+                    "Selected trustee {} is outside 1..={}",
+                    position,
+                    self.trustees.len()
+                ));
+            }
+            if !unique.insert(*position) {
+                return Err(anyhow!(
+                    "Selected trustee {} appears more than once",
+                    position
+                ));
+            }
+        }
+
+        if let Some(position) = padding.iter().find(|position| **position != NULL_TRUSTEE) {
+            return Err(anyhow!(
+                "Selected trustees should be equal to the threshold {}, found extra trustee {}",
+                self.threshold,
+                position
+            ));
+        }
+
+        Ok(())
     }
 
     pub fn label(&self, batch: BatchNumber, suffix: String) -> Vec<u8> {
@@ -279,5 +321,77 @@ impl<C: Ctx> std::fmt::Debug for Channel<C> {
 impl<C: Ctx> std::fmt::Debug for Mix<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mix_number={:?}", self.mix_number)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::messages::newtypes::MAX_TRUSTEES;
+    use strand::backend::ristretto::RistrettoCtx;
+    use strand::signature::StrandSignatureSk;
+
+    const TRUSTEES: usize = 3;
+    const THRESHOLD: usize = 2;
+
+    fn signature_pk() -> StrandSignaturePk {
+        StrandSignaturePk::from_sk(&StrandSignatureSk::gen().unwrap()).unwrap()
+    }
+
+    fn test_configuration() -> Configuration<RistrettoCtx> {
+        Configuration::<RistrettoCtx>::new(
+            0,
+            signature_pk(),
+            (0..TRUSTEES).map(|_| signature_pk()).collect(),
+            THRESHOLD,
+            PhantomData,
+        )
+    }
+
+    fn trustee_set(selection: &[usize]) -> TrusteeSet {
+        let mut trustees = [NULL_TRUSTEE; MAX_TRUSTEES];
+        trustees[0..selection.len()].copy_from_slice(selection);
+        trustees
+    }
+
+    #[test]
+    fn validate_trustee_set_accepts_threshold_prefix() {
+        let cfg = test_configuration();
+
+        for selection in [[1, 2], [3, 1], [2, 3]] {
+            assert!(cfg.validate_trustee_set(&trustee_set(&selection)).is_ok());
+        }
+    }
+
+    #[test]
+    fn validate_trustee_set_rejects_invalid_shapes() {
+        let cfg = test_configuration();
+        let selections: [&[usize]; 9] = [
+            &[1, NULL_TRUSTEE, 2],
+            &[NULL_TRUSTEE, 1, 2],
+            &[1, 1, 2],
+            &[2, 2],
+            &[1, 2, 3],
+            &[1],
+            &[0, 1],
+            &[1, TRUSTEES + 1],
+            &[1, PROTOCOL_MANAGER_INDEX],
+        ];
+
+        for selection in selections {
+            assert!(
+                cfg.validate_trustee_set(&trustee_set(selection)).is_err(),
+                "selection {:?} was accepted",
+                selection
+            );
+        }
+    }
+
+    #[test]
+    fn validate_trustee_set_rejects_threshold_above_set_size() {
+        let mut cfg = test_configuration();
+        cfg.threshold = MAX_TRUSTEES + 1;
+
+        assert!(cfg.validate_trustee_set(&trustee_set(&[1, 2])).is_err());
     }
 }

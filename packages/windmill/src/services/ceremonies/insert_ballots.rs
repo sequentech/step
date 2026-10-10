@@ -127,7 +127,7 @@ pub async fn insert_ballots_messages(
     let configuration = get_configuration(&board_messages)?;
     let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
     let selected_trustees: TrusteeSet =
-        generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
+        generate_trustee_set(&configuration, deserialized_trustee_pks.clone())?;
 
     let election_ids_alias: HashMap<String, String> =
         get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
