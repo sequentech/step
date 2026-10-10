@@ -15,8 +15,8 @@ use crate::postgres::received_ballot::{
 use crate::services::ballot_box_key::{get_ballot_box_signing_key, published_key};
 use crate::services::database::get_hasura_pool;
 use crate::services::insert_cast_vote::{
-    check_status, deserialize_and_check_ballot, deserialize_and_check_multi_ballot, CastVoteError,
-    InsertCastVoteInput,
+    check_status, deserialize_and_check_ballot, deserialize_and_check_multi_ballot,
+    get_published_style_contest_ids, CastVoteError, InsertCastVoteInput,
 };
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use dashmap::DashMap;
@@ -218,10 +218,18 @@ pub async fn try_receive_ballot(
 
     let is_multi_contest =
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
+    let published_styles = get_published_style_contest_ids(
+        &hasura_transaction,
+        tenant_id,
+        &election_event.id,
+        &input.election_id.to_string(),
+        area_id,
+    )
+    .await?;
     if is_multi_contest {
-        deserialize_and_check_multi_ballot(&input, voter_id)?;
+        deserialize_and_check_multi_ballot(&input, voter_id, &published_styles)?;
     } else {
-        deserialize_and_check_ballot(&input, voter_id)?;
+        deserialize_and_check_ballot(&input, voter_id, &published_styles)?;
     }
     let envelope: BallotEnvelope = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
