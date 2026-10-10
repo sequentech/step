@@ -4,10 +4,16 @@
 
 import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
+import {uniq} from "lodash"
 import {ThemeProvider} from "@mui/material/styles"
-import type {IContest, IDecodedVoteChoice} from "@sequentech/ui-core"
+import type {
+    ICandidate,
+    IContest,
+    IDecodedVoteChoice,
+    IDecodedVoteContest,
+} from "@sequentech/ui-core"
 import theme from "../../services/theme"
-import {PlaintextVoteContest} from "./PlaintextVoteContest"
+import {PlaintextVoteContest, type PlaintextVoteContestProps} from "./PlaintextVoteContest"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
@@ -26,7 +32,8 @@ jest.mock(
         checkIsBlank: () => false,
         checkIsInvalidVote: () => false,
         checkIsWriteIn: () => false,
-        getImageUrl: () => undefined,
+        getImageUrl: (candidate: ICandidate) =>
+            candidate.presentation?.urls?.find((url) => url.is_image)?.url,
         sortCandidatesInContest: <T,>(candidates: T[]) => candidates,
         categorizeCandidates: (contest: IContest) => ({
             invalidOrBlankCandidates: [],
@@ -60,14 +67,18 @@ const questionPlaintext = {
     invalid_errors: [],
     invalid_alerts: [],
     choices: [],
-}
+} as unknown as IDecodedVoteContest
 
-const renderContest = (question: IContest) =>
+const renderContest = (
+    question: IContest,
+    plaintext: IDecodedVoteContest = questionPlaintext,
+    props: Partial<PlaintextVoteContestProps> = {}
+) =>
     renderToStaticMarkup(
         <ThemeProvider theme={theme}>
             <PlaintextVoteContest
                 question={question}
-                questionPlaintext={questionPlaintext}
+                questionPlaintext={plaintext}
                 publicBucketUrl=""
                 contestNotFoundLabel="Contest not found"
                 markedInvalidLabel="Marked invalid"
@@ -75,8 +86,47 @@ const renderContest = (question: IContest) =>
                 isDeclineToVotePolicyEnabled={false}
                 acclamationDescription="Default acclamation description"
                 defaultLanguageCode="en"
+                {...props}
             />
         </ThemeProvider>
+    )
+
+const BUCKET_URL = "https://bucket.example/"
+const IMAGE_CANDIDATE_IDS = ["candidate-a", "candidate-b", "candidate-c"]
+const ALL_CANDIDATE_IMAGES = IMAGE_CANDIDATE_IDS.map((id) => `${BUCKET_URL}${id}.png`)
+
+const contestWithImages = {
+    id: "contest",
+    name: "Contest with images",
+    candidates: IMAGE_CANDIDATE_IDS.map((id) => ({
+        id,
+        name: `${id} name`,
+        presentation: {urls: [{url: `${id}.png`, kind: "image", is_image: true}]},
+    })),
+} as unknown as IContest
+
+const withChoices = (
+    selectedIds: string[],
+    overrides: Partial<IDecodedVoteContest> = {}
+): IDecodedVoteContest =>
+    ({
+        ...questionPlaintext,
+        choices: IMAGE_CANDIDATE_IDS.map((id) => ({
+            id,
+            selected: selectedIds.indexOf(id),
+        })),
+        ...overrides,
+    }) as IDecodedVoteContest
+
+const requestedImages = (markup: string): string[] =>
+    uniq(Array.from(markup.matchAll(/<img[^>]*\ssrc="([^"]*)"/g), (match) => match[1]))
+
+const renderImages = (
+    plaintext: IDecodedVoteContest,
+    props: Partial<PlaintextVoteContestProps> = {}
+) =>
+    requestedImages(
+        renderContest(contestWithImages, plaintext, {publicBucketUrl: BUCKET_URL, ...props})
     )
 
 describe("PlaintextVoteContest", () => {
@@ -150,5 +200,36 @@ describe("PlaintextVoteContest", () => {
         expect(markup).toContain("Normal contest")
         expect(markup).not.toContain("Candidate A")
         expect(markup).not.toContain("Default acclamation description")
+    })
+
+    it("requests every candidate image of the contest in configuration order", () => {
+        const markup = renderContest(contestWithImages, withChoices(["candidate-b"]), {
+            publicBucketUrl: BUCKET_URL,
+        })
+
+        expect(markup).toContain("candidate-b name")
+        expect(markup).not.toContain("candidate-a name")
+        expect(markup).not.toContain("candidate-c name")
+        expect(requestedImages(markup)).toEqual(ALL_CANDIDATE_IMAGES)
+    })
+
+    it("requests the same candidate images whatever the decoded choices", () => {
+        const requestedPerBallot = [
+            renderImages(withChoices([])),
+            renderImages(withChoices(["candidate-a"])),
+            renderImages(withChoices(["candidate-c"])),
+            renderImages(withChoices(["candidate-c", "candidate-a"])),
+            renderImages(withChoices([], {is_explicit_invalid: true})),
+            renderImages(withChoices([], {is_decline_to_vote: true}), {
+                isDeclineToVotePolicyEnabled: true,
+            }),
+            renderImages(withChoices([], {is_blank_ballot: true}), {
+                isBlankBallotsPolicyEnabled: true,
+            }),
+        ]
+
+        requestedPerBallot.forEach((requested) => {
+            expect(requested).toEqual(ALL_CANDIDATE_IMAGES)
+        })
     })
 })
