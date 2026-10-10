@@ -264,12 +264,13 @@ mod tests {
     }
 
     /// A deployment CA that issues the server and trustee certificates,
-    /// and an unrelated CA with a client certificate of its own.
+    /// and an unrelated CA with a server and a client certificate of its own.
     struct TestPki {
         _dir: TempDir,
         ca_path: PathBuf,
         server: (PathBuf, PathBuf),
         trustee: (PathBuf, PathBuf),
+        other_ca_server: (PathBuf, PathBuf),
         other_ca_client: (PathBuf, PathBuf),
     }
 
@@ -282,6 +283,11 @@ mod tests {
             TestPki {
                 server: ca.issue(dir.path(), "server", ExtendedKeyUsagePurpose::ServerAuth),
                 trustee: ca.issue(dir.path(), "trustee", ExtendedKeyUsagePurpose::ClientAuth),
+                other_ca_server: other_ca.issue(
+                    dir.path(),
+                    "other_server",
+                    ExtendedKeyUsagePurpose::ServerAuth,
+                ),
                 other_ca_client: other_ca.issue(
                     dir.path(),
                     "other_client",
@@ -404,6 +410,25 @@ mod tests {
         let boards = get_boards(&client, &https_url(addr)).await.unwrap();
 
         assert_eq!(boards, vec![TEST_BOARD.to_string()]);
+    }
+
+    #[tokio::test]
+    async fn tls_client_rejects_server_certificate_from_other_ca() {
+        let pki = TestPki::new();
+        let server = TransportConfig {
+            tls_cert_path: Some(pki.other_ca_server.0.clone()),
+            tls_key_path: Some(pki.other_ca_server.1.clone()),
+            ..pki.server_config(B3TransportSecurity::Tls)
+        };
+        let addr = serve(&server).await;
+        let client = pki.client_config(B3TransportSecurity::Tls, None);
+
+        let result = get_boards(&client, &https_url(addr)).await;
+
+        assert!(
+            result.is_err(),
+            "server certificate from another CA was accepted: {result:?}"
+        );
     }
 
     #[tokio::test]

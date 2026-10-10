@@ -53,7 +53,9 @@ With `tls` or `mutual_tls`, `B3_URL` must use the `https://` scheme, for example
    certificate per trustee from a CA reserved for b3 clients. Client
    certificates that carry an extended key usage must include `clientAuth`.
 2. Make the certificate and key files readable inside the b3 and trustee
-   containers, for example with read-only volume mounts.
+   containers. The Docker Compose files in this repository already pass the
+   variables listed above to b3 and the trustees; add read-only volume mounts
+   for the files, for example in a `docker-compose.override.yml`.
 3. On b3 set `B3_TRANSPORT_SECURITY=mutual_tls`, `B3_TLS_CERT_PATH`,
    `B3_TLS_KEY_PATH` and `B3_TLS_CA_PATH`.
 4. On every trustee set `B3_CLIENT_TRANSPORT_SECURITY=mutual_tls`,
