@@ -74,7 +74,7 @@ use velvet::cli::CliRun;
 use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::config::generate_reports::PipeConfigGenerateReports;
 use velvet::pipes::generate_db::{PipeConfigGenerateDatabase, DATABASE_FILENAME};
-use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig};
+use velvet::pipes::pipe_inputs::{AreaConfig, ElectionConfig, MALFORMED_PLAINTEXT_LINE};
 use velvet::pipes::pipe_inputs::{
     DEFAULT_DIR_BALLOTS, DEFAULT_DIR_CONFIGS, DEFAULT_DIR_DATABASE, DEFAULT_DIR_TALLY_SHEETS,
 };
@@ -96,36 +96,28 @@ fn decode_plaintexts_to_biguints(
     plaintexts: &Vec<<RistrettoCtx as Ctx>::P>,
     contest: &Contest,
 ) -> Vec<String> {
-    plaintexts
+    let mut malformed_count = 0usize;
+    let lines = plaintexts
         .iter()
-        .filter_map(|plaintext| {
-            let plaintext_format = plaintext
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<String>>()
-                .join(" ");
-            let biguint = contest.decode_plaintext_contest_to_biguint(plaintext);
-
-            match biguint {
-                Ok(v) => {
-                    let biguit_str = v.to_str_radix(10);
-                    event!(
-                        Level::INFO,
-                        "Decoding plaintext {plaintext_format} into string '{biguit_str}'"
-                    );
-
-                    Some(biguit_str)
+        .map(
+            |plaintext| match contest.decode_plaintext_contest_to_biguint(plaintext) {
+                Ok(biguint) => biguint.to_str_radix(10),
+                Err(_) => {
+                    malformed_count += 1;
+                    MALFORMED_PLAINTEXT_LINE.to_string()
                 }
-                Err(e) => {
-                    event!(
-                        Level::WARN,
-                        "Decoding plaintext {plaintext_format} has failed: {e}"
-                    );
-                    None
-                }
-            }
-        })
-        .collect::<Vec<_>>()
+            },
+        )
+        .collect();
+
+    if malformed_count > 0 {
+        warn!(
+            "{malformed_count} plaintexts of contest {} do not decode and are counted as invalid ballots",
+            contest.id
+        );
+    }
+
+    lines
 }
 
 #[instrument(skip_all, err)]
@@ -1100,7 +1092,9 @@ mod tests {
         let lines =
             decode_plaintexts_to_biguints(&vec![valid, oversized_length], &Contest::default());
 
-        assert_eq!(lines.len(), 2);
-        assert_eq!(lines[0], "5");
+        assert_eq!(
+            lines,
+            vec!["5".to_string(), MALFORMED_PLAINTEXT_LINE.to_string()]
+        );
     }
 }

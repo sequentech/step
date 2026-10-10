@@ -69,9 +69,6 @@ impl DecodeMCBallots {
                 }
             }
 
-            let plaintext =
-                plaintext.map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
-
             let context = match codec_context.as_mut() {
                 Some(context) => context,
                 None => {
@@ -86,12 +83,26 @@ impl DecodeMCBallots {
                 }
             };
 
-            let decoded = BallotChoices::decode_from_bigint_with_context(
-                context,
-                &plaintext,
-                Some(serial_number_counter),
-            )
-            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+            // A line that is not a number, such as MALFORMED_PLAINTEXT_LINE, or a
+            // value that does not fit the ballot layout stands for a plaintext
+            // that did not decode.
+            let decoded = match plaintext {
+                Ok(plaintext) => BallotChoices::decode_from_bigint_with_context(
+                    context,
+                    &plaintext,
+                    Some(serial_number_counter),
+                ),
+                Err(error) => Err(error.to_string()),
+            };
+            let decoded = match decoded {
+                Ok(decoded) => decoded,
+                Err(error) => {
+                    warn!("Counting an undecodable ballot as invalid: {error}");
+                    context
+                        .undecodable_ballot(Some(serial_number_counter))
+                        .map_err(Error::UnexpectedError)?
+                }
+            };
 
             decoded_ballots.push(decoded);
         }
@@ -290,6 +301,7 @@ mod tests {
     use super::*;
     use crate::fixtures::ballot_styles::generate_ballot_style;
     use crate::fixtures::contests::get_contest_1;
+    use crate::pipes::pipe_inputs::MALFORMED_PLAINTEXT_LINE;
     use sequent_core::ballot_codec::multi_ballot::{
         ContestChoice, ContestChoices, DecodedContestChoice,
     };
@@ -337,7 +349,7 @@ mod tests {
             .encode_to_bigint(&style)
             .expect("ballot should encode");
 
-        let context = MultiBallotCodecContext::new(&contests, false, false, mode.clone())
+        let context = MultiBallotCodecContext::new(&contests, false, false, mode)
             .expect("context should build");
         let capacity: BigUint = context
             .bases
@@ -346,7 +358,11 @@ mod tests {
             .product();
 
         let mut file = tempfile::NamedTempFile::new().expect("temp file");
-        writeln!(file, "{encoded}\n{capacity}\nmalformed\n\n{encoded}\n").expect("write ballots");
+        writeln!(
+            file,
+            "{encoded}\n{capacity}\n{MALFORMED_PLAINTEXT_LINE}\n\n{encoded}\n"
+        )
+        .expect("write ballots");
         let mut serial_number_counter = 1;
 
         let decoded = DecodeMCBallots::decode_ballots(
@@ -371,19 +387,18 @@ mod tests {
             }
         }
         for index in [1, 2] {
-            assert!(!decoded[index].is_explicit_invalid);
-            assert!(!decoded[index].is_blank_ballot);
             assert_eq!(
-                decoded[index].serial_number,
-                Some(format!("{:09}", index + 1))
+                decoded[index],
+                context
+                    .undecodable_ballot(Some(&mut (index as u32 + 1)))
+                    .expect("undecodable ballot should build")
             );
             assert_eq!(decoded[index].choices.len(), contests.len());
-            for (contest, contest_choices) in contests.iter().zip(&decoded[index].choices) {
-                assert_eq!(contest_choices.contest_id, contest.id);
-                assert!(contest_choices.choices.is_empty());
-                assert!(!contest_choices.is_explicit_invalid);
-                assert!(!contest_choices.invalid_errors.is_empty());
-            }
+            assert!(decoded[index]
+                .choices
+                .iter()
+                .all(|contest_choices| contest_choices.choices.is_empty()
+                    && !contest_choices.invalid_errors.is_empty()));
         }
     }
 }

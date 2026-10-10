@@ -329,6 +329,46 @@ impl<'a> MultiBallotCodecContext<'a> {
             serial_number,
         })
     }
+
+    /// A ballot whose plaintext does not fit this context's layout. It has
+    /// no selections and counts as an implicitly invalid vote in every
+    /// contest. Like any decoded ballot, it takes the next serial number.
+    pub fn undecodable_ballot(
+        &self,
+        serial_number_counter: Option<&mut u32>,
+    ) -> Result<DecodedBallotChoices, String> {
+        let choices = self
+            .contest_contexts
+            .iter()
+            .map(|contest_context| {
+                DecodedContestChoices::new(
+                    contest_context.contest.id.clone(),
+                    vec![],
+                    false,
+                    vec![InvalidPlaintextError::ballot_too_large()],
+                    vec![],
+                )
+            })
+            .collect();
+
+        let serial_number = match serial_number_counter {
+            Some(serial_number) => {
+                let sn = Some(format!("{:09}", *serial_number));
+                *serial_number = serial_number
+                    .checked_add(1)
+                    .ok_or("Ballot serial number counter exhausted")?;
+                sn
+            }
+            None => None,
+        };
+
+        Ok(DecodedBallotChoices {
+            is_explicit_invalid: false,
+            is_blank_ballot: false,
+            choices,
+            serial_number,
+        })
+    }
 }
 
 /// A multi contest ballot.
@@ -3484,6 +3524,67 @@ mod tests {
                 BallotChoices::decode_from_30_bytes(&bytes, &style).is_err()
             );
         }
+    }
+
+    /// An undecodable ballot is invalid without selections in every contest of
+    /// the layout, and takes a serial number only when it is given a counter.
+    #[test]
+    fn test_undecodable_ballot_is_invalid_in_every_contest() {
+        let contests = vec![test_contest("b", 3, 2), test_contest("a", 2, 1)];
+        let context = MultiBallotCodecContext::new(
+            &contests,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("context should build");
+        let mut serial_number_counter = 7;
+
+        let ballot = context
+            .undecodable_ballot(Some(&mut serial_number_counter))
+            .expect("undecodable ballot should build");
+
+        assert_eq!(serial_number_counter, 8);
+        assert_eq!(ballot.serial_number, Some("000000007".to_string()));
+        assert!(!ballot.is_explicit_invalid);
+        assert!(!ballot.is_blank_ballot);
+        assert_eq!(
+            ballot
+                .choices
+                .iter()
+                .map(|contest_choices| contest_choices.contest_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["a", "b"]
+        );
+        for contest_choices in &ballot.choices {
+            assert!(contest_choices.choices.is_empty());
+            assert!(!contest_choices.is_explicit_invalid);
+            assert_eq!(
+                contest_choices.invalid_errors,
+                vec![InvalidPlaintextError::ballot_too_large()]
+            );
+        }
+
+        let decoded_contests =
+            map_decoded_ballot_choices_to_decoded_contests(ballot, &contests)
+                .expect("undecodable ballot should map to every contest");
+        assert_eq!(decoded_contests.len(), 2);
+        assert!(decoded_contests.iter().all(
+            |contest| contest.is_invalid() && !contest.is_explicit_invalid
+        ));
+
+        assert_eq!(
+            context
+                .undecodable_ballot(None)
+                .expect("undecodable ballot should build")
+                .serial_number,
+            None
+        );
+
+        let mut exhausted_counter = u32::MAX;
+        assert!(context
+            .undecodable_ballot(Some(&mut exhausted_counter))
+            .is_err());
     }
 
     fn test_contest(
