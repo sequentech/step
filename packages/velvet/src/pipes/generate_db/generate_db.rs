@@ -14,8 +14,10 @@ use tracing::info;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
+use crate::pipes::decode_ballots::OUTPUT_DECODED_BALLOTS_FILE;
+use crate::pipes::do_tally::stored_count;
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
-use crate::pipes::pipe_inputs::{self, PipeInputs};
+use crate::pipes::pipe_inputs::{self, ensure_unbatched, PipeInputs};
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use core::cmp;
@@ -238,11 +240,16 @@ pub async fn process_decoded_ballots(
     {
         let path = entry.path();
 
+        if path.is_dir() {
+            ensure_unbatched(path, OUTPUT_DECODED_BALLOTS_FILE, "Decoded ballots")?;
+            continue;
+        }
+
         // Check if the current entry is a file and its name is "decoded_ballots.json".
         if path.is_file()
             && path
                 .file_name()
-                .map_or(false, |name| name == "decoded_ballots.json")
+                .map_or(false, |name| name == OUTPUT_DECODED_BALLOTS_FILE)
         {
             // A 'decoded_ballots.json' file has been found.
             tracing::info!("Found decoded_ballots.json at: {:?}", path);
@@ -394,15 +401,18 @@ pub async fn save_results(
             election_id: election.election_id.clone(),
             results_event_id: results_event_id.into(),
             name: None,
-            elegible_census: Some(election.census as i64),
-            total_voters: Some(election.total_votes as i64),
+            elegible_census: Some(stored_count(election.census, "census")?),
+            total_voters: Some(stored_count(election.total_votes, "voters")?),
             created_at: None,
             last_updated_at: None,
             labels: None,
             annotations: None,
             total_voters_percent: Some(total_voters_percent.clamp(0.0, 1.0).try_into()?),
             documents: None,
-            blank_ballots: election.blank_ballots.map(|n| n as i64),
+            blank_ballots: election
+                .blank_ballots
+                .map(|n| stored_count(n, "blank ballots"))
+                .transpose()?,
             blank_ballots_percent: blank_ballots_percent
                 .map(|p| p.clamp(0.0, 1.0).try_into())
                 .transpose()?,
@@ -451,32 +461,56 @@ pub async fn save_results(
                     contest_id: current_contest.id.clone(),
                     area_id: area.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest_result.census as i64),
-                    total_votes: Some(contest_result.total_votes as i64),
+                    elegible_census: Some(stored_count(contest_result.census, "census")?),
+                    total_votes: Some(stored_count(contest_result.total_votes, "votes")?),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
-                    total_auditable_votes: Some(contest_result.auditable_votes as i64),
+                    total_auditable_votes: Some(stored_count(
+                        contest_result.auditable_votes,
+                        "auditable votes",
+                    )?),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_valid_votes: Some(contest_result.total_valid_votes as i64),
+                    total_valid_votes: Some(stored_count(
+                        contest_result.total_valid_votes,
+                        "valid votes",
+                    )?),
                     total_valid_votes_percent: Some(
                         total_valid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_invalid_votes: Some(contest_result.total_invalid_votes as i64),
+                    total_invalid_votes: Some(stored_count(
+                        contest_result.total_invalid_votes,
+                        "invalid votes",
+                    )?),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    explicit_invalid_votes: Some(contest_result.invalid_votes.explicit as i64),
+                    explicit_invalid_votes: Some(stored_count(
+                        contest_result.invalid_votes.explicit,
+                        "explicit invalid votes",
+                    )?),
                     explicit_invalid_votes_percent: Some(
                         explicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    implicit_invalid_votes: Some(contest_result.invalid_votes.implicit as i64),
+                    implicit_invalid_votes: Some(stored_count(
+                        contest_result.invalid_votes.implicit,
+                        "implicit invalid votes",
+                    )?),
                     implicit_invalid_votes_percent: Some(
                         implicit_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_blank_votes: Some(contest_result.total_blank_votes as i64),
-                    explicit_blank_votes: Some(contest_result.blank_votes.explicit as i64),
-                    implicit_blank_votes: Some(contest_result.blank_votes.implicit as i64),
+                    total_blank_votes: Some(stored_count(
+                        contest_result.total_blank_votes,
+                        "blank votes",
+                    )?),
+                    explicit_blank_votes: Some(stored_count(
+                        contest_result.blank_votes.explicit,
+                        "explicit blank votes",
+                    )?),
+                    implicit_blank_votes: Some(stored_count(
+                        contest_result.blank_votes.implicit,
+                        "implicit blank votes",
+                    )?),
                     total_blank_votes_percent: Some(
                         total_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -504,7 +538,7 @@ pub async fn save_results(
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
                         area_id: area.id.clone(),
-                        cast_votes: Some(candidate.total_count as i64),
+                        cast_votes: Some(stored_count(candidate.total_count, "candidate votes")?),
                         cast_votes_percent: Some(cast_votes_percent.clamp(0.0, 1.0).try_into()?),
                         winning_position: candidate.winning_position.map(|val| val as i64),
                         points: None,
@@ -523,13 +557,31 @@ pub async fn save_results(
                     election_id: election.election_id.clone(),
                     contest_id: current_contest.id.clone(),
                     results_event_id: results_event_id.into(),
-                    elegible_census: Some(contest_result.census as i64),
-                    total_valid_votes: Some(contest_result.total_valid_votes as i64),
-                    explicit_invalid_votes: Some(contest_result.invalid_votes.explicit as i64),
-                    implicit_invalid_votes: Some(contest_result.invalid_votes.implicit as i64),
-                    total_blank_votes: Some(contest_result.total_blank_votes as i64),
-                    explicit_blank_votes: Some(contest_result.blank_votes.explicit as i64),
-                    implicit_blank_votes: Some(contest_result.blank_votes.implicit as i64),
+                    elegible_census: Some(stored_count(contest_result.census, "census")?),
+                    total_valid_votes: Some(stored_count(
+                        contest_result.total_valid_votes,
+                        "valid votes",
+                    )?),
+                    explicit_invalid_votes: Some(stored_count(
+                        contest_result.invalid_votes.explicit,
+                        "explicit invalid votes",
+                    )?),
+                    implicit_invalid_votes: Some(stored_count(
+                        contest_result.invalid_votes.implicit,
+                        "implicit invalid votes",
+                    )?),
+                    total_blank_votes: Some(stored_count(
+                        contest_result.total_blank_votes,
+                        "blank votes",
+                    )?),
+                    explicit_blank_votes: Some(stored_count(
+                        contest_result.blank_votes.explicit,
+                        "explicit blank votes",
+                    )?),
+                    implicit_blank_votes: Some(stored_count(
+                        contest_result.blank_votes.implicit,
+                        "implicit blank votes",
+                    )?),
                     voting_type: current_contest.voting_type.clone(),
                     counting_algorithm: Some(
                         current_contest
@@ -542,7 +594,10 @@ pub async fn save_results(
                     last_updated_at: None,
                     labels: None,
                     annotations: Some(annotations),
-                    total_invalid_votes: Some(contest_result.total_invalid_votes as i64),
+                    total_invalid_votes: Some(stored_count(
+                        contest_result.total_invalid_votes,
+                        "invalid votes",
+                    )?),
                     total_invalid_votes_percent: Some(
                         total_invalid_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -564,10 +619,13 @@ pub async fn save_results(
                     implicit_blank_votes_percent: Some(
                         implicit_blank_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
-                    total_votes: Some(contest_result.total_votes as i64),
+                    total_votes: Some(stored_count(contest_result.total_votes, "votes")?),
                     total_votes_percent: Some(total_votes_percent.clamp(0.0, 1.0).try_into()?),
                     documents: None,
-                    total_auditable_votes: Some(contest_result.auditable_votes as i64),
+                    total_auditable_votes: Some(stored_count(
+                        contest_result.auditable_votes,
+                        "auditable votes",
+                    )?),
                     total_auditable_votes_percent: Some(
                         auditable_votes_percent.clamp(0.0, 1.0).try_into()?,
                     ),
@@ -583,7 +641,7 @@ pub async fn save_results(
                         contest_id: current_contest.id.clone(),
                         candidate_id: candidate.candidate.id.clone(),
                         results_event_id: results_event_id.into(),
-                        cast_votes: Some(candidate.total_count as i64),
+                        cast_votes: Some(stored_count(candidate.total_count, "candidate votes")?),
                         winning_position: candidate.winning_position.map(|val| val as i64),
                         points: None,
                         created_at: None,
@@ -614,4 +672,52 @@ pub async fn save_results(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn area_dir(root: &Path) -> PathBuf {
+        root.join(format!("election__{}", Uuid::new_v4()))
+            .join(format!("contest__{}", Uuid::new_v4()))
+            .join(format!("area__{}", Uuid::new_v4()))
+    }
+
+    async fn import(root: &Path) -> anyhow::Result<i64> {
+        let mut connection = Connection::open_in_memory()?;
+        let transaction = connection.transaction()?;
+        process_decoded_ballots(&transaction, root).await?;
+        Ok(transaction.query_row("SELECT COUNT(*) FROM ballot", [], |row| row.get(0))?)
+    }
+
+    #[tokio::test]
+    async fn decoded_ballots_counted_once_are_imported() {
+        let root = tempfile::tempdir().unwrap();
+        let area = area_dir(root.path());
+        fs::create_dir_all(&area).unwrap();
+        fs::write(area.join("decoded_ballots.json"), "[]").unwrap();
+
+        assert_eq!(import(root.path()).await.unwrap(), 1);
+    }
+
+    /// A ballot in a weight batch stands for several, so importing the
+    /// decoded ballots counted once, or none at all, would misstate them.
+    #[tokio::test]
+    async fn decoded_ballots_split_into_weight_batches_are_refused() {
+        for files in [
+            vec!["decoded_ballots__x2.json"],
+            vec!["decoded_ballots.json", "decoded_ballots__x4.json"],
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let area = area_dir(root.path());
+            fs::create_dir_all(&area).unwrap();
+            for file in &files {
+                fs::write(area.join(file), "[]").unwrap();
+            }
+
+            assert!(import(root.path()).await.is_err(), "{files:?}");
+        }
+    }
 }

@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::pipes::error::{Error, Result};
-use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
+use crate::pipes::pipe_inputs::{
+    batch_file_name, list_batch_files, remove_batch_files, PipeInputs, BALLOTS_FILE,
+};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::Contest;
@@ -88,51 +90,54 @@ impl Pipe for DecodeBallots {
 
         tasks.par_iter().try_for_each(
             |(election_input, contest_input, area_input)| -> Result<()> {
-                let path_ballots = PipeInputs::build_path(
+                let area_ballots_dir = PipeInputs::build_path(
                     self.pipe_inputs.root_path_ballots.as_path(),
                     &election_input.id,
                     Some(&contest_input.id),
                     Some(&area_input.id),
-                )
-                .join(BALLOTS_FILE);
+                );
 
-                let res =
-                    DecodeBallots::decode_ballots(path_ballots.as_path(), &contest_input.contest);
+                let output_dir = PipeInputs::build_path(
+                    self.pipe_inputs
+                        .cli
+                        .output_dir
+                        .join(PipeNameOutputDir::DecodeBallots.as_ref())
+                        .as_path(),
+                    &election_input.id,
+                    Some(&contest_input.id),
+                    Some(&area_input.id),
+                );
+                remove_batch_files(&output_dir, OUTPUT_DECODED_BALLOTS_FILE)?;
 
-                match res {
-                    Ok(decoded_ballots) => {
-                        let mut output_path = PipeInputs::build_path(
-                            self.pipe_inputs
-                                .cli
-                                .output_dir
-                                .join(PipeNameOutputDir::DecodeBallots.as_ref())
-                                .as_path(),
-                            &election_input.id,
-                            Some(&contest_input.id),
-                            Some(&area_input.id),
-                        );
-
-                        fs::create_dir_all(&output_path)?;
-                        output_path.push(OUTPUT_DECODED_BALLOTS_FILE);
-                        let file = File::create(&output_path)
-                            .map_err(|e| Error::FileAccess(output_path.clone(), e))?;
-
-                        serde_json::to_writer(file, &decoded_ballots)?;
-                        Ok(())
-                    }
-                    Err(e) => {
-                        if let Error::FileAccess(file, _) = &e {
-                            warn!(
-                                "[{}] File not found: {} -- Not processed",
-                                PipeName::DecodeBallots.as_ref(),
-                                file.display()
-                            );
-                            Ok(())
-                        } else {
-                            Err(e)
-                        }
-                    }
+                // One file, unless the area's ballots were split into weight
+                // batches: then one per batch, each decoded on its own and
+                // written under its batch's name for do_tally to count.
+                let ballot_files = list_batch_files(&area_ballots_dir, BALLOTS_FILE)?;
+                if ballot_files.is_empty() {
+                    warn!(
+                        "[{}] File not found: {} -- Not processed",
+                        PipeName::DecodeBallots.as_ref(),
+                        area_ballots_dir.join(BALLOTS_FILE).display()
+                    );
+                    return Ok(());
                 }
+
+                fs::create_dir_all(&output_dir)?;
+
+                for (path_ballots, multiplier) in ballot_files {
+                    let decoded_ballots = DecodeBallots::decode_ballots(
+                        path_ballots.as_path(),
+                        &contest_input.contest,
+                    )?;
+
+                    let output_path =
+                        output_dir.join(batch_file_name(OUTPUT_DECODED_BALLOTS_FILE, multiplier));
+                    let file = File::create(&output_path)
+                        .map_err(|e| Error::FileAccess(output_path.clone(), e))?;
+
+                    serde_json::to_writer(file, &decoded_ballots)?;
+                }
+                Ok(())
             },
         )?;
 
