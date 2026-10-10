@@ -32,6 +32,8 @@ pub(super) fn compute_decryption_factors<C: Ctx>(
     num_t: &TrusteeCount,
     trustee: &Trustee<C>,
 ) -> Result<Vec<Message>, ProtocolError> {
+    datalog::verify_shares_hashes(shares_hs, num_t)?;
+
     let ctx = C::default();
     let cfg = trustee.get_configuration(cfg_h)?;
 
