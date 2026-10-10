@@ -43,6 +43,29 @@ struct UpdateCustomUrlOutput {
     message: String,
 }
 
+/// Kind of custom URL named by the key of the request; an unknown key is a bad
+/// request.
+fn parse_custom_url_kind(key: &str) -> Result<CustomUrlKind, (Status, String)> {
+    CustomUrlKind::from_str(key).map_err(|_| {
+        (
+            Status::BadRequest,
+            format!("Invalid custom URL key: {key:?}"),
+        )
+    })
+}
+
+/// Prefix named by the request. An invalid prefix is reported in the output of
+/// the update, like the other failures of the update, so that the admin portal
+/// can show the message of each custom URL.
+fn parse_custom_url_prefix(
+    dns_prefix: &str,
+) -> Result<DnsLabel, UpdateCustomUrlOutput> {
+    DnsLabel::from_str(dns_prefix).map_err(|error| UpdateCustomUrlOutput {
+        success: false,
+        message: format!("Error updating custom URL: {error}"),
+    })
+}
+
 #[instrument(skip(claims))]
 #[post("/set-custom-url", format = "json", data = "<input>")]
 pub async fn update_custom_url(
@@ -60,21 +83,10 @@ pub async fn update_custom_url(
         return Err((Status::Forbidden, "Authorization failed".to_string()));
     }
 
-    let kind = CustomUrlKind::from_str(&body.key).map_err(|_| {
-        (
-            Status::BadRequest,
-            format!("Invalid custom URL key: {:?}", body.key),
-        )
-    })?;
-
-    let dns_prefix = match DnsLabel::from_str(&body.dns_prefix) {
+    let kind = parse_custom_url_kind(&body.key)?;
+    let dns_prefix = match parse_custom_url_prefix(&body.dns_prefix) {
         Ok(dns_prefix) => dns_prefix,
-        Err(error) => {
-            return Ok(Json(UpdateCustomUrlOutput {
-                success: false,
-                message: format!("Error updating custom URL: {error}"),
-            }));
-        }
+        Err(output) => return Ok(Json(output)),
     };
 
     info!("Authorization succeeded, processing URL update");
@@ -171,5 +183,45 @@ pub async fn get_custom_url(
             message: "No matching page rule found".to_string(),
             origin: "".to_string(),
         })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn known_keys_are_custom_url_kinds() {
+        assert_eq!(
+            parse_custom_url_kind("login").ok(),
+            Some(CustomUrlKind::Login)
+        );
+        assert_eq!(
+            parse_custom_url_kind("enrollment").ok(),
+            Some(CustomUrlKind::Enrollment)
+        );
+        assert_eq!(
+            parse_custom_url_kind("saml").ok(),
+            Some(CustomUrlKind::Saml)
+        );
+    }
+
+    #[test]
+    fn unknown_key_is_a_bad_request() {
+        let (status, message) = parse_custom_url_kind("other").unwrap_err();
+
+        assert_eq!(status, Status::BadRequest);
+        assert!(message.contains("other"));
+    }
+
+    #[test]
+    fn prefix_must_be_a_single_label() {
+        assert!(parse_custom_url_prefix("my-vote").is_ok());
+        for prefix in ["", "my.vote", "*"] {
+            let output = parse_custom_url_prefix(prefix).unwrap_err();
+
+            assert!(!output.success, "{prefix:?}");
+            assert!(output.message.starts_with("Error updating custom URL"));
+        }
     }
 }
