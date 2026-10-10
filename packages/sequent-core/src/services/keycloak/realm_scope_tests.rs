@@ -116,27 +116,44 @@ async fn delete_permission_rejects_names_that_are_not_one_path_segment() {
             .await;
         assert_rejected_without_request(&recorder, result);
     }
+
+    let recorder = RequestRecorder::start();
+    let result = recorder
+        .client()
+        .delete_permission(&format!("{realm}/../other-realm"), "user-read")
+        .await;
+    assert_rejected_without_request(&recorder, result);
 }
 
 #[rocket::async_test]
 async fn role_permission_updates_reject_ids_and_names_that_are_not_one_path_segment(
 ) {
     let realm = get_tenant_realm(TENANT_ID);
-    for (role_id, permission_name) in [
-        ("../../other-realm/groups/other-group", "user-read"),
-        (GROUP_ID, "../../other-realm/roles/user-write"),
+    let other_realm = format!("{realm}/../other-realm");
+    for (realm, role_id, permission_name) in [
+        (
+            realm.as_str(),
+            "../../other-realm/groups/other-group",
+            "user-read",
+        ),
+        (
+            realm.as_str(),
+            GROUP_ID,
+            "../../other-realm/roles/user-write",
+        ),
+        (other_realm.as_str(), GROUP_ID, "user-read"),
     ] {
         let recorder = RequestRecorder::start();
         let result = recorder
             .client()
-            .set_role_permission(&realm, role_id, permission_name)
+            .set_role_permission(realm, role_id, permission_name)
             .await;
         assert_rejected_without_request(&recorder, result);
 
         let recorder = RequestRecorder::start();
         let result = recorder
             .client()
-            .delete_role_permission(&realm, role_id, permission_name)
+            .delete_role_permission(realm, role_id, permission_name)
             .await;
         assert_rejected_without_request(&recorder, result);
 
@@ -144,7 +161,7 @@ async fn role_permission_updates_reject_ids_and_names_that_are_not_one_path_segm
         let result = recorder
             .client()
             .set_role_permissions(
-                &realm,
+                realm,
                 role_id,
                 &vec!["user-read".to_string(), permission_name.to_string()],
             )
