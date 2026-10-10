@@ -790,17 +790,13 @@ pub struct CreateUserBody {
 
 /// A new user always gets the id of the tenant it is created in, so the request
 /// must not carry a `tenant-id` attribute of its own.
-fn reject_tenant_id_attribute(user: &User) -> Result<(), JsonError> {
+fn reject_tenant_id_attribute(user: &User) -> Result<(), String> {
     if user
         .attributes
         .as_ref()
         .is_some_and(|attributes| attributes.contains_key(TENANT_ID_ATTR_NAME))
     {
-        return Err(ErrorResponse::new(
-            Status::BadRequest,
-            &format!("Cannot set {TENANT_ID_ATTR_NAME} attribute"),
-            ErrorCode::UnknownError,
-        ));
+        return Err(format!("Cannot set {TENANT_ID_ATTR_NAME} attribute"));
     }
     Ok(())
 }
@@ -836,7 +832,13 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
-    reject_tenant_id_attribute(&input.user)?;
+    reject_tenant_id_attribute(&input.user).map_err(|message| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &message,
+            ErrorCode::UnknownError,
+        )
+    })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -1917,11 +1919,11 @@ mod tests {
             .expect("valid user")
         };
         for tenant_id in ["tenant", "another-tenant"] {
-            let response = super::reject_tenant_id_attribute(&user(
+            let message = super::reject_tenant_id_attribute(&user(
                 serde_json::json!({"tenant-id": [tenant_id]}),
             ))
             .expect_err("tenant-id must be rejected");
-            assert_eq!(response.0, rocket::http::Status::BadRequest);
+            assert!(message.contains(super::TENANT_ID_ATTR_NAME), "{message}");
         }
         assert!(super::reject_tenant_id_attribute(&user(
             serde_json::json!({"customerReference": ["REF-1"]})
