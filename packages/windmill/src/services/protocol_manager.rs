@@ -451,3 +451,102 @@ pub async fn get_board_messages<C: Ctx>(
     let messages: Vec<Message> = convert_board_messages(&board_messages)?;
     Ok(messages)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use b3::messages::newtypes::{ChannelsHashes, SharesHashes};
+
+    struct Board {
+        trustees: Vec<ProtocolManager<RistrettoCtx>>,
+        configuration: Configuration<RistrettoCtx>,
+        messages: Vec<Message>,
+    }
+
+    fn board() -> Board {
+        let manager = gen_protocol_manager::<RistrettoCtx>().unwrap();
+        let trustees: Vec<_> = (0..3)
+            .map(|_| gen_protocol_manager::<RistrettoCtx>().unwrap())
+            .collect();
+        let configuration = Configuration::<RistrettoCtx>::new(
+            0,
+            StrandSignaturePk::from_sk(&manager.signing_key).unwrap(),
+            trustees
+                .iter()
+                .map(|trustee| StrandSignaturePk::from_sk(&trustee.signing_key).unwrap())
+                .collect(),
+            2,
+            PhantomData,
+        );
+        let messages = vec![Message::bootstrap_msg(&configuration, &manager).unwrap()];
+        Board {
+            trustees,
+            configuration,
+            messages,
+        }
+    }
+
+    fn post_public_key(board: &mut Board, trustee: usize, artifact: bool) {
+        let public_key = DkgPublicKey::new(RistrettoCtx.generator().clone(), vec![]);
+        let message = Message::public_key_msg(
+            &board.configuration,
+            &public_key,
+            &SharesHashes([[1; 64]; MAX_TRUSTEES]),
+            &ChannelsHashes([[2; 64]; MAX_TRUSTEES]),
+            artifact,
+            &board.trustees[trustee],
+        )
+        .unwrap();
+        board.messages.push(message);
+    }
+
+    #[test]
+    fn configuration_must_match_the_vault_manager_key() {
+        let board = board();
+        let other_manager = gen_protocol_manager::<RistrettoCtx>().unwrap();
+        let other_manager_pk = StrandSignaturePk::from_sk(&other_manager.signing_key).unwrap();
+
+        assert!(get_configuration::<RistrettoCtx>(
+            &board.messages,
+            &board.configuration.protocol_manager
+        )
+        .is_ok());
+        assert!(get_configuration::<RistrettoCtx>(&board.messages, &other_manager_pk).is_err());
+    }
+
+    #[test]
+    fn board_with_a_message_from_an_untrusted_sender_is_rejected() {
+        let mut board = board();
+        let untrusted = gen_protocol_manager::<RistrettoCtx>().unwrap();
+        board
+            .messages
+            .push(Message::configuration_msg(&board.configuration, &untrusted).unwrap());
+
+        assert!(get_configuration::<RistrettoCtx>(
+            &board.messages,
+            &board.configuration.protocol_manager
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn public_key_requires_every_configured_trustee_to_agree() {
+        let mut board = board();
+        post_public_key(&mut board, 0, true);
+        post_public_key(&mut board, 1, false);
+        assert!(get_public_key_hash(&board.messages, &board.configuration).is_err());
+
+        post_public_key(&mut board, 2, false);
+        assert!(get_public_key_hash(&board.messages, &board.configuration).is_ok());
+    }
+
+    #[test]
+    fn public_key_artifact_must_come_from_the_first_trustee() {
+        let mut board = board();
+        post_public_key(&mut board, 0, false);
+        post_public_key(&mut board, 1, true);
+        post_public_key(&mut board, 2, false);
+
+        assert!(get_public_key_hash(&board.messages, &board.configuration).is_err());
+    }
+}

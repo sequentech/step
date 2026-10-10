@@ -59,7 +59,7 @@ fn configuration_requires_external_manager_anchor_and_valid_signature() {
 }
 
 #[test]
-fn forged_sender_and_modified_statement_cannot_contribute_to_board() {
+fn message_with_mismatched_sender_is_rejected() {
     let (_, trustees, cfg, mut messages) = fixture();
     let mut valid = Message::configuration_msg(&cfg, &trustees[0]).unwrap();
     valid.sender.pk = cfg.trustees[1].clone();
@@ -154,7 +154,7 @@ fn results_wait_for_matching_selected_trustee_signatures() {
 }
 
 #[test]
-fn manager_cannot_impersonate_a_trustee_and_trustee_cannot_post_ballots() {
+fn statement_kinds_are_limited_to_their_signers() {
     let (manager, trustees, cfg, mut messages) = fixture();
     messages.push(Message::configuration_msg(&cfg, &manager).unwrap());
     assert!(verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).is_err());
@@ -184,4 +184,71 @@ fn manager_cannot_impersonate_a_trustee_and_trustee_cannot_post_ballots() {
         )
         .unwrap();
     assert!(valid.verify(&cfg).is_ok());
+}
+
+#[test]
+fn message_from_outside_the_configuration_is_rejected() {
+    let (_, _, cfg, mut messages) = fixture();
+    let outsider = Manager::new(StrandSignatureSk::gen().unwrap());
+    messages.push(Message::configuration_msg(&cfg, &outsider).unwrap());
+    assert!(verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).is_err());
+}
+
+#[test]
+fn key_artifact_must_be_posted_by_the_first_trustee() {
+    let (_, trustees, cfg, mut messages) = fixture();
+    let ctx = RistrettoCtx;
+    let pk = DkgPublicKey::new(ctx.generator().clone(), vec![]);
+    let shares = SharesHashes([[1; 64]; MAX_TRUSTEES]);
+    let channels = ChannelsHashes([[2; 64]; MAX_TRUSTEES]);
+    messages
+        .push(Message::public_key_msg(&cfg, &pk, &shares, &channels, false, &trustees[0]).unwrap());
+    messages
+        .push(Message::public_key_msg(&cfg, &pk, &shares, &channels, true, &trustees[1]).unwrap());
+    messages
+        .push(Message::public_key_msg(&cfg, &pk, &shares, &channels, false, &trustees[2]).unwrap());
+    verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).unwrap();
+    assert!(agreed_public_key(&messages, &cfg).is_none());
+}
+
+#[test]
+fn results_artifact_must_be_posted_by_the_first_selected_trustee() {
+    let (manager, trustees, cfg, mut messages) = fixture();
+    let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
+    selected[0] = 1;
+    selected[1] = 2;
+    let pk = PublicKeyHash([4; 64]);
+    messages.push(
+        Message::ballots_msg(&cfg, 9, &Ballots::new(vec![]), selected, pk, &manager).unwrap(),
+    );
+    let dfactors = DecryptionFactorsHashes([[5; 64]; MAX_TRUSTEES]);
+    let ciphertexts = CiphertextsHash([6; 64]);
+    let result = Message::plaintexts_msg(
+        &cfg,
+        9,
+        Plaintexts(StrandVector(vec![])),
+        dfactors,
+        ciphertexts,
+        pk,
+        &trustees[1],
+    )
+    .unwrap();
+    let Statement::Plaintexts(_, _, _, plaintexts, ..) = &result.statement else {
+        unreachable!()
+    };
+    messages.push(
+        Message::plaintexts_signed_msg(
+            &cfg,
+            9,
+            *plaintexts,
+            dfactors,
+            ciphertexts,
+            pk,
+            &trustees[0],
+        )
+        .unwrap(),
+    );
+    messages.push(result.try_clone().unwrap());
+    verify_board::<RistrettoCtx>(&messages, &cfg.protocol_manager).unwrap();
+    assert!(!plaintexts_agreed(&result, &messages, &cfg));
 }
