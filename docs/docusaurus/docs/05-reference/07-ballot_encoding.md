@@ -562,15 +562,23 @@ was cast together with the plaintext and the randomness used to produce it.
 Decoding the plaintext shows what the ballot says; it does not show that the
 ciphertext actually encrypts it. A verifier must therefore:
 
-1. parse the public key of the ballot style included in the ballot
-2. check that the contests named by the ballot are exactly the votable
+1. find the published ballot style whose id is the one the ballot names
+   (`config.id`), and use it for every step below instead of the copy of the
+   ballot style included in the ballot
+2. parse the public key of that ballot style
+3. check that the contests named by the ballot are exactly the votable
    contests of that ballot style, each named once
-3. encrypt each plaintext again with the recorded randomness and the public
+4. encrypt each plaintext again with the recorded randomness and the public
    key, and compare the result with the ciphertext carried by the ballot
+5. decode the plaintext, and show it, with the contests and candidates of that
+   ballot style
 
 Both encodings are verified this way: the single-contest codec has one
 ciphertext per contest, the multi-contest codec has a single ciphertext for
-the whole ballot. Any mismatch, and any ballot that cannot be checked (missing
-or malformed public key, contests that do not match the ballot style), must be
-reported as a verification failure rather than shown as a verified ballot. The
-Ballot Verifier performs this check before displaying the decoded ballot.
+the whole ballot. Any mismatch, and any ballot that cannot be checked (no
+published ballot style with that id, missing or malformed public key, a public
+key that is the identity element, contests that do not match the ballot
+style), must be reported as a verification failure rather than shown as a
+verified ballot. The Ballot Verifier performs this check before displaying the
+decoded ballot, and takes the presentation of the confirmation screen from the
+same published ballot style.
