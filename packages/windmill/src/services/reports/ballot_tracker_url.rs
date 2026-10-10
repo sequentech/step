@@ -173,7 +173,7 @@ mod tests {
             "https://kiosk.example/portal/tenant/tenant-id/event/event-id/election/election-id/ballot-locator/0123456789abcdef?kiosk"
         );
         for client in [
-            "https://kiosk.example.attacker.invalid",
+            "https://kiosk.example.untrusted.example",
             "http://kiosk.example",
             "https://kiosk.example:8443",
         ] {
