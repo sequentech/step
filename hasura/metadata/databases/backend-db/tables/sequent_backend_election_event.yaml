@@ -481,7 +481,9 @@ update_permissions:
       role: admin-user
     - comment: ""
       permission:
-          check: null
+          check:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
           columns:
               - id
               - is_archived
@@ -546,7 +548,9 @@ update_permissions:
               - audit_election_event_id
               - id
               - tenant_id
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: localization-write
     - comment: ""
       permission:

@@ -502,7 +502,9 @@ update_permissions:
               - election_id
               - id
               - tenant_id
-          filter: {}
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
       role: contest-write
     - comment: ""
       permission:
