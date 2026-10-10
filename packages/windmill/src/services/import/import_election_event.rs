@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::application::insert_applications;
-use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_bulletin_board};
+use crate::postgres::election_event::{
+    election_event_id_exists, get_election_event_by_id_if_exist, lock_election_event_id,
+    update_bulletin_board,
+};
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trusted_write;
@@ -434,22 +437,20 @@ pub async fn upsert_keycloak_realm(
     Ok(())
 }
 
-/// Fails when the tenant already has an election event with this id, so the
-/// create and import paths only ever set up new events and their realms.
+/// Fails when an election event with this id already exists in any tenant, so
+/// the create and import paths only ever set up new events and their realms.
+/// The id stays locked until the transaction ends, so two attempts with the
+/// same id cannot both pass this check.
 #[instrument(skip(hasura_transaction), err)]
 pub async fn ensure_new_election_event(
     hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    match get_election_event_by_id_if_exist(hasura_transaction, tenant_id, election_event_id)
-        .await?
-    {
-        Some(_) => Err(anyhow!(
-            "Election event {election_event_id} already exists in tenant {tenant_id}"
-        )),
-        None => Ok(()),
+    lock_election_event_id(hasura_transaction, election_event_id).await?;
+    if election_event_id_exists(hasura_transaction, election_event_id).await? {
+        return Err(anyhow!("Election event {election_event_id} already exists"));
     }
+    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -873,7 +874,7 @@ pub async fn process_election_event_file(
     )
     .await?;
 
-    ensure_new_election_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+    ensure_new_election_event(hasura_transaction, &election_event_id).await?;
 
     upsert_keycloak_realm(
         tenant_id.as_str(),
@@ -2220,5 +2221,86 @@ mod import_scope_tests {
                 "{kind} row of another event was accepted"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod new_election_event_tests {
+    use super::*;
+    use crate::services::database::generate_hasura_pool;
+    use tokio_postgres::error::SqlState;
+
+    const ELECTION_EVENT_TABLE: &str = r#"
+        CREATE SCHEMA IF NOT EXISTS sequent_backend;
+        CREATE TABLE sequent_backend.election_event (
+            id UUID PRIMARY KEY,
+            tenant_id UUID NOT NULL
+        );
+    "#;
+
+    /// Election event ids are unique across tenants, so an id is taken as soon
+    /// as any tenant uses it.
+    #[tokio::test]
+    #[ignore = "requires an empty PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
+    async fn rejects_an_election_event_id_used_in_another_tenant() -> Result<()> {
+        let pool = generate_hasura_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction.batch_execute(ELECTION_EVENT_TABLE).await?;
+        let used_id = Uuid::new_v4();
+        transaction
+            .execute(
+                "INSERT INTO sequent_backend.election_event (id, tenant_id) VALUES ($1, $2)",
+                &[&used_id, &Uuid::new_v4()],
+            )
+            .await?;
+
+        assert!(
+            ensure_new_election_event(&transaction, &used_id.to_string())
+                .await
+                .is_err()
+        );
+        assert!(
+            ensure_new_election_event(&transaction, &Uuid::new_v4().to_string())
+                .await
+                .is_ok()
+        );
+
+        transaction.rollback().await?;
+        Ok(())
+    }
+
+    /// A second create or import of the same id waits for the first one's
+    /// transaction to end instead of setting the event up alongside it.
+    #[tokio::test]
+    #[ignore = "requires an empty PostgreSQL configured through HASURA_DB__*; exercised by the dedicated CI job"]
+    async fn holds_the_election_event_id_until_the_transaction_ends() -> Result<()> {
+        let pool = generate_hasura_pool().await?;
+        let mut first_client = pool.get().await?;
+        let mut second_client = pool.get().await?;
+        let election_event_id = Uuid::new_v4().to_string();
+
+        let first = first_client.transaction().await?;
+        first.batch_execute(ELECTION_EVENT_TABLE).await?;
+        ensure_new_election_event(&first, &election_event_id).await?;
+
+        let second = second_client.transaction().await?;
+        second
+            .batch_execute("SET LOCAL lock_timeout = '200ms'")
+            .await?;
+        let error = ensure_new_election_event(&second, &election_event_id)
+            .await
+            .expect_err("a second setup of the same id must wait for the first");
+        assert_eq!(
+            error
+                .downcast_ref::<tokio_postgres::Error>()
+                .and_then(tokio_postgres::Error::code),
+            Some(&SqlState::LOCK_NOT_AVAILABLE),
+            "{error:#}"
+        );
+
+        second.rollback().await?;
+        first.rollback().await?;
+        Ok(())
     }
 }
