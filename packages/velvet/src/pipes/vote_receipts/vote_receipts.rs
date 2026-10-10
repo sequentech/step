@@ -12,7 +12,7 @@ use crate::pipes::Pipe;
 
 use sequent_core::ballot::{Candidate, Contest, StringifiedPeriodDates};
 use sequent_core::ballot_codec::BigUIntCodec;
-use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
+use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, InvalidPlaintextErrorType};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::templates::VoteReceiptPipeType;
 use sequent_core::util::date_time::get_date_and_time;
@@ -308,7 +308,13 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 .filter(|can| can.is_selected())
                 .count();
 
-            let is_blank = selected_candidates.len() == 0;
+            // A contest that did not decode has no marks, but it is not a
+            // blank vote.
+            let has_encoding_error = decoded_vote_contest
+                .invalid_errors
+                .iter()
+                .any(|error| error.error_type == InvalidPlaintextErrorType::EncodingError);
+            let is_blank = !has_encoding_error && selected_candidates.is_empty();
             let undervotes = data.contest.max_votes - (num_selected as i64);
             let mut overvotes = 0;
             if (num_selected as i64) > data.contest.max_votes {
