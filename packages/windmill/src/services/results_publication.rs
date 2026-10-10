@@ -13,6 +13,7 @@ use crate::postgres::tally_results_publication::{
     set_publication_finalization_error, validate_new_publication_source,
     NewTallyResultsPublication, TallyResultsPublication,
 };
+use crate::postgres::tally_session::lock_tally_session_for_update;
 use crate::postgres::tally_session_execution::get_tally_session_execution_documents;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
@@ -1447,6 +1448,26 @@ pub async fn publish_results_website_artifacts(
         }
     }
     let selected_contests = selected_contest_ids(&publication)?;
+    lock_tally_session_for_update(
+        tx,
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_id,
+    )
+    .await?;
+    validate_new_publication_source(
+        tx,
+        &publication.tenant_id,
+        &publication.election_event_id,
+        &publication.tally_session_id,
+        &publication.tally_session_execution_id,
+        &publication.results_event_id,
+        &publication.election_ids,
+        &selected_contests,
+        publication.route_election_id.as_deref(),
+    )
+    .await
+    .context("Invalid publication source")?;
     let source_sqlite = source_sqlite_file(tx, &publication).await?;
     let source_path: PathBuf = source_sqlite.path().to_path_buf();
     let current_presentation =
