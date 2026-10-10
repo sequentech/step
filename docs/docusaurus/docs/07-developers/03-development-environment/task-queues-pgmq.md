@@ -69,7 +69,8 @@ does not create queues.
    `postgres` volume is created. A volume created before the task queues, also on a
    remote or airgap host, needs the script run once by hand, and then the setup; both
    are idempotent. On a remote host, first add the `QUEUE_DB_*` settings of
-   `.env.remote-deployment.example` to its `.env`.
+   `.env.remote-deployment.example` to its `.env`, and add
+   `-f docker-compose-remote.yml` to the `docker compose` commands.
 
    ```sh
    docker compose up -d postgres
