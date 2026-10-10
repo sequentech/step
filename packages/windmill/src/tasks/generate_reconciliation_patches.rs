@@ -9,8 +9,10 @@
 //! non-empty), and a "diff envelope" JSON referencing both plus every item —
 //! see `reconciliation::diff::ReconciliationDiff`. There is no
 //! `datafix_reconciliation_import` table or row of any kind; the envelope
-//! document *is* the record, and its id is the one thing recorded on
-//! `task_execution.annotations.document_id`. Named `GENERATE_RECONCILIATION_PATCHES`
+//! document *is* the record. Its id is recorded on
+//! `task_execution.annotations.document_id`, together with the SHA-256 of the
+//! envelope and of the Sequent patch that apply checks them against (see
+//! `reconciliation::round`). Named `GENERATE_RECONCILIATION_PATCHES`
 //! to match the `ETasksExecution` value already committed on the frontend,
 //! even though it also computes the diff, not just the patch.
 //!
@@ -38,16 +40,17 @@ use crate::services::datafix::reconciliation::diff::{
     DatafixAreaFieldsByName, DiffItem,
 };
 use crate::services::datafix::reconciliation::patch::{
-    is_sequent_apply_stream_item, sha256_hex, DiffItemArrayWriter, DiffItemNdjsonWriter,
-    ExternalPatchCsvWriter,
+    is_sequent_apply_stream_item, sha256_file_hex, sha256_hex, DiffItemArrayWriter,
+    DiffItemNdjsonWriter, ExternalPatchCsvWriter,
 };
+use crate::services::datafix::reconciliation::round::GeneratedReconciliationRound;
 use crate::services::datafix::reconciliation::types::ReconciliationPatchSource;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::tally_sheet_import::hash::hash_bytes;
-use crate::services::tasks_execution::{update, update_complete, update_fail};
+use crate::services::tasks_execution::{update, update_complete_with_annotations, update_fail};
 use crate::services::users::{
     fetch_realm_voter_snapshots_by_usernames, fetch_realm_voter_snapshots_page, VoterSnapshot,
 };
@@ -95,9 +98,15 @@ pub async fn generate_reconciliation_patches(
     task_execution: TasksExecution,
 ) -> Result<()> {
     let mut task_execution = task_execution;
-    match run_generate_reconciliation_patches(&body, &mut task_execution).await {
-        Ok(diff_document_id) => {
-            update_complete(&task_execution, Some(diff_document_id))
+    let result = run_generate_reconciliation_patches(&body, &mut task_execution)
+        .await
+        .and_then(|round| {
+            serde_json::to_value(round)
+                .map_err(|err| format!("Error serializing the reconciliation round: {err}"))
+        });
+    match result {
+        Ok(annotations) => {
+            update_complete_with_annotations(&task_execution, annotations)
                 .await
                 .ok();
             Ok(())
@@ -113,7 +122,7 @@ pub async fn generate_reconciliation_patches(
 async fn run_generate_reconciliation_patches(
     body: &GenerateReconciliationPatchesBody,
     task_execution: &mut TasksExecution,
-) -> std::result::Result<String, String> {
+) -> std::result::Result<GeneratedReconciliationRound, String> {
     let mut hasura_client = get_hasura_pool()
         .await
         .get()
@@ -381,6 +390,8 @@ async fn run_generate_reconciliation_patches(
         .map_err(|err| format!("Error finishing the Sequent patch: {err}"))?;
     let sequent_patch_size = file_size(sequent_patch_temp.path())
         .map_err(|err| format!("Error sizing the Sequent patch: {err}"))?;
+    let sequent_patch_sha256 = sha256_file_hex(sequent_patch_temp.path())
+        .map_err(|err| format!("Error hashing the Sequent patch: {err}"))?;
     let sequent_patch_document_id = upload_document_from_temp_file(
         &hasura_transaction,
         &body.tenant_id,
@@ -457,6 +468,8 @@ async fn run_generate_reconciliation_patches(
         .map_err(|err| format!("Error finishing the diff envelope: {err}"))?;
     let envelope_size = file_size(envelope_temp.path())
         .map_err(|err| format!("Error sizing the diff envelope: {err}"))?;
+    let envelope_sha256 = sha256_file_hex(envelope_temp.path())
+        .map_err(|err| format!("Error hashing the diff envelope: {err}"))?;
     let envelope_document_id = upload_document_from_temp_file(
         &hasura_transaction,
         &body.tenant_id,
@@ -500,7 +513,11 @@ async fn run_generate_reconciliation_patches(
         .await
         .map_err(|err| format!("Error committing transaction: {err}"))?;
 
-    Ok(envelope_document_id)
+    Ok(GeneratedReconciliationRound {
+        document_id: envelope_document_id,
+        envelope_sha256,
+        sequent_patch_sha256,
+    })
 }
 
 /// Enforces the ticket's `<=` stale rule while preserving its two explicit
@@ -645,11 +662,11 @@ async fn upload_document_from_temp_file(
 /// stays `IN_PROGRESS`), so a crash partway through this task leaves a
 /// record of how far processing got instead of nothing beyond "Task
 /// started". Mutates `task_execution.logs` in place: the final
-/// `update_complete`/`update_fail` call is built from that same field
-/// (celery task arguments are captured once at enqueue time and don't
-/// reflect this task's own DB writes), so without this the last checkpoint
-/// would otherwise be overwritten by a summary built from the task's
-/// original, pre-run logs. Persisting a checkpoint is best-effort: a
+/// `update_complete_with_annotations`/`update_fail` call is built from that
+/// same field (celery task arguments are captured once at enqueue time and
+/// don't reflect this task's own DB writes), so without this the last
+/// checkpoint would otherwise be overwritten by a summary built from the
+/// task's original, pre-run logs. Persisting a checkpoint is best-effort: a
 /// failure here is logged, not propagated — a diagnostic write must never
 /// abort the reconciliation run it's only there to report on.
 async fn checkpoint(task_execution: &mut TasksExecution, message: &str) {
