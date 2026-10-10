@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
+use crate::postgres::cast_vote::{get_voter_cast_vote_state, VoterCastVoteState};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keycloak_realm::find_realm_id;
 use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
@@ -13,7 +14,7 @@ use futures::TryStreamExt;
 use keycloak::types::GroupRepresentation;
 use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
+use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
@@ -343,6 +344,182 @@ pub enum VoterMultiplicityColumn {
     None,
     DelegateCount,
     VoteWeight,
+}
+
+/// A voter field the tally census reads when the tally runs. Changing one
+/// can leave a cast ballot out of the tally or change how many times it
+/// counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CensusAttribute {
+    Enabled,
+    AreaId,
+    AuthorizedElectionIds,
+    VoteWeight,
+    DelegateVoteTo,
+}
+
+impl CensusAttribute {
+    const KEYCLOAK_ATTRIBUTES: [CensusAttribute; 4] = [
+        CensusAttribute::AreaId,
+        CensusAttribute::AuthorizedElectionIds,
+        CensusAttribute::VoteWeight,
+        CensusAttribute::DelegateVoteTo,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            CensusAttribute::Enabled => "enabled",
+            CensusAttribute::AreaId => AREA_ID_ATTR_NAME,
+            CensusAttribute::AuthorizedElectionIds => AUTHORIZED_ELECTION_IDS_NAME,
+            CensusAttribute::VoteWeight => VOTE_WEIGHT_ATTR_NAME,
+            CensusAttribute::DelegateVoteTo => DELEGATE_TO_ATTR_NAME,
+        }
+    }
+}
+
+impl std::fmt::Display for CensusAttribute {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.name())
+    }
+}
+
+fn census_values(values: Option<&Vec<String>>) -> Vec<&str> {
+    let mut values: Vec<&str> = values.into_iter().flatten().map(String::as_str).collect();
+    values.sort_unstable();
+    values
+}
+
+/// The census attributes an edit of `current` would change. `enabled` and
+/// `attributes` are what the edit writes; an attribute it leaves out keeps
+/// its value, as `KeycloakAdminClient::edit_user` merges attributes.
+pub fn changed_census_attributes(
+    current: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Vec<CensusAttribute> {
+    let mut changed = vec![];
+    if enabled.is_some_and(|enabled| Some(enabled) != current.enabled) {
+        changed.push(CensusAttribute::Enabled);
+    }
+    for attribute in CensusAttribute::KEYCLOAK_ATTRIBUTES {
+        let Some(requested) = attributes.get(attribute.name()) else {
+            continue;
+        };
+        let current_values = current
+            .attributes
+            .as_ref()
+            .and_then(|current| current.get(attribute.name()));
+        if census_values(Some(requested)) != census_values(current_values) {
+            changed.push(attribute);
+        }
+    }
+    changed
+}
+
+/// Why an edit changing `changed` must be refused: the voter has a valid or
+/// in-progress ballot.
+pub fn census_change_refusal(
+    state: &VoterCastVoteState,
+    changed: &[CensusAttribute],
+) -> Option<String> {
+    if changed.is_empty() || !state.has_active_vote() {
+        return None;
+    }
+    let names: Vec<String> = changed.iter().map(ToString::to_string).collect();
+    Some(format!(
+        "Cannot change {} of a voter who has cast a ballot",
+        names.join(", ")
+    ))
+}
+
+/// The delegates whose delegator count an edit of `current` changes. A
+/// delegate's ballot counts once for each voter delegating to them, so
+/// these are the ballots a delegation change reweights.
+pub fn reweighted_delegates(
+    current: &User,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Vec<String> {
+    let Some(requested) = attributes.get(DELEGATE_TO_ATTR_NAME) else {
+        return vec![];
+    };
+    let current_values = current
+        .attributes
+        .as_ref()
+        .and_then(|current| current.get(DELEGATE_TO_ATTR_NAME));
+    let mut balance: HashMap<&str, i64> = HashMap::new();
+    for username in current_values.into_iter().flatten() {
+        *balance.entry(username.as_str()).or_default() -= 1;
+    }
+    for username in requested {
+        *balance.entry(username.as_str()).or_default() += 1;
+    }
+    let mut delegates: Vec<String> = balance
+        .into_iter()
+        .filter(|(username, count)| *count != 0 && !username.is_empty())
+        .map(|(username, _)| username.to_string())
+        .collect();
+    delegates.sort_unstable();
+    delegates
+}
+
+/// Why an edit of the election event voter `current` must be refused, if it
+/// must: it changes a census attribute that counts a valid or in-progress
+/// ballot. That is the voter's own ballot or, for a delegation change, the
+/// ballot of each delegate the change adds the voter to or removes them
+/// from.
+#[instrument(
+    skip(hasura_transaction, keycloak_transaction, current, attributes),
+    err
+)]
+pub async fn census_edit_refusal(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    current: &User,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<Option<String>> {
+    let changed = changed_census_attributes(current, enabled, attributes);
+    if changed.is_empty() {
+        return Ok(None);
+    }
+    let user_id = current
+        .id
+        .as_deref()
+        .ok_or_else(|| anyhow!("The voter has no id"))?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)?;
+    let state = get_voter_cast_vote_state(
+        hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        user_id,
+    )
+    .await?;
+    if let Some(reason) = census_change_refusal(&state, &changed) {
+        return Ok(Some(reason));
+    }
+
+    let realm = get_event_realm(tenant_id, election_event_id);
+    for delegate in reweighted_delegates(current, attributes) {
+        for delegate_id in get_users_by_username(keycloak_transaction, &realm, &delegate).await? {
+            let state = get_voter_cast_vote_state(
+                hasura_transaction,
+                &tenant_uuid,
+                &election_event_uuid,
+                &delegate_id,
+            )
+            .await?;
+            if state.has_active_vote() {
+                return Ok(Some(format!(
+                    "Cannot change {} while the delegate {delegate} has cast a ballot",
+                    CensusAttribute::DelegateVoteTo
+                )));
+            }
+        }
+    }
+    Ok(None)
 }
 
 #[instrument(skip(keycloak_transaction), err)]
@@ -2047,5 +2224,160 @@ mod tests {
         .is_err());
         transaction.rollback().await?;
         Ok(())
+    }
+
+    fn voter(enabled: bool, attributes: &[(&str, &[&str])]) -> User {
+        User {
+            enabled: Some(enabled),
+            attributes: Some(
+                attributes
+                    .iter()
+                    .map(|(name, values)| {
+                        (
+                            name.to_string(),
+                            values.iter().map(|value| value.to_string()).collect(),
+                        )
+                    })
+                    .collect(),
+            ),
+            ..User::default()
+        }
+    }
+
+    fn requested(attributes: &[(&str, &[&str])]) -> HashMap<String, Vec<String>> {
+        voter(true, attributes).attributes.unwrap_or_default()
+    }
+
+    #[test]
+    fn census_changes_detect_every_tally_attribute() {
+        let current = voter(
+            true,
+            &[
+                (AREA_ID_ATTR_NAME, &["area-a"]),
+                (AUTHORIZED_ELECTION_IDS_NAME, &["mayor", "council"]),
+                (VOTE_WEIGHT_ATTR_NAME, &["1"]),
+                (DELEGATE_TO_ATTR_NAME, &["alice"]),
+            ],
+        );
+        let edit = requested(&[
+            (AREA_ID_ATTR_NAME, &["area-b"]),
+            (AUTHORIZED_ELECTION_IDS_NAME, &["mayor"]),
+            (VOTE_WEIGHT_ATTR_NAME, &["5"]),
+            (DELEGATE_TO_ATTR_NAME, &["bob"]),
+        ]);
+
+        assert_eq!(
+            changed_census_attributes(&current, Some(false), &edit),
+            vec![
+                CensusAttribute::Enabled,
+                CensusAttribute::AreaId,
+                CensusAttribute::AuthorizedElectionIds,
+                CensusAttribute::VoteWeight,
+                CensusAttribute::DelegateVoteTo,
+            ]
+        );
+    }
+
+    #[test]
+    fn census_changes_detect_added_and_removed_attributes() {
+        let current = voter(true, &[(AUTHORIZED_ELECTION_IDS_NAME, &["mayor"])]);
+        let edit = requested(&[
+            (AUTHORIZED_ELECTION_IDS_NAME, &[]),
+            (VOTE_WEIGHT_ATTR_NAME, &["3"]),
+        ]);
+
+        assert_eq!(
+            changed_census_attributes(&current, None, &edit),
+            vec![
+                CensusAttribute::AuthorizedElectionIds,
+                CensusAttribute::VoteWeight,
+            ]
+        );
+    }
+
+    #[test]
+    fn echoed_or_unrelated_values_change_no_census_attribute() {
+        let current = voter(
+            true,
+            &[
+                (AREA_ID_ATTR_NAME, &["area-a"]),
+                (AUTHORIZED_ELECTION_IDS_NAME, &["mayor", "council"]),
+                ("first-language", &["en"]),
+            ],
+        );
+        let edit = requested(&[
+            (AREA_ID_ATTR_NAME, &["area-a"]),
+            (AUTHORIZED_ELECTION_IDS_NAME, &["council", "mayor"]),
+            (VOTE_WEIGHT_ATTR_NAME, &[]),
+            ("first-language", &["fr"]),
+        ]);
+
+        assert!(changed_census_attributes(&current, Some(true), &edit).is_empty());
+        assert!(changed_census_attributes(&current, None, &HashMap::new()).is_empty());
+    }
+
+    #[test]
+    fn reweighted_delegates_are_the_delegates_gained_or_lost() {
+        let current = voter(true, &[(DELEGATE_TO_ATTR_NAME, &["alice"])]);
+
+        assert_eq!(
+            reweighted_delegates(&current, &requested(&[(DELEGATE_TO_ATTR_NAME, &["bob"])])),
+            vec!["alice".to_string(), "bob".to_string()]
+        );
+        assert_eq!(
+            reweighted_delegates(&current, &requested(&[(DELEGATE_TO_ATTR_NAME, &[])])),
+            vec!["alice".to_string()]
+        );
+        assert_eq!(
+            reweighted_delegates(
+                &voter(true, &[]),
+                &requested(&[(DELEGATE_TO_ATTR_NAME, &["bob"])])
+            ),
+            vec!["bob".to_string()]
+        );
+    }
+
+    #[test]
+    fn an_unchanged_delegation_reweights_no_delegate() {
+        let current = voter(true, &[(DELEGATE_TO_ATTR_NAME, &["alice"])]);
+
+        assert!(
+            reweighted_delegates(&current, &requested(&[(DELEGATE_TO_ATTR_NAME, &["alice"])]))
+                .is_empty()
+        );
+        assert!(
+            reweighted_delegates(&current, &requested(&[(AREA_ID_ATTR_NAME, &["area-b"])]))
+                .is_empty()
+        );
+    }
+
+    fn cast_vote_state(has_unresolved_vote: bool, has_valid_vote: bool) -> VoterCastVoteState {
+        VoterCastVoteState {
+            has_unresolved_vote,
+            has_valid_vote,
+        }
+    }
+
+    #[test]
+    fn census_change_is_refused_for_a_voter_with_an_active_ballot() {
+        let changed = [CensusAttribute::AreaId, CensusAttribute::VoteWeight];
+        for state in [cast_vote_state(true, false), cast_vote_state(false, true)] {
+            assert_eq!(
+                census_change_refusal(&state, &changed).as_deref(),
+                Some("Cannot change area-id, vote-weight of a voter who has cast a ballot")
+            );
+        }
+    }
+
+    #[test]
+    fn census_change_is_allowed_without_an_active_ballot_or_without_changes() {
+        assert_eq!(
+            census_change_refusal(&cast_vote_state(false, false), &[CensusAttribute::Enabled]),
+            None
+        );
+        assert_eq!(
+            census_change_refusal(&cast_vote_state(false, true), &[]),
+            None
+        );
     }
 }
