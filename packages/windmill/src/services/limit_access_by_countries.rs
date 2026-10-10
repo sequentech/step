@@ -62,6 +62,15 @@ fn countries_expression(countries: &[CountryCode]) -> String {
     format!("ip.geoip.country in {{{codes}}}")
 }
 
+/// Expression of the enrollment rule: registration requests of the tenant from
+/// the countries.
+fn enrollment_rule_expression(tenant_id: &str, countries_expression: &str) -> String {
+    format!(
+        "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"{}\" and ({})",
+        tenant_id, ENROLLMENT_RULE_CLIENT_FILTER, countries_expression
+    )
+}
+
 #[instrument]
 pub(crate) fn get_voting_portal_urls_prefix() -> Result<(String, String)> {
     //TODO: change default values?
@@ -92,10 +101,7 @@ fn create_limit_ip_by_countries_rule_format(
         or ends_with(http.request.uri.path, \"/login-actions/registration\")"
     );
 
-    let rule_expression_enroll = format!(
-        "starts_with(http.request.uri.path, \"/realms/tenant-{}-event-\") and ends_with(http.request.uri.path, \"/protocol/openid-connect/registrations\") and http.request.uri.query contains \"{}\"",
-        tenant_id, ENROLLMENT_RULE_CLIENT_FILTER
-    );
+    let rule_expression_enroll = enrollment_rule_expression(&tenant_id, &countries_expression);
 
     let rule_expression_voting = format!(
         "(http.request.full_uri contains \"{}\" or ({})) and (http.request.uri.path contains \"{}\") and ({}) and ({})",
@@ -370,6 +376,23 @@ mod tests {
             None
         );
         assert_eq!(find_tenant_rule_id(&[voting_rule], TENANT_ID, true), None);
+    }
+
+    /// The enrollment rule only matches requests from the countries and is
+    /// found again as the enrollment rule of the tenant.
+    #[test]
+    fn enrollment_rule_expression_applies_the_countries() {
+        let countries: Vec<CountryCode> =
+            serde_json::from_value(serde_json::json!(["FR", "ES"])).expect("valid country codes");
+        let expression = enrollment_rule_expression(TENANT_ID, &countries_expression(&countries));
+
+        assert!(expression.contains("ip.geoip.country in {\"FR\" \"ES\"}"));
+        let rule = described_rule("enrollment", TENANT_ID, expression);
+        assert_eq!(
+            find_tenant_rule_id(&[rule.clone()], TENANT_ID, true),
+            Some("enrollment".to_string())
+        );
+        assert_eq!(find_tenant_rule_id(&[rule], TENANT_ID, false), None);
     }
 
     /// The expression uses the `in` set syntax with one entry per country.
