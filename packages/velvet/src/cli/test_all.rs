@@ -401,6 +401,7 @@ mod tests {
         MALFORMED_PLAINTEXT_LINE, PREFIX_AREA, PREFIX_CONTEST, PREFIX_ELECTION,
     };
     use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
+    use crate::pipes::vote_receipts::VOTE_RECEIPT_OUTPUT_FILE_HTML;
     use anyhow::{Error, Result};
     use num_bigint::BigUint;
     use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
@@ -1784,6 +1785,18 @@ mod tests {
         assert_eq!(contest_result.total_valid_votes, 5);
         assert_eq!(contest_result.total_invalid_votes, 1);
         assert_eq!(contest_result.invalid_votes.implicit, 1);
+
+        // Every valid ballot marks a candidate and the one that did not decode
+        // is not shown as a blank vote.
+        let receipts = fs::read_to_string(
+            cli.output_dir
+                .join(PipeNameOutputDir::VoteReceipts.as_ref())
+                .join(format!("{PREFIX_ELECTION}{}", election.id))
+                .join(format!("{PREFIX_CONTEST}{}", contest.id))
+                .join(format!("{PREFIX_AREA}{}", area_config.id))
+                .join(VOTE_RECEIPT_OUTPUT_FILE_HTML),
+        )?;
+        assert_eq!(receipts.matches("<strong>ABSTENTION</strong>").count(), 0);
 
         Ok(())
     }
