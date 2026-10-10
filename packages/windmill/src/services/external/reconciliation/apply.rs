@@ -146,16 +146,7 @@ async fn apply_voter_changes_locked(
         return Ok(VoterApplyOutcome::Failed { reason });
     }
 
-    let needs_no_active_vote = categories.iter().any(|category| {
-        matches!(
-            category,
-            ReconciliationChangeCategory::VOTED_OTHER_CHANNEL
-                | ReconciliationChangeCategory::VOTED_UNMARKED
-                | ReconciliationChangeCategory::DISABLED_DELETE_CALL
-                | ReconciliationChangeCategory::REENABLED
-        )
-    });
-    if needs_no_active_vote {
+    if needs_no_active_vote(&categories, items) {
         let state = get_voter_cast_vote_state(
             hasura_transaction,
             &parse_uuid_v4(tenant_id)?,
@@ -190,6 +181,28 @@ async fn apply_voter_changes_locked(
         items,
     )
     .await
+}
+
+/// Whether the voter's changes may only be applied while it has no valid or
+/// in-progress ballot. An area change counts too: the tally finds a ballot
+/// through the voter's current area.
+fn needs_no_active_vote(
+    categories: &HashSet<ReconciliationChangeCategory>,
+    items: &[DiffItem],
+) -> bool {
+    categories.iter().any(|category| {
+        matches!(
+            category,
+            ReconciliationChangeCategory::VOTED_OTHER_CHANNEL
+                | ReconciliationChangeCategory::VOTED_UNMARKED
+                | ReconciliationChangeCategory::DISABLED_DELETE_CALL
+                | ReconciliationChangeCategory::REENABLED
+        )
+    }) || items.iter().any(|item| {
+        item.target
+            .sequent_field()
+            .is_some_and(|field| field.new_area_name().is_some())
+    })
 }
 
 /// The one generic Keycloak edit every category above (except `VOTER_ADDED`)
@@ -442,5 +455,29 @@ mod tests {
         let error = keycloak_edit_from_items(&items).unwrap_err();
         assert!(error.contains("Conflicting reconciliation writes"));
         assert!(error.contains(DISABLE_COMMENT));
+    }
+
+    fn categories_of(items: &[DiffItem]) -> HashSet<ReconciliationChangeCategory> {
+        items.iter().map(|item| item.category).collect()
+    }
+
+    #[test]
+    fn an_area_change_requires_no_active_vote() {
+        let items = vec![item(SequentReconciliationField::AreaName(
+            "WARD1-SB1-000".to_string(),
+            "WARD2-SB1-000".to_string(),
+        ))];
+
+        assert!(needs_no_active_vote(&categories_of(&items), &items));
+    }
+
+    #[test]
+    fn a_birthdate_change_does_not_require_no_active_vote() {
+        let items = vec![item(SequentReconciliationField::KeycloakUA(
+            HashMap::from([(DATE_OF_BIRTH.to_string(), "1990-01-01".to_string())]),
+            HashMap::from([(DATE_OF_BIRTH.to_string(), "1991-01-01".to_string())]),
+        ))];
+
+        assert!(!needs_no_active_vote(&categories_of(&items), &items));
     }
 }

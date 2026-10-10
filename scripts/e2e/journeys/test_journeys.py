@@ -26,6 +26,7 @@ from .client import (
     Hasura,
     Keycloak,
     StepCli,
+    StepCliError,
     event_realm,
     http_get,
     jwt_claims,
@@ -564,7 +565,7 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(styles, len(fixtures.AREAS))
 
     def test_6_online_voting_rules(self):
-        """Voters vote and revote while voting is open; the revote limit, a second area and closing refuse votes."""
+        """Voters vote and revote while voting is open; the revote limit, an area change and closing are refused."""
         self.requires("journey 5")
         event_id = self.state.event_id
         self.state.accepted, self.state.rejected = [], 0
@@ -616,36 +617,24 @@ class BackendJourneys(unittest.TestCase):
         own = self.state.portal.status(token)["sequent_backend_cast_vote"]
         self.assertEqual(len(own), fixtures.MAIN_ALLOWED_VOTES)
 
-        # A voter who voted in area A cannot vote in the same election from area B.
+        # A voter who has voted cannot be moved to area B, so they stay in area A.
         self.assertIsNone(self.vote(a2, "Alice")[1])
         user = self.keycloak.user(event_realm(event_id), a2)
-        self.step(
-            "update-voter",
-            "--election-event-id",
-            event_id,
-            "--user-id",
-            user["id"],
-            "--area-id",
-            self.state.areas["B"],
-        )
+        with self.assertRaisesRegex(
+            StepCliError, "Cannot change area-id of a voter who has cast a ballot"
+        ):
+            self.step(
+                "update-voter",
+                "--election-event-id",
+                event_id,
+                "--user-id",
+                user["id"],
+                "--area-id",
+                self.state.areas["B"],
+            )
         token = self.state.portal.login(a2)
         self.assertEqual(
             jwt_claims(token)["https://hasura.io/jwt/claims"]["x-hasura-area-id"],
-            self.state.areas["B"],
-        )
-        self.assert_rejected(
-            self.vote(a2, "Dave", token)[1],
-            "CheckVotesInOtherAreasFailed",
-            "Cannot insert cast vote, votes already present in other area(s)",
-        )
-        # The tally only counts voters in the area of their ballot; move a2 back.
-        self.step(
-            "update-voter",
-            "--election-event-id",
-            event_id,
-            "--user-id",
-            user["id"],
-            "--area-id",
             self.state.areas["A"],
         )
 

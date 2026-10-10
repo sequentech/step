@@ -17,7 +17,7 @@ use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
-use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::futures::future::join_all;
 use rocket::http::Status;
 use rocket::response::{Responder, Result as ResponseResult};
@@ -30,6 +30,7 @@ use sequent_core::services::keycloak::{
     PasswordPolicyViolation, UserProfileValidationError,
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, UserProfileConfiguration, TENANT_ID_ATTR_NAME,
 };
@@ -40,6 +41,7 @@ use std::collections::{HashMap, HashSet};
 use std::env;
 use tracing::{info, instrument};
 use uuid::Uuid;
+use windmill::postgres::cast_vote::get_voter_cast_vote_state;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
@@ -58,7 +60,7 @@ use windmill::services::export::export_users::{
 use windmill::services::external::utils::datafix_annotations;
 use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
-use windmill::services::users::list_users_has_voted;
+use windmill::services::users::{census_edit_refusal, list_users_has_voted};
 use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
@@ -97,6 +99,115 @@ async fn ensure_election_event_not_locked(
             Status::InternalServerError,
             format!("Failed to check election event lockdown: {err}"),
         )),
+    }
+}
+
+/// Refuses deleting a voter whose ballot is valid or still in progress: the
+/// tally would no longer find the voter and would leave that ballot out.
+async fn ensure_voter_has_no_active_ballot(
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+) -> Result<(), (Status, String)> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)
+        .map_err(|err| (Status::BadRequest, err.to_string()))?;
+    let election_event_uuid = parse_uuid_v4(election_event_id)
+        .map_err(|err| (Status::BadRequest, err.to_string()))?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura db client from pool {err:?}"),
+            )
+        })?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring hasura transaction {err:?}"),
+            )
+        })?;
+    let state = get_voter_cast_vote_state(
+        &hasura_transaction,
+        &tenant_uuid,
+        &election_event_uuid,
+        user_id,
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error checking the voter's ballots: {err:?}"),
+        )
+    })?;
+    if state.has_active_vote() {
+        return Err((
+            Status::Conflict,
+            "Cannot delete a voter who has cast a ballot".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Refuses an edit that changes a census attribute counting a valid or
+/// in-progress ballot: the tally reads those attributes when it runs, so the
+/// edit would leave that ballot out or change its weight.
+async fn ensure_census_edit_keeps_ballots(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    enabled: Option<bool>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> Result<(), (Status, String)> {
+    let client = KeycloakAdminClient::new().await.map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error obtaining the client: {err:?}"),
+        )
+    })?;
+    let current_user = client
+        .get_user(&get_event_realm(tenant_id, election_event_id), user_id)
+        .await
+        .map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error loading the voter: {err:?}"),
+            )
+        })?;
+    let mut keycloak_db_client: DbClient =
+        get_keycloak_pool().await.get().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak db client from pool {err:?}"),
+            )
+        })?;
+    let keycloak_transaction =
+        keycloak_db_client.transaction().await.map_err(|err| {
+            (
+                Status::InternalServerError,
+                format!("Error acquiring keycloak transaction {err:?}"),
+            )
+        })?;
+    let refusal = census_edit_refusal(
+        hasura_transaction,
+        &keycloak_transaction,
+        tenant_id,
+        election_event_id,
+        &current_user,
+        enabled,
+        attributes,
+    )
+    .await
+    .map_err(|err| {
+        (
+            Status::InternalServerError,
+            format!("Error checking the ballots the edit affects: {err:?}"),
+        )
+    })?;
+    match refusal {
+        Some(reason) => Err((Status::Conflict, reason)),
+        None => Ok(()),
     }
 }
 
@@ -226,6 +337,12 @@ pub async fn delete_user(
     if let Some(election_event_id) = input.election_event_id.as_deref() {
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
             .await?;
+        ensure_voter_has_no_active_ballot(
+            &input.tenant_id,
+            election_event_id,
+            &input.user_id,
+        )
+        .await?;
     }
     let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
@@ -1399,6 +1516,24 @@ pub async fn edit_user(
         }
         None => None,
     };
+
+    // Datafix edits run in the `edit_user` task, which checks the same under
+    // the per-voter lock.
+    if let (Some(election_event_id), None, false) = (
+        input.election_event_id.as_deref(),
+        datafix_election_event.as_ref(),
+        password_only,
+    ) {
+        ensure_census_edit_keeps_ballots(
+            &hasura_transaction,
+            &input.tenant_id,
+            election_event_id,
+            &input.user_id,
+            input.enabled,
+            &new_attributes,
+        )
+        .await?;
+    }
 
     hasura_transaction.commit().await.map_err(|err| {
         (
