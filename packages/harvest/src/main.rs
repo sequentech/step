@@ -171,6 +171,7 @@ fn build_application_with(
                 routes::messaging::replace_messaging_account_credentials,
                 routes::messaging::check_messaging_account,
                 routes::messaging::messaging_account_callback_url,
+                routes::messaging::messaging_callback_status,
                 routes::messaging::test_messaging_account,
                 routes::messaging::update_event_messaging_config,
                 routes::upload_document::get_upload_url,

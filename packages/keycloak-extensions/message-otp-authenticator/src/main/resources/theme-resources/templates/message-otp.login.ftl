@@ -5,13 +5,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <#import "template.ftl" as layout>
-<#-- One channel per voter: the page names it and its masked destination. There is no choice of
-     channel and no other way to get the code. Five wrong codes finish the session. -->
+<#-- One channel per voter: the page names it and its masked destination (NAMED), or nothing about
+     the account at all (NEUTRAL, the reset flow). There is no choice of channel and no other way to
+     get the code. Five wrong codes finish the step. -->
 <#assign exhausted = (attemptsExhausted!false)>
 <@layout.registrationLayout displayInfo=!exhausted; section>
     <#if section = "header">
             <#if exhausted>
                 ${msg("messageOtp.auth.title")}
+            <#elseif (codeDisclosure!'') == 'NEUTRAL'>
+                <#-- The reset page: nothing about the account, the same for an unknown one. -->
+                <span id="otp-neutral">${msg("messageOtp.auth.neutralSent")}</span>
             <#elseif isOtl>
                 ${msg("messageOtp.otl.address", address)}
             <#elseif channel?? && (deliveryState!'') == 'UNKNOWN'>
@@ -35,10 +39,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 				class="${properties.kcButtonClass!} ${properties.kcButtonPrimaryClass!} ${properties.kcButtonBlockClass!}">${msg("messageOtp.auth.restart")}</a>
 		</div>
 	<#elseif section = "form">
-		<#if channel?? && channel == 'MESSENGER'>
+		<#-- A neutral page (reset) shows the Messenger box to everyone when the event offers
+		     Messenger for codes (messengerConnect): the link is live for a Messenger account and
+		     binds to nothing otherwise, and no link state is shown. -->
+		<#assign neutralMessenger = (messengerConnect!false)>
+		<#if (channel?? && channel == 'MESSENGER') || neutralMessenger>
 			<div id="kc-messenger-connect" class="${properties.kcFormGroupClass!}">
-				<h2>${msg("messageOtp.messenger.title")}</h2>
-				<#if messengerPage??><p>${msg("messageOtp.messenger.intro", messengerPage)}</p></#if>
+				<#if neutralMessenger>
+					<h2>${msg("messageOtp.messenger.ifMessenger")}</h2>
+				<#else>
+					<h2>${msg("messageOtp.messenger.title")}</h2>
+				</#if>
+				<#if messengerPage?? && messagingOrganization??>
+					<p>${msg("messageOtp.messenger.introPage", messagingOrganization, messengerPage)}</p>
+				<#elseif messengerPage??>
+					<p>${msg("messageOtp.messenger.intro", messengerPage)}</p>
+				</#if>
 				<#-- On a phone: open the chat here. On a computer: scan the QR code with the phone. -->
 				<ol class="kc-messenger-steps-phone">
 					<li>${msg("messageOtp.messenger.step1")}</li>

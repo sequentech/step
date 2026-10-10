@@ -42,8 +42,7 @@ import {
     ISmsConfig,
     MESSAGE_TEMPLATE_METHODS,
 } from "@/types/templates"
-import {EMessageChannel, EMessagePurpose, IInstantMessageConfig} from "@/types/messaging"
-import {enabledChannels} from "@/services/messaging"
+import {EMessageChannel, IInstantMessageConfig} from "@/types/messaging"
 import {useMessagingAccounts} from "@/hooks/useMessagingAccounts"
 import {useEventMessagingConfig} from "@/hooks/useEventMessagingConfig"
 import {useLocation} from "react-router-dom"
@@ -51,7 +50,9 @@ import {
     ISendContent,
     buildSendTemplatePayload,
     missingChannelContent,
+    sendNoticeChannels,
     sendableTemplates,
+    sendingAccountFor,
 } from "./sendTemplatePayload"
 import {
     ZonedDateTimeInput,
@@ -68,7 +69,6 @@ export enum AudienceSelection {
 }
 
 // Without an event configuration, notices go by SMS or email, in channel order.
-const DEFAULT_CHANNELS = [EMessageChannel.SMS, EMessageChannel.EMAIL]
 const INSTANT_METHODS = [ITemplateMethod.WHATSAPP, ITemplateMethod.VIBER, ITemplateMethod.MESSENGER]
 
 type InstantContentKey = "whatsapp" | "viber" | "messenger"
@@ -170,17 +170,22 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
         },
     })
 
-    const {accounts} = useMessagingAccounts({skip: !electionEventId})
-    const {config: messagingConfig} = useEventMessagingConfig(electionEventId)
-    const noticeChannels = useMemo(() => {
-        const channels = enabledChannels(messagingConfig, EMessagePurpose.NOTICE)
-        return channels.length ? channels : DEFAULT_CHANNELS
-    }, [messagingConfig])
-    const sendingAccount = (channel: EMessageChannel) => {
-        const accountId = messagingConfig.channels.find(
-            (config) => config.channel === channel
-        )?.account_id
-        return accounts.find((account) => account.id === accountId)
+    const {accounts} = useMessagingAccounts({skip: !electionEventId, summaries: true})
+    const {
+        storedConfig,
+        canRead: canReadMessaging,
+        loading: messagingLoading,
+    } = useEventMessagingConfig(electionEventId)
+    // The channels the backend will send on; nothing is guessed when they can't be read.
+    const notices = useMemo(
+        () => sendNoticeChannels(canReadMessaging, storedConfig),
+        [canReadMessaging, storedConfig]
+    )
+    const noticeChannels = notices.kind === "CHANNELS" ? notices.channels : []
+    const sendsFrom = (channel: EMessageChannel): string => {
+        const account = sendingAccountFor(storedConfig, accounts, channel)
+        if (account === "ENVIRONMENT") return t("messaging.send.environment")
+        return account?.name ?? t("messaging.send.noAccount")
     }
 
     const content = template.i18n["en"]
@@ -206,6 +211,11 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
     const onSubmit: SubmitHandler<FieldValues> = async (formData) => {
         const zoned = (formData as Partial<ITemplate>).schedule?.zoned
         setErrors(null)
+        if (electionEventId && notices.kind === "NONE") {
+            // Every voter's notice would be refused: nothing is scheduled.
+            setErrors(t("messaging.send.noNoticeChannels"))
+            return
+        }
         setShowProgress(true)
         try {
             const {errors} = await createScheduledEvent({
@@ -411,15 +421,18 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        {electionEventId && messagingConfig.channels.length > 0 ? (
-                            // The voter counts come from the audience preview (W2, stream J).
+                        {electionEventId && notices.kind === "NO_PERMISSION" ? (
+                            <Alert severity="info">{t("messaging.send.noReadPermission")}</Alert>
+                        ) : null}
+                        {electionEventId && notices.kind === "NONE" && !messagingLoading ? (
+                            <Alert severity="error">{t("messaging.send.noNoticeChannels")}</Alert>
+                        ) : null}
+                        {electionEventId && noticeChannels.length > 0 ? (
+                            // The Voters column comes with the audience preview (W2, stream J).
                             <Table size="small" aria-label={String(t("messaging.send.eachVoter"))}>
                                 <TableHead>
                                     <TableRow>
                                         <TableCell>{t("messaging.send.channelColumn")}</TableCell>
-                                        <TableCell align="right">
-                                            {t("messaging.send.voters")}
-                                        </TableCell>
                                         <TableCell>{t("messaging.send.sendsFrom")}</TableCell>
                                     </TableRow>
                                 </TableHead>
@@ -432,11 +445,7 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                                     label={channelName(channel)}
                                                 />
                                             </TableCell>
-                                            <TableCell align="right">–</TableCell>
-                                            <TableCell>
-                                                {sendingAccount(channel)?.name ??
-                                                    t("messaging.send.noAccount")}
-                                            </TableCell>
+                                            <TableCell>{sendsFrom(channel)}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>

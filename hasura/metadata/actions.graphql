@@ -2892,6 +2892,10 @@ type Query {
     messaging_event_stats(election_event_id: uuid!): MessagingEventStatsOutput
 }
 
+type Query {
+    messaging_callback_status: MessagingCallbackStatusOutput
+}
+
 type Mutation {
     check_messaging_account(id: uuid!): CheckMessagingAccountOutput
 }
@@ -2937,12 +2941,22 @@ type MessagingAccountCallbackUrlOutput {
     reason: String
 }
 
+type MessagingCallbackStatusOutput {
+    accounts: [MessagingAccountCallbackStatus!]!
+}
+
+type MessagingAccountCallbackStatus {
+    account_id: uuid!
+    blockers: [String!]!
+    reasons: [String!]!
+}
+
 type MessagingEventStatsOutput {
     channels: [MessagingChannelStats!]!
 }
 
 type MessagingChannelStats {
-    channel: String!
+    channel: String
     voters: Int
     sent_last_24h: Int!
     queued: Int!

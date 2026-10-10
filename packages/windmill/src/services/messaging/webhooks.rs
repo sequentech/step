@@ -12,7 +12,7 @@
 
 use super::accounts::runtime_account;
 use super::audit::post_attempt_outcomes_or_warn;
-use super::dispatch::Dispatcher;
+use super::dispatch::{retry_refusal, Dispatcher};
 use super::keys::{tenant_key, TenantKey};
 use super::links::bind_referral;
 use crate::postgres::messaging::{
@@ -23,10 +23,12 @@ use crate::postgres::messaging::{
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
-use messaging::attempts::next_retry_at;
+use messaging::attempts::{next_retry_at, reported_too_late};
 use messaging::destination::Destination;
 use messaging::providers::infobip::{verify_report_authorization, ReportCredentials};
-use messaging::webhooks::sns::{is_sns_url, is_trusted_certificate_url, ses_events, SnsEnvelope};
+use messaging::webhooks::sns::{
+    is_sns_url, is_trusted_certificate_url, ses_events, CertificateCache, SnsEnvelope,
+};
 use messaging::webhooks::{
     infobip, meta, report_failure_kind, DeliveredUpTo, StatusReport, WebhookEvent,
 };
@@ -110,7 +112,20 @@ pub async fn meta_events(
     if !meta::verify_signature(&secret, signature, body) {
         return Ok(WebhookOutcome::Unauthorized);
     }
-    let events = meta::parse_events(&account.sender, body)?;
+    // A verified body that isn't this account's, or isn't JSON, can't
+    // become usable by retrying it: taken and ignored, with its reason.
+    // Only storage and dispatch failures are retried.
+    let events = match meta::parse_events(&account.sender, body) {
+        Ok(events) => events,
+        Err(reason) => {
+            warn!(
+                account = %account.id,
+                key = webhook_key.get(..6).unwrap_or_default(),
+                "Meta callback ignored: {reason}"
+            );
+            return Ok(WebhookOutcome::Accepted);
+        }
+    };
     apply_events(client, dispatcher, &account, events).await?;
     Ok(WebhookOutcome::Accepted)
 }
@@ -179,10 +194,8 @@ pub async fn aws_events(
     if envelope.topic_arn != *topic || !is_trusted_certificate_url(&envelope.signing_cert_url) {
         return Ok(WebhookOutcome::Unauthorized);
     }
-    let certificate = reqwest::get(&envelope.signing_cert_url)
-        .await?
-        .error_for_status()?
-        .bytes()
+    let certificate = CertificateCache::global()
+        .get(&envelope.signing_cert_url)
         .await?;
     if envelope.verify(&certificate).is_err() {
         return Ok(WebhookOutcome::Unauthorized);
@@ -194,7 +207,7 @@ pub async fn aws_events(
                 .as_deref()
                 .filter(|url| is_sns_url(url))
             {
-                reqwest::get(url).await?.error_for_status()?;
+                CertificateCache::global().confirm_subscription(url).await?;
                 info!(account = %account.id, "confirmed the SES notification subscription");
             }
         }
@@ -249,18 +262,34 @@ async fn apply_status(
         .as_ref()
         .map(|code| format!("provider code {code}"));
     // A failure the provider reports later is retried on the same channel
-    // like one reported at once, if it may pass.
+    // like one reported at once, if it may pass, unless it comes too late
+    // or the message's origin can't render it again. Why not is recorded
+    // next to the provider's reason.
+    let now = Utc::now();
     let mut retry_at = failure.and_then(|kind| {
         next_retry_at(
             message.purpose.unwrap_or(MessagePurpose::NOTICE),
             message.attempt,
             kind,
-            Utc::now(),
+            now,
         )
     });
-    if retry_at.is_some() && message.template_alias.is_none() {
-        retry_at = None;
-        error = Some(MessageReason::NO_STORED_TEMPLATE.to_string());
+    if retry_at.is_some() {
+        let refusal = if reported_too_late(message.created_at, now) {
+            Some(MessageReason::REPORTED_TOO_LATE)
+        } else {
+            retry_refusal(
+                &tx,
+                &message.tenant_id,
+                message.logical_key.as_deref(),
+                message.template_alias.as_deref(),
+            )
+            .await?
+        };
+        if let Some(reason) = refusal {
+            retry_at = None;
+            error = Some(reason.not_retried_after(error.as_deref()));
+        }
     }
     let (billing_category, billable) = billing_from_report(report.billing.as_ref());
     let change = StateChange {

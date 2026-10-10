@@ -1,7 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {EMessageChannel, IInstantMessageConfig} from "@/types/messaging"
+import {
+    EMessageChannel,
+    EMessagePurpose,
+    IEventMessagingConfig,
+    IInstantMessageConfig,
+    IMessagingAccount,
+} from "@/types/messaging"
+import {enabledChannels} from "@/services/messaging"
 import {IEmail, IMethods, ISmsConfig, MESSAGE_TEMPLATE_METHODS} from "@/types/templates"
 import {templateOffersMethod} from "@/services/templateMethods"
 
@@ -120,3 +127,49 @@ export const missingChannelContent = (
     content: ISendContent,
     channels: EMessageChannel[]
 ): EMessageChannel[] => channels.filter((channel) => !hasContent(content, channel))
+
+/**
+ * The channels a send reaches voters on, as the backend decides it
+ * (`eligible_channels`): the event's notice channels, or email and SMS for an
+ * event without a configuration. An event whose configuration sends no
+ * notices reaches nobody; it is never shown as email and SMS.
+ */
+export type TSendNoticeChannels =
+    /** The event's configuration can't be read: nothing is guessed. */
+    | {kind: "NO_PERMISSION"}
+    /** The configuration turns notices on for no channel: every voter would fail. */
+    | {kind: "NONE"}
+    | {kind: "CHANNELS"; channels: EMessageChannel[]}
+
+/** Email and SMS, as before messaging: the backend's channels without a configuration. */
+const UNCONFIGURED_CHANNELS = [EMessageChannel.SMS, EMessageChannel.EMAIL]
+
+export const sendNoticeChannels = (
+    canRead: boolean,
+    /** The stored configuration; `null` when the event has none. */
+    config: IEventMessagingConfig | null
+): TSendNoticeChannels => {
+    if (!canRead) return {kind: "NO_PERMISSION"}
+    if (!config) return {kind: "CHANNELS", channels: UNCONFIGURED_CHANNELS}
+    const channels = enabledChannels(config, EMessagePurpose.NOTICE)
+    return channels.length ? {kind: "CHANNELS", channels} : {kind: "NONE"}
+}
+
+/**
+ * Who sends a channel's notices, as the backend picks it (`account_for`): the
+ * event's account, else the tenant's default account of the channel. Email
+ * and SMS without an account go out through the deployment's own sender
+ * (`"ENVIRONMENT"`); any other channel without one can't send (`null`).
+ */
+export const sendingAccountFor = (
+    config: IEventMessagingConfig | null,
+    accounts: IMessagingAccount[],
+    channel: EMessageChannel
+): IMessagingAccount | "ENVIRONMENT" | null => {
+    const chosen = config?.channels.find((entry) => entry.channel === channel)
+    const account = chosen
+        ? accounts.find((candidate) => candidate.id === chosen.account_id)
+        : accounts.find((candidate) => candidate.channel === channel && candidate.is_default)
+    if (account) return account
+    return !chosen && UNCONFIGURED_CHANNELS.includes(channel) ? "ENVIRONMENT" : null
+}

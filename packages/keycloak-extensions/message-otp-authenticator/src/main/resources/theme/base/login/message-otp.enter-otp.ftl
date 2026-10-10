@@ -17,7 +17,11 @@ SPDX-License-Identifier: AGPL-3.0-only
         <#assign viaMessenger = (channel!'') == 'MESSENGER'>
         <#if viaMessenger>
             <div id="kc-messenger-connect" class="${properties.kcFormGroupClass!}">
-                <#if messengerPage??><p>${msg("messageOtp.messenger.intro", messengerPage)}</p></#if>
+                <#if messengerPage?? && messagingOrganization??>
+                    <p>${msg("messageOtp.messenger.introPage", messagingOrganization, messengerPage)}</p>
+                <#elseif messengerPage??>
+                    <p>${msg("messageOtp.messenger.intro", messengerPage)}</p>
+                </#if>
                 <ol class="kc-messenger-steps-phone">
                     <li>${msg("messageOtp.messenger.step1")}</li>
                     <li>${msg("messageOtp.messenger.step2")}</li>

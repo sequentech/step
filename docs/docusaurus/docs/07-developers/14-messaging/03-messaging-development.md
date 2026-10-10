@@ -106,10 +106,18 @@ devenv: `devenv shell -- python3 -m scripts.dev.scenario ...`.
   relay signatures (401, nothing processed), Meta, SNS and Viber checks on
   relayed bytes, and forged or wrong-tenant tokens on `/messages/*`.
 - `cargo test -p windmill --test postgres_messaging --test
-  postgres_messaging_dispatch` against PostgreSQL (see the
+  postgres_messaging_dispatch --test postgres_messaging_retry --test
+  postgres_messaging_config` against PostgreSQL (see the
   [windmill test guide](../08-windmill/test-coverage.md)): persistence,
-  replays, same-channel retries, never-sent and maybe-sent, the sweeps, lost
-  answers, signed reports and Messenger links. Set `MASTER_SECRET` as well.
+  replays, same-channel retries and what is retried by origin, never-sent
+  and maybe-sent, the sweeps, lost answers, signed reports, Messenger links,
+  the event configuration table and the account rules (credentials follow
+  their address, `https` only). Set `MASTER_SECRET` as well.
+- Admin Portal (`packages/admin-portal`): `yarn jest src/services
+  src/resources/Settings src/resources/ElectionEvent src/resources/User
+  src/components src/translations`. `src/services/messagingReasons.test.ts`
+  reads the backend's reason strings from the Rust sources and fails until
+  every one is translated in all 8 languages.
 - `mvn -f packages/keycloak-extensions/pom.xml test`: the SPI, the one
   channel at sign-in, attempts across resends, contact change, reset and
   Messenger linking.

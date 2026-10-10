@@ -44,6 +44,7 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
+import sequent.keycloak.authenticator.messaging.ContactDetails;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.VerifiedContacts;
@@ -232,11 +233,7 @@ public class Utils {
       username = email;
     }
 
-    context
-        .getEvent()
-        .detail(Details.USERNAME, username)
-        .detail(Details.REGISTER_METHOD, "form")
-        .detail(Details.EMAIL, email);
+    context.getEvent().detail(Details.USERNAME, username).detail(Details.REGISTER_METHOD, "form");
 
     KeycloakSession session = context.getSession();
 
@@ -328,11 +325,10 @@ public class Utils {
       ObjectNode attributesJson = mapper.createObjectNode();
 
       for (String attributeName : attributes.keySet()) {
-        if (MessagingAttributes.CONTACT_ATTRIBUTES.contains(attributeName)) {
-          continue;
-        }
-        String value = attributes.get(attributeName).get(0);
-        if (value != null) {
+        List<String> values = attributes.get(attributeName);
+        String value = values == null || values.isEmpty() ? null : values.get(0);
+        // Events reach the electoral log: never a voter's number or email address.
+        if (value != null && !ContactDetails.isContact(attributeName, value)) {
           attributesJson.put(attributeName, value);
         }
       }
@@ -427,6 +423,9 @@ public class Utils {
     List<UPAttribute> realmsAttributes = getRealmUserProfileAttributes(session);
     for (UPAttribute attribute : realmsAttributes) {
       String authNoteValue = authSession.getAuthNote(attribute.getName());
+      if (ContactDetails.isContact(attribute.getName(), authNoteValue)) {
+        continue;
+      }
       builder.detail(attribute.getName(), authNoteValue);
     }
     if (user != null) {

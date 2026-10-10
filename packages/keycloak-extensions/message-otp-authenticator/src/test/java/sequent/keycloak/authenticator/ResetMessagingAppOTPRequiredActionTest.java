@@ -211,7 +211,7 @@ class ResetMessagingAppOTPRequiredActionTest {
 
   @Test
   void theContactChangeNeedsARecentSignIn() {
-    assertEquals(300, action.getMaxAuthAge());
+    assertEquals(300, action.getMaxAuthAge(session));
     assertTrue(action.isConfigurable());
     assertTrue(
         action.getConfigMetadata().stream()
@@ -283,6 +283,7 @@ class ResetMessagingAppOTPRequiredActionTest {
     assertEquals(NEW_NUMBER, request.destination());
     assertEquals("voter-1", request.voterId());
     assertEquals("otp", request.templateKey());
+    assertNull(request.recipient());
     assertEquals("en", request.language());
     assertEquals(TENANT, request.tenantId());
     String code = notes.get(Utils.CODE);
@@ -557,5 +558,148 @@ class ResetMessagingAppOTPRequiredActionTest {
     verify(context, never()).success();
     verify(user, never()).setSingleAttribute(anyString(), anyString());
     assertNull(notes.get(Utils.CODE));
+  }
+
+  /**
+   * R3-03: the contact change has its own resend timer and attempt counter. A sign-in in the same
+   * authentication session (the voter re-authenticated for max_auth_age) leaves its code timer and
+   * wrong codes behind; neither applies to the new contact's code.
+   */
+  @Test
+  void theContactChangeDoesNotInheritTheSignInsTimerOrAttempts() {
+    configMap.put(Utils.CODE_TTL, "120");
+    // What the sign-in's message OTP step left in this session: a code sent 15 s ago with a
+    // 300 s lifetime, delivered by SMS, and four wrong codes.
+    notes.put(Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + 300_000L - 15_000L));
+    notes.put(Utils.CODE_ATTEMPTS, "4");
+    notes.put(MessagingAttributes.NOTE_DELIVERY_STATE, "ACCEPTED");
+    notes.put(MessagingAttributes.NOTE_CODE_CHANNEL, "SMS");
+    notes.put(MessagingAttributes.NOTE_CODE_DESTINATION, "+15550123456");
+
+    action.requiredActionChallenge(context);
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+
+    verify(form, never()).setError("resetAppOtp.auth.error.resendTimer");
+    verify(sender).send(any());
+    String code = notes.get(Utils.CODE);
+    for (int attempt = 0; attempt < 4; attempt++) {
+      submitCode(wrong(code));
+    }
+    verify(form, never()).setAttribute("attemptsExhausted", true);
+    submitCode(code);
+    verify(context).success();
+  }
+
+  /** R3-13: a code of the wrong length is a wrong code, never an aborted action. */
+  @Test
+  void aCodeOfTheWrongLengthIsShownAsInvalid() {
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    submitCode("12");
+    verify(context, never()).failure();
+    verify(form).setError("resetAppOtp.auth.error.codeInvalid");
+  }
+
+  /** R3-13: without a live code the voter is told to ask for a new one. */
+  @Test
+  void noLiveCodeAsksForANewOneInsteadOfAborting() {
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    notes.remove(Utils.CODE);
+    submitCode("123456");
+    verify(context, never()).failure();
+    verify(form).setError("messageOtp.auth.noCode");
+  }
+
+  /** R3-20: changing the contact forgets the number under the configured attribute. */
+  @Test
+  void changingTheContactForgetsTheNumberUnderTheConfiguredAttribute() {
+    configMap.put(Utils.TEL_USER_ATTRIBUTE, "custom.mobile");
+    enter(MessageChannel.SMS, NEW_NUMBER);
+    assertEquals(NEW_NUMBER, notes.get("custom.mobile"));
+    parameters.clear();
+    parameters.putSingle("changeValue", "true");
+    action.processAction(context);
+    assertNull(notes.get("custom.mobile"));
+  }
+
+  private void currentChannel(MessageChannel channel, String number) {
+    when(user.getAttributeStream(MessagingAttributes.MESSAGE_CHANNEL))
+        .thenAnswer(i -> Stream.of(channel.name()));
+    when(user.getAttributeStream(MessagingAttributes.MESSAGE_NUMBER))
+        .thenAnswer(i -> Stream.of(number));
+  }
+
+  /**
+   * R3-05: after a change, the old channel is told about it, so a voter whose password was used to
+   * take over their codes finds out. Sent through harvest like every notice.
+   */
+  @Test
+  void theOldChannelIsToldAboutTheChange() {
+    currentChannel(MessageChannel.WHATSAPP, "+15550100001");
+    enter(MessageChannel.SMS, NEW_NUMBER);
+    submitCode(notes.get(Utils.CODE));
+    verify(context).success();
+
+    ArgumentCaptor<SendMessageRequest> captor = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sender).send(captor.capture());
+    SendMessageRequest notice = captor.getValue();
+    assertEquals(MessagePurpose.NOTICE, notice.purpose());
+    assertEquals(MessageChannel.WHATSAPP, notice.channel());
+    assertEquals("+15550100001", notice.destination());
+    assertEquals("contactChanged.notice.text", notice.templateKey());
+    // Harvest sends it to the channel just replaced, not the voter's (new) channel.
+    assertEquals(
+        sequent.keycloak.authenticator.messaging.MessageRecipient.PREVIOUS_CHANNEL,
+        notice.recipient());
+    assertFalse(notice.content().text().contains(NEW_NUMBER));
+  }
+
+  /** R3-05: an old SMS channel gets the notice by Keycloak's SMS provider, on the old number. */
+  @Test
+  void anOldSmsChannelIsToldBySms() throws Exception {
+    currentChannel(MessageChannel.SMS, "+15550100002");
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    submitCode(notes.get(Utils.CODE));
+    verify(sms)
+        .send(eq("+15550100002"), eq("contactChanged.notice.text"), anyList(), any(), any(), any());
+  }
+
+  /** Verifying the same contact again changes nothing, so no notice is sent. */
+  @Test
+  void noNoticeWhenTheContactDidNotChange() {
+    currentChannel(MessageChannel.WHATSAPP, NEW_NUMBER);
+    enter(MessageChannel.WHATSAPP, NEW_NUMBER);
+    submitCode(notes.get(Utils.CODE));
+    verify(sender, times(1)).send(any());
+  }
+
+  /**
+   * R3-09: Keycloak's own re-authentication check for an application-initiated action asks this
+   * action for its max auth age. A sign-in older than 300 s must sign in again; the realm entry's
+   * {@code max_auth_age} changes the limit.
+   */
+  @Test
+  void keycloakAsksForARecentSignInBeforeTheContactChange() {
+    org.keycloak.models.KeycloakContext keycloakContext = session.getContext();
+    when(keycloakContext.getRealm()).thenReturn(realm);
+    when(keycloakContext.getAuthenticationSession()).thenReturn(authSession);
+    when(session.getProvider(
+            org.keycloak.authentication.RequiredActionProvider.class,
+            ResetMessagingAppOTPRequiredAction.PROVIDER_ID))
+        .thenReturn(action);
+    when(authSession.getClientNote("kc_action"))
+        .thenReturn(ResetMessagingAppOTPRequiredAction.PROVIDER_ID);
+    org.keycloak.models.UserSessionModel userSession =
+        mock(org.keycloak.models.UserSessionModel.class);
+    org.keycloak.protocol.oidc.OIDCLoginProtocol protocol =
+        new org.keycloak.protocol.oidc.OIDCLoginProtocol(session, realm, null, null, null);
+    int now = org.keycloak.common.util.Time.currentTime();
+
+    when(userSession.getNote("AUTH_TIME")).thenReturn(Integer.toString(now - 301));
+    assertTrue(protocol.requireReauthentication(userSession, authSession));
+    when(userSession.getNote("AUTH_TIME")).thenReturn(Integer.toString(now - 100));
+    assertFalse(protocol.requireReauthentication(userSession, authSession));
+
+    configMap.put("max_auth_age", "60");
+    assertTrue(protocol.requireReauthentication(userSession, authSession));
   }
 }

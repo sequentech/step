@@ -12,6 +12,10 @@ use std::collections::BTreeSet;
 
 const SECRET: &[u8] = b"synthetic-relay-secret";
 const KEY: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+/// A Meta verify token, as a vault credential would be.
+const TOKEN: &str = "synthetic-verify-token-7f3a9c";
+/// A relay secret the configuration accepts.
+const STRONG: &str = "0123456789abcdef0123456789abcdef";
 
 fn config(base_url: &str) -> Config {
     Config {
@@ -23,6 +27,9 @@ fn config(base_url: &str) -> Config {
 }
 
 async fn component(config: Config) -> Client {
+    // Before any Rocket is ignited, as in `main`: Rocket's records reach
+    // tracing, never Rocket's own logger.
+    crate::logging::bridge_log_records();
     Client::tracked(build(config).expect("the component builds"))
         .await
         .expect("the component launches")
@@ -79,6 +86,8 @@ async fn only_the_listed_routes_exist_and_nothing_else_is_forwarded() {
         ("POST", "/webhooks/viber/<key>"),
         ("POST", "/webhooks/aws/<key>"),
         ("GET", "/healthz"),
+        // Answers 404, so HEAD never reaches the GET handshake.
+        ("HEAD", "/webhooks/<_..>"),
     ]
     .into_iter()
     .map(|(method, path)| (method.to_string(), path.to_string()))
@@ -397,6 +406,112 @@ async fn a_harvest_slower_than_the_timeout_gives_503() {
     held.abort();
 }
 
+/// Regression (R1-13): Rocket answers HEAD with the matching GET route, so
+/// `HEAD /webhooks/meta/<key>` was relayed as Meta's handshake.
+#[rocket::async_test]
+async fn a_head_request_is_not_relayed() {
+    let harvest = TestServer::start(vec![harvest_answers(200, "text/plain", "1")]).await;
+    let client = component(config(&harvest.base_url)).await;
+    for path in [
+        format!("/webhooks/meta/{KEY}?hub.mode=subscribe&hub.challenge=1"),
+        format!("/webhooks/viber/{KEY}"),
+        format!("/webhooks/aws/{KEY}"),
+    ] {
+        let response = client.head(path.clone()).dispatch().await;
+        assert_eq!(response.status(), Status::NotFound, "{path}");
+    }
+    assert!(harvest.requests().is_empty());
+}
+
+/// A log writer the test reads back.
+#[derive(Clone, Default)]
+struct Captured(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for Captured {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for Captured {
+    type Writer = Captured;
+
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+/// What the component logs, through `filter`, while it answers a Meta
+/// handshake, a callback, a path no route matches and a bad key.
+async fn log_of_callbacks(filter: tracing_subscriber::filter::Targets) -> String {
+    use tracing::instrument::WithSubscriber;
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::Layer;
+    let harvest = TestServer::start(vec![
+        harvest_answers(200, "text/plain; charset=utf-8", "1158201444"),
+        harvest_answers(200, "text/plain; charset=utf-8", ""),
+    ])
+    .await;
+    let client = component(config(&harvest.base_url)).await;
+    let captured = Captured::default();
+    let subscriber = tracing_subscriber::registry().with(
+        tracing_subscriber::fmt::layer()
+            .with_writer(captured.clone())
+            .with_ansi(false)
+            .with_filter(filter),
+    );
+    async {
+        let handshake =
+            format!("/webhooks/meta/{KEY}?hub.mode=subscribe&hub.verify_token={TOKEN}&hub.challenge=1158201444");
+        assert_eq!(client.get(handshake).dispatch().await.status(), Status::Ok);
+        let callback = format!("/webhooks/aws/{KEY}?token={TOKEN}");
+        assert_eq!(client.post(callback).body("{}").dispatch().await.status(), Status::Ok);
+        let unmatched = format!("/webhooks/meta/{KEY}/extra?hub.verify_token={TOKEN}");
+        assert_eq!(client.get(unmatched).dispatch().await.status(), Status::NotFound);
+        let bad_key = format!("/webhooks/meta/{}?hub.verify_token={TOKEN}", &KEY[..63]);
+        assert_eq!(client.get(bad_key).dispatch().await.status(), Status::NotFound);
+    }
+    .with_subscriber(subscriber)
+    .await;
+    let log = captured.0.lock().unwrap().clone();
+    String::from_utf8(log).unwrap()
+}
+
+/// Regression (R1-03): Rocket logs every request's full URI, so the log
+/// carried each account's webhook key and Meta's verify token. At every
+/// level, the component's log names only the key's first characters.
+#[rocket::async_test]
+async fn the_log_never_carries_the_webhook_key_or_query_values() {
+    use tracing_subscriber::filter::{LevelFilter, Targets};
+    // Everything kept: Rocket's request lines do carry both, so this test
+    // would see a leak.
+    let unfiltered = log_of_callbacks(Targets::new().with_default(LevelFilter::TRACE)).await;
+    assert!(unfiltered.contains(KEY), "{unfiltered}");
+    assert!(unfiltered.contains(TOKEN), "{unfiltered}");
+
+    for level in [
+        LevelFilter::TRACE,
+        LevelFilter::DEBUG,
+        LevelFilter::INFO,
+        LevelFilter::WARN,
+        LevelFilter::ERROR,
+    ] {
+        let log = log_of_callbacks(crate::logging::filter(level)).await;
+        assert!(!log.contains(&KEY[..7]), "{level}: {log}");
+        assert!(!log.contains(TOKEN), "{level}: {log}");
+        assert!(!log.contains("hub.challenge"), "{level}: {log}");
+        if level >= LevelFilter::INFO {
+            assert!(log.contains("callback relayed"), "{level}: {log}");
+            assert!(log.contains(&KEY[..LOGGED_KEY_CHARS]), "{level}: {log}");
+        }
+    }
+}
+
 #[rocket::async_test]
 async fn liveness_never_forwards() {
     let harvest = TestServer::start(vec![]).await;
@@ -417,21 +532,21 @@ fn configuration_comes_from_the_environment() {
     };
     let config = Config::from_vars(vars(&[
         (HARVEST_DOMAIN_ENV, "harvest:8400"),
-        (RELAY_SECRET_ENV, "s3cret"),
+        (RELAY_SECRET_ENV, STRONG),
     ]))
     .unwrap();
     assert_eq!(
         config.callbacks_url,
         "http://harvest:8400/messaging/callbacks"
     );
-    assert_eq!(config.relay_secret, b"s3cret");
+    assert_eq!(config.relay_secret, STRONG.as_bytes());
     assert_eq!(config.max_body_bytes, relay::DEFAULT_MAX_BODY_BYTES);
     assert_eq!(config.timeout, HARVEST_TIMEOUT);
-    assert!(!format!("{config:?}").contains("s3cret"));
+    assert!(!format!("{config:?}").contains(STRONG));
 
     let config = Config::from_vars(vars(&[
         (HARVEST_DOMAIN_ENV, "https://harvest.internal/"),
-        (RELAY_SECRET_ENV, "s3cret"),
+        (RELAY_SECRET_ENV, STRONG),
         (relay::MAX_BODY_BYTES_ENV, "4096"),
     ]))
     .unwrap();
@@ -441,10 +556,35 @@ fn configuration_comes_from_the_environment() {
     );
     assert_eq!(config.max_body_bytes, 4096);
 
+    // The development stack names its policy to use the committed value.
+    let config = Config::from_vars(vars(&[
+        (HARVEST_DOMAIN_ENV, "harvest:8400"),
+        (RELAY_SECRET_ENV, relay::DEV_RELAY_SECRET),
+        (relay::RELAY_SECRET_POLICY_ENV, "ALLOW_DEV_SECRET"),
+    ]))
+    .unwrap();
+    assert_eq!(config.relay_secret, relay::DEV_RELAY_SECRET.as_bytes());
+
     for (values, reason) in [
         (
-            &[(RELAY_SECRET_ENV, "s3cret")][..],
+            &[(RELAY_SECRET_ENV, STRONG)][..],
             "HARVEST_DOMAIN is not set",
+        ),
+        // Regression (R1-14): any non-blank secret was taken, the committed
+        // development one too.
+        (
+            &[
+                (HARVEST_DOMAIN_ENV, "harvest:8400"),
+                (RELAY_SECRET_ENV, "s3cret"),
+            ][..],
+            "MESSAGING_RELAY_SECRET must be at least 32 bytes",
+        ),
+        (
+            &[
+                (HARVEST_DOMAIN_ENV, "harvest:8400"),
+                (RELAY_SECRET_ENV, relay::DEV_RELAY_SECRET),
+            ][..],
+            "MESSAGING_RELAY_SECRET is the development value; generate one (openssl rand -hex 32)",
         ),
         (
             &[(HARVEST_DOMAIN_ENV, "harvest:8400")][..],
@@ -460,7 +600,7 @@ fn configuration_comes_from_the_environment() {
         (
             &[
                 (HARVEST_DOMAIN_ENV, "harvest:8400"),
-                (RELAY_SECRET_ENV, "s3cret"),
+                (RELAY_SECRET_ENV, STRONG),
                 (relay::MAX_BODY_BYTES_ENV, "lots"),
             ][..],
             "MESSAGING_WEBHOOKS_MAX_BODY_BYTES must be a positive number of bytes",

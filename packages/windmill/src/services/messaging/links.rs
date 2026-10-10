@@ -8,7 +8,7 @@
 //! session. There is no word to type. Keycloak stays the authority on the
 //! code; Step only holds it, encrypted, until it is sent.
 
-use super::accounts::{callback_readiness, CallbackReadiness};
+use super::accounts::{callback_readiness_with, CallbackReadiness};
 use super::config::get_event_messaging_config;
 use super::dispatch::{deliver, Delivery, DeliveryResult, Dispatcher, Recipient};
 use super::keys::{tenant_key, TenantKey};
@@ -39,6 +39,9 @@ pub const MAX_LINK_LIFETIME_MINUTES: i64 = 10;
 #[derive(Serialize, Deserialize)]
 struct HeldCode {
     content: MessageContent,
+    /// The only conversation the code may go to, for a saved voter.
+    #[serde(default)]
+    expected_recipient: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -89,10 +92,15 @@ fn parse_time(value: &str) -> Result<DateTime<Utc>> {
         .with_timezone(&Utc))
 }
 
+/// Starts a Messenger link. `webhooks_public_url` is the webhook
+/// component's public address (`MESSAGING_WEBHOOKS_PUBLIC_URL`, passed in
+/// by the caller): without it Get Started can't reach Step, so the link is
+/// refused.
 #[instrument(skip_all, err)]
 pub async fn create_link(
     client: &mut DbClient,
     request: &CreateMessengerLinkRequest,
+    webhooks_public_url: Option<&str>,
 ) -> Result<std::result::Result<CreateMessengerLinkResponse, LinkError>> {
     let tenant_id = Uuid::parse_str(&request.tenant_id)?;
     let event_id = request
@@ -115,7 +123,7 @@ pub async fn create_link(
         return Ok(Err(LinkError::MessengerNotEnabled));
     };
     if matches!(
-        callback_readiness(&account),
+        callback_readiness_with(webhooks_public_url, account.provider, &account.webhook_key),
         CallbackReadiness::NotConfigured
     ) {
         tx.commit().await?;
@@ -128,7 +136,17 @@ pub async fn create_link(
     let reference = new_reference();
     let mut content = request.content.clone();
     content.code = Some(request.code.clone());
-    let payload = encrypt_with_master_secret(&serde_json::to_vec(&HeldCode { content })?).await?;
+    let expected_recipient = request
+        .expected_recipient
+        .as_deref()
+        .map(str::trim)
+        .filter(|psid| !psid.is_empty())
+        .map(str::to_string);
+    let payload = encrypt_with_master_secret(&serde_json::to_vec(&HeldCode {
+        content,
+        expected_recipient,
+    })?)
+    .await?;
     insert_messenger_link(
         &tx,
         &NewMessengerLink {
@@ -279,6 +297,19 @@ pub async fn bind_referral(
         return Ok(None);
     };
     let held: HeldCode = serde_json::from_slice(&decrypt_with_master_secret(payload).await?)?;
+    if held
+        .expected_recipient
+        .as_ref()
+        .is_some_and(|expected| *expected != referral.page_scoped_id)
+    {
+        // Not the saved voter's conversation: the link is used up and
+        // nothing is sent, answered exactly as an unknown reference, so a
+        // live link can't be told from a decoy.
+        update_messenger_link(&tx, &link.id, MessengerLinkState::EXPIRED, None, None).await?;
+        tx.commit().await?;
+        info!(link = %link.id, "Messenger link opened from another conversation: not sent");
+        return Ok(None);
+    }
     update_messenger_link(
         &tx,
         &link.id,

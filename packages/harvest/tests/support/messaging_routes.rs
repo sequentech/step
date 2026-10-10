@@ -54,6 +54,7 @@ fn admin(event: &Event) -> Claims {
 fn keycloak(tenant_id: &str) -> Claims {
     Claims::new(tenant_id, "service-account-keycloak")
         .roles([Permissions::SERVICE_ACCOUNT])
+        .azp(crate::services::service_auth::DEFAULT_SERVICE_CLIENT)
 }
 
 /// Keycloak's service token for `tenant_id`, signed by a realm key the
@@ -62,6 +63,21 @@ fn service_token(services: &Services, tenant_id: &str) -> String {
     let signer = RealmSigner::shared();
     services.trust(tenant_id, signer);
     signer.sign(&keycloak(tenant_id), tenant_id)
+}
+
+/// A refusal's status and reason: the account actions answer
+/// `{"message": reason}` (for Hasura to pass on), the others plain text.
+async fn refusal(response: LocalResponse<'_>) -> (Status, String) {
+    let status = response.status();
+    let json = response.content_type() == Some(ContentType::JSON);
+    let body = response.into_string().await.unwrap_or_default();
+    if json {
+        let value: Value = serde_json::from_str(&body).expect("a JSON refusal");
+        let message = value["message"].as_str().expect("a message").to_string();
+        (status, message)
+    } else {
+        (status, body)
+    }
 }
 
 fn uuid(id: &str) -> Uuid {
@@ -444,7 +460,7 @@ async fn account_changes_that_cannot_be_stored_are_refused() {
         ),
     ] {
         assert_eq!(
-            text(
+            refusal(
                 post(
                     &client,
                     "/messaging/accounts/upsert",
@@ -496,11 +512,16 @@ async fn a_deleted_account_is_gone_with_its_credentials() {
     .await
     .is_empty());
     assert_eq!(
-        text(delete(id).await).await,
+        refusal(delete(id).await).await,
         (Status::NotFound, "unknown account".to_string())
     );
+    // Refusals reach Hasura as `{"message": reason}` (FX-EF's AB-3).
     assert_eq!(
-        text(delete("not-a-uuid".to_string()).await).await,
+        json(delete(Uuid::new_v4().to_string()).await).await,
+        (Status::NotFound, json!({"message": "unknown account"}))
+    );
+    assert_eq!(
+        refusal(delete("not-a-uuid".to_string()).await).await,
         (Status::BadRequest, "invalid identifier".to_string())
     );
 }
@@ -583,7 +604,7 @@ async fn credentials_an_account_cannot_use_are_refused() {
         ),
     ] {
         assert_eq!(
-            text(credentials(&client, &event, body.clone()).await).await,
+            refusal(credentials(&client, &event, body.clone()).await).await,
             (status, message.to_string()),
             "{body}"
         );
@@ -628,11 +649,11 @@ async fn an_account_check_stores_what_the_provider_answered() {
     assert_eq!(sns.requests().len(), 1);
 
     assert_eq!(
-        text(check(Uuid::new_v4().to_string()).await).await,
+        refusal(check(Uuid::new_v4().to_string()).await).await,
         (Status::NotFound, "unknown account".to_string())
     );
     assert_eq!(
-        text(check("not-a-uuid".to_string()).await).await,
+        refusal(check("not-a-uuid".to_string()).await).await,
         (Status::BadRequest, "invalid identifier".to_string())
     );
 
@@ -640,7 +661,7 @@ async fn an_account_check_stores_what_the_provider_answered() {
     let (page, _) = meta_account(&client, &event).await;
     corrupt_credentials(&services, &event).await;
     assert_eq!(
-        text(check(page).await).await,
+        refusal(check(page).await).await,
         (Status::InternalServerError, "internal error".to_string())
     );
 }
@@ -711,7 +732,7 @@ async fn a_test_message_goes_through_the_chosen_account() {
     assert!(refused["reason"].is_string(), "{refused}");
 
     assert_eq!(
-        text(
+        refusal(
             test(json!({
                 "id": Uuid::new_v4(), "purpose": "NOTICE", "destination": PHONE,
             }))
@@ -721,7 +742,7 @@ async fn a_test_message_goes_through_the_chosen_account() {
         (Status::NotFound, "unknown account".to_string())
     );
     assert_eq!(
-        text(
+        refusal(
             test(json!({
                 "id": "not-a-uuid", "purpose": "NOTICE", "destination": PHONE,
             }))
@@ -882,7 +903,10 @@ async fn messages_that_cannot_be_sent_are_refused_or_reported_as_failed() {
 #[rocket::async_test]
 async fn a_messenger_link_is_confirmed_only_in_its_session_once_the_code_was_sent(
 ) {
-    let services = services().await;
+    // Get Started reaches Step through the webhook component.
+    let services = services()
+        .await
+        .with_messaging_webhooks_url("https://callbacks.example.org");
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
     let (id, _) = meta_account(&client, &event).await;
@@ -1105,6 +1129,115 @@ async fn meta_post(
     )
 }
 
+/// Regression (R1-12): a service token of one tenant naming another
+/// tenant's election event is refused before anything is sent or linked.
+#[rocket::async_test]
+async fn a_service_token_cannot_name_another_tenants_event() {
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let other = rows::event(&services.hasura).await;
+    let token = service_token(&services, &event.tenant_id);
+    let mut notice = notice(&event, "other-tenants-event");
+    notice["election_event_id"] = json!(other.election_event_id);
+    let mut link = link(&event, chrono::Duration::minutes(5));
+    link["election_event_id"] = json!(other.election_event_id);
+    for (path, body) in [("/messages/send", notice), ("/messages/link", link)] {
+        assert_eq!(
+            text(post_as(&client, path, &token, &body).await).await,
+            (
+                Status::Forbidden,
+                "The election event isn't one of the tenant's".to_string()
+            ),
+            "{path}"
+        );
+    }
+    let sent: i64 = rows::query(
+        &services.hasura,
+        "SELECT count(*) FROM sequent_backend.message WHERE tenant_id = $1",
+        &[&uuid(&event.tenant_id)],
+    )
+    .await[0]
+        .get(0);
+    assert_eq!(sent, 0);
+}
+
+/// Regression (R1-05, R1-06, R4-04): what stops an account's callbacks
+/// reached no reader, so the UI showed "Ready for OTP" and "Delivered 0".
+/// Readers of the event tab get each account's blockers and reasons.
+#[rocket::async_test]
+async fn readers_see_what_stops_each_accounts_callbacks() {
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    let viber = account(
+        &client,
+        &event,
+        json!({
+            "name": "Viber",
+            "sender": {
+                "provider": "VIBER_INFOBIP",
+                "base_url": "https://a.api.infobip.com",
+                "sender": "Elections",
+            },
+        }),
+    )
+    .await;
+    let sms = texts_account(&client, &event).await;
+    let reader = Claims::new(&event.tenant_id, USER_ID)
+        .roles([Permissions::MESSAGING_CONFIG_READ]);
+    let (status, body) = json(
+        post(
+            &client,
+            "/messaging/accounts/callback-status",
+            &reader,
+            &json!({}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{body}");
+    let of = |id: &str| {
+        body["accounts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|account| account["account_id"] == id)
+            .cloned()
+            .unwrap()
+    };
+    // The test process sets no public address for the component.
+    assert_eq!(
+        of(&viber),
+        json!({
+            "account_id": viber,
+            "blockers": ["CALLBACK_NOT_CONFIGURED", "REPORT_CREDENTIALS_MISSING"],
+            "reasons": [
+                "Callback address not configured",
+                "Generate the report credentials and create the Infobip subscription",
+            ],
+        })
+    );
+    assert_eq!(
+        of(&sms),
+        json!({"account_id": sms, "blockers": [], "reasons": []})
+    );
+    assert!(!body.to_string().contains("webhooks/"));
+    let stranger = Claims::new(&event.tenant_id, USER_ID)
+        .roles([Permissions::MESSAGING_CONFIG_WRITE]);
+    assert_eq!(
+        post(
+            &client,
+            "/messaging/accounts/callback-status",
+            &stranger,
+            &json!({})
+        )
+        .await
+        .status(),
+        Status::Unauthorized
+    );
+}
+
 #[rocket::async_test]
 async fn the_meta_subscription_echoes_the_challenge_for_the_verify_token() {
     let services = services().await;
@@ -1230,19 +1363,24 @@ async fn meta_events_are_accepted_only_with_the_app_secrets_signature() {
             "{unknown}"
         );
     }
-    // A signed payload of a WhatsApp account is not this Page's: harvest
-    // fails it, and the component has the provider retry.
+    // Regression (R1-08): a signed payload of a WhatsApp account is not
+    // this Page's. Retrying it can't help (Meta would retry for hours, then
+    // disable the subscription the Page's events share): it is taken and
+    // ignored, as is a signed body that isn't JSON.
     let whatsapp = r#"{"object":"whatsapp_business_account","entry":[]}"#;
-    assert_eq!(
-        meta_post(
-            &client,
-            &key,
-            Some(&hub_signature(whatsapp.as_bytes())),
-            whatsapp.as_bytes()
-        )
-        .await,
-        Err(Status::InternalServerError)
-    );
+    for body in [whatsapp, "not json"] {
+        assert_eq!(
+            meta_post(
+                &client,
+                &key,
+                Some(&hub_signature(body.as_bytes())),
+                body.as_bytes()
+            )
+            .await,
+            Ok(200),
+            "{body}"
+        );
+    }
 }
 
 #[rocket::async_test]
@@ -1337,7 +1475,7 @@ async fn viber_reports_are_accepted_with_the_subscriptions_basic_auth() {
     );
     // Generated, never entered.
     assert_eq!(
-        text(
+        refusal(
             credentials(
                 &client,
                 &event,
@@ -1407,46 +1545,48 @@ async fn ses_notifications_need_the_accounts_topic() {
 
 #[rocket::async_test]
 async fn the_callback_url_is_the_webhook_components() {
+    // Regression (T1): the routes read MESSAGING_WEBHOOKS_PUBLIC_URL from
+    // the process, not the address harvest was started with. A value in the
+    // environment must change nothing.
     if !isolated("routes::messaging::route_tests::the_callback_url_is_the_webhook_components") {
         return;
     }
+    std::env::set_var(
+        relay::WEBHOOKS_PUBLIC_URL_ENV,
+        "https://environment.example.org/",
+    );
     let services = services().await;
+    let unconfigured = services.client().await;
+    let services =
+        services.with_messaging_webhooks_url("https://callbacks.example.org");
     let client = services.client().await;
     let event = rows::event(&services.hasura).await;
-    let callback_url = |id: String| {
-        let (client, claims) = (&client, admin(&event));
-        async move {
-            json(
-                post(
-                    client,
-                    "/messaging/accounts/callback-url",
-                    &claims,
-                    &json!({ "id": id }),
-                )
+    async fn callback_url(
+        client: &Client,
+        event: &Event,
+        id: String,
+    ) -> (Status, Value) {
+        json(callback_url_text(client, event, id).await).await
+    }
+    async fn upsert(
+        client: &Client,
+        event: &Event,
+        body: Value,
+    ) -> (Status, Value) {
+        json(
+            post(client, "/messaging/accounts/upsert", &admin(event), &body)
                 .await,
-            )
-            .await
-        }
-    };
+        )
+        .await
+    }
     let (page, _) = meta_account(&client, &event).await;
     let key = webhook_key(&services, &page).await;
     let texts = account(&client, &event, sns("Texts")).await;
+    let page_body =
+        json!({"id": page, "name": "Page", "sender": messenger()["sender"]});
 
-    let upsert_page = || {
-        let (client, claims) = (&client, admin(&event));
-        let body = json!({"id": page, "name": "Page", "sender": messenger()["sender"]});
-        async move {
-            json(
-                post(client, "/messaging/accounts/upsert", &claims, &body)
-                    .await,
-            )
-            .await
-        }
-    };
-
-    std::env::remove_var(relay::WEBHOOKS_PUBLIC_URL_ENV);
     assert_eq!(
-        callback_url(page.clone()).await,
+        callback_url(&unconfigured, &event, page.clone()).await,
         (
             Status::Ok,
             json!({
@@ -1455,32 +1595,21 @@ async fn the_callback_url_is_the_webhook_components() {
             })
         )
     );
-    let (status, upserted) = upsert_page().await;
+    let (status, upserted) =
+        upsert(&unconfigured, &event, page_body.clone()).await;
     assert_eq!(status, Status::Ok, "{upserted}");
     assert_eq!(
         upserted["callback_reason"],
         "Callback address not configured"
     );
     assert_eq!(upserted.get("callback_url"), None, "{upserted}");
-    let (status, upserted) = json(
-        post(
-            &client,
-            "/messaging/accounts/upsert",
-            &admin(&event),
-            &sns("More texts"),
-        )
-        .await,
-    )
-    .await;
+    let (status, upserted) =
+        upsert(&unconfigured, &event, sns("More texts")).await;
     assert_eq!(status, Status::Ok, "{upserted}");
     assert_eq!(upserted.get("callback_reason"), None, "{upserted}");
 
-    std::env::set_var(
-        relay::WEBHOOKS_PUBLIC_URL_ENV,
-        "https://callbacks.example.org/",
-    );
     assert_eq!(
-        callback_url(page.clone()).await,
+        callback_url(&client, &event, page.clone()).await,
         (
             Status::Ok,
             json!({
@@ -1491,18 +1620,18 @@ async fn the_callback_url_is_the_webhook_components() {
     );
     // SMS through SNS takes no callbacks.
     assert_eq!(
-        callback_url(texts).await,
+        callback_url(&client, &event, texts).await,
         (Status::Ok, json!({"callback_url": null, "reason": null}))
     );
     assert_eq!(
-        text(
+        refusal(
             callback_url_text(&client, &event, Uuid::new_v4().to_string())
                 .await
         )
         .await,
         (Status::NotFound, "unknown account".to_string())
     );
-    let (status, upserted) = upsert_page().await;
+    let (status, upserted) = upsert(&client, &event, page_body).await;
     assert_eq!(status, Status::Ok, "{upserted}");
     assert_eq!(upserted.get("callback_reason"), None, "{upserted}");
     assert_eq!(
@@ -1546,9 +1675,47 @@ fn without_a_relay_secret_callbacks_are_not_configured() {
     for secret in [None, Some(&b""[..])] {
         assert!(matches!(
             MessagingRelay::new(secret, 1024).secret,
-            RelaySecret::NotConfigured
+            RelaySecret::NotConfigured(_)
         ));
     }
+    // Regression (R1-14): any non-blank secret was taken, the committed
+    // development one too; harvest checks it as the component does.
+    let vars = |secret: &'static str, policy: Option<&'static str>| {
+        move |name: &str| match name {
+            "MESSAGING_RELAY_SECRET" => Some(secret.to_string()),
+            "MESSAGING_RELAY_SECRET_POLICY" => policy.map(str::to_string),
+            _ => None,
+        }
+    };
+    for (secret, policy, refusal) in [
+        ("s3cret", None, relay::RelaySecretRefusal::TOO_SHORT),
+        (
+            relay::DEV_RELAY_SECRET,
+            None,
+            relay::RelaySecretRefusal::DEVELOPMENT_VALUE,
+        ),
+    ] {
+        assert!(matches!(
+            MessagingRelay::from_vars(vars(secret, policy)).secret,
+            RelaySecret::NotConfigured(r) if r == refusal
+        ));
+    }
+    assert!(matches!(
+        MessagingRelay::from_vars(vars(
+            relay::DEV_RELAY_SECRET,
+            Some("ALLOW_DEV_SECRET")
+        ))
+        .secret,
+        RelaySecret::Configured(_)
+    ));
+    assert!(matches!(
+        MessagingRelay::from_vars(vars(
+            "0123456789abcdef0123456789abcdef",
+            None
+        ))
+        .secret,
+        RelaySecret::Configured(_)
+    ));
     let relay = MessagingRelay::new(Some(b"secret"), 1024);
     assert!(
         matches!(relay.secret, RelaySecret::Configured(ref s) if s == b"secret")
@@ -1730,6 +1897,16 @@ async fn a_saved_event_configuration_is_stored_only_once_its_realm_publishes_it(
     );
     let stored = stored_config(&services, &event).await.unwrap();
     assert_eq!(stored["channels"][0]["account_id"], id);
+    // Regression (R1-15): the save names its author.
+    let updated_by: Option<String> = rows::query(
+        &services.hasura,
+        "SELECT updated_by FROM sequent_backend.messaging_event_config
+         WHERE election_event_id = $1",
+        &[&uuid(&event.election_event_id)],
+    )
+    .await[0]
+        .get(0);
+    assert_eq!(updated_by.as_deref(), Some(USER_ID));
 
     let requests = peer.finish();
     let published = requests.last().unwrap().json();
@@ -1821,7 +1998,7 @@ async fn changes_whose_commit_fails_are_not_reported_as_done() {
         ),
     ] {
         assert_eq!(
-            text(post(&client, path, &admin(&event), &body).await).await,
+            refusal(post(&client, path, &admin(&event), &body).await).await,
             (Status::InternalServerError, "internal error".to_string()),
             "{path}"
         );
@@ -1888,7 +2065,7 @@ async fn messaging_routes_answer_without_a_database() {
         ),
     ] {
         assert_eq!(
-            text(post(&client, path, &admin(&event), &body).await).await,
+            refusal(post(&client, path, &admin(&event), &body).await).await,
             (Status::InternalServerError, "internal error".to_string()),
             "{path}"
         );

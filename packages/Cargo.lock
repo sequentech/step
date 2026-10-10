@@ -6333,6 +6333,9 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "tracing-tree",
 ]
 
 [[package]]

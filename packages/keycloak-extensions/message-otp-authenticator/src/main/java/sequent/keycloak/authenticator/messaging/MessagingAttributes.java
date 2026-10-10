@@ -56,6 +56,15 @@ public class MessagingAttributes {
   /** The channel an authenticated voter is changing their contact to, while its code is pending. */
   public final String NOTE_RESET_CHANNEL = "sequent.reset-channel";
 
+  /**
+   * Set when the contact change takes over the authentication session, so the sign-in's code, timer
+   * and delivery state are forgotten once: the contact change has its own.
+   */
+  public final String NOTE_CONTACT_CHANGE_STARTED = "sequent.contact-change-started";
+
+  /** The note holding the number entered for an SMS contact change (its configured attribute). */
+  public final String NOTE_RESET_NUMBER_NOTE = "sequent.reset-number-note";
+
   /** Notes a submitted form must never set. */
   public final Set<String> KEYCLOAK_NOTES =
       Set.of(
@@ -73,7 +82,9 @@ public class MessagingAttributes {
           NOTE_MESSENGER_LINK,
           NOTE_MESSENGER_WORD,
           NOTE_MESSENGER_STATE,
-          NOTE_RESET_CHANNEL);
+          NOTE_RESET_CHANNEL,
+          NOTE_CONTACT_CHANGE_STARTED,
+          NOTE_RESET_NUMBER_NOTE);
 
   /** Realm attribute with the version of the consent wording shown at enrollment. */
   public final String CONSENT_VERSION_REALM_ATTRIBUTE = "sequent.message-consent-version";

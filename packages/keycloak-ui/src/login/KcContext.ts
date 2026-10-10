@@ -57,6 +57,13 @@ export enum MessengerLinkState {
     Replaced = "REPLACED",
 }
 
+// What the code page may say about where the code went. A password reset is NEUTRAL: it never
+// tells whether the account exists, so it names no channel or contact.
+export enum CodeDisclosure {
+    Named = "NAMED",
+    Neutral = "NEUTRAL",
+}
+
 export enum LoginValidationPolicy {
     Browser = "BROWSER",
     ServerOnly = "SERVER_ONLY",
@@ -166,6 +173,8 @@ type EnrollmentFinish = {
     // Where the result of the enrollment goes: the verified channel and its masked contact.
     noticeChannel?: MessageChannel
     noticeAddress?: string
+    // The application's reference for support: 8 capital letters and digits, "XXXX-XXXX".
+    supportReference?: string
 }
 
 // The channel choice of the enrollment form, when the flow asks for one.
@@ -190,8 +199,11 @@ export type MessagingChoice = {
 // context.ftl serializes the authenticator's Java enum as its wire value.
 export type KcContextExtensionPerPage = {
     "message-otp.login.ftl": {
-        address: string
+        // Absent on a NEUTRAL page.
+        address?: string
         courier?: MessageCourier
+        // Absent means NAMED.
+        codeDisclosure?: CodeDisclosure
         isOtl: boolean
         codeJustSent?: boolean
         // A send was attempted now, delivered or not: the resend countdown starts.
@@ -207,6 +219,11 @@ export type KcContextExtensionPerPage = {
         // The realm's limit of wrong codes was reached: the authentication session is finished,
         // only starting again helps, and a resend never resets the count.
         attemptsExhausted?: boolean
+        // A NEUTRAL page whose event offers Messenger for codes: how to connect it, shown for any
+        // account (its link binds to nothing for one that doesn't use Messenger).
+        messengerConnect?: boolean
+        // Who sends the codes, for the Messenger explanation.
+        messagingOrganization?: string
         messengerPage?: string
         // The m.me link with the one-time reference, and the same link as a QR image (a data URI)
         // drawn by Keycloak.

@@ -11,6 +11,10 @@ const tagalogTranslation: TranslationType = {
         },
         contactChannel: {
             change: "Baguhin kung paano ka namin kokontakin",
+            updated: "Napalitan na ang iyong contact. Doon na ipapadala ang mga code at abiso.",
+            cancelled: "Hindi napalitan ang iyong contact.",
+            failed: "Hindi namin mabago kung paano ka namin kokontakin. Subukang muli mamaya o makipag-ugnayan sa support.",
+            close: "Isara",
         },
         common: {
             goBack: "Bumalik",

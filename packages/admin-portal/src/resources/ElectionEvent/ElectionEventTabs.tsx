@@ -33,6 +33,7 @@ import {useNavigate, useLocation} from "react-router-dom"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {monitoringLock} from "@/components/monitoring/useMonitoringPermissions"
 import {LOGS_TAB_ID} from "@/components/logs/messagingLogFilters"
+import {showMessagingTab} from "./messagingTabAccess"
 
 // ---------------------------------------------------------------------
 // Lazy load all tab contents
@@ -349,10 +350,11 @@ export const ElectionEventTabs: React.FC = () => {
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_VOTERS_TAB
     )
-    // The tab reads the configuration, accounts and ledger with messaging-config-read.
-    const showMessaging =
-        !isElectionEventLocked &&
-        authContext.isAuthorized(true, authContext.tenantId, IPermissions.MESSAGING_CONFIG_READ)
+    // The tab reads with messaging-config-read; with write only, it says so.
+    const showMessaging = showMessagingTab(
+        (permissions) => authContext.isAuthorized(true, authContext.tenantId, permissions),
+        isElectionEventLocked
+    )
     const showAreas =
         !isElectionEventLocked &&
         authContext.isAuthorized(true, authContext.tenantId, IPermissions.ELECTION_EVENT_AREAS_TAB)

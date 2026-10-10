@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useState} from "react"
+import React, {useMemo, useState} from "react"
 import {useMutation, useQuery} from "@apollo/client"
 import {useNotify} from "react-admin"
 import {useTranslation} from "react-i18next"
@@ -42,7 +42,7 @@ import {
     isUnsupportedProvider,
     typedCredentials,
 } from "@/services/messaging"
-import {reasonText} from "@/services/messagingReasons"
+import {actionRefusalReason, reasonText} from "@/services/messagingReasons"
 import {UPSERT_MESSAGING_ACCOUNT} from "@/queries/UpsertMessagingAccount"
 import {REPLACE_MESSAGING_ACCOUNT_CREDENTIALS} from "@/queries/ReplaceMessagingAccountCredentials"
 import {
@@ -52,8 +52,9 @@ import {
 import {
     EAccountFormError,
     IAccountFormValues,
-    credentialsPayload,
+    credentialsToReenter,
     emptyAccountForm,
+    endpointField,
     formFromAccount,
     requiresProviderApproval,
     selectableProviders,
@@ -127,6 +128,8 @@ interface ICredentialInputProps {
     replacedAt: string | undefined
     value: string
     disabled: boolean
+    /** The address it is sent to changed: it must be entered again. */
+    mustReenter?: boolean
     onChange: (value: string) => void
 }
 
@@ -137,12 +140,13 @@ export const CredentialInput: React.FC<ICredentialInputProps> = ({
     replacedAt,
     value,
     disabled,
+    mustReenter = false,
     onChange,
 }) => {
     const {t, i18n} = useTranslation()
     const [replacing, setReplacing] = useState(false)
     const label = t(`messaging.credential.${name}`)
-    if (replacedAt && !replacing) {
+    if (replacedAt && !replacing && !mustReenter) {
         return (
             <Box
                 sx={{
@@ -181,7 +185,12 @@ export const CredentialInput: React.FC<ICredentialInputProps> = ({
             value={value}
             disabled={disabled}
             autoComplete="new-password"
-            helperText={t(`messagingAccounts.credentialHelp.${provider}.${name}`)}
+            error={mustReenter && !value}
+            helperText={
+                mustReenter && !value
+                    ? t("messagingAccounts.credentials.reenter")
+                    : t(`messagingAccounts.credentialHelp.${provider}.${name}`)
+            }
             onChange={(event) => onChange(event.target.value)}
             fullWidth
         />
@@ -361,11 +370,12 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
     const [token, setToken] = useState<string | null>(null)
     const [reportCredentials, setReportCredentials] = useState<IReportCredentials | null>(null)
     const [generating, setGenerating] = useState(false)
+    const [confirmingReplace, setConfirmingReplace] = useState(false)
     const [replaceCredentials] = useMutation<IReplaceCredentialsResult>(
         REPLACE_MESSAGING_ACCOUNT_CREDENTIALS,
         {context: WRITE_ROLE}
     )
-    const {data, loading} = useQuery<IMessagingAccountCallbackUrlResult>(
+    const {data, loading, error} = useQuery<IMessagingAccountCallbackUrlResult>(
         MESSAGING_ACCOUNT_CALLBACK_URL,
         {
             variables: {accountId: account?.id},
@@ -431,7 +441,14 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
           ? t("messagingAccounts.webhook.needsWrite")
           : loading && !callback
             ? t("messagingAccounts.webhook.loading")
-            : (callbackUrl ?? reasonText(t, callback?.reason))
+            : error && !callback
+              ? t("messagingAccounts.webhook.loadError")
+              : (callbackUrl ?? reasonText(t, callback?.reason))
+
+    // Replacing report credentials that are set breaks Infobip's subscription
+    // until it is updated with the new ones: asked first.
+    const generateReportCredentials = () =>
+        reportSet ? setConfirmingReplace(true) : generate("REPORT_CREDENTIALS")
 
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 2}}>
@@ -518,7 +535,7 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
                             <Button
                                 variant="outlined"
                                 disabled={generating}
-                                onClick={() => generate("REPORT_CREDENTIALS")}
+                                onClick={generateReportCredentials}
                             >
                                 {t("messagingAccounts.reports.generate")}
                             </Button>
@@ -527,6 +544,37 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
                 </>
             )}
             {token && <VerifyTokenDialog token={token} onClose={() => setToken(null)} />}
+            {confirmingReplace && (
+                <Dialog
+                    open
+                    onClose={() => setConfirmingReplace(false)}
+                    aria-labelledby="replace-report-credentials-title"
+                >
+                    <DialogTitle id="replace-report-credentials-title">
+                        {t("messagingAccounts.reports.confirmTitle")}
+                    </DialogTitle>
+                    <DialogContent>
+                        <Typography variant="body2">
+                            {t("messagingAccounts.reports.confirmBody")}
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button variant="outlined" onClick={() => setConfirmingReplace(false)}>
+                            {t("messagingAccounts.editor.cancel")}
+                        </Button>
+                        <Button
+                            variant="contained"
+                            color="warning"
+                            onClick={() => {
+                                setConfirmingReplace(false)
+                                generate("REPORT_CREDENTIALS")
+                            }}
+                        >
+                            {t("messagingAccounts.reports.confirm")}
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+            )}
             {reportCredentials && (
                 <ReportCredentialsDialog
                     credentials={reportCredentials}
@@ -675,20 +723,24 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
     )
     const [submitted, setSubmitted] = useState(false)
     const [saving, setSaving] = useState(false)
+    /** Why the last save was refused, as the backend said it. */
+    const [refusal, setRefusal] = useState<string | null>(null)
+    // Once a new account is created, saving again updates it: never a second account.
+    const [savedId, setSavedId] = useState<string | null>(account?.id ?? null)
     const [upsertAccount] = useMutation<IUpsertMessagingAccountResult>(UPSERT_MESSAGING_ACCOUNT, {
         context: WRITE_ROLE,
     })
-    const [replaceCredentials] = useMutation<IReplaceCredentialsResult>(
-        REPLACE_MESSAGING_ACCOUNT_CREDENTIALS,
-        {context: WRITE_ROLE}
-    )
-    const errors = submitted ? validateAccountForm(values) : {}
+    const originalForm = useMemo(() => (account ? formFromAccount(account) : undefined), [account])
+    const errors = submitted ? validateAccountForm(values, originalForm) : {}
+    // Credentials that would go to a new address unless entered again.
+    const reenter = credentialsToReenter(originalForm, values)
+    const endpoint = endpointField(values.provider)
     // A removed provider's account can only be replaced: nothing is edited or saved.
     const unsupported = isUnsupportedProvider(values.provider)
     const disabled = !canWrite || saving || unsupported
     const channelName = t(`messaging.channel.${values.channel}`)
     const needsApproval = requiresProviderApproval(values.provider, values.channel)
-    const original = account ? formFromAccount(account).sender : undefined
+    const original = originalForm?.sender
     const changed = (key: string) => !!original && (values.sender[key] ?? "") !== original[key]
     const pageChanged =
         values.provider === EMessagingProvider.MESSENGER_SEND_API && changed("page_id")
@@ -699,6 +751,13 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
     const errorText = (path: string) =>
         errors[path] ? t(`messagingAccounts.error.${errors[path]}`) : undefined
 
+    // Said as soon as the address changes, not only when saving.
+    const fieldError = (key: string): string | undefined =>
+        errorText(`sender.${key}`) ??
+        (key === endpoint && reenter.length
+            ? t(`messagingAccounts.error.${EAccountFormError.CREDENTIALS_FOLLOW_ENDPOINT}`)
+            : undefined)
+
     const setSender = (key: string, value: string) =>
         setValues({...values, sender: {...values.sender, [key]: value}})
 
@@ -707,31 +766,38 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
 
     const save = async () => {
         setSubmitted(true)
-        if (Object.keys(validateAccountForm(values)).length) {
+        setRefusal(null)
+        if (Object.keys(validateAccountForm(values, originalForm)).length) {
             return
         }
         setSaving(true)
+        const creating = !savedId
         try {
+            // One call: the account and the credentials typed with it are
+            // stored in one transaction, or neither is.
             const {data} = await upsertAccount({
-                variables: upsertAccountVariables(account?.id ?? null, values),
+                variables: upsertAccountVariables(savedId, values),
             })
             const saved = data?.upsert_messaging_account
-            const id = saved?.id ?? account?.id
+            const id = saved?.id ?? savedId
             if (!id) {
                 throw new Error("No account id returned")
             }
-            const credentials = credentialsPayload(values)
-            if (credentials) {
-                await replaceCredentials({variables: {id, credentials}})
-            }
+            setSavedId(id)
             notify(t("messagingAccounts.save.success"), {type: "success"})
-            if (!account && hasWebhook(values.provider) && onCreated) {
+            if (creating && hasWebhook(values.provider) && onCreated) {
                 onCreated(id, {callback_url: saved?.callback_url, reason: saved?.callback_reason})
                 return
             }
             onChanged()
             onClose()
-        } catch {
+        } catch (error) {
+            const reason = actionRefusalReason(error)
+            setRefusal(
+                reason
+                    ? t("messagingAccounts.save.refused", {reason: reasonText(t, reason)})
+                    : t("messagingAccounts.save.error")
+            )
             notify(t("messagingAccounts.save.error"), {type: "error"})
         } finally {
             setSaving(false)
@@ -819,9 +885,9 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                     value={values.sender[key] ?? ""}
                     disabled={disabled}
                     required={required}
-                    error={!!errors[`sender.${key}`]}
+                    error={!!fieldError(key)}
                     helperText={
-                        errorText(`sender.${key}`) ??
+                        fieldError(key) ??
                         (FIELDS_WITH_HELP.has(key)
                             ? t(`messagingAccounts.fieldHelp.${key}`)
                             : undefined)
@@ -943,6 +1009,7 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                             replacedAt={account?.credentials?.[name]?.replaced_at}
                             value={values.credentials[name] ?? ""}
                             disabled={disabled}
+                            mustReenter={reenter.includes(name) || !!values.credentials[name]}
                             onChange={(value) =>
                                 setValues({
                                     ...values,
@@ -963,6 +1030,8 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                     onChanged={onChanged}
                 />
             )}
+
+            {refusal ? <Alert severity="error">{refusal}</Alert> : null}
 
             <Box sx={{display: "flex", gap: 2}}>
                 {canWrite && !unsupported && (

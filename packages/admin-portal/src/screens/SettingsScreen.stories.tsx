@@ -45,6 +45,9 @@ const meta = {
         graphql = graphqlBoundary(
             {
                 GetMessagingAccounts: () => ({data: {sequent_backend_messaging_account: []}}),
+                GetMessagingCallbackStatus: () => ({
+                    data: {messaging_callback_status: {accounts: []}},
+                }),
             },
             {schema: !messaging}
         )
@@ -119,7 +122,10 @@ export const OpenTheMessagingAccounts: Story = {
         expect(canvas.getAllByRole("tab")).toHaveLength(11)
         await userEvent.click(canvas.getByRole("tab", {name: i18n.t("messagingAccounts.tab")}))
         await expect(await canvas.findByText(i18n.t("messagingAccounts.list.empty"))).toBeVisible()
-        expect(graphql.calls.map(({name}) => name)).toEqual(["GetMessagingAccounts"])
+        expect(graphql.calls.map(({name}) => name).sort()).toEqual([
+            "GetMessagingAccounts",
+            "GetMessagingCallbackStatus",
+        ])
     },
 }
 

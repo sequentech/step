@@ -25,6 +25,17 @@ it.each([
     ["GetApprovalMatrix", IPermissions.APPLICATION_READ],
     ["EvaluateApprovalMatrix", IPermissions.APPLICATION_READ],
     ["SaveApprovalMatrix", IPermissions.APPROVAL_MATRIX_WRITE],
+    // Messaging (R4-20): admin-user can read none of it.
+    ["GetEventMessagingConfig", IPermissions.MESSAGING_CONFIG_READ],
+    ["GetMessagingAccountSummaries", IPermissions.MESSAGING_CONFIG_READ],
+    ["GetVoterUnsettledMessages", IPermissions.MESSAGING_CONFIG_READ],
+    ["GetVoterMessageAttempts", IPermissions.MESSAGING_CONFIG_READ],
+    ["GetLedgerMessageStates", IPermissions.MESSAGING_CONFIG_READ],
+    ["GetMessagingEventStats", IPermissions.MESSAGING_CONFIG_READ],
+    ["UpdateEventMessagingConfig", IPermissions.MESSAGING_CONFIG_WRITE],
+    ["GetMessagingAccounts", IPermissions.MESSAGING_ACCOUNT_READ],
+    ["MessagingAccountCallbackUrl", IPermissions.MESSAGING_ACCOUNT_WRITE],
+    ["UpsertMessagingAccount", IPermissions.MESSAGING_ACCOUNT_WRITE],
 ])("requires the role for %s in both modes", (name, role) => {
     expect(getOperationRole(operation(name))).toBe(role)
     expect(getOperationRole(operation(name), true)).toBe(role)

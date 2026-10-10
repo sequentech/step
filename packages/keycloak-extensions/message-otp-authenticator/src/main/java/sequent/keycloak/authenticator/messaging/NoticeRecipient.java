@@ -20,33 +20,20 @@ public record NoticeRecipient(
 
   /** How a notice is delivered, or why it is not. */
   public enum Route {
-    /** The message sender delivers the channel. */
+    /**
+     * Handed to the message sender (harvest), which applies the event's channels and records the
+     * outcome, refusals included. The channel is empty for a voter without one: harvest records
+     * that too.
+     */
     SENDER,
-    /** Keycloak's own email or SMS provider delivers it. */
+    /** Keycloak's own email or SMS provider delivers it: the sender doesn't carry the channel. */
     KEYCLOAK,
-    /** Not sent; the reason says why. */
+    /** Not sent, and nothing can record it elsewhere; the reason says why. */
     NOT_SENT
   }
 
-  /** Why a notice is not sent. One reason string each, shared by the log and the event. */
-  public enum Refusal {
-    NO_CONTACT("No contact channel"),
-    NOT_OFFERED("Channel not offered for notices"),
-    NOT_DELIVERED("No sender delivers the channel");
-
-    private final String reason;
-
-    Refusal(String reason) {
-      this.reason = reason;
-    }
-
-    public String reason() {
-      return reason;
-    }
-  }
-
   /** The route of a notice, with the reason when it is not sent. */
-  public record Delivery(Route route, Optional<Refusal> refusal) {}
+  public record Delivery(Route route, Optional<MessageReason> refusal) {}
 
   public static NoticeRecipient none() {
     return new NoticeRecipient(Optional.empty(), Set.of(), null);
@@ -121,32 +108,25 @@ public record NoticeRecipient(
   }
 
   /**
-   * How a notice reaches the voter's channel. The message sender carries the channels it delivers,
-   * when the event uses the channel for notices; Keycloak's email and SMS providers carry email and
-   * SMS otherwise. Anything else is not sent.
+   * How a notice reaches the voter's channel. Keycloak never decides whether the event uses the
+   * channel for notices: a channel the sender carries is always handed to it, and harvest refuses
+   * with its reason (and records it). Keycloak's email and SMS providers carry email and SMS only
+   * when the sender doesn't. A voter with no channel is handed to a sender that records refusals;
+   * without one, the notice is not sent and the reason is logged.
    */
-  public Delivery delivery(
-      MessageSenderProvider sender, Optional<PublicMessagingChannels> projection) {
+  public Delivery delivery(MessageSenderProvider sender) {
     if (channel.isEmpty()) {
-      return new Delivery(Route.NOT_SENT, Optional.of(Refusal.NO_CONTACT));
+      return sender.getChannels().isEmpty()
+          ? new Delivery(Route.NOT_SENT, Optional.of(MessageReason.NO_CONTACT_CHANNEL))
+          : new Delivery(Route.SENDER, Optional.empty());
     }
     MessageChannel name = channel.get().channel();
-    boolean keycloakChannel = name == MessageChannel.EMAIL || name == MessageChannel.SMS;
     if (sender.delivers(name)) {
-      boolean offered =
-          projection
-              .map(p -> p.channelsFor(MessagePurpose.NOTICE, electionIds).contains(name))
-              .orElse(false);
-      if (offered) {
-        return new Delivery(Route.SENDER, Optional.empty());
-      }
-      return keycloakChannel
-          ? new Delivery(Route.KEYCLOAK, Optional.empty())
-          : new Delivery(Route.NOT_SENT, Optional.of(Refusal.NOT_OFFERED));
+      return new Delivery(Route.SENDER, Optional.empty());
     }
-    return keycloakChannel
+    return name == MessageChannel.EMAIL || name == MessageChannel.SMS
         ? new Delivery(Route.KEYCLOAK, Optional.empty())
-        : new Delivery(Route.NOT_SENT, Optional.of(Refusal.NOT_DELIVERED));
+        : new Delivery(Route.NOT_SENT, Optional.of(MessageReason.NO_SENDER_FOR_CHANNEL));
   }
 
   private static String present(String value) {

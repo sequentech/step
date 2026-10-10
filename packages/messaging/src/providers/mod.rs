@@ -82,6 +82,19 @@ pub struct Endpoints {
     pub aws: Option<String>,
 }
 
+/// What the log shows of a deployment address: its host and port only,
+/// never credentials, a path or a query that may come with it.
+pub fn logged_address(url: &str) -> String {
+    match reqwest::Url::parse(url) {
+        Ok(url) => match (url.host_str(), url.port()) {
+            (Some(host), Some(port)) => format!("{host}:{port}"),
+            (Some(host), None) => host.to_string(),
+            (None, _) => "an address without a host".to_string(),
+        },
+        Err(_) => "an unreadable address".to_string(),
+    }
+}
+
 impl Endpoints {
     /// Read the same way by harvest and windmill.
     pub fn from_env() -> Self {
@@ -106,7 +119,10 @@ impl Endpoints {
             (AWS_ENDPOINT_URL_ENV, &endpoints.aws),
         ] {
             if let Some(value) = value {
-                tracing::info!("{name} is set: accounts' own addresses are not used ({value})");
+                tracing::info!(
+                    "{name} is set: accounts' own addresses are not used ({})",
+                    logged_address(value)
+                );
             }
         }
         endpoints
@@ -245,6 +261,21 @@ pub(crate) async fn exchange(
 
 #[cfg(test)]
 mod tests {
+
+    /// Regression (R1-17): an override URL was logged whole, credentials
+    /// in it too.
+    #[test]
+    fn logs_name_an_override_by_its_host_only() {
+        assert_eq!(
+            super::logged_address("https://user:pass@graph.example.org:8443/v1?token=x"),
+            "graph.example.org:8443"
+        );
+        assert_eq!(
+            super::logged_address("http://harvest:8400/fake-provider/meta"),
+            "harvest:8400"
+        );
+        assert_eq!(super::logged_address("not a url"), "an unreadable address");
+    }
     use super::*;
     use crate::destination::Destination;
     use crate::sender::OutboundMessage;

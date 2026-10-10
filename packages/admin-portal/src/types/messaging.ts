@@ -104,6 +104,17 @@ export enum EReadinessBlocker {
     NEEDS_PROVIDER_APPROVAL = "NEEDS_PROVIDER_APPROVAL",
     NEEDS_PRODUCTION_ACCESS = "NEEDS_PRODUCTION_ACCESS",
     NEEDS_APPROVED_TEMPLATE = "NEEDS_APPROVED_TEMPLATE",
+    /**
+     * The webhook component's public address isn't configured: no callback
+     * reaches the account. Messenger codes need Get Started, which arrives as
+     * a callback; receipts are unavailable (`callback_readiness`).
+     */
+    CALLBACK_NOT_CONFIGURED = "CALLBACK_NOT_CONFIGURED",
+    /**
+     * A Viber account without report credentials: Infobip's subscription
+     * can't authenticate its reports, so receipts are unavailable.
+     */
+    REPORT_CREDENTIALS_MISSING = "REPORT_CREDENTIALS_MISSING",
 }
 
 export enum ECredentialName {
@@ -151,6 +162,22 @@ export interface IAccountCheck {
     approved_templates?: IApprovedTemplates
     checked_at?: string | null
     reason?: string | null
+    /**
+     * What stops callbacks (delivery reports, Messenger's Get Started) from
+     * reaching the account, from the action `messaging_callback_status`
+     * (`callback_readiness`), merged in by the account reader. Absent when
+     * the status couldn't be read.
+     */
+    callback_blockers?: Array<EReadinessBlocker | string>
+    /** The backend's reasons for `callback_blockers`, in the same order. */
+    callback_reasons?: string[]
+}
+
+/** One account's entry of `messaging_callback_status`. */
+export interface IAccountCallbackStatus {
+    account_id: string
+    blockers: string[]
+    reasons: string[]
 }
 
 export interface IPurposeReadiness {
@@ -369,8 +396,11 @@ export const VOTER_ATTR_VERIFIED_CHANNELS = "sequent.read-only.verified-channels
 /** A ledger row (`sequent_backend.message`) as the event tab, Logs and the drawer read it. */
 export interface ILedgerMessage {
     id: string
-    channel: EMessageChannel | string
+    /** Null for a voter with no contact channel: the FAILED row has none. */
+    channel: EMessageChannel | string | null
     state: EMessageAttemptState | string
+    /** The message the attempt belongs to: retries share it. */
+    logical_key?: string | null
     attempt?: number | null
     error?: string | null
     created_at?: string | null
@@ -380,7 +410,8 @@ export interface ILedgerMessage {
 
 /** Messages of a channel in an event, counted per message (its latest attempt). */
 export interface IChannelMessageStats {
-    channel: EMessageChannel
+    /** Null for the voters with no contact channel: their FAILED rows have none. */
+    channel: EMessageChannel | null
     /** Voters whose one channel this is; null when it couldn't be counted. */
     voters?: number | null
     sent_last_24h?: number | null

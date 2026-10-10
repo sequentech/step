@@ -82,6 +82,10 @@ pub struct Services {
     pub service_keys: Arc<StaticServiceKeys>,
     pub tasks: MemoryTaskQueue,
     pub vault: Arc<MemoryVault>,
+    /// Relayed callbacks are signed with [`RELAY_SECRET`] unless replaced.
+    pub messaging_relay: MessagingRelay,
+    /// The webhook component's public address; none unless a test sets it.
+    pub messaging_webhooks_url: Option<String>,
     pub signing: SigningServices,
     pub signing_roles: Arc<dyn SigningRoleAdmin>,
 }
@@ -117,6 +121,11 @@ impl Services {
             service_keys: Default::default(),
             tasks: Default::default(),
             vault: Default::default(),
+            messaging_relay: MessagingRelay::new(
+                Some(RELAY_SECRET),
+                messaging::relay::DEFAULT_MAX_BODY_BYTES,
+            ),
+            messaging_webhooks_url: None,
             signing: SigningServices {
                 verifier: Arc::new(OpensslCertificateVerifier::default()),
                 executors: SigningExecutorRegistry::default(),
@@ -201,6 +210,16 @@ impl Services {
         self
     }
 
+    pub fn with_messaging_webhooks_url(mut self, url: &str) -> Self {
+        self.messaging_webhooks_url = Some(url.to_string());
+        self
+    }
+
+    pub fn with_messaging_relay(mut self, relay: MessagingRelay) -> Self {
+        self.messaging_relay = relay;
+        self
+    }
+
     pub fn with_vault(mut self, vault: MemoryVault) -> Self {
         self.vault = Arc::new(vault);
         self
@@ -233,10 +252,8 @@ impl Services {
             documents: self.documents.clone(),
             electoral_log: self.electoral_log.clone(),
             identity: self.identity.clone(),
-            messaging_relay: MessagingRelay::new(
-                Some(RELAY_SECRET),
-                messaging::relay::DEFAULT_MAX_BODY_BYTES,
-            ),
+            messaging_relay: self.messaging_relay.clone(),
+            messaging_webhooks_url: self.messaging_webhooks_url.clone(),
             monitoring_audit: self.monitoring_audit.clone(),
             monitoring_cache: self.monitoring_cache.clone(),
             monitoring_configs: self.monitoring_configs.clone(),

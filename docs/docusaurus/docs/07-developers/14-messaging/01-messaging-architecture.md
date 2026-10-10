@@ -26,7 +26,7 @@ flowchart LR
   D --> P[Providers]
   P -->|public: /webhooks/...| C[messaging-webhooks]
   C -->|internal: POST /messaging/callbacks, relay signature| H
-  B[beat: retry and reconcile sweeps, daily check] --> D
+  B[beat: retry and reconcile sweeps] --> D
 ```
 
 Harvest is never public. Provider callbacks are the only inbound traffic
@@ -180,17 +180,28 @@ Hasura verifies their tokens.
 
 | Permission | Reaches |
 |---|---|
-| `messaging-account-read` | The account list, without `webhook_key` or credentials |
-| `messaging-account-write` | Account actions: upsert, credentials, check, test, delete, callback URL, Page change impact |
-| `messaging-config-read` | `message` and the safe `messaging_account` columns, for the event tab, Logs and the voter drawer |
+| `messaging-account-read` | The account list, with `credentials` holding only when each credential was last replaced (never a value), and without `webhook_key` |
+| `messaging-account-write` | Account actions: upsert (with the credentials typed with it), credentials, check, test, delete, callback URL |
+| `messaging-config-read` | The event configuration, `message` (including `logical_key`, to tell a message's latest attempt), the safe `messaging_account` columns and `messaging_callback_status`, for the event tab, Send Notification, Logs and the voter drawer |
 | `messaging-config-write` | `update_event_messaging_config` |
 
 `admin-user` no longer selects `messaging_account` or `message`, and
 `service-account` selects are scoped by tenant. All four permissions are in
-`MIGRATED_PERMISSIONS`, so existing realms get them on upgrade. An
-account's full callback URL is never computed in the browser: the upsert
+`MIGRATED_PERMISSIONS`, so existing realms get the roles on upgrade, and
+the groups get them too, not only the roles: the same migration grants
+`messaging-config-read` and the account permissions to the groups `admin`
+and `admin-light` when they exist, as the new-realm template does, and
+`messaging-config-read` to every group that already holds
+`messaging-config-write` or `messaging-account-read`. It is idempotent and
+logs what it grants. The Admin Portal
+names the role of every messaging operation (`AdminOperationMap`), so none
+falls back to `admin-user`.
+
+An account's full callback URL is never computed in the browser: the upsert
 and check actions and `messaging_account_callback_url` return it, or the
-reason it is unavailable.
+reason it is unavailable. The upsert stores the account and the credentials
+sent with it in one transaction; an address change without them is refused
+with "Enter the credentials again for the new address".
 
 ## Sending
 
@@ -208,9 +219,10 @@ stable across retries (`send-template:<task id>:<voter>`,
    refusal is recorded as one `FAILED` attempt with its reason and never
    reaches the provider. Nothing tries another channel.
 4. Insert the attempt as `QUEUED` and commit.
-5. Take a token from the account's shared rate bucket (codes have reserved
-   headroom), set `dispatched_at`, send, and record `ACCEPTED`, `FAILED` or
-   `UNKNOWN`.
+5. Wait for the account's sending rate, set `dispatched_at`, send, and
+   record `ACCEPTED`, `FAILED` or `UNKNOWN`. (A rate bucket shared by every
+   process, with headroom reserved for codes, is planned and not yet
+   available.)
 
 Timeouts, lost responses and 5xx answers are `UNKNOWN`. SDK retries are
 disabled so that only the ledger decides. States only move along
@@ -218,34 +230,54 @@ disabled so that only the ledger decides. States only move along
 repeated reports can't regress a delivered message. `QUEUED` can move
 straight to `DELIVERED`.
 
-A voter with no channel gets one `FAILED` row with the reason "No contact
-channel". Every outcome has one reason string, shared by the ledger, the
-log and the Admin Portal.
+A voter with no channel gets one `FAILED` row with no channel
+(`message.channel` is nullable for this) and the reason "No contact
+channel". It is never counted under a channel: the event tab shows it on a
+row of its own. Every outcome has one reason string, shared by the ledger,
+the log and the Admin Portal, which translates each one.
 
 ### Retries and the sweep
 
-- A transient failure sets `next_retry_at`, with backoff of 1, 5 and 15
-  minutes. The beat sweep creates attempt n+1 on the **same channel** when
-  it is due; after 3 attempts the message stays `FAILED`. Failures reported
-  later by webhook are classified transient or permanent by provider error
-  code.
-- The retry content is rendered again from the ledger's template alias,
-  language, voter and event: the ledger holds no body. A row without a
-  template reference is not retried and stays `FAILED` with "Can't be
-  retried: no stored template".
-- Codes are never retried by the platform; Keycloak's Resend replaces them.
+- A transient failure sets `next_retry_at`, with backoff of 1 minute
+  (before attempt 2) and 5 minutes (before attempt 3). The beat sweep
+  creates attempt n+1 on the **same channel** when it is due; after 3
+  attempts the message stays `FAILED`. Failures reported later by webhook
+  are classified transient or permanent by provider error code.
+- The ledger holds no body, so a retry is rendered again from what the
+  message's origin stored:
+  - bulk notices from the scheduled event's stored payload (what the
+    administrator sent); `send_id` is the scheduled event's id;
+  - application results (`confirm_application`) from their stored template
+    reference.
+- These are never retried, and stay `FAILED` with the real failure reason
+  and, next to it, why they aren't retried:
+  - codes: Keycloak's Resend replaces them;
+  - Keycloak notices sent through harvest (reset links, temporary
+    credentials): their content must not be stored; the voter asks again;
+  - notices with protected fields (`secret_attribute_names` not empty):
+    "Can't be retried: contains protected fields";
+  - a row with no template reference: "Can't be retried: no stored
+    template";
+  - a failure reported more than 1 hour after the attempt: "Reported too
+    late to retry".
 - A `QUEUED` row older than 2 minutes with `dispatched_at` empty was never
   sent: it becomes `FAILED` (transient) and is retried. One with
   `dispatched_at` set may have been sent: it becomes `UNKNOWN`, which is
   never resent automatically.
+- Retries never wait on reconciliation: they run first, or as their own
+  beat task.
 - The reconcile sweep pages by keyset over `QUEUED` and `UNKNOWN` rows,
   takes only accounts whose provider can reconcile (Infobip), and backs off
-  per row with `last_reconciled_at`. `UNKNOWN` older than 24 hours is
-  flagged **Unresolved**: never turned into `FAILED`.
-- Notices sent through harvest (Keycloak notices) use the same sweep, and
-  carry `election_ids` so Post restrictions apply.
-- The sweeps, link expiry and the daily account check run on the `beat`
-  queue, not the bulk send queue.
+  per row with `last_reconciled_at`. Each pass has a cap and a time budget;
+  one bad account or row is logged and skipped, never aborting the pass.
+  `UNKNOWN` older than 24 hours is flagged **Unresolved**: never turned into
+  `FAILED`.
+- Rows still `QUEUED` when the upgrade ran are treated as maybe-sent
+  (`UNKNOWN`), never resent.
+- Notices sent through harvest carry `election_ids`, so Post restrictions
+  apply.
+- The sweeps and link expiry run on the `beat` queue, not the bulk send
+  queue. (A daily account check is planned and not yet available.)
 - A replayed job writes no second electoral log entry and doesn't count
   twice: statistics come from the ledger.
 
@@ -275,10 +307,15 @@ expired is refused. There is no word typed into the chat.
 | `version` | Configuration format version |
 | `updated_at`, `updated_by` | Last write |
 
-Only `update_event_messaging_config` writes it, after validation; code that
-sends re-validates the references it uses. The migration copied existing
-`messaging:config` annotations once and leaves the annotation untouched;
-nothing reads it any more. Event export and import carry this table.
+Only `update_event_messaging_config` writes it, after validation, and
+records the author in `updated_by`; code that sends re-validates the
+references it uses. The migration copied existing `messaging:config`
+annotations once (`updated_by = 'migration'`) and leaves the annotation
+untouched; nothing reads it any more. At beat start, `mark_migrated_configs`
+validates each copied row once, logs the errors, and marks the invalid ones
+`'migration: needs saving again'`; the event's Messaging tab then says
+*Configuration needs saving again*. Event export and import carry this
+table.
 
 ### Message ledger
 
@@ -316,11 +353,19 @@ holds these fields, with the receiver masked:
 The statement stays
 `SendCommunications(Option<String>)`, so old entries keep decoding.
 
+The Logs filters `channel` and `outcome` (`listElectoralLog`) match each
+entry's message by its **current** state in the ledger, through
+`message_id`, not the outcome the entry was written with. So the event
+tab's Failed count, which counts messages by their latest attempt, and the
+Logs it opens agree. The Logs Status column reads the same current state
+with `messaging-config-read`; without it, it shows the state when logged,
+marked as such.
+
 ## Configuration
 
 | Setting | Where | Purpose |
 |---|---|---|
-| `MESSAGING_WEBHOOKS_PUBLIC_URL` | harvest, windmill | Public base of the webhook component; account callback URLs are `<base>/webhooks/<meta\|viber\|aws>/<key>`. Unset: accounts show "Callback address not configured" |
+| `MESSAGING_WEBHOOKS_PUBLIC_URL` | harvest, windmill | Public base of the webhook component; account callback URLs are `<base>/webhooks/<meta\|viber\|aws>/<key>`. Unset: accounts show "Callback address not configured" (`callback_readiness`). The query action `messaging_callback_status` (`messaging-config-read` or `messaging-account-read`) gives each account's callback blockers and reasons (`CALLBACK_NOT_CONFIGURED`; `REPORT_CREDENTIALS_MISSING` for Viber without report credentials): receipts then read *Unavailable*, and without the address Messenger isn't ready for OTP (`callback_blocker`), in the backend and the Admin Portal alike |
 | `MESSAGING_RELAY_SECRET` | messaging-webhooks, harvest | Relay HMAC secret. Nothing else reads it |
 | `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` | messaging-webhooks | Largest callback body, 262144 by default. Harvest accepts envelopes up to twice that |
 | `HARVEST_DOMAIN` | messaging-webhooks | Where the envelope goes |
@@ -331,7 +376,7 @@ The statement stays
 | `sequent.message-sender-policy` | Realm attribute | The same two values for one realm; it can't undo the deployment's `KEYCLOAK_ONLY` |
 | `--spi-message-sender-harvest-url` | Keycloak | Harvest's internal base URL, `http://$HARVEST_DOMAIN` by default |
 | `--spi-message-sender-harvest-channels` | Keycloak | Channels sent through harvest, `WHATSAPP,VIBER,MESSENGER` by default |
-| `reconcile_messages_interval` | beat | Seconds between reconciliation passes, 300 by default |
+| `reconcile_messages_interval` | beat | Seconds between reconciliation passes, 60 by default |
 
 For Meta and Infobip, an endpoint variable that is set wins over the
 account's own API address; when it's unset, the account's address is used,

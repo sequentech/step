@@ -17,7 +17,9 @@ use chrono::Utc;
 use deadpool_postgres::Transaction;
 use messaging::providers::{self, Account, Endpoints};
 use messaging::relay::{CallbackProvider, WEBHOOKS_PUBLIC_URL_ENV};
-use sequent_core::types::messaging::{AccountCheck, CredentialName, MessagingProvider};
+use sequent_core::types::messaging::{
+    AccountCheck, CredentialName, MessagingProvider, ReadinessBlocker,
+};
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use strum::IntoEnumIterator;
@@ -38,32 +40,87 @@ pub enum CallbackReadiness {
     /// unavailable (never shown as "0 delivered"), and Messenger can't take
     /// codes, because they need Get Started.
     NotConfigured,
+    /// The URL, on an address that isn't `https`. Meta refuses such
+    /// callback URLs; only a development stack, whose stand-in provider
+    /// calls the component inside its network, can use it. Shown with its
+    /// reason, never as ready.
+    Insecure(String),
 }
 
 /// The reason of [`CallbackReadiness::NotConfigured`].
 pub const CALLBACK_NOT_CONFIGURED: &str = "Callback address not configured";
 
+/// The reason of [`CallbackReadiness::Insecure`].
+pub const CALLBACK_NOT_HTTPS: &str = "Callback address must be https";
+
 impl CallbackReadiness {
     /// The callback URL, when there is one.
     pub fn url(&self) -> Option<&str> {
         match self {
-            Self::Ready(url) => Some(url),
+            Self::Ready(url) | Self::Insecure(url) => Some(url),
             Self::NotUsed | Self::NotConfigured => None,
         }
     }
 
-    /// Why there is no callback URL, when the provider needs one.
+    /// Why there is no usable callback URL, when the provider needs one.
     pub fn reason(&self) -> Option<&'static str> {
         match self {
             Self::NotConfigured => Some(CALLBACK_NOT_CONFIGURED),
+            Self::Insecure(_) => Some(CALLBACK_NOT_HTTPS),
             Self::NotUsed | Self::Ready(_) => None,
         }
     }
 }
 
+/// The reason of [`ReadinessBlocker::REPORT_CREDENTIALS_MISSING`].
+pub const REPORT_CREDENTIALS_MISSING: &str =
+    "Generate the report credentials and create the Infobip subscription";
+
+/// The one reason of a callback blocker, as the UI and the log show it.
+pub fn callback_blocker_reason(blocker: ReadinessBlocker) -> Option<&'static str> {
+    match blocker {
+        ReadinessBlocker::CALLBACK_NOT_CONFIGURED => Some(CALLBACK_NOT_CONFIGURED),
+        ReadinessBlocker::REPORT_CREDENTIALS_MISSING => Some(REPORT_CREDENTIALS_MISSING),
+        _ => None,
+    }
+}
+
+/// What stops the account's callbacks from reaching Step, for a given
+/// public base URL: the callback address ([`callback_readiness_with`]) and,
+/// for Viber, the report credentials its Infobip subscription sends, read
+/// from the vault's credential records. Receipts are unavailable while any
+/// is set; Messenger isn't ready for codes without the address.
+pub fn callback_blockers_with(
+    component_url: Option<&str>,
+    account: &MessagingAccount,
+) -> Vec<ReadinessBlocker> {
+    let mut blockers = vec![];
+    if callback_readiness_with(component_url, account.provider, &account.webhook_key)
+        == CallbackReadiness::NotConfigured
+    {
+        blockers.push(ReadinessBlocker::CALLBACK_NOT_CONFIGURED);
+    }
+    if account.provider == MessagingProvider::VIBER_INFOBIP
+        && !(account
+            .credentials
+            .contains_key(&CredentialName::REPORT_USERNAME)
+            && account
+                .credentials
+                .contains_key(&CredentialName::REPORT_PASSWORD))
+    {
+        blockers.push(ReadinessBlocker::REPORT_CREDENTIALS_MISSING);
+    }
+    blockers
+}
+
+/// [`callback_blockers_with`] on `MESSAGING_WEBHOOKS_PUBLIC_URL`.
+pub fn callback_blockers(account: &MessagingAccount) -> Vec<ReadinessBlocker> {
+    callback_blockers_with(webhooks_public_url().as_deref(), account)
+}
+
 /// The webhook component's public base URL, from
 /// `MESSAGING_WEBHOOKS_PUBLIC_URL`.
-fn webhooks_public_url() -> Option<String> {
+pub fn webhooks_public_url() -> Option<String> {
     std::env::var(WEBHOOKS_PUBLIC_URL_ENV)
         .ok()
         .map(|url| url.trim().trim_end_matches('/').to_string())
@@ -95,7 +152,14 @@ pub fn callback_readiness_with(
         return CallbackReadiness::NotUsed;
     };
     match component_url.map(str::trim).filter(|url| !url.is_empty()) {
-        Some(base) => CallbackReadiness::Ready(route.callback_url(base, webhook_key)),
+        Some(base)
+            if base
+                .get(..8)
+                .is_some_and(|s| s.eq_ignore_ascii_case("https://")) =>
+        {
+            CallbackReadiness::Ready(route.callback_url(base, webhook_key))
+        }
+        Some(base) => CallbackReadiness::Insecure(route.callback_url(base, webhook_key)),
         None => CallbackReadiness::NotConfigured,
     }
 }
@@ -331,6 +395,124 @@ mod tests {
             assert_eq!(readiness.url(), None);
             assert_eq!(readiness.reason(), Some("Callback address not configured"));
         }
+    }
+
+    /// Regression (R1-17): an `http` component address was shown as
+    /// ready, though Meta refuses such callback URLs.
+    #[test]
+    fn an_address_that_isnt_https_is_shown_with_its_reason() {
+        let readiness = callback_readiness_with(
+            Some("http://messaging-webhooks:8410"),
+            MessagingProvider::WHATSAPP_CLOUD_API,
+            KEY,
+        );
+        assert_eq!(
+            readiness.url(),
+            Some(format!("http://messaging-webhooks:8410/webhooks/meta/{KEY}").as_str())
+        );
+        assert_eq!(readiness.reason(), Some("Callback address must be https"));
+        assert!(matches!(
+            callback_readiness_with(
+                Some("HTTPS://callbacks.example.org"),
+                MessagingProvider::WHATSAPP_CLOUD_API,
+                KEY
+            ),
+            CallbackReadiness::Ready(_)
+        ));
+    }
+
+    fn stored(provider: MessagingProvider, credentials: &[CredentialName]) -> MessagingAccount {
+        use sequent_core::types::messaging::{AccountSender, ProviderApproval, ReadinessPolicy};
+        let sender = match provider {
+            MessagingProvider::VIBER_INFOBIP => AccountSender::VIBER_INFOBIP {
+                base_url: "https://a.api.infobip.com".to_string(),
+                sender: "Elections".to_string(),
+                approved_templates: Default::default(),
+            },
+            _ => AccountSender::AWS_SNS {
+                sender_id: None,
+                origination_number: None,
+                region: None,
+            },
+        };
+        MessagingAccount {
+            id: Uuid::nil(),
+            tenant_id: Uuid::nil(),
+            channel: sender
+                .provider()
+                .channel()
+                .unwrap_or(sequent_core::types::messaging::MessageChannel::SMS),
+            provider,
+            name: "account".to_string(),
+            sender,
+            credentials: credentials
+                .iter()
+                .map(|name| {
+                    (
+                        *name,
+                        sequent_core::types::messaging::CredentialRecord {
+                            replaced_at: "2026-10-09T00:00:00Z".to_string(),
+                        },
+                    )
+                })
+                .collect(),
+            limits: Default::default(),
+            provider_approval: ProviderApproval::PENDING,
+            readiness: ReadinessPolicy::PROVIDER_CHECK,
+            status: AccountCheck::default(),
+            webhook_key: KEY.to_string(),
+            is_default: false,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Regression (R1-05): upgraded Viber accounts have no report
+    /// credentials, so every report is refused; nothing said so. One
+    /// function gives the blocker the save, the UI and the log use.
+    #[test]
+    fn callbacks_name_what_stops_them() {
+        let base = Some("https://callbacks.example.org");
+        let viber =
+            |credentials: &[CredentialName]| stored(MessagingProvider::VIBER_INFOBIP, credentials);
+        assert_eq!(
+            callback_blockers_with(base, &viber(&[CredentialName::API_KEY])),
+            vec![ReadinessBlocker::REPORT_CREDENTIALS_MISSING]
+        );
+        assert_eq!(
+            callback_blockers_with(base, &viber(&[CredentialName::REPORT_USERNAME])),
+            vec![ReadinessBlocker::REPORT_CREDENTIALS_MISSING]
+        );
+        assert_eq!(
+            callback_blockers_with(
+                base,
+                &viber(&[
+                    CredentialName::REPORT_USERNAME,
+                    CredentialName::REPORT_PASSWORD
+                ])
+            ),
+            vec![]
+        );
+        assert_eq!(
+            callback_blockers_with(None, &viber(&[])),
+            vec![
+                ReadinessBlocker::CALLBACK_NOT_CONFIGURED,
+                ReadinessBlocker::REPORT_CREDENTIALS_MISSING
+            ]
+        );
+        // SMS through SNS sends no callbacks.
+        assert_eq!(
+            callback_blockers_with(None, &stored(MessagingProvider::AWS_SNS, &[])),
+            vec![]
+        );
+        assert_eq!(
+            callback_blocker_reason(ReadinessBlocker::REPORT_CREDENTIALS_MISSING),
+            Some("Generate the report credentials and create the Infobip subscription")
+        );
+        assert_eq!(
+            callback_blocker_reason(ReadinessBlocker::CALLBACK_NOT_CONFIGURED),
+            Some("Callback address not configured")
+        );
     }
 
     #[test]

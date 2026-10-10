@@ -75,22 +75,45 @@ earlier "Confirmed by an administrator" setting is now read from its check
 like any other.
 
 Credentials are write-only. After saving, the account only shows when each
-was last replaced. A new credential is checked with the provider before it
-is saved; until the check connects, the previous credential stays in use.
-Changing the account's API address requires entering the credentials again,
-and the address must use `https`.
+was last replaced. The account and the credentials typed with it are saved
+together, in one step: either both are stored or neither is, and the drawer
+shows the reason when the save is refused.
+
+Changing the address the credentials are sent to (the Graph API base URL,
+the Infobip API base URL or the SMTP server) needs the credentials again,
+because the stored ones would otherwise go to the new address. As soon as
+the address changes, the drawer opens those credential fields and says
+*Enter the credentials again for the new address*; it doesn't save until
+they are typed. The address must start with `https://`.
 
 **Check connection** asks the provider about the account and stores the
-result; accounts are also checked once a day. **Send test message** sends
-one message for a chosen purpose and destination. *Accepted* means the
-provider took the message, not that it was delivered.
+result. **Send test message** sends one message for a chosen purpose and
+destination. *Accepted* means the provider took the message, not that it
+was delivered.
 
-Accounts also take a sending rate, a share of it kept for codes so that a
-bulk reminder never delays a voter waiting for a code, and the country
-calling codes the account may send to. Without a sending rate the account
-is not throttled, and the account says so.
+Accounts also take a sending rate, a share of it kept for codes, and the
+country calling codes the account may send to.
 
-An account can't be deleted while an election event uses it.
+Deleting an account doesn't check whether an election event still uses it.
+Before deleting one, choose another account in the events that use it:
+otherwise their messages on that channel fail with *No sending account for
+the channel* (email and SMS then go out through the deployment's own
+sender).
+
+:::note Not available yet
+
+These account features are planned and not in this release:
+
+- checking a new credential with the provider before saving it, keeping the
+  previous one until the check connects;
+- a daily connection check of every account (today the check runs when you
+  press **Check connection**);
+- one sending rate shared by every process that sends for the account, with
+  its share for codes kept free during bulk sends, and the account saying
+  when it has no rate;
+- refusing to delete an account an election event uses.
+
+:::
 
 ### Callback URL
 
@@ -104,10 +127,15 @@ one public address. Each account that receives callbacks shows its own
 - **Viber**: see [Viber delivery reports](#viber-delivery-reports).
 - **Email through SES**: see [Email receipts](#email-receipts).
 
-If the deployment has no public callback address configured, the account
-shows *Callback address not configured*. Delivery for its channel then
-shows as unavailable, never as zero delivered, and Messenger is not ready
-for codes, because Messenger codes need Get Started.
+If the deployment has no public callback address configured, the account's
+drawer shows *Callback address not configured* instead of a URL. Delivery
+for the account's channel then shows as *Unavailable* (never as zero
+delivered), with that reason, and a Messenger account is not *Ready for
+OTP*: Messenger codes need Get Started, which arrives as a callback. A
+Viber account whose report credentials were never generated also shows
+delivery as *Unavailable*, with *Generate the report credentials and create
+the Infobip subscription*. If the callback URL can't be loaded at all, the
+drawer says so.
 
 ### Messenger Get Started
 
@@ -129,20 +157,26 @@ For this to work:
 The connection check reports each of these.
 
 Changing an account's Page disconnects the voters connected to the old
-Page, because Page-scoped IDs belong to a Page. The drawer shows how many
-voters are affected before saving; they get codes again only after
-connecting Messenger again.
+Page, because Page-scoped IDs belong to a Page. The drawer warns about it
+before saving; those voters get codes again only after connecting Messenger
+again. (Showing how many voters are affected is planned, not yet
+available.)
 
 ### Viber delivery reports
 
 Infobip sends Viber delivery reports through a subscription (notification
 profile) that you create in Infobip:
 
-1. Save the Viber account. It generates a **report username and
-   password**, shown once.
+1. Save the Viber account, then press **Generate report credentials** in
+   its drawer. The **report username and password** are shown once, with
+   the callback URL and these steps.
 2. In Infobip, create a subscription for Viber delivery reports with the
    account's callback URL, and choose **Basic** authentication with that
    username and password.
+
+Generating them again replaces them at once, so the drawer asks first when
+they are already set: until the Infobip subscription has the new ones,
+Viber reports are refused and messages stay *Accepted*.
 
 A report without those credentials, or with wrong ones, is refused. The
 platform doesn't send a report address with each message, so reports only
@@ -174,7 +208,18 @@ event that used the old one, then delete the old account.
 
 The **Messaging** tab of an election event shows the channels the event
 offers and how their messages are doing. Viewing it needs
-`messaging-config-read`; editing it needs `messaging-config-write`.
+`messaging-config-read`; editing it needs `messaging-config-write` as well.
+A user with only `messaging-config-write` sees the tab with a note that
+reading the settings needs `messaging-config-read`. On upgrade, existing
+realms get the messaging permissions, and the groups `admin` and
+`admin-light` get `messaging-config-read` and the account permissions, as
+new realms do; any group that already holds `messaging-config-write` or
+`messaging-account-read` also gets `messaging-config-read`.
+
+An event whose settings were copied from the earlier release's storage and
+don't pass today's checks shows *Configuration needs saving again*: fix the
+problems the tab shows, then save. Until then, sends still check every
+reference they use.
 
 For each channel the tab selects an account and has separate **OTPs** and
 **Notices** switches. A switch that can't be turned on is disabled with the
@@ -189,13 +234,27 @@ missing; nothing is saved while anything is wrong.
 | Sends from | The account |
 | Voters using it | Voters of the event whose channel this is |
 | Sent, last 24 h | Messages sent in the last 24 hours |
-| Delivered | Messages the provider reported delivered, or *Unavailable* when the account has no receipts |
-| Failed | Messages that failed after their retries. Opens the event's Logs, filtered to this channel's failed messages |
+| Delivered | Messages the provider reported delivered, or *Unavailable* when the account has no receipts or no callback address |
+| Failed | Messages whose latest attempt failed. Opens the event's Logs, filtered to this channel's failed messages |
 | Unknown | Messages whose outcome is not confirmed yet |
 | Unresolved | Unknown messages older than 24 hours (see [Unknown and Unresolved](#unknown-and-unresolved)) |
 
-Counts are per message, not per attempt: a message retried twice counts
-once.
+Counts are per message, by the state of its latest attempt: a message
+retried twice counts once. Logs filters on the same thing: the **Status**
+filter matches each message's current state, so the Failed link opens the
+same messages the count shows. Failures of voters with no contact channel
+are never counted under a channel; they show on a row of their own, *No
+contact channel*, whose failed count opens Logs filtered to them (the
+Channel filter's *No contact channel* choice).
+
+:::note Not available yet
+
+The message counts (Voters using it, Sent last 24 h and the states) come
+from an action that is planned and not in this release. Until it is
+available, the tab says the counts could not be loaded and shows dashes,
+never zero.
+
+:::
 
 - **Template bindings** map each purpose and language to the provider's
   approved template. A binding may name one message (a message key, such
@@ -237,20 +296,35 @@ voter pages.
   same browser session; only then is the Messenger contact saved. Opening
   the link alone neither verifies the contact nor lets the Page send.
 - **Pending review**: the page names the channel the result will be sent
-  to.
+  to, and a reference code to give support, such as `Q5KW-8RFX` (shown
+  once the backend returns the application's ID to Keycloak; not yet in
+  this release). The reference comes from the application's ID only. Staff
+  find the application by typing the reference in the **Approvals**
+  search box, in any case, with or without the dash.
 - **Sign-in**: the code goes only to the voter's channel, and the page
   names it.
 - **Password reset**: the reset code or link goes to the voter's channel.
   The page always says *If an account exists, we sent the link to its
-  contact*, without naming a channel.
+  contact*, without naming a channel. The reset code page is the same
+  whether the account exists or not (the code step's setting
+  `code-page-disclosure` is `NEUTRAL` on reset flows): it names no channel
+  and shows no masked destination. Because that page shows no Messenger
+  link either, a voter whose channel is Messenger can't get a reset code
+  there and asks support.
+- **Temporary credentials**: a new temporary password takes effect only
+  when its notice was handed to the provider (queued, accepted, delivered
+  or unknown). When the send is refused or fails, the password stays
+  unchanged; the page stays neutral and the Keycloak event records the
+  reason.
 
 Masked destinations show the country code and the last three digits of a
 number, or the first two characters of an email address.
 
 The voter may wait 60 seconds between resends, and a failed send starts
-that wait too. After 5 wrong codes the attempt ends with *Too many
-attempts. Start again.*, and the voter starts the sign-in or enrollment
-again. Resending a code never resets the count.
+that wait too. Wrong codes are counted per code step: after 5 the step ends
+with *Too many attempts. Start again.*, and the voter starts the sign-in or
+enrollment again. Resending a code never resets the count; only starting
+again does. Changing the channel has its own wait and its own count.
 
 ### How a voter's channel is read
 
@@ -271,27 +345,59 @@ migration; the migration logs every voter it changes and why.
 ### Changing the channel
 
 A signed-in voter changes the channel from **Change how we contact you** in
-the voting portal's user menu. The voter must have signed in within the
+the voting portal's user menu; the item appears only when the event offers
+at least one channel for codes (the portal reads the realm's public
+`GET /realms/<realm>/messaging-channels`, which lists only channel names). The voter must have signed in within the
 last 5 minutes, or is asked to sign in again. The page lists the Post's
 channels, sends a code to the new channel, and when the code is verified
 **replaces** the old channel completely. The required action
 `message-channel-ra` must be registered and enabled in the event's realm;
 realms that registered it as `messaging-app-otp-ra` keep working.
 
+After the change, the **old** channel gets one security notice: *Your
+contact for the organization was changed to the new channel. If this
+wasn't you, contact support.* No code is needed on the old channel. On
+WhatsApp and Viber this notice needs an approved template bound to the
+message key `contactChanged.notice.text` on the event; without one it is
+refused with its reason, and the change itself still stands. It
+isn't a second channel for the voter: it is a notice about the old channel
+itself, and later codes and notices go only to the new one.
+
 ### Voter drawer and Logs
 
 The voter drawer's **Messaging** section shows the voter's channel, the
-masked number or Messenger Page, when consent was given, and the **last
-failure**: its state, time and reason.
+masked number or Messenger Page, when consent was given, and two rows:
+
+- **Last failure**: the latest message whose latest attempt failed, with
+  its time and reason. A failed attempt that a later attempt of the same
+  message retried or delivered is not shown.
+- **Delivery not confirmed**: the latest message whose delivery is Unknown,
+  or Unresolved after 24 hours. It is never shown as a failure.
+
+Both need `messaging-config-read`; without it the drawer says so.
 
 The voter's **Logs** dialog lists every message with its channel and its
-**Status** from the message records.
+**Status**: the message's current state from the message records with
+`messaging-config-read`, otherwise the state when the entry was written,
+marked as such. Under it is the reason: for a failure that isn't retried,
+the failure and, after `; `, why it isn't retried, both in the
+administrator's language.
 
 ### Send Notification
 
 Send Notification has no channel choice: every notice goes to each voter's
-own channel. The **Each voter's channel** table shows, per channel, how many
-of the selected voters use it and the account it sends from:
+own channel. The **Each voter's channel** table shows the channels the
+event sends notices on and the account each sends from (the event's
+account, else the tenant's default account; email and SMS without an
+account use the deployment's own sender). An event without messaging
+settings sends by email and SMS, as before. An event whose settings turn on
+notices for no channel can't be sent to: the screen says so and nothing is
+scheduled. Without `messaging-config-read` the screen says the channels
+can't be shown; each voter still gets the notice on their own channel.
+(How many of the selected voters use each channel is planned, not yet
+available.) Each send is kept as an archived scheduled event that holds
+what was sent, for its retries; it never appears in the event's Scheduled
+Events list and can't be edited there.
 
 > Each voter gets one message on their own channel. If delivery fails, it is
 > retried on that channel and the failure shows on the event's Messaging
@@ -315,10 +421,22 @@ it, there is no account, or the voter has no contact), it is recorded as
 failed with that reason, and nothing else is sent.
 
 A temporary failure, such as the provider being busy, is retried on the
-same channel after a growing wait, up to three attempts in all. After that
-the message stays failed and shows on the event tab, in Logs and in the
-voter drawer. Codes are never retried by the platform: the voter presses
-**Resend code**.
+same channel after 1 minute and then 5 minutes, up to three attempts in
+all. After that the message stays failed and shows on the event tab, in
+Logs and in the voter drawer. What is retried depends on where the message
+comes from, because the platform never stores message content:
+
+| Message | Retried? |
+|---|---|
+| Notifications from Send Notification | Yes, from what the administrator sent |
+| Enrollment results (application accepted or rejected) | Yes, from the stored template |
+| Codes | No: the voter presses **Resend code** |
+| Keycloak notices (reset links, temporary credentials) | No: the voter asks again; the failure shows with its reason |
+| Notifications whose template uses protected (encrypted) fields | No: *Can't be retried: contains protected fields* |
+| Any message whose failure the provider reported more than 1 hour after the attempt | No: *Reported too late to retry* |
+
+When a message isn't retried, its real failure reason stays visible, with
+the reason it isn't retried next to it.
 
 A missing receipt is never treated as a failure, and a late report never
 moves a delivered message back.
@@ -340,8 +458,11 @@ What to do with Unknown and Unresolved messages:
 1. On the event's Messaging tab, check whether one channel or account has
    most of them. On the account in Settings > Messaging, run **Check
    connection**; a provider outage or expired credential shows there.
-2. In the voter's Logs dialog, find the message and its provider message
-   ID, then look it up in the provider's own console or delivery logs.
+2. In the voter's Logs dialog, find the message's entry and its
+   `message_id`. No screen shows the provider's message ID: an operator
+   with database access reads `provider_message_id` from
+   `sequent_backend.message` for that `message_id`, and looks it up in the
+   provider's own console or delivery logs.
 3. For a code, nothing is needed: a voter who didn't get it presses
    **Resend code**.
 4. For a notice, ask the voter (through the helpdesk) whether it arrived.
@@ -355,10 +476,28 @@ What to do with Unknown and Unresolved messages:
 | Reason | Where | What it means |
 |---|---|---|
 | Callback address not configured | Account | The deployment has no public callback address; receipts are unavailable and Messenger is not ready for codes |
+| Callback address must be https | Account | The deployment's public callback address isn't `https`; the URL is still shown, but providers such as Meta refuse it |
 | Unsupported provider: replace this account | Account | The account uses a removed provider and sends nothing |
 | Enter the credentials again for the new address | Account | The API address changed without new credentials |
+| The provider address must start with https:// | Account | The API address isn't `https` |
 | No contact channel | Message | The voter has no channel to send to |
+| Channel not offered for notices, Channel not offered for codes | Message | The event or the voter's Post doesn't offer the voter's channel for that purpose |
+| No content for the channel | Message | The notification has no text or template for the voter's channel |
+| No sending account for the channel | Message | Neither the event nor the tenant has an account for the channel |
+| Invalid destination for the channel | Message | The voter's number or address can't be used on the channel |
 | Can't be retried: no stored template | Message | A failed message whose content can't be rebuilt; it stays failed |
+| Can't be retried: contains protected fields | Message | The notification used protected fields, whose content is never stored |
+| Reported too late to retry | Message | The provider reported the failure more than 1 hour after the attempt |
+| Can't be retried: the message couldn't be prepared again | Message | The retry couldn't read its template, voter or event in time |
+| Not the voter's channel | Message | A notice was asked for on a channel that isn't the voter's; nothing is sent on either |
+| Generate the report credentials and create the Infobip subscription | Account | A Viber account without report credentials: its receipts are unavailable |
+| The voter's channel changed: not retried | Message | The voter changed channel before the retry was due |
+| The worker stopped before sending | Message | Never handed to the provider; retried like a temporary failure |
+| The worker stopped before recording the outcome | Message | May have been sent; shown as Unknown and never resent |
+| The code expired before it could be sent | Message | The code was too old to send |
+| Delivery couldn't be confirmed | Message | Unknown for more than 24 hours (Unresolved) |
+
+The Admin Portal shows every reason in the administrator's language.
 
 ## Records
 

@@ -442,6 +442,26 @@ pub enum MessageReason {
     /// The account's provider was removed (`HTTP_API`, `CONSOLE`).
     #[strum(serialize = "Unsupported provider: replace this account")]
     UNSUPPORTED_PROVIDER,
+    /// A notice whose send used encrypted voter attributes. A retry would
+    /// need them decrypted again, which only the administrator's send
+    /// approves, and their content is never stored: it isn't retried.
+    #[strum(serialize = "Can't be retried: contains protected fields")]
+    PROTECTED_FIELDS,
+    /// A failure the provider reported more than
+    /// [`LATE_FAILURE_RETRY_HOURS`] after the attempt: sending it again so
+    /// late could reach the voter after it stopped being useful.
+    #[strum(serialize = "Reported too late to retry")]
+    REPORTED_TOO_LATE,
+    /// A due retry whose message couldn't be prepared again for
+    /// [`RETRY_PREPARE_HOURS`] (template, voter or event unreadable).
+    #[strum(
+        serialize = "Can't be retried: the message couldn't be prepared again"
+    )]
+    RETRY_NOT_PREPARED,
+    /// A notice asked for on a channel other than the voter's recorded
+    /// one. Nothing is sent on either channel.
+    #[strum(serialize = "Not the voter's channel")]
+    NOT_THE_VOTERS_CHANNEL,
 }
 
 impl MessageReason {
@@ -483,8 +503,82 @@ impl MessageReason {
             UNSUPPORTED_PROVIDER => {
                 "Unsupported provider: replace this account"
             }
+            PROTECTED_FIELDS => "Can't be retried: contains protected fields",
+            REPORTED_TOO_LATE => "Reported too late to retry",
+            RETRY_NOT_PREPARED => {
+                "Can't be retried: the message couldn't be prepared again"
+            }
+            NOT_THE_VOTERS_CHANNEL => "Not the voter's channel",
         }
     }
+
+    /// Why a failure isn't retried, recorded next to the failure's own
+    /// reason (`"<failure>; <why not retried>"`), never in its place, so
+    /// staff still see what went wrong.
+    pub fn not_retried_after(&self, failure: Option<&str>) -> String {
+        match failure.map(str::trim).filter(|f| !f.is_empty()) {
+            Some(failure) => {
+                format!("{failure}{REASON_SEPARATOR}{}", self.as_str())
+            }
+            None => self.as_str().to_string(),
+        }
+    }
+
+    /// The parts of a stored reason: the failure, and why it wasn't
+    /// retried when [`MessageReason::not_retried_after`] added that.
+    pub fn split_stored(stored: &str) -> (&str, Option<MessageReason>) {
+        if let Ok(reason) = stored.parse::<MessageReason>() {
+            return ("", Some(reason));
+        }
+        match stored.rsplit_once(REASON_SEPARATOR) {
+            Some((failure, reason)) => match reason.parse::<MessageReason>() {
+                Ok(reason) => (failure, Some(reason)),
+                Err(_) => (stored, None),
+            },
+            None => (stored, None),
+        }
+    }
+}
+
+/// Separates a failure's reason from why it isn't retried in a stored
+/// reason (see [`MessageReason::not_retried_after`]).
+pub const REASON_SEPARATOR: &str = "; ";
+
+/// A failure reported this many hours or more after its attempt isn't
+/// retried ([`MessageReason::REPORTED_TOO_LATE`]).
+pub const LATE_FAILURE_RETRY_HOURS: i64 = 1;
+
+/// A due retry that can't be prepared again for this many hours stops
+/// waiting ([`MessageReason::RETRY_NOT_PREPARED`]).
+pub const RETRY_PREPARE_HOURS: i64 = 1;
+
+/// Whose channel a notice from Keycloak goes to. Harvest checks the
+/// notice against the voter's record unless it is about the previous
+/// channel.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    Clone,
+    Copy,
+    EnumString,
+    EnumIter,
+)]
+pub enum NoticeRecipient {
+    /// The voter's recorded channel, resolved by harvest when the request
+    /// names none. A request naming another recorded channel is refused
+    /// ([`MessageReason::NOT_THE_VOTERS_CHANNEL`]).
+    #[default]
+    VOTER_CHANNEL,
+    /// The channel the voter just replaced, for the notice that it was
+    /// changed. Sent to the channel and destination the request names.
+    PREVIOUS_CHANNEL,
 }
 
 /// An unknown outcome older than this is shown as Unresolved, and the sweep
@@ -633,6 +727,11 @@ pub enum ReadinessBlocker {
     /// (`MESSAGING_WEBHOOKS_PUBLIC_URL`) Messenger isn't ready for codes.
     /// Reason: "Callback address not configured".
     CALLBACK_NOT_CONFIGURED,
+    /// A Viber (Infobip) account without generated report credentials: the
+    /// subscription's reports are refused, so receipts are unavailable.
+    /// Reason: "Generate the report credentials and create the Infobip
+    /// subscription". Blocks no purpose.
+    REPORT_CREDENTIALS_MISSING,
 }
 
 /// The blocker callbacks add to `purpose` on `channel`: Messenger codes
@@ -764,6 +863,13 @@ pub struct AccountSummary {
     pub public_label: Option<String>,
     /// Messenger only: the Page voters open to connect.
     pub messenger_page: Option<MessengerPage>,
+    /// What stops the account's callbacks (delivery reports, Messenger's
+    /// Get Started) from reaching Step: `CALLBACK_NOT_CONFIGURED`,
+    /// `REPORT_CREDENTIALS_MISSING`. Receipts are unavailable while any is
+    /// set, and Messenger isn't ready for codes without the callback
+    /// address ([`callback_blocker`]).
+    #[serde(default)]
+    pub callback_blockers: Vec<ReadinessBlocker>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -1037,7 +1143,7 @@ impl EventMessagingConfig {
                 continue;
             }
             for purpose in &channel_config.purposes {
-                let readiness = purpose_readiness(
+                let mut readiness = purpose_readiness(
                     &account.capabilities,
                     account.provider_approval,
                     account.readiness,
@@ -1045,6 +1151,13 @@ impl EventMessagingConfig {
                     *purpose,
                     None,
                 );
+                readiness.blockers.extend(callback_blocker(
+                    channel,
+                    *purpose,
+                    !account
+                        .callback_blockers
+                        .contains(&ReadinessBlocker::CALLBACK_NOT_CONFIGURED),
+                ));
                 if !readiness.is_ready() {
                     errors.push(MessagingConfigError::PURPOSE_NOT_READY {
                         channel,
@@ -1735,10 +1848,19 @@ pub struct SendMessageRequest {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
     pub voter_id: Option<String>,
-    pub channel: MessageChannel,
+    /// Codes: required. Notices to a voter may leave it out: harvest then
+    /// sends on the voter's recorded channel, or records "No contact
+    /// channel".
+    #[serde(default)]
+    pub channel: Option<MessageChannel>,
     pub purpose: MessagePurpose,
-    /// Phone number (E.164), email address or Page-scoped ID.
-    pub destination: String,
+    /// Phone number (E.164), email address or Page-scoped ID. Optional
+    /// like `channel`.
+    #[serde(default)]
+    pub destination: Option<String>,
+    /// Whose channel a notice goes to.
+    #[serde(default)]
+    pub recipient: NoticeRecipient,
     pub language: Option<String>,
     pub content: MessageContent,
     /// Which message this is, such as Keycloak's message key, to pick its
@@ -1796,6 +1918,13 @@ pub struct CreateMessengerLinkRequest {
     pub content: MessageContent,
     /// When the code expires (RFC 3339). The reference never outlives it.
     pub expires_at: String,
+    /// The saved voter's Page-scoped ID (sign-in, reset). The code then
+    /// goes only to that conversation: Get Started from any other one
+    /// consumes the link without sending, answered as an unknown reference
+    /// is. Absent while enrolling. Held encrypted with the code, never
+    /// logged.
+    #[serde(default)]
+    pub expected_recipient: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -1890,6 +2019,7 @@ mod tests {
             check,
             public_label: Some(format!("{id} label")),
             messenger_page: None,
+            callback_blockers: vec![],
         }
     }
 
@@ -2672,6 +2802,43 @@ mod tests {
         );
     }
 
+    /// Regression (R1-06): the callback blocker reached no readiness, so a
+    /// save enabled Messenger codes no voter could receive.
+    #[test]
+    fn a_save_refuses_messenger_codes_without_the_callback_address() {
+        let ready = AccountCheck {
+            connected: true,
+            production_access: true,
+            ..Default::default()
+        };
+        let mut page = account(
+            "page",
+            MessageChannel::MESSENGER,
+            MessagingProvider::MESSENGER_SEND_API,
+            ready,
+        );
+        page.provider_approval = ProviderApproval::CONFIRMED;
+        page.callback_blockers =
+            vec![ReadinessBlocker::CALLBACK_NOT_CONFIGURED];
+        let config: EventMessagingConfig = serde_json::from_value(serde_json::json!({
+            "version": 1,
+            "channels": [{"channel": "MESSENGER", "account_id": "page", "purposes": ["OTP"]}],
+        }))
+        .unwrap();
+        let errors = config
+            .validate(TENANT, std::slice::from_ref(&page), &[])
+            .unwrap_err();
+        assert!(errors.iter().any(|error| matches!(
+            error,
+            MessagingConfigError::PURPOSE_NOT_READY { blockers, .. }
+                if blockers.contains(&ReadinessBlocker::CALLBACK_NOT_CONFIGURED)
+        )), "{errors:?}");
+        page.callback_blockers = vec![];
+        assert!(config
+            .validate(TENANT, std::slice::from_ref(&page), &[])
+            .is_ok());
+    }
+
     #[test]
     fn messenger_codes_need_the_callback_address() {
         assert_eq!(
@@ -2706,6 +2873,46 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn a_reason_not_to_retry_is_kept_next_to_the_failure() {
+        let reason = MessageReason::NO_STORED_TEMPLATE;
+        let stored = reason.not_retried_after(Some("rate limited (429)"));
+        assert_eq!(
+            stored,
+            "rate limited (429); Can't be retried: no stored template"
+        );
+        assert_eq!(
+            MessageReason::split_stored(&stored),
+            ("rate limited (429)", Some(reason))
+        );
+        assert_eq!(reason.not_retried_after(None), reason.as_str());
+        assert_eq!(reason.not_retried_after(Some(" ")), reason.as_str());
+        assert_eq!(
+            MessageReason::split_stored(reason.as_str()),
+            ("", Some(reason))
+        );
+        assert_eq!(
+            MessageReason::split_stored("provider code 7; other"),
+            ("provider code 7; other", None)
+        );
+    }
+
+    #[test]
+    fn notices_without_a_channel_parse_and_go_to_the_voter() {
+        let request: SendMessageRequest =
+            serde_json::from_value(serde_json::json!({
+                "tenant_id": "t", "election_event_id": null,
+                "voter_id": "v", "purpose": "NOTICE",
+                "language": null, "logical_key": "k", "expires_at": null,
+                "content": {"subject": null, "text": "x", "html": null,
+                            "code": null}
+            }))
+            .unwrap();
+        assert_eq!(request.channel, None);
+        assert_eq!(request.destination, None);
+        assert_eq!(request.recipient, NoticeRecipient::VOTER_CHANNEL);
     }
 
     #[test]

@@ -25,8 +25,12 @@ const account: IMessagingAccount = {
     tenant_id: "tenant-1",
     channel: EMessageChannel.VIBER,
     provider: EMessagingProvider.VIBER_INFOBIP,
-    name: "COMELEC Viber",
-    sender: {provider: EMessagingProvider.VIBER_INFOBIP, base_url: "https://x", sender: "COMELEC"},
+    name: "Staff Association Viber",
+    sender: {
+        provider: EMessagingProvider.VIBER_INFOBIP,
+        base_url: "https://x",
+        sender: "Staff Association",
+    },
     is_default: true,
 }
 

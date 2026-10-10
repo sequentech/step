@@ -29,6 +29,90 @@ pub const RELAY_SIGNATURE_HEADER: &str = "X-Messaging-Relay-Signature";
 /// Shared secret of the component and harvest. Nothing else reads it.
 pub const RELAY_SECRET_ENV: &str = "MESSAGING_RELAY_SECRET";
 
+/// How strictly [`RELAY_SECRET_ENV`] is checked ([`RelaySecretPolicy`]).
+/// Set only in the development compose file.
+pub const RELAY_SECRET_POLICY_ENV: &str = "MESSAGING_RELAY_SECRET_POLICY";
+
+/// The shortest relay secret the component and harvest accept, in bytes:
+/// as long as the HMAC-SHA256 output.
+pub const MIN_RELAY_SECRET_BYTES: usize = 32;
+
+/// The relay secret committed in the development environment. Refused
+/// unless [`RelaySecretPolicy::ALLOW_DEV_SECRET`] is set.
+pub const DEV_RELAY_SECRET: &str = "dev-messaging-relay-secret-not-for-production";
+
+/// Whether the committed development secret may be used.
+#[allow(non_camel_case_types)]
+#[derive(Display, EnumString, Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub enum RelaySecretPolicy {
+    /// Every deployment: the development value is refused.
+    #[default]
+    STRICT,
+    /// The development stack only, where the value is public anyway.
+    ALLOW_DEV_SECRET,
+}
+
+/// Why a relay secret can't be used. The component doesn't start, and
+/// harvest refuses every relayed callback with 503.
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum RelaySecretRefusal {
+    NOT_SET,
+    TOO_SHORT,
+    DEVELOPMENT_VALUE,
+    UNKNOWN_POLICY,
+}
+
+impl RelaySecretRefusal {
+    /// The one reason, naming the variable and never its value.
+    pub fn reason(self) -> &'static str {
+        match self {
+            Self::NOT_SET => "MESSAGING_RELAY_SECRET is not set",
+            Self::TOO_SHORT => "MESSAGING_RELAY_SECRET must be at least 32 bytes",
+            Self::DEVELOPMENT_VALUE => {
+                "MESSAGING_RELAY_SECRET is the development value; generate one (openssl rand -hex 32)"
+            }
+            Self::UNKNOWN_POLICY => "MESSAGING_RELAY_SECRET_POLICY must be STRICT or ALLOW_DEV_SECRET",
+        }
+    }
+}
+
+impl std::fmt::Display for RelaySecretRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.reason())
+    }
+}
+
+impl std::error::Error for RelaySecretRefusal {}
+
+/// The relay secret from the raw values of [`RELAY_SECRET_ENV`] and
+/// [`RELAY_SECRET_POLICY_ENV`]: set, at least [`MIN_RELAY_SECRET_BYTES`]
+/// long, and not [`DEV_RELAY_SECRET`] unless the policy allows it.
+///
+/// # Errors
+/// The [`RelaySecretRefusal`] that refuses it.
+pub fn relay_secret(
+    secret: Option<&str>,
+    policy: Option<&str>,
+) -> Result<Vec<u8>, RelaySecretRefusal> {
+    let policy = match policy.map(str::trim).filter(|policy| !policy.is_empty()) {
+        None => RelaySecretPolicy::default(),
+        Some(policy) => policy
+            .parse::<RelaySecretPolicy>()
+            .map_err(|_| RelaySecretRefusal::UNKNOWN_POLICY)?,
+    };
+    let secret = secret
+        .filter(|secret| !secret.trim().is_empty())
+        .ok_or(RelaySecretRefusal::NOT_SET)?;
+    if secret.len() < MIN_RELAY_SECRET_BYTES {
+        return Err(RelaySecretRefusal::TOO_SHORT);
+    }
+    if secret == DEV_RELAY_SECRET && policy != RelaySecretPolicy::ALLOW_DEV_SECRET {
+        return Err(RelaySecretRefusal::DEVELOPMENT_VALUE);
+    }
+    Ok(secret.as_bytes().to_vec())
+}
+
 /// Harvest's internal route for relayed callbacks.
 pub const CALLBACKS_PATH: &str = "/messaging/callbacks";
 
@@ -201,6 +285,20 @@ impl CallbackEnvelope {
     pub fn header(&self, name: &str) -> Option<&str> {
         self.headers.get(name).map(String::as_str)
     }
+
+    /// `received_at` must be within [`RELAY_MAX_SKEW_SECONDS`] of the time
+    /// the relay signature names: the component signs what it just
+    /// received.
+    ///
+    /// # Errors
+    /// [`RelayAuthError::ReceivedAtMismatch`].
+    pub fn check_received_at(&self, signed_at: i64) -> Result<(), RelayAuthError> {
+        if self.received_at.timestamp().abs_diff(signed_at) > RELAY_MAX_SKEW_SECONDS.unsigned_abs()
+        {
+            return Err(RelayAuthError::ReceivedAtMismatch);
+        }
+        Ok(())
+    }
 }
 
 /// What the component answers the provider: harvest decides it.
@@ -244,9 +342,77 @@ pub enum RelayAuthError {
     StaleSignature,
     /// The HMAC doesn't match.
     BadSignature,
+    /// The envelope's `received_at` is far from the signature's time.
+    ReceivedAtMismatch,
 }
 
 impl std::error::Error for RelayAuthError {}
+
+/// A relay signature that verified: its time and its MAC.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct VerifiedSignature {
+    /// `t`, in unix seconds.
+    pub timestamp: i64,
+    /// `v1`, the HMAC bytes.
+    pub mac: Vec<u8>,
+}
+
+/// Why [`ReplayGuard`] refused a verified request.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Display)]
+pub enum ReplayRefusal {
+    /// The same signed request was taken before (401).
+    Replayed,
+    /// Too many fresh signatures to remember another (503: the provider
+    /// retries).
+    Busy,
+}
+
+/// The relay signatures taken in the last [`RELAY_MAX_SKEW_SECONDS`]: a
+/// captured relayed request can't be sent again while it is fresh. Older
+/// ones are refused by their age, so they are forgotten.
+pub struct ReplayGuard {
+    seen: std::sync::Mutex<std::collections::HashMap<Vec<u8>, i64>>,
+    capacity: usize,
+}
+
+/// How many fresh signatures [`ReplayGuard::default`] remembers.
+pub const REPLAY_GUARD_CAPACITY: usize = 100_000;
+
+impl Default for ReplayGuard {
+    fn default() -> Self {
+        Self::new(REPLAY_GUARD_CAPACITY)
+    }
+}
+
+impl ReplayGuard {
+    /// Remembers at most `capacity` fresh signatures.
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            seen: std::sync::Mutex::new(std::collections::HashMap::new()),
+            capacity,
+        }
+    }
+
+    /// Takes a verified signature once.
+    ///
+    /// # Errors
+    /// [`ReplayRefusal::Replayed`] when it was taken before,
+    /// [`ReplayRefusal::Busy`] when too many fresh ones are remembered.
+    pub fn admit(&self, signature: &VerifiedSignature, now: i64) -> Result<(), ReplayRefusal> {
+        let mut seen = self.seen.lock().unwrap_or_else(|e| e.into_inner());
+        if seen.contains_key(&signature.mac) {
+            return Err(ReplayRefusal::Replayed);
+        }
+        if seen.len() >= self.capacity {
+            seen.retain(|_, at| now.abs_diff(*at) <= RELAY_MAX_SKEW_SECONDS.unsigned_abs());
+            if seen.len() >= self.capacity {
+                return Err(ReplayRefusal::Busy);
+            }
+        }
+        seen.insert(signature.mac.clone(), signature.timestamp);
+        Ok(())
+    }
+}
 
 fn relay_mac(secret: &[u8], timestamp: i64, body: &[u8]) -> Hmac<Sha256> {
     #[allow(clippy::expect_used)]
@@ -275,10 +441,25 @@ pub fn verify(
     body: &[u8],
     now: i64,
 ) -> Result<(), RelayAuthError> {
-    let (timestamp, signature) = fresh_signature(header, now)?;
+    verify_signature(secret, header, body, now).map(|_| ())
+}
+
+/// [`verify`], returning the signature that verified, for
+/// [`ReplayGuard`] and [`CallbackEnvelope::check_received_at`].
+///
+/// # Errors
+/// The [`RelayAuthError`] that refuses the request.
+pub fn verify_signature(
+    secret: &[u8],
+    header: Option<&str>,
+    body: &[u8],
+    now: i64,
+) -> Result<VerifiedSignature, RelayAuthError> {
+    let (timestamp, mac) = fresh_signature(header, now)?;
     relay_mac(secret, timestamp, body)
-        .verify_slice(&signature)
-        .map_err(|_| RelayAuthError::BadSignature)
+        .verify_slice(&mac)
+        .map_err(|_| RelayAuthError::BadSignature)?;
+    Ok(VerifiedSignature { timestamp, mac })
 }
 
 /// The checks of [`verify`] that need neither the secret nor the body: the
@@ -326,6 +507,120 @@ mod tests {
         let header = sign(SECRET, 1_000, body);
         assert_eq!(verify(SECRET, Some(&header), body, 1_000), Ok(()));
         assert_eq!(verify(SECRET, Some(&header), body, 1_300), Ok(()));
+    }
+
+    #[test]
+    fn relay_secrets_are_long_and_never_the_development_value_by_default() {
+        let strong = "0123456789abcdef0123456789abcdef";
+        assert_eq!(
+            relay_secret(Some(strong), None),
+            Ok(strong.as_bytes().to_vec())
+        );
+        assert_eq!(
+            relay_secret(Some(strong), Some("STRICT")),
+            Ok(strong.as_bytes().to_vec())
+        );
+        for (secret, policy, refusal) in [
+            (None, None, RelaySecretRefusal::NOT_SET),
+            (Some("  "), None, RelaySecretRefusal::NOT_SET),
+            (Some("s3cret"), None, RelaySecretRefusal::TOO_SHORT),
+            (Some(&strong[..31]), None, RelaySecretRefusal::TOO_SHORT),
+            (
+                Some(DEV_RELAY_SECRET),
+                None,
+                RelaySecretRefusal::DEVELOPMENT_VALUE,
+            ),
+            (
+                Some(DEV_RELAY_SECRET),
+                Some("STRICT"),
+                RelaySecretRefusal::DEVELOPMENT_VALUE,
+            ),
+            (
+                Some(strong),
+                Some("lax"),
+                RelaySecretRefusal::UNKNOWN_POLICY,
+            ),
+            // The development policy permits the development value, never a
+            // short one.
+            (
+                Some("s3cret"),
+                Some("ALLOW_DEV_SECRET"),
+                RelaySecretRefusal::TOO_SHORT,
+            ),
+        ] {
+            assert_eq!(
+                relay_secret(secret, policy),
+                Err(refusal),
+                "{secret:?} {policy:?}"
+            );
+        }
+        assert_eq!(
+            relay_secret(Some(DEV_RELAY_SECRET), Some("ALLOW_DEV_SECRET")),
+            Ok(DEV_RELAY_SECRET.as_bytes().to_vec())
+        );
+        // One reason each, naming the variable; never the value.
+        assert_eq!(
+            RelaySecretRefusal::TOO_SHORT.to_string(),
+            "MESSAGING_RELAY_SECRET must be at least 32 bytes"
+        );
+        assert_eq!(
+            RelaySecretRefusal::NOT_SET.to_string(),
+            "MESSAGING_RELAY_SECRET is not set"
+        );
+    }
+
+    #[test]
+    fn a_verified_signature_names_its_time_and_mac() {
+        let body = b"payload";
+        let header = sign(SECRET, 1_000, body);
+        let verified = verify_signature(SECRET, Some(&header), body, 1_100).unwrap();
+        assert_eq!(verified.timestamp, 1_000);
+        assert_eq!(format!("t=1000,v1={}", hex::encode(&verified.mac)), header);
+    }
+
+    #[test]
+    fn a_relayed_request_is_taken_once() {
+        let guard = ReplayGuard::new(2);
+        let first =
+            verify_signature(SECRET, Some(&sign(SECRET, 1_000, b"a")), b"a", 1_000).unwrap();
+        let second =
+            verify_signature(SECRET, Some(&sign(SECRET, 1_000, b"b")), b"b", 1_000).unwrap();
+        assert_eq!(guard.admit(&first, 1_000), Ok(()));
+        assert_eq!(guard.admit(&first, 1_200), Err(ReplayRefusal::Replayed));
+        assert_eq!(guard.admit(&second, 1_000), Ok(()));
+        // Full of signatures that are still fresh: refused for now, so the
+        // provider retries, rather than forgetting one that could replay.
+        let third =
+            verify_signature(SECRET, Some(&sign(SECRET, 1_001, b"c")), b"c", 1_001).unwrap();
+        assert_eq!(guard.admit(&third, 1_001), Err(ReplayRefusal::Busy));
+        // Once stale, a signature is refused by its age anyway; it is
+        // forgotten and makes room.
+        assert_eq!(guard.admit(&third, 1_301), Ok(()));
+    }
+
+    #[test]
+    fn the_envelope_time_is_the_signatures() {
+        let envelope = |received: i64| {
+            CallbackEnvelope::new(
+                CallbackProvider::META,
+                KEY,
+                CallbackMethod::POST,
+                "",
+                [],
+                b"",
+                DateTime::from_timestamp(received, 0).unwrap(),
+            )
+        };
+        assert_eq!(envelope(1_000).check_received_at(1_000), Ok(()));
+        assert_eq!(envelope(700).check_received_at(1_000), Ok(()));
+        assert_eq!(
+            envelope(699).check_received_at(1_000),
+            Err(RelayAuthError::ReceivedAtMismatch)
+        );
+        assert_eq!(
+            envelope(1_301).check_received_at(1_000),
+            Err(RelayAuthError::ReceivedAtMismatch)
+        );
     }
 
     #[test]

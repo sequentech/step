@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use tokio_postgres::row::Row;
-use tracing::instrument;
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 fn parse_enum<T: FromStr>(row: &Row, column: &str) -> Result<T> {
@@ -461,7 +461,9 @@ pub struct MessageRecord {
     pub election_event_id: Option<Uuid>,
     pub voter_id: Option<String>,
     pub account_id: Option<Uuid>,
-    pub channel: MessageChannel,
+    /// `None` for a message recorded without any channel ("No contact
+    /// channel").
+    pub channel: Option<MessageChannel>,
     pub direction: MessageDirection,
     pub purpose: Option<MessagePurpose>,
     pub template_alias: Option<String>,
@@ -485,6 +487,9 @@ pub struct MessageRecord {
     /// When the attempt was handed to the provider. `None`: never sent.
     pub dispatched_at: Option<DateTime<Utc>>,
     pub last_reconciled_at: Option<DateTime<Utc>>,
+    /// When the attempt's electoral log entry was handed to the log.
+    /// `None` until then; the sweep writes the ones left behind.
+    pub logged_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -499,7 +504,7 @@ impl TryFrom<Row> for MessageRecord {
             election_event_id: row.try_get("election_event_id")?,
             voter_id: row.try_get("voter_id")?,
             account_id: row.try_get("account_id")?,
-            channel: parse_enum(&row, "channel")?,
+            channel: parse_optional_enum(&row, "channel")?,
             direction: parse_enum(&row, "direction")?,
             purpose: parse_optional_enum(&row, "purpose")?,
             template_alias: row.try_get("template_alias")?,
@@ -519,6 +524,7 @@ impl TryFrom<Row> for MessageRecord {
             next_retry_at: row.try_get("next_retry_at")?,
             dispatched_at: row.try_get("dispatched_at")?,
             last_reconciled_at: row.try_get("last_reconciled_at")?,
+            logged_at: row.try_get("logged_at")?,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
         })
@@ -531,7 +537,8 @@ pub struct NewMessage {
     pub election_event_id: Option<Uuid>,
     pub voter_id: Option<String>,
     pub account_id: Option<Uuid>,
-    pub channel: MessageChannel,
+    /// `None` only for "No contact channel".
+    pub channel: Option<MessageChannel>,
     pub purpose: Option<MessagePurpose>,
     pub template_alias: Option<String>,
     pub language: Option<String>,
@@ -576,7 +583,7 @@ pub async fn insert_message(
                 &message.election_event_id,
                 &message.voter_id,
                 &message.account_id,
-                &message.channel.to_string(),
+                &message.channel.map(|c| c.to_string()),
                 &message.purpose.map(|p| p.to_string()),
                 &message.template_alias,
                 &message.language,
@@ -845,30 +852,68 @@ pub async fn last_get_started_at(
 /// id)`, or of `(next_retry_at, id)` for due retries.
 pub type LedgerKey = (DateTime<Utc>, Uuid);
 
-/// Queued attempts created before `stale_before`, a page at a time: their
-/// worker stopped before recording the outcome.
+/// One keyset page of the ledger. Rows that can't be read (such as a value
+/// this release doesn't know) are logged and left out, but still move the
+/// page on, so one bad row never stops a sweep.
+#[derive(Debug, Default)]
+pub struct LedgerPage {
+    pub records: Vec<MessageRecord>,
+    /// The key of the page's last row, read or not.
+    pub last: Option<LedgerKey>,
+    /// How many rows the page held, read or not.
+    pub rows: usize,
+}
+
+fn ledger_page(rows: Vec<Row>, key_column: &str) -> Result<LedgerPage> {
+    let mut page = LedgerPage {
+        rows: rows.len(),
+        ..Default::default()
+    };
+    for row in rows {
+        let id: Uuid = row.try_get("id")?;
+        let at: DateTime<Utc> = row.try_get(key_column)?;
+        page.last = Some((at, id));
+        match MessageRecord::try_from(row) {
+            Ok(record) => page.records.push(record),
+            Err(error) => warn!(message_id = %id, "skipped an unreadable ledger row: {error:#}"),
+        }
+    }
+    Ok(page)
+}
+
+/// Queued attempts whose worker stopped before recording the outcome, a
+/// page at a time: never handed to the provider and created before
+/// `queued_before`, or handed to it before `dispatched_before` (an attempt
+/// that waited for its turn is in flight from when it was handed over).
 #[instrument(skip(tx), err)]
 pub async fn list_stale_queued(
     tx: &Transaction<'_>,
-    stale_before: DateTime<Utc>,
+    queued_before: DateTime<Utc>,
+    dispatched_before: DateTime<Utc>,
     after: Option<LedgerKey>,
     limit: i64,
-) -> Result<Vec<MessageRecord>> {
+) -> Result<LedgerPage> {
     let (after_at, after_id) = after.unzip();
-    tx.query(
-        r#"
-        SELECT * FROM sequent_backend.message
-        WHERE state = 'QUEUED' AND direction = 'OUTBOUND' AND created_at < $1
-          AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3))
-        ORDER BY created_at, id
-        LIMIT $4
-        "#,
-        &[&stale_before, &after_at, &after_id, &limit],
-    )
-    .await?
-    .into_iter()
-    .map(TryInto::try_into)
-    .collect()
+    let rows = tx
+        .query(
+            r#"
+            SELECT * FROM sequent_backend.message
+            WHERE state = 'QUEUED' AND direction = 'OUTBOUND'
+              AND ((dispatched_at IS NULL AND created_at < $1) OR dispatched_at < $5)
+              AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3))
+            ORDER BY created_at, id
+            LIMIT $4
+            "#,
+            &[
+                &queued_before,
+                &after_at,
+                &after_id,
+                &limit,
+                &dispatched_before,
+            ],
+        )
+        .await?;
+    ledger_page(rows, "created_at")
 }
 
 /// Unknown outcomes worth asking the provider about, a page at a time:
@@ -884,34 +929,33 @@ pub async fn list_reconcilable_unknown(
     asked_before: DateTime<Utc>,
     after: Option<LedgerKey>,
     limit: i64,
-) -> Result<Vec<MessageRecord>> {
+) -> Result<LedgerPage> {
     let (after_at, after_id) = after.unzip();
-    tx.query(
-        r#"
-        SELECT message.* FROM sequent_backend.message AS message
-        JOIN sequent_backend.messaging_account AS account
-          ON account.id = message.account_id
-        WHERE message.state = 'UNKNOWN' AND message.direction = 'OUTBOUND'
-          AND account.provider = ANY($1)
-          AND message.created_at >= $2
-          AND (message.last_reconciled_at IS NULL OR message.last_reconciled_at < $3)
-          AND ($4::timestamptz IS NULL OR (message.created_at, message.id) > ($4, $5))
-        ORDER BY message.created_at, message.id
-        LIMIT $6
-        "#,
-        &[
-            &providers,
-            &newer_than,
-            &asked_before,
-            &after_at,
-            &after_id,
-            &limit,
-        ],
-    )
-    .await?
-    .into_iter()
-    .map(TryInto::try_into)
-    .collect()
+    let rows = tx
+        .query(
+            r#"
+            SELECT message.* FROM sequent_backend.message AS message
+            JOIN sequent_backend.messaging_account AS account
+              ON account.id = message.account_id
+            WHERE message.state = 'UNKNOWN' AND message.direction = 'OUTBOUND'
+              AND account.provider = ANY($1)
+              AND message.created_at >= $2
+              AND (message.last_reconciled_at IS NULL OR message.last_reconciled_at < $3)
+              AND ($4::timestamptz IS NULL OR (message.created_at, message.id) > ($4, $5))
+            ORDER BY message.created_at, message.id
+            LIMIT $6
+            "#,
+            &[
+                &providers,
+                &newer_than,
+                &asked_before,
+                &after_at,
+                &after_id,
+                &limit,
+            ],
+        )
+        .await?;
+    ledger_page(rows, "created_at")
 }
 
 /// Notes that the provider was asked about an attempt, for the backoff.
@@ -933,37 +977,207 @@ pub async fn list_due_retries(
     now: DateTime<Utc>,
     after: Option<LedgerKey>,
     limit: i64,
-) -> Result<Vec<MessageRecord>> {
+) -> Result<LedgerPage> {
     let (after_at, after_id) = after.unzip();
-    tx.query(
-        r#"
-        SELECT * FROM sequent_backend.message
-        WHERE next_retry_at IS NOT NULL AND next_retry_at <= $1 AND state = 'FAILED'
-          AND ($2::timestamptz IS NULL OR (next_retry_at, id) > ($2, $3))
-        ORDER BY next_retry_at, id
-        LIMIT $4
-        "#,
-        &[&now, &after_at, &after_id, &limit],
-    )
-    .await?
-    .into_iter()
-    .map(TryInto::try_into)
-    .collect()
+    let rows = tx
+        .query(
+            r#"
+            SELECT * FROM sequent_backend.message
+            WHERE next_retry_at IS NOT NULL AND next_retry_at <= $1 AND state = 'FAILED'
+              AND ($2::timestamptz IS NULL OR (next_retry_at, id) > ($2, $3))
+            ORDER BY next_retry_at, id
+            LIMIT $4
+            "#,
+            &[&now, &after_at, &after_id, &limit],
+        )
+        .await?;
+    ledger_page(rows, "next_retry_at")
 }
 
-/// Gives up the scheduled retry of a failed attempt, with the reason.
+/// Gives up the scheduled retry of a failed attempt. `reason` (why it
+/// isn't retried) is added next to the failure's own reason, never in its
+/// place ([`MessageReason::not_retried_after`]). `None` when the attempt
+/// isn't a failure any more.
 #[instrument(skip(tx), err)]
-pub async fn cancel_retry(tx: &Transaction<'_>, id: &Uuid, reason: &str) -> Result<()> {
-    tx.execute(
+pub async fn cancel_retry(
+    tx: &Transaction<'_>,
+    id: &Uuid,
+    reason: MessageReason,
+) -> Result<Option<MessageRecord>> {
+    tx.query_opt(
         r#"
         UPDATE sequent_backend.message
-        SET next_retry_at = NULL, error = $2, updated_at = now()
+        SET next_retry_at = NULL,
+            error = CASE WHEN COALESCE(btrim(error), '') = '' THEN $2
+                         ELSE error || $3 || $2 END,
+            updated_at = now()
         WHERE id = $1 AND state = 'FAILED'
+        RETURNING *
         "#,
-        &[id, &reason],
+        &[
+            id,
+            &reason.as_str(),
+            &sequent_core::types::messaging::REASON_SEPARATOR,
+        ],
+    )
+    .await?
+    .map(TryInto::try_into)
+    .transpose()
+}
+
+/// Attempts with an outcome whose electoral log entry wasn't handed to the
+/// log, recorded before `recorded_before` (so a sender still posting its
+/// own isn't raced), a page at a time. Only attempts of an event: there is
+/// no log without one.
+#[instrument(skip(tx), err)]
+pub async fn list_unlogged(
+    tx: &Transaction<'_>,
+    recorded_before: DateTime<Utc>,
+    after: Option<LedgerKey>,
+    limit: i64,
+) -> Result<LedgerPage> {
+    let (after_at, after_id) = after.unzip();
+    let rows = tx
+        .query(
+            r#"
+            SELECT * FROM sequent_backend.message
+            WHERE logged_at IS NULL AND state <> 'QUEUED' AND direction = 'OUTBOUND'
+              AND election_event_id IS NOT NULL AND updated_at < $1
+              AND ($2::timestamptz IS NULL OR (created_at, id) > ($2, $3))
+            ORDER BY created_at, id
+            LIMIT $4
+            "#,
+            &[&recorded_before, &after_at, &after_id, &limit],
+        )
+        .await?;
+    ledger_page(rows, "created_at")
+}
+
+/// Records that the attempts' electoral log entries were handed to the log.
+#[instrument(skip(tx), err)]
+pub async fn mark_logged(tx: &Transaction<'_>, ids: &[Uuid]) -> Result<()> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    tx.execute(
+        r#"
+        UPDATE sequent_backend.message SET logged_at = now()
+        WHERE id = ANY($1) AND logged_at IS NULL
+        "#,
+        &[&ids],
     )
     .await?;
     Ok(())
+}
+
+/// Which channel a ledger filter asks for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChannelFilter {
+    Any,
+    /// Messages recorded without a channel ("No contact channel").
+    NoChannel,
+    Channel(MessageChannel),
+}
+
+/// The ID of the latest attempt of each message of an event, by its
+/// current channel and outcome: the same messages [`count_event_messages`]
+/// counts, so a filtered list agrees with the counts. `outcome` is a
+/// [`MessageAttemptState`] or `UNRESOLVED`; `UNKNOWN` then means unknown and
+/// not yet Unresolved.
+#[instrument(skip(tx), err)]
+pub async fn latest_attempt_ids(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    channel: ChannelFilter,
+    outcome: Option<&str>,
+    unresolved_before: DateTime<Utc>,
+) -> Result<Vec<Uuid>> {
+    let (any_channel, no_channel, wanted_channel) = match channel {
+        ChannelFilter::Any => (true, false, None),
+        ChannelFilter::NoChannel => (false, true, None),
+        ChannelFilter::Channel(channel) => (false, false, Some(channel.to_string())),
+    };
+    let outcome = outcome.map(str::to_uppercase);
+    tx.query(
+        r#"
+        SELECT id FROM (
+            SELECT DISTINCT ON (COALESCE(logical_key, id::text))
+                id, channel,
+                CASE WHEN state = 'UNKNOWN' AND created_at < $3 THEN 'UNRESOLVED'
+                     ELSE state END AS outcome
+            FROM sequent_backend.message
+            WHERE tenant_id = $1 AND election_event_id = $2 AND direction = 'OUTBOUND'
+            ORDER BY COALESCE(logical_key, id::text), attempt DESC
+        ) AS latest
+        WHERE ($4 OR ($5 AND channel IS NULL) OR channel = $6)
+          AND ($7::text IS NULL OR outcome = $7)
+        "#,
+        &[
+            tenant_id,
+            election_event_id,
+            &unresolved_before,
+            &any_channel,
+            &no_channel,
+            &wanted_channel,
+            &outcome,
+        ],
+    )
+    .await?
+    .into_iter()
+    .map(|row| Ok(row.try_get("id")?))
+    .collect()
+}
+
+/// Stores what an administrator sent in a bulk send (the send's template,
+/// never per-voter content) as a stopped, archived `SEND_TEMPLATE` scheduled
+/// event, with its own ID as the payload's `send_id`. A retry renders the
+/// notice again from it. Returns the ID.
+#[instrument(skip(tx, payload), err)]
+pub async fn record_bulk_send(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: Option<&Uuid>,
+    created_by: Option<&str>,
+    payload: &Value,
+) -> Result<Uuid> {
+    let id = Uuid::new_v4();
+    let mut payload = payload.clone();
+    if let Some(object) = payload.as_object_mut() {
+        object.insert("send_id".to_string(), Value::String(id.to_string()));
+    }
+    tx.execute(
+        r#"
+        INSERT INTO sequent_backend.scheduled_event
+            (id, tenant_id, election_event_id, created_at, event_processor, event_payload,
+             created_by, stopped_at, archived_at)
+        VALUES ($1, $2, $3, now(), 'SEND_TEMPLATE', $4, $5, now(), now())
+        "#,
+        &[&id, tenant_id, &election_event_id, &payload, &created_by],
+    )
+    .await?;
+    Ok(id)
+}
+
+/// The payload a bulk send was sent with ([`record_bulk_send`]).
+#[instrument(skip(tx), err)]
+pub async fn get_bulk_send_payload(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    send_id: &Uuid,
+) -> Result<Option<Value>> {
+    Ok(tx
+        .query_opt(
+            r#"
+            SELECT event_payload FROM sequent_backend.scheduled_event
+            WHERE id = $1 AND tenant_id = $2 AND event_processor = 'SEND_TEMPLATE'
+            "#,
+            &[send_id, tenant_id],
+        )
+        .await?
+        .map(|row| row.try_get::<_, Option<Value>>("event_payload"))
+        .transpose()?
+        .flatten())
 }
 
 /// Messages (not attempts) of an event by channel and outcome, from the
@@ -972,7 +1186,8 @@ pub async fn cancel_retry(tx: &Transaction<'_>, id: &Uuid, reason: &str) -> Resu
 /// `unresolved_before` is counted as `UNRESOLVED`, never as failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LedgerCount {
-    pub channel: MessageChannel,
+    /// `None`: messages recorded without a channel ("No contact channel").
+    pub channel: Option<MessageChannel>,
     /// A [`MessageAttemptState`], or `UNRESOLVED`.
     pub outcome: String,
     pub messages: i64,
@@ -1007,7 +1222,7 @@ pub async fn count_event_messages(
     .into_iter()
     .map(|row| {
         Ok(LedgerCount {
-            channel: parse_enum(&row, "channel")?,
+            channel: parse_optional_enum(&row, "channel")?,
             outcome: row.try_get("outcome")?,
             messages: row.try_get("messages")?,
         })

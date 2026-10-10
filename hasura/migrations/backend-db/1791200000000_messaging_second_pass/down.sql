@@ -10,10 +10,20 @@ UPDATE "sequent_backend"."messenger_link"
 ALTER TABLE "sequent_backend"."messenger_link"
     ALTER COLUMN "link_word_digest" SET NOT NULL;
 
+DROP VIEW "sequent_backend"."message_latest_attempt";
+DROP INDEX "sequent_backend"."message_unlogged";
+
+-- The first release needs a channel: rows without one go back on email,
+-- the channel such a voter's legacy rule gives.
+UPDATE "sequent_backend"."message" SET "channel" = 'EMAIL' WHERE "channel" IS NULL;
+ALTER TABLE "sequent_backend"."message"
+    ALTER COLUMN "channel" SET NOT NULL;
+
 DROP INDEX "sequent_backend"."message_unresolved_keyset";
 DROP INDEX "sequent_backend"."message_retry_due";
 
 ALTER TABLE "sequent_backend"."message"
+    DROP COLUMN "logged_at",
     DROP COLUMN "billable",
     DROP COLUMN "billing_category",
     DROP COLUMN "last_reconciled_at",

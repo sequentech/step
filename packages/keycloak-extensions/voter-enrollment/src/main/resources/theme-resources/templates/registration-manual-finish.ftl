@@ -51,6 +51,28 @@
                     <p id="notice-channel">${msg("messageOtp.pending.channel", msg("messageChannel." + noticeChannel))}</p>
                 </#if>
             </#if>
+            <#-- The reference support finds the application by (from the application record). -->
+            <#if supportReference?? && supportReference?matches("[0-9A-Z]{4}-[0-9A-Z]{4}")>
+                <p id="support-reference">${msg("messageOtp.pending.reference", "")}<code id="support-reference-code">${supportReference}</code>
+                    <button type="button" id="support-reference-copy" hidden
+                        data-copied="${msg("messageOtp.pending.referenceCopied")}">${msg("messageOtp.pending.copyReference")}</button>
+                </p>
+                <script>
+                    (function () {
+                        var button = document.getElementById("support-reference-copy");
+                        if (!button || !navigator.clipboard || !navigator.clipboard.writeText) {
+                            return;
+                        }
+                        button.hidden = false;
+                        button.addEventListener("click", function () {
+                            navigator.clipboard
+                                .writeText(document.getElementById("support-reference-code").textContent)
+                                .then(function () { button.textContent = button.getAttribute("data-copied"); })
+                                .catch(function () {});
+                        });
+                    })();
+                </script>
+            </#if>
             <p id="instruction1" class="instruction">
                 ${msg("pageExpiredMsg2")} <a id="loginContinueLink" href="${url.loginRestartFlowUrl}">${msg("doClickHere")}</a> .
             </p>

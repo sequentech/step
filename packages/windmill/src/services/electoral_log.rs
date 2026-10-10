@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::messaging::{latest_attempt_ids, ChannelFilter};
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
@@ -32,6 +33,7 @@ use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::messaging::{MessageChannel, UNRESOLVED_AFTER_HOURS};
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -1740,48 +1742,16 @@ impl GetElectoralLogBody {
     }
 }
 
-/// Selects `SendCommunications` entries by the fields of their JSON body.
-/// The message column is encrypted, so the entries are read and matched
-/// here rather than in the query.
+/// Selects `SendCommunications` entries by the ledger's current state of
+/// the message they logged (see `list_communications`).
 #[derive(Deserialize, Debug, Default, Clone, PartialEq, Eq)]
 pub struct CommunicationsFilter {
-    /// A channel, in any case (`WHATSAPP` or `whatsapp`).
+    /// A channel, in any case (`WHATSAPP` or `whatsapp`), or `none` for
+    /// messages recorded without a channel ("No contact channel").
     pub channel: Option<String>,
-    /// An attempt outcome: `ACCEPTED`, `DELIVERED`, `FAILED` or `UNKNOWN`.
+    /// The message's current outcome: `QUEUED`, `ACCEPTED`, `DELIVERED`,
+    /// `FAILED`, `UNKNOWN` (not yet Unresolved) or `UNRESOLVED`.
     pub outcome: Option<String>,
-}
-
-impl CommunicationsFilter {
-    /// Whether a `SendCommunications` body matches. Entries written before
-    /// the outcome existed carry `state` instead.
-    pub fn matches_body(&self, body: &str) -> bool {
-        let Ok(body) = serde_json::from_str::<serde_json::Value>(body) else {
-            return false;
-        };
-        let field = |name: &str| body[name].as_str().map(str::to_string);
-        let channel_matches = self.channel.as_ref().map_or(true, |wanted| {
-            field("channel").is_some_and(|channel| channel.eq_ignore_ascii_case(wanted))
-        });
-        let outcome_matches = self.outcome.as_ref().map_or(true, |wanted| {
-            field("outcome")
-                .or_else(|| field("state"))
-                .is_some_and(|outcome| outcome.eq_ignore_ascii_case(wanted))
-        });
-        channel_matches && outcome_matches
-    }
-
-    /// Whether an electoral log row is a matching `SendCommunications`
-    /// entry.
-    pub fn matches_row(&self, row: &ElectoralLogRow) -> bool {
-        serde_json::from_str::<serde_json::Value>(&row.message)
-            .ok()
-            .and_then(|message| {
-                message["statement"]["body"]["SendCommunications"]
-                    .as_str()
-                    .map(|body| self.matches_body(body))
-            })
-            .unwrap_or(false)
-    }
 }
 
 impl GetElectoralLogBody {
@@ -2186,13 +2156,73 @@ impl CastVoteEntry {
     }
 }
 
-/// The entries matching a communications filter: the event's
-/// `SendCommunications` entries are read a page at a time and matched on
-/// their body, then the request's offset and limit apply.
+/// At most this many `SendCommunications` entries are read for one page of
+/// a communications filter, so a page view costs a bounded amount whatever
+/// the event's size.
+pub const COMMUNICATIONS_SCAN_LIMIT: usize = 20_000;
+
+impl CommunicationsFilter {
+    /// The ledger channel this filter asks for: a channel in any case, or
+    /// `none` for messages recorded without a channel ("No contact
+    /// channel").
+    pub fn ledger_channel(&self) -> Result<ChannelFilter> {
+        match self.channel.as_deref().map(str::trim) {
+            None | Some("") => Ok(ChannelFilter::Any),
+            Some(channel) if channel.eq_ignore_ascii_case("none") => Ok(ChannelFilter::NoChannel),
+            Some(channel) => Ok(ChannelFilter::Channel(
+                channel
+                    .to_uppercase()
+                    .parse::<MessageChannel>()
+                    .map_err(|_| anyhow!("unknown channel {channel}"))?,
+            )),
+        }
+    }
+
+    /// The ledger row a `SendCommunications` entry logged (`message_id`).
+    pub fn message_id_of(row: &ElectoralLogRow) -> Option<String> {
+        let message = serde_json::from_str::<serde_json::Value>(&row.message).ok()?;
+        let body = message["statement"]["body"]["SendCommunications"].as_str()?;
+        let body = serde_json::from_str::<serde_json::Value>(body).ok()?;
+        body["message_id"].as_str().map(str::to_string)
+    }
+}
+
+/// The entries matching a communications filter, by the ledger's
+/// **current** state: the latest attempt of each message of the event on
+/// the channel and with the outcome asked for (as the event tab counts
+/// them), matched to its entry through `message_id`. The total is the
+/// number of such messages, the event tab's count. Entries are read a page
+/// at a time, at most [`COMMUNICATIONS_SCAN_LIMIT`], and only until the
+/// requested page is filled. Entries without a `message_id` (the first
+/// release's) don't match.
 async fn list_communications(
     input: GetElectoralLogBody,
     filter: CommunicationsFilter,
 ) -> Result<DataList<ElectoralLogRow>> {
+    let tenant_id = uuid::Uuid::parse_str(&input.tenant_id)?;
+    let event_id = uuid::Uuid::parse_str(&input.election_event_id)?;
+    let channel = filter.ledger_channel()?;
+    let outcome = filter
+        .outcome
+        .as_deref()
+        .map(str::trim)
+        .filter(|outcome| !outcome.is_empty());
+    let wanted: std::collections::HashSet<String> = {
+        let mut client = get_hasura_pool().await.get().await?;
+        let tx = client.transaction().await?;
+        let ids = latest_attempt_ids(
+            &tx,
+            &tenant_id,
+            &event_id,
+            channel,
+            outcome,
+            chrono::Utc::now() - chrono::Duration::hours(UNRESOLVED_AFTER_HOURS),
+        )
+        .await?;
+        tx.commit().await?;
+        ids.into_iter().map(|id| id.to_string()).collect()
+    };
+    let total = i64::try_from(wanted.len())?;
     let page = i64::from(PgConfig::from_env()?.low_sql_limit);
     let wanted_offset = usize::try_from(input.offset.unwrap_or(0).max(0))?;
     let wanted_limit = usize::try_from(
@@ -2203,7 +2233,11 @@ async fn list_communications(
     )?;
     let mut matches = vec![];
     let mut offset = 0;
-    loop {
+    let mut scanned = 0;
+    while !wanted.is_empty()
+        && matches.len() < wanted_offset + wanted_limit
+        && scanned < COMMUNICATIONS_SCAN_LIMIT
+    {
         let batch = Box::pin(list_electoral_log(GetElectoralLogBody {
             statement_kind: Some(StatementType::SendCommunications),
             communications: None,
@@ -2218,13 +2252,18 @@ async fn list_communications(
         }))
         .await?;
         let read = batch.items.len();
-        matches.extend(batch.items.into_iter().filter(|row| filter.matches_row(row)));
+        scanned += read;
+        matches.extend(batch.items.into_iter().filter(|row| {
+            CommunicationsFilter::message_id_of(row).is_some_and(|id| wanted.contains(&id))
+        }));
         if (read as i64) < page {
             break;
         }
         offset += page;
     }
-    let total = i64::try_from(matches.len())?;
+    if scanned >= COMMUNICATIONS_SCAN_LIMIT {
+        warn!(scanned, "communications filter stopped at its scan limit");
+    }
     Ok(DataList {
         items: matches
             .into_iter()
@@ -2870,19 +2909,49 @@ mod communications_filter_tests {
     use super::CommunicationsFilter;
 
     #[test]
-    fn communications_are_matched_by_channel_and_outcome() {
-        let failed_whatsapp =
-            r#"{"channel":"whatsapp","outcome":"FAILED","receiver":"+63 ••• ••• 567"}"#;
-        let first_release = r#"{"channel":"sms","receiver":"+63*****4567","state":"ACCEPTED"}"#;
-        let filter = |channel: Option<&str>, outcome: Option<&str>| CommunicationsFilter {
+    fn communications_select_a_ledger_channel_or_no_channel() {
+        use crate::postgres::messaging::ChannelFilter;
+        use sequent_core::types::messaging::MessageChannel;
+        let filter = |channel: Option<&str>| CommunicationsFilter {
             channel: channel.map(str::to_string),
-            outcome: outcome.map(str::to_string),
+            outcome: Some("FAILED".to_string()),
         };
-        assert!(filter(Some("WHATSAPP"), Some("FAILED")).matches_body(failed_whatsapp));
-        assert!(filter(Some("whatsapp"), None).matches_body(failed_whatsapp));
-        assert!(!filter(Some("SMS"), Some("FAILED")).matches_body(failed_whatsapp));
-        assert!(!filter(None, Some("ACCEPTED")).matches_body(failed_whatsapp));
-        assert!(filter(Some("SMS"), Some("ACCEPTED")).matches_body(first_release));
-        assert!(!filter(None, None).matches_body("not json"));
+        assert_eq!(
+            filter(Some("whatsapp")).ledger_channel().unwrap(),
+            ChannelFilter::Channel(MessageChannel::WHATSAPP)
+        );
+        assert_eq!(
+            filter(Some("NONE")).ledger_channel().unwrap(),
+            ChannelFilter::NoChannel
+        );
+        assert_eq!(filter(None).ledger_channel().unwrap(), ChannelFilter::Any);
+        assert!(filter(Some("fax")).ledger_channel().is_err());
+    }
+
+    #[test]
+    fn an_entry_is_matched_to_its_ledger_row() {
+        let body = r#"{"channel":"whatsapp","message_id":"m-1","outcome":"ACCEPTED"}"#;
+        let row = super::ElectoralLogRow {
+            id: 1,
+            created: 0,
+            statement_timestamp: 0,
+            statement_kind: "SendCommunications".to_string(),
+            message: serde_json::json!({"statement": {"body": {"SendCommunications": body}}})
+                .to_string(),
+            data: String::new(),
+            user_id: None,
+            username: None,
+        };
+        assert_eq!(
+            CommunicationsFilter::message_id_of(&row).as_deref(),
+            Some("m-1")
+        );
+        let first_release = super::ElectoralLogRow {
+            message: serde_json::json!({"statement": {"body": {"SendCommunications":
+                r#"{"channel":"sms","state":"ACCEPTED"}"#}}})
+            .to_string(),
+            ..row
+        };
+        assert_eq!(CommunicationsFilter::message_id_of(&first_release), None);
     }
 }

@@ -181,7 +181,10 @@ fn messenger_events(event: &Value) -> Vec<WebhookEvent> {
         }));
     }
     // Get Started without a reference opens the window and nothing else.
-    // Text the voter writes is dropped.
+    // Any postback counts, not only the Get Started payload (the Page owner
+    // sets that payload, so Step can't know it, and a menu button press is
+    // also the person writing to the Page, which opens Meta's 24-hour
+    // window). Text the voter writes is dropped.
     if !event["postback"].is_null() && referral.is_none() {
         events.push(WebhookEvent::MessengerGetStarted(MessengerContact {
             page_scoped_id: psid.to_string(),

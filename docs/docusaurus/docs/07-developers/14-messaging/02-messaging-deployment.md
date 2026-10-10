@@ -37,7 +37,10 @@ backend becomes reachable.
   component, such as `https://callbacks.example.org`. Harvest and windmill
   build each account's callback URL from it; the component itself doesn't
   read it. Without it, accounts show "Callback address not configured",
-  delivery shows as unavailable and Messenger is not ready for codes.
+  delivery shows as unavailable and Messenger is not ready for codes. It
+  must be `https`: otherwise accounts show "Callback address must be
+  https" next to the URL (the development stack's `http://` address is the
+  only expected exception).
 - `MESSAGING_RELAY_SECRET` is a long random value shared by the component
   and harvest only. Store it like any other deployment secret. Rotating it
   means changing both together; callbacks during the change get 503 and the

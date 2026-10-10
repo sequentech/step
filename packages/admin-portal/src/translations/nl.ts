@@ -3318,6 +3318,9 @@ const dutchTranslation: TranslationType = {
                     title: "Hier staat niets",
                     text: "Inschrijvingen met deze status verschijnen hier. Probeer een andere zoekopdracht of status.",
                 },
+                searchHelp:
+                    "Een naam, e-mailadres of identiteitsnummer, of de ondersteuningsreferentie die de kiezer kreeg, zoals Q5KW-8RFX.",
+                referenceError: "De ondersteuningsreferentie kon niet worden opgezocht.",
             },
             flow: {
                 stepsLabel: "Stappen van de beoordeling",
@@ -5398,6 +5401,10 @@ const dutchTranslation: TranslationType = {
                 noReceipts:
                     "Dit account ontvangt geen afleverrapporten, dus de aflevering kan niet worden getoond.",
                 showFailed: "De mislukte {{channel}}-berichten tonen in Logs",
+                noChannelHelp:
+                    "Kiezers zonder geregistreerd contactkanaal. Hun berichten mislukken en worden nooit onder een kanaal geteld.",
+                showFailedNoChannel:
+                    "Toon in Logs de mislukte berichten van kiezers zonder contactkanaal",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5423,6 +5430,9 @@ const dutchTranslation: TranslationType = {
             noReadPermission:
                 "Voor het bekijken van deze instellingen is de machtiging messaging-config-read nodig.",
             chooseAccount: "Kies eerst een account.",
+            needsSavingAgain: "De configuratie moet opnieuw worden opgeslagen.",
+            needsSavingAgainHelp:
+                "Ze is gekopieerd uit de eerdere opslag en doorstond de controles van een opslag niet. Los de getoonde problemen op en sla ze daarna opnieuw op.",
         },
         messaging: {
             channel: {
@@ -5471,6 +5481,8 @@ const dutchTranslation: TranslationType = {
                 NEEDS_PRODUCTION_ACCESS: "Productietoegang nodig",
                 NEEDS_APPROVED_TEMPLATE: "Goedgekeurde sjabloon nodig",
                 UNSUPPORTED_PROVIDER: "Niet-ondersteunde provider: vervang dit account",
+                CALLBACK_NOT_CONFIGURED: "Callbackadres niet ingesteld",
+                REPORT_CREDENTIALS_MISSING: "Inloggegevens voor rapporten niet gegenereerd",
             },
             readiness: {
                 connected: "Verbonden",
@@ -5559,6 +5571,11 @@ const dutchTranslation: TranslationType = {
                 providerLanguage: "Taal van de provider voor {{channel}}",
                 providerLanguageHelp: "De taalcode van de provider voor die sjabloon, zoals en_US.",
                 voters: "Kiezers",
+                environment: "De standaardafzender van de installatie",
+                noNoticeChannels:
+                    "De berichteninstellingen van dit evenement zetten berichten voor geen enkel kanaal aan, dus geen kiezer zou deze melding krijgen. Zet berichten aan voor een kanaal op het tabblad Berichten van het evenement.",
+                noReadPermission:
+                    "Voor het tonen van het kanaal van elke kiezer is de machtiging messaging-config-read nodig. Elke kiezer krijgt de melding toch via zijn eigen kanaal.",
             },
             voter: {
                 title: "Berichten",
@@ -5571,6 +5588,9 @@ const dutchTranslation: TranslationType = {
                 noFailure: "Geen",
                 failureNeedsPermission: "Zichtbaar met de machtiging messaging-config-read.",
                 noChannel: "Geen contact geregistreerd",
+                notConfirmed: "Aflevering niet bevestigd",
+                notConfirmedHelp:
+                    "Het laatste bericht waarvan de aflevering nog niet is bevestigd. Na 24 uur wordt het als Onopgelost getoond; dat betekent niet dat het mislukt is.",
             },
             logs: {
                 channel: "Kanaal",
@@ -5593,6 +5613,38 @@ const dutchTranslation: TranslationType = {
                 NO_CONTACT_CHANNEL: "Geen contactkanaal",
                 NOT_RETRYABLE_NO_TEMPLATE:
                     "Kan niet opnieuw worden geprobeerd: geen opgeslagen sjabloon",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Kanaal niet aangeboden voor berichten",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Kanaal niet aangeboden voor codes",
+                NO_CONTENT_FOR_CHANNEL: "Geen inhoud voor het kanaal",
+                NO_ACCOUNT_FOR_CHANNEL: "Geen verzendaccount voor het kanaal",
+                INVALID_DESTINATION: "Ongeldige bestemming voor het kanaal",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "Kan niet opnieuw worden geprobeerd: bevat beveiligde velden",
+                REPORTED_TOO_LATE: "Te laat gemeld om opnieuw te proberen",
+                CHANNEL_CHANGED: "Het kanaal van de kiezer is gewijzigd: niet opnieuw geprobeerd",
+                WORKER_STOPPED_BEFORE_SENDING: "Het proces stopte vóór het verzenden",
+                WORKER_STOPPED_AFTER_SENDING:
+                    "Het proces stopte voordat de uitkomst was vastgelegd",
+                CODE_EXPIRED_BEFORE_SENDING: "De code verliep voordat hij kon worden verzonden",
+                UNRESOLVED: "Aflevering kon niet worden bevestigd",
+                SELECTED_WITHOUT_VOTERS: "Selecteer ten minste één kiezer",
+                WRONG_RECIPIENT_KIND:
+                    "De bestemming is niet van het soort waarnaar dit kanaal verzendt",
+                UNSUPPORTED_PURPOSE: "De provider verzendt dit soort bericht niet",
+                MISSING_APPROVED_TEMPLATE: "Geen goedgekeurde sjabloon voor dit bericht",
+                OUTSIDE_CONVERSATION_WINDOW: "Buiten het gespreksvenster",
+                DESTINATION_NOT_ALLOWED:
+                    "Dit account verzendt niet naar het land van de bestemming",
+                CODE_EXPIRED: "De code is verlopen",
+                MISSING_CODE: "Geen code om te verzenden",
+                ENDPOINT_NOT_HTTPS: "Het adres van de provider moet beginnen met https://",
+                PROVIDER_CODE: "Foutcode van de provider {{code}}",
+                RETRY_NOT_PREPARED:
+                    "Kan niet opnieuw worden geprobeerd: het bericht kon niet opnieuw worden voorbereid",
+                NOT_THE_VOTERS_CHANNEL: "Niet het kanaal van de kiezer",
+                REPORT_CREDENTIALS_MISSING:
+                    "Genereer de inloggegevens voor rapporten en maak het Infobip-abonnement aan",
+                CALLBACK_NOT_HTTPS: "Het callbackadres moet https zijn",
             },
         },
         messagingAccounts: {
@@ -5701,6 +5753,8 @@ const dutchTranslation: TranslationType = {
                 DUPLICATE_LANGUAGE: "Deze taal heeft al een sjabloon voor dit doel",
                 NOT_A_URL: "Voer een adres in dat begint met https://",
                 UNSUPPORTED_PROVIDER: "Niet-ondersteunde provider: vervang dit account",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Voer de inloggegevens opnieuw in voor het nieuwe adres",
             },
             warning: {
                 pageChange:
@@ -5734,6 +5788,7 @@ const dutchTranslation: TranslationType = {
                 set: "Ingesteld · vervangen {{date}}. Het wordt versleuteld opgeslagen en nooit getoond.",
                 replace: "Vervangen",
                 replaceNamed: "{{name}} vervangen",
+                reenter: "Het adres is gewijzigd: voer dit inloggegeven opnieuw in.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5792,6 +5847,7 @@ const dutchTranslation: TranslationType = {
                 needsWrite: "Zichtbaar voor beheerders die berichtaccounts kunnen beheren.",
                 loading: "Laden…",
                 unavailable: "Niet beschikbaar",
+                loadError: "De callback-URL kon niet worden geladen.",
             },
             copy: {
                 success: "Gekopieerd",
@@ -5800,6 +5856,7 @@ const dutchTranslation: TranslationType = {
             save: {
                 success: "Account opgeslagen",
                 error: "Het account kon niet worden opgeslagen.",
+                refused: "Het account is niet opgeslagen: {{reason}}",
             },
             test: {
                 title: "Een testbericht versturen vanaf {{name}}",
@@ -5839,6 +5896,10 @@ const dutchTranslation: TranslationType = {
                     url: "Stel de URL in op de callback-URL van dit account.",
                     auth: "Kies Basic-authenticatie en voer de gebruikersnaam en het wachtwoord voor rapporten in.",
                 },
+                confirmTitle: "Inloggegevens voor rapporten vervangen?",
+                confirmBody:
+                    "De huidige gebruikersnaam en het wachtwoord voor rapporten werken meteen niet meer. Tot het Infobip-abonnement de nieuwe heeft, worden Viber-afleverrapporten geweigerd en blijven berichten op Geaccepteerd staan.",
+                confirm: "Vervangen",
             },
         },
     },

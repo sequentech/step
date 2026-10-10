@@ -41,6 +41,9 @@ const meta = {
         data = resourceBoundary({[TENANT_RESOURCE]: [settingsTenant()]})
         graphql = graphqlBoundary({
             GetMessagingAccounts: accountsReply(args.reads, args.empty ? [] : messagingAccounts()),
+            GetMessagingCallbackStatus: () => ({
+                data: {messaging_callback_status: {accounts: []}},
+            }),
             CheckMessagingAccount: () => ({
                 data: {check_messaging_account: {status: {connected: true}}},
             }),
@@ -113,7 +116,7 @@ export const Accounts: Story = {
             "Council SMS",
             "Council email",
         ])
-        expect(graphql.calls[0]).toMatchObject({
+        expect(graphql.calls.find(({name}) => name === "GetMessagingAccounts")).toMatchObject({
             name: "GetMessagingAccounts",
             variables: {tenantId: TENANT_ID},
             headers: {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_READ},
@@ -138,13 +141,13 @@ export const CheckConnection: Story = {
             within(row).getByRole("button", {name: "Check the connection of Council SMS"})
         )
         await waitFor(() =>
-            expect(graphql.calls.map(({name}) => name)).toEqual([
-                "GetMessagingAccounts",
-                "CheckMessagingAccount",
-                "GetMessagingAccounts",
-            ])
+            expect(
+                graphql.calls
+                    .map(({name}) => name)
+                    .filter((name) => name !== "GetMessagingCallbackStatus")
+            ).toEqual(["GetMessagingAccounts", "CheckMessagingAccount", "GetMessagingAccounts"])
         )
-        expect(graphql.calls[1]).toMatchObject({
+        expect(graphql.calls.find(({name}) => name === "CheckMessagingAccount")).toMatchObject({
             variables: {id: SMS_ACCOUNT_ID},
             headers: {"x-hasura-role": IPermissions.MESSAGING_ACCOUNT_WRITE},
         })

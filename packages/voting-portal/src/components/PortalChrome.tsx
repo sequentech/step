@@ -8,6 +8,8 @@ import {styled} from "@mui/material/styles"
 import Stack from "@mui/material/Stack"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
+import Snackbar from "@mui/material/Snackbar"
+import Alert, {type AlertColor} from "@mui/material/Alert"
 import ContactPhoneOutlinedIcon from "@mui/icons-material/ContactPhoneOutlined"
 import {useTranslation} from "react-i18next"
 import {Footer, Header, PageBanner} from "@sequentech/ui-essentials"
@@ -20,7 +22,11 @@ import {
 } from "@sequentech/ui-core"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
-import {AuthContext, AuthContextValues} from "../providers/AuthContextProvider"
+import {
+    AuthContext,
+    AuthContextValues,
+    ContactChangeOutcome,
+} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {TenantEventType} from ".."
 import {useAppSelector} from "../store/hooks"
@@ -67,7 +73,7 @@ const ChangeContactButton: React.FC<{onClick: () => void}> = ({onClick}) => {
             className="change-contact-button"
             onClick={onClick}
             aria-label={t("contactChannel.change")}
-            startIcon={<ContactPhoneOutlinedIcon aria-hidden />}
+            startIcon={<ContactPhoneOutlinedIcon className="change-contact-icon" aria-hidden />}
             sx={{textTransform: "none", minWidth: 0}}
         >
             <Box
@@ -81,11 +87,56 @@ const ChangeContactButton: React.FC<{onClick: () => void}> = ({onClick}) => {
     )
 }
 
+const OUTCOME_NOTICES: Record<ContactChangeOutcome, {key: string; severity: AlertColor}> = {
+    [ContactChangeOutcome.Success]: {key: "contactChannel.updated", severity: "success"},
+    [ContactChangeOutcome.Cancelled]: {key: "contactChannel.cancelled", severity: "info"},
+    [ContactChangeOutcome.Error]: {key: "contactChannel.failed", severity: "error"},
+}
+
+/**
+ * How the contact change ended, when the voter comes back from Keycloak. It stays until the voter
+ * closes it, so it can be read at any pace.
+ */
+const ContactChangeNotice: React.FC = () => {
+    const {t} = useTranslation()
+    const {contactChangeOutcome, clearContactChangeOutcome} = useContext(AuthContext)
+    if (contactChangeOutcome === undefined) {
+        return null
+    }
+    const notice = OUTCOME_NOTICES[contactChangeOutcome]
+    return (
+        <Snackbar
+            open
+            className="contact-change-notice"
+            anchorOrigin={{vertical: "top", horizontal: "center"}}
+            onClose={(_event, reason) => {
+                // Only the voter's own close dismisses it, never a click elsewhere.
+                if (reason !== "clickaway") {
+                    clearContactChangeOutcome?.()
+                }
+            }}
+        >
+            <Alert
+                className="contact-change-alert"
+                severity={notice.severity}
+                onClose={() => clearContactChangeOutcome?.()}
+                closeText={t("contactChannel.close")}
+            >
+                {t(notice.key)}
+            </Alert>
+        </Snackbar>
+    )
+}
+
 const HeaderWithContext: React.FC = () => {
-    // A context without it (one that can't reach Keycloak, such as the embedded preview) offers
-    // no contact change.
+    // Offered only to a signed-in voter, when the event has a channel for codes. A context
+    // without these (one that can't reach Keycloak, such as the embedded preview) offers none.
     const authContext: AuthContextValues = useContext(AuthContext)
     const {changeContactChannel} = authContext
+    const showContactChange =
+        authContext.isAuthenticated &&
+        authContext.contactChangeAvailable === true &&
+        changeContactChannel !== undefined
     const {globalSettings} = useContext(SettingsContext)
     const {eventId} = useParams<TenantEventType>()
 
@@ -139,7 +190,7 @@ const HeaderWithContext: React.FC = () => {
             onChangeLanguage={onChangeLanguage}
             accessibilitySettingsPolicy={presentation?.voter_accessibility_settings_policy}
             actions={
-                authContext.isAuthenticated && changeContactChannel !== undefined ? (
+                showContactChange ? (
                     <ChangeContactButton onClick={() => void changeContactChannel()} />
                 ) : undefined
             }
@@ -196,6 +247,7 @@ export const PortalChrome: React.FC<PortalChromeProps> = ({
                 </a>
                 <Wrapper>
                     <HeaderWithContext />
+                    <ContactChangeNotice />
                     <PageBanner
                         marginBottom="auto"
                         sx={{

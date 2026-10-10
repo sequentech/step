@@ -62,7 +62,7 @@ SPDX-License-Identifier: AGPL-3.0-only
                     </div>
                 </#if>
                 <#if channel == 'MESSENGER' && messagingPage??>
-                    <p class="messaging-messenger-help">${msg("messageOtp.messenger.connectHelp", messagingPage)}</p>
+                    <p class="messaging-messenger-help"><strong>${msg("messageOtp.messenger.connect")}</strong> · ${msg("messageOtp.messenger.connectHelp", messagingPage)}</p>
                 </#if>
                 <div class="${properties.kcInputWrapperClass!} messaging-consent">
                         <input type="checkbox" id="message-consent-${channel}" name="sequent.message-consent"

@@ -3309,6 +3309,9 @@ const basqueTranslation: TranslationType = {
                     title: "Ez dago ezer hemen",
                     text: "Egoera hau duten izen-emateak hemen agertuko dira. Saiatu beste bilaketa edo egoera batekin.",
                 },
+                searchHelp:
+                    "Izen bat, helbide elektroniko bat edo identifikazio-zenbaki bat, edo hautesleari emandako laguntza-erreferentzia, adibidez Q5KW-8RFX.",
+                referenceError: "Ezin izan da laguntza-erreferentzia bilatu.",
             },
             flow: {
                 stepsLabel: "Berrikuspenaren urratsak",
@@ -5374,6 +5377,10 @@ const basqueTranslation: TranslationType = {
                     "Kontu honek ez du entrega-txostenik jasotzen; beraz, ezin da entrega erakutsi.",
                 showFailed:
                     "Erakutsi {{channel}} kanalean huts egin duten mezuak Egunkariak atalean",
+                noChannelHelp:
+                    "Harremanetarako kanalik erregistratuta ez duten hautesleak. Haien jakinarazpenek huts egiten dute eta ez dira inoiz kanal baten barruan zenbatzen.",
+                showFailedNoChannel:
+                    "Erakutsi harremanetarako kanalik gabeko hautesleen mezu hutsak Egunkariak atalean",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5397,6 +5404,9 @@ const basqueTranslation: TranslationType = {
             },
             noReadPermission: "Ezarpen hauek irakurtzeko messaging-config-read baimena behar da.",
             chooseAccount: "Aukeratu lehenik kontu bat.",
+            needsSavingAgain: "Konfigurazioa berriro gorde behar da.",
+            needsSavingAgainHelp:
+                "Aurreko biltegitik kopiatu zen, eta ez zituen gainditu gordetzean egiten diren egiaztapenak. Konpondu agertzen diren arazoak, eta gorde berriro.",
         },
         messaging: {
             channel: {
@@ -5445,6 +5455,8 @@ const basqueTranslation: TranslationType = {
                 NEEDS_PRODUCTION_ACCESS: "Ekoizpen-sarbidea behar du",
                 NEEDS_APPROVED_TEMPLATE: "Txantiloi onartua behar du",
                 UNSUPPORTED_PROVIDER: "Hornitzaile ez onartua: ordeztu kontu hau",
+                CALLBACK_NOT_CONFIGURED: "Itzulera-helbidea ez dago konfiguratuta",
+                REPORT_CREDENTIALS_MISSING: "Txostenen kredentzialak sortu gabe",
             },
             readiness: {
                 connected: "Konektatuta",
@@ -5533,6 +5545,11 @@ const basqueTranslation: TranslationType = {
                 providerLanguageHelp:
                     "Hornitzaileak txantiloi horretarako duen hizkuntza-kodea, adibidez en_US.",
                 voters: "Hautesleak",
+                environment: "Instalazioaren igorle lehenetsia",
+                noNoticeChannels:
+                    "Gertaera honen mezularitza-ezarpenek ez dute jakinarazpenik aktibatzen inolako kanaletan, beraz, hautesle batek ere ez luke jakinarazpen hau jasoko. Aktibatu kanal baten jakinarazpenak gertaeraren Mezularitza fitxan.",
+                noReadPermission:
+                    "Hautesle bakoitzaren kanala erakusteko messaging-config-read baimena behar da. Hautesle bakoitzak bere kanalean jasotzen du jakinarazpena hala ere.",
             },
             voter: {
                 title: "Mezularitza",
@@ -5545,6 +5562,9 @@ const basqueTranslation: TranslationType = {
                 noFailure: "Bat ere ez",
                 failureNeedsPermission: "messaging-config-read baimenarekin erakusten da.",
                 noChannel: "Ez dago kontakturik erregistratuta",
+                notConfirmed: "Entrega berretsi gabe",
+                notConfirmedHelp:
+                    "Entrega oraindik berretsi gabe duen azken mezua. 24 orduren buruan Ebatzi gabe gisa agertzen da, eta horrek ez du esan nahi huts egin duenik.",
             },
             logs: {
                 channel: "Kanala",
@@ -5565,6 +5585,33 @@ const basqueTranslation: TranslationType = {
                 CREDENTIALS_FOLLOW_ENDPOINT: "Idatzi berriro kredentzialak helbide berrirako",
                 NO_CONTACT_CHANNEL: "Ez dago harremanetarako kanalik",
                 NOT_RETRYABLE_NO_TEMPLATE: "Ezin da berriro saiatu: ez dago gordetako txantiloirik",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Kanala ez dago jakinarazpenetarako eskainita",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Kanala ez dago kodeetarako eskainita",
+                NO_CONTENT_FOR_CHANNEL: "Ez dago edukirik kanalerako",
+                NO_ACCOUNT_FOR_CHANNEL: "Ez dago bidalketa-konturik kanalerako",
+                INVALID_DESTINATION: "Helmuga baliogabea kanalerako",
+                NOT_RETRYABLE_PROTECTED_FIELDS: "Ezin da berriro saiatu: eremu babestuak ditu",
+                REPORTED_TOO_LATE: "Beranduegi jakinarazi da berriro saiatzeko",
+                CHANNEL_CHANGED: "Hauteslearen kanala aldatu da: ez da berriro saiatzen",
+                WORKER_STOPPED_BEFORE_SENDING: "Prozesua bidali aurretik gelditu da",
+                WORKER_STOPPED_AFTER_SENDING: "Prozesua emaitza erregistratu aurretik gelditu da",
+                CODE_EXPIRED_BEFORE_SENDING: "Kodea iraungi egin da bidali ahal izan aurretik",
+                UNRESOLVED: "Ezin izan da entrega berretsi",
+                SELECTED_WITHOUT_VOTERS: "Hautatu hautesle bat gutxienez",
+                WRONG_RECIPIENT_KIND: "Helmuga ez da kanal honek bidaltzen duen motakoa",
+                UNSUPPORTED_PURPOSE: "Hornitzaileak ez du mota honetako mezurik bidaltzen",
+                MISSING_APPROVED_TEMPLATE: "Ez dago mezu honetarako txantiloi onarturik",
+                OUTSIDE_CONVERSATION_WINDOW: "Elkarrizketa-leihotik kanpo",
+                DESTINATION_NOT_ALLOWED: "Kontu honek ez du helmugaren herrialdera bidaltzen",
+                CODE_EXPIRED: "Kodea iraungi egin da",
+                MISSING_CODE: "Ez dago bidaltzeko koderik",
+                ENDPOINT_NOT_HTTPS: "Hornitzailearen helbideak https:// hasiera izan behar du",
+                PROVIDER_CODE: "Hornitzailearen errore-kodea: {{code}}",
+                RETRY_NOT_PREPARED: "Ezin da berriro saiatu: ezin izan da mezua berriro prestatu",
+                NOT_THE_VOTERS_CHANNEL: "Ez da hauteslearen kanala",
+                REPORT_CREDENTIALS_MISSING:
+                    "Sortu txostenen kredentzialak eta sortu Infobip-eko harpidetza",
+                CALLBACK_NOT_HTTPS: "Itzulera-helbideak https izan behar du",
             },
         },
         messagingAccounts: {
@@ -5676,6 +5723,7 @@ const basqueTranslation: TranslationType = {
                     "Hizkuntza honek badu dagoeneko txantiloi bat helburu honetarako",
                 NOT_A_URL: "Idatzi https:// hasten den helbide bat",
                 UNSUPPORTED_PROVIDER: "Hornitzaile ez onartua: ordeztu kontu hau",
+                CREDENTIALS_FOLLOW_ENDPOINT: "Idatzi berriro kredentzialak helbide berrirako",
             },
             warning: {
                 pageChange:
@@ -5709,6 +5757,7 @@ const basqueTranslation: TranslationType = {
                 set: "Ezarrita · ordeztua {{date}}. Zifratuta gordetzen da eta ez da inoiz erakusten.",
                 replace: "Ordeztu",
                 replaceNamed: "Ordeztu {{name}}",
+                reenter: "Helbidea aldatu da: idatzi berriro kredentzial hau.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5766,6 +5815,7 @@ const basqueTranslation: TranslationType = {
                     "Mezularitza-kontuak kudea ditzaketen administratzaileei erakusten zaie.",
                 loading: "Kargatzen…",
                 unavailable: "Ez dago erabilgarri",
+                loadError: "Ezin izan da itzulera-URLa kargatu.",
             },
             copy: {
                 success: "Kopiatuta",
@@ -5774,6 +5824,7 @@ const basqueTranslation: TranslationType = {
             save: {
                 success: "Kontua gorde da",
                 error: "Ezin izan da kontua gorde.",
+                refused: "Ez da kontua gorde: {{reason}}",
             },
             test: {
                 title: "Bidali proba-mezu bat {{name}} kontutik",
@@ -5814,6 +5865,10 @@ const basqueTranslation: TranslationType = {
                     url: "Ezarri haren URLa kontu honen itzulera-URLa gisa.",
                     auth: "Aukeratu Basic autentifikazioa eta idatzi txostenen erabiltzaile-izena eta pasahitza.",
                 },
+                confirmTitle: "Txostenen kredentzialak ordeztu?",
+                confirmBody:
+                    "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, Viber-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
+                confirm: "Ordeztu",
             },
         },
     },

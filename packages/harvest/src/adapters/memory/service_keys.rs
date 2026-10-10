@@ -22,6 +22,11 @@ impl StaticServiceKeys {
         self.sets.lock().unwrap().insert(realm.to_string(), keys);
     }
 
+    /// The realm's keys can no longer be fetched, as when Keycloak is down.
+    pub fn withdraw(&self, realm: &str) {
+        self.sets.lock().unwrap().remove(realm);
+    }
+
     pub fn fetch_count(&self) -> usize {
         self.fetches.lock().unwrap().len()
     }

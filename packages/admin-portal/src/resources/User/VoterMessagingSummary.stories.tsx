@@ -17,6 +17,8 @@ interface Scenario {
     email?: string
     roles: string[]
     failure: ILedgerMessage | null
+    /** Later attempts of the same messages. */
+    attempts?: ILedgerMessage[]
 }
 
 const CONSENT = JSON.stringify({
@@ -31,7 +33,8 @@ const FAILED: ILedgerMessage = {
     channel: EMessageChannel.WHATSAPP,
     state: EMessageAttemptState.FAILED,
     attempt: 3,
-    error: "No contact channel",
+    logical_key: "bulk:reminder-1:voter-1",
+    error: "Channel not offered for notices",
     created_at: FIXED_TIME,
     updated_at: FIXED_TIME,
     failed_at: FIXED_TIME,
@@ -57,8 +60,16 @@ const meta = {
         // The messaging operations are not in the generated schema yet.
         graphql = graphqlBoundary(
             {
-                GetVoterLastFailure: () => ({
+                GetVoterUnsettledMessages: () => ({
                     data: {sequent_backend_message: args.failure ? [args.failure] : []},
+                }),
+                GetVoterMessageAttempts: () => ({
+                    data: {
+                        sequent_backend_message: [
+                            ...(args.failure ? [args.failure] : []),
+                            ...(args.attempts ?? []),
+                        ],
+                    },
                 }),
                 GetMessagingAccountSummaries: () => ({
                     data: {sequent_backend_messaging_account: [messengerAccount()]},
@@ -90,11 +101,13 @@ export const WhatsAppWithALastFailure: Story = {
         // Masked: the country code and the last 3 digits only.
         await expect(canvas.getByText("+34 ••• ••• 214")).toBeVisible()
         expect(canvas.queryByText(/600111214/)).toBeNull()
-        await expect(await canvas.findByText(/^Failed · .* · No contact channel$/)).toBeVisible()
+        await expect(
+            await canvas.findByText(/^Failed · .* · Channel not offered for notices$/)
+        ).toBeVisible()
         expect(canvas.queryByText(/Preferred channel|Verified channels/)).toBeNull()
         expect(canvasElement.textContent).not.toMatch(/COMELEC/i)
         expect(graphql.calls[0]).toMatchObject({
-            name: "GetVoterLastFailure",
+            name: "GetVoterUnsettledMessages",
             variables: {voterId: STORY_IDS.user, electionEventId: EVENT_ID},
             headers: {"x-hasura-role": IPermissions.MESSAGING_CONFIG_READ},
         })
@@ -113,7 +126,7 @@ export const ConnectedToMessenger: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council Elections")).toBeVisible()
-        await expect(await canvas.findByText("None")).toBeVisible()
+        await expect((await canvas.findAllByText("None"))[0]).toBeVisible()
         await expect(canvas.getByText("Not set")).toBeVisible()
     },
 }
@@ -159,5 +172,43 @@ export const NoContact: Story = {
     args: {attributes: {}, email: "", failure: null},
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByText("No contact on record")).toBeVisible()
+    },
+}
+
+export const RetriedThenDelivered: Story = {
+    args: {
+        attempts: [
+            {
+                ...FAILED,
+                id: "0f6f2a8e-3c1b-4d7e-9b2a-5e4d3c2b1a01",
+                attempt: 4,
+                state: EMessageAttemptState.DELIVERED,
+                error: null,
+            },
+        ],
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        // A later attempt of the same message delivered it: no failure is left.
+        await expect((await canvas.findAllByText("None")).length).toBe(2)
+        expect(canvas.queryByText(/^Failed/)).toBeNull()
+    },
+}
+
+export const CodeNotConfirmed: Story = {
+    args: {
+        failure: {
+            ...FAILED,
+            state: EMessageAttemptState.UNKNOWN,
+            attempt: 1,
+            logical_key: "otp:session-1",
+            error: null,
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        // Unknown is never a failure: it shows under Delivery not confirmed.
+        await expect(await canvas.findByText(/^Unknown · /)).toBeVisible()
+        await expect(canvas.getByText("None")).toBeVisible()
     },
 }

@@ -5,7 +5,6 @@
 package sequent.keycloak.authenticator.forgot_password;
 
 import com.google.auto.service.AutoService;
-import jakarta.ws.rs.core.Response;
 import java.security.SecureRandom;
 import java.util.*;
 import lombok.extern.jbosslog.JBossLog;
@@ -22,7 +21,6 @@ import org.keycloak.models.*;
 import org.keycloak.models.utils.FormMessage;
 import org.keycloak.policy.PasswordPolicyManagerProvider;
 import org.keycloak.provider.ProviderConfigProperty;
-import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
 
 @JBossLog
@@ -40,7 +38,6 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
     AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
     String attemptedUsername =
         authenticationSession.getAuthNote(AbstractUsernameFormAuthenticator.ATTEMPTED_USERNAME);
-    String attemptedEmail = authenticationSession.getAuthNote(Utils.ATTEMPTED_EMAIL);
 
     // we don't want people guessing usernames, so if there was a problem
     // obtaining the user, the user will be null. just reset login for with
@@ -61,19 +58,32 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
     }
 
     EventBuilder event = context.getEvent();
-    String userEmail = user.getEmail();
 
-    // we don't want people guessing usernames, so if there is a problem, just continuously
-    // challenge
-    if (userEmail == null || userEmail.trim().length() == 0) {
-      event.user(user).detail(Details.USERNAME, attemptedUsername).error(Errors.INVALID_EMAIL);
-
+    // The password changes only once it was handed over (ACCEPTED, QUEUED, UNKNOWN): a refused or
+    // failed send leaves the voter's password as it was. The page is the same either way.
+    String temporaryPassword = createTemporaryPassword(context);
+    Optional<String> notSent;
+    try {
+      notSent = Utils.sendNewPasswordNotification(context.getSession(), user, temporaryPassword);
+    } catch (EmailException | java.io.IOException error) {
+      log.warn("The temporary password could not be sent; not sent elsewhere");
+      notSent = Optional.of("send error: " + error.getClass().getSimpleName());
+    }
+    if (notSent.isPresent()) {
+      log.warnv(
+          "The temporary password was not sent ({0}); the password is unchanged", notSent.get());
+      event
+          .clone()
+          .event(EventType.SEND_RESET_PASSWORD)
+          .user(user)
+          .detail(Details.USERNAME, attemptedUsername)
+          .detail("reason", notSent.get())
+          .error(Errors.EMAIL_SEND_FAILED);
       context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
       return;
     }
 
     // Set password
-    String temporaryPassword = createTemporaryPassword(context);
     event.event(EventType.UPDATE_PASSWORD);
     user.credentialManager().updateCredential(UserCredentialModel.password(temporaryPassword));
     int expirationSeconds = Utils.getPasswordExpirationSeconds(config);
@@ -83,33 +93,14 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
     int absoluteExpirationInSecs = Time.currentTime() + expirationSeconds;
     user.setSingleAttribute(expirationUserAttribute, String.valueOf(absoluteExpirationInSecs));
 
-    // Send email with password
-    try {
-      Utils.sendNewPasswordNotification(context.getSession(), user, temporaryPassword);
-      event
-          .clone()
-          .event(EventType.SEND_RESET_PASSWORD)
-          .user(user)
-          .detail(Details.USERNAME, attemptedUsername)
-          .detail(Details.EMAIL, attemptedEmail)
-          .detail(Details.CODE_ID, authenticationSession.getParentSession().getId())
-          .success();
-      context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
-    } catch (EmailException | java.io.IOException error) {
-      event
-          .clone()
-          .event(EventType.SEND_RESET_PASSWORD)
-          .detail(Details.USERNAME, attemptedUsername)
-          .user(user)
-          .error(Errors.EMAIL_SEND_FAILED);
-      log.warn("The temporary password could not be sent; not sent elsewhere");
-      Response challenge =
-          context
-              .form()
-              .setError(Messages.EMAIL_SENT_ERROR)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR);
-      context.failure(AuthenticationFlowError.INTERNAL_ERROR, challenge);
-    }
+    event
+        .clone()
+        .event(EventType.SEND_RESET_PASSWORD)
+        .user(user)
+        .detail(Details.USERNAME, attemptedUsername)
+        .detail(Details.CODE_ID, authenticationSession.getParentSession().getId())
+        .success();
+    context.forkWithSuccessMessage(new FormMessage(NEUTRAL_SENT_MESSAGE_KEY));
   }
 
   private String createTemporaryPassword(AuthenticationFlowContext context) {
@@ -191,7 +182,8 @@ public class SendNewPassword implements Authenticator, AuthenticatorFactory {
 
   @Override
   public String getHelpText() {
-    return "Send email to user with new temporal password.";
+    return "Send a temporary password on the user's one contact channel. The password changes"
+        + " only once the message was handed over.";
   }
 
   @Override

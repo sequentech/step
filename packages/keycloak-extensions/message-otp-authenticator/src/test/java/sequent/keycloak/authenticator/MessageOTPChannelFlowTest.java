@@ -163,6 +163,8 @@ class MessageOTPChannelFlowTest {
     configMap.putAll(MessageOTPAuthenticatorFactory.getConfigMap(null));
     configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, Utils.MessageCourier.CHOSEN.name());
     configMap.put(Utils.TEL_USER_ATTRIBUTE, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    // A sign-in step after the password: the realm names the channel there.
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, Utils.CodePageDisclosure.NAMED.name());
     AuthenticatorConfigModel config = new AuthenticatorConfigModel();
     config.setConfig(configMap);
     when(context.getAuthenticatorConfig()).thenReturn(config);
@@ -255,6 +257,8 @@ class MessageOTPChannelFlowTest {
     verify(form, never()).setAttribute(eq("otherWayChannels"), any());
     verify(form, never()).setAttribute(eq("channelAddresses"), any());
     verify(event, never()).detail(eq("msgBody"), contains(code));
+    // R2-07: harvest writes the one electoral-log entry of a send it makes; Keycloak none.
+    verify(event, never()).detail(eq("msgBody"), anyString());
   }
 
   @Test
@@ -628,5 +632,220 @@ class MessageOTPChannelFlowTest {
     parameters.putSingle("resend", "true");
     authenticator.action(context);
     verify(sender, times(2)).send(any());
+  }
+
+  /**
+   * R3-03: attempts are counted per challenge (per code step). A second message OTP step of the
+   * same flow starts with its own count; a resend in either never resets it.
+   */
+  @Test
+  void attemptsAreCountedPerCodeStep() throws Exception {
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    execution.setId("email-step");
+    authenticator.authenticate(context);
+    for (int attempt = 0; attempt < 4; attempt++) {
+      parameters.putSingle(Utils.CODE, "wrong");
+      authenticator.action(context);
+    }
+    parameters.putSingle(Utils.CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+    verify(context).success();
+
+    // The next code step of the flow.
+    execution.setId("sms-step");
+    authenticator.authenticate(context);
+    for (int attempt = 0; attempt < 4; attempt++) {
+      parameters.putSingle(Utils.CODE, "wrong");
+      authenticator.action(context);
+    }
+    verify(form, never()).setAttribute("attemptsExhausted", true);
+    parameters.putSingle(Utils.CODE, notes.get(Utils.CODE));
+    authenticator.action(context);
+    verify(context, times(2)).success();
+  }
+
+  /**
+   * R3-04: with the NEUTRAL disclosure policy (the reset flow), the code page tells nothing about
+   * the account: no channel, no masked destination, no sender, no Messenger link.
+   */
+  @Test
+  void aNeutralCodePageNamesNoChannelAndNoDestination() throws Exception {
+    configMap.put("code-page-disclosure", "NEUTRAL");
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    authenticator.authenticate(context);
+
+    verify(sender).send(any());
+    verify(form).setAttribute("codeDisclosure", "NEUTRAL");
+    verify(form, never()).setAttribute(eq("channel"), any());
+    verify(form, never()).setAttribute(eq("address"), any());
+    verify(form, never()).setAttribute(eq("senderLabel"), any());
+    verify(form, never()).setAttribute(eq("deliveryState"), any());
+    verify(form, never()).setAttribute(eq("messengerState"), any());
+    // The event offers Messenger for codes: the box is there, with a link that binds to nothing.
+    verify(form).setAttribute("messengerConnect", true);
+    verify(form)
+        .setAttribute(
+            eq("messengerLink"),
+            argThat((String link) -> link.matches("https://m\\.me/page-1\\?ref=[0-9a-f]{64}")));
+    verify(sender, never()).createMessengerLink(any());
+  }
+
+  private java.util.Set<String> pageAttributes() {
+    ArgumentCaptor<String> names = ArgumentCaptor.forClass(String.class);
+    verify(form, atLeastOnce()).setAttribute(names.capture(), any());
+    return new java.util.TreeSet<>(names.getAllValues());
+  }
+
+  /** Lead decision: a neutral page is the same for an account, any channel, and no account. */
+  @Test
+  void aNeutralPageIsTheSameWithAndWithoutAnAccount() throws Exception {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    authenticator.authenticate(context);
+    java.util.Set<String> withAccount = pageAttributes();
+
+    clearInvocations(form);
+    notes.clear();
+    when(context.getUser()).thenReturn(null);
+    authenticator.authenticate(context);
+    assertEquals(withAccount, pageAttributes());
+    assertTrue(withAccount.contains("messengerLink"));
+  }
+
+  /** A Messenger voter's neutral page carries the live link, so they can reset their password. */
+  @Test
+  void aMessengerVotersNeutralPageCarriesTheLiveLink() throws Exception {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    recordedMessenger("psid-7", "page-1");
+    when(sender.createMessengerLink(any()))
+        .thenReturn(
+            new CreateMessengerLinkResponse(
+                "ref-1", "https://m.me/synthetic?ref=ref-1", null, "2026-10-02T10:05:00Z"));
+    authenticator.authenticate(context);
+    verify(form).setAttribute("messengerLink", "https://m.me/synthetic?ref=ref-1");
+    verify(form).setAttribute("messengerConnect", true);
+    verify(form, never()).setAttribute(eq("channel"), any());
+    verify(form, never()).setAttribute(eq("messengerState"), any());
+    // Only the voter's own account may get the code.
+    ArgumentCaptor<CreateMessengerLinkRequest> request =
+        ArgumentCaptor.forClass(CreateMessengerLinkRequest.class);
+    verify(sender).createMessengerLink(request.capture());
+    assertEquals("psid-7", request.getValue().expectedRecipient());
+  }
+
+  @Test
+  void anEnrollingVotersLinkHasNoExpectedRecipient() throws Exception {
+    enrolling(MessageChannel.MESSENGER);
+    when(sender.createMessengerLink(any()))
+        .thenReturn(
+            new CreateMessengerLinkResponse(
+                "ref-1", "https://m.me/synthetic?ref=ref-1", null, "2026-10-02T10:05:00Z"));
+    authenticator.authenticate(context);
+    ArgumentCaptor<CreateMessengerLinkRequest> request =
+        ArgumentCaptor.forClass(CreateMessengerLinkRequest.class);
+    verify(sender).createMessengerLink(request.capture());
+    assertNull(request.getValue().expectedRecipient());
+  }
+
+  /** The default policy reveals nothing; enrollment always names the channel just entered. */
+  @Test
+  void theDefaultPolicyIsNeutralAndEnrollmentAlwaysNamesTheChannel() throws Exception {
+    assertEquals(Utils.CodePageDisclosure.NEUTRAL, Utils.CodePageDisclosure.fromConfig(Map.of()));
+    assertEquals(
+        Utils.CodePageDisclosure.NAMED,
+        Utils.CodePageDisclosure.of(Map.of(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL"), true));
+    configMap.remove(Utils.CODE_PAGE_DISCLOSURE);
+    enrolling(MessageChannel.WHATSAPP);
+    authenticator.authenticate(context);
+    verify(form).setAttribute("channel", "WHATSAPP");
+  }
+
+  /** An optional step evaluated before the user is known still lets Keycloak move on. */
+  @Test
+  void anOptionalNeutralStepWithoutAUserIsSkipped() throws Exception {
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, "NEUTRAL");
+    execution.setRequirement(AuthenticationExecutionModel.Requirement.ALTERNATIVE);
+    when(context.getUser()).thenReturn(null);
+    authenticator.authenticate(context);
+    verify(context).attempted();
+    verify(context, never()).challenge(any());
+  }
+
+  /** R3-04: an unknown account gets the same neutral page, and nothing is sent. */
+  @Test
+  void anUnknownAccountGetsTheSameNeutralPageAndNothingIsSent() throws Exception {
+    when(form.getMessage("messageOtp.auth.codeInvalid")).thenReturn("messageOtp.auth.codeInvalid");
+    configMap.put("code-page-disclosure", "NEUTRAL");
+    when(context.getUser()).thenReturn(null);
+    authenticator.authenticate(context);
+
+    verify(context, never()).attempted();
+    verify(context).challenge(response);
+    verify(form).setAttribute("codeDisclosure", "NEUTRAL");
+    verify(form).createForm("message-otp.login.ftl");
+    verify(sender, never()).send(any());
+    verifyNoInteractions(sms);
+
+    parameters.putSingle(Utils.CODE, "123456");
+    authenticator.action(context);
+    verify(context, never()).success();
+    verify(event).error(MessageOTPAuthenticator.INVALID_CODE);
+    verify(form, atLeastOnce()).setError(contains("messageOtp.auth.codeInvalid"));
+  }
+
+  /** R3-04: a known account's wrong code reads exactly like an unknown account's. */
+  @Test
+  void aKnownAccountsWrongCodeReadsLikeAnUnknownOnesOnANeutralPage() throws Exception {
+    when(form.getMessage("messageOtp.auth.codeInvalid")).thenReturn("messageOtp.auth.codeInvalid");
+    configMap.put("code-page-disclosure", "NEUTRAL");
+    recorded(MessageChannel.WHATSAPP, WHATSAPP);
+    authenticator.authenticate(context);
+    parameters.putSingle(Utils.CODE, "wrong");
+    authenticator.action(context);
+    verify(form, atLeastOnce()).setError(contains("messageOtp.auth.codeInvalid"));
+    verify(form, never()).setAttribute(eq("channel"), any());
+  }
+
+  /** R3-12: a test-mode code proves nothing about the destination: nothing is recorded. */
+  @Test
+  void aTestModeCodeDoesNotVerifyTheDestination() throws Exception {
+    configMap.put(Utils.TEST_MODE_ATTRIBUTE, "true");
+    configMap.put(Utils.TEST_MODE_CODE_ATTRIBUTE, "000000");
+    enrolling(MessageChannel.WHATSAPP);
+    authenticator.authenticate(context);
+
+    parameters.putSingle(Utils.CODE, "000000");
+    authenticator.action(context);
+    verify(context).success();
+    assertNull(notes.get(MessagingAttributes.NOTE_VERIFIED_CHANNEL));
+    assertNull(notes.get(MessagingAttributes.NOTE_VERIFIED_DESTINATION));
+  }
+
+  /** R3-17: only an https link becomes the page's Messenger link. */
+  @Test
+  void aMessengerLinkThatIsNotHttpsIsNotShown() throws Exception {
+    enrolling(MessageChannel.MESSENGER);
+    when(sender.createMessengerLink(any()))
+        .thenReturn(
+            new CreateMessengerLinkResponse(
+                "ref-1", "javascript:alert(1)", null, "2026-10-02T10:05:00Z"));
+    authenticator.authenticate(context);
+    verify(form, never()).setAttribute(eq("messengerLink"), any());
+    verify(form, never()).setAttribute(eq("messengerQr"), any());
+  }
+
+  /** R3-19: a realm whose courier is EMAIL or SMS records no messaging channel. */
+  @Test
+  void aConfiguredCourierRecordsNoChannel() throws Exception {
+    configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, "EMAIL");
+    configMap.put(Utils.DEFERRED_USER_ATTRIBUTE, "true");
+    when(context.getUser()).thenReturn(null);
+    notes.put("email", EMAIL);
+    notes.put(Utils.CODE, "482619");
+    codeIssuedSecondsAgo(1);
+    parameters.putSingle(Utils.CODE, "482619");
+    authenticator.action(context);
+    verify(context).success();
+    assertNull(notes.get(MessagingAttributes.NOTE_VERIFIED_CHANNEL));
   }
 }

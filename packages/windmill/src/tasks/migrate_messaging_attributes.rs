@@ -12,10 +12,19 @@
 //!   and it and the old `messaging-app-otp-ra` require a sign-in in the last
 //!   300 s (`max_auth_age`); the old one stays, since voters may have it
 //!   pending;
-//! - the reset code (`reset.send.otp.tlf`) goes to the voter's one channel;
+//! - the reset code (`reset.send.otp.tlf`) goes to the voter's one channel,
+//!   and its page reveals nothing about the account (`code-page-disclosure`
+//!   `NEUTRAL`, unless the realm chose its own); every other message OTP
+//!   step states its code page policy too: `NEUTRAL` in the reset-credentials
+//!   flow, `NAMED` at sign-in (the default became `NEUTRAL`), enrollment steps
+//!   left alone;
 //! - every voter with a first-release record (`verified-channels`) is
 //!   rewritten to the ticket's attributes, and the first-release attributes
 //!   are removed.
+//!
+//! Nothing is changed while Keycloak lacks `message-channel-ra` (an image
+//! older than this release): the task waits for it, re-running with a wait
+//! of up to 30 minutes.
 //!
 //! Already migrated realms and voters are unchanged, so every run is safe.
 //! Every change and every voter's outcome is logged, never a number, email
@@ -26,10 +35,11 @@ use crate::postgres::tenant::get_tenant_ids;
 use crate::services::database::get_hasura_pool;
 use crate::tasks::migrate_realm_permissions::retry_countdown;
 use anyhow::{anyhow, Context, Result};
+use celery::error::TaskError;
 use celery::task::{Task, TaskResult};
 use deadpool_postgres::Client as DbClient;
 use keycloak::types::{AuthenticatorConfigRepresentation, RequiredActionProviderRepresentation};
-use keycloak::KeycloakTokenSupplier;
+use keycloak::{KeycloakError, KeycloakTokenSupplier};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::{
     MESSAGE_CHANNEL_ATTR_NAME, MESSAGE_CONSENT_ATTR_NAME, MESSAGE_NUMBER_ATTR_NAME,
@@ -39,7 +49,7 @@ use sequent_core::types::keycloak::{
 use sequent_core::types::messaging::MessageChannel;
 use sequent_core::types::voter_channel::{voter_channel, VoterChannelSource, CHANNEL_ORDER};
 use serde_json::{json, Value};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::str::FromStr;
 use tracing::{error, info, instrument, warn};
 
@@ -56,6 +66,12 @@ pub const RESET_CODE_CONFIG_ALIAS: &str = "reset.send.otp.tlf";
 const COURIER_KEY: &str = "messageCourierAttribute";
 const CHOSEN_COURIER: &str = "CHOSEN";
 const DEFERRED_KEY: &str = "deferredUserAttribute";
+/// What the reset code page says about the account (the message-otp
+/// authenticator's config): `NAMED` names the voter's channel and masked
+/// destination, `NEUTRAL` says only "if an account exists, we sent a code
+/// to its contact". The reset code page is neutral (review R3-04).
+pub const CODE_PAGE_DISCLOSURE_KEY: &str = "code-page-disclosure";
+pub const NEUTRAL_DISCLOSURE: &str = "NEUTRAL";
 const CONTACT_CHANNEL_LABEL: &str = "Contact channel";
 /// The first release's label, replaced; any other label is the realm's own.
 const NOTIFICATION_CHANNEL_LABEL: &str = "Notification channel";
@@ -111,12 +127,14 @@ pub fn plan_user(
     email: Option<&str>,
     attributes: Option<&HashMap<String, Vec<String>>>,
 ) -> UserPlan {
-    let first_release =
-        attributes.is_some_and(|attributes| attributes.contains_key(VERIFIED_CHANNELS_ATTR_NAME));
+    // As in [`voter_channel`], an empty list is no first-release record.
+    let first_release = attributes
+        .and_then(|attributes| attributes.get(VERIFIED_CHANNELS_ATTR_NAME))
+        .is_some_and(|values| !values.is_empty());
     let read = match voter_channel(email, attributes) {
         Some(read) if read.source == VoterChannelSource::VERIFIED_CHANNELS => read,
-        // A first-release record read as legacy has no destination for any
-        // channel the voter verified.
+        // A first-release record the reader gives no channel for has no
+        // destination for any channel the voter verified.
         _ if first_release => {
             return UserPlan {
                 case: UserCase::NoDestination,
@@ -268,8 +286,9 @@ pub fn max_auth_age_patch(
     Some(config)
 }
 
-/// The reset code config sending to the voter's one channel, or `None` when
-/// it isn't the reset code config or already does.
+/// The reset code config sending to the voter's one channel with a neutral
+/// code page, or `None` when it isn't the reset code config or already
+/// does. A realm's own `code-page-disclosure` is kept.
 pub fn reset_config_patch(
     config: &AuthenticatorConfigRepresentation,
 ) -> Option<AuthenticatorConfigRepresentation> {
@@ -285,7 +304,193 @@ pub fn reset_config_patch(
             changed = true;
         }
     }
+    if values
+        .get(CODE_PAGE_DISCLOSURE_KEY)
+        .is_none_or(|value| value.trim().is_empty())
+    {
+        values.insert(
+            CODE_PAGE_DISCLOSURE_KEY.to_string(),
+            NEUTRAL_DISCLOSURE.to_string(),
+        );
+        changed = true;
+    }
     changed.then_some(patched)
+}
+
+pub const NAMED_DISCLOSURE: &str = "NAMED";
+
+/// The authenticator whose code page the policy applies to.
+pub const MESSAGE_OTP_PROVIDER: &str = "message-otp-authenticator";
+
+/// Where a message OTP step is used, which decides its code page policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CodeStepRole {
+    /// In the realm's reset-credentials flow: anyone can start it with an
+    /// identifier, so the page reveals nothing (`NEUTRAL`).
+    Reset,
+    /// Anywhere else: a sign-in step after the password, where the page keeps
+    /// naming the voter's channel (`NAMED`), as it did before the default
+    /// became `NEUTRAL`. Enrollment steps (`deferredUserAttribute`) always
+    /// name the channel the voter entered and are left alone.
+    SignIn,
+}
+
+/// The config of a message OTP step with its code page policy stated, or
+/// `None` when it already states one (a realm's own choice is kept) or needs
+/// none. The reset code config gets [`reset_config_patch`] wherever it is
+/// used.
+pub fn code_page_patch(
+    config: &AuthenticatorConfigRepresentation,
+    role: CodeStepRole,
+) -> Option<AuthenticatorConfigRepresentation> {
+    if config.alias.as_deref() == Some(RESET_CODE_CONFIG_ALIAS) {
+        return reset_config_patch(config);
+    }
+    let values = config.config.clone().unwrap_or_default();
+    if values
+        .get(CODE_PAGE_DISCLOSURE_KEY)
+        .is_some_and(|value| !value.trim().is_empty())
+    {
+        return None;
+    }
+    let policy = match role {
+        CodeStepRole::Reset => NEUTRAL_DISCLOSURE,
+        CodeStepRole::SignIn if values.get(DEFERRED_KEY).map(String::as_str) == Some("true") => {
+            return None
+        }
+        CodeStepRole::SignIn => NAMED_DISCLOSURE,
+    };
+    let mut patched = config.clone();
+    patched
+        .config
+        .get_or_insert_with(HashMap::new)
+        .insert(CODE_PAGE_DISCLOSURE_KEY.to_string(), policy.to_string());
+    Some(patched)
+}
+
+/// The keys `patched` sets differently from `current`, as `key value`.
+fn config_changes(
+    current: &AuthenticatorConfigRepresentation,
+    patched: &AuthenticatorConfigRepresentation,
+) -> Vec<String> {
+    let empty = HashMap::new();
+    let before = current.config.as_ref().unwrap_or(&empty);
+    let mut changes: Vec<String> = patched
+        .config
+        .as_ref()
+        .unwrap_or(&empty)
+        .iter()
+        .filter(|(key, value)| before.get(*key) != Some(*value))
+        .map(|(key, value)| format!("{key} {value}"))
+        .collect();
+    changes.sort();
+    changes
+}
+
+/// Whether Keycloak has the contact change required action: the realm
+/// already registered it, or Keycloak offers it for registration. Without
+/// it (a Keycloak image older than this release) nothing is migrated: the
+/// old jar would read rewritten voters as legacy ones.
+pub fn channel_action_available(
+    registered: &[RequiredActionProviderRepresentation],
+    unregistered: &[RequiredActionProviderRepresentation],
+) -> bool {
+    registered
+        .iter()
+        .any(|action| action.alias.as_deref() == Some(MESSAGE_CHANNEL_RA))
+        || unregistered
+            .iter()
+            .any(|action| action.provider_id.as_deref() == Some(MESSAGE_CHANNEL_RA))
+}
+
+/// Why a run failed, which decides when it runs again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MigrationFailure {
+    /// Keycloak lacks `message-channel-ra` ([`KeycloakLacksChannelAction`]):
+    /// waited for, without a limit, until the new Keycloak image is out.
+    KeycloakLacksChannelAction,
+    /// Anything else: retried [`OTHER_FAILURE_RETRIES`] times.
+    Other,
+}
+
+/// When the task runs again after a failed run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NextAttempt {
+    /// In this many seconds.
+    RetryIn(u32),
+    /// Not until beat restarts.
+    GiveUp,
+}
+
+/// The longest wait between two runs.
+pub const MAX_RETRY_COUNTDOWN_SECONDS: u32 = 30 * 60;
+/// Retries for a failure other than a Keycloak without the action.
+pub const OTHER_FAILURE_RETRIES: u32 = 5;
+
+/// The next run after a failed one, `retries` being the retries so far.
+/// The wait doubles from 30 s up to [`MAX_RETRY_COUNTDOWN_SECONDS`].
+pub fn next_attempt(failure: MigrationFailure, retries: u32) -> NextAttempt {
+    let countdown = retry_countdown(retries).min(MAX_RETRY_COUNTDOWN_SECONDS);
+    match failure {
+        MigrationFailure::KeycloakLacksChannelAction => NextAttempt::RetryIn(countdown),
+        MigrationFailure::Other if retries < OTHER_FAILURE_RETRIES => {
+            NextAttempt::RetryIn(countdown)
+        }
+        MigrationFailure::Other => NextAttempt::GiveUp,
+    }
+}
+
+/// Keycloak lacks `message-channel-ra`: the migration waits for the new
+/// Keycloak image (deploy Keycloak before windmill).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("Keycloak lacks {MESSAGE_CHANNEL_RA}; waiting for the new Keycloak image")]
+pub struct KeycloakLacksChannelAction;
+
+/// Keycloak's `errorMessage` when it is a plain message key or sentence
+/// (letters, spaces, `-`, `_`, `.`), never a value it echoes back.
+fn error_message_key(body: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(body).ok()?;
+    let message = value.get("errorMessage")?.as_str()?.trim();
+    let plain = !message.is_empty()
+        && message.len() <= 100
+        && message
+            .chars()
+            .all(|c| c.is_ascii_alphabetic() || matches!(c, ' ' | '-' | '_' | '.'));
+    plain.then(|| message.to_string())
+}
+
+/// A log line for a Keycloak HTTP error: the status and Keycloak's
+/// `errorMessage` key, never the body, which may echo voter data.
+pub fn http_error_summary(status: u16, body: &str) -> String {
+    match error_message_key(body) {
+        Some(key) => format!("HTTP {status} ({key})"),
+        None => format!("HTTP {status}"),
+    }
+}
+
+/// A log line for a keycloak crate error, without its body.
+pub fn keycloak_error_summary(err: &KeycloakError) -> String {
+    match err {
+        KeycloakError::HttpFailure { status, text, .. } => http_error_summary(*status, text),
+        KeycloakError::ReqwestFailure(err) => request_error_summary(err),
+    }
+}
+
+/// A log line for a request that got no usable answer.
+fn request_error_summary(err: &reqwest::Error) -> String {
+    if let Some(status) = err.status() {
+        return format!("HTTP {}", status.as_u16());
+    }
+    let kind = if err.is_timeout() {
+        "timed out"
+    } else if err.is_connect() {
+        "connection failed"
+    } else if err.is_decode() {
+        "unreadable answer"
+    } else {
+        "request failed"
+    };
+    kind.to_string()
 }
 
 /// Voters per outcome in one realm.
@@ -314,37 +519,97 @@ fn admin_url(pub_admin: &PubKeycloakAdmin, realm: &str, path: &str) -> String {
     format!("{}/admin/realms/{realm}/{path}", pub_admin.url)
 }
 
+/// A log-safe error for a failed keycloak crate call (see
+/// [`keycloak_error_summary`]).
+fn keycloak_failure(what: String, err: &KeycloakError) -> anyhow::Error {
+    anyhow!("{what}: {}", keycloak_error_summary(err))
+}
+
+async fn admin_token(pub_admin: &PubKeycloakAdmin) -> Result<String> {
+    pub_admin
+        .token_supplier
+        .get(&pub_admin.url)
+        .await
+        .map_err(|err| keycloak_failure("Error getting the Keycloak admin token".into(), &err))
+}
+
+/// The error for a non-success answer: the status and Keycloak's
+/// `errorMessage` key only, never the body.
+async fn answer_error(method: &str, url: &str, response: reqwest::Response) -> anyhow::Error {
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_default();
+    anyhow!(
+        "Keycloak answered {} to {method} {url}",
+        http_error_summary(status, &body)
+    )
+}
+
 /// GETs a JSON document; `None` when Keycloak answers 404.
 async fn get_json(pub_admin: &PubKeycloakAdmin, url: &str) -> Result<Option<Value>> {
-    let token = pub_admin.token_supplier.get(&pub_admin.url).await?;
-    let response = pub_admin.client.get(url).bearer_auth(token).send().await?;
+    let token = admin_token(pub_admin).await?;
+    let response = pub_admin
+        .client
+        .get(url)
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|err| anyhow!("Error sending GET {url}: {}", request_error_summary(&err)))?;
     if response.status() == reqwest::StatusCode::NOT_FOUND {
         return Ok(None);
     }
     if !response.status().is_success() {
-        return Err(anyhow!(
-            "Keycloak answered {} to GET {url}",
-            response.status()
-        ));
+        return Err(answer_error("GET", url, response).await);
     }
-    Ok(Some(response.json().await?))
+    let value = response
+        .json()
+        .await
+        .map_err(|err| anyhow!("Error reading GET {url}: {}", request_error_summary(&err)))?;
+    Ok(Some(value))
 }
 
 async fn put_json(pub_admin: &PubKeycloakAdmin, url: &str, body: &Value) -> Result<()> {
-    let token = pub_admin.token_supplier.get(&pub_admin.url).await?;
+    let token = admin_token(pub_admin).await?;
     let response = pub_admin
         .client
         .put(url)
         .bearer_auth(token)
         .json(body)
         .send()
-        .await?;
+        .await
+        .map_err(|err| anyhow!("Error sending PUT {url}: {}", request_error_summary(&err)))?;
     if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(anyhow!("Keycloak answered {status} to PUT {url}: {body}"));
+        return Err(answer_error("PUT", url, response).await);
     }
     Ok(())
+}
+
+/// The realm's registered required actions, and those Keycloak offers for
+/// registration.
+async fn required_actions(
+    admin: &KeycloakAdminClient,
+    realm: &str,
+) -> Result<(
+    Vec<RequiredActionProviderRepresentation>,
+    Vec<RequiredActionProviderRepresentation>,
+)> {
+    let registered = admin
+        .client
+        .realm_authentication_required_actions_get(realm)
+        .await
+        .map_err(|err| {
+            keycloak_failure(format!("Error reading required actions of {realm}"), &err)
+        })?;
+    let unregistered = admin
+        .client
+        .realm_authentication_unregistered_required_actions_get(realm)
+        .await
+        .map_err(|err| {
+            keycloak_failure(
+                format!("Error reading unregistered required actions of {realm}"),
+                &err,
+            )
+        })?;
+    Ok((registered, unregistered))
 }
 
 /// Registers `message-channel-ra` when missing, and gives it and the old
@@ -353,13 +618,9 @@ async fn migrate_required_actions(
     admin: &KeycloakAdminClient,
     pub_admin: &PubKeycloakAdmin,
     realm: &str,
+    actions: &[RequiredActionProviderRepresentation],
 ) -> Result<Vec<String>> {
     let mut changes = vec![];
-    let actions = admin
-        .client
-        .realm_authentication_required_actions_get(realm)
-        .await
-        .map_err(|err| anyhow!("Error reading required actions of {realm}: {err:?}"))?;
     let registered = |alias: &str| {
         actions
             .iter()
@@ -377,12 +638,22 @@ async fn migrate_required_actions(
                 },
             )
             .await
-            .map_err(|err| anyhow!("Error registering {MESSAGE_CHANNEL_RA} in {realm}: {err:?}"))?;
+            .map_err(|err| {
+                keycloak_failure(
+                    format!("Error registering {MESSAGE_CHANNEL_RA} in {realm}"),
+                    &err,
+                )
+            })?;
         let mut action = admin
             .client
             .realm_authentication_required_actions_with_alias_get(realm, MESSAGE_CHANNEL_RA)
             .await
-            .map_err(|err| anyhow!("Error reading {MESSAGE_CHANNEL_RA} in {realm}: {err:?}"))?;
+            .map_err(|err| {
+                keycloak_failure(
+                    format!("Error reading {MESSAGE_CHANNEL_RA} in {realm}"),
+                    &err,
+                )
+            })?;
         // Enabled only when this run registers it: a realm that disabled
         // it later keeps its choice.
         if action.enabled != Some(true) {
@@ -396,7 +667,10 @@ async fn migrate_required_actions(
                 )
                 .await
                 .map_err(|err| {
-                    anyhow!("Error enabling {MESSAGE_CHANNEL_RA} in {realm}: {err:?}")
+                    keycloak_failure(
+                        format!("Error enabling {MESSAGE_CHANNEL_RA} in {realm}"),
+                        &err,
+                    )
                 })?;
         }
         changes.push(format!("registered required action {MESSAGE_CHANNEL_RA}"));
@@ -443,53 +717,98 @@ async fn migrate_required_actions(
     Ok(changes)
 }
 
-/// Points every `reset.send.otp.tlf` config used by a flow at the voter's
-/// one channel.
+/// States the code page policy of every message OTP step: `NEUTRAL` in the
+/// realm's reset-credentials flow, `NAMED` at sign-in ([`code_page_patch`]),
+/// and points every `reset.send.otp.tlf` config at the voter's one channel.
 async fn migrate_reset_configs(
     admin: &KeycloakAdminClient,
     pub_admin: &PubKeycloakAdmin,
     realm: &str,
 ) -> Result<Vec<String>> {
     let mut changes = vec![];
+    let reset_flow = admin
+        .client
+        .realm_get(realm)
+        .await
+        .map_err(|err| keycloak_failure(format!("Error reading realm {realm}"), &err))?
+        .reset_credentials_flow;
     let flows = admin
         .client
         .realm_authentication_flows_get(realm)
         .await
-        .map_err(|err| anyhow!("Error reading flows of {realm}: {err:?}"))?;
-    let mut config_ids = BTreeSet::new();
+        .map_err(|err| keycloak_failure(format!("Error reading flows of {realm}"), &err))?;
+    // Each config with its role; a config the reset flow uses is a reset one.
+    let mut config_ids: BTreeMap<String, CodeStepRole> = BTreeMap::new();
     for flow in flows.iter().filter(|flow| flow.top_level == Some(true)) {
         let Some(alias) = flow.alias.as_deref() else {
             continue;
+        };
+        let role = if reset_flow.as_deref() == Some(alias) {
+            CodeStepRole::Reset
+        } else {
+            CodeStepRole::SignIn
         };
         // Lists the executions of nested flows too.
         let executions = admin
             .get_flow_executions(pub_admin, realm, alias)
             .await
-            .map_err(|err| anyhow!("Error reading flow {alias} of {realm}: {err:?}"))?;
-        config_ids.extend(
-            executions
-                .into_iter()
-                .filter_map(|execution| execution.authentication_config),
-        );
+            .map_err(|err| {
+                keycloak_failure(format!("Error reading flow {alias} of {realm}"), &err)
+            })?;
+        for execution in executions {
+            let Some(id) = execution.authentication_config else {
+                continue;
+            };
+            if execution.provider_id.as_deref() != Some(MESSAGE_OTP_PROVIDER) {
+                continue;
+            }
+            let entry = config_ids.entry(id).or_insert(role);
+            if role == CodeStepRole::Reset {
+                *entry = CodeStepRole::Reset;
+            }
+        }
     }
-    for id in config_ids {
+    for (id, role) in config_ids {
         let config = admin
             .client
             .realm_authentication_config_with_id_get(realm, &id)
             .await
             .map_err(|err| {
-                anyhow!("Error reading authenticator config {id} of {realm}: {err:?}")
+                keycloak_failure(
+                    format!("Error reading authenticator config {id} of {realm}"),
+                    &err,
+                )
             })?;
-        if let Some(patched) = reset_config_patch(&config) {
+        if config.alias.as_deref() == Some(RESET_CODE_CONFIG_ALIAS) {
+            let disclosure = config
+                .config
+                .as_ref()
+                .and_then(|values| values.get(CODE_PAGE_DISCLOSURE_KEY))
+                .filter(|value| !value.trim().is_empty());
+            if let Some(disclosure) = disclosure.filter(|value| *value != NEUTRAL_DISCLOSURE) {
+                warn!(
+                    realm,
+                    config_id = id,
+                    code_page_disclosure = disclosure,
+                    "Reset code config keeps the realm's own {CODE_PAGE_DISCLOSURE_KEY}"
+                );
+            }
+        }
+        if let Some(patched) = code_page_patch(&config, role) {
+            let set = config_changes(&config, &patched).join(", ");
             admin
                 .client
                 .realm_authentication_config_with_id_put(realm, &id, patched)
                 .await
                 .map_err(|err| {
-                    anyhow!("Error updating authenticator config {id} of {realm}: {err:?}")
+                    keycloak_failure(
+                        format!("Error updating authenticator config {id} of {realm}"),
+                        &err,
+                    )
                 })?;
+            let alias = config.alias.as_deref().unwrap_or("");
             changes.push(format!(
-                "set {COURIER_KEY} {CHOSEN_COURIER} and {DEFERRED_KEY} false on authenticator config {RESET_CODE_CONFIG_ALIAS} ({id})"
+                "set {set} on authenticator config {alias} ({id}, {role:?})"
             ));
         }
     }
@@ -529,7 +848,9 @@ async fn first_release_user_ids(
                     None,
                 )
                 .await
-                .map_err(|err| anyhow!("Error searching users of {realm}: {err:?}"))?;
+                .map_err(|err| {
+                    keycloak_failure(format!("Error searching users of {realm}"), &err)
+                })?;
             let count = page.len();
             ids.extend(page.into_iter().filter_map(|user| user.id));
             if count < SEARCH_PAGE as usize {
@@ -547,7 +868,9 @@ async fn migrate_user(admin: &KeycloakAdminClient, realm: &str, user_id: &str) -
         .client
         .realm_users_with_user_id_get(realm, user_id, None)
         .await
-        .map_err(|err| anyhow!("Error reading user {user_id} of {realm}: {err:?}"))?;
+        .map_err(|err| {
+            keycloak_failure(format!("Error reading user {user_id} of {realm}"), &err)
+        })?;
     let plan = plan_user(user.email.as_deref(), user.attributes.as_ref());
     if plan.case == UserCase::Rewritten {
         apply_updates(
@@ -558,7 +881,9 @@ async fn migrate_user(admin: &KeycloakAdminClient, realm: &str, user_id: &str) -
             .client
             .realm_users_with_user_id_put(realm, user_id, user)
             .await
-            .map_err(|err| anyhow!("Error updating user {user_id} of {realm}: {err:?}"))?;
+            .map_err(|err| {
+                keycloak_failure(format!("Error updating user {user_id} of {realm}"), &err)
+            })?;
     }
     Ok(plan)
 }
@@ -586,9 +911,10 @@ async fn migrate_users(admin: &KeycloakAdminClient, realm: &str) -> Result<UserC
                 }
             }
             Err(err) => {
+                // Sanitized: a status and an error key, never a body.
                 error!(
                     realm,
-                    user_id, "Messaging attributes of voter not migrated: {err:?}"
+                    user_id, "Messaging attributes of voter not migrated: {err:#}"
                 );
                 counts.failed += 1;
             }
@@ -597,8 +923,10 @@ async fn migrate_users(admin: &KeycloakAdminClient, realm: &str) -> Result<UserC
     Ok(counts)
 }
 
-/// Migrates one event realm and its voters (see the module docs).
-#[instrument(skip(admin, pub_admin), err)]
+/// Migrates one event realm and its voters (see the module docs). Fails
+/// with [`KeycloakLacksChannelAction`], changing nothing, on a Keycloak
+/// without `message-channel-ra`.
+#[instrument(skip(admin, pub_admin))]
 pub async fn migrate_realm(
     admin: &KeycloakAdminClient,
     pub_admin: &PubKeycloakAdmin,
@@ -611,13 +939,18 @@ pub async fn migrate_realm(
     if !uses_messaging(&profile) {
         return Ok(RealmOutcome::NoMessaging);
     }
+    // Before any change: the old jar would read rewritten voters as legacy.
+    let (registered, unregistered) = required_actions(admin, realm).await?;
+    if !channel_action_available(&registered, &unregistered) {
+        return Err(KeycloakLacksChannelAction.into());
+    }
     // The profile first: without `message-number` in it, Keycloak would
     // drop the voters' new attribute.
     let mut changes = patch_profile(&mut profile);
     if !changes.is_empty() {
         put_json(pub_admin, &profile_url, &profile).await?;
     }
-    changes.extend(migrate_required_actions(admin, pub_admin, realm).await?);
+    changes.extend(migrate_required_actions(admin, pub_admin, realm, &registered).await?);
     changes.extend(migrate_reset_configs(admin, pub_admin, realm).await?);
     for change in &changes {
         info!(realm, change, "Messaging realm config migrated");
@@ -642,8 +975,11 @@ pub async fn migrate_realm(
 
 /// [`migrate_realm`] for the realm of every election event. Every realm is
 /// tried; if any failed the result is an error naming them, after the
-/// others were migrated.
-#[instrument(err)]
+/// others were migrated. On a Keycloak without `message-channel-ra` it
+/// stops at the first realm that uses messaging, with
+/// [`KeycloakLacksChannelAction`]: every realm would wait for the same
+/// image.
+#[instrument]
 pub async fn migrate_messaging_attributes_now() -> Result<Vec<(String, RealmOutcome)>> {
     let realms = {
         let mut hasura_db_client: DbClient = get_hasura_pool()
@@ -673,8 +1009,11 @@ pub async fn migrate_messaging_attributes_now() -> Result<Vec<(String, RealmOutc
                 info!(realm, ?outcome, "Messaging realm migrated");
                 migrated.push((realm, outcome));
             }
+            Err(err) if err.downcast_ref::<KeycloakLacksChannelAction>().is_some() => {
+                return Err(err);
+            }
             Err(err) => {
-                error!(realm, "Messaging realm not migrated: {err:?}");
+                error!(realm, "Messaging realm not migrated: {err:#}");
                 failed.push(realm);
             }
         }
@@ -689,17 +1028,43 @@ pub async fn migrate_messaging_attributes_now() -> Result<Vec<(String, RealmOutc
     }
 }
 
-/// Retried with a growing wait when the migration fails, as when Keycloak
-/// is still starting with beat; every run leaves migrated realms unchanged.
+/// Runs again after a failure ([`next_attempt`]): while Keycloak lacks
+/// `message-channel-ra`, with no limit (the retry limit here only bounds
+/// that wait, at 30 minutes a run); after any other failure, as when
+/// Keycloak is still starting with beat, up to [`OTHER_FAILURE_RETRIES`]
+/// times. Every run leaves migrated realms unchanged.
 #[instrument(skip(task))]
-#[celery::task(bind = true, max_retries = 5)]
+#[celery::task(bind = true, max_retries = 4294967295, retry_for_unexpected = false)]
 pub async fn migrate_messaging_attributes(task: &Self) -> TaskResult<()> {
-    match migrate_messaging_attributes_now().await {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            let retries = task.request().retries;
-            error!(retries, "Messaging migration failed: {err:?}");
-            task.retry_with_countdown(retry_countdown(retries))
+    let Err(err) = migrate_messaging_attributes_now().await else {
+        return Ok(());
+    };
+    let retries = task.request().retries;
+    let failure = if err.downcast_ref::<KeycloakLacksChannelAction>().is_some() {
+        MigrationFailure::KeycloakLacksChannelAction
+    } else {
+        MigrationFailure::Other
+    };
+    match (failure, next_attempt(failure, retries)) {
+        (MigrationFailure::KeycloakLacksChannelAction, NextAttempt::RetryIn(countdown)) => {
+            warn!(retries, countdown, "Messaging migration not run: {err}");
+            task.retry_with_countdown(countdown)
+        }
+        (_, NextAttempt::RetryIn(countdown)) => {
+            error!(
+                retries,
+                countdown, "Messaging migration failed, retrying: {err:#}"
+            );
+            task.retry_with_countdown(countdown)
+        }
+        (_, NextAttempt::GiveUp) => {
+            error!(
+                retries,
+                "Messaging migration failed, not retried until beat restarts: {err:#}"
+            );
+            Err(TaskError::UnexpectedError(
+                "Messaging migration failed".to_string(),
+            ))
         }
     }
 }
@@ -901,8 +1266,8 @@ mod tests {
             (VERIFIED_CHANNELS_ATTR_NAME, &["WHATSAPP"]),
             (MOBILE_PHONE_ATTR_NAME, &["+34600000002"]),
         ]);
-        // The reader falls back to the legacy channel (the email), which
-        // is not what the voter verified: nothing is written.
+        // The reader gives no channel (never the email or the mobile
+        // number, which the voter didn't choose): nothing is written.
         let plan = plan_user(Some("v@example.org"), Some(&current));
         assert_eq!(plan.case, UserCase::NoDestination);
         assert_eq!(plan.channel, None);
@@ -1040,5 +1405,359 @@ mod tests {
             reset_config_patch(&reset_config("otp", "BOTH", "true")),
             None
         );
+    }
+
+    #[test]
+    fn the_reset_code_page_reveals_nothing_extra() {
+        // A first-release config gets the neutral page with the channel.
+        let patched =
+            reset_config_patch(&reset_config("reset.send.otp.tlf", "BOTH", "true")).unwrap();
+        let config = patched.config.as_ref().unwrap();
+        assert_eq!(config["code-page-disclosure"], "NEUTRAL");
+        assert_eq!(reset_config_patch(&patched), None);
+        // A config already on the channel gets only the neutral page.
+        let chosen = reset_config("reset.send.otp.tlf", "CHOSEN", "false");
+        let patched = reset_config_patch(&chosen).unwrap();
+        let config = patched.config.as_ref().unwrap();
+        assert_eq!(config["code-page-disclosure"], "NEUTRAL");
+        assert_eq!(config["messageCourierAttribute"], "CHOSEN");
+        assert_eq!(config["ttl"], "300");
+        // A realm's own choice is kept.
+        let mut named = chosen.clone();
+        named
+            .config
+            .as_mut()
+            .unwrap()
+            .insert("code-page-disclosure".into(), "NAMED".into());
+        assert_eq!(reset_config_patch(&named), None);
+    }
+
+    #[test]
+    fn an_empty_verified_channels_list_is_not_a_first_release_record() {
+        // Same reading as voter_channel (e1679754): an empty list is
+        // absent, so the record is legacy and left alone, not reported as
+        // a first-release record without a destination.
+        let current = attrs(&[(VERIFIED_CHANNELS_ATTR_NAME, &[])]);
+        let plan = plan_user(Some("v@example.org"), Some(&current));
+        assert_eq!(plan.case, UserCase::AlreadyRecorded);
+        assert_eq!(plan.channel, Some(MessageChannel::EMAIL));
+        assert!(plan.updates.is_empty());
+    }
+
+    #[test]
+    fn a_recorded_channel_without_its_destination_gets_no_other_channel() {
+        let current = attrs(&[
+            (MESSAGE_CHANNEL_ATTR_NAME, &["WHATSAPP"]),
+            (MOBILE_PHONE_ATTR_NAME, &["+34600000002"]),
+        ]);
+        let plan = plan_user(Some("v@example.org"), Some(&current));
+        assert_eq!(plan.case, UserCase::AlreadyRecorded);
+        assert_eq!(plan.channel, None);
+        assert!(plan.updates.is_empty());
+    }
+
+    fn action(alias: &str) -> RequiredActionProviderRepresentation {
+        RequiredActionProviderRepresentation {
+            alias: Some(alias.into()),
+            provider_id: Some(alias.into()),
+            ..Default::default()
+        }
+    }
+
+    fn unregistered(provider_id: &str) -> RequiredActionProviderRepresentation {
+        RequiredActionProviderRepresentation {
+            provider_id: Some(provider_id.into()),
+            name: Some("name".into()),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_keycloak_without_the_contact_change_action_is_waited_for() {
+        let old = [action("messaging-app-otp-ra"), action("VERIFY_EMAIL")];
+        assert!(!channel_action_available(&old, &[]));
+        assert!(!channel_action_available(
+            &old,
+            &[unregistered("verify-email-otp-ra")]
+        ));
+        // The provider is there: not yet registered in the realm, or
+        // already registered.
+        assert!(channel_action_available(
+            &old,
+            &[unregistered("message-channel-ra")]
+        ));
+        assert!(channel_action_available(
+            &[action("message-channel-ra")],
+            &[]
+        ));
+    }
+
+    #[test]
+    fn waiting_for_keycloak_retries_with_a_capped_backoff_and_never_gives_up() {
+        let waits: Vec<NextAttempt> = (0..8)
+            .map(|retries| next_attempt(MigrationFailure::KeycloakLacksChannelAction, retries))
+            .collect();
+        assert_eq!(
+            waits,
+            [30, 60, 120, 240, 480, 960, 1800, 1800].map(NextAttempt::RetryIn)
+        );
+        for retries in [50, 1_000, u32::MAX - 1] {
+            assert_eq!(
+                next_attempt(MigrationFailure::KeycloakLacksChannelAction, retries),
+                NextAttempt::RetryIn(1800)
+            );
+        }
+    }
+
+    #[test]
+    fn other_failures_give_up_after_five_retries() {
+        let attempts: Vec<NextAttempt> = (0..7)
+            .map(|retries| next_attempt(MigrationFailure::Other, retries))
+            .collect();
+        assert_eq!(
+            attempts,
+            [
+                NextAttempt::RetryIn(30),
+                NextAttempt::RetryIn(60),
+                NextAttempt::RetryIn(120),
+                NextAttempt::RetryIn(240),
+                NextAttempt::RetryIn(480),
+                NextAttempt::GiveUp,
+                NextAttempt::GiveUp,
+            ]
+        );
+    }
+
+    #[test]
+    fn http_errors_log_the_status_and_keycloak_error_key_only() {
+        let echoed = r#"{"field":"email","errorMessage":"error-invalid-email","params":["email","v@example.org","+34600000001"]}"#;
+        let summary = http_error_summary(400, echoed);
+        assert_eq!(summary, "HTTP 400 (error-invalid-email)");
+        assert_eq!(http_error_summary(500, ""), "HTTP 500");
+        assert_eq!(
+            http_error_summary(502, "<html>v@example.org</html>"),
+            "HTTP 502"
+        );
+        // A message that isn't a plain key is dropped, not logged.
+        for message in [
+            "v@example.org",
+            "+34600000001",
+            "user 34600000001",
+            &"a".repeat(200),
+        ] {
+            let body = json!({ "errorMessage": message }).to_string();
+            assert_eq!(http_error_summary(409, &body), "HTTP 409", "{message}");
+        }
+        assert_eq!(
+            http_error_summary(409, r#"{"errorMessage":"User exists with same email"}"#),
+            "HTTP 409 (User exists with same email)"
+        );
+    }
+
+    #[test]
+    fn keycloak_crate_errors_log_no_body() {
+        let text =
+            r#"{"errorMessage":"error-invalid-length","params":["firstName","Juan Dela Cruz"]}"#;
+        let err = keycloak::KeycloakError::HttpFailure {
+            status: 400,
+            body: serde_json::from_str(text).ok(),
+            text: text.to_string(),
+        };
+        let summary = keycloak_error_summary(&err);
+        assert_eq!(summary, "HTTP 400 (error-invalid-length)");
+        assert!(!summary.contains("Juan"));
+    }
+
+    const JANITOR_REALM: &str =
+        include_str!("../../external-bin/janitor/templates/COMELEC/keycloak.hbs");
+    const DEV_EVENT_REALM: &str = include_str!(
+        "../../../../.devcontainer/keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5-event-33f18502-a67c-4853-8333-a58630663559.json"
+    );
+
+    fn realm(source: &str) -> Value {
+        // The janitor template's handlebars expressions are all inside
+        // JSON strings, so it parses as it is.
+        serde_json::from_str(source).expect("realm parses as JSON")
+    }
+
+    fn contact_change_max_auth_age(realm: &Value) -> Option<&str> {
+        let actions = realm["requiredActions"].as_array()?;
+        let found: Vec<&Value> = actions
+            .iter()
+            .filter(|action| action["alias"] == MESSAGE_CHANNEL_RA)
+            .collect();
+        assert_eq!(found.len(), 1, "one {MESSAGE_CHANNEL_RA} entry");
+        assert_eq!(found[0]["providerId"], MESSAGE_CHANNEL_RA);
+        found[0]["config"][MAX_AUTH_AGE_KEY].as_str()
+    }
+
+    fn reset_code_configs(realm: &Value) -> Vec<&serde_json::Map<String, Value>> {
+        realm["authenticatorConfig"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|config| config["alias"] == RESET_CODE_CONFIG_ALIAS)
+            .map(|config| config["config"].as_object().unwrap())
+            .collect()
+    }
+
+    fn assert_reset_code_configs(realm: &Value, name: &str) -> usize {
+        let configs = reset_code_configs(realm);
+        for config in &configs {
+            assert_eq!(config[COURIER_KEY], CHOSEN_COURIER, "{name}");
+            assert_eq!(config[DEFERRED_KEY], "false", "{name}");
+            assert_eq!(
+                config[CODE_PAGE_DISCLOSURE_KEY], NEUTRAL_DISCLOSURE,
+                "{name}"
+            );
+        }
+        configs.len()
+    }
+
+    #[test]
+    fn the_janitor_realm_requires_a_recent_sign_in_and_a_neutral_reset_code_page() {
+        let realm = realm(JANITOR_REALM);
+        assert_eq!(
+            contact_change_max_auth_age(&realm),
+            Some(MAX_AUTH_AGE_SECONDS)
+        );
+        assert_eq!(MAX_AUTH_AGE_SECONDS, "300");
+        assert!(assert_reset_code_configs(&realm, "janitor") >= 1);
+    }
+
+    #[test]
+    fn the_dev_event_realm_requires_a_recent_sign_in_and_a_neutral_reset_code_page() {
+        let realm = realm(DEV_EVENT_REALM);
+        assert_eq!(
+            contact_change_max_auth_age(&realm),
+            Some(MAX_AUTH_AGE_SECONDS)
+        );
+        // Every reset code config there is (the dev realm may have none).
+        assert_reset_code_configs(&realm, "dev event realm");
+    }
+
+    #[test]
+    fn the_migration_gives_existing_realms_what_the_janitor_realm_has() {
+        let janitor = realm(JANITOR_REALM);
+        let template = reset_code_configs(&janitor)[0];
+        let patched = reset_config_patch(&reset_config("reset.send.otp.tlf", "BOTH", "true"))
+            .unwrap()
+            .config
+            .unwrap();
+        for key in [COURIER_KEY, DEFERRED_KEY, CODE_PAGE_DISCLOSURE_KEY] {
+            assert_eq!(
+                Some(&patched[key]).map(String::as_str),
+                template[key].as_str(),
+                "{key}"
+            );
+        }
+        let age = max_auth_age_patch(None).unwrap();
+        assert_eq!(
+            Some(age[MAX_AUTH_AGE_KEY].as_str()),
+            contact_change_max_auth_age(&janitor)
+        );
+    }
+
+    /// Lead decision: the code page reveals nothing by default, so after the
+    /// upgrade a sign-in step must say NAMED to keep naming the channel.
+    #[test]
+    fn sign_in_code_steps_keep_naming_the_channel_and_reset_steps_reveal_nothing() {
+        let sign_in = reset_config("email-sms", "CHOSEN", "false");
+        let patched = code_page_patch(&sign_in, CodeStepRole::SignIn).unwrap();
+        assert_eq!(
+            patched.config.unwrap()[CODE_PAGE_DISCLOSURE_KEY],
+            NAMED_DISCLOSURE
+        );
+        // Enrollment names the channel the voter entered whatever the config.
+        assert!(
+            code_page_patch(&reset_config("otp", "CHOSEN", "true"), CodeStepRole::SignIn).is_none()
+        );
+        // Another message OTP step of the reset flow is neutral too.
+        let other_reset = reset_config("reset.other", "CHOSEN", "false");
+        let patched = code_page_patch(&other_reset, CodeStepRole::Reset).unwrap();
+        assert_eq!(
+            patched.config.unwrap()[CODE_PAGE_DISCLOSURE_KEY],
+            NEUTRAL_DISCLOSURE
+        );
+        // The reset code config keeps its own patch wherever it is used.
+        assert_eq!(
+            code_page_patch(
+                &reset_config("reset.send.otp.tlf", "BOTH", "true"),
+                CodeStepRole::SignIn
+            ),
+            reset_config_patch(&reset_config("reset.send.otp.tlf", "BOTH", "true"))
+        );
+    }
+
+    #[test]
+    fn a_realms_own_code_page_policy_is_kept() {
+        let mut own = reset_config("email-sms", "CHOSEN", "false");
+        own.config
+            .as_mut()
+            .unwrap()
+            .insert(CODE_PAGE_DISCLOSURE_KEY.into(), NEUTRAL_DISCLOSURE.into());
+        assert!(code_page_patch(&own, CodeStepRole::SignIn).is_none());
+        assert!(code_page_patch(&own, CodeStepRole::Reset).is_none());
+    }
+
+    /// Every message OTP step of the templates states its policy: NEUTRAL in
+    /// the reset flow, NAMED at sign-in; enrollment steps may omit it.
+    fn assert_code_step_policies(realm: &Value, name: &str) {
+        let configs: HashMap<&str, &Value> = realm["authenticatorConfig"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|config| (config["alias"].as_str().unwrap(), &config["config"]))
+            .collect();
+        let flows: HashMap<&str, &Value> = realm["authenticationFlows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|flow| (flow["alias"].as_str().unwrap(), flow))
+            .collect();
+        fn steps<'a>(flows: &HashMap<&str, &'a Value>, alias: &str, found: &mut Vec<&'a Value>) {
+            for execution in flows[alias]["authenticationExecutions"].as_array().unwrap() {
+                if let Some(sub) = execution["flowAlias"].as_str() {
+                    steps(flows, sub, found);
+                } else {
+                    found.push(execution);
+                }
+            }
+        }
+        let reset_flow = realm["resetCredentialsFlow"].as_str().unwrap_or("");
+        for (alias, flow) in &flows {
+            if flow["topLevel"] != true {
+                continue;
+            }
+            let mut found = vec![];
+            steps(&flows, alias, &mut found);
+            for execution in found {
+                if execution["authenticator"] != MESSAGE_OTP_PROVIDER {
+                    continue;
+                }
+                let config = configs[execution["authenticatorConfig"].as_str().unwrap()];
+                let expected = if *alias == reset_flow {
+                    Some(NEUTRAL_DISCLOSURE)
+                } else if config[DEFERRED_KEY] == "true" {
+                    None
+                } else {
+                    Some(NAMED_DISCLOSURE)
+                };
+                if let Some(expected) = expected {
+                    assert_eq!(
+                        config[CODE_PAGE_DISCLOSURE_KEY].as_str(),
+                        Some(expected),
+                        "{name}: {alias} / {}",
+                        execution["authenticatorConfig"]
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn every_template_code_step_states_its_code_page_policy() {
+        assert_code_step_policies(&realm(JANITOR_REALM), "janitor");
+        assert_code_step_policies(&realm(DEV_EVENT_REALM), "dev event realm");
     }
 }

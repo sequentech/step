@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {ATTR_RESET_VALUE} from "@/types/keycloak"
 import {
+    EMessageAttemptState,
     EMessageChannel,
+    ILedgerMessage,
     MESSAGE_CHANNELS,
     VOTER_ATTR_MESSAGE_CHANNEL,
     VOTER_ATTR_MESSAGE_CONSENT,
@@ -190,3 +192,48 @@ export const voterMessaging = (
     channel: voterChannel(email, attributes),
     consentAt: consentAt(attributes),
 })
+
+/** The voter's messages staff should see in the drawer. */
+export interface IVoterDeliveryProblems {
+    /** The latest message whose latest attempt failed. */
+    failure?: ILedgerMessage
+    /** The latest message whose latest attempt's delivery isn't confirmed. */
+    unconfirmed?: ILedgerMessage
+}
+
+const attemptOrder = (a: ILedgerMessage, b: ILedgerMessage): number =>
+    (a.attempt ?? 0) - (b.attempt ?? 0) ||
+    String(a.created_at ?? "").localeCompare(String(b.created_at ?? ""))
+
+/**
+ * A message is in the state of its latest attempt, as the event tab counts it:
+ * a failed attempt that a later attempt of the same message settled (retried,
+ * accepted or delivered) is no longer a failure. Unknown is never a failure:
+ * it is "delivery not confirmed", and Unresolved after 24 hours.
+ *
+ * `candidates` are the voter's FAILED and UNKNOWN attempts, latest first;
+ * `attempts` every attempt of their messages.
+ */
+export const voterDeliveryProblems = (
+    candidates: ILedgerMessage[],
+    attempts: ILedgerMessage[]
+): IVoterDeliveryProblems => {
+    const latest = new Map<string, ILedgerMessage>()
+    for (const attempt of [...candidates, ...attempts]) {
+        const key = attempt.logical_key ?? attempt.id
+        const current = latest.get(key)
+        if (!current || attemptOrder(current, attempt) < 0) {
+            latest.set(key, attempt)
+        }
+    }
+    const isLatest = (message: ILedgerMessage) =>
+        latest.get(message.logical_key ?? message.id)?.id === message.id
+    return {
+        failure: candidates.find(
+            (message) => message.state === EMessageAttemptState.FAILED && isLatest(message)
+        ),
+        unconfirmed: candidates.find(
+            (message) => message.state === EMessageAttemptState.UNKNOWN && isLatest(message)
+        ),
+    }
+}

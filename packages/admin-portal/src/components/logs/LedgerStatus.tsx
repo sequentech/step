@@ -11,6 +11,7 @@ import {roleContext, useMessagingReadRole} from "@/hooks/useMessagingReadRole"
 import {GET_LEDGER_MESSAGE_STATES, ILedgerMessagesResult} from "@/queries/GetLedgerMessages"
 import {EMessageAttemptState, ILedgerMessage, MESSAGE_ATTEMPT_STATES} from "@/types/messaging"
 import {electoralLogDelivery} from "../electoralLogChannel"
+import {reasonText} from "@/services/messagingReasons"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -87,16 +88,27 @@ export const LedgerStatusField: React.FC = () => {
     if (!status) {
         return <span>{delivery.outcome ?? "-"}</span>
     }
+    // The reason of the state shown: the ledger's current one, else as logged.
+    const reason = reasonText(t, current ? current.error : delivery.reason)
     return (
-        <Typography
-            variant="body2"
-            component="span"
-            title={
-                current ? t(`messaging.stateHelp.${status}`) : t("messaging.logs.statusAsLogged")
-            }
-            sx={{whiteSpace: "nowrap"}}
-        >
-            {t(`messaging.state.${status}`)}
-        </Typography>
+        <>
+            <Typography
+                variant="body2"
+                component="span"
+                title={
+                    current
+                        ? t(`messaging.stateHelp.${status}`)
+                        : t("messaging.logs.statusAsLogged")
+                }
+                sx={{whiteSpace: "nowrap"}}
+            >
+                {t(`messaging.state.${status}`)}
+            </Typography>
+            {reason ? (
+                <Typography variant="caption" component="div" color="text.secondary">
+                    {reason}
+                </Typography>
+            ) : null}
+        </>
     )
 }

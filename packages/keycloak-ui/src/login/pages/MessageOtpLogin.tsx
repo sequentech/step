@@ -10,6 +10,7 @@ import {QRCodeSVG} from "qrcode.react"
 import ChannelIcon from "../../../../ui-essentials/src/components/ChannelIcon/ChannelIcon"
 import {messageLanguage, type I18n} from "../i18n"
 import {
+    CodeDisclosure,
     DeliveryState,
     MessageChannel,
     MessageCourier,
@@ -165,29 +166,68 @@ function qrImage(source: string | undefined): string | undefined {
     return source !== undefined && source.startsWith("data:image/") ? source : undefined
 }
 
+// Only an absolute https link becomes a link (and a QR code); anything else gives none.
+export function httpsLink(link: string | undefined): string | undefined {
+    if (link === undefined) {
+        return undefined
+    }
+    try {
+        return new URL(link).protocol === "https:" ? link : undefined
+    } catch {
+        return undefined
+    }
+}
+
 /**
  * Messenger: the Page may only write to a voter who tapped Get Started, so the page explains that
  * and offers the chat: a QR code to scan on a computer, a button to open it on a phone.
+ *
+ * On a NEUTRAL page (`generic`) the box is the same for every account: it is headed "If you get
+ * your codes in Messenger" and says nothing about the link's state.
  */
-function MessengerConnect(props: {kcContext: OtpContext; i18n: I18n}) {
-    const {kcContext, i18n} = props
-    const {messengerPage, messengerLink, messengerState} = kcContext
+function MessengerConnect(props: {kcContext: OtpContext; i18n: I18n; generic?: boolean}) {
+    const {kcContext, i18n, generic = false} = props
+    const {messengerPage, messengerLink, messagingOrganization} = kcContext
+    const messengerState = generic ? undefined : kcContext.messengerState
     const {msg, msgStr} = i18n
     const expired =
         messengerState === MessengerLinkState.Expired ||
         messengerState === MessengerLinkState.Replaced
-    const link = expired ? undefined : messengerLink
+    const link = expired ? undefined : httpsLink(messengerLink)
     const qr = qrImage(kcContext.messengerQr)
+    // The ticket's sentence names who sends the code; an older Keycloak names only the Page.
+    const intro = messagingOrganization
+        ? {
+              key: "messageOtp.messenger.introPage" as const,
+              args: [messagingOrganization, messengerPage ?? ""],
+          }
+        : {key: "messageOtp.messenger.intro" as const, args: [messengerPage ?? ""]}
     return (
         <Box
             component="section"
             className="auth-messenger"
-            aria-label={msgStr("messageOtp.messenger.title")}
-            lang={messageLanguage(kcContext, i18n, "messageOtp.messenger.title")}
+            {...(generic
+                ? {
+                      "aria-labelledby": "messenger-if",
+                      lang: messageLanguage(kcContext, i18n, "messageOtp.messenger.ifMessenger"),
+                  }
+                : {
+                      "aria-label": msgStr("messageOtp.messenger.title"),
+                      lang: messageLanguage(kcContext, i18n, "messageOtp.messenger.title"),
+                  })}
         >
+            {generic && (
+                <Typography id="messenger-if" component="h2" className="auth-panel-title">
+                    {msg("messageOtp.messenger.ifMessenger")}
+                </Typography>
+            )}
             {messengerPage && (
-                <Typography id="messenger-intro" className="auth-instructions">
-                    {msg("messageOtp.messenger.intro", messengerPage)}
+                <Typography
+                    id="messenger-intro"
+                    className="auth-instructions"
+                    lang={messageLanguage(kcContext, i18n, intro.key)}
+                >
+                    {msg(intro.key, ...intro.args)}
                 </Typography>
             )}
             {link !== undefined && (
@@ -263,7 +303,7 @@ function MessengerConnect(props: {kcContext: OtpContext; i18n: I18n}) {
 function TooManyAttempts(props: OtpPageProps & {flow: "otl" | "auth"}) {
     const {kcContext, i18n, Template, doUseDefaultCss, classes, flow} = props
     const {msg, msgStr} = i18n
-    const channel = kcContext.channel
+    const channel = isNeutral(kcContext) ? undefined : kcContext.channel
     return (
         <Template
             kcContext={kcContext}
@@ -299,21 +339,19 @@ function TooManyAttempts(props: OtpPageProps & {flow: "otl" | "auth"}) {
     )
 }
 
+// A NEUTRAL page (a password reset) never tells whether the account exists: it names no channel
+// or contact, whatever else the page data holds.
+function isNeutral(kcContext: OtpContext): boolean {
+    return kcContext.codeDisclosure === CodeDisclosure.Neutral
+}
+
 export default function MessageOtpLogin(props: OtpPageProps) {
     const {kcContext, i18n, Template, doUseDefaultCss, classes} = props
-    const {
-        url,
-        address,
-        courier,
-        isOtl,
-        codeJustSent,
-        resendTimer,
-        ttl,
-        codeLength,
-        channel,
-        deliveryState,
-        senderLabel,
-    } = kcContext
+    const {url, courier, isOtl, codeJustSent, resendTimer, ttl, codeLength} = kcContext
+    const neutral = isNeutral(kcContext)
+    const {address, channel, deliveryState, senderLabel} = neutral
+        ? {address: undefined, channel: undefined, deliveryState: undefined, senderLabel: undefined}
+        : kcContext
     const {codeRequest, codeRequests} = kcContext
     const {msg, msgStr} = i18n
     const flow = isOtl ? "otl" : "auth"
@@ -377,7 +415,10 @@ export default function MessageOtpLogin(props: OtpPageProps) {
         event.preventDefault()
         enterCode(event.clipboardData.getData("text"))
     }
-    const instruction = instructionFor(courier ?? MessageCourier.Both, channel)
+    // The courier's instruction names SMS or email: a neutral page has its own line instead.
+    const instruction = neutral
+        ? undefined
+        : instructionFor(courier ?? MessageCourier.Both, channel)
 
     if (kcContext.attemptsExhausted === true) {
         return <TooManyAttempts {...props} flow={flow} />
@@ -385,6 +426,17 @@ export default function MessageOtpLogin(props: OtpPageProps) {
 
     const channelLabel = channel ? msgStr(channelLabelKey(channel)) : ""
     const deliveryLine = (() => {
+        if (neutral) {
+            return (
+                <Typography
+                    id="otp-neutral"
+                    className="auth-address"
+                    lang={messageLanguage(kcContext, i18n, "messageOtp.auth.neutralSent")}
+                >
+                    {msg("messageOtp.auth.neutralSent")}
+                </Typography>
+            )
+        }
         if (unconfirmed) {
             return (
                 <Typography id="otp-delivery" role="status" className="auth-address">
@@ -419,7 +471,7 @@ export default function MessageOtpLogin(props: OtpPageProps) {
                 className="auth-address"
                 lang={messageLanguage(kcContext, i18n, `messageOtp.${flow}.address`)}
             >
-                {msg(`messageOtp.${flow}.address`, address)}
+                {msg(`messageOtp.${flow}.address`, address ?? "")}
             </Typography>
         )
     })()
@@ -505,6 +557,9 @@ export default function MessageOtpLogin(props: OtpPageProps) {
             )}
             {channel === MessageChannel.Messenger && (
                 <MessengerConnect kcContext={kcContext} i18n={i18n} />
+            )}
+            {neutral && kcContext.messengerConnect === true && (
+                <MessengerConnect kcContext={kcContext} i18n={i18n} generic />
             )}
             {channel === MessageChannel.Messenger &&
                 kcContext.messengerState === MessengerLinkState.Pending &&

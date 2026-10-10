@@ -113,6 +113,9 @@ export default function KcPage(props: {kcContext: KcContext}) {
                             />
                         )
                     // Synthetic fallback; mounted themes inherit unported FreeMarker pages.
+                    // Intended for the contact change (message-otp.enter-app-contact.ftl and
+                    // message-otp.enter-otp.ftl): the voter sees the FreeMarker pages, and their
+                    // resetAppOtp.* texts come from the server bundles through context.ftl.
                     default:
                         return (
                             <DefaultPage

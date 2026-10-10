@@ -13,6 +13,7 @@
 //! fields in its JSON string, so earlier entries keep decoding.
 
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::messaging::mark_logged;
 use crate::services::celery_app::get_celery_app;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
@@ -68,7 +69,8 @@ pub struct AttemptOutcome {
     pub voter_id: Option<String>,
     pub message_id: Uuid,
     pub attempt: i32,
-    pub channel: MessageChannel,
+    /// `None` for a message recorded without a channel.
+    pub channel: Option<MessageChannel>,
     pub account_id: Option<Uuid>,
     /// The account's provider, or [`ENVIRONMENT_PROVIDER`].
     pub provider: String,
@@ -85,12 +87,14 @@ impl AttemptOutcome {
     /// The JSON string of the `SendCommunications` statement:
     /// `{channel, account_id, provider, purpose, kind, message_id, attempt,
     /// outcome, reason?, receiver}`. The channel is lowercase, as the
-    /// first release wrote it.
+    /// first release wrote it, and `null` for "No contact channel".
     pub fn log_body(&self) -> String {
         let mut record = Map::new();
         record.insert(
             "channel".to_string(),
-            json!(self.channel.to_string().to_lowercase()),
+            json!(self
+                .channel
+                .map(|channel| channel.to_string().to_lowercase())),
         );
         record.insert(
             "account_id".to_string(),
@@ -110,11 +114,64 @@ impl AttemptOutcome {
     }
 }
 
-/// Posts each outcome to its event's electoral log through the durable
-/// electoral-log queue, signed with the event's system key. For sends with
-/// no administrator: Keycloak's messages, Messenger codes, retries and
-/// application results. Outcomes without an event aren't logged (there is
-/// no event log to write to).
+/// Posts one outcome to its event's electoral log through the durable
+/// electoral-log queue, signed with the event's system key, and records on
+/// the ledger that it was handed over (`logged_at`). An outcome without an
+/// event, or of an event without a bulletin board, has no log to go to: it
+/// is only marked, with a warning.
+async fn post_attempt_outcome(
+    hasura_transaction: &Transaction<'_>,
+    outcome: &AttemptOutcome,
+    username: Option<String>,
+    area_id: Option<String>,
+) -> Result<()> {
+    let Some(event_id) = outcome.election_event_id else {
+        return mark_logged(hasura_transaction, &[outcome.message_id]).await;
+    };
+    let event_id = event_id.to_string();
+    let tenant_id = outcome.tenant_id.to_string();
+    let election_event = get_election_event_by_id(hasura_transaction, &tenant_id, &event_id)
+        .await
+        .with_context(|| "Error obtaining the election event")?;
+    let Some(board) = get_election_event_board(election_event.bulletin_board_reference.clone())
+    else {
+        warn!(message_id = %outcome.message_id, "the event has no electoral log: attempt not logged");
+        return mark_logged(hasura_transaction, &[outcome.message_id]).await;
+    };
+    let electoral_log =
+        ElectoralLog::new(hasura_transaction, &tenant_id, Some(&event_id), &board).await?;
+    let message = electoral_log.build_send_template_message(
+        Some(outcome.log_body()),
+        event_id.clone(),
+        outcome.voter_id.clone(),
+        username.clone(),
+        None,
+        area_id,
+    )?;
+    let input = LogEventInput {
+        election_event_id: event_id,
+        message_type: LogMessageType::Internal,
+        user_id: outcome.voter_id.clone(),
+        username,
+        tenant_id,
+        body: LogEventBody::Plain(
+            serde_json::to_string(&message)
+                .with_context(|| "Error serializing the electoral log message")?,
+        ),
+        event_time_ms: None,
+    };
+    get_celery_app()
+        .await
+        .send_task(enqueue_electoral_log_event::new(input))
+        .await?;
+    mark_logged(hasura_transaction, &[outcome.message_id]).await
+}
+
+/// Posts each outcome to its event's electoral log ([`post_attempt_outcome`]),
+/// for sends with no administrator: Keycloak's messages, Messenger codes,
+/// retries, application results and the entries the sweep found missing.
+/// One that fails doesn't stop the others; it stays unlogged, and the
+/// sweep posts it later. Errors if any failed.
 #[instrument(skip_all, err)]
 pub async fn post_attempt_outcomes(
     hasura_transaction: &Transaction<'_>,
@@ -122,49 +179,29 @@ pub async fn post_attempt_outcomes(
     username: Option<String>,
     area_id: Option<String>,
 ) -> Result<()> {
+    let mut failed = 0;
     for outcome in outcomes {
-        let Some(event_id) = outcome.election_event_id else {
-            continue;
-        };
-        let event_id = event_id.to_string();
-        let tenant_id = outcome.tenant_id.to_string();
-        let election_event = get_election_event_by_id(hasura_transaction, &tenant_id, &event_id)
-            .await
-            .with_context(|| "Error obtaining the election event")?;
-        let board = get_election_event_board(election_event.bulletin_board_reference.clone())
-            .ok_or_else(|| anyhow!("missing bulletin board"))?;
-        let electoral_log =
-            ElectoralLog::new(hasura_transaction, &tenant_id, Some(&event_id), &board).await?;
-        let message = electoral_log.build_send_template_message(
-            Some(outcome.log_body()),
-            event_id.clone(),
-            outcome.voter_id.clone(),
+        if let Err(error) = post_attempt_outcome(
+            hasura_transaction,
+            outcome,
             username.clone(),
-            None,
             area_id.clone(),
-        )?;
-        let input = LogEventInput {
-            election_event_id: event_id,
-            message_type: LogMessageType::Internal,
-            user_id: outcome.voter_id.clone(),
-            username: username.clone(),
-            tenant_id,
-            body: LogEventBody::Plain(
-                serde_json::to_string(&message)
-                    .with_context(|| "Error serializing the electoral log message")?,
-            ),
-            event_time_ms: None,
-        };
-        get_celery_app()
-            .await
-            .send_task(enqueue_electoral_log_event::new(input))
-            .await?;
+        )
+        .await
+        {
+            failed += 1;
+            warn!(message_id = %outcome.message_id, "could not log a message attempt: {error:#}");
+        }
     }
-    Ok(())
+    match failed {
+        0 => Ok(()),
+        _ => Err(anyhow!("{failed} message attempts not logged yet")),
+    }
 }
 
 /// [`post_attempt_outcomes`] for callers that must not fail the send when
-/// the log is unavailable: the error is logged instead.
+/// the log is unavailable: the error is logged instead, and the sweep
+/// posts what is missing.
 pub async fn post_attempt_outcomes_or_warn(
     hasura_transaction: &Transaction<'_>,
     outcomes: &[AttemptOutcome],
@@ -214,7 +251,7 @@ mod tests {
             voter_id: Some("voter-1".to_string()),
             message_id: Uuid::nil(),
             attempt: 2,
-            channel: MessageChannel::WHATSAPP,
+            channel: Some(MessageChannel::WHATSAPP),
             account_id: Some(Uuid::nil()),
             provider: "WHATSAPP_CLOUD_API".to_string(),
             purpose: MessagePurpose::NOTICE,
@@ -245,5 +282,11 @@ mod tests {
             ..outcome
         };
         assert!(!accepted.log_body().contains("reason"));
+        let no_channel = AttemptOutcome {
+            channel: None,
+            ..accepted
+        };
+        let body: Value = serde_json::from_str(&no_channel.log_body()).unwrap();
+        assert_eq!(body["channel"], Value::Null);
     }
 }

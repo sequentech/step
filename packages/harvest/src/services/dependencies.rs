@@ -61,6 +61,9 @@ pub struct HarvestServices {
     /// How provider callbacks relayed by the webhook component are
     /// authenticated.
     pub messaging_relay: MessagingRelay,
+    /// The webhook component's public address
+    /// (`MESSAGING_WEBHOOKS_PUBLIC_URL`): Messenger links need it.
+    pub messaging_webhooks_url: Option<String>,
     pub monitoring_audit: Arc<dyn MonitoringConfigAudit>,
     pub monitoring_cache: Arc<MonitoringCache>,
     pub monitoring_configs: Arc<MonitoringConfigs>,
@@ -80,6 +83,24 @@ pub struct HarvestServices {
     pub signing_roles: Arc<dyn SigningRoleAdmin>,
 }
 
+/// The Keycloak client Keycloak's service tokens are issued to
+/// (`KEYCLOAK_CLIENT_ID`, the one the extensions sign in with).
+fn service_client_id() -> String {
+    match std::env::var("KEYCLOAK_CLIENT_ID")
+        .ok()
+        .filter(|id| !id.trim().is_empty())
+    {
+        Some(id) => id,
+        None => {
+            tracing::warn!(
+                "KEYCLOAK_CLIENT_ID is not set: service tokens must be issued to {}",
+                crate::services::service_auth::DEFAULT_SERVICE_CLIENT
+            );
+            crate::services::service_auth::DEFAULT_SERVICE_CLIENT.to_string()
+        }
+    }
+}
+
 impl HarvestServices {
     pub fn production() -> Self {
         let databases: Arc<dyn DatabasePools> = Arc::new(WindmillDatabasePools);
@@ -90,6 +111,8 @@ impl HarvestServices {
             electoral_log: Arc::new(BoardElectoralLogs),
             identity: Arc::new(KeycloakIdentityAdmin),
             messaging_relay: MessagingRelay::from_env(),
+            messaging_webhooks_url:
+                windmill::services::messaging::accounts::webhooks_public_url(),
             monitoring_audit: Arc::new(ElectoralLogConfigAudit),
             monitoring_cache: Arc::new(MonitoringCache::from_env()),
             monitoring_configs: Arc::new(MonitoringConfigs::from_env()),
@@ -99,9 +122,10 @@ impl HarvestServices {
                 databases,
             }),
             ledger: Arc::new(WindmillTaskLedger),
-            service_keys: Arc::new(ServiceKeys::new(Arc::new(
-                KeycloakServiceKeys::new(),
-            ))),
+            service_keys: Arc::new(
+                ServiceKeys::new(Arc::new(KeycloakServiceKeys::new()))
+                    .for_client(service_client_id()),
+            ),
             tasks: Arc::new(CeleryTaskQueue),
             vault: Arc::new(WindmillVault),
             signing: SigningServices {

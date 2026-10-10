@@ -3,7 +3,13 @@
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fireEvent, spyOn, userEvent, waitFor, within} from "storybook/test"
 import {createKcPageStory, getKcContextMock} from "../KcPageStory"
-import {DeliveryState, MessageChannel, MessageCourier, MessengerLinkState} from "../KcContext"
+import {
+    CodeDisclosure,
+    DeliveryState,
+    MessageChannel,
+    MessageCourier,
+    MessengerLinkState,
+} from "../KcContext"
 import KcPage from "../KcPage"
 import {expectStickyActions} from "../scanovate/stickyActions"
 
@@ -506,6 +512,7 @@ const MESSENGER = {
     courier: MessageCourier.Chosen,
     channel: MessageChannel.Messenger,
     address: "",
+    messagingOrganization: "Synthetic Commission",
     messengerPage: "Synthetic Page",
     messengerLink: "https://m.me/synthetic.page?ref=synthetic-reference",
     messengerQr: SYNTHETIC_QR,
@@ -521,7 +528,9 @@ export const MessengerConnect: Story = {
             "Get your code in Messenger"
         )
         await expect(
-            canvas.getByText("The Facebook Page Synthetic Page sends your code in a chat.")
+            canvas.getByText(
+                "Synthetic Commission's Facebook Page, Synthetic Page, sends your code in a chat."
+            )
         ).toBeVisible()
         const open = canvas.getByRole("link", {name: "Open Messenger"})
         await expect(open).toHaveAttribute(
@@ -552,6 +561,54 @@ export const MessengerConnect: Story = {
         await expect(canvasElement.querySelector('[data-channel="MESSENGER"]')).not.toBeNull()
         await expect(canvas.getByLabelText("Digit 1 of 6")).toBeVisible()
         await expectOneChannel(canvas)
+    },
+}
+
+/** An older Keycloak doesn't send the organization: the Page alone is named. */
+export const MessengerIntroWithoutOrganization: Story = {
+    args: {kcContext: {...MESSENGER, messagingOrganization: undefined}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("The Facebook Page Synthetic Page sends your code in a chat.")
+        ).toBeVisible()
+    },
+}
+
+/** Only an absolute https link becomes a link: anything else gives no link and no QR code. */
+export const MessengerLinkMustBeHttps: Story = {
+    args: {
+        kcContext: {
+            ...MESSENGER,
+            messengerLink: "javascript:alert(document.domain)",
+            messengerQr: undefined,
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("a[href^='javascript']")).toBeNull()
+        await expect(canvas.queryByRole("link", {name: "Open Messenger"})).not.toBeInTheDocument()
+        await expect(
+            canvas.queryByRole("img", {name: /Scan with your phone/, hidden: true})
+        ).not.toBeInTheDocument()
+        // The steps still say how to reach the chat.
+        await expect(canvas.getByText("Open Messenger or Facebook")).toBeVisible()
+    },
+}
+
+export const MessengerLinkMustNotBePlainHttp: Story = {
+    args: {
+        kcContext: {...MESSENGER, messengerLink: "http://m.me/synthetic.page?ref=synthetic"},
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.queryByRole("link", {name: "Open Messenger"})).not.toBeInTheDocument()
+        await expect(
+            canvas.queryByRole("img", {name: /Scan with your phone/, hidden: true})
+        ).not.toBeInTheDocument()
     },
 }
 
@@ -703,5 +760,214 @@ export const MessengerConnectSpanish: Story = {
             "Reciba su código en Messenger"
         )
         await expect(canvas.getByRole("link", {name: "Abrir Messenger"})).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "La página de Facebook de Synthetic Commission, Synthetic Page, le envía el código en un chat."
+            )
+        ).toBeVisible()
+    },
+}
+
+// A password reset doesn't say whether the account exists: the page names no channel or contact.
+const NEUTRAL_CODE = {
+    courier: MessageCourier.Chosen,
+    codeDisclosure: CodeDisclosure.Neutral,
+    channel: undefined,
+    address: undefined,
+    senderLabel: undefined,
+    deliveryState: undefined,
+}
+
+const expectNoContact = async (canvasElement: HTMLElement) => {
+    const text = canvasElement.textContent ?? ""
+    await expect(text).not.toMatch(/WhatsApp|Viber|Messenger|SMS|e-?mail|\+155|•/i)
+    await expect(canvasElement.querySelector("[data-channel]")).toBeNull()
+    await expect(canvasElement.querySelector("#messenger-intro")).toBeNull()
+}
+
+export const NeutralResetCode: Story = {
+    args: {kcContext: {...NEUTRAL_CODE, resendTimerStarted: true}},
+    beforeEach: () => {
+        localStorage.removeItem("resendOtpEndTime")
+        return () => localStorage.removeItem("resendOtpEndTime")
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("If an account exists, we sent a code to its contact.")
+        ).toBeVisible()
+        await expect(canvas.queryByText(/We sent a code/)).not.toBeInTheDocument()
+        await expect(canvas.queryByText(/not confirmed/)).not.toBeInTheDocument()
+        await expect(canvas.getByRole("group", {name: "Verification code"})).toBeVisible()
+        // The 60 s timer runs as on any code page.
+        await expect(
+            canvas.getByRole("button", {name: /Resend code in \d+ seconds/})
+        ).toBeDisabled()
+        await expectNoContact(canvasElement)
+    },
+}
+
+/** Contact data sent by mistake is never shown on a neutral page. */
+export const NeutralResetCodeIgnoresContactData: Story = {
+    args: {
+        kcContext: {
+            ...WHATSAPP_CODE,
+            ...MESSENGER,
+            codeDisclosure: CodeDisclosure.Neutral,
+            address: "+155 ••• ••• 999",
+            senderLabel: "Synthetic Commission",
+            deliveryState: DeliveryState.Unknown,
+        },
+    },
+    beforeEach: () => sessionStorage.clear(),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("If an account exists, we sent a code to its contact.")
+        ).toBeVisible()
+        await expect(canvasElement.querySelector("form#messenger-poll")).toBeNull()
+        await expect(canvas.queryByRole("button", {name: "Check again"})).not.toBeInTheDocument()
+        await expectNoContact(canvasElement)
+    },
+}
+
+export const NeutralResetCodeSpanish: Story = {
+    args: {locale: "es", kcContext: NEUTRAL_CODE},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("Si existe una cuenta, le enviamos un código a su contacto.")
+        ).toBeVisible()
+        await expect(canvas.getByRole("button", {name: /Reenviar código/})).toBeVisible()
+        await expectNoContact(canvasElement)
+    },
+}
+
+export const NeutralResetCodeTooManyAttempts: Story = {
+    args: {kcContext: {...NEUTRAL_CODE, attemptsExhausted: true}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("alert")).toHaveTextContent("Too many attempts. Start again.")
+        await expect(canvas.getByRole("link", {name: "Start again"})).toBeVisible()
+        await expectNoContact(canvasElement)
+    },
+}
+
+// When the event offers Messenger for codes, every reset page shows how to connect it, for any
+// account: whether this one uses Messenger is never told.
+const NEUTRAL_MESSENGER = {
+    ...NEUTRAL_CODE,
+    messengerConnect: true,
+    messagingOrganization: "Synthetic Commission",
+    messengerPage: "Synthetic Page",
+    messengerLink: "https://m.me/synthetic.page?ref=synthetic-reference",
+    messengerQr: SYNTHETIC_QR,
+    messengerState: undefined,
+}
+
+const expectNoNamedChannel = async (canvasElement: HTMLElement) => {
+    await expect(canvasElement.textContent ?? "").not.toMatch(/WhatsApp|Viber|SMS|e-?mail|\+155|•/i)
+    await expect(canvasElement.querySelector("[data-channel]")).toBeNull()
+}
+
+export const NeutralResetCodeWithMessenger: Story = {
+    args: {kcContext: NEUTRAL_MESSENGER},
+    beforeEach: recordFormSubmits,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("If an account exists, we sent a code to its contact.")
+        ).toBeVisible()
+        const box = within(canvas.getByRole("region", {name: "If you get your codes in Messenger"}))
+        await expect(
+            box.getByRole("heading", {level: 2, name: "If you get your codes in Messenger"})
+        ).toBeVisible()
+        await expect(
+            box.getByText(
+                "Synthetic Commission's Facebook Page, Synthetic Page, sends your code in a chat."
+            )
+        ).toBeVisible()
+        await expect(box.getByRole("link", {name: "Open Messenger"})).toHaveAttribute(
+            "href",
+            "https://m.me/synthetic.page?ref=synthetic-reference"
+        )
+        await expect(
+            box.getByRole("img", {name: "Scan with your phone to open the chat.", hidden: true})
+        ).toHaveAttribute("src", SYNTHETIC_QR)
+        await expect(box.getByText("Open Messenger or Facebook")).toBeInTheDocument()
+        await expect(box.getByText("Scan the code with your phone")).toBeInTheDocument()
+        await expect(
+            box.getByText(
+                "Messenger lets the Page send you the code only after you tap Get Started."
+            )
+        ).toBeVisible()
+        // No link state, no checking by itself, no "Check again".
+        await expect(canvas.queryByRole("status")).not.toBeInTheDocument()
+        await expect(canvas.queryByText(/Waiting for you|sent your code|expired/)).toBeNull()
+        await expect(canvasElement.querySelector("form#messenger-poll")).toBeNull()
+        await expect(canvas.queryByRole("button", {name: "Check again"})).not.toBeInTheDocument()
+        // The code entry and resend stay.
+        await expect(canvas.getByRole("group", {name: "Verification code"})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: /Resend code/})).toBeVisible()
+        await new Promise((resolve) => setTimeout(resolve, 6000))
+        await expect(submittedForms).toHaveLength(0)
+        await expectNoNamedChannel(canvasElement)
+    },
+}
+
+export const NeutralResetCodeWithMessengerSpanish: Story = {
+    args: {locale: "es", kcContext: NEUTRAL_MESSENGER},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByRole("heading", {level: 2, name: "Si recibe sus códigos por Messenger"})
+        ).toBeVisible()
+        await expect(
+            canvas.getByText(
+                "La página de Facebook de Synthetic Commission, Synthetic Page, le envía el código en un chat."
+            )
+        ).toBeVisible()
+        await expect(canvas.getByRole("link", {name: "Abrir Messenger"})).toBeVisible()
+        await expectNoNamedChannel(canvasElement)
+    },
+}
+
+/** On a neutral page too, only an https link becomes a link. */
+export const NeutralResetCodeWithMessengerLinkMustBeHttps: Story = {
+    args: {
+        kcContext: {
+            ...NEUTRAL_MESSENGER,
+            messengerLink: "javascript:alert(document.domain)",
+            messengerQr: undefined,
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByRole("heading", {level: 2, name: "If you get your codes in Messenger"})
+        ).toBeVisible()
+        await expect(canvasElement.querySelector("a[href^='javascript']")).toBeNull()
+        await expect(canvas.queryByRole("link", {name: "Open Messenger"})).not.toBeInTheDocument()
+        await expect(
+            canvas.queryByRole("img", {name: /Scan with your phone/, hidden: true})
+        ).not.toBeInTheDocument()
+    },
+}
+
+/** Without messengerConnect the neutral page has no Messenger box. */
+export const NeutralResetCodeWithoutMessenger: Story = {
+    args: {kcContext: {...NEUTRAL_MESSENGER, messengerConnect: undefined}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.queryByRole("heading", {level: 2})).not.toBeInTheDocument()
+        await expectNoContact(canvasElement)
     },
 }

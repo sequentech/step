@@ -3340,6 +3340,9 @@ const frenchTranslation: TranslationType = {
                     title: "Rien ici",
                     text: "Les inscriptions ayant ce statut apparaîtront ici. Essayez une autre recherche ou un autre statut.",
                 },
+                searchHelp:
+                    "Un nom, une adresse e-mail ou un numéro d'identité, ou la référence d'assistance donnée à l'électeur, par exemple Q5KW-8RFX.",
+                referenceError: "La référence d'assistance n'a pas pu être recherchée.",
             },
             flow: {
                 stepsLabel: "Étapes de l'examen",
@@ -5415,6 +5418,10 @@ const frenchTranslation: TranslationType = {
                 noReceipts:
                     "Ce compte ne reçoit pas de rapports de remise : la remise ne peut donc pas être affichée.",
                 showFailed: "Afficher les messages {{channel}} en échec dans Journaux",
+                noChannelHelp:
+                    "Électeurs sans canal de contact enregistré. Leurs avis échouent et ne sont jamais comptés sous un canal.",
+                showFailedNoChannel:
+                    "Afficher dans Journaux les messages en échec des électeurs sans canal de contact",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5439,6 +5446,9 @@ const frenchTranslation: TranslationType = {
             noReadPermission:
                 "La lecture de ces paramètres nécessite l'autorisation messaging-config-read.",
             chooseAccount: "Choisissez d'abord un compte.",
+            needsSavingAgain: "La configuration doit être enregistrée à nouveau.",
+            needsSavingAgainHelp:
+                "Elle a été copiée depuis l'ancien stockage et n'a pas passé les vérifications d'un enregistrement. Corrigez les problèmes affichés, puis enregistrez-la à nouveau.",
         },
         messaging: {
             channel: {
@@ -5487,6 +5497,8 @@ const frenchTranslation: TranslationType = {
                 NEEDS_PRODUCTION_ACCESS: "Nécessite un accès de production",
                 NEEDS_APPROVED_TEMPLATE: "Nécessite un modèle approuvé",
                 UNSUPPORTED_PROVIDER: "Fournisseur non pris en charge : remplacez ce compte",
+                CALLBACK_NOT_CONFIGURED: "Adresse de rappel non configurée",
+                REPORT_CREDENTIALS_MISSING: "Identifiants des rapports non générés",
             },
             readiness: {
                 connected: "Connecté",
@@ -5574,6 +5586,11 @@ const frenchTranslation: TranslationType = {
                 providerLanguageHelp:
                     "Le code de langue du fournisseur pour ce modèle, comme en_US.",
                 voters: "Électeurs",
+                environment: "L'expéditeur par défaut du déploiement",
+                noNoticeChannels:
+                    "Les paramètres de messagerie de cet événement n'activent les avis sur aucun canal : aucun électeur ne recevrait cette notification. Activez les avis d'un canal dans l'onglet Messagerie de l'événement.",
+                noReadPermission:
+                    "Afficher le canal de chaque électeur nécessite l'autorisation messaging-config-read. Chaque électeur reçoit tout de même la notification sur son propre canal.",
             },
             voter: {
                 title: "Messagerie",
@@ -5586,6 +5603,9 @@ const frenchTranslation: TranslationType = {
                 noFailure: "Aucun",
                 failureNeedsPermission: "Affiché avec l'autorisation messaging-config-read.",
                 noChannel: "Aucun contact enregistré",
+                notConfirmed: "Remise non confirmée",
+                notConfirmedHelp:
+                    "Le dernier message dont la remise n'est pas encore confirmée. Après 24 heures, il apparaît comme Non résolu, ce qui ne veut pas dire qu'il a échoué.",
             },
             logs: {
                 channel: "Canal",
@@ -5607,6 +5627,36 @@ const frenchTranslation: TranslationType = {
                     "Saisissez à nouveau les identifiants pour la nouvelle adresse",
                 NO_CONTACT_CHANNEL: "Aucun canal de contact",
                 NOT_RETRYABLE_NO_TEMPLATE: "Impossible de réessayer : aucun modèle enregistré",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Canal non proposé pour les avis",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Canal non proposé pour les codes",
+                NO_CONTENT_FOR_CHANNEL: "Aucun contenu pour le canal",
+                NO_ACCOUNT_FOR_CHANNEL: "Aucun compte d'envoi pour le canal",
+                INVALID_DESTINATION: "Destination non valide pour le canal",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "Impossible de réessayer : contient des champs protégés",
+                REPORTED_TOO_LATE: "Signalé trop tard pour réessayer",
+                CHANNEL_CHANGED: "Le canal de l'électeur a changé : pas de nouvel essai",
+                WORKER_STOPPED_BEFORE_SENDING: "Le processus s'est arrêté avant l'envoi",
+                WORKER_STOPPED_AFTER_SENDING:
+                    "Le processus s'est arrêté avant d'enregistrer le résultat",
+                CODE_EXPIRED_BEFORE_SENDING: "Le code a expiré avant de pouvoir être envoyé",
+                UNRESOLVED: "La remise n'a pas pu être confirmée",
+                SELECTED_WITHOUT_VOTERS: "Sélectionnez au moins un électeur",
+                WRONG_RECIPIENT_KIND: "La destination n'est pas du type auquel ce canal envoie",
+                UNSUPPORTED_PURPOSE: "Le fournisseur n'envoie pas ce type de message",
+                MISSING_APPROVED_TEMPLATE: "Aucun modèle approuvé pour ce message",
+                OUTSIDE_CONVERSATION_WINDOW: "En dehors de la fenêtre de conversation",
+                DESTINATION_NOT_ALLOWED: "Ce compte n'envoie pas vers le pays de la destination",
+                CODE_EXPIRED: "Le code a expiré",
+                MISSING_CODE: "Aucun code à envoyer",
+                ENDPOINT_NOT_HTTPS: "L'adresse du fournisseur doit commencer par https://",
+                PROVIDER_CODE: "Code d'erreur du fournisseur {{code}}",
+                RETRY_NOT_PREPARED:
+                    "Impossible de réessayer : le message n'a pas pu être préparé à nouveau",
+                NOT_THE_VOTERS_CHANNEL: "Ce n'est pas le canal de l'électeur",
+                REPORT_CREDENTIALS_MISSING:
+                    "Générez les identifiants des rapports et créez l'abonnement Infobip",
+                CALLBACK_NOT_HTTPS: "L'adresse de rappel doit être en https",
             },
         },
         messagingAccounts: {
@@ -5717,6 +5767,8 @@ const frenchTranslation: TranslationType = {
                 DUPLICATE_LANGUAGE: "Cette langue a déjà un modèle pour cet usage",
                 NOT_A_URL: "Saisissez une adresse commençant par https://",
                 UNSUPPORTED_PROVIDER: "Fournisseur non pris en charge : remplacez ce compte",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Saisissez à nouveau les identifiants pour la nouvelle adresse",
             },
             warning: {
                 pageChange:
@@ -5750,6 +5802,7 @@ const frenchTranslation: TranslationType = {
                 set: "Défini · remplacé {{date}}. Il est stocké chiffré et n'est jamais affiché.",
                 replace: "Remplacer",
                 replaceNamed: "Remplacer {{name}}",
+                reenter: "L'adresse a changé : saisissez à nouveau cet identifiant.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5807,6 +5860,7 @@ const frenchTranslation: TranslationType = {
                     "Affiché aux administrateurs qui peuvent gérer les comptes de messagerie.",
                 loading: "Chargement…",
                 unavailable: "Non disponible",
+                loadError: "L'URL de rappel n'a pas pu être chargée.",
             },
             copy: {
                 success: "Copié",
@@ -5815,6 +5869,7 @@ const frenchTranslation: TranslationType = {
             save: {
                 success: "Compte enregistré",
                 error: "Le compte n'a pas pu être enregistré.",
+                refused: "Le compte n'a pas été enregistré : {{reason}}",
             },
             test: {
                 title: "Envoyer un message de test depuis {{name}}",
@@ -5855,6 +5910,10 @@ const frenchTranslation: TranslationType = {
                     url: "Définissez son URL sur l'URL de rappel de ce compte.",
                     auth: "Choisissez l'authentification Basic et saisissez le nom d'utilisateur et le mot de passe des rapports.",
                 },
+                confirmTitle: "Remplacer les identifiants des rapports ?",
+                confirmBody:
+                    "Le nom d'utilisateur et le mot de passe actuels des rapports cessent aussitôt de fonctionner. Tant que l'abonnement Infobip n'a pas les nouveaux, les rapports de remise Viber sont refusés et les messages restent Accepté.",
+                confirm: "Remplacer",
             },
         },
     },

@@ -20,8 +20,8 @@ pub mod scheduled_event;
 pub mod scheduled_outcome;
 pub mod tally_sheet_import;
 pub mod tally_sheets;
-pub mod voter_channel;
 #[cfg(feature = "reports")]
 pub mod templates;
+pub mod voter_channel;
 
 pub mod to_map;

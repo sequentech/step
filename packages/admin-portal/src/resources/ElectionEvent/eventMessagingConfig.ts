@@ -360,8 +360,19 @@ export const parseMessagingConfigErrors = (raw: unknown): IMessagingConfigError[
     )
 }
 
-/** The stats of each channel by channel, from messaging_event_stats. */
+/**
+ * The stats of each channel by channel, from messaging_event_stats. The row
+ * without a channel (voters with no contact channel) is left out: it is never
+ * counted under a channel, and `noChannelStats` reads it.
+ */
 export const statsByChannel = (
     channels: IChannelMessageStats[] | null | undefined
 ): Partial<Record<EMessageChannel, IChannelMessageStats>> =>
-    Object.fromEntries((channels ?? []).map((entry) => [entry.channel, entry]))
+    Object.fromEntries(
+        (channels ?? []).filter((entry) => !!entry.channel).map((entry) => [entry.channel, entry])
+    )
+
+/** The messages of voters with no contact channel, when there are any. */
+export const noChannelStats = (
+    channels: IChannelMessageStats[] | null | undefined
+): IChannelMessageStats | undefined => (channels ?? []).find((entry) => !entry.channel)

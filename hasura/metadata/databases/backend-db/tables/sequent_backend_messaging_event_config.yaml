@@ -11,6 +11,7 @@ select_permissions:
               - election_event_id
               - tenant_id
               - updated_at
+              - updated_by
               - version
           filter:
               tenant_id:

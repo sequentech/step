@@ -14,7 +14,8 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Client as DbClient;
 use messaging::relay::{
     self, CallbackEnvelope, CallbackMethod, CallbackProvider, RelayAuthError,
-    RelayResponse, RELAY_SECRET_ENV, RELAY_SIGNATURE_HEADER,
+    RelayResponse, RelaySecretRefusal, ReplayGuard, ReplayRefusal,
+    RELAY_SECRET_ENV, RELAY_SECRET_POLICY_ENV, RELAY_SIGNATURE_HEADER,
 };
 use rocket::data::{Data, ToByteUnit};
 use rocket::http::{RawStr, Status};
@@ -23,6 +24,7 @@ use rocket::serde::json::Json;
 use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::update_realm_attributes;
+use sequent_core::types::messaging::NoticeRecipient;
 use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, CreateMessengerLinkRequest,
     CreateMessengerLinkResponse, CredentialName, EventMessagingConfig,
@@ -32,6 +34,7 @@ use sequent_core::types::messaging::{
     REALM_ATTR_MESSAGING,
 };
 use sequent_core::types::permissions::Permissions;
+use sequent_core::types::voter_channel::{voter_channel, VoterChannel};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -43,15 +46,17 @@ use windmill::postgres::messaging::{
     update_messaging_account_reentering, AccountSettings, MessagingAccount,
 };
 use windmill::services::messaging::accounts::{
-    callback_readiness, check_account, delete_account,
-    generate_report_credentials, replace_credentials,
+    callback_blocker_reason, callback_blockers_with, callback_readiness_with,
+    check_account, delete_account, generate_report_credentials,
+    replace_credentials,
 };
 use windmill::services::messaging::audit::post_attempt_outcomes_or_warn;
 use windmill::services::messaging::config::{
-    save_event_messaging_config, SaveOutcome,
+    save_event_messaging_config_as, SaveOutcome,
 };
 use windmill::services::messaging::dispatch::{
-    deliver, Delivery, Dispatcher, ProviderTemplate, Recipient,
+    deliver, notice_recipient, record_refusal, Delivery, Dispatcher,
+    ProviderTemplate, Recipient, Refusal,
 };
 use windmill::services::messaging::links::{
     confirm_link, create_link, link_status, LinkError,
@@ -59,6 +64,7 @@ use windmill::services::messaging::links::{
 use windmill::services::messaging::webhooks::{
     aws_events, meta_events, meta_subscription, viber_events, WebhookOutcome,
 };
+use windmill::tasks::send_template::find_voter;
 
 type RouteError = (Status, String);
 
@@ -120,32 +126,90 @@ pub async fn send_message(
     let election_event_id = claims
         .require_event(&client, request.election_event_id.as_deref())
         .await?;
-    let result = deliver(
-        &mut client,
-        dispatcher().await?,
-        &Delivery {
-            tenant_id,
-            election_event_id,
-            purpose: request.purpose,
-            recipient: Recipient {
-                voter_id: request.voter_id.clone(),
-                channel: request.channel,
-                destination: request.destination.clone(),
-                // The voter's Posts: windmill refuses a channel they don't
-                // offer ("Channel not offered for notices"/"…for codes").
-                election_ids: request.election_ids.clone(),
-            },
-            content: Some(request.content.clone()),
-            language: request.language.clone(),
-            template_alias: None,
-            logical_key: format!("keycloak:{}", request.logical_key),
-            expires_at,
-            account_id: None,
-            template_key: request.template_key.clone(),
-            provider_template: None,
+    let logical_key = format!("keycloak:{}", request.logical_key);
+    let destination = request
+        .destination
+        .clone()
+        .filter(|destination| !destination.trim().is_empty());
+    // Codes go where Keycloak is verifying them; notices go to the voter's
+    // one channel, which harvest reads from the voter's record.
+    let recipient = match request.purpose {
+        MessagePurpose::OTP => match (request.channel, destination) {
+            (Some(channel), Some(destination)) => Ok((channel, destination)),
+            _ => return Err(bad_request("codes need channel and destination")),
         },
-    )
-    .await
+        MessagePurpose::NOTICE => {
+            let voter = match (request.recipient, request.voter_id.as_deref()) {
+                (NoticeRecipient::VOTER_CHANNEL, Some(voter_id)) => {
+                    voter_record(
+                        services,
+                        &request.tenant_id,
+                        election_event_id.map(|id| id.to_string()).as_deref(),
+                        voter_id,
+                    )
+                    .await?
+                }
+                _ => None,
+            };
+            notice_recipient(
+                request.recipient,
+                request.channel,
+                destination.as_deref(),
+                voter.as_ref(),
+            )
+        }
+    };
+    let result = match recipient {
+        Ok((channel, destination)) => {
+            deliver(
+                &mut client,
+                dispatcher().await?,
+                &Delivery {
+                    tenant_id,
+                    election_event_id,
+                    purpose: request.purpose,
+                    recipient: Recipient {
+                        voter_id: request.voter_id.clone(),
+                        channel,
+                        destination,
+                        // The voter's Posts: windmill refuses a channel
+                        // they don't offer ("Channel not offered for
+                        // notices"/"…for codes").
+                        election_ids: request.election_ids.clone(),
+                    },
+                    content: Some(request.content.clone()),
+                    language: request.language.clone(),
+                    template_alias: None,
+                    logical_key,
+                    expires_at,
+                    account_id: None,
+                    template_key: request.template_key.clone(),
+                    provider_template: None,
+                },
+            )
+            .await
+        }
+        // One FAILED row with the reason: nothing goes anywhere else.
+        Err((channel, reason)) => {
+            info!(%reason, "notice refused before sending");
+            record_refusal(
+                &mut client,
+                &Refusal {
+                    tenant_id,
+                    election_event_id,
+                    voter_id: request.voter_id.clone(),
+                    channel,
+                    destination: request.destination.clone(),
+                    purpose: request.purpose,
+                    template_alias: None,
+                    language: request.language.clone(),
+                    logical_key,
+                    reason,
+                },
+            )
+            .await
+        }
+    }
     .map_err(internal)?;
     // The attempt's electoral log entry, off the code's response path.
     if !result.recorded.is_empty() {
@@ -170,6 +234,48 @@ pub async fn send_message(
         state: result.state,
         reason: result.reason,
     }))
+}
+
+/// The voter's one channel from their record in Keycloak, or `None` when
+/// the voter isn't found or has no channel.
+async fn voter_record(
+    services: &State<HarvestServices>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    voter_id: &str,
+) -> Result<Option<VoterChannel>, RouteError> {
+    let mut hasura = db_client(services).await?;
+    let mut keycloak = services
+        .databases
+        .keycloak()
+        .await
+        .get()
+        .await
+        .map_err(|error| internal(anyhow::anyhow!("{error}")))?;
+    let hasura_tx =
+        hasura.transaction().await.map_err(|e| internal(e.into()))?;
+    let keycloak_tx = keycloak
+        .transaction()
+        .await
+        .map_err(|e| internal(e.into()))?;
+    let user = find_voter(
+        &hasura_tx,
+        &keycloak_tx,
+        tenant_id,
+        election_event_id,
+        voter_id,
+    )
+    .await
+    .map_err(internal)?;
+    keycloak_tx.commit().await.map_err(|e| internal(e.into()))?;
+    hasura_tx.commit().await.map_err(|e| internal(e.into()))?;
+    let found = user.and_then(|user| {
+        voter_channel(user.email.as_deref(), user.attributes.as_ref())
+    });
+    if found.is_none() {
+        info!("the voter has no recorded channel: the request's is used");
+    }
+    Ok(found)
 }
 
 fn link_error(error: LinkError) -> RouteError {
@@ -200,11 +306,15 @@ pub async fn create_messenger_link(
     claims
         .require_event(&client, request.election_event_id.as_deref())
         .await?;
-    create_link(&mut client, &request)
-        .await
-        .map_err(|error| bad_request(error))?
-        .map(Json)
-        .map_err(link_error)
+    create_link(
+        &mut client,
+        &request,
+        services.messaging_webhooks_url.as_deref(),
+    )
+    .await
+    .map_err(|error| bad_request(error))?
+    .map(Json)
+    .map_err(link_error)
 }
 
 #[instrument(skip_all)]
@@ -249,52 +359,66 @@ pub struct MessagingRelay {
     /// The largest envelope read: [`relay::envelope_limit`] of the
     /// component's body limit.
     envelope_limit: u64,
+    /// Relay signatures already taken while fresh: a captured relayed
+    /// request isn't taken twice.
+    replays: std::sync::Arc<ReplayGuard>,
 }
 
 /// Whether harvest can check relay signatures.
 #[derive(Clone)]
 enum RelaySecret {
-    /// `MESSAGING_RELAY_SECRET` is unset: every relayed callback is refused
-    /// with 503, so the component makes the provider retry.
-    NotConfigured,
+    /// `MESSAGING_RELAY_SECRET` is unset or refused: every relayed callback
+    /// is answered 503, so the component makes the provider retry.
+    NotConfigured(RelaySecretRefusal),
     /// The secret shared with the component.
     Configured(Vec<u8>),
 }
 
-/// Why a relayed callback was refused because harvest isn't set up for it.
-const RELAY_NOT_CONFIGURED: &str =
-    "Callbacks refused: MESSAGING_RELAY_SECRET is not set";
-
 impl MessagingRelay {
-    /// `secret` (none or blank: not configured) and the component's body
-    /// limit.
+    /// `secret`, already checked (none or empty: not configured), and the
+    /// component's body limit.
     pub fn new(secret: Option<&[u8]>, max_body_bytes: u64) -> Self {
         Self {
             secret: match secret.filter(|secret| !secret.is_empty()) {
                 Some(secret) => RelaySecret::Configured(secret.to_vec()),
-                None => RelaySecret::NotConfigured,
+                None => RelaySecret::NotConfigured(RelaySecretRefusal::NOT_SET),
             },
             envelope_limit: relay::envelope_limit(max_body_bytes),
+            replays: Default::default(),
         }
     }
 
-    /// From `MESSAGING_RELAY_SECRET` and
+    /// From the variables `var` returns: `MESSAGING_RELAY_SECRET`, checked
+    /// by [`relay::relay_secret`] under `MESSAGING_RELAY_SECRET_POLICY`
+    /// (the same rule as the component's), and
     /// `MESSAGING_WEBHOOKS_MAX_BODY_BYTES`.
-    pub fn from_env() -> Self {
-        let secret = std::env::var(RELAY_SECRET_ENV)
-            .ok()
-            .filter(|secret| !secret.trim().is_empty());
-        if secret.is_none() {
-            warn!("{RELAY_NOT_CONFIGURED}");
+    pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Self {
+        let max_body_bytes =
+            relay::max_body_bytes(var(relay::MAX_BODY_BYTES_ENV).as_deref())
+                .unwrap_or_else(|error| {
+                    error!(
+                        "{error:#}; using {} bytes",
+                        relay::DEFAULT_MAX_BODY_BYTES
+                    );
+                    relay::DEFAULT_MAX_BODY_BYTES
+                });
+        let mut relay = Self::new(None, max_body_bytes);
+        match relay::relay_secret(
+            var(RELAY_SECRET_ENV).as_deref(),
+            var(RELAY_SECRET_POLICY_ENV).as_deref(),
+        ) {
+            Ok(secret) => relay.secret = RelaySecret::Configured(secret),
+            Err(refusal) => {
+                warn!("Callbacks refused: {refusal}");
+                relay.secret = RelaySecret::NotConfigured(refusal);
+            }
         }
-        let max_body_bytes = relay::max_body_bytes(
-            std::env::var(relay::MAX_BODY_BYTES_ENV).ok().as_deref(),
-        )
-        .unwrap_or_else(|error| {
-            error!("{error:#}; using {} bytes", relay::DEFAULT_MAX_BODY_BYTES);
-            relay::DEFAULT_MAX_BODY_BYTES
-        });
-        Self::new(secret.as_deref().map(str::as_bytes), max_body_bytes)
+        relay
+    }
+
+    /// From the process environment ([`MessagingRelay::from_vars`]).
+    pub fn from_env() -> Self {
+        Self::from_vars(|name| std::env::var(name).ok())
     }
 }
 
@@ -463,20 +587,27 @@ pub async fn messaging_callbacks(
     services: &State<HarvestServices>,
 ) -> Result<Json<RelayResponse>, Status> {
     let relay_config = &services.messaging_relay;
-    let RelaySecret::Configured(secret) = &relay_config.secret else {
-        error!("{RELAY_NOT_CONFIGURED}");
-        return Err(Status::ServiceUnavailable);
+    let secret = match &relay_config.secret {
+        RelaySecret::Configured(secret) => secret,
+        RelaySecret::NotConfigured(refusal) => {
+            error!("Callbacks refused: {refusal}");
+            return Err(Status::ServiceUnavailable);
+        }
     };
     let bytes = read_body(data, relay_config.envelope_limit).await?;
-    if let Err(reason) = relay::verify(
+    let now = Utc::now().timestamp();
+    let verified = match relay::verify_signature(
         secret,
         Some(&signature.0),
         &bytes,
-        Utc::now().timestamp(),
+        now,
     ) {
-        warn!(%reason, "relayed callback refused");
-        return Err(Status::Unauthorized);
-    }
+        Ok(verified) => verified,
+        Err(reason) => {
+            warn!(%reason, "relayed callback refused");
+            return Err(Status::Unauthorized);
+        }
+    };
     let envelope: CallbackEnvelope =
         serde_json::from_slice(&bytes).map_err(|_| {
             warn!("relayed callback refused: not a callback envelope");
@@ -489,6 +620,26 @@ pub async fn messaging_callbacks(
         );
         return Err(Status::BadRequest);
     }
+    // The component signs what it just received.
+    if let Err(reason) = envelope.check_received_at(verified.timestamp) {
+        warn!(%reason, "relayed callback refused");
+        return Err(Status::Unauthorized);
+    }
+    // Taken once: a captured relayed request can't be sent again while its
+    // signature is fresh.
+    match relay_config.replays.admit(&verified, now) {
+        Ok(()) => {}
+        Err(ReplayRefusal::Replayed) => {
+            warn!("relayed callback refused: already taken");
+            return Err(Status::Unauthorized);
+        }
+        Err(ReplayRefusal::Busy) => {
+            warn!(
+                "relayed callback refused for now: too many fresh signatures"
+            );
+            return Err(Status::ServiceUnavailable);
+        }
+    }
     let answer = provider_callback(&envelope, services).await?;
     info!(
         provider = %envelope.provider,
@@ -498,6 +649,27 @@ pub async fn messaging_callbacks(
         "provider callback answered"
     );
     Ok(Json(answer))
+}
+
+/// A refusal of the account actions, as `{"message": reason}`: Hasura
+/// passes the reason on to the Admin Portal, which shows it.
+#[derive(Debug, PartialEq, Eq)]
+pub struct JsonRefusal(Status, String);
+
+impl From<RouteError> for JsonRefusal {
+    fn from((status, reason): RouteError) -> Self {
+        Self(status, reason)
+    }
+}
+
+impl<'r> rocket::response::Responder<'r, 'static> for JsonRefusal {
+    fn respond_to(
+        self,
+        request: &'r Request<'_>,
+    ) -> rocket::response::Result<'static> {
+        (self.0, Json(serde_json::json!({"message": self.1})))
+            .respond_to(request)
+    }
 }
 
 // No `Debug`: it may carry credentials.
@@ -530,8 +702,12 @@ pub struct MessagingAccountOutput {
 }
 
 impl MessagingAccountOutput {
-    fn of(account: &MessagingAccount) -> Self {
-        let readiness = callback_readiness(account);
+    fn of(account: &MessagingAccount, component_url: Option<&str>) -> Self {
+        let readiness = callback_readiness_with(
+            component_url,
+            account.provider,
+            &account.webhook_key,
+        );
         Self {
             id: account.id.to_string(),
             callback_url: readiness.url().map(str::to_string),
@@ -559,7 +735,7 @@ pub async fn upsert_messaging_account(
     claims: JwtClaims,
     body: Json<UpsertMessagingAccountInput>,
     services: &State<HarvestServices>,
-) -> Result<Json<MessagingAccountOutput>, RouteError> {
+) -> Result<Json<MessagingAccountOutput>, JsonRefusal> {
     let tenant_id =
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let input = body.into_inner();
@@ -607,7 +783,10 @@ pub async fn upsert_messaging_account(
             .map_err(bad_request)?;
     }
     tx.commit().await.map_err(|e| internal(e.into()))?;
-    Ok(Json(MessagingAccountOutput::of(&account)))
+    Ok(Json(MessagingAccountOutput::of(
+        &account,
+        services.messaging_webhooks_url.as_deref(),
+    )))
 }
 
 fn parse_credentials(
@@ -634,7 +813,7 @@ pub async fn delete_messaging_account(
     claims: JwtClaims,
     body: Json<AccountIdInput>,
     services: &State<HarvestServices>,
-) -> Result<Json<MessagingAccountOutput>, RouteError> {
+) -> Result<Json<MessagingAccountOutput>, JsonRefusal> {
     let tenant_id =
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let id = parse_uuid(&body.id)?;
@@ -644,7 +823,7 @@ pub async fn delete_messaging_account(
         .await
         .map_err(internal)?
     {
-        return Err((Status::NotFound, "unknown account".to_string()));
+        return Err((Status::NotFound, "unknown account".to_string()).into());
     }
     tx.commit().await.map_err(|e| internal(e.into()))?;
     Ok(Json(MessagingAccountOutput {
@@ -669,7 +848,7 @@ pub async fn messaging_account_callback_url(
     claims: JwtClaims,
     body: Json<AccountIdInput>,
     services: &State<HarvestServices>,
-) -> Result<Json<CallbackUrlOutput>, RouteError> {
+) -> Result<Json<CallbackUrlOutput>, JsonRefusal> {
     let tenant_id =
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let id = parse_uuid(&body.id)?;
@@ -680,10 +859,81 @@ pub async fn messaging_account_callback_url(
         .map_err(internal)?
         .ok_or((Status::NotFound, "unknown account".to_string()))?;
     tx.commit().await.map_err(|e| internal(e.into()))?;
-    let readiness = callback_readiness(&account);
+    let readiness = callback_readiness_with(
+        services.messaging_webhooks_url.as_deref(),
+        account.provider,
+        &account.webhook_key,
+    );
     Ok(Json(CallbackUrlOutput {
         callback_url: readiness.url().map(str::to_string),
         reason: readiness.reason().map(str::to_string),
+    }))
+}
+
+#[derive(Serialize, Debug, PartialEq, Eq)]
+pub struct AccountCallbackStatus {
+    account_id: String,
+    /// `CALLBACK_NOT_CONFIGURED`, `REPORT_CREDENTIALS_MISSING`: receipts are
+    /// unavailable while any is set; Messenger isn't ready for codes without
+    /// the callback address.
+    blockers: Vec<String>,
+    /// One reason per blocker, in the same order.
+    reasons: Vec<String>,
+}
+
+#[derive(Serialize, Debug, PartialEq, Eq)]
+pub struct CallbackStatusOutput {
+    accounts: Vec<AccountCallbackStatus>,
+}
+
+/// For the event tab, Logs and Settings (`messaging-config-read` or
+/// `messaging-account-read`): per account of the tenant, what stops its
+/// callbacks from reaching Step. The callback URL itself, which holds the
+/// webhook key, stays with `messaging-account-write`.
+#[instrument(skip_all)]
+#[post(
+    "/messaging/accounts/callback-status",
+    format = "json",
+    data = "<_body>"
+)]
+pub async fn messaging_callback_status(
+    claims: JwtClaims,
+    _body: Json<Value>,
+    services: &State<HarvestServices>,
+) -> Result<Json<CallbackStatusOutput>, JsonRefusal> {
+    let tenant_id =
+        authorize_admin(&claims, Permissions::MESSAGING_CONFIG_READ).or_else(
+            |_| authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_READ),
+        )?;
+    let mut client = db_client(services).await?;
+    let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
+    let accounts =
+        windmill::postgres::messaging::list_messaging_accounts(&tx, &tenant_id)
+            .await
+            .map_err(internal)?;
+    tx.commit().await.map_err(|e| internal(e.into()))?;
+    Ok(Json(CallbackStatusOutput {
+        accounts: accounts
+            .iter()
+            .map(|account| {
+                let blockers = callback_blockers_with(
+                    services.messaging_webhooks_url.as_deref(),
+                    account,
+                );
+                AccountCallbackStatus {
+                    account_id: account.id.to_string(),
+                    reasons: blockers
+                        .iter()
+                        .filter_map(|blocker| callback_blocker_reason(*blocker))
+                        .map(str::to_string)
+                        .collect(),
+                    blockers: blockers
+                        .iter()
+                        .map(|blocker| blocker.to_string())
+                        .collect(),
+                }
+            })
+            .collect(),
     }))
 }
 
@@ -711,7 +961,7 @@ pub async fn replace_messaging_account_credentials(
     claims: JwtClaims,
     body: Json<ReplaceCredentialsInput>,
     services: &State<HarvestServices>,
-) -> Result<Json<ReplaceCredentialsOutput>, RouteError> {
+) -> Result<Json<ReplaceCredentialsOutput>, JsonRefusal> {
     let tenant_id =
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let input = body.into_inner();
@@ -774,7 +1024,7 @@ pub async fn check_messaging_account(
     claims: JwtClaims,
     body: Json<AccountIdInput>,
     services: &State<HarvestServices>,
-) -> Result<Json<CheckOutput>, RouteError> {
+) -> Result<Json<CheckOutput>, JsonRefusal> {
     let tenant_id =
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let id = parse_uuid(&body.id)?;
@@ -788,7 +1038,13 @@ pub async fn check_messaging_account(
     let readiness = get_messaging_account(&tx, &tenant_id, &id)
         .await
         .map_err(internal)?
-        .map(|account| callback_readiness(&account));
+        .map(|account| {
+            callback_readiness_with(
+                services.messaging_webhooks_url.as_deref(),
+                account.provider,
+                &account.webhook_key,
+            )
+        });
     tx.commit().await.map_err(|e| internal(e.into()))?;
     Ok(Json(CheckOutput {
         status,
@@ -827,7 +1083,7 @@ pub async fn test_messaging_account(
     claims: JwtClaims,
     body: Json<TestAccountInput>,
     services: &State<HarvestServices>,
-) -> Result<Json<TestAccountOutput>, RouteError> {
+) -> Result<Json<TestAccountOutput>, JsonRefusal> {
     let tenant_id =
         authorize_admin(&claims, Permissions::MESSAGING_ACCOUNT_WRITE)?;
     let input = body.into_inner();
@@ -921,11 +1177,12 @@ pub async fn update_event_messaging_config(
     let event_id = parse_uuid(&input.election_event_id)?;
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
-    let projection = match save_event_messaging_config(
+    let projection = match save_event_messaging_config_as(
         &tx,
         &tenant_id,
         &event_id,
         &input.config,
+        Some(&claims.hasura_claims.user_id),
     )
     .await
     .map_err(internal)?

@@ -164,9 +164,116 @@ pub fn ses_events(envelope: &SnsEnvelope) -> Result<Vec<WebhookEvent>> {
         .unwrap_or_default())
 }
 
+/// How long fetching an SNS signing certificate (or confirming a
+/// subscription) may take: well inside the webhook component's 10 s.
+pub const SNS_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Certificates remembered at once; SNS rotates them rarely.
+const CACHED_CERTIFICATES: usize = 64;
+
+/// SNS signing certificates by URL. Each URL names one certificate
+/// (`SimpleNotificationService-<id>.pem`), so it is fetched once; a failed
+/// fetch isn't remembered.
+pub struct CertificateCache {
+    http: reqwest::Client,
+    certificates: std::sync::Mutex<std::collections::HashMap<String, Vec<u8>>>,
+}
+
+impl CertificateCache {
+    /// A cache whose fetches give up after `timeout`.
+    pub fn new(timeout: std::time::Duration) -> Self {
+        Self {
+            http: reqwest::Client::builder()
+                .timeout(timeout)
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .unwrap_or_default(),
+            certificates: Default::default(),
+        }
+    }
+
+    /// The process's cache, with [`SNS_FETCH_TIMEOUT`].
+    pub fn global() -> &'static Self {
+        static CACHE: std::sync::OnceLock<CertificateCache> = std::sync::OnceLock::new();
+        CACHE.get_or_init(|| CertificateCache::new(SNS_FETCH_TIMEOUT))
+    }
+
+    /// The certificate at `url`, fetched on first use.
+    ///
+    /// # Errors
+    /// When it can't be fetched in time.
+    pub async fn get(&self, url: &str) -> Result<Vec<u8>> {
+        if let Some(certificate) = self
+            .certificates
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(url)
+        {
+            return Ok(certificate.clone());
+        }
+        let certificate = self
+            .http
+            .get(url)
+            .send()
+            .await?
+            .error_for_status()?
+            .bytes()
+            .await?
+            .to_vec();
+        let mut certificates = self.certificates.lock().unwrap_or_else(|e| e.into_inner());
+        if certificates.len() >= CACHED_CERTIFICATES {
+            certificates.clear();
+        }
+        certificates.insert(url.to_string(), certificate.clone());
+        Ok(certificate)
+    }
+
+    /// Visits an SNS subscription URL, with the same timeout.
+    ///
+    /// # Errors
+    /// When SNS doesn't answer with success in time.
+    pub async fn confirm_subscription(&self, url: &str) -> Result<()> {
+        self.http.get(url).send().await?.error_for_status()?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression (R1-18): every SES event fetched the certificate again,
+    /// with no timeout, so a slow SNS host held harvest past the
+    /// component's timeout.
+    #[tokio::test]
+    async fn certificates_are_fetched_once_per_url_and_a_slow_host_times_out() {
+        use crate::test_server::{Reply, TestServer};
+        let server = TestServer::start(vec![
+            Reply::Raw(500, "text/plain", String::new()),
+            Reply::Raw(200, "text/plain", "certificate".into()),
+        ])
+        .await;
+        let cache = CertificateCache::new(std::time::Duration::from_millis(300));
+        let url = format!("{}/SimpleNotificationService-1.pem", server.base_url);
+        // A failed fetch isn't remembered.
+        assert!(cache.get(&url).await.is_err());
+        assert_eq!(cache.get(&url).await.unwrap(), b"certificate".to_vec());
+        assert_eq!(cache.get(&url).await.unwrap(), b"certificate".to_vec());
+        assert_eq!(server.requests().len(), 2);
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let slow = format!("http://{}/slow.pem", listener.local_addr().unwrap());
+        let held = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            drop(stream);
+        });
+        let started = std::time::Instant::now();
+        assert!(cache.get(&slow).await.is_err());
+        assert!(started.elapsed() < std::time::Duration::from_secs(3));
+        held.abort();
+        assert_eq!(SNS_FETCH_TIMEOUT, std::time::Duration::from_secs(5));
+    }
     use openssl::asn1::Asn1Time;
     use openssl::base64::encode_block;
     use openssl::pkey::PKey;

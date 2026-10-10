@@ -66,6 +66,36 @@ class MessageOtpTemplateTest {
     }
   }
 
+  /** R3-15: the Messenger intro is the ticket's, with the organization and the Page. */
+  @Test
+  void theMessengerIntroNamesTheOrganizationAndThePage() throws IOException {
+    for (Path page : new Path[] {TEMPLATE, BASE_LOGIN.resolve("message-otp.enter-otp.ftl")}) {
+      assertTrue(
+          parsed(page)
+              .contains(
+                  "msg(\"messageOtp.messenger.introPage\", messagingOrganization, messengerPage)"),
+          page.toString());
+    }
+  }
+
+  /** R3-04: the neutral code page says only that a code went to the account's contact, if any. */
+  @Test
+  void theNeutralCodePageNamesNoChannel() throws IOException {
+    String template = parsed(TEMPLATE);
+    int neutral = template.indexOf("(codeDisclosure!'') == 'NEUTRAL'");
+    assertTrue(neutral > 0);
+    assertTrue(template.indexOf("msg(\"messageOtp.auth.neutralSent\")") > neutral);
+    assertTrue(neutral < template.indexOf("messageOtp.auth.sentTo"));
+  }
+
+  /** Lead decision: a neutral page shows the Messenger box to everyone, without link state. */
+  @Test
+  void theNeutralPageShowsTheMessengerBoxToEveryone() throws IOException {
+    String template = parsed(TEMPLATE);
+    assertTrue(template.contains("(channel?? && channel == 'MESSENGER') || neutralMessenger"));
+    assertTrue(template.contains("msg(\"messageOtp.messenger.ifMessenger\")"));
+  }
+
   /** The QR code is drawn on the server, as an SVG data URI of the m.me link. */
   @Test
   void theQrCodeIsRendered() {

@@ -11,6 +11,7 @@ import {
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
+    EReadinessBlocker,
     EReadinessPolicy,
     IChannelMessageStats,
     IEventMessagingConfig,
@@ -21,6 +22,7 @@ import {
     MessagingChannels,
     MessagingDeliveryStatus,
     MessagingTemplateBindings,
+    MigratedConfigNotice,
 } from "./EditElectionEventMessaging"
 
 jest.mock("react-i18next", () => ({
@@ -61,6 +63,7 @@ jest.mock("@/hooks/useMessagingAccounts", () => ({
 }))
 jest.mock("@/hooks/useEventMessagingConfig", () => ({
     useEventMessagingConfig: () => ({config: undefined, loading: false, refetch: jest.fn()}),
+    useEventMessagingConfigAuthor: () => ({updatedBy: undefined, refetch: jest.fn()}),
 }))
 jest.mock("@/components/styles/ElectionHeaderStyles", () => ({
     ElectionHeaderStyles: {AccordionTitle: "span"},
@@ -540,5 +543,120 @@ describe("MessagingDeliveryStatus", () => {
         expect(screen.getByRole("status")).toHaveTextContent("messagingEvent.delivery.loadError")
         expect(screen.queryByRole("button", {name: /showFailed/})).toBeNull()
         expect(within(row(EMessageChannel.SMS)).queryByText("0")).toBeNull()
+    })
+})
+
+describe("delivery without a callback address (R4-04)", () => {
+    it("shows WhatsApp delivery as unavailable, with the reason, never 0", () => {
+        const noCallback = {
+            ...whatsapp,
+            status: {
+                connected: true,
+                production_access: true,
+                callback_blockers: [EReadinessBlocker.CALLBACK_NOT_CONFIGURED],
+                callback_reasons: ["Callback address not configured"],
+            },
+        }
+        render(
+            <MessagingDeliveryStatus
+                config={configWith([[EMessageChannel.WHATSAPP, "wa-1", [EMessagePurpose.NOTICE]]])}
+                accounts={[noCallback]}
+                stats={[
+                    {
+                        channel: EMessageChannel.WHATSAPP,
+                        queued: 0,
+                        accepted: 100,
+                        delivered: 0,
+                        failed: 0,
+                        unknown: 0,
+                        unresolved: 0,
+                    },
+                ]}
+            />
+        )
+        const cell = within(row(EMessageChannel.WHATSAPP)).getByText(
+            "messaging.deliveryUnavailable"
+        )
+        expect(cell.closest("td")).toHaveAttribute(
+            "title",
+            "messaging.reason.CALLBACK_NOT_CONFIGURED"
+        )
+    })
+})
+
+describe("voters with no contact channel (R4-11)", () => {
+    it("shows their failures on a row of their own, never under Email", () => {
+        render(
+            <MessagingDeliveryStatus
+                config={configWith([[EMessageChannel.SMS, "sms-1", [EMessagePurpose.NOTICE]]])}
+                accounts={[account({})]}
+                stats={[
+                    {
+                        channel: EMessageChannel.SMS,
+                        queued: 0,
+                        accepted: 1,
+                        delivered: 0,
+                        failed: 2,
+                        unknown: 0,
+                        unresolved: 0,
+                    },
+                    {
+                        channel: null,
+                        queued: 0,
+                        accepted: 0,
+                        delivered: 0,
+                        failed: 7,
+                        unknown: 0,
+                        unresolved: 0,
+                    },
+                ]}
+            />
+        )
+        const noChannel = document.querySelector('tr[data-channel="NONE"]') as HTMLElement
+        expect(noChannel).not.toBeNull()
+        expect(within(noChannel).getByText("messaging.reason.NO_CONTACT_CHANNEL")).toBeVisible()
+        expect(within(noChannel).getByText("7")).toBeVisible()
+        expect(row(EMessageChannel.EMAIL)).toBeNull()
+    })
+
+    it("links their failures to Logs (Follow-up 2)", () => {
+        const onShowFailed = jest.fn()
+        render(
+            <MessagingDeliveryStatus
+                config={configWith([[EMessageChannel.SMS, "sms-1", [EMessagePurpose.NOTICE]]])}
+                accounts={[account({})]}
+                stats={[
+                    {
+                        channel: null,
+                        queued: 0,
+                        accepted: 0,
+                        delivered: 0,
+                        failed: 7,
+                        unknown: 0,
+                        unresolved: 0,
+                    },
+                ]}
+                onShowFailed={onShowFailed}
+            />
+        )
+        fireEvent.click(
+            screen.getByRole("button", {name: /messagingEvent.delivery.showFailedNoChannel/})
+        )
+        expect(onShowFailed).toHaveBeenCalledWith(null)
+    })
+})
+
+describe("a configuration copied from the old storage that didn't validate", () => {
+    it("says it needs saving again, and why", () => {
+        render(<MigratedConfigNotice updatedBy="migration: needs saving again" />)
+        expect(screen.getByRole("alert")).toHaveTextContent("messagingEvent.needsSavingAgain")
+        expect(screen.getByRole("alert")).toHaveTextContent("messagingEvent.needsSavingAgainHelp")
+    })
+
+    it("says nothing for a configuration saved through the action, or copied and valid", () => {
+        const {container} = render(<MigratedConfigNotice updatedBy="migration" />)
+        expect(container).toBeEmptyDOMElement()
+        render(<MigratedConfigNotice updatedBy={null} />)
+        expect(screen.queryByRole("alert")).toBeNull()
     })
 })

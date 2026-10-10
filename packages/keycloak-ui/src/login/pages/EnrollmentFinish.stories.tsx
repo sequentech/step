@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Meta, StoryObj} from "@storybook/react-vite"
-import {expect, within} from "storybook/test"
+import {expect, spyOn, userEvent, waitFor, within} from "storybook/test"
 import {createKcPageStory} from "../KcPageStory"
 import {MessageChannel} from "../KcContext"
 
@@ -189,5 +189,126 @@ export const PendingResultUnknownChannel: Story = {
         await canvas.findByRole("heading", {level: 1})
         await expect(canvasElement.querySelector("#notice-channel")).toBeNull()
         await expect(canvas.getByText(/SMS or email/)).toBeVisible()
+    },
+}
+
+/** The review page gives a reference that support can look the application up by. */
+export const PendingWithReference: Story = {
+    args: {
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            noticeChannel: MessageChannel.WhatsApp,
+            noticeAddress: "+155 ••• ••• 999",
+            supportReference: "Q5KW8RFX",
+        },
+    },
+    beforeEach: () => {
+        const writeText = spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined)
+        return () => writeText.mockRestore()
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        const reference = canvasElement.querySelector("#support-reference")!
+        await expect(reference).toHaveTextContent(
+            "Need help? Contact support and give them this reference code: Q5KW-8RFX"
+        )
+        await userEvent.click(canvas.getByRole("button", {name: "Copy"}))
+        await expect(navigator.clipboard.writeText).toHaveBeenCalledWith("Q5KW-8RFX")
+        await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Copied"))
+    },
+}
+
+export const PendingWithReferenceSpanish: Story = {
+    args: {
+        locale: "es",
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            supportReference: "Q5KW-8RFX",
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("#support-reference")).toHaveTextContent(
+            "¿Necesita ayuda? Contacte con soporte y deles este código de referencia: Q5KW-8RFX"
+        )
+        await expect(canvas.getByRole("button", {name: "Copiar"})).toBeVisible()
+    },
+}
+
+/** Without a clipboard the reference is still shown, to copy by hand; nothing breaks. */
+export const PendingReferenceWithoutClipboard: Story = {
+    args: {
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            supportReference: "Q5KW8RFX",
+        },
+    },
+    beforeEach: () => {
+        // The test runner may give navigator its own clipboard: hide whichever is there.
+        const own = Object.getOwnPropertyDescriptor(navigator, "clipboard")
+        Object.defineProperty(navigator, "clipboard", {configurable: true, value: undefined})
+        return () => {
+            if (own) {
+                Object.defineProperty(navigator, "clipboard", own)
+            } else {
+                delete (navigator as {clipboard?: Clipboard}).clipboard
+            }
+        }
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("#support-reference")).toHaveTextContent(
+            "Q5KW-8RFX"
+        )
+        await expect(canvas.queryByRole("button", {name: "Copy"})).not.toBeInTheDocument()
+    },
+}
+
+/** A copy the browser refuses is said, so the voter copies the reference by hand. */
+export const PendingReferenceCopyRefused: Story = {
+    args: {
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            supportReference: "Q5KW8RFX",
+        },
+    },
+    beforeEach: () => {
+        const writeText = spyOn(navigator.clipboard, "writeText").mockRejectedValue(
+            new DOMException("Denied", "NotAllowedError")
+        )
+        return () => writeText.mockRestore()
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await userEvent.click(canvas.getByRole("button", {name: "Copy"}))
+        await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent(/Couldn’t copy/))
+    },
+}
+
+export const PendingWithoutReference: Story = {
+    args: {kcContext: {enrollmentOutcome: {mismatchedFields: []}}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("#support-reference")).toBeNull()
+        await expect(canvas.queryByRole("button", {name: "Copy"})).not.toBeInTheDocument()
+    },
+}
+
+/** Only the reference's own shape is shown: anything else is ignored. */
+export const PendingReferenceIgnoresOtherValues: Story = {
+    args: {
+        kcContext: {
+            enrollmentOutcome: {mismatchedFields: []},
+            supportReference: "<b>voter@example.test</b>",
+        },
+    },
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByRole("heading", {level: 1})
+        await expect(canvasElement.querySelector("#support-reference")).toBeNull()
     },
 }

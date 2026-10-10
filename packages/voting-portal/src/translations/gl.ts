@@ -12,6 +12,10 @@ const galegoTranslation: TranslationType = {
         },
         contactChannel: {
             change: "Cambiar como contactamos con vostede",
+            updated: "Cambiouse o seu contacto. Os códigos e os avisos envíanse agora alí.",
+            cancelled: "O seu contacto non se cambiou.",
+            failed: "Non puidemos cambiar como contactamos con vostede. Ténteo de novo máis tarde ou contacte co soporte.",
+            close: "Pechar",
         },
         common: {
             goBack: "Volver",

@@ -170,7 +170,14 @@ export const ViberTemplates: Story = {
 
 export const ViberReportCredentials: Story = {
     args: {account: EStoryAccount.VIBER},
-    parameters: {widgets: ["CallbackSection", "ReportCredentialsDialog"]},
+    parameters: {
+        widgets: [
+            "CallbackSection",
+            "ReportCredentialsDialog",
+            "CopyField",
+            "ViberSubscriptionSteps",
+        ],
+    },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(

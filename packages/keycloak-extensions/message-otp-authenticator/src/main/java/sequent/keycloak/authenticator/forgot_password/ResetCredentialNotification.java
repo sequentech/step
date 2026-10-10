@@ -36,6 +36,7 @@ import org.keycloak.sessions.AuthenticationSessionCompoundId;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 @JBossLog
@@ -75,13 +76,35 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
 
     EventBuilder event = context.getEvent();
 
-    // Get the reset link
     int validityInSecs =
         context
             .getRealm()
             .getActionTokenGeneratedByUserLifespan(ResetCredentialsActionToken.TOKEN_TYPE);
-    int absoluteExpirationInSecs = Time.currentTime() + validityInSecs;
+    String link = resetLink(context, user, validityInSecs);
+    long expirationInMinutes = TimeUnit.SECONDS.toMinutes(validityInSecs);
 
+    // The link goes to the voter's one channel; a refusal or a failure is recorded with its reason
+    // and never sent elsewhere. The page is the same whatever happened.
+    Optional<String> notSent = sendNotification(context, user, link, expirationInMinutes);
+    EventBuilder resetEvent =
+        event
+            .clone()
+            .event(EventType.SEND_RESET_PASSWORD)
+            .user(user)
+            .detail(Details.USERNAME, username);
+    if (notSent.isEmpty()) {
+      resetEvent.success();
+    } else {
+      resetEvent.detail("reason", notSent.get()).error(Errors.EMAIL_SEND_FAILED);
+    }
+    context.forkWithSuccessMessage(successMessage());
+  }
+
+  /** The reset link: an action token for this user and authentication session. */
+  protected String resetLink(
+      AuthenticationFlowContext context, UserModel user, int validityInSecs) {
+    AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
+    int absoluteExpirationInSecs = Time.currentTime() + validityInSecs;
     String authSessionEncodedId =
         AuthenticationSessionCompoundId.fromAuthSession(authenticationSession).getEncodedId();
     ResetCredentialsActionToken token =
@@ -91,31 +114,11 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
             absoluteExpirationInSecs,
             authSessionEncodedId,
             authenticationSession.getClient().getClientId());
-
-    String link =
-        UriBuilder.fromUri(
-                context.getActionTokenUrl(
-                    token.serialize(
-                        context.getSession(), context.getRealm(), context.getUriInfo())))
-            .build()
-            .toString();
-
-    long expirationInMinutes = TimeUnit.SECONDS.toMinutes(validityInSecs);
-
-    // The link goes to the voter's one channel; a failure is recorded and never sent elsewhere.
-    boolean sent = sendNotification(context, user, link, expirationInMinutes);
-    EventBuilder resetEvent =
-        event
-            .clone()
-            .event(EventType.SEND_RESET_PASSWORD)
-            .user(user)
-            .detail(Details.USERNAME, username);
-    if (sent) {
-      resetEvent.success();
-    } else {
-      resetEvent.error(Errors.EMAIL_SEND_FAILED);
-    }
-    context.forkWithSuccessMessage(successMessage());
+    return UriBuilder.fromUri(
+            context.getActionTokenUrl(
+                token.serialize(context.getSession(), context.getRealm(), context.getUriInfo())))
+        .build()
+        .toString();
   }
 
   /**
@@ -129,13 +132,14 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
   /**
    * Sends the link on the voter's channel.
    *
-   * @return whether it was handed over; a refusal or a failure is logged with its reason
+   * @return empty when it was handed over (harvest took it or may have sent it, or Keycloak's
+   *     provider sent it); otherwise the reason it wasn't, which is logged
    */
-  private boolean sendNotification(
+  private Optional<String> sendNotification(
       AuthenticationFlowContext context, UserModel user, String link, long expirationInMinutes) {
     try {
       KeycloakSession session = context.getSession();
-      Optional<sequent.keycloak.authenticator.Utils.KeycloakNotice> keycloak =
+      sequent.keycloak.authenticator.Utils.NoticeOutcome outcome =
           sequent.keycloak.authenticator.Utils.sendNotice(
               session,
               context.getRealm(),
@@ -147,10 +151,14 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
               RESET_LINK_MESSAGE_KEY,
               () -> List.of(String.valueOf(expirationInMinutes), link),
               context);
-      if (keycloak.isEmpty()) {
-        return true;
+      if (outcome.keycloak().isEmpty()) {
+        if (!outcome.handedOver()) {
+          logger.warnf("The reset link was not sent: %s", outcome.failureReason());
+          return Optional.of(outcome.failureReason());
+        }
+        return Optional.empty();
       }
-      MessageCourier courier = keycloak.get().courier();
+      MessageCourier courier = outcome.keycloak().get().courier();
       if (courier == MessageCourier.EMAIL) {
         session
             .getProvider(EmailTemplateProvider.class)
@@ -159,26 +167,28 @@ public class ResetCredentialNotification implements Authenticator, Authenticator
             .setAuthenticationSession(context.getAuthenticationSession())
             .sendPasswordReset(link, expirationInMinutes);
         logger.info("Reset link sent by email");
-        return true;
+        return Optional.empty();
       }
       if (courier == MessageCourier.SMS) {
         SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
         List<String> attributes = List.of(String.valueOf(expirationInMinutes), link);
         smsSenderProvider.send(
-            keycloak.get().mobileNumber(),
+            outcome.keycloak().get().mobileNumber(),
             RESET_LINK_MESSAGE_KEY,
             attributes,
             context.getRealm(),
             user,
             session);
         logger.info("Reset link sent by SMS");
-        return true;
+        return Optional.empty();
       }
       logger.warn("No channel to send the reset link to");
+      return Optional.of(MessageReason.NO_CONTACT_CHANNEL.reason());
     } catch (Exception e) {
-      logger.error("Failed to send the reset link; not sent elsewhere");
+      logger.errorf(
+          "Failed to send the reset link; not sent elsewhere: %s", e.getClass().getSimpleName());
+      return Optional.of("send error: " + e.getClass().getSimpleName());
     }
-    return false;
   }
 
   @Override

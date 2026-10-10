@@ -3279,6 +3279,9 @@ const englishTranslation = {
                     title: "Nothing here",
                     text: "Enrollments with this status will appear here. Try another search or status.",
                 },
+                searchHelp:
+                    "A name, email or ID number, or the support reference the voter was given, such as Q5KW-8RFX.",
+                referenceError: "The support reference could not be looked up.",
             },
             flow: {
                 stepsLabel: "Review steps",
@@ -5307,6 +5310,10 @@ const englishTranslation = {
                 loadError: "The message counts could not be loaded.",
                 noReceipts: "This account gets no delivery reports, so delivery can't be shown.",
                 showFailed: "Show the failed {{channel}} messages in Logs",
+                noChannelHelp:
+                    "Voters with no contact channel on record. Their notices fail and are never counted under a channel.",
+                showFailedNoChannel:
+                    "Show the failed messages of voters with no contact channel in Logs",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5331,6 +5338,9 @@ const englishTranslation = {
             },
             noReadPermission: "Reading these settings needs the messaging-config-read permission.",
             chooseAccount: "Choose an account first.",
+            needsSavingAgain: "Configuration needs saving again.",
+            needsSavingAgainHelp:
+                "It was copied from the earlier storage and didn't pass the checks a save makes. Fix the problems shown, then save it again.",
         },
         messaging: {
             channel: {
@@ -5379,6 +5389,8 @@ const englishTranslation = {
                 NEEDS_PRODUCTION_ACCESS: "Needs production access",
                 NEEDS_APPROVED_TEMPLATE: "Needs approved template",
                 UNSUPPORTED_PROVIDER: "Unsupported provider: replace this account",
+                CALLBACK_NOT_CONFIGURED: "Callback address not configured",
+                REPORT_CREDENTIALS_MISSING: "Report credentials not generated",
             },
             readiness: {
                 connected: "Connected",
@@ -5467,6 +5479,11 @@ const englishTranslation = {
                 providerLanguageHelp:
                     "The provider's language code of that template, such as en_US.",
                 voters: "Voters",
+                environment: "The deployment's default sender",
+                noNoticeChannels:
+                    "This event's messaging settings turn on notices for no channel, so no voter would get this notification. Turn on notices for a channel on the event's Messaging tab.",
+                noReadPermission:
+                    "Showing each voter's channel needs the messaging-config-read permission. Each voter still gets the notification on their own channel.",
             },
             voter: {
                 title: "Messaging",
@@ -5479,6 +5496,9 @@ const englishTranslation = {
                 noFailure: "None",
                 failureNeedsPermission: "Shown with the messaging-config-read permission.",
                 noChannel: "No contact on record",
+                notConfirmed: "Delivery not confirmed",
+                notConfirmedHelp:
+                    "The last message whose delivery isn't confirmed yet. After 24 hours it shows as Unresolved, which doesn't mean it failed.",
             },
             logs: {
                 channel: "Channel",
@@ -5499,6 +5519,33 @@ const englishTranslation = {
                 CREDENTIALS_FOLLOW_ENDPOINT: "Enter the credentials again for the new address",
                 NO_CONTACT_CHANNEL: "No contact channel",
                 NOT_RETRYABLE_NO_TEMPLATE: "Can't be retried: no stored template",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Channel not offered for notices",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Channel not offered for codes",
+                NO_CONTENT_FOR_CHANNEL: "No content for the channel",
+                NO_ACCOUNT_FOR_CHANNEL: "No sending account for the channel",
+                INVALID_DESTINATION: "Invalid destination for the channel",
+                NOT_RETRYABLE_PROTECTED_FIELDS: "Can't be retried: contains protected fields",
+                REPORTED_TOO_LATE: "Reported too late to retry",
+                CHANNEL_CHANGED: "The voter's channel changed: not retried",
+                WORKER_STOPPED_BEFORE_SENDING: "The worker stopped before sending",
+                WORKER_STOPPED_AFTER_SENDING: "The worker stopped before recording the outcome",
+                CODE_EXPIRED_BEFORE_SENDING: "The code expired before it could be sent",
+                UNRESOLVED: "Delivery couldn't be confirmed",
+                SELECTED_WITHOUT_VOTERS: "Select at least one voter",
+                WRONG_RECIPIENT_KIND: "The destination isn't the kind this channel sends to",
+                UNSUPPORTED_PURPOSE: "The provider doesn't send this kind of message",
+                MISSING_APPROVED_TEMPLATE: "No approved template for this message",
+                OUTSIDE_CONVERSATION_WINDOW: "Outside the conversation window",
+                DESTINATION_NOT_ALLOWED: "This account doesn't send to the destination's country",
+                CODE_EXPIRED: "The code expired",
+                MISSING_CODE: "No code to send",
+                ENDPOINT_NOT_HTTPS: "The provider address must start with https://",
+                PROVIDER_CODE: "Provider error code {{code}}",
+                RETRY_NOT_PREPARED: "Can't be retried: the message couldn't be prepared again",
+                NOT_THE_VOTERS_CHANNEL: "Not the voter's channel",
+                REPORT_CREDENTIALS_MISSING:
+                    "Generate the report credentials and create the Infobip subscription",
+                CALLBACK_NOT_HTTPS: "Callback address must be https",
             },
         },
         messagingAccounts: {
@@ -5606,6 +5653,7 @@ const englishTranslation = {
                 DUPLICATE_LANGUAGE: "This language already has a template for this purpose",
                 NOT_A_URL: "Enter an address starting with https://",
                 UNSUPPORTED_PROVIDER: "Unsupported provider: replace this account",
+                CREDENTIALS_FOLLOW_ENDPOINT: "Enter the credentials again for the new address",
             },
             warning: {
                 pageChange:
@@ -5639,6 +5687,7 @@ const englishTranslation = {
                 set: "Set · replaced {{date}}. It is stored encrypted and never shown.",
                 replace: "Replace",
                 replaceNamed: "Replace {{name}}",
+                reenter: "The address changed: enter this credential again.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5693,6 +5742,7 @@ const englishTranslation = {
                 needsWrite: "Shown to administrators who can manage messaging accounts.",
                 loading: "Loading…",
                 unavailable: "Not available",
+                loadError: "The callback URL could not be loaded.",
             },
             copy: {
                 success: "Copied",
@@ -5701,6 +5751,7 @@ const englishTranslation = {
             save: {
                 success: "Account saved",
                 error: "The account could not be saved.",
+                refused: "The account was not saved: {{reason}}",
             },
             test: {
                 title: "Send a test message from {{name}}",
@@ -5740,6 +5791,10 @@ const englishTranslation = {
                     url: "Set its URL to this account's callback URL.",
                     auth: "Choose Basic authentication and enter the report user name and password.",
                 },
+                confirmTitle: "Replace the report credentials?",
+                confirmBody:
+                    "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, Viber delivery reports are refused and messages stay Accepted.",
+                confirm: "Replace",
             },
         },
     },

@@ -35,7 +35,7 @@ import {ExportLogsDialog} from "./logs/ExportLogsDialog"
 import {useLogRowZone, useLogZones, type ILogZones} from "./logs/useLogZones"
 import {TimeZonePicker} from "./timezones/TimeZonePicker"
 import {LedgerStates, LedgerStatusField} from "./logs/LedgerStatus"
-import {LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "./logs/messagingLogFilters"
+import {LOG_CHANNEL_NONE, LOG_FILTER_CHANNEL, LOG_FILTER_OUTCOME} from "./logs/messagingLogFilters"
 import {MESSAGE_ATTEMPT_STATES, MESSAGE_CHANNELS} from "@/types/messaging"
 
 const OMIT_FIELDS = ["user_id"]
@@ -194,10 +194,13 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
             key={LOG_FILTER_CHANNEL}
             source={LOG_FILTER_CHANNEL}
             label={String(t("messaging.logs.channel"))}
-            choices={MESSAGE_CHANNELS.map((channel) => ({
-                id: channel,
-                name: String(t(`messaging.channel.${channel}`)),
-            }))}
+            choices={[
+                ...MESSAGE_CHANNELS.map((channel) => ({
+                    id: channel,
+                    name: String(t(`messaging.channel.${channel}`)),
+                })),
+                {id: LOG_CHANNEL_NONE, name: String(t("messaging.reason.NO_CONTACT_CHANNEL"))},
+            ]}
         />,
         <SelectInput
             key={LOG_FILTER_OUTCOME}
@@ -234,7 +237,7 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 }}
                 aside={aside}
             >
-                <ResetFilters />
+                <ResetFilters keepLinkedFilter />
                 <LedgerStates>
                     <DatagridConfigurable
                         header={ThreeStateDatagridHeader}

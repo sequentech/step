@@ -36,7 +36,12 @@ jest.mock("@/queries/MessagingAccountCallbackUrl", () => ({
     MESSAGING_ACCOUNT_CALLBACK_URL: {name: "callback"},
 }))
 jest.mock("react-i18next", () => ({
-    useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
+    // Keys only; a reason given to a text is appended, so tests can read it.
+    useTranslation: () => ({
+        t: (key: string, options?: {reason?: string}) =>
+            options?.reason ? `${key}: ${options.reason}` : key,
+        i18n: {language: "en"},
+    }),
 }))
 jest.mock("react-admin", () => ({useNotify: () => mockNotify}))
 jest.mock(
@@ -66,6 +71,20 @@ const messenger = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccoun
     is_default: false,
     ...overrides,
 })
+
+const viber = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccount =>
+    messenger({
+        channel: EMessageChannel.VIBER,
+        provider: EMessagingProvider.VIBER_INFOBIP,
+        name: "Staff Association Viber",
+        sender: {
+            provider: EMessagingProvider.VIBER_INFOBIP,
+            base_url: "https://x.api.infobip.com",
+            sender: "Staff Association",
+        },
+        credentials: {API_KEY: {replaced_at: "2026-09-30T10:00:00Z"}},
+        ...overrides,
+    })
 
 const renderEditor = (account?: IMessagingAccount, canWrite = true) => {
     const onChanged = jest.fn()
@@ -211,9 +230,8 @@ it("warns that voters must reconnect when the Page changes", () => {
     expect(screen.getByText("messagingAccounts.warning.pageChange")).toBeInTheDocument()
 })
 
-it("saves the account, then only the credentials that were typed", async () => {
+it("saves the account with only the credentials that were typed, in one call", async () => {
     mockUpsert.mockResolvedValue({data: {upsert_messaging_account: {id: "account-1"}}})
-    mockReplace.mockResolvedValue({data: {replace_messaging_account_credentials: {replaced: []}}})
     const {onChanged, onClose} = renderEditor(messenger())
     fireEvent.change(screen.getByLabelText("messaging.credential.APP_SECRET"), {
         target: {value: "s3cret"},
@@ -233,11 +251,10 @@ it("saves the account, then only the credentials that were typed", async () => {
             },
             providerApproval: null,
             isDefault: false,
+            credentials: {APP_SECRET: "s3cret"},
         },
     })
-    expect(mockReplace).toHaveBeenCalledWith({
-        variables: {id: "account-1", credentials: {APP_SECRET: "s3cret"}},
-    })
+    expect(mockReplace).not.toHaveBeenCalled()
     expect(onChanged).toHaveBeenCalled()
 })
 
@@ -250,10 +267,17 @@ it("offers no readiness choice, and saves a Graph API base URL", async () => {
     fireEvent.change(screen.getByLabelText(/messagingAccounts.field.api_base_url/), {
         target: {value: "https://graph.bsp.example"},
     })
+    // A new address takes the access token again (it would be sent there).
+    fireEvent.change(screen.getByLabelText("messaging.credential.ACCESS_TOKEN"), {
+        target: {value: "page-token"},
+    })
     fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
     await waitFor(() => expect(onClose).toHaveBeenCalled())
     const variables = mockUpsert.mock.calls[0][0].variables
-    expect(variables).toMatchObject({sender: {api_base_url: "https://graph.bsp.example"}})
+    expect(variables).toMatchObject({
+        sender: {api_base_url: "https://graph.bsp.example"},
+        credentials: {ACCESS_TOKEN: "page-token"},
+    })
     expect("readiness" in variables).toBe(false)
 })
 
@@ -351,5 +375,176 @@ it("is read-only without the write permission", () => {
     expect(mockCallback).not.toHaveBeenCalled()
     expect(screen.getByLabelText("messagingAccounts.webhook.url")).toHaveValue(
         "messagingAccounts.webhook.needsWrite"
+    )
+})
+
+describe("an address change (R4-01)", () => {
+    it("asks for the credentials again and saves them with the change, in one call", async () => {
+        mockUpsert.mockResolvedValue({data: {upsert_messaging_account: {id: "account-1"}}})
+        const {onClose} = renderEditor(viber())
+        fireEvent.change(screen.getByLabelText(/messagingAccounts.field.base_url/), {
+            target: {value: "https://y.api.infobip.com"},
+        })
+        // The stored API key would go to the new address: its input opens.
+        fireEvent.change(screen.getByLabelText("messaging.credential.API_KEY"), {
+            target: {value: "new-key"},
+        })
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        await waitFor(() => expect(onClose).toHaveBeenCalled())
+        expect(mockUpsert).toHaveBeenCalledTimes(1)
+        expect(mockUpsert.mock.calls[0][0].variables).toMatchObject({
+            id: "account-1",
+            sender: {base_url: "https://y.api.infobip.com"},
+            credentials: {API_KEY: "new-key"},
+        })
+        expect(mockReplace).not.toHaveBeenCalled()
+    })
+
+    it("does not send an address change without the credentials, and says why", () => {
+        renderEditor(viber())
+        fireEvent.change(screen.getByLabelText(/messagingAccounts.field.base_url/), {
+            target: {value: "https://y.api.infobip.com"},
+        })
+        expect(
+            screen.getByText("messagingAccounts.error.CREDENTIALS_FOLLOW_ENDPOINT")
+        ).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        expect(mockUpsert).not.toHaveBeenCalled()
+    })
+
+    it("shows the backend's reason when the save is refused", async () => {
+        mockUpsert.mockRejectedValue({
+            graphQLErrors: [{message: "Enter the credentials again for the new address"}],
+        })
+        const {onClose} = renderEditor(messenger())
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        await waitFor(() =>
+            expect(screen.getByRole("alert")).toHaveTextContent(
+                "messaging.reason.CREDENTIALS_FOLLOW_ENDPOINT"
+            )
+        )
+        expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it("shows a reason harvest answered as plain text", async () => {
+        mockUpsert.mockRejectedValue({
+            graphQLErrors: [
+                {
+                    message: "not a valid json response from webhook",
+                    extensions: {
+                        internal: {
+                            response: {body: "The provider address must start with https://"},
+                        },
+                    },
+                },
+            ],
+        })
+        renderEditor(messenger())
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        await waitFor(() =>
+            expect(screen.getByRole("alert")).toHaveTextContent(
+                "messaging.reason.ENDPOINT_NOT_HTTPS"
+            )
+        )
+    })
+})
+
+describe("a new account (R4-08)", () => {
+    const fillWhatsApp = () => {
+        for (const [field, value] of [
+            ["messagingAccounts.field.name", "Staff Association WhatsApp"],
+            ["messagingAccounts.field.business_account_id", "1"],
+            ["messagingAccounts.field.phone_number_id", "2"],
+            ["messagingAccounts.field.display_phone_number", "+34 600 000 214"],
+        ]) {
+            fireEvent.change(screen.getByLabelText(new RegExp(field)), {target: {value}})
+        }
+    }
+
+    it("is created with its credentials in one call, with nothing after it that can fail", async () => {
+        mockUpsert.mockResolvedValue({
+            data: {upsert_messaging_account: {id: "account-9", callback_url: CALLBACK_URL}},
+        })
+        const {onCreated} = renderEditor()
+        fillWhatsApp()
+        fireEvent.change(screen.getByLabelText("messaging.credential.ACCESS_TOKEN"), {
+            target: {value: "token-1"},
+        })
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        await waitFor(() => expect(onCreated).toHaveBeenCalled())
+        expect(mockUpsert.mock.calls[0][0].variables).toMatchObject({
+            id: null,
+            credentials: {ACCESS_TOKEN: "token-1"},
+        })
+        expect(mockReplace).not.toHaveBeenCalled()
+    })
+
+    it("is updated, not inserted again, when saved a second time", async () => {
+        mockUpsert.mockResolvedValue({
+            data: {upsert_messaging_account: {id: "account-9", callback_url: CALLBACK_URL}},
+        })
+        const {onCreated} = renderEditor()
+        fillWhatsApp()
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1))
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        await waitFor(() => expect(mockUpsert).toHaveBeenCalledTimes(2))
+        expect(mockUpsert.mock.calls[1][0].variables.id).toBe("account-9")
+    })
+})
+
+describe("Viber report credentials (R4-09)", () => {
+    it("asks before replacing report credentials that are set", async () => {
+        mockReplace.mockResolvedValue({
+            data: {
+                replace_messaging_account_credentials: {
+                    replaced: ["REPORT_USERNAME", "REPORT_PASSWORD"],
+                    verify_token: null,
+                    report_username: "reports-2",
+                    report_password: "generated-secret-2",
+                },
+            },
+        })
+        renderEditor(
+            viber({
+                credentials: {
+                    API_KEY: {replaced_at: "2026-09-30T10:00:00Z"},
+                    REPORT_USERNAME: {replaced_at: "2026-10-01T10:00:00Z"},
+                    REPORT_PASSWORD: {replaced_at: "2026-10-01T10:00:00Z"},
+                },
+            })
+        )
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.reports.generate"}))
+        expect(screen.getByText("messagingAccounts.reports.confirmBody")).toBeInTheDocument()
+        expect(mockReplace).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.reports.confirm"}))
+        await waitFor(() =>
+            expect(screen.getByLabelText("messaging.credential.REPORT_PASSWORD")).toHaveValue(
+                "generated-secret-2"
+            )
+        )
+        expect(mockReplace).toHaveBeenCalledTimes(1)
+    })
+
+    it("keeps the current report credentials when the replacement is cancelled", () => {
+        renderEditor(
+            viber({
+                credentials: {
+                    API_KEY: {replaced_at: "2026-09-30T10:00:00Z"},
+                    REPORT_PASSWORD: {replaced_at: "2026-10-01T10:00:00Z"},
+                },
+            })
+        )
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.reports.generate"}))
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.cancel"}))
+        expect(mockReplace).not.toHaveBeenCalled()
+    })
+})
+
+it("says the callback URL could not be loaded when its query fails (R4-18)", () => {
+    mockCallback.mockReturnValue({data: undefined, loading: false, error: new Error("down")})
+    renderEditor(messenger())
+    expect(screen.getByLabelText("messagingAccounts.webhook.url")).toHaveValue(
+        "messagingAccounts.webhook.loadError"
     )
 })

@@ -19,6 +19,7 @@ import org.keycloak.authentication.InitiatedActionSupport;
 import org.keycloak.authentication.RequiredActionContext;
 import org.keycloak.authentication.RequiredActionFactory;
 import org.keycloak.authentication.RequiredActionProvider;
+import org.keycloak.email.EmailTemplateProvider;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
@@ -28,13 +29,18 @@ import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialProvider;
+import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessageAttemptState;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
+import sequent.keycloak.authenticator.messaging.MessageReason;
+import sequent.keycloak.authenticator.messaging.MessageRecipient;
 import sequent.keycloak.authenticator.messaging.MessageSenderProvider;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.MessengerLinkStatus;
+import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
 import sequent.keycloak.authenticator.messaging.VerifiedContacts;
+import sequent.keycloak.authenticator.messaging.VoterChannel;
 import sequent.keycloak.authenticator.messaging.VoterChannels;
 
 /**
@@ -119,6 +125,7 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
   @Override
   public void requiredActionChallenge(RequiredActionContext context) {
     if (canRun(context)) {
+      takeOver(context.getAuthenticationSession());
       super.requiredActionChallenge(context);
     }
   }
@@ -126,8 +133,32 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
   @Override
   public void processAction(RequiredActionContext context) {
     if (canRun(context)) {
+      takeOver(context.getAuthenticationSession());
       super.processAction(context);
     }
+  }
+
+  /**
+   * The first time the action runs in an authentication session, it forgets the sign-in's code: its
+   * resend timer, delivery state and destination belong to the sign-in challenge (already passed),
+   * not to the new contact's. The action's wrong codes have their own count ({@link #challenge()}).
+   */
+  static void takeOver(AuthenticationSessionModel authSession) {
+    if (authSession.getAuthNote(MessagingAttributes.NOTE_CONTACT_CHANGE_STARTED) != null) {
+      return;
+    }
+    for (String note :
+        List.of(
+            Utils.CODE,
+            Utils.CODE_TTL,
+            MessagingAttributes.NOTE_CODE_ID,
+            MessagingAttributes.NOTE_CODE_CHANNEL,
+            MessagingAttributes.NOTE_CODE_DESTINATION,
+            MessagingAttributes.NOTE_DELIVERY_STATE)) {
+      authSession.removeAuthNote(note);
+    }
+    Utils.clearMessengerLink(authSession);
+    authSession.setAuthNote(MessagingAttributes.NOTE_CONTACT_CHANGE_STARTED, "true");
   }
 
   private boolean canRun(RequiredActionContext context) {
@@ -136,7 +167,12 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
       return false;
     }
     if (offered(context).isEmpty()) {
-      log.info("No contact channel is offered for codes to this voter; nothing to change");
+      // The portal shows the entry only when the event offers a channel for codes; a stale page or
+      // a Post without channels ends here, logged with its reason.
+      log.infov(
+          "{0}: not run: {1}",
+          getProviderId(), MessageReason.CHANNEL_NOT_OFFERED_FOR_CODES.reason());
+      context.getEvent().detail("reason", MessageReason.CHANNEL_NOT_OFFERED_FOR_CODES.reason());
       context.getAuthenticationSession().removeRequiredAction(getProviderId());
       context.ignore();
       return false;
@@ -216,7 +252,11 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     switch (channel) {
       case WHATSAPP -> authSession.setAuthNote(MessagingAttributes.FORM_WHATSAPP_NUMBER, number);
       case VIBER -> authSession.setAuthNote(MessagingAttributes.FORM_VIBER_NUMBER, number);
-      case SMS -> authSession.setAuthNote(Utils.telUserAttribute(config), number);
+      case SMS -> {
+        String note = Utils.telUserAttribute(config);
+        authSession.setAuthNote(note, number);
+        authSession.setAuthNote(MessagingAttributes.NOTE_RESET_NUMBER_NOTE, note);
+      }
       case EMAIL -> authSession.setAuthNote("email", context.getUser().getEmail());
       case MESSENGER -> {}
     }
@@ -260,6 +300,10 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
 
   @Override
   protected void clearEntry(AuthenticationSessionModel authSession, String noteKey) {
+    String numberNote = authSession.getAuthNote(MessagingAttributes.NOTE_RESET_NUMBER_NOTE);
+    if (numberNote != null && !MessagingAttributes.KEYCLOAK_NOTES.contains(numberNote)) {
+      authSession.removeAuthNote(numberNote);
+    }
     for (String note :
         List.of(
             noteKey,
@@ -275,7 +319,8 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
             MessagingAttributes.NOTE_VERIFIED_MESSENGER_ID,
             MessagingAttributes.NOTE_VERIFIED_MESSENGER_PAGE,
             MessagingAttributes.NOTE_CODE_CHANNEL,
-            MessagingAttributes.NOTE_CODE_DESTINATION)) {
+            MessagingAttributes.NOTE_CODE_DESTINATION,
+            MessagingAttributes.NOTE_RESET_NUMBER_NOTE)) {
       authSession.removeAuthNote(note);
     }
     Utils.clearMessengerLink(authSession);
@@ -348,20 +393,108 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     }
   }
 
-  /** Replaces the voter's channel with the one the code verified. */
+  /**
+   * Replaces the voter's channel with the one the code verified, then tells the old channel about
+   * the change.
+   */
   @Override
   protected void saveVerifiedValue(RequiredActionContext context, String value) {
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     RealmModel realm = context.getRealm();
+    UserModel user = context.getUser();
+    Optional<VoterChannel> previous = VoterChannel.of(user);
     MessageChannel.parse(value)
         .ifPresent(channel -> MessageOTPAuthenticator.recordVerified(authSession, channel));
+    Optional<VoterChannel> verified = VerifiedContacts.verified(authSession, user);
     VerifiedContacts.persist(
-        context.getUser(),
+        user,
         authSession,
         Utils.getRealmName(realm),
         VerifiedContacts.consentVersion(realm),
         Instant.now());
     clearEntry(authSession, getNoteKey(authSession));
+    previous
+        .filter(old -> verified.map(now -> !sameContact(old, now)).orElse(false))
+        .ifPresent(old -> notifyOldChannel(context, old, verified.get().channel()));
+  }
+
+  private static boolean sameContact(VoterChannel a, VoterChannel b) {
+    return a.channel() == b.channel()
+        && a.destination().equals(b.destination())
+        && a.messengerPage().equals(b.messengerPage());
+  }
+
+  /** Message key of the security notice sent to the old channel after a change. */
+  public static final String CONTACT_CHANGED_KEY = "contactChanged.notice.text";
+
+  /** Email subject of the same notice, when the old channel is email. */
+  static final String CONTACT_CHANGED_SUBJECT_KEY = "contactChanged.notice.subject";
+
+  static final String CONTACT_CHANGED_EMAIL_FTL = "contact-changed-email.ftl";
+
+  /**
+   * "Your contact for {organization} was changed to {channel}. If this wasn't you, contact
+   * support." Sent to the old channel, which needs no code: it is a notice about that channel
+   * itself, never a fallback. Like every notice it goes through harvest, which records it; email
+   * and SMS harvest doesn't carry use Keycloak's providers. A failure is logged with its reason and
+   * never undoes the change.
+   */
+  private void notifyOldChannel(
+      RequiredActionContext context, VoterChannel old, MessageChannel newChannel) {
+    KeycloakSession session = context.getSession();
+    RealmModel realm = context.getRealm();
+    UserModel user = context.getUser();
+    String organization = Utils.getRealmName(realm);
+    try {
+      String channelLabel =
+          Utils.formatLoginMessage(session, realm, user, newChannel.labelKey(), List.of());
+      List<String> parameters = List.of(organization, channelLabel);
+      Utils.NoticeOutcome outcome =
+          Utils.sendNotice(
+              session,
+              realm,
+              user,
+              new NoticeRecipient(Optional.of(old), VoterChannels.elections(user), user.getId()),
+              Utils.MessageCourier.CHOSEN,
+              user.getEmail(),
+              null,
+              CONTACT_CHANGED_KEY,
+              () -> parameters,
+              context,
+              // Keycloak already saved the new channel: harvest must use the old one.
+              MessageRecipient.PREVIOUS_CHANNEL);
+      if (outcome.keycloak().isPresent()) {
+        Utils.KeycloakNotice notice = outcome.keycloak().get();
+        if (notice.courier() == Utils.MessageCourier.SMS) {
+          session
+              .getProvider(SmsSenderProvider.class)
+              .send(notice.mobileNumber(), CONTACT_CHANGED_KEY, parameters, realm, user, session);
+          Utils.keycloakSent(context, MessageChannel.SMS, notice.mobileNumber());
+        } else if (notice.courier() == Utils.MessageCourier.EMAIL) {
+          Map<String, Object> body = new HashMap<>();
+          body.put("organization", organization);
+          body.put("channel", channelLabel);
+          session
+              .getProvider(EmailTemplateProvider.class)
+              .setRealm(realm)
+              .setUser(user)
+              .send(
+                  CONTACT_CHANGED_SUBJECT_KEY,
+                  List.of(organization),
+                  CONTACT_CHANGED_EMAIL_FTL,
+                  body);
+          Utils.keycloakSent(context, MessageChannel.EMAIL, notice.email());
+        }
+      } else if (!outcome.handedOver()) {
+        log.warnv(
+            "{0}: the old channel {1} was not told about the change: {2}",
+            getProviderId(), old.channel(), outcome.failureReason());
+      }
+    } catch (Exception e) {
+      log.warnv(
+          "{0}: the old channel {1} was not told about the change: {2}",
+          getProviderId(), old.channel(), e.getClass().getSimpleName());
+    }
   }
 
   @Override
@@ -424,11 +557,33 @@ public class ResetMessagingAppOTPRequiredAction extends BaseResetMessageOTPRequi
     return InitiatedActionSupport.SUPPORTED;
   }
 
-  /** A recent sign-in is required; the realm entry's {@code max_auth_age} may change it. */
+  /**
+   * A recent sign-in is required: Keycloak calls this for an application-initiated action ({@code
+   * kc_action}) and signs the voter in again when the last sign-in is older. The realm entry's
+   * {@code max_auth_age} may change it; without one (or with an invalid one) it is {@value
+   * #MAX_AUTH_AGE_SECONDS} s.
+   */
   @Override
-  public int getMaxAuthAge() {
+  public int getMaxAuthAge(KeycloakSession session) {
+    RealmModel realm =
+        session == null || session.getContext() == null ? null : session.getContext().getRealm();
+    RequiredActionConfigModel config =
+        realm == null ? null : realm.getRequiredActionConfigByAlias(getId());
+    if (config != null && config.containsConfigKey(MAX_AUTH_AGE_KEY)) {
+      try {
+        int configured = RequiredActionFactory.parseMaxAuthAge(config);
+        if (configured >= 0) {
+          return configured;
+        }
+      } catch (NumberFormatException e) {
+        log.warnv("{0}: invalid max_auth_age; {1} s applies", getId(), MAX_AUTH_AGE_SECONDS);
+      }
+    }
     return MAX_AUTH_AGE_SECONDS;
   }
+
+  /** The realm entry's config key Keycloak reads for the max auth age. */
+  static final String MAX_AUTH_AGE_KEY = "max_auth_age";
 
   @Override
   public boolean isConfigurable() {

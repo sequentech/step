@@ -95,8 +95,11 @@ public class MessageOTPAuthenticator
     Utils.MessageCourier messageCourier =
         Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
 
-    // Five wrong codes finish the session: nothing it submits is checked or sent any more.
-    if (Utils.attemptsExhausted(authSession, configMap)) {
+    String challenge = challenge(context);
+    boolean neutral =
+        Utils.CodePageDisclosure.of(configMap, deferredUser) == Utils.CodePageDisclosure.NEUTRAL;
+    // Five wrong codes finish the challenge: nothing it submits is checked or sent any more.
+    if (Utils.attemptsExhausted(authSession, configMap, challenge)) {
       context.getEvent().error(TOO_MANY_ATTEMPTS);
       context.failureChallenge(
           AuthenticationFlowError.INVALID_CREDENTIALS,
@@ -122,6 +125,14 @@ public class MessageOTPAuthenticator
     String testModeCode = configMap.get(Utils.TEST_MODE_CODE_ATTRIBUTE);
 
     try {
+      // A neutral page tells nothing about the account: an unknown account, or a code that was
+      // never sent, reads exactly like a wrong code.
+      if (neutral
+          && !deferredUser
+          && (user == null ? isRequired(context) : (code == null || ttl == null))) {
+        wrongCode(context, configMap, messageCourier, deferredUser, challenge, sessionId);
+        return;
+      }
       if (code == null && Utils.sendFailed(authSession)) {
         context.getEvent().error(INVALID_CODE);
         LoginFormsProvider form =
@@ -238,7 +249,11 @@ public class MessageOTPAuthenticator
               || verifiedChannel.equals(Optional.of(MessageChannel.EMAIL))) {
             authSession.setAuthNote(EMAIL_VERIFIED, "true");
           }
-          verifiedChannel.ifPresent(channel -> recordVerified(authSession, channel));
+          // Only a code that went to the channel proves it: a test-mode code proves nothing, and a
+          // realm on a configured courier (EMAIL, SMS) records no messaging channel.
+          if (isValid && messageCourier == Utils.MessageCourier.CHOSEN) {
+            verifiedChannel.ifPresent(channel -> recordVerified(authSession, channel));
+          }
 
           // If the user doesn't have a MessageOTPCredential yet, create one now
           // so that on subsequent logins the authenticator is "configured" and
@@ -272,14 +287,14 @@ public class MessageOTPAuthenticator
         }
       } else {
         // invalid
-        boolean attemptsExhausted = registerFailedAttempt(authSession, configMap);
+        boolean attemptsExhausted = Utils.registerFailedAttempt(authSession, configMap, challenge);
         context.getEvent().error(attemptsExhausted ? TOO_MANY_ATTEMPTS : INVALID_CODE);
 
         AuthenticationExecutionModel execution = context.getExecution();
         if (execution.isRequired()) {
-          Response challenge;
+          Response page;
           if (attemptsExhausted) {
-            challenge = exhaustedForm(context, configMap, messageCourier, deferredUser);
+            page = exhaustedForm(context, configMap, messageCourier, deferredUser);
           } else {
             LoginFormsProvider form =
                 context
@@ -288,10 +303,9 @@ public class MessageOTPAuthenticator
                         context.form().getMessage("messageOtp.auth.codeInvalid")
                             + "<br><br>code_id: "
                             + sessionId);
-            challenge =
-                codeForm(context, form, configMap, messageCourier, deferredUser, false, false);
+            page = codeForm(context, form, configMap, messageCourier, deferredUser, false, false);
           }
-          context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challenge);
+          context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, page);
 
           Utils.sendFeedback(
               config,
@@ -376,22 +390,45 @@ public class MessageOTPAuthenticator
         .isPresent();
   }
 
-  /**
-   * Counts a wrong code against the authentication session. Asking for a new code never resets the
-   * count. Once the configured maximum is reached the code is removed and the session takes no more
-   * codes: the voter starts again.
-   *
-   * @return true when this attempt used up the session's attempts
-   */
-  static boolean registerFailedAttempt(
-      AuthenticationSessionModel authSession, Map<String, String> configMap) {
-    int attempts = Utils.codeAttempts(authSession) + 1;
-    authSession.setAuthNote(Utils.CODE_ATTEMPTS, Integer.toString(attempts));
-    if (attempts < Utils.maxCodeAttempts(configMap)) {
-      return false;
-    }
-    authSession.removeAuthNote(Utils.CODE);
-    return true;
+  /** The challenge a code belongs to: this flow execution. Its attempts are counted apart. */
+  static String challenge(AuthenticationFlowContext context) {
+    AuthenticationExecutionModel execution = context.getExecution();
+    return execution == null ? null : execution.getId();
+  }
+
+  private static boolean isRequired(AuthenticationFlowContext context) {
+    AuthenticationExecutionModel execution = context.getExecution();
+    return execution != null && execution.isRequired();
+  }
+
+  /** A wrong code on a neutral page: counted, and answered like any wrong code. */
+  private void wrongCode(
+      AuthenticationFlowContext context,
+      Map<String, String> configMap,
+      Utils.MessageCourier messageCourier,
+      boolean deferredUser,
+      String challenge,
+      String sessionId) {
+    boolean exhausted =
+        Utils.registerFailedAttempt(context.getAuthenticationSession(), configMap, challenge);
+    context.getEvent().error(exhausted ? TOO_MANY_ATTEMPTS : INVALID_CODE);
+    Response page =
+        exhausted
+            ? exhaustedForm(context, configMap, messageCourier, deferredUser)
+            : codeForm(
+                context,
+                context
+                    .form()
+                    .setError(
+                        context.form().getMessage("messageOtp.auth.codeInvalid")
+                            + "<br><br>code_id: "
+                            + sessionId),
+                configMap,
+                messageCourier,
+                deferredUser,
+                false,
+                false);
+    context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, page);
   }
 
   private void intiateForm(AuthenticationFlowContext context, FormRequest request) {
@@ -412,7 +449,17 @@ public class MessageOTPAuthenticator
     // Keycloak move on to the next alternative (typically the passkey
     // authenticator). This prevents a NullPointerException deep inside
     // Utils.getMobile / Utils.getEmailAddress.
+    boolean neutral =
+        Utils.CodePageDisclosure.of(configMap, deferredUser) == Utils.CodePageDisclosure.NEUTRAL;
     if (!deferredUser && user == null) {
+      // An optional step (an alternative being evaluated before the user is known) still lets
+      // Keycloak move on; a required step answers like it would for an account.
+      if (neutral && isRequired(context)) {
+        // A neutral page looks the same whether or not the account exists; nothing is sent.
+        log.info("intiateForm(): no account; the neutral code page is shown and nothing is sent");
+        neutralWithoutAccount(context, request, configMap, messageCourier);
+        return;
+      }
       log.info("intiateForm(): user is null and not in deferred mode -> attempted()");
       context.attempted();
       return;
@@ -431,8 +478,8 @@ public class MessageOTPAuthenticator
     }
 
     try {
-      // Five wrong codes finish the session: no new code, only a restart.
-      if (Utils.attemptsExhausted(authSession, configMap)) {
+      // Five wrong codes finish the challenge: no new code, only a restart.
+      if (Utils.attemptsExhausted(authSession, configMap, challenge(context))) {
         log.info("intiateForm(): attempts used up; no code is sent in this session");
         context.getEvent().error(TOO_MANY_ATTEMPTS);
         context.challenge(exhaustedForm(context, configMap, messageCourier, deferredUser));
@@ -464,6 +511,19 @@ public class MessageOTPAuthenticator
           CodeChannels.Refusal refusal = target.refusal().get();
           log.infov("intiateForm(): no code sent: {0}", refusal.reason());
           context.getEvent().detail("reason", refusal.reason()).error(NO_CHANNEL);
+          if (neutral && !deferredUser) {
+            // The refusal names the voter's channel: a neutral page doesn't.
+            context.challenge(
+                codeForm(
+                    context,
+                    context.form(),
+                    configMap,
+                    messageCourier,
+                    deferredUser,
+                    send(request),
+                    send(request)));
+            return;
+          }
           String channelLabel =
               voterChannelLabel(context, session, user, deferredUser, authSession);
           context.failureChallenge(
@@ -506,7 +566,8 @@ public class MessageOTPAuthenticator
             .detail("action", "send_code via " + via)
             .detail("is_resend", String.valueOf(resend))
             .success();
-        codeJustSent = state != MessageAttemptState.FAILED;
+        // A neutral page reads the same whatever happened to the send.
+        codeJustSent = neutral || state != MessageAttemptState.FAILED;
         log.infov("intiateForm(): code send outcome {0}", state);
       } else {
         log.info("OTP not resent because we had another one already");
@@ -530,6 +591,47 @@ public class MessageOTPAuthenticator
               .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
               .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
     }
+  }
+
+  private static boolean send(FormRequest request) {
+    return request == FormRequest.SHOW || request == FormRequest.RESEND;
+  }
+
+  /**
+   * The neutral code page for an identifier with no account: the same page, the same resend timer
+   * and the same attempt limit as for an account, and nothing sent.
+   */
+  private void neutralWithoutAccount(
+      AuthenticationFlowContext context,
+      FormRequest request,
+      Map<String, String> configMap,
+      Utils.MessageCourier messageCourier) {
+    AuthenticationSessionModel authSession = context.getAuthenticationSession();
+    if (Utils.attemptsExhausted(authSession, configMap, challenge(context))) {
+      context.getEvent().error(TOO_MANY_ATTEMPTS);
+      context.challenge(exhaustedForm(context, configMap, messageCourier, false));
+      return;
+    }
+    String ttl = authSession.getAuthNote(Utils.CODE_TTL);
+    boolean allowResend =
+        Utils.isResendAllowed(
+            ttl,
+            configMap.get(Utils.CODE_TTL),
+            configMap.get(Utils.RESEND_ACTIVATION_TIMER),
+            System.currentTimeMillis());
+    boolean send =
+        (request == FormRequest.SHOW && ttl == null)
+            || (request == FormRequest.RESEND && allowResend);
+    if (send) {
+      // The timer an account's code would have started, and a new Messenger link like an
+      // account's resend would give.
+      Utils.clearMessengerLink(authSession);
+      long lifetime = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
+      authSession.setAuthNote(Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + lifetime));
+    }
+    context.getEvent().detail("reason", "No account for the identifier").error(NO_CHANNEL);
+    context.challenge(
+        codeForm(context, context.form(), configMap, messageCourier, false, send, send));
   }
 
   /** The display name of the voter's channel, for the refusal text; empty when there is none. */
@@ -574,11 +676,24 @@ public class MessageOTPAuthenticator
     AuthenticationSessionModel authSession = context.getAuthenticationSession();
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Optional<CodeProgress> codeProgress = CodeProgress.of(context);
+    Utils.CodePageDisclosure disclosure = Utils.CodePageDisclosure.of(configMap, deferredUser);
     form.setAttribute("realm", context.getRealm())
         .setAttribute("courier", messageCourier)
         .setAttribute("isOtl", "true".equals(configMap.get(Utils.ONE_TIME_LINK)))
         .setAttribute("ttl", configMap.get(Utils.CODE_TTL))
-        .setAttribute(
+        .setAttribute("codeDisclosure", disclosure.name());
+    if (disclosure == Utils.CodePageDisclosure.NEUTRAL) {
+      // Nothing about the account: no channel, destination, sender or Messenger link.
+      setNeutralMessengerAttributes(form, authSession, context.getRealm());
+      form.setAttribute("resendTimer", configMap.get(Utils.RESEND_ACTIVATION_TIMER))
+          .setAttribute("codeJustSent", codeJustSent)
+          .setAttribute("resendTimerStarted", resendTimerStarted)
+          .setAttribute("codeLength", configMap.get(Utils.CODE_LENGTH))
+          .setAttribute("codeRequest", codeProgress.map(CodeProgress::request).orElse(null))
+          .setAttribute("codeRequests", codeProgress.map(CodeProgress::requests).orElse(null));
+      return form.createForm(TPL_CODE);
+    }
+    form.setAttribute(
             "address",
             Utils.getOtpAddress(
                 messageCourier, deferredUser, config, authSession, context.getUser()))
@@ -592,6 +707,40 @@ public class MessageOTPAuthenticator
       setChannelAttributes(context, form, authSession);
     }
     return form.createForm(TPL_CODE);
+  }
+
+  /**
+   * The Messenger box of a neutral page, shown to everyone when the event offers Messenger for
+   * codes: {@code messengerConnect}, {@code messengerPage}, {@code messagingOrganization}, {@code
+   * messengerLink} and {@code messengerQr}. A Messenger voter's live link, or a link whose
+   * reference binds to nothing (kept until the next send, as a live one is). No link state: it
+   * would tell a live reference from a decoy.
+   */
+  static void setNeutralMessengerAttributes(
+      LoginFormsProvider form, AuthenticationSessionModel authSession, RealmModel realm) {
+    Optional<PublicMessagingChannels> projection = PublicMessagingChannels.fromRealm(realm);
+    Optional<PublicMessagingChannels.MessengerPage> page =
+        projection
+            .filter(
+                channels ->
+                    channels
+                        .channelsWithPurpose(
+                            sequent.keycloak.authenticator.messaging.MessagePurpose.OTP)
+                        .contains(MessageChannel.MESSENGER))
+            .flatMap(PublicMessagingChannels::messengerPage);
+    if (page.isEmpty()) {
+      return;
+    }
+    String link = authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_LINK);
+    if (!Utils.isSafeLink(link)) {
+      link = Utils.decoyMessengerLink(page.get());
+      authSession.setAuthNote(MessagingAttributes.NOTE_MESSENGER_LINK, link);
+    }
+    form.setAttribute("messengerConnect", true)
+        .setAttribute("messengerPage", page.get().displayName())
+        .setAttribute("messagingOrganization", Utils.getRealmName(realm))
+        .setAttribute("messengerLink", link);
+    MessengerQr.dataUri(link).ifPresent(qr -> form.setAttribute("messengerQr", qr));
   }
 
   /**
@@ -639,7 +788,7 @@ public class MessageOTPAuthenticator
         .ifPresent(page -> form.setAttribute("messengerPage", page.displayName()));
     form.setAttribute("messagingOrganization", Utils.getRealmName(realm));
     String link = authSession.getAuthNote(MessagingAttributes.NOTE_MESSENGER_LINK);
-    if (link != null) {
+    if (Utils.isSafeLink(link)) {
       form.setAttribute("messengerLink", link);
       MessengerQr.dataUri(link).ifPresent(qr -> form.setAttribute("messengerQr", qr));
     }

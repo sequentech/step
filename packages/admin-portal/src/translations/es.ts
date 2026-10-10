@@ -3320,6 +3320,9 @@ const spanishTranslation: TranslationType = {
                     title: "No hay nada aquí",
                     text: "Las inscripciones con este estado aparecerán aquí. Pruebe con otra búsqueda u otro estado.",
                 },
+                searchHelp:
+                    "Un nombre, un correo electrónico o un número de identificación, o la referencia de soporte que se dio al votante, como Q5KW-8RFX.",
+                referenceError: "No se pudo buscar la referencia de soporte.",
             },
             flow: {
                 stepsLabel: "Pasos de la revisión",
@@ -5375,6 +5378,10 @@ const spanishTranslation: TranslationType = {
                 noReceipts:
                     "Esta cuenta no recibe informes de entrega, así que no se puede mostrar la entrega.",
                 showFailed: "Ver los mensajes fallidos de {{channel}} en Logs",
+                noChannelHelp:
+                    "Votantes sin ningún canal de contacto registrado. Sus avisos fallan y nunca se cuentan en ningún canal.",
+                showFailedNoChannel:
+                    "Ver en Logs los mensajes fallidos de votantes sin canal de contacto",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5399,6 +5406,9 @@ const spanishTranslation: TranslationType = {
             noReadPermission:
                 "Para ver estos ajustes se necesita el permiso messaging-config-read.",
             chooseAccount: "Elija antes una cuenta.",
+            needsSavingAgain: "Hay que volver a guardar la configuración.",
+            needsSavingAgainHelp:
+                "Se copió del almacenamiento anterior y no superó las comprobaciones que hace un guardado. Corrija los problemas que se muestran y vuelva a guardarla.",
         },
         messaging: {
             channel: {
@@ -5447,6 +5457,8 @@ const spanishTranslation: TranslationType = {
                 NEEDS_PRODUCTION_ACCESS: "Necesita acceso de producción",
                 NEEDS_APPROVED_TEMPLATE: "Necesita una plantilla aprobada",
                 UNSUPPORTED_PROVIDER: "Proveedor no compatible: sustituya esta cuenta",
+                CALLBACK_NOT_CONFIGURED: "Dirección de retorno no configurada",
+                REPORT_CREDENTIALS_MISSING: "Credenciales de informes no generadas",
             },
             readiness: {
                 connected: "Conectada",
@@ -5536,6 +5548,11 @@ const spanishTranslation: TranslationType = {
                 providerLanguageHelp:
                     "El código de idioma del proveedor para esa plantilla, como en_US.",
                 voters: "Votantes",
+                environment: "El remitente predeterminado de la instalación",
+                noNoticeChannels:
+                    "La configuración de mensajería de este evento no activa los avisos en ningún canal, así que ningún votante recibiría esta notificación. Active los avisos de un canal en la pestaña Mensajería del evento.",
+                noReadPermission:
+                    "Para mostrar el canal de cada votante se necesita el permiso messaging-config-read. Cada votante recibe igualmente la notificación por su propio canal.",
             },
             voter: {
                 title: "Mensajería",
@@ -5548,6 +5565,9 @@ const spanishTranslation: TranslationType = {
                 noFailure: "Ninguno",
                 failureNeedsPermission: "Se muestra con el permiso messaging-config-read.",
                 noChannel: "Sin contacto registrado",
+                notConfirmed: "Entrega no confirmada",
+                notConfirmedHelp:
+                    "El último mensaje cuya entrega aún no está confirmada. Pasadas 24 horas se muestra como Sin resolver, lo que no significa que haya fallado.",
             },
             logs: {
                 channel: "Canal",
@@ -5569,6 +5589,36 @@ const spanishTranslation: TranslationType = {
                     "Vuelva a introducir las credenciales para la nueva dirección",
                 NO_CONTACT_CHANNEL: "Sin canal de contacto",
                 NOT_RETRYABLE_NO_TEMPLATE: "No se puede reintentar: no hay plantilla guardada",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Canal no ofrecido para avisos",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Canal no ofrecido para códigos",
+                NO_CONTENT_FOR_CHANNEL: "Sin contenido para el canal",
+                NO_ACCOUNT_FOR_CHANNEL: "Sin cuenta de envío para el canal",
+                INVALID_DESTINATION: "Destino no válido para el canal",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "No se puede reintentar: contiene campos protegidos",
+                REPORTED_TOO_LATE: "Notificado demasiado tarde para reintentar",
+                CHANNEL_CHANGED: "El canal del votante cambió: no se reintenta",
+                WORKER_STOPPED_BEFORE_SENDING: "El proceso se detuvo antes de enviar",
+                WORKER_STOPPED_AFTER_SENDING:
+                    "El proceso se detuvo antes de registrar el resultado",
+                CODE_EXPIRED_BEFORE_SENDING: "El código caducó antes de poder enviarse",
+                UNRESOLVED: "No se pudo confirmar la entrega",
+                SELECTED_WITHOUT_VOTERS: "Seleccione al menos un votante",
+                WRONG_RECIPIENT_KIND: "El destino no es del tipo al que envía este canal",
+                UNSUPPORTED_PURPOSE: "El proveedor no envía este tipo de mensaje",
+                MISSING_APPROVED_TEMPLATE: "No hay plantilla aprobada para este mensaje",
+                OUTSIDE_CONVERSATION_WINDOW: "Fuera de la ventana de conversación",
+                DESTINATION_NOT_ALLOWED: "Esta cuenta no envía al país del destino",
+                CODE_EXPIRED: "El código caducó",
+                MISSING_CODE: "No hay código que enviar",
+                ENDPOINT_NOT_HTTPS: "La dirección del proveedor debe empezar por https://",
+                PROVIDER_CODE: "Código de error del proveedor {{code}}",
+                RETRY_NOT_PREPARED:
+                    "No se puede reintentar: no se pudo volver a preparar el mensaje",
+                NOT_THE_VOTERS_CHANNEL: "No es el canal del votante",
+                REPORT_CREDENTIALS_MISSING:
+                    "Genere las credenciales de informes y cree la suscripción de Infobip",
+                CALLBACK_NOT_HTTPS: "La dirección de retorno debe ser https",
             },
         },
         messagingAccounts: {
@@ -5678,6 +5728,8 @@ const spanishTranslation: TranslationType = {
                 DUPLICATE_LANGUAGE: "Este idioma ya tiene una plantilla para este propósito",
                 NOT_A_URL: "Indique una dirección que empiece por https://",
                 UNSUPPORTED_PROVIDER: "Proveedor no compatible: sustituya esta cuenta",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Vuelva a introducir las credenciales para la nueva dirección",
             },
             warning: {
                 pageChange:
@@ -5711,6 +5763,7 @@ const spanishTranslation: TranslationType = {
                 set: "Configurada · reemplazada {{date}}. Se guarda cifrada y nunca se muestra.",
                 replace: "Reemplazar",
                 replaceNamed: "Reemplazar {{name}}",
+                reenter: "La dirección ha cambiado: vuelva a introducir esta credencial.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5768,6 +5821,7 @@ const spanishTranslation: TranslationType = {
                     "Se muestra a los administradores que pueden gestionar cuentas de mensajería.",
                 loading: "Cargando…",
                 unavailable: "No disponible",
+                loadError: "No se pudo cargar la URL de retorno.",
             },
             copy: {
                 success: "Copiado",
@@ -5776,6 +5830,7 @@ const spanishTranslation: TranslationType = {
             save: {
                 success: "Cuenta guardada",
                 error: "No se pudo guardar la cuenta.",
+                refused: "No se ha guardado la cuenta: {{reason}}",
             },
             test: {
                 title: "Enviar un mensaje de prueba desde {{name}}",
@@ -5816,6 +5871,10 @@ const spanishTranslation: TranslationType = {
                     url: "Ponga como URL la URL de retorno de esta cuenta.",
                     auth: "Elija la autenticación Basic e introduzca el usuario y la contraseña de informes.",
                 },
+                confirmTitle: "¿Reemplazar las credenciales de informes?",
+                confirmBody:
+                    "El usuario y la contraseña de informes actuales dejan de funcionar de inmediato. Hasta que la suscripción de Infobip tenga los nuevos, los informes de entrega de Viber se rechazan y los mensajes se quedan en Aceptado.",
+                confirm: "Reemplazar",
             },
         },
     },

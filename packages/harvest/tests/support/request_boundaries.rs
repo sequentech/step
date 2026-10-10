@@ -29,7 +29,7 @@ const OTHER_TENANT_ID: &str = "tenant-b";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 171;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 172;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -473,6 +473,68 @@ async fn relayed_callbacks_need_a_fresh_relay_signature() {
         .dispatch()
         .await;
     assert_eq!(response.status(), Status::PayloadTooLarge);
+
+    // Regression (R1-09): a captured relayed request could be sent again,
+    // unchanged, while its signature was fresh. It is taken once.
+    let post_signed = |signature: String, body: Vec<u8>| {
+        let client = &client;
+        async move {
+            client
+                .post(relay::CALLBACKS_PATH)
+                .header(ContentType::JSON)
+                .header(Header::new(RELAY_SIGNATURE_HEADER, signature))
+                .body(body)
+                .dispatch()
+                .await
+                .status()
+        }
+    };
+    let once = envelope(key);
+    let signature = relay::sign(RELAY_SECRET, now, &once);
+    assert_eq!(
+        post_signed(signature.clone(), once.clone()).await,
+        Status::ServiceUnavailable
+    );
+    assert_eq!(post_signed(signature, once).await, Status::Unauthorized);
+    // The envelope's time is the signature's: an old capture can't be
+    // signed again as new.
+    let mut stale: serde_json::Value =
+        serde_json::from_slice(&envelope(key)).unwrap();
+    stale["received_at"] = json!((chrono::Utc::now()
+        - chrono::Duration::seconds(301))
+    .to_rfc3339());
+    let stale = serde_json::to_vec(&stale).unwrap();
+    assert_eq!(
+        post_signed(relay::sign(RELAY_SECRET, now, &stale), stale).await,
+        Status::Unauthorized
+    );
+}
+
+/// Without a usable relay secret, harvest refuses every relayed callback
+/// with 503 (the component has the provider retry), signed or not.
+#[rocket::async_test]
+async fn without_a_relay_secret_relayed_callbacks_are_refused_with_503() {
+    use crate::route_services::{Services, RELAY_SECRET};
+    use messaging::relay::{self, RELAY_SIGNATURE_HEADER};
+    let client = Services::without_database()
+        .with_messaging_relay(crate::routes::messaging::MessagingRelay::new(
+            None,
+            relay::DEFAULT_MAX_BODY_BYTES,
+        ))
+        .client()
+        .await;
+    let now = chrono::Utc::now().timestamp();
+    let response = client
+        .post(relay::CALLBACKS_PATH)
+        .header(ContentType::JSON)
+        .header(Header::new(
+            RELAY_SIGNATURE_HEADER,
+            relay::sign(RELAY_SECRET, now, b"{}"),
+        ))
+        .body("{}")
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::ServiceUnavailable);
 }
 
 #[rocket::async_test]

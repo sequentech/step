@@ -99,6 +99,7 @@ class MessageOTPAuthenticationFlowTest {
     configMap.putAll(MessageOTPAuthenticatorFactory.getConfigMap(null));
     configMap.put(Utils.MESSAGE_COURIER_ATTRIBUTE, "SMS");
     configMap.put(Utils.TEL_USER_ATTRIBUTE, MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    configMap.put(Utils.CODE_PAGE_DISCLOSURE, Utils.CodePageDisclosure.NAMED.name());
     AuthenticatorConfigModel config = new AuthenticatorConfigModel();
     config.setConfig(configMap);
     when(context.getAuthenticatorConfig()).thenReturn(config);
@@ -371,7 +372,16 @@ class MessageOTPAuthenticationFlowTest {
       assertTrue(generatedCode.matches("[0-9]{6}"));
       assertFalse(logs.text().contains(CODE));
       assertFalse(logs.text().contains(generatedCode));
-      verify(event).detail("msgBody", "Your code is ******");
+      // R2-23: the communications log keeps the channel and the masked number, never the text.
+      verify(event)
+          .detail(
+              eq("msgBody"),
+              argThat(
+                  (String body) ->
+                      body.contains("\"channel\":\"SMS\"")
+                          && !body.contains("Your code")
+                          && !body.contains(generatedCode)
+                          && !body.contains(PHONE)));
     }
     verify(context).challenge(response);
     verify(sms)

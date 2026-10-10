@@ -18,13 +18,14 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 use windmill::postgres::messaging::{
     count_event_messages, expire_messenger_links, find_message_by_provider_id,
-    get_messaging_account, get_messaging_account_by_webhook_key, get_messenger_link_by_reference,
-    get_pending_messenger_link, insert_message, insert_messaging_account, insert_messenger_link,
-    last_get_started_at, list_attempts, list_due_retries, list_messaging_accounts,
-    list_reconcilable_unknown, list_stale_queued, mark_dispatched, record_credentials_replaced,
-    record_messenger_contact, transition_message, update_messaging_account,
-    update_messaging_account_status, update_messenger_link, AccountSettings, LedgerCount,
-    NewMessage, NewMessengerLink, StateChange,
+    get_bulk_send_payload, get_messaging_account, get_messaging_account_by_webhook_key,
+    get_messenger_link_by_reference, get_pending_messenger_link, insert_message,
+    insert_messaging_account, insert_messenger_link, last_get_started_at, latest_attempt_ids,
+    list_attempts, list_due_retries, list_messaging_accounts, list_reconcilable_unknown,
+    list_stale_queued, list_unlogged, mark_dispatched, mark_logged, record_bulk_send,
+    record_credentials_replaced, record_messenger_contact, transition_message,
+    update_messaging_account, update_messaging_account_status, update_messenger_link,
+    AccountSettings, ChannelFilter, LedgerCount, NewMessage, NewMessengerLink, StateChange,
 };
 use windmill::services::election_event_statistics::update_election_event_statistics;
 use windmill::services::election_statistics::update_election_statistics;
@@ -262,7 +263,7 @@ fn attempt(world: &World, logical_key: &str, attempt: i32) -> NewMessage {
         election_event_id: Some(world.event),
         voter_id: Some("voter-1".to_string()),
         account_id: None,
-        channel: MessageChannel::SMS,
+        channel: Some(MessageChannel::SMS),
         purpose: Some(MessagePurpose::NOTICE),
         template_alias: Some("reminder".to_string()),
         language: Some("en".to_string()),
@@ -458,18 +459,27 @@ async fn the_sweep_lists_page_by_keyset_and_skip_what_they_cannot_act_on() {
     let mut seen = vec![];
     let mut after = None;
     loop {
-        let page = list_stale_queued(&tx, later, after, 1).await.unwrap();
-        let Some(last) = page.last() else { break };
-        after = Some((last.created_at, last.id));
-        seen.extend(mine(page));
+        let page = list_stale_queued(&tx, later, later, after, 1)
+            .await
+            .unwrap();
+        let Some(last) = page.last else { break };
+        after = Some(last);
+        seen.extend(mine(page.records));
     }
     queued.sort();
     seen.sort();
     assert_eq!(seen, queued);
     assert!(mine(
-        list_stale_queued(&tx, Utc::now() - Duration::hours(1), None, 10)
-            .await
-            .unwrap()
+        list_stale_queued(
+            &tx,
+            Utc::now() - Duration::hours(1),
+            Utc::now() - Duration::hours(1),
+            None,
+            10
+        )
+        .await
+        .unwrap()
+        .records
     )
     .is_empty());
 
@@ -477,7 +487,7 @@ async fn the_sweep_lists_page_by_keyset_and_skip_what_they_cannot_act_on() {
     // older than the unresolved limit, and not asked about recently.
     let mut reconcilable = attempt(&world, "send-3:viber", 1);
     reconcilable.account_id = Some(viber.id);
-    reconcilable.channel = MessageChannel::VIBER;
+    reconcilable.channel = Some(MessageChannel::VIBER);
     let reconcilable = insert_message(&tx, &reconcilable).await.unwrap().unwrap();
     let environment = insert_message(&tx, &attempt(&world, "send-3:env", 1))
         .await
@@ -502,6 +512,7 @@ async fn the_sweep_lists_page_by_keyset_and_skip_what_they_cannot_act_on() {
             list_reconcilable_unknown(tx, &providers, newer_than, asked_before, None, 10)
                 .await
                 .unwrap()
+                .records
         }
     };
     let day_ago = Utc::now() - Duration::hours(24);
@@ -535,12 +546,19 @@ async fn the_sweep_lists_page_by_keyset_and_skip_what_they_cannot_act_on() {
     .await
     .unwrap()
     .unwrap();
-    assert!(mine(list_due_retries(&tx, Utc::now(), None, 10).await.unwrap()).is_empty());
+    assert!(mine(
+        list_due_retries(&tx, Utc::now(), None, 10)
+            .await
+            .unwrap()
+            .records
+    )
+    .is_empty());
     assert_eq!(
         mine(
             list_due_retries(&tx, Utc::now() + Duration::minutes(2), None, 10)
                 .await
                 .unwrap()
+                .records
         ),
         vec![failed.id]
     );
@@ -553,6 +571,7 @@ async fn the_sweep_lists_page_by_keyset_and_skip_what_they_cannot_act_on() {
         list_due_retries(&tx, Utc::now() + Duration::minutes(2), None, 10)
             .await
             .unwrap()
+            .records
     )
     .is_empty());
     tx.rollback().await.unwrap();
@@ -626,24 +645,90 @@ async fn ledger_counts_are_per_message_and_flag_unresolved_ones() {
     )
     .await
     .unwrap();
-    let counts = count_event_messages(
-        &tx,
-        &world.tenant,
-        &world.event,
-        None,
-        Utc::now() - Duration::hours(24),
-    )
-    .await
-    .unwrap();
+    // A voter with no contact channel: a row with no channel, never
+    // counted as an SMS (or email) failure.
+    let mut no_channel = attempt(&world, "send-6:d", 1);
+    no_channel.channel = None;
+    no_channel.state = MessageAttemptState::FAILED;
+    no_channel.error = Some("No contact channel".to_string());
+    let no_channel = insert_message(&tx, &no_channel).await.unwrap().unwrap();
+    assert_eq!(no_channel.channel, None);
+    let unresolved_before = Utc::now() - Duration::hours(24);
+    let counts = count_event_messages(&tx, &world.tenant, &world.event, None, unresolved_before)
+        .await
+        .unwrap();
     let count = |outcome: &str| LedgerCount {
-        channel: MessageChannel::SMS,
+        channel: Some(MessageChannel::SMS),
         outcome: outcome.to_string(),
         messages: 1,
     };
     assert_eq!(
         counts,
-        vec![count("ACCEPTED"), count("UNKNOWN"), count("UNRESOLVED")]
+        vec![
+            count("ACCEPTED"),
+            count("UNKNOWN"),
+            count("UNRESOLVED"),
+            LedgerCount {
+                channel: None,
+                outcome: "FAILED".to_string(),
+                messages: 1
+            },
+        ]
     );
+
+    // R4-03: Logs filter on the same messages as the counts, by the latest
+    // attempt's current state: the message accepted on attempt 2 is not a
+    // failure, and its failed attempt 1 isn't listed.
+    let ids = |channel, outcome: Option<&'static str>| {
+        let tx = &tx;
+        let world = &world;
+        async move {
+            latest_attempt_ids(
+                tx,
+                &world.tenant,
+                &world.event,
+                channel,
+                outcome,
+                unresolved_before,
+            )
+            .await
+            .unwrap()
+        }
+    };
+    assert_eq!(
+        ids(
+            ChannelFilter::Channel(MessageChannel::SMS),
+            Some("ACCEPTED")
+        )
+        .await,
+        vec![second.id]
+    );
+    assert!(
+        ids(ChannelFilter::Channel(MessageChannel::SMS), Some("FAILED"))
+            .await
+            .is_empty()
+    );
+    assert_eq!(
+        ids(ChannelFilter::NoChannel, Some("failed")).await,
+        vec![no_channel.id]
+    );
+    assert_eq!(ids(ChannelFilter::Any, Some("UNRESOLVED")).await.len(), 1);
+    assert_eq!(ids(ChannelFilter::Any, None).await.len(), 4);
+
+    // R4-07: the latest attempt of each message, for the drawer's last
+    // failure: attempt 1 of "send-6:a" is superseded.
+    let latest: Vec<Uuid> = tx
+        .query(
+            "SELECT id FROM sequent_backend.message_latest_attempt
+             WHERE tenant_id = $1 AND voter_id = 'voter-1' AND state = 'FAILED'",
+            &[&world.tenant],
+        )
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| row.get(0))
+        .collect();
+    assert_eq!(latest, vec![no_channel.id]);
     tx.rollback().await.unwrap();
 }
 
@@ -772,6 +857,99 @@ async fn a_new_link_replaces_the_session_links_and_deletes_their_codes() {
             .await
             .unwrap(),
         1
+    );
+    tx.rollback().await.unwrap();
+}
+
+/// R2-08: an attempt whose log entry was never handed over is listed for
+/// the sweep once the sender's grace has passed, and no more once marked.
+#[tokio::test]
+async fn attempts_left_unlogged_are_listed_until_logged() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = world(&tx, 0x5760).await;
+    let mut queued = attempt(&world, "send-7:queued", 1);
+    queued.logical_key = Some("send-7:queued".to_string());
+    insert_message(&tx, &queued).await.unwrap().unwrap();
+    let mut failed = attempt(&world, "send-7:failed", 1);
+    failed.state = MessageAttemptState::FAILED;
+    let failed = insert_message(&tx, &failed).await.unwrap().unwrap();
+    assert_eq!(failed.logged_at, None);
+    let mine = |page: windmill::postgres::messaging::LedgerPage| -> Vec<Uuid> {
+        page.records
+            .into_iter()
+            .filter(|r| r.tenant_id == world.tenant)
+            .map(|r| r.id)
+            .collect()
+    };
+    // Still within the sender's grace: not listed.
+    assert!(mine(
+        list_unlogged(&tx, Utc::now() - Duration::minutes(5), None, 100)
+            .await
+            .unwrap()
+    )
+    .is_empty());
+    // An outcome, unlogged, past the grace: listed; a queued one isn't.
+    assert_eq!(
+        mine(
+            list_unlogged(&tx, Utc::now() + Duration::minutes(1), None, 100)
+                .await
+                .unwrap()
+        ),
+        vec![failed.id]
+    );
+    mark_logged(&tx, &[failed.id]).await.unwrap();
+    assert!(mine(
+        list_unlogged(&tx, Utc::now() + Duration::minutes(1), None, 100)
+            .await
+            .unwrap()
+    )
+    .is_empty());
+    tx.rollback().await.unwrap();
+}
+
+/// R2-02: what an administrator sent is kept as a stopped, archived
+/// scheduled event whose ID is the send's ID.
+#[tokio::test]
+async fn a_bulk_send_keeps_what_was_sent() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = world(&tx, 0x5761).await;
+    let payload = json!({"audience_selection": "ALL_USERS",
+                         "sms": {"message": "Polls close at 7 pm, not 6 pm."}});
+    let send_id = record_bulk_send(
+        &tx,
+        &world.tenant,
+        Some(&world.event),
+        Some("admin-1"),
+        &payload,
+    )
+    .await
+    .unwrap();
+    let stored = get_bulk_send_payload(&tx, &world.tenant, &send_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored["sms"]["message"], "Polls close at 7 pm, not 6 pm.");
+    assert_eq!(stored["send_id"], send_id.to_string());
+    let row = tx
+        .query_one(
+            "SELECT stopped_at IS NOT NULL AND archived_at IS NOT NULL, event_processor
+             FROM sequent_backend.scheduled_event WHERE id = $1",
+            &[&send_id],
+        )
+        .await
+        .unwrap();
+    assert!(row.get::<_, bool>(0), "never picked up by the scheduler");
+    assert_eq!(row.get::<_, String>(1), "SEND_TEMPLATE");
+    // Another tenant can't read it.
+    assert_eq!(
+        get_bulk_send_payload(&tx, &Uuid::new_v4(), &send_id)
+            .await
+            .unwrap(),
+        None
     );
     tx.rollback().await.unwrap();
 }

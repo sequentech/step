@@ -7,6 +7,7 @@
 
 use super::{
     parse_key_set, verify_service_token, ServiceKeys, ServiceTokenRefusal,
+    DEFAULT_SERVICE_CLIENT,
 };
 use crate::adapters::memory::service_keys::StaticServiceKeys;
 use crate::route_services::service_tokens::{issued, realm, RealmSigner, KID};
@@ -22,9 +23,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
 
+/// Keycloak's service account: a client-credentials access token of the
+/// platform's client.
 fn keycloak(tenant_id: &str) -> Claims {
     Claims::new(tenant_id, "service-account-keycloak")
         .roles([Permissions::SERVICE_ACCOUNT])
+        .azp(DEFAULT_SERVICE_CLIENT)
 }
 
 fn notice(tenant_id: &str) -> Value {
@@ -73,6 +77,79 @@ async fn a_forged_unsigned_service_token_cannot_send() {
     let response =
         post(&client, "/messages/send", &forged, &notice(&tenant_id)).await;
     assert_eq!(response.status(), Status::Unauthorized);
+}
+
+/// Regression (R1-12): a token in the realm's shape, naming the realm's
+/// key, whose signature is someone else's. Refused at the boundary: this
+/// client has no database, so anything past it would answer 500.
+#[rocket::async_test]
+async fn a_service_token_signed_with_another_key_cannot_send() {
+    let services = Services::without_database();
+    let client = services.client().await;
+    let tenant_id = Uuid::new_v4().to_string();
+    services.trust(&tenant_id, RealmSigner::shared());
+    let impostor = RealmSigner::new(KID);
+    for path in [
+        "/messages/send",
+        "/messages/link",
+        "/messages/link/status",
+        "/messages/link/confirm",
+    ] {
+        let response = post_as(
+            &client,
+            path,
+            &impostor.sign(&keycloak(&tenant_id), &tenant_id),
+            &notice(&tenant_id),
+        )
+        .await;
+        assert_eq!(response.status(), Status::Unauthorized, "{path}");
+    }
+}
+
+/// Regression (R1-11): when Keycloak can't be reached the caller is told
+/// to retry (503), not that its token is bad (401).
+#[rocket::async_test]
+async fn unreachable_realm_keys_answer_503() {
+    let services = Services::without_database();
+    let client = services.client().await;
+    let tenant_id = Uuid::new_v4().to_string();
+    // Nothing published: fetching the realm's keys fails.
+    let response = post_as(
+        &client,
+        "/messages/send",
+        &RealmSigner::shared().sign(&keycloak(&tenant_id), &tenant_id),
+        &notice(&tenant_id),
+    )
+    .await;
+    assert_eq!(response.status(), Status::ServiceUnavailable);
+}
+
+/// Regression (R1-11): a failed refetch threw the cached keys away, so
+/// every valid token was refused until the next fetch.
+#[rocket::async_test]
+async fn a_failed_refetch_keeps_the_keys_it_had() {
+    let tenant_id = Uuid::new_v4().to_string();
+    let signer = RealmSigner::shared();
+    let source = Arc::new(StaticServiceKeys::default());
+    source.publish(&realm(&tenant_id), signer.jwks());
+    // Every use refetches: the TTL has always passed.
+    let keys = ServiceKeys::with_timing(
+        source.clone(),
+        Duration::ZERO,
+        Duration::ZERO,
+    );
+    let token = signer.sign(&keycloak(&tenant_id), &tenant_id);
+    assert!(verify(&keys, &token).await.is_ok());
+    source.withdraw(&realm(&tenant_id));
+    assert!(verify(&keys, &token).await.is_ok());
+    assert!(verify(&keys, &token).await.is_ok());
+    assert_eq!(source.fetch_count(), 3);
+    // A key the stale set doesn't have stays unknown.
+    let rotated = RealmSigner::new("rotated");
+    assert_eq!(
+        verify(&keys, &rotated.sign(&keycloak(&tenant_id), &tenant_id)).await,
+        Err(ServiceTokenRefusal::KEYS_UNAVAILABLE)
+    );
 }
 
 #[rocket::async_test]
@@ -207,10 +284,25 @@ async fn tokens_are_refused_for_one_reason_each() {
         (
             signer.sign(
                 &Claims::new(&tenant_id, "admin")
-                    .roles([Permissions::MESSAGING_ACCOUNT_WRITE]),
+                    .roles([Permissions::MESSAGING_ACCOUNT_WRITE])
+                    .azp(DEFAULT_SERVICE_CLIENT),
                 &tenant_id,
             ),
             NOT_A_SERVICE_ACCOUNT,
+        ),
+        // Regression (R1-10): any token the realm signed with the role was
+        // taken, whatever it was for.
+        (edited("typ", json!("ID")), NOT_AN_ACCESS_TOKEN),
+        (edited("typ", json!("Refresh")), NOT_AN_ACCESS_TOKEN),
+        (edited("azp", json!("admin-portal")), WRONG_CLIENT),
+        (
+            // A user of the voting portal given the service-account role.
+            signer.sign(&keycloak(&tenant_id).azp("voting-portal"), &tenant_id),
+            WRONG_CLIENT,
+        ),
+        (
+            edited("nbf", json!(chrono::Utc::now().timestamp() + 600)),
+            NOT_YET_VALID,
         ),
     ] {
         assert_eq!(

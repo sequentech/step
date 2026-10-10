@@ -16,8 +16,8 @@ use windmill::services::celery_app::{set_is_app_active, Queue};
 use windmill::services::monitoring::cadence;
 use windmill::services::probe::{setup_probe, AppName};
 use windmill::tasks::electoral_log::electoral_log_batch_dispatcher;
-use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
+use windmill::tasks::migrate_realm_permissions::{migrate_realm_permissions, RunOnce};
 use windmill::tasks::migrate_registration_flows::migrate_registration_flows;
 use windmill::tasks::recompute_schedule_instants::{
     recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,

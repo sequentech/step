@@ -2,6 +2,20 @@
 # SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# The relay secret shared by messaging-webhooks and harvest: generated once,
+# before anything is removed or started, and never left blank.
+RELAY_SECRET_PLACEHOLDER="generate-on-first-up"
+if grep -q "^MESSAGING_RELAY_SECRET=\"${RELAY_SECRET_PLACEHOLDER}\"" .env; then
+    sed -i "s|^MESSAGING_RELAY_SECRET=.*|MESSAGING_RELAY_SECRET=\"$(openssl rand -hex 32)\"|" .env
+    echo "Generated MESSAGING_RELAY_SECRET in .env"
+fi
+RELAY_SECRET_VALUE=$(sed -n 's/^MESSAGING_RELAY_SECRET="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' .env)
+if [ -z "$RELAY_SECRET_VALUE" ] || [ "$RELAY_SECRET_VALUE" = "$RELAY_SECRET_PLACEHOLDER" ]; then
+    echo "Error: MESSAGING_RELAY_SECRET in .env is blank; set it to the output of 'openssl rand -hex 32'."
+    exit 1
+fi
+unset RELAY_SECRET_VALUE
+
 cd janitor && source setup.sh; cd ..
 if [ "$3" ]; then
     TENANT_CONFIG=./keycloak/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json

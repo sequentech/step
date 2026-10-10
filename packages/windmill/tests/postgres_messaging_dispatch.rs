@@ -41,6 +41,8 @@ use windmill::services::messaging::webhooks::{meta_events, WebhookOutcome};
 const MASTER_SECRET: &str = "0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526272829";
 const APP_SECRET: &str = "synthetic-app-secret";
 const PSID: &str = "6543210";
+/// The webhook component's public address: Messenger links need it.
+const WEBHOOKS_URL: &str = "https://callbacks.example.org";
 
 fn id(seed: u32, n: u32) -> Uuid {
     Uuid::parse_str(&format!("{seed:08x}-0000-4000-8000-{n:012x}")).unwrap()
@@ -280,7 +282,10 @@ async fn attempts(
     let tx = client.transaction().await.unwrap();
     let attempts = list_attempts(&tx, &world.tenant, key).await.unwrap();
     tx.commit().await.unwrap();
-    attempts.into_iter().map(|a| (a.channel, a.state)).collect()
+    attempts
+        .into_iter()
+        .map(|a| (a.channel.expect("a channel"), a.state))
+        .collect()
 }
 
 fn sign(body: &[u8]) -> String {
@@ -489,6 +494,25 @@ async fn a_channel_the_post_does_not_offer_fails_once_and_nothing_goes_elsewhere
         .unwrap()
         .recorded
         .is_empty());
+    // A notice Keycloak hands over (`/messages/send`) on a channel the event
+    // doesn't enable for notices: harvest's `deliver` is the gate, with one
+    // FAILED row and its reason.
+    let keycloak = notice(
+        &world,
+        "keycloak:notice-1",
+        MessageChannel::WHATSAPP,
+        "+639171234569",
+    );
+    let result = deliver(&mut client, &dispatcher, &keycloak).await.unwrap();
+    assert_eq!(result.state, MessageAttemptState::FAILED);
+    assert_eq!(
+        result.reason.as_deref(),
+        Some("Channel not offered for notices")
+    );
+    assert_eq!(
+        attempts(&mut client, &world, "keycloak:notice-1").await,
+        vec![(MessageChannel::WHATSAPP, MessageAttemptState::FAILED)]
+    );
     assert_eq!(
         attempts(&mut client, &world, "send-template:s2:voter-1").await,
         vec![(MessageChannel::VIBER, MessageAttemptState::FAILED)]
@@ -524,6 +548,9 @@ async fn a_voter_without_a_channel_gets_one_failed_record() {
     assert_eq!(first.state, MessageAttemptState::FAILED);
     assert_eq!(first.reason.as_deref(), Some("No contact channel"));
     assert_eq!(first.recorded.len(), 1);
+    // No channel at all: never counted as an email (or any) failure.
+    assert_eq!(first.channel, None);
+    assert_eq!(first.recorded[0].channel, None);
     let replay = record_no_channel(&mut client, &world).await;
     assert_eq!(replay.message_id, first.message_id);
     assert!(replay.recorded.is_empty());
@@ -572,7 +599,7 @@ async fn a_confirmed_failure_stays_on_its_channel_and_a_lost_answer_waits() {
     );
     let result = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
     assert_eq!(result.state, MessageAttemptState::FAILED);
-    assert_eq!(result.channel, MessageChannel::MESSENGER);
+    assert_eq!(result.channel, Some(MessageChannel::MESSENGER));
     assert_eq!(result.next_retry_at, None);
     assert_eq!(
         attempts(&mut client, &world, "send-template:s4:voter-1").await,
@@ -769,7 +796,9 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
             language: Some("en".to_string()),
             content: content("Your verification code is 482619."),
             expires_at: (Utc::now() + Duration::minutes(30)).to_rfc3339(),
+            expected_recipient: None,
         },
+        Some(WEBHOOKS_URL),
     )
     .await
     .unwrap()
@@ -865,11 +894,132 @@ async fn messenger_links_send_the_code_only_to_the_linking_conversation() {
     assert_eq!(payload, None);
 }
 
+/// A link for the saved voter whose conversation is `PSID`.
+async fn saved_voter_link(
+    client: &mut Client,
+    world: &World,
+) -> sequent_core::types::messaging::CreateMessengerLinkResponse {
+    create_link(
+        client,
+        &CreateMessengerLinkRequest {
+            tenant_id: world.tenant.to_string(),
+            election_event_id: Some(world.event.to_string()),
+            auth_session: "session-a".to_string(),
+            challenge: "challenge-digest".to_string(),
+            code: "482619".to_string(),
+            language: Some("en".to_string()),
+            content: content("Your verification code is 482619."),
+            expires_at: (Utc::now() + Duration::minutes(30)).to_rfc3339(),
+            expected_recipient: Some(PSID.to_string()),
+        },
+        Some(WEBHOOKS_URL),
+    )
+    .await
+    .unwrap()
+    .unwrap()
+}
+
+/// C-4: a saved voter's link sends the code only to the voter's own
+/// conversation. Get Started from another one uses the link up and sends
+/// nothing, answered exactly like an unknown reference.
+#[tokio::test]
+async fn a_saved_voters_link_sends_the_code_only_to_their_conversation() {
+    let pool = schema::pool().await;
+    let world = world(&pool, 0x600d).await;
+    let mut client = pool.get().await.unwrap();
+    let server = TestServer::start(vec![Reply::Json(200, json!({"message_id": "m_code"}))]).await;
+    let messenger = messenger_account(&mut client, &world, "w600e").await;
+    configure(
+        &mut client,
+        &world,
+        config(vec![channel(
+            MessageChannel::MESSENGER,
+            &messenger,
+            &[MessagePurpose::OTP],
+        )]),
+    )
+    .await;
+    let dispatcher = meta_dispatcher(&server);
+    let opened_by = |psid: &str, reference: &str| {
+        json!({"sender": {"id": psid}, "recipient": {"id": "page-1"},
+               "timestamp": Utc::now().timestamp_millis(),
+               "postback": {"title": "Get Started", "payload": "GET_STARTED",
+                            "referral": {"ref": reference, "source": "SHORTLINK",
+                                         "type": "OPEN_THREAD"}}})
+    };
+    let state = |reference: String| MessengerLinkRequest {
+        tenant_id: world.tenant.to_string(),
+        reference,
+        auth_session: "session-a".to_string(),
+        challenge: "challenge-digest".to_string(),
+    };
+
+    // Someone else opens the saved voter's link: nothing is sent, the
+    // answer is the same, and the link is used up.
+    let decoyed = saved_voter_link(&mut client, &world).await;
+    let answer = messenger_webhook(
+        &mut client,
+        &dispatcher,
+        "w600e",
+        vec![opened_by("999", &decoyed.reference)],
+    )
+    .await;
+    assert_eq!(answer, WebhookOutcome::Accepted);
+    assert!(server.requests().is_empty());
+    assert_eq!(
+        link_status(&mut client, &state(decoyed.reference.clone()))
+            .await
+            .unwrap()
+            .unwrap()
+            .state,
+        MessengerLinkState::EXPIRED
+    );
+    // The voter's own conversation, even later, gets nothing from it.
+    messenger_webhook(
+        &mut client,
+        &dispatcher,
+        "w600e",
+        vec![opened_by(PSID, &decoyed.reference)],
+    )
+    .await;
+    assert!(server.requests().is_empty());
+
+    // A new link opened from the voter's conversation: the code goes out.
+    let live = saved_voter_link(&mut client, &world).await;
+    let answer = messenger_webhook(
+        &mut client,
+        &dispatcher,
+        "w600e",
+        vec![opened_by(PSID, &live.reference)],
+    )
+    .await;
+    assert_eq!(answer, WebhookOutcome::Accepted);
+    assert_eq!(server.requests().len(), 1);
+    assert_eq!(server.requests()[0].json()["recipient"]["id"], PSID);
+}
+
 #[tokio::test]
 async fn a_stopped_worker_leaves_never_sent_attempts_failed_and_maybe_sent_ones_unknown() {
     let pool = schema::pool().await;
     let world = world(&pool, 0x6006).await;
     let mut client = pool.get().await.unwrap();
+    // The bulk send whose notice was never sent: what it sent is kept, so
+    // the notice can be retried.
+    let send_id = {
+        let tx = client.transaction().await.unwrap();
+        let id = windmill::postgres::messaging::record_bulk_send(
+            &tx,
+            &world.tenant,
+            Some(&world.event),
+            None,
+            &json!({"audience_selection": "ALL_USERS", "sms": {"message": "Vote"}}),
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+        id
+    };
+    let never_key = format!("send-template:{send_id}:never");
     client
         .execute(
             r#"
@@ -879,14 +1029,14 @@ async fn a_stopped_worker_leaves_never_sent_attempts_failed_and_maybe_sent_ones_
                  created_at, dispatched_at)
             VALUES
                 ($1, $2, 'SMS', 'OUTBOUND', 'NOTICE', 'reminder', '-', 'd',
-                 'send-template:stale:never', 1, 'QUEUED', now() - interval '5 minutes', NULL),
+                 $3, 1, 'QUEUED', now() - interval '5 minutes', NULL),
                 ($1, $2, 'SMS', 'OUTBOUND', 'NOTICE', 'reminder', '-', 'd',
                  'send-template:stale:maybe', 1, 'QUEUED', now() - interval '5 minutes',
                  now() - interval '5 minutes'),
                 ($1, $2, 'SMS', 'OUTBOUND', 'NOTICE', 'reminder', '-', 'd',
                  'send-template:stale:fresh', 1, 'QUEUED', now(), NULL)
             "#,
-            &[&world.tenant, &world.event],
+            &[&world.tenant, &world.event, &never_key],
         )
         .await
         .unwrap();
@@ -894,7 +1044,7 @@ async fn a_stopped_worker_leaves_never_sent_attempts_failed_and_maybe_sent_ones_
     let summary = reconcile_messages(&mut client, &dispatcher).await.unwrap();
     assert!(summary.never_sent >= 1 && summary.maybe_sent >= 1);
     assert_eq!(
-        attempts(&mut client, &world, "send-template:stale:never").await,
+        attempts(&mut client, &world, &never_key).await,
         vec![(MessageChannel::SMS, MessageAttemptState::FAILED)]
     );
     assert_eq!(
@@ -908,8 +1058,8 @@ async fn a_stopped_worker_leaves_never_sent_attempts_failed_and_maybe_sent_ones_
     let never = client
         .query_one(
             "SELECT error, failure, next_retry_at IS NOT NULL FROM sequent_backend.message
-             WHERE tenant_id = $1 AND logical_key = 'send-template:stale:never'",
-            &[&world.tenant],
+             WHERE tenant_id = $1 AND logical_key = $2",
+            &[&world.tenant, &never_key],
         )
         .await
         .unwrap();
@@ -1055,6 +1205,6 @@ async fn a_test_send_through_one_account_needs_no_event_configuration() {
     delivery.account_id = Some(viber);
     let result = deliver(&mut client, &dispatcher, &delivery).await.unwrap();
     assert_eq!(result.state, MessageAttemptState::ACCEPTED);
-    assert_eq!(result.channel, MessageChannel::VIBER);
+    assert_eq!(result.channel, Some(MessageChannel::VIBER));
     assert_eq!(result.recorded[0].kind, MessageKind::ACCOUNT_TEST);
 }

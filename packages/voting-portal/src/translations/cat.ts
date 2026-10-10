@@ -11,6 +11,10 @@ const catalanTranslation: TranslationType = {
         },
         contactChannel: {
             change: "Canvieu com us contactem",
+            updated: "S’ha canviat el vostre contacte. Els codis i els avisos ara s’hi envien.",
+            cancelled: "No s’ha canviat el vostre contacte.",
+            failed: "No hem pogut canviar com us contactem. Torneu-ho a provar més tard o contacteu amb el suport.",
+            close: "Tanca",
         },
         common: {
             goBack: "Tornar",

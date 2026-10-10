@@ -11,6 +11,10 @@ const frenchTranslation: TranslationType = {
         },
         contactChannel: {
             change: "Modifier la façon dont nous vous contactons",
+            updated: "Votre contact a été modifié. Les codes et les avis y sont désormais envoyés.",
+            cancelled: "Votre contact n’a pas été modifié.",
+            failed: "Nous n’avons pas pu modifier la façon dont nous vous contactons. Réessayez plus tard ou contactez l’assistance.",
+            close: "Fermer",
         },
         common: {
             goBack: "Retour",

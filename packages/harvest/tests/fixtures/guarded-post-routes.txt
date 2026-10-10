@@ -100,6 +100,7 @@
 /messages/link/confirm
 /messages/link/status
 /messages/send
+/messaging/accounts/callback-status
 /messaging/accounts/callback-url
 /messaging/accounts/check
 /messaging/accounts/credentials

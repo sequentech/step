@@ -106,6 +106,13 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
   public static final String VERIFICATION_COMPLETED = "verificationCompleted";
   public static final String VERIFICATION_STATUS = "verificationStatus";
   private static final String VERIFICATION_REJECTION_REASON = "verificationRejectionReason";
+
+  /**
+   * The pending page's support reference, from the application record ({@link SupportReference}).
+   */
+  static final String SUPPORT_REFERENCE_NOTE = "sequent.support-reference";
+
+  static final String SUPPORT_REFERENCE_ATTRIBUTE = "supportReference";
   private static final String VERIFICATION_MISSMATCHED_FIELDS = "verificationMismatchedFields";
 
   // Enumerate the rejection reasons
@@ -352,6 +359,17 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           rejectionMessage);
 
       context.getAuthenticationSession().setAuthNote(VERIFICATION_STATUS, verificationStatus);
+      // The application record's id gives the reference the voter quotes to support. Older harvest
+      // versions don't return it; the page then shows no reference.
+      JsonNode applicationIdNode = verificationResult.get("application_id");
+      SupportReference.of(
+              applicationIdNode == null || applicationIdNode.isNull()
+                  ? null
+                  : applicationIdNode.asText())
+          .ifPresentOrElse(
+              reference ->
+                  context.getAuthenticationSession().setAuthNote(SUPPORT_REFERENCE_NOTE, reference),
+              () -> log.info("verifyApplication(): no application id; no support reference"));
       context
           .getAuthenticationSession()
           .setAuthNote(VERIFICATION_REJECTION_REASON, rejectionReason);
@@ -498,11 +516,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     String email = user.getEmail();
     String username = user.getUsername();
 
-    context
-        .getEvent()
-        .detail(Details.USERNAME, username)
-        .detail(Details.REGISTER_METHOD, "form")
-        .detail(Details.EMAIL, email);
+    context.getEvent().detail(Details.USERNAME, username).detail(Details.REGISTER_METHOD, "form");
 
     // Fail if the user does have set any of the specified attributes
     Optional<String> unsetAttributesChecked =
@@ -673,6 +687,10 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
    * voter's one channel) and {@code noticeAddress} (its destination, masked; empty for Messenger).
    */
   private static void setNoticeChannel(AuthenticationFlowContext context) {
+    String reference = context.getAuthenticationSession().getAuthNote(SUPPORT_REFERENCE_NOTE);
+    if (reference != null) {
+      context.form().setAttribute(SUPPORT_REFERENCE_ATTRIBUTE, reference);
+    }
     MessageCourier messageCourier =
         MessageCourier.fromString(
             context.getAuthenticatorConfig().getConfig().get(MESSAGE_COURIER_ATTRIBUTE));

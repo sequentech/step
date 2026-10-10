@@ -21,9 +21,11 @@ import {
 } from "@/types/messaging"
 import {
     acceptedCredentials,
+    accountDeliveryFeedback,
     accountSenderLabel,
     accountSummary,
     bindingProviderLanguage,
+    withCallbackStatus,
     channelStatisticsKey,
     deliverySummary,
     emptyEventMessagingConfig,
@@ -605,10 +607,10 @@ describe("statistics and labels", () => {
             accountSenderLabel({
                 provider: EMessagingProvider.MESSENGER_SEND_API,
                 page_id: "1234",
-                page_name: "COMELEC",
+                page_name: "STAFFASSOC",
                 api_version: "v23.0",
             })
-        ).toBe("COMELEC")
+        ).toBe("STAFFASSOC")
         expect(
             accountSenderLabel({
                 provider: EMessagingProvider.AWS_SES,
@@ -835,8 +837,8 @@ describe("accountSummary", () => {
         sender: {
             provider: EMessagingProvider.MESSENGER_SEND_API,
             page_id: "1234567890",
-            page_name: "COMELEC",
-            page_username: "comelec",
+            page_name: "STAFFASSOC",
+            page_username: "staffassociation",
             api_version: "v23.0",
         },
         is_default: true,
@@ -847,11 +849,11 @@ describe("accountSummary", () => {
         expect(summary.provider_approval).toBe(EProviderApproval.PENDING)
         expect(summary.check).toEqual({connected: false, production_access: false})
         expect(summary.capabilities?.conversation_window_hours).toBe(24)
-        expect(summary.public_label).toBe("COMELEC")
+        expect(summary.public_label).toBe("STAFFASSOC")
         expect(summary.messenger_page).toEqual({
             page_id: "1234567890",
-            username: "comelec",
-            name: "COMELEC",
+            username: "staffassociation",
+            name: "STAFFASSOC",
         })
     })
 })
@@ -865,8 +867,12 @@ describe("publicProjection", () => {
                 EMessagingProvider.MESSENGER_SEND_API,
                 readyCheck([])
             ),
-            public_label: "COMELEC",
-            messenger_page: {page_id: "1234567890", username: "comelec", name: "COMELEC"},
+            public_label: "STAFFASSOC",
+            messenger_page: {
+                page_id: "1234567890",
+                username: "staffassociation",
+                name: "STAFFASSOC",
+            },
         }
         const projected = publicProjection(
             config({
@@ -886,8 +892,12 @@ describe("publicProjection", () => {
             {
                 channel: EMessageChannel.MESSENGER,
                 purposes: [EMessagePurpose.OTP],
-                sender_label: "COMELEC",
-                messenger_page: {page_id: "1234567890", username: "comelec", name: "COMELEC"},
+                sender_label: "STAFFASSOC",
+                messenger_page: {
+                    page_id: "1234567890",
+                    username: "staffassociation",
+                    name: "STAFFASSOC",
+                },
             },
         ])
         expect(projected.election_labels).toEqual({"election-1": ["Manila", "PH-MNL"]})
@@ -914,5 +924,110 @@ describe("credentials of the v2 providers", () => {
             expect(requiredCredentials(provider)).toEqual([])
             expect(acceptedCredentials(provider)).toEqual([])
         }
+    })
+})
+
+describe("callback readiness (R4-04)", () => {
+    // As messaging_callback_status reports it, merged into the account's check.
+    const noCallback = {
+        ...readyCheck([]),
+        callback_blockers: [EReadinessBlocker.CALLBACK_NOT_CONFIGURED],
+        callback_reasons: ["Callback address not configured"],
+    }
+    const messengerAccount = (status: IAccountCheck): IMessagingAccount => ({
+        id: "page-1",
+        tenant_id: TENANT,
+        channel: EMessageChannel.MESSENGER,
+        provider: EMessagingProvider.MESSENGER_SEND_API,
+        name: "Staff Association Page",
+        sender: {
+            provider: EMessagingProvider.MESSENGER_SEND_API,
+            page_id: "1",
+            api_version: "v23.0",
+        },
+        status,
+        is_default: true,
+    })
+
+    it("keeps Messenger from codes without a callback address: they need Get Started", () => {
+        expect(
+            readinessOf(
+                EMessagingProvider.MESSENGER_SEND_API,
+                EMessageChannel.MESSENGER,
+                EProviderApproval.PENDING,
+                noCallback,
+                EMessagePurpose.OTP,
+                null
+            ).blockers
+            // The literal, so the enum value itself is checked.
+        ).toStrictEqual(["CALLBACK_NOT_CONFIGURED"])
+        expect(
+            readinessOf(
+                EMessagingProvider.MESSENGER_SEND_API,
+                EMessageChannel.MESSENGER,
+                EProviderApproval.PENDING,
+                noCallback,
+                EMessagePurpose.NOTICE,
+                null
+            ).blockers
+        ).toEqual([])
+        expect(
+            readinessOf(
+                EMessagingProvider.MESSENGER_SEND_API,
+                EMessageChannel.MESSENGER,
+                EProviderApproval.PENDING,
+                {...noCallback, callback_blockers: [], callback_reasons: []},
+                EMessagePurpose.OTP,
+                null
+            ).blockers
+        ).toEqual([])
+    })
+
+    it("shows receipts as unavailable without a callback address, never 0 delivered", () => {
+        expect(accountDeliveryFeedback(messengerAccount(noCallback))).toEqual({
+            feedback: EDeliveryFeedback.UNAVAILABLE,
+            reason: "Callback address not configured",
+        })
+        expect(
+            accountDeliveryFeedback(
+                messengerAccount({...noCallback, callback_blockers: [], callback_reasons: []})
+            )
+        ).toEqual({feedback: EDeliveryFeedback.PROVIDER_RECEIPTS})
+        expect(accountDeliveryFeedback(undefined)).toEqual({
+            feedback: EDeliveryFeedback.UNAVAILABLE,
+        })
+    })
+})
+
+describe("withCallbackStatus (R4-04)", () => {
+    const account = {
+        id: "page-1",
+        status: {connected: true, production_access: true},
+    } as IMessagingAccount
+    it("puts each account's callback blockers and reasons on its check", () => {
+        expect(
+            withCallbackStatus(
+                [account, {...account, id: "page-2", status: null}],
+                [
+                    {
+                        account_id: "page-1",
+                        blockers: ["CALLBACK_NOT_CONFIGURED"],
+                        reasons: ["Callback address not configured"],
+                    },
+                ]
+            ).map((entry) => entry.status)
+        ).toEqual([
+            {
+                connected: true,
+                production_access: true,
+                callback_blockers: ["CALLBACK_NOT_CONFIGURED"],
+                callback_reasons: ["Callback address not configured"],
+            },
+            null,
+        ])
+    })
+
+    it("leaves the accounts as they are when the status can't be read", () => {
+        expect(withCallbackStatus([account], undefined)).toEqual([account])
     })
 })

@@ -12,16 +12,17 @@ use super::audit::{AttemptOutcome, MessageKind, ENVIRONMENT_PROVIDER};
 use super::config::get_event_messaging_config;
 use super::keys::{tenant_key, TenantKey};
 use crate::postgres::messaging::{
-    get_message, get_messaging_account, insert_message, last_get_started_at, list_attempts,
-    list_messaging_accounts, mark_dispatched, transition_message, MessageRecord, MessagingAccount,
-    NewMessage, StateChange,
+    cancel_retry, get_bulk_send_payload, get_message, get_messaging_account, insert_message,
+    last_get_started_at, list_attempts, list_messaging_accounts, mark_dispatched,
+    transition_message, MessageRecord, MessagingAccount, NewMessage, StateChange,
 };
-use crate::services::providers::email_sender::EmailSender;
+use crate::services::providers::email_sender::{EmailSender, TransportFailure};
 use crate::services::providers::sms_sender::SmsSender;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Client as DbClient;
+use deadpool_postgres::Transaction;
 use messaging::attempts::{decide, next_retry_at, AttemptRecord, Dispatch};
 use messaging::destination::Destination;
 use messaging::providers::{self, Endpoints};
@@ -32,8 +33,10 @@ use messaging::sender::{
 use sequent_core::types::messaging::{
     AccountCheck, AccountSender, BillingCategory, DeliveryFeedback, EventMessagingConfig,
     MessageAttemptState, MessageChannel, MessageContent, MessagePurpose, MessageReason,
-    OutOfWindowPolicy, ProviderCapabilities, RecipientKind,
+    NoticeRecipient, OutOfWindowPolicy, ProviderCapabilities, RecipientKind,
 };
+use sequent_core::types::templates::SendTemplateBody;
+use sequent_core::types::voter_channel::{VoterChannel, VoterChannelSource};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::OnceCell;
@@ -93,7 +96,8 @@ pub struct ProviderTemplate {
 pub struct DeliveryResult {
     pub message_id: Option<Uuid>,
     pub attempt: Option<i32>,
-    pub channel: MessageChannel,
+    /// `None` for a message recorded without a channel.
+    pub channel: Option<MessageChannel>,
     pub state: MessageAttemptState,
     /// Short, non-sensitive reason when not accepted.
     pub reason: Option<String>,
@@ -121,7 +125,8 @@ impl DeliveryResult {
         }
     }
 
-    /// Whether this call accepted a message that wasn't accepted before.
+    /// Whether this call recorded a message as sent that wasn't before:
+    /// what statistics count. A replay records nothing, so counts nothing.
     pub fn newly_sent(&self) -> bool {
         self.recorded.iter().any(|outcome| {
             matches!(
@@ -231,45 +236,37 @@ impl ChannelSender for EnvironmentSender {
     async fn send(&self, message: &OutboundMessage) -> SendOutcome {
         let sent = match self.channel {
             MessageChannel::EMAIL => match EmailSender::new().await {
-                Ok(sender) => sender
-                    .send(
-                        vec![message.destination.as_str().to_string()],
-                        message.content.subject.clone().unwrap_or_default(),
-                        message.content.text.clone(),
-                        message.content.html.clone(),
-                        vec![],
-                    )
-                    .await
-                    .is_ok(),
+                Ok(sender) => {
+                    sender
+                        .send_message(
+                            vec![message.destination.as_str().to_string()],
+                            message.content.subject.clone().unwrap_or_default(),
+                            message.content.text.clone(),
+                            message.content.html.clone(),
+                            vec![],
+                        )
+                        .await
+                }
                 Err(_) => {
                     return refused("the email transport is not configured");
                 }
             },
             MessageChannel::SMS => match SmsSender::new().await {
-                Ok(sender) => sender
-                    .send(
-                        message.destination.as_str().to_string(),
-                        message.content.text.clone(),
-                    )
-                    .await
-                    .is_ok(),
+                Ok(sender) => {
+                    sender
+                        .send_message(
+                            message.destination.as_str().to_string(),
+                            message.content.text.clone(),
+                        )
+                        .await
+                }
                 Err(_) => {
                     return refused("the SMS transport is not configured");
                 }
             },
             _ => return refused(MessageReason::NO_ACCOUNT_FOR_CHANNEL.as_str()),
         };
-        if sent {
-            SendOutcome::Accepted {
-                provider_message_id: None,
-            }
-        } else {
-            // The environment transports do not say whether the provider
-            // took the message.
-            SendOutcome::Unknown {
-                reason: "the environment transport reported an error".to_string(),
-            }
-        }
+        transport_outcome(sent)
     }
 
     async fn check(&self) -> AccountCheck {
@@ -278,6 +275,29 @@ impl ChannelSender for EnvironmentSender {
             production_access: true,
             ..Default::default()
         }
+    }
+}
+
+/// What the ledger records for the environment transport's answer: a
+/// definite refusal is FAILED (retried when transient, if the message's
+/// origin allows it); only a lost answer is UNKNOWN, never sent again.
+fn transport_outcome(sent: std::result::Result<(), TransportFailure>) -> SendOutcome {
+    match sent {
+        Ok(()) => SendOutcome::Accepted {
+            provider_message_id: None,
+        },
+        Err(TransportFailure::Refused { transient, reason }) => {
+            SendOutcome::Rejected(ProviderFailure {
+                kind: if transient {
+                    FailureKind::TRANSIENT
+                } else {
+                    FailureKind::PERMANENT
+                },
+                code: None,
+                reason,
+            })
+        }
+        Err(TransportFailure::Unknown { reason }) => SendOutcome::Unknown { reason },
     }
 }
 
@@ -343,11 +363,79 @@ fn refused(reason: impl ToString) -> SendOutcome {
 /// The time a voter's Messenger conversation stays open after Get Started.
 const MESSENGER_WINDOW_HOURS: i64 = 24;
 
-/// Records a message that has no channel at all: one FAILED row with
-/// [`MessageReason::NO_CONTACT_CHANNEL`], so staff see it. The ledger needs
-/// a channel, so the row is on email, the channel such a voter would have
-/// had (`voter_channel`'s legacy rule). A replay records nothing new.
-#[instrument(skip_all, fields(logical_key = %logical_key), err)]
+/// A message refused before any attempt could be made, recorded as one
+/// FAILED row with its reason so staff see it.
+#[derive(Debug, Clone)]
+pub struct Refusal {
+    pub tenant_id: Uuid,
+    pub election_event_id: Option<Uuid>,
+    pub voter_id: Option<String>,
+    /// `None` when the voter has no channel at all.
+    pub channel: Option<MessageChannel>,
+    pub destination: Option<String>,
+    pub purpose: MessagePurpose,
+    pub template_alias: Option<String>,
+    pub language: Option<String>,
+    pub logical_key: String,
+    pub reason: MessageReason,
+}
+
+/// Records `refusal` as one FAILED, never retried row (masked
+/// destination, or "-"). A replay records nothing new.
+#[instrument(skip_all, fields(logical_key = %refusal.logical_key, reason = %refusal.reason), err)]
+pub async fn record_refusal(client: &mut DbClient, refusal: &Refusal) -> Result<DeliveryResult> {
+    let tx = client.transaction().await?;
+    let masked = match (refusal.channel, refusal.destination.as_deref()) {
+        (Some(channel), Some(destination)) => Destination::parse(channel, destination)
+            .map(|d| d.masked())
+            .unwrap_or_else(|_| "-".to_string()),
+        _ => "-".to_string(),
+    };
+    let inserted = insert_message(
+        &tx,
+        &NewMessage {
+            tenant_id: refusal.tenant_id,
+            election_event_id: refusal.election_event_id,
+            voter_id: refusal.voter_id.clone(),
+            account_id: None,
+            channel: refusal.channel,
+            purpose: Some(refusal.purpose),
+            template_alias: refusal.template_alias.clone(),
+            language: refusal.language.clone(),
+            masked_destination: masked,
+            destination_digest: "-".to_string(),
+            destination_country: None,
+            logical_key: Some(refusal.logical_key.clone()),
+            attempt: 1,
+            state: MessageAttemptState::FAILED,
+            provider_message_id: None,
+            error: Some(refusal.reason.to_string()),
+            failure: Some(FailureKind::PERMANENT),
+            billing_category: None,
+        },
+    )
+    .await?;
+    let result = match inserted {
+        Some(record) => {
+            warn!(message_id = %record.id, "{}", refusal.reason);
+            let mut result = DeliveryResult::from_record(&record);
+            result.recorded = vec![attempt_outcome(&record, ENVIRONMENT_PROVIDER)];
+            result
+        }
+        None => list_attempts(&tx, &refusal.tenant_id, &refusal.logical_key)
+            .await?
+            .last()
+            .map(DeliveryResult::from_record)
+            .ok_or_else(|| anyhow!("inconsistent attempts"))?,
+    };
+    tx.commit().await?;
+    Ok(result)
+}
+
+/// Records a message that has no channel at all: one FAILED row with no
+/// channel and [`MessageReason::NO_CONTACT_CHANNEL`], never counted as any
+/// channel's failure. A replay records nothing new.
+#[allow(clippy::too_many_arguments)]
 pub async fn record_without_channel(
     client: &mut DbClient,
     tenant_id: Uuid,
@@ -358,46 +446,127 @@ pub async fn record_without_channel(
     language: Option<String>,
     logical_key: &str,
 ) -> Result<DeliveryResult> {
-    let tx = client.transaction().await?;
-    let inserted = insert_message(
-        &tx,
-        &NewMessage {
+    record_refusal(
+        client,
+        &Refusal {
             tenant_id,
             election_event_id,
             voter_id,
-            account_id: None,
-            channel: MessageChannel::EMAIL,
-            purpose: Some(purpose),
+            channel: None,
+            destination: None,
+            purpose,
             template_alias,
             language,
-            masked_destination: "-".to_string(),
-            destination_digest: "-".to_string(),
-            destination_country: None,
-            logical_key: Some(logical_key.to_string()),
-            attempt: 1,
-            state: MessageAttemptState::FAILED,
-            provider_message_id: None,
-            error: Some(MessageReason::NO_CONTACT_CHANNEL.to_string()),
-            failure: Some(FailureKind::PERMANENT),
-            billing_category: None,
+            logical_key: logical_key.to_string(),
+            reason: MessageReason::NO_CONTACT_CHANNEL,
         },
     )
-    .await?;
-    let result = match inserted {
-        Some(record) => {
-            warn!(message_id = %record.id, "{}", MessageReason::NO_CONTACT_CHANNEL);
-            let mut result = DeliveryResult::from_record(&record);
-            result.recorded = vec![attempt_outcome(&record, ENVIRONMENT_PROVIDER)];
-            result
-        }
-        None => list_attempts(&tx, &tenant_id, logical_key)
-            .await?
-            .last()
-            .map(DeliveryResult::from_record)
-            .ok_or_else(|| anyhow!("inconsistent attempts"))?,
+    .await
+}
+
+/// The channel and destination a notice from Keycloak goes to, or why it
+/// can't go anywhere, with the channel its FAILED row is recorded on.
+///
+/// - A notice about the previous channel goes where the request says.
+/// - Otherwise, with the voter's record: the voter's channel. A request
+///   naming another *recorded* channel is refused
+///   ([`MessageReason::NOT_THE_VOTERS_CHANNEL`]); a legacy voter (email,
+///   else SMS, never recorded) may still be sent on the channel the realm's
+///   courier names.
+/// - Without a record (no voter, or a voter with no channel): the channel
+///   and destination the request names, or
+///   [`MessageReason::NO_CONTACT_CHANNEL`].
+pub fn notice_recipient(
+    policy: NoticeRecipient,
+    requested_channel: Option<MessageChannel>,
+    requested_destination: Option<&str>,
+    voter: Option<&VoterChannel>,
+) -> std::result::Result<(MessageChannel, String), (Option<MessageChannel>, MessageReason)> {
+    let requested_destination = requested_destination
+        .map(str::trim)
+        .filter(|destination| !destination.is_empty())
+        .map(str::to_string);
+    let as_requested = || match (requested_channel, requested_destination.clone()) {
+        (Some(channel), Some(destination)) => Ok((channel, destination)),
+        (channel, _) => Err((channel, MessageReason::NO_CONTACT_CHANNEL)),
     };
-    tx.commit().await?;
-    Ok(result)
+    let voter = match (policy, voter) {
+        (NoticeRecipient::PREVIOUS_CHANNEL, _) | (_, None) => return as_requested(),
+        (NoticeRecipient::VOTER_CHANNEL, Some(voter)) => voter,
+    };
+    match requested_channel {
+        None => Ok((voter.channel, voter.destination.clone())),
+        Some(channel) if channel == voter.channel => Ok((
+            channel,
+            requested_destination
+                .clone()
+                .unwrap_or_else(|| voter.destination.clone()),
+        )),
+        Some(_) if voter.source == VoterChannelSource::LEGACY => as_requested(),
+        Some(channel) => Err((Some(channel), MessageReason::NOT_THE_VOTERS_CHANNEL)),
+    }
+}
+
+/// The send ID of a bulk notice's logical key (`send-template:<id>:<voter>`).
+pub fn bulk_send_id(logical_key: &str) -> Option<Uuid> {
+    let rest = logical_key.strip_prefix("send-template:")?;
+    let (send_id, _) = rest.split_once(':')?;
+    Uuid::parse_str(send_id).ok()
+}
+
+/// What the administrator sent in the bulk send of `logical_key`, if it
+/// was stored and can still be read.
+pub async fn bulk_send_body(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    logical_key: &str,
+) -> Result<Option<SendTemplateBody>> {
+    let Some(send_id) = bulk_send_id(logical_key) else {
+        return Ok(None);
+    };
+    let Some(payload) = get_bulk_send_payload(tx, tenant_id, &send_id).await? else {
+        return Ok(None);
+    };
+    match serde_json::from_value::<SendTemplateBody>(payload) {
+        Ok(body) => Ok(Some(body)),
+        Err(error) => {
+            warn!(%send_id, "unreadable bulk send payload: {error}");
+            Ok(None)
+        }
+    }
+}
+
+/// Why a failed attempt of a message can't be sent again, by where the
+/// message comes from; `None` when it can. The one rule for every place
+/// that schedules or sends a retry:
+///
+/// - Bulk notices are rendered again from what the administrator sent (the
+///   stored send), unless it used encrypted voter attributes
+///   ([`MessageReason::PROTECTED_FIELDS`]) or is gone.
+/// - Application results are rendered again from their template reference.
+/// - Notices Keycloak sends (reset links, temporary credentials, other
+///   notices), codes and test messages are never retried by the server:
+///   their content isn't stored. The voter asks again.
+pub async fn retry_refusal(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    logical_key: Option<&str>,
+    template_alias: Option<&str>,
+) -> Result<Option<MessageReason>> {
+    let Some(logical_key) = logical_key else {
+        return Ok(Some(MessageReason::NO_STORED_TEMPLATE));
+    };
+    Ok(match MessageKind::of(logical_key) {
+        MessageKind::BULK_NOTICE => match bulk_send_body(tx, tenant_id, logical_key).await? {
+            None => Some(MessageReason::NO_STORED_TEMPLATE),
+            Some(body) if !body.secret_attribute_names.is_empty() => {
+                Some(MessageReason::PROTECTED_FIELDS)
+            }
+            Some(_) => None,
+        },
+        MessageKind::APPLICATION_RESULT if template_alias.is_some() => None,
+        _ => Some(MessageReason::NO_STORED_TEMPLATE),
+    })
 }
 
 /// Sends `delivery` on its recipient's channel, unless an earlier attempt
@@ -425,6 +594,20 @@ pub async fn deliver(
             &attempt_records(&records),
             Utc::now(),
         ) {
+            Dispatch::Send { attempt, channel }
+                if attempt > 1 && channel != delivery.recipient.channel =>
+            {
+                // A replay found the retry due, but the voter changed
+                // channel since: never the old channel to the new
+                // destination, nor the message on another channel.
+                let latest = latest.ok_or_else(|| anyhow!("inconsistent attempts"))?;
+                let current = cancel_retry(&tx, &latest.id, MessageReason::CHANNEL_CHANGED)
+                    .await?
+                    .unwrap_or_else(|| latest.clone());
+                tx.commit().await?;
+                info!(message_id = %current.id, "{}", MessageReason::CHANNEL_CHANGED);
+                return Ok(DeliveryResult::from_record(&current));
+            }
             Dispatch::Send { attempt, channel } => (attempt, channel),
             Dispatch::AlreadySent | Dispatch::AwaitReconciliation => {
                 let current = records
@@ -466,7 +649,7 @@ pub async fn deliver(
             election_event_id: delivery.election_event_id,
             voter_id: delivery.recipient.voter_id.clone(),
             account_id: account.as_ref().map(|a| a.id),
-            channel,
+            channel: Some(channel),
             purpose: Some(delivery.purpose),
             template_alias: delivery.template_alias.clone(),
             language: delivery.language.clone(),
@@ -662,6 +845,7 @@ pub async fn deliver(
             }
             sender.send(&message).await
         };
+        let tx = client.transaction().await?;
         let change = match &outcome {
             SendOutcome::Accepted {
                 provider_message_id,
@@ -676,11 +860,20 @@ pub async fn deliver(
                 };
                 let mut retry_at =
                     next_retry_at(delivery.purpose, attempt, failure.kind, Utc::now());
-                if retry_at.is_some() && delivery.template_alias.is_none() {
-                    // The ledger keeps no content: without a stored template
-                    // there is nothing to send again.
-                    retry_at = None;
-                    error = MessageReason::NO_STORED_TEMPLATE.to_string();
+                if retry_at.is_some() {
+                    // The ledger keeps no content: only a message whose
+                    // origin can render it again is retried.
+                    if let Some(reason) = retry_refusal(
+                        &tx,
+                        &delivery.tenant_id,
+                        Some(&delivery.logical_key),
+                        delivery.template_alias.as_deref(),
+                    )
+                    .await?
+                    {
+                        retry_at = None;
+                        error = reason.not_retried_after(Some(&error));
+                    }
                 }
                 StateChange {
                     error: Some(error),
@@ -694,7 +887,6 @@ pub async fn deliver(
                 ..Default::default()
             },
         };
-        let tx = client.transaction().await?;
         let updated = transition_message(&tx, &queued.id, outcome.state(), &change).await?;
         let current = match updated {
             Some(updated) => updated,
@@ -708,13 +900,151 @@ pub async fn deliver(
         tx.commit().await?;
         info!(message_id = %queued.id, %channel, state = %outcome.state(), "message attempt");
         let mut result = DeliveryResult::from_record(&current);
-        // The attempt's own outcome, even when a fast report already moved
-        // it on.
-        let mut logged = attempt_outcome(&current, &provider);
-        logged.outcome = outcome.state();
-        logged.reason = change.error.clone();
-        result.recorded = vec![logged];
+        // The attempt's entry says what the ledger says, also when a fast
+        // report moved it on before the send's answer was recorded; and
+        // statistics count it only when the ledger says it was sent.
+        result.recorded = vec![attempt_outcome(&current, &provider)];
         return Ok(result);
     }
     Err(anyhow!("too many attempts for {}", delivery.logical_key))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn voter(
+        channel: MessageChannel,
+        destination: &str,
+        source: VoterChannelSource,
+    ) -> VoterChannel {
+        VoterChannel {
+            channel,
+            destination: destination.to_string(),
+            messenger_page: None,
+            source,
+        }
+    }
+
+    #[test]
+    fn a_notice_without_a_channel_goes_to_the_voters_one_channel() {
+        let whatsapp = voter(
+            MessageChannel::WHATSAPP,
+            "+639181234567",
+            VoterChannelSource::RECORDED,
+        );
+        assert_eq!(
+            notice_recipient(NoticeRecipient::VOTER_CHANNEL, None, None, Some(&whatsapp)),
+            Ok((MessageChannel::WHATSAPP, "+639181234567".to_string()))
+        );
+        // No record, and nothing named: no contact channel, no channel.
+        assert_eq!(
+            notice_recipient(NoticeRecipient::VOTER_CHANNEL, None, None, None),
+            Err((None, MessageReason::NO_CONTACT_CHANNEL))
+        );
+    }
+
+    #[test]
+    fn a_notice_on_another_recorded_channel_is_refused() {
+        let whatsapp = voter(
+            MessageChannel::WHATSAPP,
+            "+639181234567",
+            VoterChannelSource::RECORDED,
+        );
+        assert_eq!(
+            notice_recipient(
+                NoticeRecipient::VOTER_CHANNEL,
+                Some(MessageChannel::SMS),
+                Some("+639171234567"),
+                Some(&whatsapp)
+            ),
+            Err((
+                Some(MessageChannel::SMS),
+                MessageReason::NOT_THE_VOTERS_CHANNEL
+            ))
+        );
+        // The same channel keeps the destination the request names.
+        assert_eq!(
+            notice_recipient(
+                NoticeRecipient::VOTER_CHANNEL,
+                Some(MessageChannel::WHATSAPP),
+                Some("+639181234567"),
+                Some(&whatsapp)
+            ),
+            Ok((MessageChannel::WHATSAPP, "+639181234567".to_string()))
+        );
+        // The notice that the channel changed goes to the previous one.
+        assert_eq!(
+            notice_recipient(
+                NoticeRecipient::PREVIOUS_CHANNEL,
+                Some(MessageChannel::SMS),
+                Some("+639171234567"),
+                Some(&whatsapp)
+            ),
+            Ok((MessageChannel::SMS, "+639171234567".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_legacy_voter_keeps_the_realms_courier() {
+        let legacy = voter(
+            MessageChannel::EMAIL,
+            "voter@example.org",
+            VoterChannelSource::LEGACY,
+        );
+        assert_eq!(
+            notice_recipient(
+                NoticeRecipient::VOTER_CHANNEL,
+                Some(MessageChannel::SMS),
+                Some("+639171234567"),
+                Some(&legacy)
+            ),
+            Ok((MessageChannel::SMS, "+639171234567".to_string()))
+        );
+    }
+
+    #[test]
+    fn the_environment_transport_fails_definite_refusals_and_only_loses_lost_answers() {
+        let refusal = |transient| {
+            transport_outcome(Err(TransportFailure::Refused {
+                transient,
+                reason: "refused by the mail server (550)".to_string(),
+            }))
+        };
+        assert!(matches!(
+            refusal(true),
+            SendOutcome::Rejected(ProviderFailure {
+                kind: FailureKind::TRANSIENT,
+                ..
+            })
+        ));
+        assert!(matches!(
+            refusal(false),
+            SendOutcome::Rejected(ProviderFailure {
+                kind: FailureKind::PERMANENT,
+                ..
+            })
+        ));
+        assert!(matches!(
+            transport_outcome(Err(TransportFailure::Unknown {
+                reason: "the provider's answer was lost".to_string()
+            })),
+            SendOutcome::Unknown { .. }
+        ));
+        assert!(matches!(
+            transport_outcome(Ok(())),
+            SendOutcome::Accepted { .. }
+        ));
+    }
+
+    #[test]
+    fn bulk_send_ids_come_from_the_logical_key() {
+        let id = Uuid::new_v4();
+        assert_eq!(
+            bulk_send_id(&format!("send-template:{id}:voter-1")),
+            Some(id)
+        );
+        assert_eq!(bulk_send_id("send-template:celery-task:voter-1"), None);
+        assert_eq!(bulk_send_id("keycloak:x"), None);
+    }
 }

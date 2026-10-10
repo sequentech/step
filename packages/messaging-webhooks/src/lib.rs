@@ -21,7 +21,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use messaging::relay::{
     self, CallbackEnvelope, CallbackMethod, CallbackProvider, RelayResponse, CALLBACKS_PATH,
-    RELAY_SECRET_ENV, RELAY_SIGNATURE_HEADER,
+    RELAY_SECRET_ENV, RELAY_SECRET_POLICY_ENV, RELAY_SIGNATURE_HEADER,
 };
 use rocket::data::{Data, ToByteUnit};
 use rocket::http::{ContentType, Status};
@@ -75,11 +75,13 @@ impl Config {
     }
 
     /// From the variables `var` returns: [`HARVEST_DOMAIN_ENV`],
-    /// [`RELAY_SECRET_ENV`] and [`relay::MAX_BODY_BYTES_ENV`].
+    /// [`RELAY_SECRET_ENV`] (checked by [`relay::relay_secret`] under
+    /// [`RELAY_SECRET_POLICY_ENV`]) and [`relay::MAX_BODY_BYTES_ENV`].
     ///
     /// # Errors
-    /// When the harvest address or the relay secret is missing or blank, or
-    /// the body limit isn't a positive number of bytes.
+    /// When the harvest address is missing, the relay secret is refused
+    /// (unset, shorter than 32 bytes, or the development value without its
+    /// policy), or the body limit isn't a positive number of bytes.
     pub fn from_vars(var: impl Fn(&str) -> Option<String>) -> Result<Self> {
         let domain = var(HARVEST_DOMAIN_ENV)
             .map(|value| value.trim().trim_end_matches('/').to_string())
@@ -90,10 +92,10 @@ impl Config {
         } else {
             format!("http://{domain}")
         };
-        let relay_secret = var(RELAY_SECRET_ENV)
-            .filter(|value| !value.trim().is_empty())
-            .with_context(|| format!("{RELAY_SECRET_ENV} is not set"))?
-            .into_bytes();
+        let relay_secret = relay::relay_secret(
+            var(RELAY_SECRET_ENV).as_deref(),
+            var(RELAY_SECRET_POLICY_ENV).as_deref(),
+        )?;
         let max_body_bytes = relay::max_body_bytes(var(relay::MAX_BODY_BYTES_ENV).as_deref())?;
         Ok(Self {
             callbacks_url: format!("{base}{CALLBACKS_PATH}"),
@@ -381,6 +383,14 @@ async fn aws_callback(
     .await
 }
 
+/// Rocket answers `HEAD` with the matching `GET` route; Meta's handshake is
+/// `GET` only, so every `HEAD` on a callback path is a 404 and is never
+/// forwarded.
+#[head("/webhooks/<_..>")]
+fn no_head() -> Reply {
+    Reply::empty(Status::NotFound)
+}
+
 /// Liveness. Never forwards.
 #[get("/healthz")]
 fn healthz() -> Reply {
@@ -413,12 +423,15 @@ pub fn build(config: Config) -> Result<Rocket<Build>> {
                 meta_callback,
                 viber_callback,
                 aws_callback,
-                healthz
+                healthz,
+                no_head
             ],
         )
         .register("/", catchers![bare_status])
         .manage(Relay { config, http }))
 }
+
+pub mod logging;
 
 #[cfg(test)]
 mod tests;

@@ -24,7 +24,9 @@ use windmill::postgres::messaging::{
     ENDPOINT_HTTPS_REASON,
 };
 use windmill::services::messaging::config::{
-    get_event_messaging_config, save_event_messaging_config_as, SaveOutcome,
+    get_event_messaging_config, import_event_messaging_config, mark_migrated_configs,
+    save_event_messaging_config_as, save_event_messaging_config_with, ImportOutcome,
+    MessagingConfigPermission, SaveOutcome, MIGRATED_BY, MIGRATED_INVALID_BY,
 };
 
 fn id(seed: u32, n: u32) -> Uuid {
@@ -332,5 +334,255 @@ async fn removed_providers_and_policies_are_never_written_again() {
         .unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].readiness, ReadinessPolicy::ADMIN_CONFIRMED);
+    tx.rollback().await.unwrap();
+}
+
+/// An SMS account checked and in production, ready for notices.
+async fn ready_sms(tx: &Transaction<'_>, world: &World, key: &str) -> Uuid {
+    let account = insert_messaging_account(tx, &world.tenant, &sms(), key)
+        .await
+        .unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.messaging_account
+         SET status = '{\"connected\": true, \"production_access\": true}'
+         WHERE id = $1",
+        &[&account.id],
+    )
+    .await
+    .unwrap();
+    account.id
+}
+
+async fn stored_by(tx: &Transaction<'_>, world: &World) -> Option<Option<String>> {
+    get_messaging_event_config(tx, &world.tenant, &world.event)
+        .await
+        .unwrap()
+        .map(|stored| stored.updated_by)
+}
+
+/// Regression (R1-02): an event import stored the bundle's configuration
+/// after a parse only, around the validation and the permission that guard
+/// `update_event_messaging_config`.
+#[tokio::test]
+async fn an_imported_configuration_is_validated_and_needs_the_write_permission() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = world(&tx, 0xb005).await;
+    let sms = ready_sms(&tx, &world, "b005-key").await;
+    let none = std::collections::HashMap::new();
+    let notices = json!({"version": 1, "channels": [
+        {"channel": "SMS", "account_id": sms.to_string(), "purposes": ["NOTICE"]},
+    ]});
+
+    // Without messaging-config-write: not imported, with the reason.
+    let outcome = import_event_messaging_config(
+        &tx,
+        &world.tenant,
+        &world.event,
+        &notices,
+        &none,
+        MessagingConfigPermission::NOT_PERMITTED,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        outcome,
+        ImportOutcome::NotImported(
+            "Messaging configuration not imported: importing it needs the messaging-config-write permission"
+                .to_string()
+        )
+    );
+    assert_eq!(stored_by(&tx, &world).await, None);
+
+    // What the save would refuse: an account on another channel, an
+    // account the tenant doesn't have, an election the event doesn't have,
+    // and what can't be read.
+    for invalid in [
+        json!({"version": 1, "channels": [
+            {"channel": "EMAIL", "account_id": sms.to_string(), "purposes": ["NOTICE"]},
+        ]}),
+        json!({"version": 1, "channels": [
+            {"channel": "SMS", "account_id": Uuid::new_v4().to_string(), "purposes": ["NOTICE"]},
+        ]}),
+        json!({"version": 1, "channels": [], "election_channels": {"not-an-election": ["SMS"]}}),
+        json!({"channels": "not a list"}),
+    ] {
+        let outcome = import_event_messaging_config(
+            &tx,
+            &world.tenant,
+            &world.event,
+            &invalid,
+            &none,
+            MessagingConfigPermission::PERMITTED,
+        )
+        .await
+        .unwrap();
+        let ImportOutcome::NotImported(reason) = outcome else {
+            panic!("{invalid} was imported");
+        };
+        assert!(
+            reason.starts_with("Messaging configuration not imported: "),
+            "{reason}"
+        );
+        assert_eq!(stored_by(&tx, &world).await, None, "{invalid}");
+    }
+
+    // A valid one is stored as an import, and its projection is returned
+    // for the new realm.
+    let outcome = import_event_messaging_config(
+        &tx,
+        &world.tenant,
+        &world.event,
+        &notices,
+        &none,
+        MessagingConfigPermission::PERMITTED,
+    )
+    .await
+    .unwrap();
+    let ImportOutcome::Imported(projection) = outcome else {
+        panic!("not imported: {outcome:?}");
+    };
+    assert_eq!(projection.channels.len(), 1);
+    assert_eq!(
+        stored_by(&tx, &world).await,
+        Some(Some("import".to_string()))
+    );
+    tx.rollback().await.unwrap();
+}
+
+/// Regression (R1-16): configurations the migration copied from the
+/// annotation were never validated. Each is validated once; one that the
+/// save would refuse is marked as needing to be saved again.
+#[tokio::test]
+async fn migrated_configurations_that_would_be_refused_are_marked() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let valid = world(&tx, 0xb006).await;
+    let invalid = world(&tx, 0xb007).await;
+    let saved = world(&tx, 0xb008).await;
+    let sms = ready_sms(&tx, &valid, "b006-key").await;
+    for (world, config, by) in [
+        (
+            &valid,
+            json!({"version": 1, "channels": [
+                {"channel": "SMS", "account_id": sms.to_string(), "purposes": ["NOTICE"]},
+            ]}),
+            MIGRATED_BY,
+        ),
+        (
+            &invalid,
+            json!({"version": 1, "channels": [
+                {"channel": "SMS", "account_id": "missing", "purposes": ["OTP"]},
+            ]}),
+            MIGRATED_BY,
+        ),
+        // Saved by an administrator since: never revisited.
+        (
+            &saved,
+            json!({"version": 1, "channels": [
+                {"channel": "SMS", "account_id": "missing", "purposes": ["OTP"]},
+            ]}),
+            "admin-1",
+        ),
+    ] {
+        tx.execute(
+            "INSERT INTO sequent_backend.messaging_event_config
+                 (tenant_id, election_event_id, config, updated_by)
+             VALUES ($1, $2, $3, $4)",
+            &[&world.tenant, &world.event, &config, &by],
+        )
+        .await
+        .unwrap();
+    }
+    let marked = mark_migrated_configs(&tx).await.unwrap();
+    assert_eq!(marked, vec![(invalid.tenant, invalid.event)]);
+    assert_eq!(
+        stored_by(&tx, &valid).await,
+        Some(Some(MIGRATED_BY.to_string()))
+    );
+    assert_eq!(
+        stored_by(&tx, &invalid).await,
+        Some(Some(MIGRATED_INVALID_BY.to_string()))
+    );
+    assert_eq!(
+        stored_by(&tx, &saved).await,
+        Some(Some("admin-1".to_string()))
+    );
+    // Once marked, a second pass has nothing to do.
+    assert!(mark_migrated_configs(&tx).await.unwrap().is_empty());
+    tx.rollback().await.unwrap();
+}
+
+/// Regression (R1-06): Messenger codes need Get Started, which reaches Step
+/// only through the webhook component. Without its public address the save
+/// refuses Messenger for codes, with the blocker the UI shows.
+#[tokio::test]
+async fn messenger_codes_are_refused_without_the_callback_address() {
+    use sequent_core::types::messaging::{MessagePurpose, MessagingConfigError, ReadinessBlocker};
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let world = world(&tx, 0xb009).await;
+    let page = insert_messaging_account(
+        &tx,
+        &world.tenant,
+        &AccountSettings {
+            channel: MessageChannel::MESSENGER,
+            name: "Page".to_string(),
+            sender: AccountSender::MESSENGER_SEND_API {
+                page_id: "page-1".to_string(),
+                page_name: None,
+                page_username: None,
+                api_version: "v23.0".to_string(),
+                api_base_url: None,
+            },
+            limits: AccountLimits::default(),
+            provider_approval: ProviderApproval::CONFIRMED,
+            readiness: ReadinessPolicy::PROVIDER_CHECK,
+            is_default: false,
+        },
+        "b009-key",
+    )
+    .await
+    .unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.messaging_account
+         SET status = '{\"connected\": true, \"production_access\": true}'
+         WHERE id = $1",
+        &[&page.id],
+    )
+    .await
+    .unwrap();
+    let config: EventMessagingConfig = serde_json::from_value(json!({"version": 1, "channels": [
+        {"channel": "MESSENGER", "account_id": page.id.to_string(), "purposes": ["OTP"]},
+    ]}))
+    .unwrap();
+    let outcome =
+        save_event_messaging_config_with(&tx, &world.tenant, &world.event, &config, None, None)
+            .await
+            .unwrap();
+    let SaveOutcome::Invalid(errors) = outcome else {
+        panic!("saved without a callback address: {outcome:?}");
+    };
+    assert!(errors.iter().any(|error| matches!(
+        error,
+        MessagingConfigError::PURPOSE_NOT_READY { channel: MessageChannel::MESSENGER, purpose: MessagePurpose::OTP, blockers }
+            if blockers.contains(&ReadinessBlocker::CALLBACK_NOT_CONFIGURED)
+    )), "{errors:?}");
+    assert!(matches!(
+        save_event_messaging_config_with(
+            &tx,
+            &world.tenant,
+            &world.event,
+            &config,
+            None,
+            Some("https://callbacks.example.org"),
+        )
+        .await
+        .unwrap(),
+        SaveOutcome::Saved(_)
+    ));
     tx.rollback().await.unwrap();
 }

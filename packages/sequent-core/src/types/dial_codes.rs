@@ -8,7 +8,13 @@
 //! A static table: no lookups at run time. Where several countries share a
 //! code, the longer prefixes listed in [`SHARED_PREFIXES`] tell them apart
 //! (North American area codes, Kazakhstan); otherwise the code's main
-//! country is used.
+//! country is used. So volumes of these territories are counted under the
+//! main country: Guernsey, Jersey and the Isle of Man (44, GB), Mayotte
+//! (262, RE), Saint Barthélemy and Saint Martin (590, GP), the Caribbean
+//! Netherlands (599, CW), Åland (358, FI), Svalbard (47, NO), Christmas and
+//! Cocos Islands (61, AU), Western Sahara (212, MA) and Vatican City (39,
+//! IT). Global services ([`NON_GEOGRAPHIC_CODES`], such as Inmarsat 870)
+//! are valid calling codes with no country.
 
 /// Calling code → main country. Codes are prefix-free, so the first match
 /// by length is the code.
@@ -195,7 +201,6 @@ pub const CALLING_CODES: &[(&str, &str)] = &[
     ("853", "MO"),
     ("855", "KH"),
     ("856", "LA"),
-    ("870", "XN"),
     ("880", "BD"),
     ("886", "TW"),
     ("960", "MV"),
@@ -319,6 +324,12 @@ pub const SHARED_PREFIXES: &[(&str, &str)] = &[
     ("77", "KZ"),
 ];
 
+/// Calling codes of global services (freephone, Inmarsat, satellite and
+/// international networks, UIFN): valid numbers with no country.
+pub const NON_GEOGRAPHIC_CODES: &[&str] = &[
+    "800", "808", "870", "878", "881", "882", "883", "888", "979",
+];
+
 /// The calling code of an E.164 number (`+` and digits), as digits.
 pub fn calling_code(e164: &str) -> Option<&'static str> {
     let digits = e164.strip_prefix('+')?;
@@ -327,8 +338,9 @@ pub fn calling_code(e164: &str) -> Option<&'static str> {
         .find_map(|prefix| {
             CALLING_CODES
                 .iter()
-                .find(|(code, _)| *code == prefix)
                 .map(|(code, _)| *code)
+                .chain(NON_GEOGRAPHIC_CODES.iter().copied())
+                .find(|code| *code == prefix)
         })
 }
 
@@ -374,12 +386,18 @@ mod tests {
         assert_eq!(iso_country("+77011234567"), Some("KZ"));
         assert_eq!(iso_country("+79161234567"), Some("RU"));
         assert_eq!(iso_country("+999"), None);
+        // A global service has a calling code and no country.
+        assert_eq!(calling_code("+870773112345"), Some("870"));
+        assert_eq!(iso_country("+870773112345"), None);
     }
 
     #[test]
     fn the_table_is_prefix_free_and_well_formed() {
-        let codes: Vec<&str> =
-            CALLING_CODES.iter().map(|(code, _)| *code).collect();
+        let codes: Vec<&str> = CALLING_CODES
+            .iter()
+            .map(|(code, _)| *code)
+            .chain(NON_GEOGRAPHIC_CODES.iter().copied())
+            .collect();
         assert_eq!(codes.iter().collect::<HashSet<_>>().len(), codes.len());
         for code in &codes {
             assert!(code.chars().all(|c| c.is_ascii_digit()));

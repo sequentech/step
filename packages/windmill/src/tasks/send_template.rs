@@ -21,11 +21,12 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
-use crate::postgres::messaging::MessageRecord;
-use crate::postgres::template::get_template_by_alias;
-use crate::services::messaging::audit::AttemptOutcome;
+use crate::postgres::messaging::{mark_logged, MessageRecord};
+use crate::services::application::application_retry;
+use crate::services::messaging::audit::{AttemptOutcome, MessageKind};
 use crate::services::messaging::dispatch::{
-    deliver, record_without_channel, Delivery, Dispatcher, ProviderTemplate, Recipient,
+    bulk_send_body, deliver, record_without_channel, retry_refusal, Delivery, DeliveryResult,
+    Dispatcher, ProviderTemplate, Recipient,
 };
 use crate::services::messaging::reconcile::{RetryContent, RetryRenderer};
 use anyhow::{anyhow, Context};
@@ -34,6 +35,7 @@ use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as 
 use aws_sdk_sesv2::Client as AwsSesClient;
 use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use celery::error::TaskError;
+use deadpool_postgres::Pool;
 use lettre::message::MultiPart;
 use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -57,6 +59,7 @@ use serde_json::{Map, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::str::FromStr;
+use std::sync::Arc;
 use strand::info;
 use tracing::{event, info, instrument, Level};
 use uuid::Uuid;
@@ -421,8 +424,10 @@ async fn on_success_send_message(
 /// Writes the attempts a send recorded to the electoral log, signed for the
 /// administrator who sent it. Only attempts recorded now: a replayed job
 /// logs nothing new.
+#[allow(clippy::too_many_arguments)]
 async fn log_recorded_attempts(
     hasura_transaction: &Transaction<'_>,
+    ledger: &mut DbClient,
     election_event: &Option<ElectionEvent>,
     recorded: &[AttemptOutcome],
     username: Option<String>,
@@ -431,7 +436,7 @@ async fn log_recorded_attempts(
     area_id: Option<String>,
 ) {
     for outcome in recorded {
-        if let Err(error) = on_success_send_message(
+        let posted = on_success_send_message(
             hasura_transaction,
             election_event.clone(),
             outcome.voter_id.clone(),
@@ -441,12 +446,27 @@ async fn log_recorded_attempts(
             admin_id,
             area_id.clone(),
         )
-        .await
-        {
-            event!(
+        .await;
+        match posted {
+            // Handed to the log: the sweep won't write it again.
+            Ok(()) if election_event.is_some() => {
+                let marked = async {
+                    let tx = ledger.transaction().await?;
+                    mark_logged(&tx, &[outcome.message_id]).await?;
+                    tx.commit().await?;
+                    anyhow::Ok(())
+                }
+                .await;
+                if let Err(error) = marked {
+                    event!(Level::WARN, "could not mark the attempt logged: {error:?}");
+                }
+            }
+            Ok(()) => {}
+            // Left unlogged: the messaging sweep writes it later.
+            Err(error) => event!(
                 Level::ERROR,
                 "Error writing the message to the electoral log: {error:?}"
-            );
+            ),
         }
     }
 }
@@ -483,85 +503,226 @@ fn voter_delivery(
     }
 }
 
-/// Renders a failed bulk notice again for the sweep, from the stored
-/// template it was sent with (`template_alias`), for the voter's current
-/// record. The ledger keeps no content: a message without a stored template
-/// isn't retried.
-pub struct StoredTemplateRenderer;
+/// The secret attributes a send's template uses: those named inside a
+/// Handlebars expression such as `{{user.reference}}` or
+/// `{{lookup user.attributes "reference"}}`. A name that only appears in
+/// prose isn't used. The same rule as the Admin Portal's
+/// `getReferencedSecretAttributeNames`.
+pub fn referenced_secret_attribute_names(
+    body: &SendTemplateBody,
+    secret_names: &HashSet<String>,
+) -> Vec<String> {
+    let mut texts: Vec<&str> = vec![];
+    if let Some(email) = &body.email {
+        texts.extend([email.subject.as_str(), email.plaintext_body.as_str()]);
+        texts.extend(email.html_body.as_deref());
+    }
+    if let Some(sms) = &body.sms {
+        texts.push(sms.message.as_str());
+    }
+    for config in [&body.whatsapp, &body.viber, &body.messenger]
+        .into_iter()
+        .flatten()
+    {
+        texts.push(config.message.as_str());
+        texts.extend(config.parameters.iter().map(String::as_str));
+    }
+    let expressions: Vec<&str> = texts
+        .iter()
+        .flat_map(|text| {
+            text.split("{{")
+                .skip(1)
+                .filter_map(|rest| rest.split_once("}}").map(|(inside, _)| inside))
+        })
+        .collect();
+    let is_name_char = |c: char| c.is_ascii_alphanumeric() || c == '_' || c == '-';
+    let mut used: Vec<String> = secret_names
+        .iter()
+        .filter(|name| {
+            !name.is_empty()
+                && expressions.iter().any(|expression| {
+                    expression.match_indices(name.as_str()).any(|(at, _)| {
+                        let before = expression[..at].chars().next_back();
+                        let after = expression[at + name.len()..].chars().next();
+                        !before.is_some_and(is_name_char) && !after.is_some_and(is_name_char)
+                    })
+                })
+        })
+        .cloned()
+        .collect();
+    used.sort();
+    used
+}
+
+/// Where a retry reads the voter's current record and the event's
+/// encrypted attribute names.
+#[async_trait]
+pub trait RetryDirectory: Send + Sync {
+    async fn voter(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: Option<&str>,
+        voter_id: &str,
+    ) -> anyhow::Result<Option<User>>;
+
+    async fn secret_attribute_names(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<HashSet<String>>;
+}
+
+/// A voter's current record, from Keycloak's database.
+pub async fn find_voter(
+    hasura_transaction: &Transaction<'_>,
+    keycloak_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+    voter_id: &str,
+) -> anyhow::Result<Option<User>> {
+    let realm = match election_event_id {
+        Some(event_id) => get_event_realm(tenant_id, event_id),
+        None => get_tenant_realm(tenant_id),
+    };
+    let (users, _) = list_users(
+        hasura_transaction,
+        keycloak_transaction,
+        ListUsersFilter {
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.map(str::to_string),
+            election_id: None,
+            area_id: None,
+            realm,
+            search: None,
+            first_name: None,
+            last_name: None,
+            username: None,
+            email: None,
+            limit: Some(1),
+            offset: None,
+            user_ids: Some(vec![voter_id.to_string()]),
+            attributes: None,
+            enabled: None,
+            email_verified: None,
+            sort: None,
+            has_voted: None,
+            authorized_to_election_alias: None,
+        },
+    )
+    .await?;
+    Ok(users.into_iter().next())
+}
+
+/// The production directory: Keycloak's database and user profile.
+pub struct KeycloakDirectory;
 
 #[async_trait]
-impl RetryRenderer for StoredTemplateRenderer {
-    async fn render(&self, record: &MessageRecord) -> anyhow::Result<RetryContent> {
-        let refused = |reason| Ok(RetryContent::Refused(reason));
-        let (Some(alias), Some(voter_id), Some(logical_key)) = (
-            record.template_alias.as_deref(),
-            record.voter_id.as_deref(),
-            record.logical_key.as_deref(),
-        ) else {
-            return refused(MessageReason::NO_STORED_TEMPLATE);
-        };
-        if !logical_key.starts_with("send-template:") {
-            return refused(MessageReason::NO_STORED_TEMPLATE);
+impl RetryDirectory for KeycloakDirectory {
+    async fn voter(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        tenant_id: &str,
+        election_event_id: Option<&str>,
+        voter_id: &str,
+    ) -> anyhow::Result<Option<User>> {
+        let mut keycloak_client: DbClient = get_keycloak_pool().await.get().await?;
+        let keycloak_transaction = keycloak_client.transaction().await?;
+        let voter = find_voter(
+            hasura_transaction,
+            &keycloak_transaction,
+            tenant_id,
+            election_event_id,
+            voter_id,
+        )
+        .await?;
+        keycloak_transaction.commit().await?;
+        Ok(voter)
+    }
+
+    async fn secret_attribute_names(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> anyhow::Result<HashSet<String>> {
+        Ok(get_secret_attribute_config(tenant_id, election_event_id)
+            .await
+            .map_err(|error| anyhow!("{error:#}"))?
+            .redacted_names()
+            .clone())
+    }
+}
+
+/// Renders a due retry again by where the message comes from
+/// ([`retry_refusal`]): a bulk notice from what the administrator sent
+/// (the stored send), an application result from the application, both
+/// for the voter's current record. Everything else is refused with its
+/// reason. The ledger keeps no content.
+pub struct RetryByOrigin<D: RetryDirectory> {
+    pub pool: Arc<Pool>,
+    pub directory: D,
+}
+
+impl RetryByOrigin<KeycloakDirectory> {
+    pub async fn production() -> Self {
+        RetryByOrigin {
+            pool: get_hasura_pool().await,
+            directory: KeycloakDirectory,
         }
-        let tenant_id = record.tenant_id.to_string();
-        let election_event_id = record.election_event_id.map(|id| id.to_string());
-        let mut hasura_client: DbClient = get_hasura_pool().await.get().await?;
-        let hasura_transaction = hasura_client.transaction().await?;
-        let Some(template) = get_template_by_alias(&hasura_transaction, &tenant_id, alias).await?
+    }
+}
+
+impl<D: RetryDirectory> RetryByOrigin<D> {
+    async fn bulk_notice(
+        &self,
+        hasura_transaction: &Transaction<'_>,
+        record: &MessageRecord,
+        logical_key: &str,
+    ) -> anyhow::Result<RetryContent> {
+        let refused = |reason| Ok(RetryContent::Refused(reason));
+        let Some(body) = bulk_send_body(hasura_transaction, &record.tenant_id, logical_key).await?
         else {
             return refused(MessageReason::NO_STORED_TEMPLATE);
         };
-        let body: SendTemplateBody = deserialize_value(template.template)
-            .map_err(|error| anyhow!("unreadable stored template {alias}: {error:?}"))?;
-        // Encrypted voter attributes need the administrator's approval of
-        // the send; a retry can't give it.
-        if !body.secret_attribute_names.is_empty() {
-            return refused(MessageReason::NO_STORED_TEMPLATE);
+        let Some(voter_id) = record.voter_id.as_deref() else {
+            return refused(MessageReason::NO_CONTACT_CHANNEL);
+        };
+        let tenant_id = record.tenant_id.to_string();
+        let election_event_id = record.election_event_id.map(|id| id.to_string());
+        // Ciphertexts of encrypted attributes never reach a template, and a
+        // send that uses them isn't sent again.
+        let secret_names = match &election_event_id {
+            Some(event_id) => {
+                self.directory
+                    .secret_attribute_names(&tenant_id, event_id)
+                    .await?
+            }
+            None => HashSet::new(),
+        };
+        if !referenced_secret_attribute_names(&body, &secret_names).is_empty() {
+            return refused(MessageReason::PROTECTED_FIELDS);
         }
+        let Some(user) = self
+            .directory
+            .voter(
+                hasura_transaction,
+                &tenant_id,
+                election_event_id.as_deref(),
+                voter_id,
+            )
+            .await?
+        else {
+            return refused(MessageReason::NO_CONTACT_CHANNEL);
+        };
         let election_event = match &election_event_id {
             Some(event_id) => {
-                get_election_event_by_id_if_exist(&hasura_transaction, &tenant_id, event_id).await?
+                get_election_event_by_id_if_exist(hasura_transaction, &tenant_id, event_id).await?
             }
             None => None,
         };
-        let realm = match &election_event_id {
-            Some(event_id) => get_event_realm(&tenant_id, event_id),
-            None => get_tenant_realm(&tenant_id),
-        };
-        let mut keycloak_client: DbClient = get_keycloak_pool().await.get().await?;
-        let keycloak_transaction = keycloak_client.transaction().await?;
-        let (users, _) = list_users(
-            &hasura_transaction,
-            &keycloak_transaction,
-            ListUsersFilter {
-                tenant_id: tenant_id.clone(),
-                election_event_id: election_event_id.clone(),
-                election_id: None,
-                area_id: None,
-                realm,
-                search: None,
-                first_name: None,
-                last_name: None,
-                username: None,
-                email: None,
-                limit: Some(1),
-                offset: None,
-                user_ids: Some(vec![voter_id.to_string()]),
-                attributes: None,
-                enabled: None,
-                email_verified: None,
-                sort: None,
-                has_voted: None,
-                authorized_to_election_alias: None,
-            },
-        )
-        .await?;
-        let Some(user) = users.into_iter().next() else {
-            return refused(MessageReason::NO_CONTACT_CHANNEL);
-        };
         let elections_by_area = match &election_event_id {
             Some(event_id) => {
-                get_elections_by_area(&hasura_transaction, &tenant_id, event_id).await?
+                get_elections_by_area(hasura_transaction, &tenant_id, event_id).await?
             }
             None => HashMap::new(),
         };
@@ -570,26 +731,13 @@ impl RetryRenderer for StoredTemplateRenderer {
         };
         let time_context = match &election_event {
             Some(election_event) => {
-                NotificationTimeContext::load(&hasura_transaction, &tenant_id, election_event)
+                NotificationTimeContext::load(hasura_transaction, &tenant_id, election_event)
                     .await?
             }
             None => NotificationTimeContext::default(),
         };
-        // Ciphertexts of encrypted attributes never reach a template.
-        let configured_secret_names = match &election_event_id {
-            Some(event_id) => get_secret_attribute_config(&tenant_id, event_id)
-                .await
-                .map_err(|error| anyhow!("{error:#}"))?
-                .redacted_names()
-                .clone(),
-            None => HashSet::new(),
-        };
         let mut render_user = user.clone();
-        strip_undeclared_secret_attributes(
-            &mut render_user,
-            &configured_secret_names,
-            &HashSet::new(),
-        );
+        strip_undeclared_secret_attributes(&mut render_user, &secret_names, &HashSet::new());
         let mut variables = get_variables(
             &render_user,
             election_event,
@@ -603,9 +751,7 @@ impl RetryRenderer for StoredTemplateRenderer {
                 .variables_for(first_attribute(&user, AREA_ID_ATTR_NAME).map(String::as_str)),
         );
         let contents = render_contents(&body, &variables).map_err(|error| anyhow!("{error:?}"))?;
-        keycloak_transaction.commit().await?;
-        hasura_transaction.commit().await?;
-        let mut delivery = voter_delivery(
+        Ok(RetryContent::Message(Box::new(voter_delivery(
             &body,
             record.tenant_id,
             record.election_event_id,
@@ -613,10 +759,70 @@ impl RetryRenderer for StoredTemplateRenderer {
             &contents,
             first_attribute(&user, LOCALE_ATTR_NAME).cloned(),
             logical_key.to_string(),
-        );
-        delivery.template_alias = Some(alias.to_string());
-        Ok(RetryContent::Message(Box::new(delivery)))
+        ))))
     }
+}
+
+#[async_trait]
+impl<D: RetryDirectory> RetryRenderer for RetryByOrigin<D> {
+    async fn render(&self, record: &MessageRecord) -> anyhow::Result<RetryContent> {
+        let Some(logical_key) = record.logical_key.as_deref() else {
+            return Ok(RetryContent::Refused(MessageReason::NO_STORED_TEMPLATE));
+        };
+        let mut client: DbClient = self.pool.get().await?;
+        let hasura_transaction = client.transaction().await?;
+        let content = match retry_refusal(
+            &hasura_transaction,
+            &record.tenant_id,
+            Some(logical_key),
+            record.template_alias.as_deref(),
+        )
+        .await?
+        {
+            Some(reason) => RetryContent::Refused(reason),
+            None => match MessageKind::of(logical_key) {
+                MessageKind::BULK_NOTICE => {
+                    self.bulk_notice(&hasura_transaction, record, logical_key)
+                        .await?
+                }
+                MessageKind::APPLICATION_RESULT => {
+                    application_retry(&hasura_transaction, record, &self.directory).await?
+                }
+                _ => RetryContent::Refused(MessageReason::NO_STORED_TEMPLATE),
+            },
+        };
+        hasura_transaction.commit().await?;
+        Ok(content)
+    }
+}
+
+/// What one voter's notice of a bulk send adds to the statistics and the
+/// electoral log.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VoterNotice {
+    /// The channel to count the notice under: only when this call recorded
+    /// it as sent. A replay counts nothing.
+    pub counted: Option<MessageChannel>,
+    /// The attempts this call recorded, to log. A replay logs nothing.
+    pub to_log: Vec<AttemptOutcome>,
+}
+
+impl From<DeliveryResult> for VoterNotice {
+    fn from(result: DeliveryResult) -> Self {
+        VoterNotice {
+            counted: result.newly_sent().then_some(result.channel).flatten(),
+            to_log: result.recorded,
+        }
+    }
+}
+
+/// Sends one voter's notice of a bulk send, as `send_template` does.
+pub async fn send_voter_notice(
+    client: &mut DbClient,
+    dispatcher: &Dispatcher,
+    delivery: &Delivery,
+) -> anyhow::Result<VoterNotice> {
+    Ok(deliver(client, dispatcher, delivery).await?.into())
 }
 
 #[instrument(skip_all, err)]
@@ -858,6 +1064,7 @@ pub async fn send_template(
                     Ok(result) => {
                         log_recorded_attempts(
                             &hasura_transaction,
+                            &mut delivery_client,
                             &election_event,
                             &result.recorded,
                             user.username.clone(),
@@ -900,8 +1107,9 @@ pub async fn send_template(
                 language,
                 logical_key,
             );
-            let result = match deliver(&mut delivery_client, dispatcher, &delivery).await {
-                Ok(result) => result,
+            let notice = match send_voter_notice(&mut delivery_client, dispatcher, &delivery).await
+            {
+                Ok(notice) => notice,
                 Err(error) => {
                     event!(Level::ERROR, "voter {voter_id}: {error:?}, continuing..");
                     continue;
@@ -910,13 +1118,14 @@ pub async fn send_template(
             // Only what this run recorded counts: a replayed job neither
             // counts a voter again nor logs them again. A transient failure
             // is retried on the same channel by the messaging sweep.
-            if result.newly_sent() {
-                update_metrics(&mut metrics, &elections_by_area, user, result.channel, true);
+            if let Some(channel) = notice.counted {
+                update_metrics(&mut metrics, &elections_by_area, user, channel, true);
             }
             log_recorded_attempts(
                 &hasura_transaction,
+                &mut delivery_client,
                 &election_event,
-                &result.recorded,
+                &notice.to_log,
                 user.username.clone(),
                 &tenant_id,
                 &admin_id,
@@ -958,7 +1167,8 @@ pub async fn send_template(
 mod tests {
     use super::{
         audience_user_ids, bulk_logical_key, election_statistics_increments, get_variables,
-        render_contents, voter_delivery, voter_recipient, Metrics, MetricsUnit,
+        referenced_secret_attribute_names, render_contents, voter_delivery, voter_recipient,
+        Metrics, MetricsUnit,
     };
     use sequent_core::services::generate_urls::AuthAction;
     use sequent_core::types::keycloak::{User, UserArea};
@@ -1173,6 +1383,25 @@ mod tests {
                 ("num_whatsapp_sent".to_string(), 2),
             ])
         );
+    }
+
+    #[test]
+    fn secret_attributes_count_only_inside_template_expressions() {
+        let body: SendTemplateBody = serde_json::from_value(json!({
+            "audience_selection": "ALL_USERS",
+            "sms": {"message": "Your pin-code: {{user.pin}}"},
+            "whatsapp": {"message": "x", "parameters": ["{{lookup user.attributes \"ref\"}}"]},
+            "email": {"subject": "About your pin", "plaintext_body": "{{user.pinned}}",
+                      "html_body": null},
+        }))
+        .unwrap();
+        let names = |list: &[&str]| list.iter().map(|n| n.to_string()).collect();
+        assert_eq!(
+            referenced_secret_attribute_names(&body, &names(&["pin", "ref", "other"])),
+            vec!["pin".to_string(), "ref".to_string()]
+        );
+        // Prose and longer names don't count.
+        assert!(referenced_secret_attribute_names(&body, &names(&["code", "pinn"])).is_empty());
     }
 
     #[test]

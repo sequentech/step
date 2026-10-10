@@ -375,6 +375,7 @@
     {
       "alias": "architect email code",
       "config": {
+        "code-page-disclosure": "NAMED",
         "messageCourierAttribute": "EMAIL",
         "length": "6",
         "ttl": "600",

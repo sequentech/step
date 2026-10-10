@@ -88,6 +88,8 @@ KEYCLOAK_CLI_CLIENT_SECRET=$(generate_base64 32)
 HASURA_GRAPHQL_ADMIN_SECRET=$(generate_base64 32)
 AWS_S3_ROOT_PASSWORD=$(generate_base64 32)
 KEYCLOAK_ADMIN_PASSWORD=$(generate_base64 32)
+MESSAGING_RELAY_SECRET=$(generate_hex 32)
+sed -i.bak "s|^MESSAGING_RELAY_SECRET=.*|MESSAGING_RELAY_SECRET=$MESSAGING_RELAY_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 
 sed -i.bak "s|^KEYCLOAK_CLIENT_SECRET=.*|KEYCLOAK_CLIENT_SECRET=$KEYCLOAK_CLIENT_SECRET|g" "$ENV_FILE" && rm "$ENV_FILE.bak"
 jq --arg secret "$KEYCLOAK_CLIENT_SECRET" '(.clients[] | select(.clientId == "service-account") | .secret) = $secret' "$KEYCLOAK_JSON_FILE" > "$KEYCLOAK_JSON_FILE.tmp" && mv "$KEYCLOAK_JSON_FILE.tmp" "$KEYCLOAK_JSON_FILE"
@@ -105,6 +107,7 @@ sed -i.bak "s|^KEYCLOAK_ADMIN_CLIENT_SECRET=.*|KEYCLOAK_ADMIN_CLIENT_SECRET=$KEY
 
 echo "  ✓ Generated MASTER_SECRET (32 bytes hex)"
 echo "  ✓ Generated Keycloak client secrets"
+echo "  ✓ Generated MESSAGING_RELAY_SECRET (32 bytes hex)"
 echo "  ✓ Set SECRETS_BACKEND=EnvVarMasterSecret"
 echo ""
 

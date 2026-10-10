@@ -214,6 +214,21 @@ public final class PublicMessagingChannels {
     return elections.stream().allMatch(election -> electionOffers(channel, election));
   }
 
+  /**
+   * Channels the event enables for the purpose, for at least one Post, in the ticket's order: what
+   * a voter of the event may be offered, before knowing their Post.
+   */
+  public List<MessageChannel> channelsWithPurpose(MessagePurpose purpose) {
+    List<MessageChannel> result = new ArrayList<>();
+    for (MessageChannel channel : VoterChannel.CHANNEL_ORDER) {
+      Channel entry = channels.get(channel);
+      if (entry != null && entry.purposes().contains(purpose)) {
+        result.add(channel);
+      }
+    }
+    return result;
+  }
+
   public Optional<String> senderLabel(MessageChannel channel) {
     return Optional.ofNullable(channels.get(channel)).map(Channel::senderLabel);
   }

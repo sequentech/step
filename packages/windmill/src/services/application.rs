@@ -8,19 +8,23 @@ use super::approval_matrix::store::get_current_approval_matrix;
 use super::approval_matrix::{FieldMatch, IdentityMethod};
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
+use crate::postgres::area::get_elections_by_area;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
+use crate::postgres::messaging::MessageRecord;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::messaging::audit::post_attempt_outcomes_or_warn;
 use crate::services::messaging::dispatch::{
     deliver, record_without_channel, Delivery, Dispatcher, Recipient,
 };
+use crate::services::messaging::reconcile::RetryContent;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::reports::template_time::insert_template_time_variables;
 use crate::services::reports::template_time::NotificationTimeContext;
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::temp_path::PUBLIC_ASSETS_I18N_DEFAULTS;
+use crate::tasks::send_template::RetryDirectory;
 use crate::tasks::send_template::{first_attribute, get_variables, render_contents};
 use crate::types::application::ApplicationRejectReason;
 use crate::types::application::NoMatchingVoterPolicy;
@@ -35,6 +39,7 @@ use keycloak::types::CredentialRepresentation;
 use sequent_core::ballot::{ElectionEventPresentation, I18nContent};
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::generate_urls::AuthAction;
+use sequent_core::types::messaging::MessageReason;
 use sequent_core::types::messaging::{MessageChannel, MessageContent, MessagePurpose};
 use sequent_core::types::voter_channel::voter_channel;
 
@@ -214,8 +219,29 @@ pub async fn verify_application(
         &permission_label,
     )
     .await?;
+    // The application just stored in this transaction.
+    let application_id: Uuid = hasura_transaction
+        .query_one(
+            r#"
+            SELECT id FROM sequent_backend.applications
+            WHERE tenant_id = $1 AND election_event_id = $2 AND applicant_id = $3
+            ORDER BY created_at DESC, id
+            LIMIT 1
+            "#,
+            &[
+                &Uuid::parse_str(tenant_id)?,
+                &Uuid::parse_str(election_event_id)?,
+                &applicant_id,
+            ],
+        )
+        .await
+        .with_context(|| "Error reading the stored application")?
+        .try_get("id")?;
 
-    Ok(result)
+    Ok(ApplicationVerificationResult {
+        application_id: Some(application_id.to_string()),
+        ..result
+    })
 }
 
 #[instrument(err, skip_all)]
@@ -401,6 +427,10 @@ fn search_attributes_list(annotations: &ApplicationAnnotations) -> Result<Vec<St
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApplicationVerificationResult {
+    /// The stored application's ID, for the applicant's support
+    /// reference. Set once the application is stored.
+    #[serde(default)]
+    pub application_id: Option<String>,
     pub user_id: Option<String>,
     pub username: String,
     pub application_status: ApplicationStatus,
@@ -532,6 +562,7 @@ fn automatic_verification(
     };
 
     let result = ApplicationVerificationResult {
+        application_id: None,
         user_id: evaluation
             .voter
             .as_ref()
@@ -1041,36 +1072,9 @@ pub async fn reject_application(
         deserialize_value(application.applicant_data.clone())
             .map_err(|err| anyhow!("Error parsing application applicant data: {}", err))?;
 
-    let first_name = applicant_data.get("firstName").map(String::from);
-    let last_name = applicant_data.get("lastName").map(String::from);
-    let username = applicant_data.get("username").map(String::from);
-    let email = applicant_data.get("email").map(String::from);
-
     // The phone number and the verified channel, so the result goes to
     // the applicant's one channel.
-    let attr: HashMap<String, Vec<String>> = std::iter::once(MOBILE_PHONE_ATTR_NAME)
-        .chain(VERIFIED_CHANNEL_ATTRIBUTES)
-        .filter_map(|name| {
-            applicant_data
-                .get(name)
-                .filter(|value| !value.is_empty())
-                .map(|value| (name.to_string(), vec![value.clone()]))
-        })
-        .collect();
-    let attributes = (!attr.is_empty()).then_some(attr);
-
-    let user = User {
-        id: None,
-        attributes, // The phone is needed for the sms and should go in the attributes.
-        email,
-        email_verified: None,
-        enabled: None,
-        first_name,
-        last_name,
-        username,
-        area: None,
-        votes_info: None,
-    };
+    let user = applicant_user(&applicant_data);
 
     send_application_communication_response(
         hasura_transaction,
@@ -1179,9 +1183,192 @@ async fn application_result_content(
     Ok(contents.get(&source).cloned())
 }
 
+/// The template reference of an application result: what lets the sweep
+/// render it again for a retry. Also its key among the event's approved
+/// template bindings.
+pub fn application_template_alias(verdict: &ApplicationStatus) -> String {
+    format!("application-{}", verdict.to_string().to_lowercase())
+}
+
+/// The applicant as the result is sent to them when there is no voter
+/// account (a rejection): the names, the email, the phone number and the
+/// verified channel the application carries.
+fn applicant_user(applicant_data: &HashMap<String, String>) -> User {
+    let attributes: HashMap<String, Vec<String>> = std::iter::once(MOBILE_PHONE_ATTR_NAME)
+        .chain(VERIFIED_CHANNEL_ATTRIBUTES)
+        .filter_map(|name| {
+            applicant_data
+                .get(name)
+                .filter(|value| !value.is_empty())
+                .map(|value| (name.to_string(), vec![value.clone()]))
+        })
+        .collect();
+    User {
+        id: None,
+        attributes: (!attributes.is_empty()).then_some(attributes),
+        email: applicant_data.get("email").cloned(),
+        email_verified: None,
+        enabled: None,
+        first_name: applicant_data.get("firstName").cloned(),
+        last_name: applicant_data.get("lastName").cloned(),
+        username: applicant_data.get("username").cloned(),
+        area: None,
+        votes_info: None,
+    }
+}
+
+/// The user's elections, for per-election (Post) channel restrictions:
+/// from the user's area, or the area attribute.
+fn user_elections(user: &User, elections_by_area: &HashMap<String, Vec<String>>) -> Vec<String> {
+    user.area
+        .as_ref()
+        .and_then(|area| area.id.clone())
+        .or_else(|| first_attribute(user, AREA_ID_ATTR_NAME).cloned())
+        .and_then(|area_id| elections_by_area.get(&area_id).cloned())
+        .unwrap_or_default()
+}
+
+/// The result of a reviewed application for `user`, rendered on their one
+/// channel with its template reference, so a transient failure is retried.
+/// `None` when the user has no channel.
+#[allow(clippy::too_many_arguments)]
+pub async fn application_result_delivery(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    application_id: &str,
+    user: &User,
+    voter_id: Option<String>,
+    verdict: ApplicationStatus,
+) -> Result<Option<Delivery>> {
+    let Some(found) = voter_channel(user.email.as_deref(), user.attributes.as_ref()) else {
+        return Ok(None);
+    };
+    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error obtaining election event")?;
+    let presentation: ElectionEventPresentation = election_event
+        .presentation
+        .clone()
+        .map(deserialize_value)
+        .unwrap_or(Ok(ElectionEventPresentation::default()))?;
+    let elections_by_area = get_elections_by_area(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error listing elections by area")?;
+    let time_context =
+        NotificationTimeContext::load(hasura_transaction, tenant_id, &election_event)
+            .await
+            .with_context(|| "Error loading the notification times")?;
+    let mut variables = get_variables(
+        user,
+        Some(election_event.clone()),
+        tenant_id.to_string(),
+        AuthAction::Login,
+    )
+    .map_err(|err| anyhow!("{err:?}"))?;
+    insert_template_time_variables(
+        &mut variables,
+        time_context.variables_for(first_attribute(user, AREA_ID_ATTR_NAME).map(String::as_str)),
+    );
+    let content =
+        application_result_content(found.channel, verdict.clone(), presentation, &variables)
+            .await?;
+    let alias = application_template_alias(&verdict);
+    Ok(Some(Delivery {
+        tenant_id: Uuid::parse_str(tenant_id)?,
+        election_event_id: Some(Uuid::parse_str(election_event_id)?),
+        purpose: MessagePurpose::NOTICE,
+        recipient: Recipient {
+            voter_id,
+            channel: found.channel,
+            destination: found.destination,
+            election_ids: user_elections(user, &elections_by_area),
+        },
+        content,
+        language: first_attribute(user, LOCALE_ATTR_NAME).cloned(),
+        template_alias: Some(alias.clone()),
+        logical_key: format!("application:{application_id}:{verdict}"),
+        expires_at: None,
+        account_id: None,
+        template_key: Some(alias),
+        provider_template: None,
+    }))
+}
+
+/// Renders an application result again for a due retry, from the
+/// application and the user's current record: the voter's for an accepted
+/// application, the applicant data for a rejected one.
+pub async fn application_retry(
+    hasura_transaction: &Transaction<'_>,
+    record: &MessageRecord,
+    directory: &dyn RetryDirectory,
+) -> Result<RetryContent> {
+    let refused = |reason| Ok(RetryContent::Refused(reason));
+    let parts: Option<(&str, &str)> = record
+        .logical_key
+        .as_deref()
+        .and_then(|key| key.strip_prefix("application:"))
+        .and_then(|rest| rest.split_once(':'));
+    let (Some((application_id, verdict)), Some(event_id)) = (parts, record.election_event_id)
+    else {
+        return refused(MessageReason::NO_STORED_TEMPLATE);
+    };
+    let Ok(verdict) = verdict.parse::<ApplicationStatus>() else {
+        return refused(MessageReason::NO_STORED_TEMPLATE);
+    };
+    let tenant_id = record.tenant_id.to_string();
+    let event_id = event_id.to_string();
+    let Some(row) = hasura_transaction
+        .query_opt(
+            "SELECT applicant_data FROM sequent_backend.applications
+             WHERE id::text = $1 AND tenant_id = $2",
+            &[&application_id, &record.tenant_id],
+        )
+        .await?
+    else {
+        return refused(MessageReason::NO_STORED_TEMPLATE);
+    };
+    let user = match verdict {
+        ApplicationStatus::ACCEPTED => {
+            let Some(voter_id) = record.voter_id.as_deref() else {
+                return refused(MessageReason::NO_CONTACT_CHANNEL);
+            };
+            match directory
+                .voter(hasura_transaction, &tenant_id, Some(&event_id), voter_id)
+                .await?
+            {
+                Some(user) => user,
+                None => return refused(MessageReason::NO_CONTACT_CHANNEL),
+            }
+        }
+        _ => {
+            let applicant_data: HashMap<String, String> =
+                deserialize_value(row.try_get::<_, Value>("applicant_data")?)
+                    .map_err(|err| anyhow!("unreadable applicant data: {err}"))?;
+            applicant_user(&applicant_data)
+        }
+    };
+    match application_result_delivery(
+        hasura_transaction,
+        &tenant_id,
+        &event_id,
+        application_id,
+        &user,
+        record.voter_id.clone(),
+        verdict,
+    )
+    .await?
+    {
+        Some(delivery) => Ok(RetryContent::Message(Box::new(delivery))),
+        None => refused(MessageReason::NO_CONTACT_CHANNEL),
+    }
+}
+
 /// Sends the result of a reviewed application, accepted or rejected, on the
 /// voter's one channel through the message ledger, and logs the attempt.
 /// No other channel is tried; a voter without a channel gets one FAILED
+/// record. Called after Keycloak was already changed, so it never fails the
+/// review: a problem is logged, and the ledger row (or its absence) is the
 /// record.
 #[instrument(err, skip_all)]
 pub async fn send_application_communication_response(
@@ -1194,103 +1381,58 @@ pub async fn send_application_communication_response(
     user: &User,
     response_verdict: ApplicationStatus,
 ) -> Result<()> {
+    let _ = admin_id;
     if !matches!(
         response_verdict,
         ApplicationStatus::ACCEPTED | ApplicationStatus::REJECTED
     ) {
         return Ok(());
     }
-    let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
-        .await
-        .with_context(|| "Error obtaining election event")?;
-    let presentation: ElectionEventPresentation = election_event
-        .presentation
-        .clone()
-        .map(deserialize_value)
-        .unwrap_or(Ok(ElectionEventPresentation::default()))?;
-    let tenant_uuid = Uuid::parse_str(tenant_id)?;
-    let event_uuid = Uuid::parse_str(election_event_id)?;
     // A rejected applicant has no voter account yet.
     let voter_id = user
         .id
         .clone()
         .or_else(|| (response_verdict == ApplicationStatus::ACCEPTED).then(|| user_id.to_string()));
-    let logical_key = format!("application:{application_id}:{response_verdict}");
-    let language = first_attribute(user, LOCALE_ATTR_NAME).cloned();
-    let dispatcher = Dispatcher::global().await?;
-    let mut client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
-
-    let result = match voter_channel(user.email.as_deref(), user.attributes.as_ref()) {
-        None => {
-            record_without_channel(
-                &mut client,
-                tenant_uuid,
-                Some(event_uuid),
-                voter_id,
-                MessagePurpose::NOTICE,
-                None,
-                language,
-                &logical_key,
-            )
-            .await?
+    let sent = async {
+        let dispatcher = Dispatcher::global().await?;
+        let mut client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .map_err(|err| anyhow!("Error getting hasura db pool: {err}"))?;
+        let delivery = application_result_delivery(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            application_id,
+            user,
+            voter_id.clone(),
+            response_verdict.clone(),
+        )
+        .await?;
+        match delivery {
+            Some(delivery) => deliver(&mut client, dispatcher, &delivery).await,
+            None => {
+                record_without_channel(
+                    &mut client,
+                    Uuid::parse_str(tenant_id)?,
+                    Some(Uuid::parse_str(election_event_id)?),
+                    voter_id.clone(),
+                    MessagePurpose::NOTICE,
+                    Some(application_template_alias(&response_verdict)),
+                    first_attribute(user, LOCALE_ATTR_NAME).cloned(),
+                    &format!("application:{application_id}:{response_verdict}"),
+                )
+                .await
+            }
         }
-        Some(found) => {
-            let time_context =
-                NotificationTimeContext::load(hasura_transaction, tenant_id, &election_event)
-                    .await
-                    .with_context(|| "Error loading the notification times")?;
-            let mut variables = get_variables(
-                user,
-                Some(election_event.clone()),
-                tenant_id.to_string(),
-                AuthAction::Login,
-            )
-            .map_err(|err| anyhow!("{err:?}"))?;
-            insert_template_time_variables(
-                &mut variables,
-                time_context
-                    .variables_for(first_attribute(user, AREA_ID_ATTR_NAME).map(String::as_str)),
-            );
-            let content = application_result_content(
-                found.channel,
-                response_verdict.clone(),
-                presentation,
-                &variables,
-            )
-            .await?;
-            deliver(
-                &mut client,
-                dispatcher,
-                &Delivery {
-                    tenant_id: tenant_uuid,
-                    election_event_id: Some(event_uuid),
-                    purpose: MessagePurpose::NOTICE,
-                    recipient: Recipient {
-                        voter_id,
-                        channel: found.channel,
-                        destination: found.destination,
-                        election_ids: vec![],
-                    },
-                    content,
-                    language,
-                    // Rendered from the event's presentation, not a stored
-                    // template: a transient failure isn't retried.
-                    template_alias: None,
-                    logical_key,
-                    expires_at: None,
-                    account_id: None,
-                    template_key: Some(format!(
-                        "application-{}",
-                        response_verdict.to_string().to_lowercase()
-                    )),
-                    provider_template: None,
-                },
-            )
-            .await?
+    }
+    .await;
+    let result = match sent {
+        Ok(result) => result,
+        Err(error) => {
+            warn!("the application result was not sent: {error:#}");
+            return Ok(());
         }
     };
     info!(state = %result.state, reason = ?result.reason, "application result message");
@@ -1301,7 +1443,6 @@ pub async fn send_application_communication_response(
         first_attribute(user, AREA_ID_ATTR_NAME).cloned(),
     )
     .await;
-    let _ = admin_id;
     Ok(())
 }
 
@@ -1531,6 +1672,27 @@ mod tests {
         );
 
         assert_eq!(channels.sms.message, "default sms");
+    }
+
+    #[test]
+    fn application_results_keep_the_voters_post_restrictions() {
+        let elections = HashMap::from([("area-1".to_string(), vec!["post-1".to_string()])]);
+        let by_attribute = User {
+            attributes: Some(HashMap::from([(
+                AREA_ID_ATTR_NAME.to_string(),
+                vec!["area-1".to_string()],
+            )])),
+            ..User::default()
+        };
+        assert_eq!(
+            user_elections(&by_attribute, &elections),
+            vec!["post-1".to_string()]
+        );
+        assert!(user_elections(&User::default(), &elections).is_empty());
+        assert_eq!(
+            application_template_alias(&ApplicationStatus::REJECTED),
+            "application-rejected"
+        );
     }
 
     #[test]

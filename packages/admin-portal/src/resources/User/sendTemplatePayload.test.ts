@@ -1,11 +1,21 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {EMessageChannel} from "@/types/messaging"
+import {
+    EMessageChannel,
+    EMessagePurpose,
+    EOutOfWindowPolicy,
+    IEventChannelConfig,
+    IEventMessagingConfig,
+    IMessagingAccount,
+} from "@/types/messaging"
+import {emptyEventMessagingConfig} from "@/services/messaging"
 import {
     buildSendTemplatePayload,
     missingChannelContent,
+    sendNoticeChannels,
     sendableTemplates,
+    sendingAccountFor,
 } from "./sendTemplatePayload"
 
 const content = {
@@ -108,5 +118,84 @@ describe("missingChannelContent", () => {
         expect(missingChannelContent({sms: {message: "  "}}, [EMessageChannel.SMS])).toEqual([
             EMessageChannel.SMS,
         ])
+    })
+})
+
+describe("sendNoticeChannels: the channels a send reaches voters on (R4-10)", () => {
+    const config = (channels: IEventChannelConfig[]): IEventMessagingConfig => ({
+        ...emptyEventMessagingConfig(),
+        channels,
+    })
+    const channel = (name: EMessageChannel, purposes: EMessagePurpose[]): IEventChannelConfig => ({
+        channel: name,
+        account_id: `${name}-account`,
+        purposes,
+        templates: [],
+        out_of_window: EOutOfWindowPolicy.DISABLED,
+    })
+
+    it("doesn't guess without the permission to read the event's configuration", () => {
+        expect(sendNoticeChannels(false, null)).toEqual({kind: "NO_PERMISSION"})
+    })
+
+    it("uses email and SMS for an event without a configuration, as the backend does", () => {
+        expect(sendNoticeChannels(true, null)).toEqual({
+            kind: "CHANNELS",
+            channels: [EMessageChannel.SMS, EMessageChannel.EMAIL],
+        })
+    })
+
+    it("says no channel sends notices when the configuration has none, never SMS and Email", () => {
+        expect(
+            sendNoticeChannels(true, config([channel(EMessageChannel.SMS, [EMessagePurpose.OTP])]))
+        ).toEqual({kind: "NONE"})
+    })
+
+    it("lists the configured notice channels in channel order", () => {
+        expect(
+            sendNoticeChannels(
+                true,
+                config([
+                    channel(EMessageChannel.EMAIL, [EMessagePurpose.NOTICE]),
+                    channel(EMessageChannel.WHATSAPP, [
+                        EMessagePurpose.OTP,
+                        EMessagePurpose.NOTICE,
+                    ]),
+                ])
+            )
+        ).toEqual({kind: "CHANNELS", channels: [EMessageChannel.WHATSAPP, EMessageChannel.EMAIL]})
+    })
+})
+
+describe("sendingAccountFor", () => {
+    const sms = {
+        id: "sms-default",
+        channel: EMessageChannel.SMS,
+        is_default: true,
+    } as IMessagingAccount
+    const other = {
+        id: "sms-2",
+        channel: EMessageChannel.SMS,
+        is_default: false,
+    } as IMessagingAccount
+    const withSms = (accountId: string): IEventMessagingConfig => ({
+        ...emptyEventMessagingConfig(),
+        channels: [
+            {
+                channel: EMessageChannel.SMS,
+                account_id: accountId,
+                purposes: [EMessagePurpose.NOTICE],
+                templates: [],
+                out_of_window: EOutOfWindowPolicy.DISABLED,
+            },
+        ],
+    })
+
+    it("takes the event's account, else the tenant's default, else the deployment for email and SMS", () => {
+        expect(sendingAccountFor(withSms("sms-2"), [sms, other], EMessageChannel.SMS)).toBe(other)
+        expect(sendingAccountFor(null, [sms, other], EMessageChannel.SMS)).toBe(sms)
+        expect(sendingAccountFor(null, [], EMessageChannel.EMAIL)).toBe("ENVIRONMENT")
+        expect(sendingAccountFor(null, [], EMessageChannel.WHATSAPP)).toBeNull()
+        expect(sendingAccountFor(withSms("deleted"), [sms], EMessageChannel.SMS)).toBeNull()
     })
 })

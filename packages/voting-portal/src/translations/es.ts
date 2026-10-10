@@ -11,6 +11,10 @@ const spanishTranslation: TranslationType = {
         },
         contactChannel: {
             change: "Cambiar cómo le contactamos",
+            updated: "Se cambió su contacto. Los códigos y avisos ahora se envían allí.",
+            cancelled: "Su contacto no se cambió.",
+            failed: "No pudimos cambiar cómo le contactamos. Inténtelo más tarde o contacte con soporte.",
+            close: "Cerrar",
         },
         common: {
             goBack: "Regresar",

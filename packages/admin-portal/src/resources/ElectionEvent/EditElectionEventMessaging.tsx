@@ -42,7 +42,11 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {useMessagingAccounts} from "@/hooks/useMessagingAccounts"
-import {useEventMessagingConfig} from "@/hooks/useEventMessagingConfig"
+import {
+    useEventMessagingConfig,
+    useEventMessagingConfigAuthor,
+} from "@/hooks/useEventMessagingConfig"
+import {MIGRATED_INVALID_BY} from "@/queries/GetEventMessagingConfig"
 import {roleContext, useMessagingReadRole} from "@/hooks/useMessagingReadRole"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {
@@ -52,7 +56,6 @@ import {
 import {UPDATE_EVENT_MESSAGING_CONFIG} from "@/queries/UpdateEventMessagingConfig"
 import {IPermissions} from "@/types/keycloak"
 import {
-    EDeliveryFeedback,
     EMessageAttemptState,
     EMessageChannel,
     EMessagePurpose,
@@ -70,6 +73,7 @@ import {
 } from "@/types/messaging"
 import {
     accountCapabilities,
+    accountDeliveryFeedback,
     accountSummary,
     deliverySummary,
     purposeReadiness,
@@ -89,6 +93,7 @@ import {
     parseMessagingConfigErrors,
     preparedConfig,
     removeTemplateBinding,
+    noChannelStats,
     setChannelAccount,
     statsByChannel,
     templateChannels,
@@ -97,6 +102,7 @@ import {
     updateTemplateBinding,
 } from "./eventMessagingConfig"
 import {logsFilterSearch} from "@/components/logs/messagingLogFilters"
+import {reasonText} from "@/services/messagingReasons"
 
 const POSTS_SHOWN = 15
 
@@ -797,8 +803,11 @@ export interface MessagingDeliveryStatusProps {
     loading?: boolean
     /** The counts could not be read: the cells say so instead of showing 0. */
     unavailable?: boolean
-    /** Opens Logs filtered to the channel's failed messages; absent without access to Logs. */
-    onShowFailed?: (channel: EMessageChannel) => void
+    /**
+     * Opens Logs filtered to the channel's failed messages (`null`: those of
+     * voters with no contact channel); absent without access to Logs.
+     */
+    onShowFailed?: (channel: EMessageChannel | null) => void
 }
 
 /**
@@ -817,6 +826,7 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
 }) => {
     const {t} = useTranslation()
     const perChannel = useMemo(() => statsByChannel(stats), [stats])
+    const noChannel = useMemo(() => noChannelStats(stats), [stats])
     const configured = config.channels.map((entry) => entry.channel)
     const channels = MESSAGE_CHANNELS.filter((channel) => configured.includes(channel))
     if (!channels.length) {
@@ -863,10 +873,7 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                 <TableBody>
                     {channels.map((channel) => {
                         const account = accountOf(config, accounts, channel)
-                        const feedback = account
-                            ? (accountCapabilities(account)?.delivery_feedback ??
-                              EDeliveryFeedback.UNAVAILABLE)
-                            : EDeliveryFeedback.UNAVAILABLE
+                        const {feedback, reason} = accountDeliveryFeedback(account)
                         const summary = deliverySummary(perChannel[channel], feedback)
                         const channelName = t(`messaging.channel.${channel}`)
                         const failed = count(summary.failed)
@@ -883,7 +890,9 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                                     align="right"
                                     title={
                                         summary.delivered === null
-                                            ? t("messagingEvent.delivery.noReceipts")
+                                            ? reason
+                                                ? reasonText(t, reason)
+                                                : t("messagingEvent.delivery.noReceipts")
                                             : undefined
                                     }
                                 >
@@ -913,9 +922,58 @@ export const MessagingDeliveryStatus: React.FC<MessagingDeliveryStatusProps> = (
                             </TableRow>
                         )
                     })}
+                    {noChannel ? (
+                        // Voters with no contact channel: their failures are never
+                        // counted under a channel, so they show on their own row.
+                        <TableRow data-channel="NONE">
+                            <TableCell title={t("messagingEvent.delivery.noChannelHelp")}>
+                                {t("messaging.reason.NO_CONTACT_CHANNEL")}
+                            </TableCell>
+                            <TableCell align="right">{count(noChannel.voters ?? null)}</TableCell>
+                            <TableCell align="right">–</TableCell>
+                            <TableCell align="right">–</TableCell>
+                            <TableCell align="right">–</TableCell>
+                            <TableCell align="right">–</TableCell>
+                            <TableCell align="right">
+                                {onShowFailed && !loading && !unavailable ? (
+                                    <Link
+                                        component="button"
+                                        type="button"
+                                        variant="body2"
+                                        onClick={() => onShowFailed(null)}
+                                        aria-label={t(
+                                            "messagingEvent.delivery.showFailedNoChannel"
+                                        )}
+                                    >
+                                        {count(noChannel.failed)}
+                                    </Link>
+                                ) : (
+                                    count(noChannel.failed)
+                                )}
+                            </TableCell>
+                            <TableCell align="right">–</TableCell>
+                            <TableCell align="right">–</TableCell>
+                        </TableRow>
+                    ) : null}
                 </TableBody>
             </Table>
         </>
+    )
+}
+
+/**
+ * A configuration copied from the old storage that didn't pass validation is
+ * marked by the backend: it says so, and that saving again (after fixing what
+ * the tab shows) stores it as a checked configuration.
+ */
+export const MigratedConfigNotice: React.FC<{updatedBy?: string | null}> = ({updatedBy}) => {
+    const {t} = useTranslation()
+    if (updatedBy !== MIGRATED_INVALID_BY) return null
+    return (
+        <Alert severity="warning">
+            <strong>{t("messagingEvent.needsSavingAgain")}</strong>{" "}
+            {t("messagingEvent.needsSavingAgainHelp")}
+        </Alert>
     )
 }
 
@@ -939,7 +997,7 @@ export const EditElectionEventMessaging: React.FC = () => {
     const canReadLogs =
         authContext.isAuthorized(true, tenantId, IPermissions.LOGS_READ) &&
         authContext.isAuthorized(true, tenantId, IPermissions.ELECTION_EVENT_LOGS_TAB)
-    const {accounts, loading: accountsLoading} = useMessagingAccounts()
+    const {accounts, loading: accountsLoading} = useMessagingAccounts({callbackStatus: true})
     const {data: elections, isLoading: electionsLoading} = useGetList<Sequent_Backend_Election>(
         "sequent_backend_election",
         {
@@ -963,6 +1021,7 @@ export const EditElectionEventMessaging: React.FC = () => {
         loading: configLoading,
         refetch: refetchConfig,
     } = useEventMessagingConfig(record?.id)
+    const {updatedBy, refetch: refetchAuthor} = useEventMessagingConfigAuthor(record?.id)
     const [updateConfig, {loading: saving}] = useMutation<IUpdateEventMessagingConfigResult>(
         UPDATE_EVENT_MESSAGING_CONFIG,
         {context: {headers: {"x-hasura-role": IPermissions.MESSAGING_CONFIG_WRITE}}}
@@ -1059,13 +1118,14 @@ export const EditElectionEventMessaging: React.FC = () => {
             setDirty(false)
             notify(t("messagingEvent.saved"), {type: "success"})
             await refetchConfig()
+            refetchAuthor().catch(() => undefined)
         } catch (error) {
             console.error(error)
             notify(t("messagingEvent.saveError"), {type: "error"})
         }
     }
 
-    const showFailed = (channel: EMessageChannel) =>
+    const showFailed = (channel: EMessageChannel | null) =>
         navigate({pathname: location.pathname, search: logsFilterSearch(channel)})
 
     if (!record) return null
@@ -1082,6 +1142,7 @@ export const EditElectionEventMessaging: React.FC = () => {
         <Box sx={{display: "flex", flexDirection: "column", gap: 2, padding: 2, paddingBottom: 4}}>
             <Helper>{t("messagingEvent.intro")}</Helper>
             {!canEdit ? <Alert severity="info">{t("messagingEvent.readOnly")}</Alert> : null}
+            <MigratedConfigNotice updatedBy={updatedBy} />
             <MessagingErrors errors={general} />
             <Section title={t("messagingEvent.sections.channels")} id="messaging-channels">
                 <MessagingChannels

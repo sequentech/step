@@ -3,10 +3,13 @@
 
 -- Messaging second pass (meta#13755).
 
--- The event's messaging configuration. Only the messaging_config_save
--- action writes it, so the configuration can't be changed around its
--- validation. Replaces the `messaging:config` annotation, which is copied
--- below once and then left untouched.
+-- The event's messaging configuration. Only the update_event_messaging_config
+-- action (and an event import, with the same validation and permission)
+-- writes it, so the configuration can't be changed around its validation.
+-- Replaces the `messaging:config` annotation, which is copied below once and
+-- then left untouched. Copied rows are marked `updated_by = 'migration'`;
+-- windmill validates them once and marks those a save would refuse
+-- ('migration: needs saving again').
 CREATE TABLE "sequent_backend"."messaging_event_config"
 (
     "tenant_id"         uuid        NOT NULL,
@@ -88,13 +91,49 @@ CREATE TABLE "sequent_backend"."messenger_contact"
 );
 
 -- Ledger: same-channel retries, never-sent vs maybe-sent, reconciliation
--- backoff, and billing.
+-- backoff, billing, and the electoral log's outbox (`logged_at`: when the
+-- attempt's entry was handed to the log; NULL until then).
 ALTER TABLE "sequent_backend"."message"
     ADD COLUMN "next_retry_at"      timestamptz,
     ADD COLUMN "dispatched_at"      timestamptz,
     ADD COLUMN "last_reconciled_at" timestamptz,
     ADD COLUMN "billing_category"   text,
-    ADD COLUMN "billable"           boolean;
+    ADD COLUMN "billable"           boolean,
+    -- Existing rows count as logged (the first release logged them, or
+    -- never will); new rows start unlogged.
+    ADD COLUMN "logged_at"          timestamptz DEFAULT now();
+ALTER TABLE "sequent_backend"."message"
+    ALTER COLUMN "logged_at" DROP DEFAULT;
+
+-- A voter with no contact channel gets one FAILED row with no channel
+-- ("No contact channel"), never counted as any channel's failure.
+ALTER TABLE "sequent_backend"."message"
+    ALTER COLUMN "channel" DROP NOT NULL;
+
+-- The first release recorded QUEUED before calling the provider, so an
+-- attempt still QUEUED here may have been sent when a deploy stopped its
+-- worker. It is maybe-sent: the sweep makes it UNKNOWN, never resends it.
+UPDATE "sequent_backend"."message"
+    SET "dispatched_at" = "created_at"
+    WHERE "state" = 'QUEUED' AND "dispatched_at" IS NULL;
+
+CREATE INDEX "message_unlogged"
+    ON "sequent_backend"."message" ("created_at", "id")
+    WHERE "logged_at" IS NULL;
+
+-- The latest attempt of each message: what a message's outcome is (the
+-- voter drawer's last failure, the Logs filter, the event tab's counts).
+-- An attempt is superseded by a later one of the same logical message.
+CREATE VIEW "sequent_backend"."message_latest_attempt" AS
+SELECT message.*
+FROM "sequent_backend"."message" AS message
+WHERE message."logical_key" IS NULL
+   OR NOT EXISTS (
+        SELECT 1 FROM "sequent_backend"."message" AS later
+        WHERE later."tenant_id" = message."tenant_id"
+          AND later."logical_key" = message."logical_key"
+          AND later."attempt" > message."attempt"
+   );
 
 CREATE INDEX "message_retry_due"
     ON "sequent_backend"."message" ("next_retry_at")

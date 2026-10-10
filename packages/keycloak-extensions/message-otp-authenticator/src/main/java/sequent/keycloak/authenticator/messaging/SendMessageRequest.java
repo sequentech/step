@@ -26,7 +26,38 @@ public record SendMessageRequest(
     @JsonProperty("logical_key") String logicalKey,
     @JsonProperty("expires_at") String expiresAt,
     @JsonProperty("template_key") String templateKey,
-    @JsonProperty("election_ids") List<String> electionIds) {
+    @JsonProperty("election_ids") List<String> electionIds,
+    @JsonProperty("recipient") MessageRecipient recipient) {
+
+  /** A request for the voter's own channel (no {@code recipient}: harvest's default). */
+  public SendMessageRequest(
+      String tenantId,
+      String electionEventId,
+      String voterId,
+      MessageChannel channel,
+      MessagePurpose purpose,
+      String destination,
+      String language,
+      MessageContent content,
+      String logicalKey,
+      String expiresAt,
+      String templateKey,
+      List<String> electionIds) {
+    this(
+        tenantId,
+        electionEventId,
+        voterId,
+        channel,
+        purpose,
+        destination,
+        language,
+        content,
+        logicalKey,
+        expiresAt,
+        templateKey,
+        electionIds,
+        null);
+  }
 
   /** A request without the voter's elections: codes, which are not restricted by Post. */
   public SendMessageRequest(
@@ -53,6 +84,7 @@ public record SendMessageRequest(
         logicalKey,
         expiresAt,
         templateKey,
+        null,
         null);
   }
 

@@ -36,7 +36,8 @@ impl Destination {
 
     /// Shown in records, logs and screens instead of the address: the
     /// country code and the last three digits (`+966 ••• ••• 567`), the
-    /// first two characters of an email (`ma••••••••@example.com`), or the
+    /// first two characters of an email (`ma••••••••@example.com`; fewer for
+    /// a local part of one or two, never all of it), or the
     /// last three digits of a Page-scoped ID (`••• 321`). The masked parts
     /// have a fixed length, so they don't reveal the address's length.
     pub fn masked(&self) -> String {
@@ -50,7 +51,9 @@ impl Destination {
             }
             RecipientKind::EMAIL_ADDRESS => {
                 let (local, domain) = self.value.split_once('@').unwrap_or((&self.value, ""));
-                let first: String = local.chars().take(2).collect();
+                // Never the whole local part, however short it is.
+                let shown = 2.min(local.chars().count().saturating_sub(1));
+                let first: String = local.chars().take(shown).collect();
                 format!("{first}{HIDDEN}{HIDDEN}\u{2022}\u{2022}@{domain}")
             }
             RecipientKind::PAGE_SCOPED_ID => format!("{HIDDEN} {}", last_three(&self.value)),
@@ -178,6 +181,16 @@ mod tests {
             "vo\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}@example.org"
         );
         assert_eq!(destination.country(), None);
+        // A short local part is never shown whole.
+        let hidden = "\u{2022}".repeat(8);
+        for (address, shown) in [("ab@example.org", "a"), ("a@example.org", "")] {
+            assert_eq!(
+                Destination::parse(MessageChannel::EMAIL, address)
+                    .expect("email")
+                    .masked(),
+                format!("{shown}{hidden}@example.org")
+            );
+        }
         assert!(Destination::parse(MessageChannel::EMAIL, "voter").is_err());
         assert!(Destination::parse(MessageChannel::EMAIL, "a b@example.org").is_err());
     }

@@ -153,11 +153,19 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     }
   }
 
-  /** Whether the session used up its attempts; resends never reset them. */
+  /**
+   * The challenge this action's codes belong to: the action itself. It has its own attempt count,
+   * apart from any sign-in step of the same authentication session.
+   */
+  protected String challenge() {
+    return "required-action." + getProviderId();
+  }
+
+  /** Whether this action used up its attempts; resends never reset them. */
   protected boolean attemptsExhausted(
       AuthenticationSessionModel authSession, AuthenticatorConfigModel config) {
     return Utils.attemptsExhausted(
-        authSession, MessageOTPAuthenticatorFactory.getConfigMap(config));
+        authSession, MessageOTPAuthenticatorFactory.getConfigMap(config), challenge());
   }
 
   /** The code page saying the session's attempts are used up, with a link to start again. */
@@ -344,12 +352,17 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
               config));
       return;
     }
-    // Validate OTP code
-    if (enteredCode == null || code == null || ttl == null || enteredCode.length() != codeLength) {
-      context.failure();
+    // No live code (it expired, was used up or refused): the voter asks for a new one.
+    if (code == null || ttl == null) {
+      context.challenge(
+          createOTPForm(
+              context, form -> form.setError(MessageOTPAuthenticator.NO_CODE_KEY), config));
       return;
     }
-    boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+    boolean isValid =
+        enteredCode != null
+            && enteredCode.length() == codeLength
+            && Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
     if (isValid) {
       // Check if code is expired
       if (Long.parseLong(ttl) < System.currentTimeMillis()) {
@@ -396,8 +409,8 @@ public abstract class BaseResetMessageOTPRequiredAction implements RequiredActio
     } else {
       // Invalid code: show error. Wrong codes count against the session, like at sign-in.
       boolean exhausted =
-          MessageOTPAuthenticator.registerFailedAttempt(
-              authSession, MessageOTPAuthenticatorFactory.getConfigMap(config));
+          Utils.registerFailedAttempt(
+              authSession, MessageOTPAuthenticatorFactory.getConfigMap(config), challenge());
       if (exhausted) {
         context.challenge(exhaustedForm(context, config));
         return;

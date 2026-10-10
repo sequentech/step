@@ -26,6 +26,7 @@ use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
 use windmill::services::import::rejection::problems_of;
+use windmill::services::messaging::config::MessagingConfigPermission;
 use windmill::services::tasks_execution::*;
 use windmill::services::tasks_execution::{
     update_complete, update_fail, update_fail_with_problems,
@@ -240,6 +241,17 @@ fn stamp_initiators(
         .may_write_secret_attributes
         .then(|| ElectoralLogAdminContext::from_claims(claims));
     input.importer = Some(ElectoralLogAdminContext::from_claims(claims));
+    // A bundle's messaging configuration is imported only for whoever may
+    // save one (`update_event_messaging_config`).
+    input.messaging_config_permission = match authorize(
+        claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![Permissions::MESSAGING_CONFIG_WRITE],
+    ) {
+        Ok(()) => MessagingConfigPermission::PERMITTED,
+        Err(_) => MessagingConfigPermission::NOT_PERMITTED,
+    };
 }
 
 #[instrument(skip(claims))]
@@ -438,6 +450,7 @@ mod tests {
             "document_id": "document",
             // Forged by the caller: the token decides.
             "may_write_secret_attributes": true,
+            "messaging_config_permission": "PERMITTED",
             "importer": {"user_id": "someone-else", "username": "someone-else"},
         }))
         .unwrap()
@@ -456,6 +469,11 @@ mod tests {
         assert_eq!(importer.username.as_deref(), Some("admin"));
         assert!(!input.may_write_secret_attributes);
         assert!(input.secret_write_initiator.is_none());
+        // Regression (R1-02): forged by the caller, decided by the token.
+        assert_eq!(
+            input.messaging_config_permission,
+            MessagingConfigPermission::NOT_PERMITTED
+        );
 
         let mut input = body("tenant");
         let writer = Claims::new("tenant", "writer-id")
@@ -465,6 +483,20 @@ mod tests {
         assert!(input.may_write_secret_attributes);
         assert_eq!(input.secret_write_initiator.unwrap().user_id, "writer-id");
         assert_eq!(input.importer.unwrap().user_id, "writer-id");
+        assert_eq!(
+            input.messaging_config_permission,
+            MessagingConfigPermission::NOT_PERMITTED
+        );
+
+        let mut input = body("tenant");
+        let configurer = Claims::new("tenant", "configurer-id")
+            .roles([Permissions::MESSAGING_CONFIG_WRITE])
+            .build();
+        stamp_initiators(&mut input, &configurer);
+        assert_eq!(
+            input.messaging_config_permission,
+            MessagingConfigPermission::PERMITTED
+        );
     }
 
     fn mismatch() -> Problem {

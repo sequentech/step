@@ -251,7 +251,6 @@ export const Populated: Story = {
 /** The Status column reads the message's current state from the ledger. */
 export const StatusFromTheLedger: Story = {
     args: {roles: ["logs-read", "messaging-config-read"]},
-    parameters: {widgets: ["LedgerStates", "LedgerStatusField"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("bob")).toBeVisible()
@@ -270,7 +269,6 @@ export const StatusFromTheLedger: Story = {
 /** Without the ledger's role, the state the entry was written with. */
 export const StatusAsLogged: Story = {
     args: {roles: ["logs-read"]},
-    parameters: {widgets: ["LedgerStatusField"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("bob")).toBeVisible()

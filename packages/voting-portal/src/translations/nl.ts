@@ -11,6 +11,10 @@ const dutchTranslation: TranslationType = {
         },
         contactChannel: {
             change: "Wijzigen hoe we contact met u opnemen",
+            updated: "Uw contactgegeven is gewijzigd. Codes en berichten gaan nu daarheen.",
+            cancelled: "Uw contactgegeven is niet gewijzigd.",
+            failed: "We konden niet wijzigen hoe we contact met u opnemen. Probeer het later opnieuw of neem contact op met de ondersteuning.",
+            close: "Sluiten",
         },
         common: {
             goBack: "Ga terug",

@@ -501,6 +501,21 @@ actions:
       permissions:
           - role: messaging-account-write
       comment: The full callback URL of an account, or why there is none
+    - name: messaging_callback_status
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/messaging/accounts/callback-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: messaging-config-read
+          - role: messaging-account-read
+      comment: Per account, what stops its delivery reports (and Messenger's Get Started) from reaching Step
     - name: messaging_event_stats
       definition:
           type: query
@@ -2922,6 +2937,8 @@ custom_types:
         - name: TestMessagingAccountOutput
         - name: UpdateEventMessagingConfigOutput
         - name: MessagingAccountCallbackUrlOutput
+        - name: MessagingCallbackStatusOutput
+        - name: MessagingAccountCallbackStatus
         - name: MessagingEventStatsOutput
         - name: MessagingChannelStats
     scalars: []

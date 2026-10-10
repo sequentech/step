@@ -37,8 +37,14 @@ pub const KEYS_TTL: Duration = Duration::from_secs(10 * 60);
 /// fetched again once (Keycloak rotated its keys), but not more often than
 /// this per realm, so made-up key ids can't hammer Keycloak.
 pub const REFETCH_COOLDOWN: Duration = Duration::from_secs(10);
-/// Clock difference allowed with Keycloak on `exp`.
+/// Clock difference allowed with Keycloak on `exp` and `nbf`.
 pub const EXPIRY_LEEWAY_SECONDS: u64 = 30;
+/// The Keycloak client whose service account Keycloak's extensions send
+/// with (`KEYCLOAK_CLIENT_ID`), when the variable is unset. Every realm
+/// template names it so.
+pub const DEFAULT_SERVICE_CLIENT: &str = "service-account";
+/// Keycloak's `typ` of an access token.
+const ACCESS_TOKEN_TYPE: &str = "Bearer";
 /// Realms whose keys are remembered at once. Tokens name their tenant
 /// before they are verified, so the map is bounded.
 const MAX_CACHED_REALMS: usize = 1024;
@@ -58,6 +64,9 @@ pub enum ServiceTokenRefusal {
     UNKNOWN_KEY,
     BAD_SIGNATURE,
     EXPIRED,
+    NOT_YET_VALID,
+    NOT_AN_ACCESS_TOKEN,
+    WRONG_CLIENT,
     WRONG_ISSUER,
     NOT_A_SERVICE_ACCOUNT,
 }
@@ -75,10 +84,24 @@ impl ServiceTokenRefusal {
             Self::UNKNOWN_KEY => "The token's key isn't one of the realm's",
             Self::BAD_SIGNATURE => "The token's signature doesn't verify",
             Self::EXPIRED => "The token has expired",
+            Self::NOT_YET_VALID => "The token isn't valid yet",
+            Self::NOT_AN_ACCESS_TOKEN => "The token isn't an access token",
+            Self::WRONG_CLIENT => {
+                "The token wasn't issued to the platform's service client"
+            }
             Self::WRONG_ISSUER => "The token wasn't issued by its tenant realm",
             Self::NOT_A_SERVICE_ACCOUNT => {
                 "The token isn't a service account's"
             }
+        }
+    }
+
+    /// What the caller is answered: 503 when the realm's keys can't be
+    /// fetched (try again later), else 401.
+    pub fn status(self) -> Status {
+        match self {
+            Self::KEYS_UNAVAILABLE => Status::ServiceUnavailable,
+            _ => Status::Unauthorized,
         }
     }
 }
@@ -126,12 +149,15 @@ struct RealmKeys {
 }
 
 /// Realm key sets, fetched from the source on first use, after [`KEYS_TTL`],
-/// and once more when a token names a key the set doesn't have.
+/// and once more when a token names a key the set doesn't have. A failed
+/// fetch keeps the set it had. Also names the client service tokens must be
+/// issued to.
 pub struct ServiceKeys {
     source: Arc<dyn ServiceKeySource>,
     ttl: Duration,
     cooldown: Duration,
     realms: Mutex<HashMap<String, Arc<tokio::sync::Mutex<RealmKeys>>>>,
+    client_id: String,
 }
 
 impl ServiceKeys {
@@ -149,7 +175,19 @@ impl ServiceKeys {
             ttl,
             cooldown,
             realms: Mutex::new(HashMap::new()),
+            client_id: DEFAULT_SERVICE_CLIENT.to_string(),
         }
+    }
+
+    /// Service tokens must be issued to `client_id` (their `azp`).
+    pub fn for_client(mut self, client_id: impl Into<String>) -> Self {
+        self.client_id = client_id.into();
+        self
+    }
+
+    /// The client service tokens must be issued to.
+    pub fn client_id(&self) -> &str {
+        &self.client_id
     }
 
     fn realm(&self, realm: &str) -> Arc<tokio::sync::Mutex<RealmKeys>> {
@@ -190,9 +228,15 @@ impl ServiceKeys {
                 key.ok_or(ServiceTokenRefusal::UNKNOWN_KEY)
             }
             Err(error) => {
-                cached.keys = None;
+                // Stale if error: a blip at the TTL boundary must not
+                // refuse the tokens the keys it had still verify.
                 warn!("keys of realm {realm} unavailable: {error:#}");
-                Err(ServiceTokenRefusal::KEYS_UNAVAILABLE)
+                cached
+                    .keys
+                    .as_ref()
+                    .and_then(|keys| keys.find(kid))
+                    .cloned()
+                    .ok_or(ServiceTokenRefusal::KEYS_UNAVAILABLE)
             }
         }
     }
@@ -246,15 +290,28 @@ pub async fn verify_service_token(
     let key = DecodingKey::from_jwk(&jwk).map_err(|_| UNKNOWN_KEY)?;
     let mut validation = Validation::new(header.alg);
     validation.leeway = EXPIRY_LEEWAY_SECONDS;
+    validation.validate_nbf = true;
+    // Keycloak's client-credentials tokens name no audience of ours; the
+    // issuing client is checked as `azp` below.
     validation.validate_aud = false;
     let claims = decode::<JwtClaims>(token, &key, &validation)
         .map_err(|error| match error.kind() {
             ErrorKind::ExpiredSignature => EXPIRED,
+            ErrorKind::ImmatureSignature => NOT_YET_VALID,
             ErrorKind::InvalidSignature => BAD_SIGNATURE,
             ErrorKind::InvalidAlgorithm => UNSUPPORTED_ALGORITHM,
             _ => MALFORMED_TOKEN,
         })?
         .claims;
+
+    // An ID or refresh token the realm signed isn't a credential to call
+    // with, and only the platform's client sends.
+    if claims.typ != ACCESS_TOKEN_TYPE {
+        return Err(NOT_AN_ACCESS_TOKEN);
+    }
+    if claims.azp != keys.client_id() {
+        return Err(WRONG_CLIENT);
+    }
 
     // The internal and public Keycloak addresses differ, so only the realm
     // part of the issuer is compared.
@@ -349,7 +406,7 @@ impl<'r> FromRequest<'r> for VerifiedServiceClaims {
             Ok(claims) => Outcome::Success(claims),
             Err(refusal) => {
                 warn!("service token refused: {}", refusal.reason());
-                Outcome::Error((Status::Unauthorized, refusal))
+                Outcome::Error((refusal.status(), refusal))
             }
         }
     }

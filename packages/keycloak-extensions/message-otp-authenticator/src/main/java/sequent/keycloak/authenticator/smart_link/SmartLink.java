@@ -52,7 +52,6 @@ public class SmartLink {
             .event(EventType.REGISTER)
             .detail(Details.REGISTER_METHOD, LoginBridgeActionToken.TOKEN_TYPE)
             .detail(Details.USERNAME, user.getUsername())
-            .detail(Details.EMAIL, user.getEmail())
             .user(user)
             .success();
       }

@@ -8,7 +8,7 @@ use messaging_webhooks::{build, Config};
 
 #[rocket::launch]
 fn rocket() -> _ {
-    sequent_core::util::init_log::init_log(true);
+    messaging_webhooks::logging::init();
     match Config::from_env().and_then(build) {
         Ok(rocket) => rocket,
         Err(error) => {

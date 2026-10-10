@@ -9,6 +9,10 @@ const englishTranslation = {
         },
         contactChannel: {
             change: "Change how we contact you",
+            updated: "Your contact was changed. Codes and notices now go there.",
+            cancelled: "Your contact was not changed.",
+            failed: "We couldn't change how we contact you. Try again later or contact support.",
+            close: "Close",
         },
         common: {
             goBack: "Back",

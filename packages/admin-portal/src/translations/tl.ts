@@ -3333,6 +3333,9 @@ const tagalogTranslation: TranslationType = {
                     title: "Walang laman dito",
                     text: "Lalabas dito ang mga pagpapatalang may ganitong katayuan. Subukan ang ibang paghahanap o katayuan.",
                 },
+                searchHelp:
+                    "Isang pangalan, email o numero ng ID, o ang reference para sa suporta na ibinigay sa botante, gaya ng Q5KW-8RFX.",
+                referenceError: "Hindi mahanap ang reference para sa suporta.",
             },
             flow: {
                 stepsLabel: "Mga hakbang ng pagsusuri",
@@ -5354,13 +5357,13 @@ const tagalogTranslation: TranslationType = {
                 delivery: "Katayuan ng paghahatid",
             },
             column: {
-                channel: "Daluyan",
+                channel: "Channel",
                 account: "Ipinapadala mula sa",
                 purpose: "Layunin",
                 language: "Wika",
                 template: "Template ng provider",
                 status: "Katayuan",
-                post: "Himpilan",
+                post: "Post",
                 key: "Para sa mensahe",
                 providerLanguage: "Wika ng provider",
                 voters: "Mga botanteng gumagamit nito",
@@ -5410,6 +5413,10 @@ const tagalogTranslation: TranslationType = {
                 noReceipts:
                     "Walang natatanggap na ulat ng paghahatid ang account na ito, kaya hindi maipapakita ang paghahatid.",
                 showFailed: "Ipakita sa Mga Log ang mga nabigong mensahe sa {{channel}}",
+                noChannelHelp:
+                    "Mga botanteng walang nakatalang channel para makipag-ugnayan. Nabibigo ang kanilang mga abiso at hindi kailanman ibinibilang sa isang channel.",
+                showFailedNoChannel:
+                    "Ipakita sa Mga Log ang mga nabigong mensahe ng mga botanteng walang channel para makipag-ugnayan",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5434,6 +5441,9 @@ const tagalogTranslation: TranslationType = {
             noReadPermission:
                 "Kailangan ang pahintulot na messaging-config-read para mabasa ang mga setting na ito.",
             chooseAccount: "Pumili muna ng account.",
+            needsSavingAgain: "Kailangang i-save muli ang configuration.",
+            needsSavingAgainHelp:
+                "Kinopya ito mula sa dating storage at hindi ito pumasa sa mga pagsusuring ginagawa sa pag-save. Ayusin ang mga problemang ipinapakita, saka i-save itong muli.",
         },
         messaging: {
             channel: {
@@ -5482,6 +5492,8 @@ const tagalogTranslation: TranslationType = {
                 NEEDS_PRODUCTION_ACCESS: "Kailangan ng production access",
                 NEEDS_APPROVED_TEMPLATE: "Kailangan ng aprubadong template",
                 UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CALLBACK_NOT_CONFIGURED: "Hindi naka-configure ang callback address",
+                REPORT_CREDENTIALS_MISSING: "Hindi pa nabubuo ang mga kredensyal para sa ulat",
             },
             readiness: {
                 connected: "Nakakonekta",
@@ -5557,7 +5569,7 @@ const tagalogTranslation: TranslationType = {
                 eachVoter: "Channel ng bawat botante",
                 eachVoterHelp:
                     "Bawat botante ay tumatanggap ng isang mensahe sa sarili niyang channel. Kung mabigo ang paghahatid, susubukan itong muli sa channel na iyon at makikita ang pagkabigo sa tab na Pagmemensahe ng event. Ang hindi kumpirmadong paghahatid ay ipinapakita bilang Hindi alam.",
-                channelColumn: "Daluyan",
+                channelColumn: "Channel",
                 sendsFrom: "Ipinapadala mula sa",
                 noAccount: "Walang account",
                 missingContent: "Walang nilalaman ang abisong ito para sa {{channels}}.",
@@ -5570,11 +5582,16 @@ const tagalogTranslation: TranslationType = {
                 providerLanguageHelp:
                     "Ang language code ng provider para sa template na iyon, gaya ng en_US.",
                 voters: "Mga botante",
+                environment: "Ang default na nagpapadala ng deployment",
+                noNoticeChannels:
+                    "Walang channel na naka-on para sa mga abiso sa mga setting ng pagmemensahe ng event na ito, kaya walang botanteng makakatanggap ng abisong ito. I-on ang mga abiso ng isang channel sa tab na Pagmemensahe ng event.",
+                noReadPermission:
+                    "Kailangan ang pahintulot na messaging-config-read para maipakita ang channel ng bawat botante. Matatanggap pa rin ng bawat botante ang abiso sa sarili niyang channel.",
             },
             voter: {
                 title: "Pagmemensahe",
                 notSet: "Hindi nakatakda",
-                channel: "Daluyan",
+                channel: "Channel",
                 destination: "Ipinapadala sa",
                 messengerPage: "Pahina sa Messenger",
                 consent: "Pagsang-ayon",
@@ -5582,9 +5599,12 @@ const tagalogTranslation: TranslationType = {
                 noFailure: "Wala",
                 failureNeedsPermission: "Makikita gamit ang pahintulot na messaging-config-read.",
                 noChannel: "Walang nakatalang paraan ng pakikipag-ugnayan",
+                notConfirmed: "Hindi pa kumpirmado ang paghahatid",
+                notConfirmedHelp:
+                    "Ang huling mensaheng hindi pa kumpirmado ang paghahatid. Pagkalipas ng 24 na oras, ipinapakita ito bilang Hindi nalutas, na hindi nangangahulugang nabigo ito.",
             },
             logs: {
-                channel: "Daluyan",
+                channel: "Channel",
                 status: "Katayuan",
                 statusAsLogged:
                     "Ang katayuan noong isinulat ang entry; kailangan ang pahintulot na messaging-config-read para sa kasalukuyang katayuan.",
@@ -5601,8 +5621,38 @@ const tagalogTranslation: TranslationType = {
                 UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
                 CREDENTIALS_FOLLOW_ENDPOINT:
                     "Ilagay muli ang mga kredensyal para sa bagong address",
-                NO_CONTACT_CHANNEL: "Walang daluyan ng pakikipag-ugnayan",
+                NO_CONTACT_CHANNEL: "Walang channel para makipag-ugnayan",
                 NOT_RETRYABLE_NO_TEMPLATE: "Hindi masusubukang muli: walang naka-save na template",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Hindi inaalok ang channel para sa mga abiso",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Hindi inaalok ang channel para sa mga code",
+                NO_CONTENT_FOR_CHANNEL: "Walang nilalaman para sa channel",
+                NO_ACCOUNT_FOR_CHANNEL: "Walang account na nagpapadala para sa channel",
+                INVALID_DESTINATION: "Hindi wastong destinasyon para sa channel",
+                NOT_RETRYABLE_PROTECTED_FIELDS:
+                    "Hindi masusubukang muli: may mga protektadong field",
+                REPORTED_TOO_LATE: "Huli na ang ulat para subukang muli",
+                CHANNEL_CHANGED: "Nagbago ang channel ng botante: hindi na sinubukang muli",
+                WORKER_STOPPED_BEFORE_SENDING: "Huminto ang proseso bago magpadala",
+                WORKER_STOPPED_AFTER_SENDING: "Huminto ang proseso bago maitala ang resulta",
+                CODE_EXPIRED_BEFORE_SENDING: "Nag-expire ang code bago ito maipadala",
+                UNRESOLVED: "Hindi makumpirma ang paghahatid",
+                SELECTED_WITHOUT_VOTERS: "Pumili ng kahit isang botante",
+                WRONG_RECIPIENT_KIND:
+                    "Hindi ito ang uri ng destinasyong pinapadalhan ng channel na ito",
+                UNSUPPORTED_PURPOSE: "Hindi nagpapadala ang provider ng ganitong uri ng mensahe",
+                MISSING_APPROVED_TEMPLATE: "Walang aprubadong template para sa mensaheng ito",
+                OUTSIDE_CONVERSATION_WINDOW: "Nasa labas ng window ng usapan",
+                DESTINATION_NOT_ALLOWED:
+                    "Hindi nagpapadala ang account na ito sa bansa ng destinasyon",
+                CODE_EXPIRED: "Nag-expire na ang code",
+                MISSING_CODE: "Walang code na ipapadala",
+                ENDPOINT_NOT_HTTPS: "Dapat magsimula sa https:// ang address ng provider",
+                PROVIDER_CODE: "Error code ng provider: {{code}}",
+                RETRY_NOT_PREPARED: "Hindi masusubukang muli: hindi maihanda muli ang mensahe",
+                NOT_THE_VOTERS_CHANNEL: "Hindi ito ang channel ng botante",
+                REPORT_CREDENTIALS_MISSING:
+                    "Bumuo ng mga kredensyal para sa ulat at gumawa ng subscription sa Infobip",
+                CALLBACK_NOT_HTTPS: "Dapat https ang callback address",
             },
         },
         messagingAccounts: {
@@ -5617,7 +5667,7 @@ const tagalogTranslation: TranslationType = {
                 empty: "Wala pang account na nagpapadala.",
             },
             column: {
-                channel: "Daluyan",
+                channel: "Channel",
                 name: "Akawnt",
                 sender: "Nagpapadala bilang",
                 provider: "Tagapagbigay",
@@ -5653,7 +5703,7 @@ const tagalogTranslation: TranslationType = {
                 editTitle: "I-edit ang {{channel}} account",
                 subtitle:
                     "Tumatanggap ang mga botante ng mga code at abiso mula sa account na ito sa mga channel na gumagamit nito.",
-                channel: "Daluyan",
+                channel: "Channel",
                 provider: "Tagapagbigay",
                 save: "I-save",
                 cancel: "Kanselahin",
@@ -5713,6 +5763,8 @@ const tagalogTranslation: TranslationType = {
                 DUPLICATE_LANGUAGE: "May template na ang wikang ito para sa layuning ito",
                 NOT_A_URL: "Maglagay ng address na nagsisimula sa https://",
                 UNSUPPORTED_PROVIDER: "Hindi suportadong provider: palitan ang account na ito",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Ilagay muli ang mga kredensyal para sa bagong address",
             },
             warning: {
                 pageChange:
@@ -5746,6 +5798,7 @@ const tagalogTranslation: TranslationType = {
                 set: "Naitakda · pinalitan {{date}}. Naka-encrypt itong iniimbak at hindi kailanman ipinapakita.",
                 replace: "Palitan",
                 replaceNamed: "Palitan ang {{name}}",
+                reenter: "Nagbago ang address: ilagay muli ang kredensyal na ito.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5803,6 +5856,7 @@ const tagalogTranslation: TranslationType = {
                     "Ipinapakita sa mga administrator na maaaring mamahala ng mga messaging account.",
                 loading: "Naglo-load…",
                 unavailable: "Hindi magagamit",
+                loadError: "Hindi ma-load ang URL ng callback.",
             },
             copy: {
                 success: "Nakopya",
@@ -5811,6 +5865,7 @@ const tagalogTranslation: TranslationType = {
             save: {
                 success: "Na-save ang account",
                 error: "Hindi ma-save ang account.",
+                refused: "Hindi na-save ang account: {{reason}}",
             },
             test: {
                 title: "Magpadala ng test message mula sa {{name}}",
@@ -5851,6 +5906,10 @@ const tagalogTranslation: TranslationType = {
                     url: "Itakda ang URL nito sa URL ng callback ng account na ito.",
                     auth: "Piliin ang Basic authentication at ilagay ang pangalan ng user at password para sa mga ulat.",
                 },
+                confirmTitle: "Palitan ang mga kredensyal para sa ulat?",
+                confirmBody:
+                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng Viber at mananatiling Tinanggap ang mga mensahe.",
+                confirm: "Palitan",
             },
         },
     },

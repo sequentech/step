@@ -44,6 +44,12 @@ interface Scenario {
     configured: boolean
     /** What saving answers. */
     save: SaveResult
+    /** Whether the deployment has the webhook component's public address. */
+    callbackAddress?: boolean
+    /** Whether voters with no contact channel have failed messages. */
+    noContactFailures?: boolean
+    /** Who last wrote the configuration (`updated_by`). */
+    updatedBy?: string
 }
 
 const account = (
@@ -329,7 +335,37 @@ const meta = {
                 },
             }),
             GetMessagingEventStats: () => ({
-                data: {messaging_event_stats: {channels: STATS}},
+                data: {
+                    messaging_event_stats: {
+                        channels: args.noContactFailures
+                            ? [
+                                  ...STATS,
+                                  {...stats(EMessageChannel.EMAIL, {failed: 6}), channel: null},
+                              ]
+                            : STATS,
+                    },
+                },
+            }),
+            GetEventMessagingConfigAuthor: () => ({
+                data: {
+                    sequent_backend_messaging_event_config: args.configured
+                        ? [{election_event_id: EVENT_ID, updated_by: args.updatedBy ?? null}]
+                        : [],
+                },
+            }),
+            GetMessagingCallbackStatus: () => ({
+                data: {
+                    messaging_callback_status: {
+                        accounts:
+                            args.callbackAddress === false
+                                ? ACCOUNTS.map(({id}) => ({
+                                      account_id: id,
+                                      blockers: ["CALLBACK_NOT_CONFIGURED"],
+                                      reasons: ["Callback address not configured"],
+                                  }))
+                                : [],
+                    },
+                },
             }),
             UpdateEventMessagingConfig: saveReply(args.save),
         })
@@ -605,5 +641,45 @@ export const SaveFails: Story = {
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await notified("Could not save the messaging settings.")
         expect(canvas.getByRole("button", {name: "Save"})).toBeEnabled()
+    },
+}
+
+/** Without the webhook component's address, receipts are unavailable, with the reason. */
+export const WithoutACallbackAddress: Story = {
+    args: {callbackAddress: false},
+    play: async ({canvasElement}) => {
+        const delivery = within(
+            await within(canvasElement).findByRole("table", {name: "Delivery status"})
+        )
+        const viber = await waitFor(() => delivery.getByText("Viber").closest("tr") as HTMLElement)
+        const cell = within(viber).getByText("Delivery unavailable").closest("td")
+        await expect(cell).toHaveAttribute("title", "Callback address not configured")
+    },
+}
+
+/** Failures of voters with no contact channel have a row of their own, never under Email. */
+export const VotersWithNoContactChannel: Story = {
+    args: {noContactFailures: true},
+    play: async ({canvasElement}) => {
+        const delivery = within(
+            await within(canvasElement).findByRole("table", {name: "Delivery status"})
+        )
+        const row = await waitFor(
+            () => delivery.getByText("No contact channel").closest("tr") as HTMLElement
+        )
+        await expect(within(row).getByText("6")).toBeVisible()
+    },
+}
+
+/** Copied from the old storage and refused by validation: it asks to be saved again. */
+export const MigratedConfigurationNeedsSaving: Story = {
+    args: {updatedBy: "migration: needs saving again"},
+    parameters: {widgets: ["MigratedConfigNotice"]},
+    play: async ({canvasElement}) => {
+        const alert = await within(canvasElement).findByText("Configuration needs saving again.")
+        await expect(alert).toBeVisible()
+        await expect(
+            within(canvasElement).getByText(/didn't pass the checks a save makes/)
+        ).toBeVisible()
     },
 }

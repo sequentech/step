@@ -21,19 +21,22 @@ import org.keycloak.sessions.AuthenticationSessionModel;
 @UtilityClass
 public class CodeChannels {
 
-  /** Why no code can be sent. Each reason has one message key, shared by the page and the log. */
+  /**
+   * Why no code can be sent. Each refusal has one message key for the page, and one reason ({@link
+   * MessageReason}) for the event and the log, the same string harvest uses.
+   */
   public enum Refusal {
     /** The record has no destination for any channel. */
-    NO_CONTACT("messageOtp.auth.noChannel", "No contact channel"),
+    NO_CONTACT("messageOtp.auth.noChannel", MessageReason.NO_CONTACT_CHANNEL),
     /** The event no longer offers the voter's channel for codes. */
-    NOT_OFFERED("messageOtp.auth.channelNotOffered", "Channel not offered for codes"),
+    NOT_OFFERED("messageOtp.auth.channelNotOffered", MessageReason.CHANNEL_NOT_OFFERED_FOR_CODES),
     /** Nothing in this Keycloak delivers the voter's channel (no message sender for it). */
-    NOT_DELIVERED("messageOtp.auth.channelUnavailable", "No sender delivers the channel");
+    NOT_DELIVERED("messageOtp.auth.channelUnavailable", MessageReason.NO_SENDER_FOR_CHANNEL);
 
     private final String messageKey;
-    private final String reason;
+    private final MessageReason reason;
 
-    Refusal(String messageKey, String reason) {
+    Refusal(String messageKey, MessageReason reason) {
       this.messageKey = messageKey;
       this.reason = reason;
     }
@@ -43,7 +46,7 @@ public class CodeChannels {
     }
 
     public String reason() {
-      return reason;
+      return reason.reason();
     }
   }
 

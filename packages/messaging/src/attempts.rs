@@ -9,13 +9,17 @@
 
 use crate::sender::FailureKind;
 use chrono::{DateTime, Duration, Utc};
-use sequent_core::types::messaging::{MessageAttemptState, MessageChannel, MessagePurpose};
+use sequent_core::types::messaging::{
+    MessageAttemptState, MessageChannel, MessagePurpose, LATE_FAILURE_RETRY_HOURS,
+};
 
 /// What the ledger holds about one earlier attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttemptRecord {
     pub attempt: i32,
-    pub channel: MessageChannel,
+    /// `None` for a message recorded without any channel ("No contact
+    /// channel"), which is never retried.
+    pub channel: Option<MessageChannel>,
     pub state: MessageAttemptState,
     /// For failed attempts.
     pub failure: Option<FailureKind>,
@@ -72,6 +76,13 @@ pub fn next_retry_at(
     backoff(attempt).map(|wait| now + wait)
 }
 
+/// Whether a failure reported at `now` for an attempt made at
+/// `attempted_at` came too late to be retried: sent again so late, the
+/// message could reach the voter after it stopped being useful.
+pub fn reported_too_late(attempted_at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+    now - attempted_at >= Duration::hours(LATE_FAILURE_RETRY_HOURS)
+}
+
 /// Decides the next step for a logical message on `channel`, given its
 /// attempts so far, at `now`.
 pub fn decide(
@@ -108,16 +119,18 @@ pub fn decide(
     {
         return Dispatch::GiveUp;
     }
-    match last.next_retry_at {
+    match (last.next_retry_at, last.channel) {
         // The same channel as the failed attempt, whatever was asked now.
-        Some(at) if at <= now => Dispatch::Send {
+        (Some(at), Some(channel)) if at <= now => Dispatch::Send {
             attempt: last.attempt + 1,
-            channel: last.channel,
+            channel,
         },
-        Some(at) => Dispatch::RetryLater { at },
+        // Recorded without a channel: nothing to send it on.
+        (Some(_), None) => Dispatch::GiveUp,
+        (Some(at), Some(_)) => Dispatch::RetryLater { at },
         // No retry was scheduled, such as for a message without a stored
         // template: its failure is final.
-        None => Dispatch::GiveUp,
+        (None, _) => Dispatch::GiveUp,
     }
 }
 
@@ -146,7 +159,7 @@ mod tests {
     fn record(attempt: i32, channel: MessageChannel, state: MessageAttemptState) -> AttemptRecord {
         AttemptRecord {
             attempt,
-            channel,
+            channel: Some(channel),
             state,
             failure: None,
             next_retry_at: None,
@@ -161,7 +174,7 @@ mod tests {
     ) -> AttemptRecord {
         AttemptRecord {
             attempt,
-            channel,
+            channel: Some(channel),
             state: FAILED,
             failure: Some(kind),
             next_retry_at: retry_in.map(|wait| now() + wait),
@@ -296,6 +309,23 @@ mod tests {
             );
             assert_eq!(next_retry_at(MessagePurpose::OTP, 1, kind, now()), None);
         }
+    }
+
+    #[test]
+    fn a_message_without_a_channel_is_never_sent_again() {
+        let mut no_channel = failed(1, WHATSAPP, FailureKind::TRANSIENT, Some(Duration::zero()));
+        no_channel.channel = None;
+        assert_eq!(
+            decide(MessagePurpose::NOTICE, SMS, &[no_channel], now()),
+            Dispatch::GiveUp
+        );
+    }
+
+    #[test]
+    fn failures_reported_an_hour_after_the_attempt_are_too_late() {
+        assert!(!reported_too_late(now() - Duration::minutes(59), now()));
+        assert!(reported_too_late(now() - Duration::hours(1), now()));
+        assert!(reported_too_late(now() - Duration::hours(48), now()));
     }
 
     #[test]

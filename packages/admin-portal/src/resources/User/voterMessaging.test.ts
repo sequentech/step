@@ -1,11 +1,12 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {EMessageChannel} from "@/types/messaging"
+import {EMessageAttemptState, EMessageChannel, ILedgerMessage} from "@/types/messaging"
 import {
     EVoterChannelSource,
     isVoterMessagingAttribute,
     voterChannel,
+    voterDeliveryProblems,
     voterMessaging,
 } from "./voterMessaging"
 
@@ -103,5 +104,43 @@ describe("voterMessaging", () => {
         expect(isVoterMessagingAttribute("sequent.read-only.message-number")).toBe(true)
         expect(isVoterMessagingAttribute("sequent.read-only.viber-number")).toBe(true)
         expect(isVoterMessagingAttribute("sequent.read-only.mobile-number")).toBe(false)
+    })
+})
+
+describe("voterDeliveryProblems (R4-07)", () => {
+    const attempt = (overrides: Partial<ILedgerMessage>): ILedgerMessage => ({
+        id: `a-${overrides.attempt ?? 1}-${overrides.logical_key ?? "k"}`,
+        channel: EMessageChannel.VIBER,
+        state: EMessageAttemptState.FAILED,
+        attempt: 1,
+        logical_key: "k",
+        created_at: "2026-10-09T10:00:00Z",
+        ...overrides,
+    })
+
+    it("judges a message by its latest attempt: a retry in progress is not a failure", () => {
+        const failed = attempt({attempt: 1})
+        const retry = attempt({
+            attempt: 2,
+            state: EMessageAttemptState.QUEUED,
+            created_at: "2026-10-09T10:01:00Z",
+        })
+        expect(voterDeliveryProblems([failed], [failed, retry])).toEqual({
+            failure: undefined,
+            unconfirmed: undefined,
+        })
+    })
+
+    it("keeps the latest failed message, and an unconfirmed one apart", () => {
+        const failed = attempt({attempt: 3, logical_key: "notice"})
+        const unknown = attempt({
+            attempt: 1,
+            logical_key: "otp",
+            state: EMessageAttemptState.UNKNOWN,
+        })
+        expect(voterDeliveryProblems([unknown, failed], [unknown, failed])).toEqual({
+            failure: failed,
+            unconfirmed: unknown,
+        })
     })
 })

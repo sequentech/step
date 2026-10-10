@@ -79,10 +79,12 @@ export const ReadinessCell: React.FC<IReadinessCellProps> = ({ready, label, reas
     </Box>
 )
 
+// The drawer keeps the account's id, never the account: it always shows the
+// account as the list last read it (after generating credentials, for one).
 type IDrawerState =
     | {kind: "CLOSED"}
     | {kind: "ADD"}
-    | {kind: "EDIT"; account: IMessagingAccount}
+    | {kind: "EDIT"; id: string}
     /** Just created: reopened once the list has it, to show its callback URL. */
     | {kind: "CREATED"; id: string; callback: ICallbackResult}
 
@@ -100,7 +102,14 @@ export const SettingsMessaging: React.FC = () => {
     const authContext = useContext(AuthContext)
     const [tenantId] = useTenantStore()
     const canWrite = authContext.isAuthorized(true, tenantId, IPermissions.MESSAGING_ACCOUNT_WRITE)
-    const {accounts: unsorted, loading, error, refetch} = useMessagingAccounts()
+    const {
+        accounts: unsorted,
+        loading,
+        error,
+        refetch,
+    } = useMessagingAccounts({
+        callbackStatus: true,
+    })
     const accounts = useMemo(() => sortAccounts(unsorted), [unsorted])
     const {data: tenant} = useGetOne(
         "sequent_backend_tenant",
@@ -153,8 +162,10 @@ export const SettingsMessaging: React.FC = () => {
         await reload()
         setDrawer(callback ? {kind: "CREATED", id, callback} : {kind: "CLOSED"})
     }
-    const createdAccount =
-        drawer.kind === "CREATED" ? accounts.find((account) => account.id === drawer.id) : undefined
+    const drawerAccount =
+        drawer.kind === "EDIT" || drawer.kind === "CREATED"
+            ? accounts.find((account) => account.id === drawer.id)
+            : undefined
 
     const blockerLabels = (blockers: EReadinessBlocker[]) =>
         blockers.map((blocker) => t(`messaging.blocker.${blocker}`))
@@ -317,7 +328,7 @@ export const SettingsMessaging: React.FC = () => {
                                                               )
                                                     }
                                                     onClick={() =>
-                                                        setDrawer({kind: "EDIT", account})
+                                                        setDrawer({kind: "EDIT", id: account.id})
                                                     }
                                                 >
                                                     {canWrite ? <EditIcon /> : <VisibilityIcon />}
@@ -400,7 +411,7 @@ export const SettingsMessaging: React.FC = () => {
 
             <Drawer
                 anchor="right"
-                open={drawer.kind !== "CLOSED" && (drawer.kind !== "CREATED" || !!createdAccount)}
+                open={drawer.kind === "ADD" || !!drawerAccount}
                 onClose={() => setDrawer({kind: "CLOSED"})}
                 slotProps={{
                     paper: {
@@ -409,22 +420,21 @@ export const SettingsMessaging: React.FC = () => {
                     },
                 }}
             >
-                {drawer.kind === "ADD" || drawer.kind === "EDIT" ? (
+                {drawer.kind === "ADD" ? (
                     <MessagingAccountEditor
-                        key={drawer.kind === "EDIT" ? drawer.account.id : "new"}
-                        account={drawer.kind === "EDIT" ? drawer.account : undefined}
+                        key="new"
                         canWrite={canWrite}
                         onChanged={reload}
                         onCreated={created}
                         onClose={() => setDrawer({kind: "CLOSED"})}
                     />
                 ) : null}
-                {drawer.kind === "CREATED" && createdAccount ? (
+                {drawerAccount ? (
                     <MessagingAccountEditor
-                        key={createdAccount.id}
-                        account={createdAccount}
+                        key={drawerAccount.id}
+                        account={drawerAccount}
                         canWrite={canWrite}
-                        initialCallback={drawer.callback}
+                        initialCallback={drawer.kind === "CREATED" ? drawer.callback : undefined}
                         onChanged={reload}
                         onClose={() => setDrawer({kind: "CLOSED"})}
                     />

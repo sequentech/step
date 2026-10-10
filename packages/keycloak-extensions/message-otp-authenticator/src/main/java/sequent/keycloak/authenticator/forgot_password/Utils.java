@@ -43,6 +43,7 @@ import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.util.JsonSerialization;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.gateway.SmsSenderProvider;
+import sequent.keycloak.authenticator.messaging.MessageReason;
 import sequent.keycloak.authenticator.messaging.NoticeRecipient;
 
 @UtilityClass
@@ -360,14 +361,18 @@ public class Utils {
   /**
    * Sends a temporary password on the voter's one channel. A failure is recorded and the password
    * is never sent elsewhere.
+   *
+   * @return empty when the password was handed over (harvest took it or may have sent it: ACCEPTED,
+   *     QUEUED, DELIVERED, UNKNOWN; or Keycloak's provider sent it); otherwise the reason it
+   *     wasn't, and the caller must not set it
    */
-  public static void sendNewPasswordNotification(
+  public static Optional<String> sendNewPasswordNotification(
       KeycloakSession session, UserModel user, String temporaryPassword)
       throws EmailException, IOException {
     log.info("sendNewPasswordNotification(): start");
     RealmModel realm = session.getContext().getRealm();
     String realmName = getRealmName(realm);
-    Optional<sequent.keycloak.authenticator.Utils.KeycloakNotice> keycloak =
+    sequent.keycloak.authenticator.Utils.NoticeOutcome outcome =
         sequent.keycloak.authenticator.Utils.sendNotice(
             session,
             realm,
@@ -379,10 +384,11 @@ public class Utils {
             NEW_PASSWORD_MESSAGE_KEY,
             () -> List.of(realmName, temporaryPassword),
             null);
-    if (keycloak.isEmpty()) {
-      return;
+    if (outcome.keycloak().isEmpty()) {
+      return outcome.handedOver() ? Optional.empty() : Optional.of(outcome.failureReason());
     }
-    switch (keycloak.get().courier()) {
+    sequent.keycloak.authenticator.Utils.KeycloakNotice notice = outcome.keycloak().get();
+    switch (notice.courier()) {
       case EMAIL -> {
         EmailTemplateProvider emailTemplateProvider =
             session.getProvider(EmailTemplateProvider.class);
@@ -396,18 +402,24 @@ public class Utils {
             .setAttribute("realmName", realmName)
             .send(
                 Utils.NEW_PASSWORD_EMAIL_SUBJECT, subjAttr, Utils.NEW_PASSWORD_EMAIL_FTL, bodyAttr);
+        return Optional.empty();
       }
-      case SMS ->
-          session
-              .getProvider(SmsSenderProvider.class)
-              .send(
-                  keycloak.get().mobileNumber(),
-                  NEW_PASSWORD_MESSAGE_KEY,
-                  List.of(realmName, temporaryPassword),
-                  realm,
-                  user,
-                  session);
-      default -> log.warn("sendNewPasswordNotification(): no channel; not sent");
+      case SMS -> {
+        session
+            .getProvider(SmsSenderProvider.class)
+            .send(
+                notice.mobileNumber(),
+                NEW_PASSWORD_MESSAGE_KEY,
+                List.of(realmName, temporaryPassword),
+                realm,
+                user,
+                session);
+        return Optional.empty();
+      }
+      default -> {
+        log.warn("sendNewPasswordNotification(): no channel; not sent");
+        return Optional.of(MessageReason.NO_CONTACT_CHANNEL.reason());
+      }
     }
   }
 

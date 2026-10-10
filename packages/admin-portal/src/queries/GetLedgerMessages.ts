@@ -5,9 +5,10 @@ import {gql} from "@apollo/client"
 
 import {ILedgerMessage} from "@/types/messaging"
 
-// The voter's latest message that failed or whose delivery isn't confirmed.
-export const GET_VOTER_LAST_FAILURE = gql`
-    query GetVoterLastFailure($tenantId: uuid!, $electionEventId: uuid!, $voterId: String!) {
+// The voter's latest messages that failed or whose delivery isn't confirmed:
+// candidates, since a later attempt of the same message may have settled them.
+export const GET_VOTER_UNSETTLED_MESSAGES = gql`
+    query GetVoterUnsettledMessages($tenantId: uuid!, $electionEventId: uuid!, $voterId: String!) {
         sequent_backend_message(
             where: {
                 tenant_id: {_eq: $tenantId}
@@ -17,16 +18,30 @@ export const GET_VOTER_LAST_FAILURE = gql`
                 state: {_in: ["FAILED", "UNKNOWN"]}
             }
             order_by: [{updated_at: desc}]
-            limit: 1
+            limit: 20
         ) {
             id
             channel
             state
             attempt
+            logical_key
             error
             created_at
             updated_at
             failed_at
+        }
+    }
+`
+
+// Every attempt of those messages, to tell which attempt is the latest.
+export const GET_VOTER_MESSAGE_ATTEMPTS = gql`
+    query GetVoterMessageAttempts($tenantId: uuid!, $keys: [String!]!) {
+        sequent_backend_message(where: {tenant_id: {_eq: $tenantId}, logical_key: {_in: $keys}}) {
+            id
+            state
+            attempt
+            logical_key
+            created_at
         }
     }
 `

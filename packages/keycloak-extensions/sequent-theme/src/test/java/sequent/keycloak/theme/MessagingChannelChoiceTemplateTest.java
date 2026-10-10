@@ -88,6 +88,15 @@ class MessagingChannelChoiceTemplateTest {
   }
 
   /** KC-R5 and plan §2.5: consent for every channel, email and SMS included. */
+  /** R3-22: the Messenger hint has its "Connect Messenger" label, as the React form shows. */
+  @Test
+  void theMessengerHintIsLabelledConnectMessenger() throws Exception {
+    String html = render(model(Map.of("sequent.otp-channel", "MESSENGER"), ""));
+    int label = html.indexOf("[messageOtp.messenger.connect]");
+    assertTrue(label >= 0, html);
+    assertTrue(label < html.indexOf("[messageOtp.messenger.connectHelp|Synthetic Page]"));
+  }
+
   @Test
   void everyChannelAsksForConsent() throws Exception {
     Map<String, Object> model = model(Map.of(), "");

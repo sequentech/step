@@ -54,6 +54,7 @@ import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
+import sequent.keycloak.authenticator.messaging.ContactDetails;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
 import sequent.keycloak.authenticator.messaging.PublicMessagingChannels;
@@ -304,9 +305,6 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
               .collect(Collectors.toList());
       List<FormMessage> errors = Validation.getFormErrorsFromValidation(filteredErrors);
 
-      if (pve.hasError(Messages.INVALID_EMAIL)) {
-        context.getEvent().detail(Details.EMAIL, attributes.getFirst(UserModel.EMAIL));
-      }
       // if error is empty but we are here, then the exception was related
       // to error to be ignored (username/email exists), so we ignore them
       // and continue
@@ -1088,7 +1086,9 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     formData = normalizeFormParameters(formData, hiddenProfileAttributes);
     formData.forEach(
         (key, value) -> {
-          if (value != null) {
+          // Events reach the electoral log: never a voter's number or email address.
+          if (value != null
+              && value.stream().noneMatch(entry -> ContactDetails.isContact(key, entry))) {
             context.getEvent().detail(key, value);
           }
         });

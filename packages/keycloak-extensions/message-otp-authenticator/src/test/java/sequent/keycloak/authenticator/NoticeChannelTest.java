@@ -5,6 +5,8 @@
 package sequent.keycloak.authenticator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -105,8 +107,12 @@ class NoticeChannelTest {
 
   @Test
   void aNoticeGoesToTheVerifiedChannelOnly() throws Exception {
+    EventBuilder event = mock(EventBuilder.class, RETURNS_SELF);
+    when(context.getEvent()).thenReturn(event);
     enrolledWith(MessageChannel.WHATSAPP, WHATSAPP);
     sendPending(Utils.MessageCourier.BOTH);
+    // R2-07: harvest logs the attempt; Keycloak adds no second entry.
+    verify(event, never()).detail(eq("msgBody"), anyString());
 
     ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
     verify(sender).send(request.capture());
@@ -172,12 +178,56 @@ class NoticeChannelTest {
     verifyNoInteractions(sms);
   }
 
+  /**
+   * R2-22 and the fix-round decision: Keycloak always hands a notice on the voter's channel to
+   * harvest, which refuses a channel the event doesn't use for notices with its one reason (and a
+   * ledger row). Keycloak never decides that itself, and never sends it elsewhere.
+   */
   @Test
-  void aChannelTheEventDoesNotUseForNoticesIsNotSentAnywhere() throws Exception {
+  void aChannelTheEventDoesNotUseForNoticesIsRefusedByHarvestNotByKeycloak() throws Exception {
     enrolledWith(MessageChannel.VIBER, WHATSAPP);
+    when(sender.send(any()))
+        .thenReturn(new SendMessageResponse("m-9", "FAILED", "Channel not offered for notices"));
     sendPending(Utils.MessageCourier.SMS);
-    verify(sender, never()).send(any());
+    ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sender).send(request.capture());
+    assertEquals(MessageChannel.VIBER, request.getValue().channel());
+    assertEquals(MessagePurpose.NOTICE, request.getValue().purpose());
     verifyNoInteractions(sms);
+  }
+
+  /**
+   * R2-22: a voter with no channel at all is also handed to harvest (no channel, no destination),
+   * which records the notice as FAILED with "No contact channel".
+   */
+  @Test
+  void aVoterWithNoChannelIsRecordedByHarvest() throws Exception {
+    notes.remove(MessageOTPAuthenticator.MOBILE_NUMBER_FIELD);
+    when(sender.send(any()))
+        .thenReturn(new SendMessageResponse("m-10", "FAILED", "No contact channel"));
+    sendPending(Utils.MessageCourier.CHOSEN);
+    ArgumentCaptor<SendMessageRequest> request = ArgumentCaptor.forClass(SendMessageRequest.class);
+    verify(sender).send(request.capture());
+    assertNull(request.getValue().channel());
+    assertNull(request.getValue().destination());
+    assertEquals(MessagePurpose.NOTICE, request.getValue().purpose());
+    verifyNoInteractions(sms);
+  }
+
+  /** R2-23: a notice sent by Keycloak's own SMS provider is logged without its content. */
+  @Test
+  void aKeycloakSentNoticeIsLoggedWithoutItsContent() throws Exception {
+    EventBuilder event = mock(EventBuilder.class, RETURNS_SELF);
+    when(context.getEvent()).thenReturn(event);
+    when(sms.send(anyString(), anyString(), anyList(), any(), any(), any()))
+        .thenReturn("Your enrollment is pending: INSUFFICIENT_INFORMATION " + PHONE);
+    sendPending(Utils.MessageCourier.CHOSEN);
+    verify(sms).send(eq(PHONE), anyString(), anyList(), any(), any(), any());
+    ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+    verify(event).detail(eq("msgBody"), body.capture());
+    assertFalse(body.getValue().contains("pending"));
+    assertFalse(body.getValue().contains(PHONE));
+    assertTrue(body.getValue().contains("\"channel\":\"SMS\""));
   }
 
   @Test

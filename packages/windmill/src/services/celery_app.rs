@@ -54,8 +54,8 @@ use crate::tasks::manage_election_init_report::manage_election_init_report;
 use crate::tasks::manage_election_lifecycle_window::manage_election_lifecycle_window;
 use crate::tasks::manage_election_voting_period_end::manage_election_voting_period_end;
 use crate::tasks::manual_verification_report::generate_manual_verification_report;
-use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
 use crate::tasks::migrate_messaging_attributes::migrate_messaging_attributes;
+use crate::tasks::migrate_realm_permissions::migrate_realm_permissions;
 use crate::tasks::migrate_registration_flows::migrate_registration_flows;
 use crate::tasks::miru_plugin_tasks::create_transmission_package_task;
 use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
@@ -536,6 +536,9 @@ mod tests {
                 "{task} goes to {queue} from beat but not from the workers"
             );
         }
-        assert_eq!(worker.get("reconcile_messages").map(String::as_str), Some("Beat"));
+        assert_eq!(
+            worker.get("reconcile_messages").map(String::as_str),
+            Some("Beat")
+        );
     }
 }

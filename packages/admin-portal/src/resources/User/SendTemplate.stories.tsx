@@ -23,6 +23,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EOutOfWindowPolicy,
+    IEventMessagingConfig,
 } from "@/types/messaging"
 import {AudienceSelection, SendTemplate} from "./SendTemplate"
 
@@ -32,6 +33,9 @@ interface Scenario {
     secretAttributeNames?: string[]
     failure: boolean
     close: () => void
+    /** The event's stored configuration; `null` for an event without one. */
+    config?: IEventMessagingConfig | null
+    roles?: string[]
 }
 
 const welcome = {
@@ -109,7 +113,7 @@ const accounts = [
     account(SMS_ACCOUNT_ID, EMessageChannel.SMS, EMessagingProvider.AWS_SNS, "Election office SMS"),
 ]
 
-const messagingConfig = {
+const messagingConfig: IEventMessagingConfig = {
     version: 1,
     channels: [
         {
@@ -159,9 +163,16 @@ const meta = {
                 }),
                 GetEventMessagingConfig: () => ({
                     data: {
-                        sequent_backend_messaging_event_config: [
-                            {election_event_id: EVENT_ID, config: messagingConfig, version: 1},
-                        ],
+                        sequent_backend_messaging_event_config:
+                            args.config === null
+                                ? []
+                                : [
+                                      {
+                                          election_event_id: EVENT_ID,
+                                          config: args.config ?? messagingConfig,
+                                          version: 1,
+                                      },
+                                  ],
                     },
                 }),
                 CreateScheduledEvent: () => {
@@ -179,8 +190,8 @@ const meta = {
         })
         await graphql.ready
     },
-    render: ({ids, audienceSelection, secretAttributeNames, close}) => (
-        <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={ROLES}>
+    render: ({ids, audienceSelection, secretAttributeNames, close, roles}) => (
+        <AdminStoryProvider boundary={graphql} dataProvider={data.provider} roles={roles ?? ROLES}>
             <SendTemplate
                 ids={ids}
                 audienceSelection={audienceSelection}
@@ -241,7 +252,6 @@ export const Populated: Story = {
         const table = within(canvas.getByRole("table", {name: "Each voter's channel"}))
         expect(table.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
             "Channel",
-            "Voters",
             "Sends from",
         ])
         // Channel order: SMS before Email.
@@ -462,5 +472,52 @@ export const SelectedUsers: Story = {
     parameters: {router: {initialEntries: ["/user-roles/users"]}},
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByText("To 2 Selected users")).toBeVisible()
+    },
+}
+
+export const EventThatSendsNoNotices: Story = {
+    args: {
+        config: {
+            ...messagingConfig,
+            channels: messagingConfig.channels.map((channel) => ({
+                ...channel,
+                purposes: [EMessagePurpose.OTP],
+            })),
+        },
+    },
+    play: async ({args, canvasElement}) => {
+        const canvas = within(canvasElement)
+        // Never shown as SMS and Email: every voter's notice would be refused.
+        await expect(await canvas.findByText(/turns on notices for no channel/)).toBeVisible()
+        expect(canvas.queryByRole("table", {name: "Each voter's channel"})).toBeNull()
+        await send(canvasElement)
+        expect(callNames()).toEqual(READS)
+        expect(args.close).not.toHaveBeenCalled()
+    },
+}
+
+export const EventWithoutAConfiguration: Story = {
+    args: {config: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const table = within(await canvas.findByRole("table", {name: "Each voter's channel"}))
+        expect(
+            table
+                .getAllByRole("row")
+                .slice(1)
+                .map((row) => row.getAttribute("data-channel"))
+        ).toEqual([EMessageChannel.SMS, EMessageChannel.EMAIL])
+    },
+}
+
+export const WithoutTheReadPermission: Story = {
+    args: {roles: []},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(
+            await canvas.findByText(/needs the messaging-config-read permission/)
+        ).toBeVisible()
+        expect(canvas.queryByRole("table", {name: "Each voter's channel"})).toBeNull()
+        expect(graphql.calls.filter((call) => READS.includes(call.name))).toEqual([])
     },
 }

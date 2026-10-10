@@ -17,7 +17,9 @@ import {
     IAccountFormValues,
     accountReadiness,
     credentialsPayload,
+    credentialsToReenter,
     emptyAccountForm,
+    endpointChanged,
     formFromAccount,
     limitsFromForm,
     parseCallingCodes,
@@ -40,7 +42,7 @@ const account = (overrides: Partial<IMessagingAccount> = {}): IMessagingAccount 
     tenant_id: "tenant-1",
     channel: EMessageChannel.WHATSAPP,
     provider: EMessagingProvider.WHATSAPP_CLOUD_API,
-    name: "COMELEC WhatsApp",
+    name: "Staff Association WhatsApp",
     sender: {
         provider: EMessagingProvider.WHATSAPP_CLOUD_API,
         business_account_id: "1001",
@@ -143,7 +145,11 @@ describe("upsertAccountVariables", () => {
             limits: limitsFromForm(viber),
             providerApproval: null,
             isDefault: false,
+            credentials: null,
         })
+        expect(
+            upsertAccountVariables(null, {...viber, credentials: {API_KEY: "key"}}).credentials
+        ).toEqual({API_KEY: "key"})
         const whatsapp = formFromAccount(
             account({
                 provider_approval: EProviderApproval.CONFIRMED,
@@ -171,11 +177,11 @@ describe("upsertAccountVariables", () => {
 describe("senderFromForm", () => {
     it("builds the tagged sender, turning empty optional fields into null", () => {
         const values = form(EMessagingProvider.AWS_SNS, EMessageChannel.SMS, {
-            sender: {sender_id: "COMELEC", origination_number: " ", region: "ap-southeast-1"},
+            sender: {sender_id: "STAFFASSOC", origination_number: " ", region: "ap-southeast-1"},
         })
         expect(senderFromForm(values)).toEqual({
             provider: EMessagingProvider.AWS_SNS,
-            sender_id: "COMELEC",
+            sender_id: "STAFFASSOC",
             origination_number: null,
             region: "ap-southeast-1",
         })
@@ -183,7 +189,7 @@ describe("senderFromForm", () => {
 
     it("keeps the Viber approved templates per purpose and language", () => {
         const values = form(EMessagingProvider.VIBER_INFOBIP, EMessageChannel.VIBER, {
-            sender: {base_url: "https://x.api.infobip.com", sender: "COMELEC"},
+            sender: {base_url: "https://x.api.infobip.com", sender: "Staff Association"},
             viberTemplates: [
                 {purpose: EMessagePurpose.OTP, language: "en", templateId: "88213"},
                 {purpose: EMessagePurpose.OTP, language: "tl", templateId: " 88214 "},
@@ -193,7 +199,7 @@ describe("senderFromForm", () => {
         expect(senderFromForm(values)).toEqual({
             provider: EMessagingProvider.VIBER_INFOBIP,
             base_url: "https://x.api.infobip.com",
-            sender: "COMELEC",
+            sender: "Staff Association",
             approved_templates: {OTP: {en: "88213", tl: "88214"}},
         })
     })
@@ -250,7 +256,7 @@ describe("validateAccountForm", () => {
 
     it("requires a template ID and no repeated language per Viber purpose", () => {
         const values = form(EMessagingProvider.VIBER_INFOBIP, EMessageChannel.VIBER, {
-            sender: {base_url: "https://x", sender: "COMELEC"},
+            sender: {base_url: "https://x", sender: "Staff Association"},
             viberTemplates: [
                 {purpose: EMessagePurpose.OTP, language: "en", templateId: "1"},
                 {purpose: EMessagePurpose.OTP, language: "en", templateId: "2"},
@@ -376,5 +382,46 @@ describe("accountReadiness", () => {
         expect(readiness.connected).toBe(false)
         expect(readiness.purposes.OTP.blockers).toEqual([EReadinessBlocker.UNSUPPORTED_PROVIDER])
         expect(readiness.purposes.NOTICE.blockers).toEqual([EReadinessBlocker.UNSUPPORTED_PROVIDER])
+    })
+})
+
+describe("credentials follow their address (R4-01)", () => {
+    const stored = form(EMessagingProvider.VIBER_INFOBIP, EMessageChannel.VIBER, {
+        sender: {base_url: "https://x.api.infobip.com", sender: "Staff Association"},
+    })
+    const moved = {...stored, sender: {...stored.sender, base_url: "https://y.api.infobip.com"}}
+
+    it("sees an address change, but not a trailing slash or spaces", () => {
+        expect(endpointChanged(stored, moved)).toBe(true)
+        expect(
+            endpointChanged(stored, {
+                ...stored,
+                sender: {...stored.sender, base_url: " https://x.api.infobip.com/ "},
+            })
+        ).toBe(false)
+        expect(endpointChanged(undefined, moved)).toBe(false)
+    })
+
+    it("asks for every credential the provider sends with, and refuses the form until typed", () => {
+        expect(credentialsToReenter(stored, moved)).toEqual([ECredentialName.API_KEY])
+        expect(validateAccountForm(moved, stored)["sender.base_url"]).toBe(
+            EAccountFormError.CREDENTIALS_FOLLOW_ENDPOINT
+        )
+        const typed = {...moved, credentials: {[ECredentialName.API_KEY]: "new-key"}}
+        expect(credentialsToReenter(stored, typed)).toEqual([])
+        expect(validateAccountForm(typed, stored)).toEqual({})
+    })
+
+    it("treats a Graph API base set for the first time, and an SMTP server, as address changes", () => {
+        const page = form(EMessagingProvider.MESSENGER_SEND_API, EMessageChannel.MESSENGER, {
+            sender: {page_id: "1", api_version: "v23.0", api_base_url: ""},
+        })
+        const bsp = {...page, sender: {...page.sender, api_base_url: "https://graph.bsp.example"}}
+        expect(credentialsToReenter(page, bsp)).toEqual([ECredentialName.ACCESS_TOKEN])
+        const smtp = form(EMessagingProvider.SMTP, EMessageChannel.EMAIL, {
+            sender: {from_address: "a@b.example", server_url: "smtp.example:587"},
+        })
+        const moved = {...smtp, sender: {...smtp.sender, server_url: "smtp2.example:587"}}
+        expect(credentialsToReenter(smtp, moved)).toEqual([ECredentialName.SMTP_PASSWORD])
     })
 })

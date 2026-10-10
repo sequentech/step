@@ -11,6 +11,8 @@ import nl from "./nl"
 import tl from "./tl"
 
 const SECTIONS = ["messagingEvent", "messaging", "messagingAccounts"] as const
+// Messaging texts outside the three sections.
+const EXTRA_KEYS = ["usersAndRolesScreen.permissions.messaging-config-read"]
 
 type Tree = {[key: string]: string | Tree}
 
@@ -25,7 +27,8 @@ const leaves = (tree: Tree, prefix = ""): Array<[string, string]> =>
 // words that are the same in a language ("Status" in Dutch, "Post" for a Post).
 const SAME_EVERYWHERE =
     /^(messaging\.channel\.|messaging\.provider\.(AWS_SES|AWS_SNS|WHATSAPP_CLOUD_API|MESSENGER_SEND_API|VIBER_INFOBIP)$)/
-const PLACEHOLDERS_ONLY = /^[\s:·\-{}a-z_]*$/
+// Only placeholders and punctuation: "{{channel}}: {{purpose}}", never words.
+const PLACEHOLDERS_ONLY = /^(\s|[:·-]|\{\{\w+\}\})*$/
 const SAME_IN: Record<string, string[]> = {
     es: ["messagingEvent.column.post"],
     ca: ["messagingEvent.column.post"],
@@ -42,22 +45,49 @@ const SAME_IN: Record<string, string[]> = {
         "messagingAccounts.column.provider",
         "messagingAccounts.editor.provider",
     ],
-    tl: [],
+    // "Channel" and "Post" are kept as loanwords, as in the rest of the Tagalog texts.
+    tl: [
+        "messagingEvent.column.channel",
+        "messagingEvent.column.post",
+        "messaging.send.channelColumn",
+        "messaging.voter.channel",
+        "messaging.logs.channel",
+        "messagingAccounts.column.channel",
+        "messagingAccounts.editor.channel",
+    ],
 }
 
+const at = (tree: Tree, path: string): string | undefined => {
+    const value = path
+        .split(".")
+        .reduce<
+            string | Tree | undefined
+        >((node, key) => (typeof node === "object" ? node[key] : undefined), tree)
+    return typeof value === "string" ? value : undefined
+}
+
+const messagingTexts = (translations: Tree): Array<[string, string]> => [
+    ...SECTIONS.flatMap((section) => leaves(translations[section] as Tree, `${section}.`)),
+    ...EXTRA_KEYS.flatMap((key): Array<[string, string]> => {
+        const value = at(translations, key)
+        return value === undefined ? [] : [[key, value]]
+    }),
+]
+
+const variables = (text: string): string[] =>
+    Array.from(text.matchAll(/\{\{\s*(\w+)\s*\}\}/g), (match) => match[1]).sort()
+
 describe("messaging translations", () => {
-    const english = new Map(
-        SECTIONS.flatMap((section) =>
-            leaves(en.translations[section] as unknown as Tree, `${section}.`)
-        )
-    )
+    const english = new Map(messagingTexts(en.translations as unknown as Tree))
+
+    it("has the permission label in English", () => {
+        expect(english.get(EXTRA_KEYS[0])).toBeTruthy()
+    })
 
     it.each(Object.entries({es, ca, eu, fr, gl, nl, tl}))(
         "%s translates every messaging text rather than copying the English",
         (language, translation) => {
-            const copies = SECTIONS.flatMap((section) =>
-                leaves(translation.translations[section] as unknown as Tree, `${section}.`)
-            )
+            const copies = messagingTexts(translation.translations as unknown as Tree)
                 .filter(([key, value]) => english.get(key) === value)
                 .map(([key]) => key)
                 .filter(
@@ -70,12 +100,26 @@ describe("messaging translations", () => {
         }
     )
 
+    it.each(Object.entries({es, ca, eu, fr, gl, nl, tl}))(
+        "%s keeps every text's {{variables}}, and has every text",
+        (_language, translation) => {
+            const texts = new Map(messagingTexts(translation.translations as unknown as Tree))
+            const mismatched = Array.from(english.entries())
+                .filter(
+                    ([key, value]) =>
+                        JSON.stringify(variables(texts.get(key) ?? "")) !==
+                        JSON.stringify(variables(value))
+                )
+                .map(([key]) => key)
+            expect(mismatched).toEqual([])
+            expect(Array.from(english.keys()).filter((key) => !texts.has(key))).toEqual([])
+        }
+    )
+
     it("names no client", () => {
         for (const translation of [en, es, ca, eu, fr, gl, nl, tl]) {
-            expect(JSON.stringify(translation.translations.messaging)).not.toMatch(/COMELEC/i)
-            expect(JSON.stringify(translation.translations.messagingAccounts)).not.toMatch(
-                /COMELEC/i
-            )
+            const texts = messagingTexts(translation.translations as unknown as Tree)
+            expect(JSON.stringify(texts)).not.toMatch(/COMELEC/i)
         }
     })
 })

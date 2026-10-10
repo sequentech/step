@@ -3331,6 +3331,9 @@ const catalanTranslation: TranslationType = {
                     title: "Aquí no hi ha res",
                     text: "Les inscripcions amb aquest estat apareixeran aquí. Proveu una altra cerca o un altre estat.",
                 },
+                searchHelp:
+                    "Un nom, un correu electrònic o un número d'identificació, o la referència de suport que es va donar al votant, com ara Q5KW-8RFX.",
+                referenceError: "No s'ha pogut cercar la referència de suport.",
             },
             flow: {
                 stepsLabel: "Passos de la revisió",
@@ -5388,6 +5391,10 @@ const catalanTranslation: TranslationType = {
                 noReceipts:
                     "Aquest compte no rep informes de lliurament, així que no es pot mostrar el lliurament.",
                 showFailed: "Mostra els missatges fallits de {{channel}} a Registres",
+                noChannelHelp:
+                    "Votants sense cap canal de contacte registrat. Els seus avisos fallen i mai no es compten en cap canal.",
+                showFailedNoChannel:
+                    "Mostra a Registres els missatges fallits dels votants sense canal de contacte",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5411,6 +5418,9 @@ const catalanTranslation: TranslationType = {
             },
             noReadPermission: "Per veure aquesta configuració cal el permís messaging-config-read.",
             chooseAccount: "Trieu primer un compte.",
+            needsSavingAgain: "Cal tornar a desar la configuració.",
+            needsSavingAgainHelp:
+                "Es va copiar de l'emmagatzematge anterior i no va superar les comprovacions que fa un desament. Corregiu els problemes que es mostren i torneu-la a desar.",
         },
         messaging: {
             channel: {
@@ -5459,6 +5469,8 @@ const catalanTranslation: TranslationType = {
                 NEEDS_PRODUCTION_ACCESS: "Necessita accés de producció",
                 NEEDS_APPROVED_TEMPLATE: "Necessita una plantilla aprovada",
                 UNSUPPORTED_PROVIDER: "Proveïdor no compatible: substituïu aquest compte",
+                CALLBACK_NOT_CONFIGURED: "Adreça de retorn no configurada",
+                REPORT_CREDENTIALS_MISSING: "Credencials d'informes no generades",
             },
             readiness: {
                 connected: "Connectat",
@@ -5547,6 +5559,11 @@ const catalanTranslation: TranslationType = {
                 providerLanguageHelp:
                     "El codi d'idioma del proveïdor per a aquesta plantilla, com ara en_US.",
                 voters: "Votants",
+                environment: "El remitent per defecte de la instal·lació",
+                noNoticeChannels:
+                    "La configuració de missatgeria d'aquest esdeveniment no activa els avisos per a cap canal, així que cap votant rebria aquesta notificació. Activeu els avisos d'un canal a la pestanya Missatgeria de l'esdeveniment.",
+                noReadPermission:
+                    "Per mostrar el canal de cada votant cal el permís messaging-config-read. Cada votant rep igualment la notificació pel seu propi canal.",
             },
             voter: {
                 title: "Missatgeria",
@@ -5559,6 +5576,9 @@ const catalanTranslation: TranslationType = {
                 noFailure: "Cap",
                 failureNeedsPermission: "Es mostra amb el permís messaging-config-read.",
                 noChannel: "Sense contacte registrat",
+                notConfirmed: "Lliurament no confirmat",
+                notConfirmedHelp:
+                    "El darrer missatge el lliurament del qual encara no està confirmat. Al cap de 24 hores es mostra com a Sense resoldre, cosa que no vol dir que hagi fallat.",
             },
             logs: {
                 channel: "Canal",
@@ -5581,6 +5601,35 @@ const catalanTranslation: TranslationType = {
                 NO_CONTACT_CHANNEL: "Sense canal de contacte",
                 NOT_RETRYABLE_NO_TEMPLATE:
                     "No es pot tornar a intentar: no hi ha cap plantilla desada",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Canal no oferit per a avisos",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Canal no oferit per a codis",
+                NO_CONTENT_FOR_CHANNEL: "Sense contingut per al canal",
+                NO_ACCOUNT_FOR_CHANNEL: "Sense compte d'enviament per al canal",
+                INVALID_DESTINATION: "Destinació no vàlida per al canal",
+                NOT_RETRYABLE_PROTECTED_FIELDS: "No es pot reintentar: conté camps protegits",
+                REPORTED_TOO_LATE: "Notificat massa tard per reintentar",
+                CHANNEL_CHANGED: "El canal del votant ha canviat: no es reintenta",
+                WORKER_STOPPED_BEFORE_SENDING: "El procés s'ha aturat abans d'enviar",
+                WORKER_STOPPED_AFTER_SENDING:
+                    "El procés s'ha aturat abans de registrar el resultat",
+                CODE_EXPIRED_BEFORE_SENDING: "El codi ha caducat abans que es pogués enviar",
+                UNRESOLVED: "No s'ha pogut confirmar el lliurament",
+                SELECTED_WITHOUT_VOTERS: "Seleccioneu almenys un votant",
+                WRONG_RECIPIENT_KIND: "La destinació no és del tipus al qual envia aquest canal",
+                UNSUPPORTED_PURPOSE: "El proveïdor no envia aquest tipus de missatge",
+                MISSING_APPROVED_TEMPLATE: "No hi ha cap plantilla aprovada per a aquest missatge",
+                OUTSIDE_CONVERSATION_WINDOW: "Fora de la finestra de conversa",
+                DESTINATION_NOT_ALLOWED: "Aquest compte no envia al país de la destinació",
+                CODE_EXPIRED: "El codi ha caducat",
+                MISSING_CODE: "No hi ha cap codi per enviar",
+                ENDPOINT_NOT_HTTPS: "L'adreça del proveïdor ha de començar per https://",
+                PROVIDER_CODE: "Codi d'error del proveïdor {{code}}",
+                RETRY_NOT_PREPARED:
+                    "No es pot reintentar: no s'ha pogut tornar a preparar el missatge",
+                NOT_THE_VOTERS_CHANNEL: "No és el canal del votant",
+                REPORT_CREDENTIALS_MISSING:
+                    "Genereu les credencials d'informes i creeu la subscripció d'Infobip",
+                CALLBACK_NOT_HTTPS: "L'adreça de retorn ha de ser https",
             },
         },
         messagingAccounts: {
@@ -5691,6 +5740,8 @@ const catalanTranslation: TranslationType = {
                 DUPLICATE_LANGUAGE: "Aquest idioma ja té una plantilla per a aquest propòsit",
                 NOT_A_URL: "Introduïu una adreça que comenci per https://",
                 UNSUPPORTED_PROVIDER: "Proveïdor no compatible: substituïu aquest compte",
+                CREDENTIALS_FOLLOW_ENDPOINT:
+                    "Torneu a introduir les credencials per a la nova adreça",
             },
             warning: {
                 pageChange:
@@ -5724,6 +5775,7 @@ const catalanTranslation: TranslationType = {
                 set: "Configurada · substituïda {{date}}. Es desa xifrada i mai no es mostra.",
                 replace: "Substitueix",
                 replaceNamed: "Substitueix {{name}}",
+                reenter: "L'adreça ha canviat: torneu a introduir aquesta credencial.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5781,6 +5833,7 @@ const catalanTranslation: TranslationType = {
                     "Es mostra als administradors que poden gestionar comptes de missatgeria.",
                 loading: "S'està carregant…",
                 unavailable: "No disponible",
+                loadError: "No s'ha pogut carregar l'URL de retorn.",
             },
             copy: {
                 success: "Copiat",
@@ -5789,6 +5842,7 @@ const catalanTranslation: TranslationType = {
             save: {
                 success: "Compte desat",
                 error: "No s'ha pogut desar el compte.",
+                refused: "No s'ha desat el compte: {{reason}}",
             },
             test: {
                 title: "Envia un missatge de prova des de {{name}}",
@@ -5829,6 +5883,10 @@ const catalanTranslation: TranslationType = {
                     url: "Poseu com a URL l'URL de retorn d'aquest compte.",
                     auth: "Trieu l'autenticació Basic i introduïu l'usuari i la contrasenya d'informes.",
                 },
+                confirmTitle: "Voleu substituir les credencials d'informes?",
+                confirmBody:
+                    "L'usuari i la contrasenya d'informes actuals deixen de funcionar immediatament. Fins que la subscripció d'Infobip no tingui els nous, els informes de lliurament de Viber es rebutgen i els missatges es queden com a Acceptat.",
+                confirm: "Substitueix",
             },
         },
     },

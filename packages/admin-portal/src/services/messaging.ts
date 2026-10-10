@@ -17,6 +17,7 @@ import {
     ERecipientKind,
     EVENT_MESSAGING_CONFIG_VERSION,
     GENERATED_CREDENTIALS,
+    IAccountCallbackStatus,
     IAccountCheck,
     IAccountSender,
     IAccountSummary,
@@ -181,8 +182,55 @@ export const purposeReadiness = (
             blockers.push(EReadinessBlocker.NEEDS_APPROVED_TEMPLATE)
         }
     }
+    const callback = callbackBlocker(capabilities.channel, purpose, callbackConfigured(check))
+    if (callback) {
+        blockers.push(callback)
+    }
     return {purpose, blockers}
 }
+
+/**
+ * Whether callbacks can reach the account: false only when
+ * `messaging_callback_status` says the callback address isn't configured.
+ */
+export const callbackConfigured = (check: IAccountCheck | null | undefined): boolean =>
+    !check?.callback_blockers?.includes(EReadinessBlocker.CALLBACK_NOT_CONFIGURED)
+
+/** Puts each account's callback status on its check, as the screens read it. */
+export const withCallbackStatus = (
+    accounts: IMessagingAccount[],
+    statuses: IAccountCallbackStatus[] | null | undefined
+): IMessagingAccount[] => {
+    if (!statuses) return accounts
+    const byAccount = new Map(statuses.map((status) => [status.account_id, status]))
+    return accounts.map((account) => {
+        const status = byAccount.get(account.id)
+        return status && account.status
+            ? {
+                  ...account,
+                  status: {
+                      ...account.status,
+                      callback_blockers: status.blockers,
+                      callback_reasons: status.reasons,
+                  },
+              }
+            : account
+    })
+}
+
+/**
+ * Port of `callback_blocker`: Messenger codes need the callback address,
+ * because a code goes out only after the voter's Get Started arrives as a
+ * callback. Other purposes and channels send without one.
+ */
+export const callbackBlocker = (
+    channel: EMessageChannel,
+    purpose: EMessagePurpose,
+    configured: boolean
+): EReadinessBlocker | null =>
+    channel === EMessageChannel.MESSENGER && purpose === EMessagePurpose.OTP && !configured
+        ? EReadinessBlocker.CALLBACK_NOT_CONFIGURED
+        : null
 
 /**
  * Credentials a provider needs before it can send. Webhook credentials are not
@@ -595,6 +643,30 @@ export const deliverySummary = (
     unknown: stats?.unknown ?? 0,
     unresolved: stats?.unresolved ?? 0,
 })
+
+/**
+ * Whether the event tab can show deliveries for an account, and why not:
+ * without receipts from the provider (`UNAVAILABLE` alone), or because
+ * callbacks can't reach the account (`reason`: the backend's reason, such as
+ * "Callback address not configured"). Either way delivery reads
+ * "Unavailable", never 0.
+ */
+export const accountDeliveryFeedback = (
+    account: IMessagingAccount | undefined
+): {feedback: EDeliveryFeedback; reason?: string} => {
+    const feedback = account
+        ? (accountCapabilities(account)?.delivery_feedback ?? EDeliveryFeedback.UNAVAILABLE)
+        : EDeliveryFeedback.UNAVAILABLE
+    const blocked = account?.status?.callback_blockers ?? []
+    if (feedback === EDeliveryFeedback.PROVIDER_RECEIPTS && blocked.length) {
+        // Reports can't arrive: the backend's reason, or the blocker itself.
+        return {
+            feedback: EDeliveryFeedback.UNAVAILABLE,
+            reason: account?.status?.callback_reasons?.[0] ?? String(blocked[0]),
+        }
+    }
+    return {feedback}
+}
 
 /** Whether `account` can no longer send because its provider was removed. */
 export const accountUnsupported = (account: Pick<IMessagingAccount, "provider">): boolean =>

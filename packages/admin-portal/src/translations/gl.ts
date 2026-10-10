@@ -3318,6 +3318,9 @@ const galegoTranslation: TranslationType = {
                     title: "Aquí non hai nada",
                     text: "As inscricións con este estado aparecerán aquí. Probe con outra busca ou outro estado.",
                 },
+                searchHelp:
+                    "Un nome, un correo electrónico ou un número de identificación, ou a referencia de soporte que se lle deu ao votante, como Q5KW-8RFX.",
+                referenceError: "Non se puido buscar a referencia de soporte.",
             },
             flow: {
                 stepsLabel: "Pasos da revisión",
@@ -5360,6 +5363,10 @@ const galegoTranslation: TranslationType = {
                 noReceipts:
                     "Esta conta non recibe informes de entrega, así que non se pode mostrar a entrega.",
                 showFailed: "Ver as mensaxes fallidas de {{channel}} en Rexistros",
+                noChannelHelp:
+                    "Votantes sen ningunha canle de contacto rexistrada. Os seus avisos fallan e nunca se contan en ningunha canle.",
+                showFailedNoChannel:
+                    "Ver en Rexistros as mensaxes fallidas dos votantes sen canle de contacto",
             },
             error: {
                 UNSUPPORTED_VERSION:
@@ -5382,6 +5389,9 @@ const galegoTranslation: TranslationType = {
             },
             noReadPermission: "Para ver estes axustes precísase o permiso messaging-config-read.",
             chooseAccount: "Escolla antes unha conta.",
+            needsSavingAgain: "Hai que volver gardar a configuración.",
+            needsSavingAgainHelp:
+                "Copiouse do almacenamento anterior e non superou as comprobacións que fai un gardado. Corrixa os problemas que se mostran e volva gardala.",
         },
         messaging: {
             channel: {
@@ -5430,6 +5440,8 @@ const galegoTranslation: TranslationType = {
                 NEEDS_PRODUCTION_ACCESS: "Precisa acceso de produción",
                 NEEDS_APPROVED_TEMPLATE: "Precisa un modelo aprobado",
                 UNSUPPORTED_PROVIDER: "Provedor non compatible: substitúa esta conta",
+                CALLBACK_NOT_CONFIGURED: "Enderezo de retorno non configurado",
+                REPORT_CREDENTIALS_MISSING: "Credenciais de informes non xeradas",
             },
             readiness: {
                 connected: "Conectada",
@@ -5516,6 +5528,11 @@ const galegoTranslation: TranslationType = {
                 providerLanguage: "Idioma do provedor de {{channel}}",
                 providerLanguageHelp: "O código de idioma do provedor para ese modelo, como en_US.",
                 voters: "Votantes",
+                environment: "O remitente predeterminado da instalación",
+                noNoticeChannels:
+                    "A configuración de mensaxería deste evento non activa os avisos en ningunha canle, así que ningún votante recibiría esta notificación. Active os avisos dunha canle na lapela Mensaxería do evento.",
+                noReadPermission:
+                    "Para mostrar a canle de cada votante precísase o permiso messaging-config-read. Cada votante recibe igualmente a notificación pola súa propia canle.",
             },
             voter: {
                 title: "Mensaxería",
@@ -5528,6 +5545,9 @@ const galegoTranslation: TranslationType = {
                 noFailure: "Ningún",
                 failureNeedsPermission: "Móstrase co permiso messaging-config-read.",
                 noChannel: "Sen contacto rexistrado",
+                notConfirmed: "Entrega non confirmada",
+                notConfirmedHelp:
+                    "A última mensaxe cuxa entrega aínda non está confirmada. Pasadas 24 horas móstrase como Sen resolver, o que non significa que fallase.",
             },
             logs: {
                 channel: "Canle",
@@ -5548,6 +5568,34 @@ const galegoTranslation: TranslationType = {
                 CREDENTIALS_FOLLOW_ENDPOINT: "Volva introducir as credenciais para o novo enderezo",
                 NO_CONTACT_CHANNEL: "Sen canle de contacto",
                 NOT_RETRYABLE_NO_TEMPLATE: "Non se pode reintentar: non hai modelo gardado",
+                CHANNEL_NOT_OFFERED_FOR_NOTICES: "Canle non ofrecida para avisos",
+                CHANNEL_NOT_OFFERED_FOR_CODES: "Canle non ofrecida para códigos",
+                NO_CONTENT_FOR_CHANNEL: "Sen contido para a canle",
+                NO_ACCOUNT_FOR_CHANNEL: "Sen conta de envío para a canle",
+                INVALID_DESTINATION: "Destino non válido para a canle",
+                NOT_RETRYABLE_PROTECTED_FIELDS: "Non se pode reintentar: contén campos protexidos",
+                REPORTED_TOO_LATE: "Notificado demasiado tarde para reintentar",
+                CHANNEL_CHANGED: "A canle do votante cambiou: non se reintenta",
+                WORKER_STOPPED_BEFORE_SENDING: "O proceso detívose antes de enviar",
+                WORKER_STOPPED_AFTER_SENDING: "O proceso detívose antes de rexistrar o resultado",
+                CODE_EXPIRED_BEFORE_SENDING: "O código caducou antes de poder enviarse",
+                UNRESOLVED: "Non se puido confirmar a entrega",
+                SELECTED_WITHOUT_VOTERS: "Seleccione polo menos un votante",
+                WRONG_RECIPIENT_KIND: "O destino non é do tipo ao que envía esta canle",
+                UNSUPPORTED_PURPOSE: "O provedor non envía este tipo de mensaxe",
+                MISSING_APPROVED_TEMPLATE: "Non hai modelo aprobado para esta mensaxe",
+                OUTSIDE_CONVERSATION_WINDOW: "Fóra da xanela de conversa",
+                DESTINATION_NOT_ALLOWED: "Esta conta non envía ao país do destino",
+                CODE_EXPIRED: "O código caducou",
+                MISSING_CODE: "Non hai código que enviar",
+                ENDPOINT_NOT_HTTPS: "O enderezo do provedor debe comezar por https://",
+                PROVIDER_CODE: "Código de erro do provedor {{code}}",
+                RETRY_NOT_PREPARED:
+                    "Non se pode reintentar: non se puido volver preparar a mensaxe",
+                NOT_THE_VOTERS_CHANNEL: "Non é a canle do votante",
+                REPORT_CREDENTIALS_MISSING:
+                    "Xere as credenciais de informes e cree a subscrición de Infobip",
+                CALLBACK_NOT_HTTPS: "O enderezo de retorno debe ser https",
             },
         },
         messagingAccounts: {
@@ -5656,6 +5704,7 @@ const galegoTranslation: TranslationType = {
                 DUPLICATE_LANGUAGE: "Este idioma xa ten un modelo para este propósito",
                 NOT_A_URL: "Introduza un enderezo que comece por https://",
                 UNSUPPORTED_PROVIDER: "Provedor non compatible: substitúa esta conta",
+                CREDENTIALS_FOLLOW_ENDPOINT: "Volva introducir as credenciais para o novo enderezo",
             },
             warning: {
                 pageChange:
@@ -5689,6 +5738,7 @@ const galegoTranslation: TranslationType = {
                 set: "Configurada · substituída {{date}}. Gárdase cifrada e nunca se mostra.",
                 replace: "Substituír",
                 replaceNamed: "Substituír {{name}}",
+                reenter: "O enderezo cambiou: volva introducir esta credencial.",
             },
             credentialHelp: {
                 AWS_SES: {
@@ -5744,6 +5794,7 @@ const galegoTranslation: TranslationType = {
                     "Móstrase aos administradores que poden xestionar contas de mensaxería.",
                 loading: "Cargando…",
                 unavailable: "Non dispoñible",
+                loadError: "Non se puido cargar o URL de retorno.",
             },
             copy: {
                 success: "Copiado",
@@ -5752,6 +5803,7 @@ const galegoTranslation: TranslationType = {
             save: {
                 success: "Conta gardada",
                 error: "Non se puido gardar a conta.",
+                refused: "Non se gardou a conta: {{reason}}",
             },
             test: {
                 title: "Enviar unha mensaxe de proba desde {{name}}",
@@ -5792,6 +5844,10 @@ const galegoTranslation: TranslationType = {
                     url: "Poña como URL o URL de retorno desta conta.",
                     auth: "Escolla a autenticación Basic e introduza o usuario e o contrasinal de informes.",
                 },
+                confirmTitle: "Substituír as credenciais de informes?",
+                confirmBody:
+                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de Viber rexéitanse e as mensaxes quedan en Aceptado.",
+                confirm: "Substituír",
             },
         },
     },

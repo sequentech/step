@@ -20,6 +20,7 @@ import {
     providerCapabilities,
     providersForChannel,
     purposeReadiness,
+    requiredCredentials,
     typedCredentials,
 } from "@/services/messaging"
 
@@ -301,14 +302,70 @@ export enum EAccountFormError {
     NOT_A_URL = "NOT_A_URL",
     /** A removed provider: the account can't be saved, only replaced. */
     UNSUPPORTED_PROVIDER = "UNSUPPORTED_PROVIDER",
+    /**
+     * The address the credentials are sent to changed, and the credentials
+     * weren't entered again. The backend refuses it with the same reason.
+     */
+    CREDENTIALS_FOLLOW_ENDPOINT = "CREDENTIALS_FOLLOW_ENDPOINT",
 }
+
+/**
+ * The sender field holding the address an account's credentials are sent to,
+ * like `account_endpoint` in windmill: the Graph API base, the Infobip base or
+ * the SMTP server. `null` for providers that name none.
+ */
+export const endpointField = (provider: EMessagingProvider): string | null => {
+    switch (provider) {
+        case EMessagingProvider.WHATSAPP_CLOUD_API:
+        case EMessagingProvider.MESSENGER_SEND_API:
+            return "api_base_url"
+        case EMessagingProvider.VIBER_INFOBIP:
+            return "base_url"
+        case EMessagingProvider.SMTP:
+            return "server_url"
+        default:
+            return null
+    }
+}
+
+const endpointOf = (sender: Record<string, string>, key: string): string | null =>
+    (sender[key] ?? "").trim().replace(/\/+$/, "") || null
+
+/** Whether the form moves the account's credentials to another address. */
+export const endpointChanged = (
+    original: IAccountFormValues | undefined,
+    values: IAccountFormValues
+): boolean => {
+    const key = endpointField(values.provider)
+    return (
+        !!original &&
+        !!key &&
+        original.provider === values.provider &&
+        endpointOf(original.sender, key) !== endpointOf(values.sender, key)
+    )
+}
+
+/**
+ * Credentials that must be entered again before the form can be saved: all
+ * the provider needs to send, when the address they go to changed (the same
+ * rule as `endpoint_change_refusal`). Empty otherwise.
+ */
+export const credentialsToReenter = (
+    original: IAccountFormValues | undefined,
+    values: IAccountFormValues
+): ECredentialName[] =>
+    endpointChanged(original, values)
+        ? requiredCredentials(values.provider).filter((name) => !values.credentials[name])
+        : []
 
 // Provider endpoints carry the stored credentials, so they must be https.
 const HTTPS_URL = /^https:\/\/\S+$/
 
 /** Errors by field path; empty when the form can be saved. */
 export const validateAccountForm = (
-    values: IAccountFormValues
+    values: IAccountFormValues,
+    /** The stored account, when editing one. */
+    original?: IAccountFormValues
 ): Record<string, EAccountFormError> => {
     const errors: Record<string, EAccountFormError> = {}
     if (isUnsupportedProvider(values.provider)) {
@@ -362,6 +419,14 @@ export const validateAccountForm = (
             errors[`sender.${key}`] = EAccountFormError.NOT_A_URL
         }
     }
+    const endpoint = endpointField(values.provider)
+    if (
+        endpoint &&
+        !errors[`sender.${endpoint}`] &&
+        credentialsToReenter(original, values).length
+    ) {
+        errors[`sender.${endpoint}`] = EAccountFormError.CREDENTIALS_FOLLOW_ENDPOINT
+    }
     return errors
 }
 
@@ -373,6 +438,11 @@ export interface IUpsertAccountVariables {
     limits: IAccountLimits
     providerApproval: EProviderApproval | null
     isDefault: boolean
+    /**
+     * Credentials typed in the form, stored in the same transaction as the
+     * account, so an address change and its credentials are saved together.
+     */
+    credentials: Partial<Record<ECredentialName, string>> | null
 }
 
 /** The variables of `upsert_messaging_account` for the form. */
@@ -389,6 +459,7 @@ export const upsertAccountVariables = (
         ? values.providerApproval
         : null,
     isDefault: values.isDefault,
+    credentials: credentialsPayload(values),
 })
 
 /** Typed credentials to replace, or null when none was typed. */
