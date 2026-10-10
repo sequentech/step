@@ -486,6 +486,7 @@ mod tests {
     use crate::pipes::pipe_name::PipeNameOutputDir;
     use anyhow::{Error, Result};
     use num_bigint::BigUint;
+    use sequent_core::ballot_codec::multi_ballot::DecodedBallotChoices;
     use sequent_core::ballot_codec::BigUIntCodec;
     use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
     use sequent_core::serialization::deserialize_with_path::deserialize_str;
@@ -2026,6 +2027,47 @@ mod tests {
         Ok(())
     }
 
+    /// Renders the multi-ballot receipts with the template that shows a blank
+    /// vote box and a null vote box for every ballot.
+    fn use_null_and_blank_receipt_template(fixture: &TestFixture) -> Result<()> {
+        let config_str = fs::read_to_string(&fixture.config_path)?;
+        let mut config: Config = serde_json::from_str(&config_str)?;
+        for stage in config.stages.stages_def.values_mut() {
+            for pipe_config in &mut stage.pipeline {
+                if pipe_config.pipe != PipeName::MCBallotReceipts {
+                    continue;
+                }
+                if let Some(value) = pipe_config.config.as_mut() {
+                    let mut images_config: PipeConfigBallotImages =
+                        serde_json::from_value(value.clone())?;
+                    images_config.template =
+                        include_str!("../resources/mcballot_receipts.hbs").to_string();
+                    *value = serde_json::to_value(images_config)?;
+                }
+            }
+        }
+        fs::write(&fixture.config_path, serde_json::to_string(&config)?)?;
+
+        Ok(())
+    }
+
+    /// Counts the receipts whose box next to `label` is checked.
+    fn count_checked_boxes(html: &str, label: &str) -> usize {
+        let marker = format!("{label}</span>");
+        html.split(&marker)
+            .skip(1)
+            .filter(|rest| {
+                rest.find("<input")
+                    .and_then(|start| {
+                        rest[start..]
+                            .find("/>")
+                            .map(|end| &rest[start..start + end])
+                    })
+                    .is_some_and(|input| input.contains("checked"))
+            })
+            .count()
+    }
+
     /// A plaintext that does not decode is counted as an implicitly invalid
     /// vote, so the tally finishes and its totals match the channel counts.
     #[test]
@@ -2112,6 +2154,7 @@ mod tests {
     fn test_undecodable_mcballot_counts_as_implicit_invalid_vote() -> Result<()> {
         let ballot_num = 20;
         let fixture = TestFixture::new_mc()?;
+        use_null_and_blank_receipt_template(&fixture)?;
 
         generate_mcballots(&fixture, 1, 2, 1, ballot_num)?;
 
@@ -2180,6 +2223,40 @@ mod tests {
             assert_eq!(contest_result.total_votes, u64::from(ballot_num) + 1);
             assert_eq!(contest_result.invalid_votes.implicit, 1);
         }
+
+        // The receipt of the ballot that did not decode is a null vote, not a
+        // blank one.
+        let mut receipts = String::new();
+        for entry in WalkDir::new(
+            cli.output_dir
+                .join(PipeNameOutputDir::MCBallotImages.as_ref()),
+        )
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "html"))
+        {
+            receipts.push_str(&fs::read_to_string(entry.path())?);
+        }
+        let decoded_mcballots_path = cli
+            .output_dir
+            .join(PipeNameOutputDir::DecodeMCBallots.as_ref())
+            .join(format!("{PREFIX_ELECTION}{election_id}"))
+            .join(format!("{PREFIX_AREA}{area_id}"))
+            .join(decode_mcballots::OUTPUT_DECODED_BALLOTS_FILE);
+        let decoded_mcballots: Vec<DecodedBallotChoices> =
+            serde_json::from_reader(fs::File::open(decoded_mcballots_path)?)?;
+        let blank_ballots = decoded_mcballots
+            .iter()
+            .filter(|ballot| {
+                ballot
+                    .choices
+                    .iter()
+                    .all(|contest| contest.choices.is_empty() && contest.invalid_errors.is_empty())
+            })
+            .count();
+        assert_eq!(decoded_mcballots.len(), ballot_num as usize + 1);
+        assert_eq!(count_checked_boxes(&receipts, "Null Vote"), 1);
+        assert_eq!(count_checked_boxes(&receipts, "Blank vote"), blank_ballots);
 
         Ok(())
     }
