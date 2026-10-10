@@ -55,7 +55,7 @@ pub async fn insert_election_event_anyhow(
     };
 
     if let Err(err) = ensure_new_election_event(&hasura_transaction, &id).await {
-        update_fail(&task_execution, &err.to_string()).await?;
+        update_fail(&task_execution, &format!("{err:#}")).await?;
         return Err(err);
     }
 
