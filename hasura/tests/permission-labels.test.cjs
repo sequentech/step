@@ -30,6 +30,15 @@ const unlessNull = (column, predicate) => ({
 const viaElection = {election: electionLabel}
 const viaContest = unlessNull("contest_id", {contest: viaElection})
 const viaTallySession = {tally_session: labelList}
+const eventElectionsInLabels = {
+    election_event: {_not: {elections: {_not: electionLabel}}},
+}
+const publicationInLabels = {
+    _or: [
+        {_and: [{election_id: {_is_null: true}}, eventElectionsInLabels]},
+        viaElection,
+    ],
+}
 
 const parentKey = (column) => ({
     [column]: "id",
@@ -40,6 +49,7 @@ const parents = {
     election: parentKey("election_id"),
     contest: parentKey("contest_id"),
     tally_session: parentKey("tally_session_id"),
+    election_event: {election_event_id: "id", tenant_id: "tenant_id"},
 }
 
 const scopedTables = {
@@ -53,7 +63,8 @@ const scopedTables = {
     ballot_style: {predicate: viaElection, parent: "election"},
     ballot_publication: {
         predicate: unlessNull("election_id", viaElection),
-        parent: "election",
+        writePredicate: publicationInLabels,
+        parent: ["election", "election_event"],
     },
     cast_vote: {
         predicate: unlessNull("election_id", viaElection),
@@ -110,40 +121,59 @@ const labelledGrants = (metadata) =>
             .filter(({role}) => !ROLES_WITHOUT_LABELS.has(role))
             .map(({role, permission}) => ({
                 grant: `${kind} ${role} ${key}`,
+                isSelect: kind === "select_permissions",
                 parts: conjuncts(permission[key]),
             }))
     )
 
-for (const [table, {predicate, parent}] of Object.entries(scopedTables)) {
+for (const [table, {predicate, writePredicate, parent}] of Object.entries(
+    scopedTables
+)) {
     test(`${table} grants are limited to the tenant and the caller's permission labels`, () => {
         const metadata = loadTable(table)
         const grants = labelledGrants(metadata)
         assert.ok(grants.length > 0)
-        for (const {grant, parts} of grants) {
+        for (const {grant, isSelect, parts} of grants) {
+            const expected = isSelect
+                ? predicate
+                : (writePredicate ?? predicate)
             assert.ok(
                 parts.some((part) => isDeepStrictEqual(part, TENANT_SCOPE)),
                 `${table} ${grant} is not scoped to the tenant`
             )
             assert.ok(
-                parts.some((part) => isDeepStrictEqual(part, predicate)),
+                parts.some((part) => isDeepStrictEqual(part, expected)),
                 `${table} ${grant} does not check permission labels`
             )
         }
-        if (parent) {
+        for (const name of [parent ?? []].flat()) {
             const relationship = (metadata.object_relationships ?? []).find(
-                ({name}) => name === parent
+                (candidate) => candidate.name === name
             )
-            assert.ok(relationship, `${table} has no ${parent} relationship`)
+            assert.ok(relationship, `${table} has no ${name} relationship`)
             const {remote_table, column_mapping} =
                 relationship.using.manual_configuration
             assert.deepEqual(remote_table, {
-                name: parent,
+                name,
                 schema: "sequent_backend",
             })
-            assert.deepEqual(column_mapping, parents[parent])
+            assert.deepEqual(column_mapping, parents[name])
         }
     })
 }
+
+test("admin roles cannot set the elections a ballot publication covers", () => {
+    const metadata = loadTable("ballot_publication")
+    for (const kind of ["insert_permissions", "update_permissions"]) {
+        for (const {role, permission} of metadata[kind]) {
+            if (ROLES_WITHOUT_LABELS.has(role)) continue
+            assert.ok(
+                !permission.columns.includes("election_ids"),
+                `${kind} ${role} can set election_ids`
+            )
+        }
+    }
+})
 
 test("admin-user cannot change an application's status directly", () => {
     const update = loadTable("applications").update_permissions.find(
