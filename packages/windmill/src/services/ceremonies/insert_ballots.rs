@@ -10,11 +10,11 @@ use crate::postgres::tally_session_contest::get_other_sessions_tally_session_con
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
-use crate::services::ceremonies::sealed_box_ballots::{
-    check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxLog,
-};
 use crate::services::ceremonies::batch_anonymity::{
     enforce_batch_anonymity, session_divergences, small_batch, PostedBatch,
+};
+use crate::services::ceremonies::sealed_box_ballots::{
+    check_sealed_boxes_tallied, sealed_box_ballots, sealed_elections, SealedBox, SealedBoxLog,
 };
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
@@ -56,9 +56,7 @@ use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{
     TallySession, TallySessionContest, TallySessionContestAnnotations,
 };
-use sequent_core::types::keycloak::{
-    MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES,
-};
+use sequent_core::types::keycloak::{MAX_TOTAL_VOTE_WEIGHT, VOTE_WEIGHT_BATCHES};
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use strand::backend::ristretto::RistrettoCtx;

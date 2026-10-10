@@ -6,7 +6,8 @@ use super::*;
 use crate::adapters::memory::clock::SequentialIds;
 use crate::adapters::memory::tally_ceremony::{InMemoryTallyCeremony, TallyAuditEntry, TallyCall};
 use sequent_core::ballot::{
-    Contest as SequentContest, DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
+    BatchAnonymityPolicy, Contest as SequentContest, DecodedBallotsInclusionPolicy,
+    DelegatedVotingPolicy,
 };
 use sequent_core::types::hasura::core::{Area, TallySessionContest, TallySheet};
 use sequent_core::types::tally_sheets::TallySheetStatus;
@@ -387,6 +388,7 @@ async fn the_session_configuration_takes_its_policies_from_the_event() {
             delegated_voting_policy: Some(DelegatedVotingPolicy::ENABLED),
             consolidated_report_policy: None,
             weighted_voting_policy: Some(WeightedVotingPolicy::AREAS_WEIGHTED_VOTING),
+            batch_anonymity_policy: Some(BatchAnonymityPolicy::WARN),
         })
     );
 }
