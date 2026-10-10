@@ -277,7 +277,6 @@ select_permissions:
     - comment: ""
       permission:
           columns:
-              - annotations
               - created_at
               - description
               - election_event_id
