@@ -17,6 +17,7 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::types::keycloak::{Permission, Role};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 const REALM: &str = "tenant-north";
 const GROUPS: &str = "/admin/realms/tenant-north/groups";
@@ -1119,6 +1120,101 @@ async fn a_roles_partial_import_rejects_a_realm_that_leaves_its_segment() {
     )
     .await;
     assert!(result.is_err(), "{result:?}");
+    assert!(peer.finish().is_empty());
+}
+
+#[rocket::async_test]
+async fn identifiers_that_leave_their_path_segment_are_rejected_before_any_request(
+) {
+    let peer = HttpServer::start(vec![]);
+    let public = peer.public_client();
+    let bad = "../../other-realm";
+    let locales = HashMap::from([(bad.to_string(), HashMap::new())]);
+    let rejected = [
+        peer.client()
+            .create_permission(bad, &permission())
+            .await
+            .is_err(),
+        peer.client().get_realm(&public, bad).await.is_err(),
+        peer.client()
+            .get_flow_executions(&public, bad, "flow")
+            .await
+            .is_err(),
+        peer.client()
+            .get_flow_executions(&public, "north", bad)
+            .await
+            .is_err(),
+        peer.client()
+            .upsert_flow_execution(&public, bad, "flow", "{}")
+            .await
+            .is_err(),
+        peer.client()
+            .upsert_flow_execution(&public, "north", bad, "{}")
+            .await
+            .is_err(),
+        peer.client()
+            .partial_import_realm_with_cleanup(
+                &public,
+                bad,
+                "container",
+                vec![],
+                vec![],
+                "SKIP",
+            )
+            .await
+            .is_err(),
+        peer.client()
+            .realm_delete(&public, bad, "groups", "group-1")
+            .await
+            .is_err(),
+        peer.client()
+            .realm_delete(&public, "north", bad, "group-1")
+            .await
+            .is_err(),
+        peer.client()
+            .realm_delete(&public, "north", "groups", bad)
+            .await
+            .is_err(),
+        peer.client()
+            .create_new_group(bad, "Clerks", &public)
+            .await
+            .is_err(),
+        peer.client()
+            .add_roles_to_group(
+                bad,
+                &public,
+                "group-1",
+                &vec![],
+                RoleAction::Add,
+            )
+            .await
+            .is_err(),
+        peer.client()
+            .add_roles_to_group("north", &public, bad, &vec![], RoleAction::Add)
+            .await
+            .is_err(),
+        peer.client()
+            .get_group_assigned_roles(bad, "group-1", &public)
+            .await
+            .is_err(),
+        peer.client()
+            .get_group_assigned_roles("north", bad, &public)
+            .await
+            .is_err(),
+        peer.client()
+            .update_localization_texts_from_import(None, &public, bad)
+            .await
+            .is_err(),
+        peer.client()
+            .update_localization_texts_from_import(
+                Some(locales),
+                &public,
+                "north",
+            )
+            .await
+            .is_err(),
+    ];
+    assert!(!rejected.contains(&false), "{rejected:?}");
     assert!(peer.finish().is_empty());
 }
 

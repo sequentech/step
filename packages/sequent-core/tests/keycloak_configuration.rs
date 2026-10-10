@@ -827,6 +827,20 @@ async fn group_updates_report_rejection_and_require_an_identifier() {
 }
 
 #[rocket::async_test]
+async fn group_updates_reject_identifiers_that_leave_their_path_segment() {
+    let peer = HttpServer::start(vec![]);
+    let bad = "../../other-realm";
+    let group: GroupRepresentation =
+        serde_json::from_value(json!({"id": "group-1", "name": "Clerks"}))
+            .unwrap();
+    let outside: GroupRepresentation =
+        serde_json::from_value(json!({"id": bad, "name": "Clerks"})).unwrap();
+    assert!(peer.client().update_group(bad, &group).await.is_err());
+    assert!(peer.client().update_group("north", &outside).await.is_err());
+    assert!(peer.finish().is_empty());
+}
+
+#[rocket::async_test]
 async fn realm_upsert_propagates_rejected_creation_and_updates() {
     for exists in [true, false] {
         let peer = HttpServer::start(vec![
