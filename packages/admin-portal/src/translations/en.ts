@@ -840,6 +840,7 @@ const englishTranslation = {
                 electionNumber: "Number Elections",
                 trustees: "Trustees",
                 permissionLabels: "Permission Labels",
+                imported: "Imported",
                 status: "Status",
                 tallyType: {
                     label: "Tally Type",
@@ -2073,6 +2074,8 @@ const englishTranslation = {
             },
         },
         tally: {
+            importedProvenance:
+                "This tally was imported from an election event archive. Its results were not computed on this platform.",
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
             resultsPublication: {
