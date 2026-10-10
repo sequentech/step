@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use b4::messages::{
-    artifact::Configuration,
+    artifact::{Ballots, Configuration},
     message::{Message, Signer},
     newtypes::*,
     protocol_manager::{ProtocolManager, ProtocolManagerConfig},
@@ -199,6 +199,93 @@ fn a_configuration_artifact_cannot_be_attached_to_an_acknowledgement() {
         .unwrap_err()
         .to_string()
         .contains("configuration artifact requires a Configuration statement"));
+}
+
+fn ballots_message(cfg: &Configuration<RistrettoCtx>, signer: &Manager) -> Message {
+    let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
+    selected[0] = 1;
+    selected[1] = 2;
+    Message::ballots_msg(
+        cfg,
+        1,
+        &Ballots::new(vec![]),
+        selected,
+        PublicKeyHash([0; 64]),
+        signer,
+    )
+    .unwrap()
+}
+
+#[test]
+fn an_artifact_must_match_the_hash_the_statement_signs() {
+    let (manager, _, cfg) = configuration();
+    let mut ballots = ballots_message(&cfg, &manager);
+    assert!(ballots.verify(&cfg).is_ok());
+    ballots.artifact.as_mut().unwrap().push(1);
+    assert!(ballots
+        .verify(&cfg)
+        .unwrap_err()
+        .to_string()
+        .contains("does not match its signed hash"));
+}
+
+#[test]
+fn statements_without_an_artifact_do_not_accept_one() {
+    let (_, trustee, cfg) = configuration();
+    let cfg_hash = ConfigurationHash::from_configuration(&cfg).unwrap();
+    let statement = Statement::MixSigned(
+        17,
+        cfg_hash,
+        5,
+        1,
+        CiphertextsHash([4; 64]),
+        CiphertextsHash([5; 64]),
+    );
+    assert!(trustee
+        .sign(statement.clone(), None)
+        .unwrap()
+        .verify(&cfg)
+        .is_ok());
+    assert!(trustee
+        .sign(statement, Some(vec![1]))
+        .unwrap()
+        .verify(&cfg)
+        .unwrap_err()
+        .to_string()
+        .contains("Artifact is not allowed for this statement type"));
+}
+
+#[test]
+fn configuration_and_ballots_require_the_protocol_manager_with_or_without_an_artifact() {
+    let (manager, trustee, cfg) = configuration();
+    assert!(ballots_message(&cfg, &manager).verify(&cfg).is_ok());
+    let mut ballots = ballots_message(&cfg, &trustee);
+    assert!(ballots
+        .verify(&cfg)
+        .unwrap_err()
+        .to_string()
+        .contains("Ballots must be signed by protocol manager"));
+    ballots.artifact = None;
+    assert!(ballots
+        .verify(&cfg)
+        .unwrap_err()
+        .to_string()
+        .contains("Ballots must be signed by protocol manager"));
+
+    let cfg_hash = ConfigurationHash::from_configuration(&cfg).unwrap();
+    let configuration_statement = Statement::Configuration(17, cfg_hash);
+    assert!(manager
+        .sign(configuration_statement.clone(), None)
+        .unwrap()
+        .verify(&cfg)
+        .is_ok());
+    assert!(trustee
+        .sign(configuration_statement, None)
+        .unwrap()
+        .verify(&cfg)
+        .unwrap_err()
+        .to_string()
+        .contains("Configuration must be signed by protocol manager"));
 }
 
 #[test]

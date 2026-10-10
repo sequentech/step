@@ -208,6 +208,36 @@ async fn legacy_client_rows_and_s3_rows_map_consistently_in_all_read_paths() {
     assert!(matches!(stored.content_type,ContentType::S3 { key } if key == "poll/object"));
 }
 
+#[tokio::test]
+async fn configuration_rows_are_read_by_board_in_order_whichever_column_holds_them() {
+    let (_server, pool) = database().await;
+    db::create_board(&pool, BOARD).await.unwrap();
+    db::create_board(&pool, OTHER_BOARD).await.unwrap();
+    assert!(db::get_configuration_messages(&pool, BOARD)
+        .await
+        .unwrap()
+        .is_empty());
+    let connection = pool.get().await.unwrap();
+    // Provisioning through the database client fills `message`; HTTP uploads fill `inline_data`.
+    connection.execute("INSERT INTO messages (board_name, sender_pk, statement_kind, batch, mix_number, version, message) VALUES ('poll','first','Configuration',0,0,'1',$1)", &[&vec![1u8, 2]]).await.unwrap();
+    connection.execute("INSERT INTO messages (board_name, sender_pk, statement_kind, batch, mix_number, version, inline_data, message) VALUES ('poll','second','Configuration',0,0,'1',$1,$1)", &[&vec![3u8]]).await.unwrap();
+    connection.execute("INSERT INTO messages (board_name, sender_pk, statement_kind, batch, mix_number, version, message) VALUES ('poll','other','Shares',1,0,'1',$1)", &[&vec![4u8]]).await.unwrap();
+    connection.execute("INSERT INTO messages (board_name, sender_pk, statement_kind, batch, mix_number, version, message) VALUES ('other','third','Configuration',0,0,'1',$1)", &[&vec![5u8]]).await.unwrap();
+    assert_eq!(
+        db::get_configuration_messages(&pool, BOARD).await.unwrap(),
+        [vec![1u8, 2], vec![3]]
+    );
+    assert!(db::get_configuration_messages(&pool, "invalid board")
+        .await
+        .is_err());
+    connection.execute("INSERT INTO messages (board_name, sender_pk, statement_kind, batch, mix_number, version) VALUES ('poll','empty','Configuration',0,0,'1')", &[]).await.unwrap();
+    assert!(db::get_configuration_messages(&pool, BOARD)
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("without data"));
+}
+
 #[cfg(feature = "client")]
 #[tokio::test]
 async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
