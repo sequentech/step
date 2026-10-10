@@ -33,7 +33,6 @@ insert_permissions:
               - eml
               - id
               - image_document_id
-              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
               - keys_ceremony_id
@@ -56,7 +55,6 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - is_consolidated_ballot_encoding
-              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - num_allowed_revotes
@@ -93,7 +91,6 @@ insert_permissions:
               - eml
               - id
               - image_document_id
-              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
               - keys_ceremony_id
@@ -123,7 +120,6 @@ insert_permissions:
               - eml
               - id
               - image_document_id
-              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
               - labels
@@ -510,7 +506,6 @@ update_permissions:
               - eml
               - id
               - image_document_id
-              - initialization_report_generated
               - is_consolidated_ballot_encoding
               - is_kiosk
               - keys_ceremony_id
@@ -536,7 +531,6 @@ update_permissions:
       permission:
           columns:
               - is_consolidated_ballot_encoding
-              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - num_allowed_revotes
@@ -567,7 +561,6 @@ update_permissions:
       permission:
           columns:
               - is_consolidated_ballot_encoding
-              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - num_allowed_revotes
@@ -600,7 +593,6 @@ update_permissions:
       permission:
           columns:
               - is_consolidated_ballot_encoding
-              - initialization_report_generated
               - is_kiosk
               - spoil_ballot_option
               - num_allowed_revotes
@@ -639,7 +631,6 @@ update_permissions:
               - id
               - image_document_id
               - is_consolidated_ballot_encoding
-              - initialization_report_generated
               - is_kiosk
               - labels
               - last_updated_at
