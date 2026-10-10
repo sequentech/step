@@ -61,12 +61,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::env;
-use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Cursor;
 use std::io::Seek;
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::path::Path;
 use std::str::FromStr;
 use tempfile::NamedTempFile;
@@ -591,6 +590,8 @@ pub async fn get_document(
     Ok((temp_file, document, document_type, package))
 }
 
+/// Decrypts the imported file with `password` into a new temp file, removed
+/// when it is dropped. Without a password the file is returned as it is.
 #[instrument(err, skip_all)]
 pub async fn decrypt_document(
     password: Option<String>,
@@ -600,22 +601,17 @@ pub async fn decrypt_document(
     let is_encrypted = !password.is_empty();
 
     if is_encrypted {
-        let decrypted_path = env::temp_dir().join("election-event.zip");
+        let decrypted_file = NamedTempFile::new()?;
 
         decrypt_file_aes_256_cbc(
             &temp_file_path.path().to_string_lossy().to_string(),
-            &decrypted_path.as_path().to_string_lossy().to_string(),
+            &decrypted_file.path().to_string_lossy().to_string(),
             &password,
         )
         .map_err(|_| reject("election event file", import_problems::cannot_decrypt()))
         .context("Error generating decrypted file")?;
 
-        // Create a new NamedTempFile for the decrypted content
-        let mut temp_file = NamedTempFile::new()?;
-        let content = fs::read(decrypted_path)?;
-        temp_file.write_all(&content)?;
-
-        return Ok(temp_file);
+        return Ok(decrypted_file);
     }
 
     Ok(temp_file_path)
@@ -1794,6 +1790,8 @@ pub async fn maybe_create_scheduled_event(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io::Write;
 
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
@@ -2002,5 +2000,56 @@ mod tests {
             .await
             .expect("no password, no decryption");
         assert_eq!(fs::read(file.path()).unwrap(), b"plain");
+    }
+}
+
+#[cfg(test)]
+mod decrypt_document_tests {
+    use super::*;
+    use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
+    use std::fs;
+    use std::io::Write;
+
+    /// Whether a regular file of the system temp dir holds exactly `content`.
+    fn temp_dir_holds_content(content: &[u8]) -> Result<bool> {
+        for entry in fs::read_dir(env::temp_dir())? {
+            let Ok(entry) = entry else { continue };
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+            if !metadata.is_file() || metadata.len() != content.len() as u64 {
+                continue;
+            }
+            if fs::read(entry.path()).is_ok_and(|bytes| bytes == content) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// The decrypted content lives only in the returned file: once that is
+    /// dropped no copy of it remains in the temp dir.
+    #[tokio::test]
+    async fn decrypt_document_leaves_no_plaintext_in_temp_dir() -> Result<()> {
+        let password = "import-password";
+        let plaintext = format!("election-event-{}", Uuid::new_v4()).into_bytes();
+
+        let mut plain_file = NamedTempFile::new()?;
+        plain_file.write_all(&plaintext)?;
+        let encrypted_file = NamedTempFile::new()?;
+        encrypt_file_aes_256_cbc(
+            &plain_file.path().to_string_lossy(),
+            &encrypted_file.path().to_string_lossy(),
+            password,
+        )?;
+        drop(plain_file);
+
+        let decrypted_file = decrypt_document(Some(password.to_string()), encrypted_file).await?;
+        assert_eq!(fs::read(decrypted_file.path())?, plaintext);
+
+        drop(decrypted_file);
+
+        assert!(!temp_dir_holds_content(&plaintext)?);
+        Ok(())
     }
 }

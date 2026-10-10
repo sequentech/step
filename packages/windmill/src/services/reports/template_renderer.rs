@@ -1022,6 +1022,7 @@ pub trait TemplateRenderer: Debug {
                     task_execution.clone(),
                     &ext_cfg,
                     copies,
+                    zip_temp_dir_path,
                 )
                 .await
                 .map_err(|e| anyhow::anyhow!("Error in generate_single_report: {}", e))?,
@@ -1414,6 +1415,7 @@ pub trait TemplateRenderer: Debug {
         Ok(ReportOutcome::Released)
     }
 
+    /// Renders the report as a single PDF written in `output_dir`.
     async fn generate_single_report(
         &self,
         hasura_transaction: &Transaction<'_>,
@@ -1426,6 +1428,7 @@ pub trait TemplateRenderer: Debug {
         task_execution: Option<TasksExecution>,
         ext_cfg: &ReportExtraConfig,
         copies: u32,
+        output_dir: &Path,
     ) -> Result<GeneratedFile> {
         let rendered = async {
             let user_data_map = self
@@ -1465,8 +1468,7 @@ pub trait TemplateRenderer: Debug {
 
         let report_name = format!("{}.{}", self.prefix(), ReportFormat::Pdf.extension());
 
-        let final_path = format!("/tmp/{}", report_name);
-        fs::write(&final_path, &content_bytes)?;
+        let final_path = write_single_report_file(output_dir, &report_name, &content_bytes)?;
 
         Ok(GeneratedFile {
             name: report_name,
@@ -1534,6 +1536,46 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error sending email: no email provided")
             })?])
         }
+    }
+}
+
+/// Writes `content` as `report_name` in `output_dir` and returns the path of
+/// the file.
+fn write_single_report_file(
+    output_dir: &Path,
+    report_name: &str,
+    content: &[u8],
+) -> Result<String> {
+    let final_path = output_dir.join(report_name);
+    fs::write(&final_path, content)?;
+    Ok(final_path.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Reports of the same name written in different directories keep their
+    /// own content and go away with their directory.
+    #[test]
+    fn single_reports_with_the_same_name_keep_their_own_files() -> Result<()> {
+        let report_name = "ballot_receipt_same-event.pdf";
+        let first_dir = tempdir()?;
+        let second_dir = tempdir()?;
+
+        let first_path = write_single_report_file(first_dir.path(), report_name, b"first receipt")?;
+        let second_path =
+            write_single_report_file(second_dir.path(), report_name, b"second receipt")?;
+
+        assert_eq!(fs::read(&first_path)?, b"first receipt");
+        assert_eq!(fs::read(&second_path)?, b"second receipt");
+
+        drop(first_dir);
+        drop(second_dir);
+
+        assert!(!Path::new(&first_path).exists());
+        assert!(!Path::new(&second_path).exists());
+        Ok(())
     }
 }
 
