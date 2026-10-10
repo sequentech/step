@@ -8,6 +8,9 @@ use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::ceremonies::auditable_ballots::AUDITABLE_BALLOTS_FILE;
+use crate::services::ceremonies::keys_ceremony::{
+    ceremony_public_key_state, verify_keys_ceremony_public_key, CeremonyPublicKeyState,
+};
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
@@ -22,7 +25,7 @@ use crate::services::tasks_execution::update_fail;
 use crate::tasks::insert_election_event::CreateElectionEventInput;
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{ComponentExportRepresentation, RealmRepresentation};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, ensure, Context, Result};
 use chrono::format;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -58,7 +61,7 @@ use sequent_core::util::version::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -69,7 +72,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::str::FromStr;
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 use zip::read::ZipArchive;
 
@@ -85,10 +88,11 @@ use crate::postgres::certificate_authority::{
     insert_certificate_authority, CertificateAuthorityRecord,
 };
 use crate::postgres::contest::insert_contest;
-use crate::postgres::election::insert_elections;
+use crate::postgres::election::{clear_election_keys_ceremony, insert_elections};
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -1207,6 +1211,7 @@ pub async fn process_document(
         }
     }
 
+    let mut publication_entries = Vec::new();
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
         for (file_name, file_contents) in &zip_entries {
@@ -1362,24 +1367,7 @@ pub async fn process_document(
             }
 
             if file_name.contains(&format!("{}", EDocuments::PUBLICATIONS.to_file_name())) {
-                let mut temp_file = NamedTempFile::new()
-                    .context("Failed to create ballot publications temporary file")?;
-
-                io::copy(&mut cursor, &mut temp_file).context(
-                    "Failed to copy contents of ballot publications file to temporary file",
-                )?;
-                temp_file.as_file_mut().rewind()?;
-
-                import_ballot_publications(
-                    hasura_transaction,
-                    &election_event_schema.tenant_id.to_string(),
-                    &election_event_schema.election_event.id,
-                    temp_file,
-                    replacement_map.clone(),
-                    &zip_entries,
-                )
-                .await
-                .with_context(|| "Error importing publications")?;
+                publication_entries.push(file_contents);
             }
             if file_name.contains(&format!(
                 "{}",
@@ -1491,7 +1479,117 @@ pub async fn process_document(
         }
     };
 
+    // Runs once the archive's boards are imported, before the publications that
+    // depend on the verified keys.
+    let election_public_keys =
+        verify_imported_keys_ceremonies(hasura_transaction, &election_event_schema).await?;
+
+    for file_contents in publication_entries {
+        let mut temp_file =
+            NamedTempFile::new().context("Failed to create ballot publications temporary file")?;
+
+        io::copy(&mut Cursor::new(&file_contents[..]), &mut temp_file)
+            .context("Failed to copy contents of ballot publications file to temporary file")?;
+        temp_file.as_file_mut().rewind()?;
+
+        import_ballot_publications(
+            hasura_transaction,
+            &election_event_schema.tenant_id.to_string(),
+            &election_event_schema.election_event.id,
+            temp_file,
+            replacement_map.clone(),
+            &zip_entries,
+            &election_public_keys,
+        )
+        .await
+        .with_context(|| "Error importing publications")?;
+    }
+
     Ok(())
+}
+
+/// Drops each imported keys ceremony whose public key is not the one on its
+/// board, and returns the verified public key of each election by id.
+#[instrument(err, skip_all)]
+async fn verify_imported_keys_ceremonies(
+    hasura_transaction: &Transaction<'_>,
+    data: &ImportElectionEventSchema,
+) -> Result<HashMap<String, String>> {
+    let tenant_id = data.tenant_id.to_string();
+    let election_event_id = data.election_event.id.as_str();
+    let keys_ceremonies =
+        keys_ceremony::get_keys_ceremonies(hasura_transaction, &tenant_id, election_event_id)
+            .await?;
+
+    let tally_keys_ceremony_ids: HashSet<String> = get_tally_sessions_by_election_event_id(
+        hasura_transaction,
+        &tenant_id,
+        election_event_id,
+        false,
+    )
+    .await?
+    .into_iter()
+    .map(|tally_session| tally_session.keys_ceremony_id)
+    .collect();
+
+    let mut ceremony_public_keys = HashMap::new();
+    for keys_ceremony in &keys_ceremonies {
+        let has_board = keys_ceremony.is_default()
+            || data.elections.iter().any(|election| {
+                election.keys_ceremony_id.as_deref() == Some(keys_ceremony.id.as_str())
+            });
+        let state = if has_board {
+            verify_keys_ceremony_public_key(
+                hasura_transaction,
+                &tenant_id,
+                election_event_id,
+                keys_ceremony,
+            )
+            .await?
+        } else {
+            ceremony_public_key_state(keys_ceremony, None)
+        };
+        match state {
+            CeremonyPublicKeyState::NoPublicKey => {}
+            CeremonyPublicKeyState::OnBoard(public_key) => {
+                ceremony_public_keys.insert(keys_ceremony.id.clone(), public_key);
+            }
+            CeremonyPublicKeyState::NotOnBoard => {
+                ensure!(
+                    !tally_keys_ceremony_ids.contains(&keys_ceremony.id),
+                    "Keys ceremony {} reports a public key that is not on its board and is used by an imported tally session",
+                    keys_ceremony.id
+                );
+                warn!(
+                    keys_ceremony_id = keys_ceremony.id,
+                    "Leaving out the imported keys ceremony: its public key is not on its board"
+                );
+                clear_election_keys_ceremony(
+                    hasura_transaction,
+                    &tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+                keys_ceremony::delete_keys_ceremony(
+                    hasura_transaction,
+                    &tenant_id,
+                    election_event_id,
+                    &keys_ceremony.id,
+                )
+                .await?;
+            }
+        }
+    }
+
+    Ok(data
+        .elections
+        .iter()
+        .filter_map(|election| {
+            let public_key = ceremony_public_keys.get(election.keys_ceremony_id.as_ref()?)?;
+            Some((election.id.clone(), public_key.clone()))
+        })
+        .collect())
 }
 
 #[instrument(err, skip_all)]
