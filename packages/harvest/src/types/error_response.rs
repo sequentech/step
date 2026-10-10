@@ -46,6 +46,7 @@ pub enum ErrorCode {
     PrivateKeyDownloadUnavailable,
     ConfirmPolicyShowCastVoteLogsFailed,
     BallotIdMismatch,
+    BallotStyleMismatch,
     BallotPublicationValidation,
     TallyValidation,
     InvalidVotingChannels,
