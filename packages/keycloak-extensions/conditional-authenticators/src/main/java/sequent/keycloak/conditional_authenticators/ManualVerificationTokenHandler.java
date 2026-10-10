@@ -22,6 +22,7 @@ import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.UserModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
+import org.keycloak.protocol.oidc.utils.RedirectUtils;
 import org.keycloak.services.managers.AuthenticationManager;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
@@ -56,18 +57,16 @@ public class ManualVerificationTokenHandler
   public Predicate<? super ManualVerificationToken>[] getVerifiers(
       ActionTokenContext<ManualVerificationToken> tokenContext) {
     return TokenUtils.predicates(
-        // TokenUtils.checkThat(
-        //    // either redirect URI is not specified or must be valid for the client
-        //    t ->
-        //        t.getRedirectUri() == null ||
-        //            RedirectUtils.verifyRedirectUri(
-        //            tokenContext.getSession(),
-        //            t.getRedirectUri(),
-        //            tokenContext.getAuthenticationSession().getClient()
-        //        ) != null,
-        //    Errors.INVALID_REDIRECT_URI,
-        //    Messages.INVALID_REDIRECT_URI
-        // ),
+        TokenUtils.checkThat(
+            t ->
+                t.getRedirectUri() == null
+                    || RedirectUtils.verifyRedirectUri(
+                            tokenContext.getSession(),
+                            t.getRedirectUri(),
+                            tokenContext.getAuthenticationSession().getClient())
+                        != null,
+            Errors.INVALID_REDIRECT_URI,
+            Messages.INVALID_REDIRECT_URI),
         verifyEmail(tokenContext));
   }
 
@@ -81,12 +80,8 @@ public class ManualVerificationTokenHandler
 
     KeycloakSession session = tokenContext.getSession();
 
-    // String redirectUri = RedirectUtils.verifyRedirectUri(
-    //    tokenContext.getSession(),
-    //    token.getRedirectUri(),
-    //    authSession.getClient()
-    // );
-    String redirectUri = token.getRedirectUri();
+    String redirectUri =
+        RedirectUtils.verifyRedirectUri(session, token.getRedirectUri(), authSession.getClient());
 
     if (redirectUri != null) {
       log.infov("handleToken(): setting redirectUri={0}", redirectUri);
