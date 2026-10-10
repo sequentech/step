@@ -951,6 +951,15 @@ const frenchTranslation: TranslationType = {
                         disabled: "Désactivé",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Politique d'Anonymat des Lots",
+                    helperText:
+                        "Refuser arrête le dépouillement lorsque le lot de bulletins d'une zone compte moins de cinq électeurs, ou diffère du lot qu'un autre dépouillement a déjà publié pour la même zone et la même question.",
+                    options: {
+                        warn: "Avertir",
+                        refuse: "Refuser",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Politique de détection de la langue",
                     options: {
