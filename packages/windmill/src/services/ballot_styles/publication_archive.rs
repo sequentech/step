@@ -199,7 +199,7 @@ fn validate_file_contents(
 }
 
 /// Every archived ballot must carry the verified public key of its imported
-/// election or a demo key.
+/// election or a demo key; a style without a ballot has none to verify.
 fn has_verified_public_keys(
     item: &ArchivedPublication,
     ids: &HashMap<String, String>,
@@ -207,7 +207,7 @@ fn has_verified_public_keys(
 ) -> Result<bool> {
     for style in &item.ballot_styles {
         let Some(eml) = style.ballot_eml.as_deref() else {
-            continue;
+            return Ok(false);
         };
         let eml: Value = serde_json::from_str(eml).context("Invalid archived ballot")?;
         let public_key: Option<PublicKeyConfig> = serde_json::from_value(eml["public_key"].clone())

@@ -73,9 +73,20 @@ fn does_not_keep_archived_styles_generated_when_their_keys_are_not_verified() ->
         &election,
         json!({"public_key": "public-key", "is_demo": false}),
     );
-    let other_key = HashMap::from([(imported_election, "other-public-key".to_owned())]);
+    let other_key = HashMap::from([(imported_election.clone(), "other-public-key".to_owned())]);
     assert!(!has_verified_public_keys(&item, &ids, &other_key)?);
     assert!(!has_verified_public_keys(&item, &ids, &HashMap::new())?);
+    let mut without_ballot = archived_publication(
+        &election,
+        json!({"public_key": "public-key", "is_demo": false}),
+    );
+    without_ballot.ballot_styles[0].ballot_eml = None;
+    let verified_key = HashMap::from([(imported_election, "public-key".to_owned())]);
+    assert!(!has_verified_public_keys(
+        &without_ballot,
+        &ids,
+        &verified_key
+    )?);
     let without_public_key = archived_publication(&election, Value::Null);
     assert!(!has_verified_public_keys(
         &without_public_key,
