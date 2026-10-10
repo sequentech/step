@@ -129,6 +129,13 @@ jobs:
           -- --ignored --exact
         working-directory: packages/windmill
 
+      - name: Run PostgreSQL-backed new election event id regression
+        run: >-
+          cargo test
+          services::import::import_election_event::new_election_event_tests
+          -- --ignored
+        working-directory: packages/windmill
+
   # ===========================================================================
   # JOB: run-frontend-tests
   # ===========================================================================
