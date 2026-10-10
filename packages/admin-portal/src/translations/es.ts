@@ -694,6 +694,15 @@ const spanishTranslation: TranslationType = {
                         disabled: "Deshabilitado",
                     },
                 },
+                batchAnonymityPolicy: {
+                    policyLabel: "Política de Anonimato de Lotes",
+                    helperText:
+                        "Rechazar detiene el recuento cuando el lote de papeletas de un área tiene menos de cinco votantes, o difiere del lote que otro recuento ya publicó para la misma área y pregunta.",
+                    options: {
+                        warn: "Advertir",
+                        refuse: "Rechazar",
+                    },
+                },
                 languageDetectionPolicy: {
                     policyLabel: "Política de detección de idioma",
                     options: {

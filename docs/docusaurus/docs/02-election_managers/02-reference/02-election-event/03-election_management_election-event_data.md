@@ -223,14 +223,16 @@ Configure advanced system behaviors for this Election Event.
     decrypted, because a mix of one hides nothing. Which batches are small
     depends on how the weights are spread, not on how large they are: 999 voters
     on weight 2 and one on weight 3 leave the batch for 1 holding a single
-    ballot. Extracting the ballots logs a warning naming any batch below five.
-    It does not refuse, since by then voting has closed and there is no remedy
-    left.
+    ballot. Extracting the ballots logs a warning naming any batch below five,
+    or refuses the tally under the Refuse **Batch Anonymity Policy** described
+    below.
 
-    That warning is a floor, not a guarantee. A voter is exposed whenever the
+    That check is a floor, not a guarantee. A voter is exposed whenever the
     batches single them out at all — two batches whose voters differ by one
-    person expose that person however large both batches are — and nothing
-    detects that. Check the spread of weights before opening voting.
+    person expose that person however large both batches are. The Refuse
+    policy compares each batch with the one another tally session posted at
+    the same position, but nothing compares the batches of one tally with each
+    other. Check the spread of weights before opening voting.
 
     Do not use this policy where ballot secrecy is required. It suits bodies
     that already publish how each member voted, such as some shareholder or
@@ -251,3 +253,26 @@ Configure advanced system behaviors for this Election Event.
   - **Disabled Weighted Voting**: Disable weighted voting.
 - **Delegate Voting Policy**:
   - Allows for voters to delegate their vote to another voter. An additional column needs to be included in the voters imported csv with the name `delegate-vote-to` with the username of the voter to delgate the vote to.
+- **Batch Anonymity Policy**: What extracting the ballots for a tally does
+  with a batch whose decrypted votes would not stay among others. Each area is
+  mixed and decrypted as one batch per contest (or one per area when contests
+  are encrypted together), so this applies to every area of the tally.
+  - **Warn** (default): Log a warning and continue the tally.
+  - **Refuse**: Stop the tally when a batch holds the ballots of fewer than
+    five voters, or when another tally session has already posted a different
+    batch for the same election, area and contest. That area's ballots are not
+    posted to the bulletin board. Under Weighted Voting for Voters each weight
+    batch of the area is checked.
+
+  Under Refuse, every tally session of an election has to extract the same
+  ballots for each area. Once a tally session has posted an area's ballots, a
+  later one is refused if that area's ballots or census have changed since —
+  for example a ballot cast or replaced afterwards, or a voter who voted being
+  disabled, removed or moved to another area. Restoring those voters clears
+  it; a ballot cast or replaced afterwards cannot be undone, so tally an
+  election only once its voting has closed. An empty initialization report
+  does not count. An area where between one and four voters voted cannot be
+  tallied under Refuse: merge it with another area before voting opens, or
+  choose Warn. The policy is recorded on each tally session when it is
+  created, so changing it afterwards does not affect a tally session that
+  already exists.
