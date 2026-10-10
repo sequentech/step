@@ -91,6 +91,8 @@ const catalanTranslation: TranslationType = {
                 bytesToUtf8Conversion:
                     "Error convertint bytes de l'opció de vot escrita a cadena UTF-8: {{errorMessage}}",
                 ballotTooLarge: "Vot més gran de l'esperat",
+                duplicatedSelection: "La mateixa opció s'ha seleccionat més d'una vegada",
+                blankBallotWithSelections: "Vot marcat com en blanc però la pregunta té seleccions",
             },
             implicit: {
                 selectedMax:
