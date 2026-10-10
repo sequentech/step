@@ -295,7 +295,8 @@ Hasura authorization claims. The issuer realm must match the token's tenant and
 the election-event claim when present. Older event templates may omit that
 optional claim; their keys still come from the exact issuer realm. Signing keys are fetched from `KEYCLOAK_URL`
 over the configured internal connection and cached for five minutes. Requests
-fail authentication when a needed signing key cannot be retrieved.
+fail authentication when a needed signing key cannot be retrieved, including
+while thirty-two key downloads are already in progress.
 
 `KEYCLOAK_URL` is a required trusted issuer base. `KEYCLOAK_PUBLIC_URL` is
 optional and needed when tokens use that public URL as their issuer;
