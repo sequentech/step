@@ -52,9 +52,12 @@ mod tests {
     use super::run;
     use crate::datalog::Action;
     use crate::messages::newtypes::{
-        zero_hash, CiphertextsHash, ConfigurationHash, PublicKeyHash, TrusteeIndex,
+        hash_bytes, zero_hash, CiphertextsHash, ConfigurationHash, PartialDecryptionHash,
+        PublicKeyHash, SharesHash, TrusteeIndex,
     };
-    use crate::messages::predicate::{Ballots, ConfigurationValid, Predicate};
+    use crate::messages::predicate::{
+        Ballots, ConfigurationValid, PartialDecryptions, Predicate, Shares,
+    };
 
     /// A lone `ConfigurationValid` predicate should make the trustee compute its
     /// DKG shares: the first action of the protocol.
@@ -130,5 +133,52 @@ mod tests {
                 "expected an out-of-range error, got: {err}"
             );
         }
+    }
+
+    /// Two trustees posting the same dealing body share one content hash, which
+    /// the shares accumulator cannot hold twice. The slots differ, so `collides`
+    /// does not catch it, and it must still halt the protocol.
+    #[test]
+    fn copied_shares_halt_the_protocol() {
+        let cfg = ConfigurationHash(zero_hash());
+        let copied = SharesHash(hash_bytes(b"dealing"));
+        let mut predicates = config_and_ballots(vec![1, 2]);
+        predicates.extend((1..=2).map(|sender| {
+            Predicate::Shares(Shares {
+                configuration: cfg,
+                shares: copied,
+                sender,
+            })
+        }));
+
+        let err = run(&predicates).expect_err("copied shares must error");
+
+        assert!(
+            err.contains("shares accumulator"),
+            "expected a shares accumulator error, got: {err}"
+        );
+    }
+
+    /// A mixing set that names the same trustee twice puts that trustee's one
+    /// partial decryption at two positions. The mixing-set rules report it, and
+    /// accumulating the partial decryptions must report it too rather than abort.
+    #[test]
+    fn repeated_partial_decryption_halts_the_protocol() {
+        let cfg = ConfigurationHash(zero_hash());
+        let mut predicates = config_and_ballots(vec![1, 1]);
+        predicates.push(Predicate::PartialDecryptions(PartialDecryptions {
+            configuration: cfg,
+            public_key: PublicKeyHash(zero_hash()),
+            ciphertexts: CiphertextsHash(zero_hash()),
+            decryptions: PartialDecryptionHash(hash_bytes(b"factors")),
+            sender: 1,
+        }));
+
+        let err = run(&predicates).expect_err("a repeated partial decryption must error");
+
+        assert!(
+            err.contains("partial decryptions accumulator"),
+            "expected a partial decryptions accumulator error, got: {err}"
+        );
     }
 }

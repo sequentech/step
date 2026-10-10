@@ -83,7 +83,7 @@ public class ServiceAccountTokenClient {
     }
     Object accessToken =
         JsonSerialization.readValue(response.body(), Map.class).get("access_token");
-    if (!(accessToken instanceof String token) || token.isEmpty()) {
+    if (!(accessToken instanceof String token) || token.isBlank()) {
       throw new IOException("Service-account token response has no access_token");
     }
     return token;

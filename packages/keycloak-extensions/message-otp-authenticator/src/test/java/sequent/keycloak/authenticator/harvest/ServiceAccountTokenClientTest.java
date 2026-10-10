@@ -92,4 +92,13 @@ class ServiceAccountTokenClientTest {
 
     assertThrows(IOException.class, () -> client.fetchAccessToken("tenant-1"));
   }
+
+  @Test
+  void responsesWithABlankTokenFail() throws Exception {
+    String url = serve(200, "{\"access_token\":\"   \"}");
+    ServiceAccountTokenClient client =
+        new ServiceAccountTokenClient(url, "service-account", SECRET);
+
+    assertThrows(IOException.class, () -> client.fetchAccessToken("tenant-1"));
+  }
 }

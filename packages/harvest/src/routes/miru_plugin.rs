@@ -175,13 +175,25 @@ pub async fn send_transmission_package(
     Ok(Json(SendTransmissionPackageOutput {}))
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct UploadSignatureInput {
     election_id: String,
     area_id: String,
     tally_session_id: String,
     document_id: String,
     password: String,
+}
+
+impl std::fmt::Debug for UploadSignatureInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("UploadSignatureInput")
+            .field("election_id", &self.election_id)
+            .field("area_id", &self.area_id)
+            .field("tally_session_id", &self.tally_session_id)
+            .field("document_id", &self.document_id)
+            .field("password", &"<redacted>")
+            .finish()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -273,5 +285,26 @@ fn send_refusal(refusal: &SendRefusal) -> SigningFailure {
             SigningFailure::not_found("There is no such tally session.")
         }
         SendRefusal::Refused(refusal) => transmission_failure(refusal),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn upload_signature_input_debug_redacts_password() {
+        let input = UploadSignatureInput {
+            election_id: "election".to_string(),
+            area_id: "area".to_string(),
+            tally_session_id: "tally".to_string(),
+            document_id: "document".to_string(),
+            password: "p12-secret".to_string(),
+        };
+
+        let debug = format!("{:?}", input);
+
+        assert!(!debug.contains("p12-secret"));
+        assert!(debug.contains("document"));
     }
 }

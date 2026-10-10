@@ -71,13 +71,7 @@ pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage
         "Unexpected number of channels"
     );
 
-    for (i, h) in channels_hs
-        .0
-        .iter()
-        .filter(|h| **h != NULL_HASH)
-        .enumerate()
-    {
-        let hash = *h;
+    for (i, hash) in datalog::hashes_present(&channels_hs.0) {
         let channel = trustee.get_channel(&ChannelHash(hash), i)?;
         let pk_element = channel.channel_pk.clone();
         let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
@@ -267,11 +261,17 @@ fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     let mut verification_keys = vec![C::E::mul_identity(); *num_t];
 
     // Iterate over sender shares
-    for (i, _h) in shares_hs.0.iter().filter(|h| **h != NULL_HASH).enumerate() {
-        let share_h = shares_hs.0[i];
+    for (i, share_h) in datalog::hashes_present(&shares_hs.0) {
         let share = trustee.get_shares(&SharesHash(share_h), i)?;
+        check_shares_shape(&share, *threshold, *num_t, i)?;
 
-        pk = pk.mul(&share.commitments[0]).modp(&ctx);
+        let first_commitment = share.commitments.first().ok_or_else(|| {
+            ProtocolError::VerificationError(format!(
+                "Shares from trustee {} have no commitments",
+                i
+            ))
+        })?;
+        pk = pk.mul(first_commitment).modp(&ctx);
 
         // Iterate over receiver trustees to compute their verification key
         for (j, vk) in verification_keys.iter_mut().enumerate().take(*num_t) {
@@ -298,7 +298,13 @@ fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
                 let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
 
                 // Decrypt the share sent from i to us
-                let value = ctx.decrypt_exp(&share.encrypted_shares[*self_pos], sk)?;
+                let encrypted_share = share.encrypted_shares.get(*self_pos).ok_or_else(|| {
+                    ProtocolError::VerificationError(format!(
+                        "Shares from trustee {} have no share for trustee {}",
+                        i, self_pos
+                    ))
+                })?;
+                let value = ctx.decrypt_exp(encrypted_share, sk)?;
                 // Verify the share
                 let ok = strand::threshold::verify_share(&value, &vkf, &ctx);
                 if !ok {
@@ -313,4 +319,76 @@ fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     }
 
     Ok((pk, verification_keys))
+}
+
+fn check_shares_shape<C: Ctx>(
+    share: &Shares<C>,
+    threshold: usize,
+    num_t: usize,
+    sender: TrusteePosition,
+) -> Result<(), ProtocolError> {
+    if share.commitments.len() != threshold {
+        return Err(ProtocolError::VerificationError(format!(
+            "Shares from trustee {} have {} commitments, expected {}",
+            sender,
+            share.commitments.len(),
+            threshold
+        )));
+    }
+    if share.encrypted_shares.len() != num_t {
+        return Err(ProtocolError::VerificationError(format!(
+            "Shares from trustee {} have {} encrypted shares, expected {}",
+            sender,
+            share.encrypted_shares.len(),
+            num_t
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use strand::backend::ristretto::RistrettoCtx;
+
+    fn shares(commitments: usize, encrypted_shares: usize) -> Shares<RistrettoCtx> {
+        let ctx = RistrettoCtx;
+        Shares {
+            commitments: vec![ctx.generator().clone(); commitments],
+            encrypted_shares: vec![vec![0u8]; encrypted_shares],
+        }
+    }
+
+    #[test]
+    fn check_shares_shape_accepts_well_formed_shares() {
+        assert!(check_shares_shape(&shares(2, 3), 2, 3, 1).is_ok());
+    }
+
+    #[test]
+    fn check_shares_shape_rejects_empty_commitments() {
+        let err = check_shares_shape(&shares(0, 3), 2, 3, 1).unwrap_err();
+        assert!(matches!(err, ProtocolError::VerificationError(ref m) if m.contains("trustee 1")));
+    }
+
+    #[test]
+    fn check_shares_shape_rejects_too_few_commitments() {
+        assert!(matches!(
+            check_shares_shape(&shares(1, 3), 2, 3, 0),
+            Err(ProtocolError::VerificationError(_))
+        ));
+    }
+
+    #[test]
+    fn check_shares_shape_rejects_too_few_encrypted_shares() {
+        let err = check_shares_shape(&shares(2, 2), 2, 3, 2).unwrap_err();
+        assert!(matches!(err, ProtocolError::VerificationError(ref m) if m.contains("trustee 2")));
+    }
+
+    #[test]
+    fn check_shares_shape_rejects_empty_encrypted_shares() {
+        assert!(matches!(
+            check_shares_shape(&shares(2, 0), 2, 3, 0),
+            Err(ProtocolError::VerificationError(_))
+        ));
+    }
 }

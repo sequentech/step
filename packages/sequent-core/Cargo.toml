@@ -181,6 +181,7 @@ ring = "0.17"
 tracing-subscriber = "0.3"
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
+strand = { path="../strand", features = ["num_bigint"] }
 
 [features]
 wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]

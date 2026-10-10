@@ -35,59 +35,145 @@ pub struct AccumulatorSet<T> {
     value_set: BTreeSet<T>,
 }
 
+/// Why [`AccumulatorSet::add`] refused a value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AccumulatorError {
+    /// The trustee index already holds a different value.
+    Conflict { index: TrusteeIndex },
+    /// The value is already held at another trustee index.
+    Duplicate { index: TrusteeIndex },
+    /// The trustee index is `0`, which is not a trustee, or does not fit in
+    /// the accumulator.
+    OutOfRange { index: TrusteeIndex },
+}
+
+impl std::fmt::Display for AccumulatorError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AccumulatorError::Conflict { index } => {
+                write!(f, "trustee {} already contributed a different value", index)
+            }
+            AccumulatorError::Duplicate { index } => write!(
+                f,
+                "trustee {} contributed a value another trustee already contributed",
+                index
+            ),
+            AccumulatorError::OutOfRange { index } => {
+                write!(f, "trustee index {} is out of range", index)
+            }
+        }
+    }
+}
+
+impl std::error::Error for AccumulatorError {}
+
 impl<T: Ord + std::fmt::Debug + Clone> AccumulatorSet<T> {
     /// Create an accumulator initialized with the first trustee's value.
     ///
     /// The initial value is stored at trustee index `1`.
     pub fn new(init: T) -> Self {
+        let mut values: [Option<T>; ACCUMULATOR_CAPACITY] = std::array::from_fn(|_| None);
+        values[1] = Some(init.clone());
         AccumulatorSet {
-            values: std::array::from_fn(|_| None),
-            value_set: BTreeSet::new(),
+            values,
+            value_set: BTreeSet::from([init]),
         }
-        .add(init, 1)
     }
 
-    /// Add `rhs` at `index`, panicking if it violates a uniqueness invariant.
+    /// Add `rhs` at `index`, or report the uniqueness invariant it violates.
     ///
-    /// Idempotent for an identical `(value, index)` pair; panics if `index`
-    /// already holds a *different* value, or if `rhs` already appears at another
-    /// index. The panic mirrors the datalog `collides` halt: a well-formed,
-    /// non-equivocating input set can never trigger it.
-    pub(crate) fn add(&self, rhs: T, index: TrusteeIndex) -> Self {
-        let existing = self.values[index].clone();
-        // If the slot at `index` is already set, it must match the supplied value.
-        if let Some(existing) = existing {
-            if existing != rhs {
-                panic!(
-                    "Attempted to add different value at index {}: existing {:?}, new {:?}",
-                    index, existing, rhs
-                );
-            } else {
-                // Value already present at this index: no change needed.
-                return self.clone();
+    /// Idempotent for an identical `(value, index)` pair. Fails if `index`
+    /// already holds a *different* value, if `rhs` already appears at another
+    /// index, or if `index` is `0` or does not fit in the accumulator. The
+    /// values come from board messages, so the datalog rules turn a failure
+    /// into an `error` fact, which halts the protocol like the `collides` rule
+    /// does.
+    pub(crate) fn add(&self, rhs: T, index: TrusteeIndex) -> Result<Self, AccumulatorError> {
+        if index == 0 {
+            return Err(AccumulatorError::OutOfRange { index });
+        }
+        let slot = self
+            .values
+            .get(index)
+            .ok_or(AccumulatorError::OutOfRange { index })?;
+        match slot {
+            Some(existing) if *existing == rhs => return Ok(self.clone()),
+            Some(_) => return Err(AccumulatorError::Conflict { index }),
+            None if self.value_set.contains(&rhs) => {
+                return Err(AccumulatorError::Duplicate { index })
             }
-        }
-        // If the slot is empty, `rhs` must not already appear at a different index.
-        else if self.value_set.contains(&rhs) {
-            panic!(
-                "Attempted to add duplicate value {:?} at index {}",
-                rhs, index
-            );
+            None => {}
         }
 
-        // The addition is valid.
-        let mut ret = AccumulatorSet {
-            values: self.values.clone(),
-            value_set: self.value_set.clone(),
-        };
+        let mut ret = self.clone();
         ret.value_set.insert(rhs.clone());
-        ret.values[index] = Some(rhs.clone());
-
-        ret
+        ret.values[index] = Some(rhs);
+        Ok(ret)
     }
 
     /// Extract all present values in trustee-index order.
     pub(crate) fn extract(&self) -> Vec<T> {
         self.values.iter().flatten().cloned().collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AccumulatorError, AccumulatorSet, ACCUMULATOR_CAPACITY};
+
+    #[test]
+    fn add_accumulates_in_index_order() {
+        let acc = AccumulatorSet::new(10)
+            .add(20, 2)
+            .expect("a fresh value at a fresh index");
+
+        assert_eq!(acc.extract(), vec![10, 20]);
+    }
+
+    #[test]
+    fn add_is_idempotent_for_the_same_value_at_the_same_index() {
+        let acc = AccumulatorSet::new(10);
+
+        assert_eq!(acc.add(10, 1), Ok(acc.clone()));
+    }
+
+    #[test]
+    fn add_rejects_a_different_value_at_a_taken_index() {
+        let acc = AccumulatorSet::new(10);
+
+        assert_eq!(acc.add(20, 1), Err(AccumulatorError::Conflict { index: 1 }));
+    }
+
+    #[test]
+    fn add_rejects_a_value_already_held_at_another_index() {
+        let acc = AccumulatorSet::new(10);
+
+        assert_eq!(
+            acc.add(10, 2),
+            Err(AccumulatorError::Duplicate { index: 2 })
+        );
+    }
+
+    #[test]
+    fn add_rejects_index_zero() {
+        let acc = AccumulatorSet::new(10);
+
+        assert_eq!(
+            acc.add(20, 0),
+            Err(AccumulatorError::OutOfRange { index: 0 })
+        );
+        assert_eq!(acc.extract(), vec![10]);
+    }
+
+    #[test]
+    fn add_rejects_an_index_beyond_the_capacity() {
+        let acc = AccumulatorSet::new(10);
+
+        assert_eq!(
+            acc.add(20, ACCUMULATOR_CAPACITY),
+            Err(AccumulatorError::OutOfRange {
+                index: ACCUMULATOR_CAPACITY
+            })
+        );
     }
 }

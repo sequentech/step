@@ -66,10 +66,19 @@ pub mod infer {
 
         // Partial decryptions up to trustee n if we have them up to n - 1 and
         // trustee n's value.
-        partial_decryptions_acc(cfg_hash, partial_decryptions_hashes.add(*partial_decryptions, *position), position) <--
+        partial_decryptions_acc(cfg_hash, accumulated, position) <--
             mixing_position(cfg_hash, pk_hash, ciphertexts_hash, position, trustee),
             partial_decryptions_acc(cfg_hash, partial_decryptions_hashes, position - 1),
-            partial_decryptions(cfg_hash, pk_hash, _, partial_decryptions, trustee);
+            partial_decryptions(cfg_hash, pk_hash, _, partial_decryptions, trustee),
+            if let Ok(accumulated) = partial_decryptions_hashes.add(*partial_decryptions, *position);
+
+        // Partial decryptions that cannot be accumulated (one already held at
+        // another position) halt the protocol.
+        error(format!("partial decryptions accumulator: {}", err)) <--
+            mixing_position(cfg_hash, pk_hash, ciphertexts_hash, position, trustee),
+            partial_decryptions_acc(cfg_hash, partial_decryptions_hashes, position - 1),
+            partial_decryptions(cfg_hash, pk_hash, _, partial_decryptions, trustee),
+            if let Err(err) = partial_decryptions_hashes.add(*partial_decryptions, *position);
 
         // All partial decryptions received once we have them up to the threshold.
         partial_decryptions_all(cfg_hash, partial_decryptions) <--

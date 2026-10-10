@@ -285,6 +285,7 @@ const Candidate: React.FC<CandidateProps> = ({
                 <StyledLink
                     href={url}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="candidate-link"
                     aria-labelledby={`${moreInfoLabelId} ${titleId}`}
                 >

@@ -99,6 +99,7 @@ fn servers(names: &[&str]) -> Vec<MiruCcsServer> {
             address: format!("https://{name}.invalid"),
             public_key_pem: String::new(),
             send_logs: None,
+            tls_verification_policy: None,
         })
         .collect()
 }
