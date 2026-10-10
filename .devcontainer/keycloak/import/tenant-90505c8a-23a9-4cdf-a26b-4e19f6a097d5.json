@@ -2577,18 +2577,10 @@
       "createdTimestamp": 1692312554121,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "b98710ec-159b-481b-8754-f590d4b51a3d",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1692312568967,
-          "secretData": "{\"value\":\"SW4FREDiEBx0/8Nkmv35NWMMJTq9Ikui20VGDrSp/N8uVmygEX4Nmg9J613O4tApGP4KCc6tgz2LiRQNC1KBnQ==\",\"salt\":\"O+lcM4K2AuQWC0FveCb5Zw==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "UPDATE_PASSWORD"
+      ],
       "realmRoles": [
         "permission-label-write",
         "default-roles-electoral-process"
@@ -2620,16 +2612,6 @@
       "createdTimestamp": 1721744057416,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "2f016e01-f315-47ed-8315-e9108af25cf4",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1721744083814,
-          "secretData": "{\"value\":\"z899TgCXlt4bJac+ftqLmM9Mb7NlO27U/DWQ03UTiuqNTujYITEZjNgfvkSvvIMzMri67WQlBf4x1+soZ5plBw==\",\"salt\":\"KBU/wUiXire1mObV6DKWiQ==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2648,7 +2630,6 @@
       "enabled": true,
       "totp": false,
       "serviceAccountClientId": "api-key-client",
-      "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2665,7 +2646,6 @@
       "enabled": true,
       "totp": false,
       "serviceAccountClientId": "service-account",
-      "credentials": [],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2704,16 +2684,6 @@
       "createdTimestamp": 1701889059568,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "82fc85b6-c9e1-4467-ac39-42253716918e",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1701889197738,
-          "secretData": "{\"value\":\"lTIoesFs6mERPN9xKKMTK3/RN4O0ziiIqkbEHm4aubY=\",\"salt\":\"WwfZ4JUKW/x2lnAzOSVl4A==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2746,16 +2716,6 @@
       "createdTimestamp": 1701929500428,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "a8bdaa0f-c79b-47b8-8964-665fb6c0a9da",
-          "type": "password",
-          "userLabel": "My password",
-          "createdDate": 1701929513646,
-          "secretData": "{\"value\":\"TxjrUtDzXBLUFcO4GKUWUkeB2vXeOzlwkRu5n4frKKA=\",\"salt\":\"VDVNp7yjUJONgg4QAfbaeA==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":27500,\"algorithm\":\"pbkdf2-sha256\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
@@ -2783,15 +2743,6 @@
       "createdTimestamp": 1730501029600,
       "enabled": true,
       "totp": false,
-      "credentials": [
-        {
-          "id": "d3f8c2a2-14ed-411a-b886-df96b2915ed8",
-          "type": "password",
-          "createdDate": 1730501052905,
-          "secretData": "{\"value\":\"TttBRzIYfNuXDy+Yi7hcENFJkvzaSkafBLYEy71RkF3Cw7qdotMvoFUTbyefiGYZrO+V/PbzBahm6+KXdEmDhA==\",\"salt\":\"ZiYY1N2oDe5G7Bo75KD3hQ==\",\"additionalParameters\":{}}",
-          "credentialData": "{\"hashIterations\":210000,\"algorithm\":\"pbkdf2-sha512\",\"additionalParameters\":{}}"
-        }
-      ],
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
