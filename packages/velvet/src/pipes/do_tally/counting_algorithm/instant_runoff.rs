@@ -537,6 +537,7 @@ impl RunoffStatus {
         let act_candidate_ids = self.candidates_status.get_active_candidate_ids();
         let act_candidates_count = act_candidate_ids.len() as u64;
         let mut act_ballots = 0;
+        let mut act_weight: u64 = 0;
         let mut exhausted_ballots = self
             .get_last_round()
             .unwrap_or_default()
@@ -553,6 +554,7 @@ impl RunoffStatus {
                     outcome.wins += w;
                 }
                 act_ballots += 1;
+                act_weight = act_weight.saturating_add(w);
             } else {
                 *ballot_st = BallotStatus::Exhausted;
                 exhausted_ballots += 1;
@@ -561,15 +563,15 @@ impl RunoffStatus {
 
         candidates_wins = self.calculate_transferences(&candidates_wins);
 
-        // Calculate percentages using act_ballots as denominator
-        let act_ballots_f64 = cmp::max(1, act_ballots) as f64;
+        // Calculate percentages using act_weight as denominator, as wins are weighted
+        let act_weight_f64 = cmp::max(1, act_weight) as f64;
         for outcome in candidates_wins.values_mut() {
-            outcome.percentage = ((outcome.wins as f64) / act_ballots_f64).clamp(0.0, 1.0);
+            outcome.percentage = ((outcome.wins as f64) / act_weight_f64).clamp(0.0, 1.0);
         }
 
         // Check if there is a winner
         let max_wins = candidates_wins.values().map(|o| o.wins).max().unwrap_or(0);
-        if 2 * max_wins > act_ballots {
+        if max_wins > act_weight.saturating_sub(max_wins) {
             let winner_id = self
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
@@ -1023,5 +1025,126 @@ mod tests {
                 .and_then(|metrics| { metrics.votes_by_channel.get(&VotingChannel::PAPER.into()) }),
             Some(&2)
         );
+    }
+
+    fn ranked_contest() -> Contest {
+        Contest {
+            id: "contest".to_string(),
+            max_votes: 3,
+            candidates: vec![
+                candidate("x", false),
+                candidate("y", false),
+                candidate("z", false),
+            ],
+            ..Contest::default()
+        }
+    }
+
+    fn ranked_vote(ranking: &[&str]) -> DecodedVoteContest {
+        let selected = |candidate_id: &str| {
+            ranking
+                .iter()
+                .position(|id| *id == candidate_id)
+                .map_or(-1, |position| position as i64)
+        };
+
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: ["x", "y", "z"]
+                .iter()
+                .map(|id| DecodedVoteChoice {
+                    id: id.to_string(),
+                    selected: selected(id),
+                    write_in_text: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn area_weight(weight: u64) -> Weight {
+        serde_json::from_value(serde_json::json!(weight)).expect("weight parses")
+    }
+
+    fn run_ranked(votes: &Vec<(DecodedVoteContest, Weight)>) -> RunoffStatus {
+        let contest = ranked_contest();
+        let mut ballots_status = BallotsStatus::initialize_ballots_status(votes, &contest);
+        let mut runoff = RunoffStatus::initialize_runoff(&contest);
+        runoff.run(&mut ballots_status);
+        runoff
+    }
+
+    fn ranked_votes(weight_of_x_ballot: Weight) -> Vec<(DecodedVoteContest, Weight)> {
+        let mut votes = vec![(ranked_vote(&["x"]), weight_of_x_ballot)];
+        for _ in 0..4 {
+            votes.push((ranked_vote(&["y", "z"]), Weight::default()));
+        }
+        for _ in 0..2 {
+            votes.push((ranked_vote(&["z", "y"]), Weight::default()));
+        }
+        votes
+    }
+
+    fn percentage(round: &Round, candidate_id: &str) -> f64 {
+        round
+            .candidates_wins
+            .get(candidate_id)
+            .map(|outcome| outcome.percentage)
+            .expect("candidate outcome should exist")
+    }
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < 1e-9,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn irv_majority_uses_weighted_total_with_area_weights() {
+        let runoff = run_ranked(&ranked_votes(area_weight(5)));
+
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert!(first_round.winner.is_none());
+        assert_eq!(first_round.active_ballots_count, 7);
+        assert_eq!(
+            first_round
+                .eliminated_candidates
+                .as_ref()
+                .map(|eliminated| eliminated.iter().map(|c| c.id.as_str()).collect::<Vec<_>>()),
+            Some(vec!["z"])
+        );
+        assert_close(percentage(first_round, "x"), 5.0 / 11.0);
+        assert_close(percentage(first_round, "y"), 4.0 / 11.0);
+        assert_close(percentage(first_round, "z"), 2.0 / 11.0);
+
+        let last_round = runoff.rounds.last().expect("last round should exist");
+        assert_eq!(runoff.rounds.len(), 2);
+        assert_eq!(
+            last_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("y")
+        );
+        assert_close(percentage(last_round, "x"), 5.0 / 11.0);
+        assert_close(percentage(last_round, "y"), 6.0 / 11.0);
+    }
+
+    #[test]
+    fn irv_unweighted_results_unchanged() {
+        let runoff = run_ranked(&ranked_votes(Weight::default()));
+
+        assert_eq!(runoff.rounds.len(), 1);
+        let first_round = runoff.rounds.first().expect("first round should exist");
+        assert_eq!(
+            first_round.winner.as_ref().map(|winner| winner.id.as_str()),
+            Some("y")
+        );
+        assert_eq!(first_round.active_ballots_count, 7);
+        assert_close(percentage(first_round, "x"), 1.0 / 7.0);
+        assert_close(percentage(first_round, "y"), 4.0 / 7.0);
+        assert_close(percentage(first_round, "z"), 2.0 / 7.0);
     }
 }
