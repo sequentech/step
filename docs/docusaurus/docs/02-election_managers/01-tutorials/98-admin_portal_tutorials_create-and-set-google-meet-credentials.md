@@ -27,7 +27,23 @@ Create google meet credentials and set them in the Admin portal.
 6. Edit > Keys > Add key. Then donwload the json file.
 7. Add authorized domains for your application.
 8. Paste the json file containing the Service Account key into Settings > Integrations >
-   Google Calendar Service Account key.
+   Google Calendar Service Account key. Saving it requires the `tenant-write`
+   permission.
+
+## How the Service Account key is stored
+
+- The key is stored encrypted in the secrets vault, not in the tenant settings.
+  The Admin Portal never shows it again: the field is always empty, and pasting
+  a new key replaces the stored one.
+- The tenant configuration export does not include the key. After importing a
+  tenant configuration on another environment, paste the key again.
+- The key's `token_uri` must be an `https` URL on `oauth2.googleapis.com` or
+  `accounts.google.com`, as in the json file Google Cloud Console downloads.
+  Other keys are rejected.
+- A key saved by an earlier version stays in the tenant settings and keeps
+  working. To move it to the vault, create a new key for the service account,
+  paste it into Settings > Integrations, and then delete the previous key in
+  Google Cloud Console.
 
 ## Set up domain-wide delegation for a service account
 
